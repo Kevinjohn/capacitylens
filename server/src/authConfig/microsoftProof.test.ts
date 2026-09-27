@@ -50,6 +50,18 @@ describe("Microsoft native callback proof", () => {
     mailFailure.enabled = false;
   });
 
+  it("matches approved Microsoft join domains through the canonical SQL gate", async () => {
+    const { db } = await configured();
+    try {
+      const matches = db.prepare("SELECT capacitylens_approved_domain_matches(?, ?) AS allowed");
+      expect(matches.get("diana@bücher.example", '["xn--bcher-kva.example"]')).toEqual({ allowed: 1 });
+      expect(matches.get("diana@xn--bcher-kva.example", '["xn--bcher-kva.example"]')).toEqual({ allowed: 1 });
+      expect(matches.get("diana@staff.bücher.example", '["xn--bcher-kva.example"]')).toEqual({ allowed: 0 });
+    } finally {
+      db.close();
+    }
+  });
+
   it("binds a verified bootstrap account through native code flow and consumes the exact approval", async () => {
     const { db, auth } = await configured();
     try {
@@ -214,6 +226,48 @@ describe("Microsoft native callback proof", () => {
     }
   });
 
+  it("retains Microsoft join start limits across replacement in one browser", async () => {
+    const { db, auth } = await configured();
+    try {
+      insertProofAccount(db, "a-studio");
+      writeJoiningPolicy(db, "a-studio", { policy: "open", approvedDomains: [] });
+      let cookies = "";
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const started = await auth.microsoftProof.start({
+          body: {
+            purpose: "join",
+            accountId: "a-studio",
+            email: `diana${attempt}@example.com`,
+            callbackURL: `${origin}/join/a-studio`,
+            errorCallbackURL: `${origin}/join/a-studio`,
+          },
+          headers: new Headers({ cookie: cookies }),
+          sourceIp: `127.0.0.${attempt + 1}`,
+        });
+        cookies = replaceCookies(cookies, started.setCookies);
+      }
+      await expect(
+        auth.microsoftProof.start({
+          body: {
+            purpose: "join",
+            accountId: "a-studio",
+            email: "diana10@example.com",
+            callbackURL: `${origin}/join/a-studio`,
+            errorCallbackURL: `${origin}/join/a-studio`,
+          },
+          headers: new Headers({ cookie: cookies }),
+          sourceIp: "127.0.1.10",
+        }),
+      ).rejects.toMatchObject({ status: 429 });
+      expect(auth.microsoftProof.status(new Headers({ cookie: cookies })).state).toBe("pending");
+      expect(
+        db.prepare("SELECT COUNT(*) AS count FROM microsoft_identity_proofs WHERE purpose = 'join'").get(),
+      ).toEqual({ count: 10 });
+    } finally {
+      db.close();
+    }
+  });
+
   it("rejects a Microsoft callback when the company's joining policy changes before identity creation", async () => {
     const { db, auth } = await configured();
     try {
@@ -261,6 +315,9 @@ describe("Microsoft native callback proof", () => {
       await callback(auth, bootstrap.state, bootstrap.cookies);
       insertProofAccount(db, "a-loft");
       writeJoiningPolicy(db, "a-loft", { policy: "open", approvedDomains: [] });
+      db.prepare(
+        "UPDATE microsoft_identity_proofs SET state = 'approved', expiresAt = ? WHERE purpose = 'bootstrap'",
+      ).run(Date.now() - 1);
       const started = await auth.microsoftProof.start({
         body: {
           purpose: "join",
@@ -276,6 +333,9 @@ describe("Microsoft native callback proof", () => {
       mockMicrosoftToken(claims());
       const signedIn = await callback(auth, requiredState(started.url), cookies);
       expect(signedIn.headers.get("location")).toBe(`${origin}/join/a-loft`);
+      expect(db.prepare("SELECT state FROM microsoft_identity_proofs WHERE purpose = 'bootstrap'").get()).toEqual({
+        state: "cancelled",
+      });
       expect(sentMessages).toHaveLength(0);
       const completed = await app.inject({
         method: "POST",
@@ -287,6 +347,38 @@ describe("Microsoft native callback proof", () => {
       expect(completed.json()).toMatchObject({ accountId: "a-loft", role: "viewer" });
     } finally {
       await app.close();
+      db.close();
+    }
+  });
+
+  it("cancels callback-complete Microsoft joining before membership completion", async () => {
+    const { db, auth } = await configured();
+    try {
+      const bootstrap = await begin(auth);
+      mockMicrosoftToken(claims("bruce@example.com"));
+      await callback(auth, bootstrap.state, bootstrap.cookies);
+      insertProofAccount(db, "a-loft");
+      writeJoiningPolicy(db, "a-loft", { policy: "open", approvedDomains: [] });
+      const started = await auth.microsoftProof.start({
+        body: {
+          purpose: "join",
+          accountId: "a-loft",
+          email: "bruce@example.com",
+          callbackURL: `${origin}/join/a-loft`,
+          errorCallbackURL: `${origin}/join/a-loft`,
+        },
+        headers: new Headers(),
+        sourceIp: "127.0.0.2",
+      });
+      const cookies = cookieHeader(started.setCookies);
+      mockMicrosoftToken(claims());
+      const signedIn = await callback(auth, requiredState(started.url), cookies);
+      const callbackCookies = replaceCookies(cookies, signedIn.headers.getSetCookie());
+      expect(auth.microsoftProof.status(new Headers({ cookie: callbackCookies })).state).toBe("approved");
+      auth.microsoftProof.cancel(new Headers({ cookie: callbackCookies }));
+      expect(auth.microsoftProof.status(new Headers({ cookie: callbackCookies })).state).toBe("expired");
+      expect(db.prepare("SELECT 1 FROM account_members WHERE accountId = 'a-loft'").get()).toBeUndefined();
+    } finally {
       db.close();
     }
   });
@@ -329,7 +421,7 @@ describe("Microsoft native callback proof", () => {
     }
   });
 
-  it("lets an established Microsoft principal accept a new workspace invitation without rebinding", async () => {
+  it("does not admit an established Microsoft principal through the retired direct invitation route", async () => {
     const { db, auth } = await configured();
     const app = createApp(db, { authMode: "sso-only", auth });
     try {
@@ -379,8 +471,8 @@ describe("Microsoft native callback proof", () => {
         headers: { cookie: cookieHeader(signedIn.headers.getSetCookie()) },
         payload: {},
       });
-      expect(accepted.statusCode).toBe(200);
-      expect(accepted.json()).toMatchObject({ accountId: "a-loft", role: "editor" });
+      expect(accepted.statusCode).toBe(401);
+      expect(db.prepare("SELECT 1 FROM account_members WHERE accountId = 'a-loft'").get()).toBeUndefined();
     } finally {
       await app.close();
       db.close();
@@ -388,7 +480,7 @@ describe("Microsoft native callback proof", () => {
   });
 
   // eslint-disable-next-line max-lines-per-function -- The new-principal case checks encrypted return storage and native membership acceptance.
-  it("binds a new invited Microsoft principal and accepts the same invitation into its workspace", async () => {
+  it("does not admit a new Microsoft principal through the retired direct invitation route", async () => {
     const { db, auth } = await configured();
     const app = createApp(db, { authMode: "sso-only", auth });
     try {
@@ -446,8 +538,8 @@ describe("Microsoft native callback proof", () => {
         headers: { cookie: cookieHeader(signedIn.headers.getSetCookie()) },
         payload: {},
       });
-      expect(accepted.statusCode).toBe(200);
-      expect(accepted.json()).toMatchObject({ accountId: "a-studio", role: "editor" });
+      expect(accepted.statusCode).toBe(401);
+      expect(db.prepare("SELECT 1 FROM account_members WHERE accountId = 'a-studio'").get()).toBeUndefined();
       expect(db.prepare("SELECT state FROM microsoft_identity_proofs").get()).toEqual({ state: "completed" });
     } finally {
       await app.close();

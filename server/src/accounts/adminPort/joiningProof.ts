@@ -15,8 +15,10 @@ import {
   reserveJoinDelivery,
   type JoinIntent,
 } from "../../controlTables/joiningIntents";
-import { admitCompanyInTx, prepareCompanyAdmissionIntent } from "./joiningAdmission";
+import { admitCompanyInTx, assertJoinIntentTargetLive, hasProofOwnerRestrictionConflict,
+  prepareCompanyAdmissionIntent } from "./joiningAdmission";
 import { createAccountFailure } from "./failures";
+import { cancelMicrosoftJoinForBrowser } from "../../authConfig/joiningReplacement";
 import type { LocalIdentityPort } from "../identityPort/contracts";
 import {
   hashJoiningSourceIp,
@@ -59,21 +61,9 @@ function assertStartEmail(raw: string): string {
 }
 
 function assertApproved(intent: JoinIntent | null, now: number): asserts intent is JoinIntent {
-  if (!intent || intent.state !== "approved" || intent.expiresAt <= now) {
+  if (!intent || intent.providerId !== "password" || intent.state !== "approved" || intent.expiresAt <= now) {
     throw createAccountFailure("INVITATION_EXPIRED", "Restart company joining to verify your email again.");
   }
-}
-
-function assertProofOwnerCanKeepAccess(db: Db, principalId: string, email: string): void {
-  const conflict = db
-    .prepare(
-      `SELECT 1 FROM account_members AS member
-    JOIN account_access_restrictions AS restriction ON restriction.accountId = member.accountId
-    WHERE member.userId = ? AND member.role = 'owner' AND member.status = 'active'
-      AND (restriction.principalId = ? OR restriction.verifiedEmail = ?) LIMIT 1`,
-    )
-    .get(principalId, principalId, email);
-  if (conflict) throw createAccountFailure("FORBIDDEN", "This address conflicts with Owner access.");
 }
 
 function recordPasswordProof(input: { db: Db; principalId: string; email: string; now: number }): void {
@@ -82,7 +72,8 @@ function recordPasswordProof(input: { db: Db; principalId: string; email: string
   if (!principal || normalizeAccountEmail(principal.email) !== email) {
     throw createAccountFailure("FORBIDDEN", "This identity no longer owns the verified address.");
   }
-  assertProofOwnerCanKeepAccess(db, principalId, email);
+  if (hasProofOwnerRestrictionConflict(db, principalId, email))
+    throw createAccountFailure("FORBIDDEN", "This address conflicts with Owner access.");
   db.prepare(
     `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
     VALUES (?, ?, 'password', ?) ON CONFLICT(principalId) DO UPDATE SET
@@ -207,6 +198,7 @@ export function createJoiningProof(input: JoiningProofInput) {
           now,
         });
         if (previous) cancelJoinIntent(db, previous.nonceHash, now);
+        cancelMicrosoftJoinForBrowser({ db, headers: value.headers, applicationId, secureCookies, now });
         return { ...created, generation };
       },
       "immediate",
@@ -266,7 +258,8 @@ export function createJoiningProof(input: JoiningProofInput) {
       db,
       () => {
         const current = readJoinIntent(db, intent.nonceHash);
-        if (!current) throw createAccountFailure("INVITATION_EXPIRED", "Restart company joining.");
+        if (!current || current.providerId !== "password")
+          throw createAccountFailure("INVITATION_EXPIRED", "Restart company joining.");
         assertTargetStillMatches(db, current, invitationToken);
         return reserveJoinDelivery({
           db,
@@ -284,16 +277,22 @@ export function createJoiningProof(input: JoiningProofInput) {
   function confirm(headers: Headers, token: string) {
     if (!isJoiningSecret(token)) throw createAccountFailure("FORBIDDEN", "The verification link is invalid.");
     const intent = fromHeaders(headers);
-    if (!intent) throw createAccountFailure("INVITATION_EXPIRED", "Open the link in the browser where you started.");
+    if (!intent || intent.providerId !== "password")
+      throw createAccountFailure("INVITATION_EXPIRED", "Open the link in the browser where you started.");
     const approved = tx(
       db,
-      () =>
-        approveJoinToken({
+      () => {
+        const current = readJoinIntent(db, intent.nonceHash);
+        if (!current || current.providerId !== "password")
+          throw createAccountFailure("INVITATION_EXPIRED", "Restart company joining.");
+        assertJoinIntentTargetLive(db, current);
+        return approveJoinToken({
           db,
           nonceHash: intent.nonceHash,
           tokenHash: hashJoiningValue("mail", token),
           now: Date.now(),
-        }),
+        });
+      },
       "immediate",
     );
     if (!approved) throw createAccountFailure("FORBIDDEN", "The verification link is invalid or expired.");
@@ -318,6 +317,9 @@ export function createJoiningProof(input: JoiningProofInput) {
     if (intent.providerId !== "password" || intent.principalId !== null) {
       throw createAccountFailure("IDENTITY_ALREADY_EXISTS", "Sign in to your existing identity to continue.");
     }
+    if ((db.prepare("SELECT COUNT(*) AS count FROM user").get() as { count: number }).count === 0) {
+      throw createAccountFailure("FORBIDDEN", "The first company identity requires Owner setup.");
+    }
     const created = await identity.createCorrelatedProvisionalCredentialPrincipal({
       email: intent.email,
       displayName: value.displayName,
@@ -331,6 +333,9 @@ export function createJoiningProof(input: JoiningProofInput) {
         recordPasswordProof({ db, principalId, email: current.email, now: Date.now() });
         admitCompanyInTx({
           db,
+          applicationId,
+          admissionId: current.id,
+          confirmedSignIn: false,
           accountId: current.accountId,
           principalId,
           email: current.email,
@@ -359,6 +364,9 @@ export function createJoiningProof(input: JoiningProofInput) {
         recordPasswordProof({ db, principalId: value.actor.principalId, email: current.email, now: Date.now() });
         const membership = admitCompanyInTx({
           db,
+          applicationId,
+          admissionId: current.id,
+          confirmedSignIn: true,
           accountId: current.accountId,
           principalId: value.actor.principalId,
           email: current.email,

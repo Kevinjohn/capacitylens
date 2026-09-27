@@ -57,11 +57,39 @@ describe("company joining mailbox routes", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM account_members").get()).toEqual({ count: 0 });
   });
 
+  it("refuses direct invitation acceptance from an old durable proof without a joining journey", async () => {
+    const { app, db } = await fixture(async () => {});
+    const diana = await signUp(app, "diana@studio.example");
+    db.prepare(
+      `INSERT INTO identity_email_proofs (principalId,email,source,provenAt)
+      VALUES (?, 'diana@studio.example', 'password', ?)`,
+    ).run(diana.userId, new Date().toISOString());
+    createInvite(db, {
+      id: "old-proof-invite",
+      token: "old-proof-invite",
+      accountId: "a-studio",
+      role: "admin",
+      preauthEmail: "diana@studio.example",
+      expiresAt: new Date(Date.now() + 600_000).toISOString(),
+      usedAt: null,
+      createdAt: new Date().toISOString(),
+    });
+    const accepted = await app.inject({
+      method: "POST",
+      url: "/api/invites/old-proof-invite/accept",
+      headers: { cookie: diana.cookie },
+    });
+    expect(accepted.statusCode).toBe(401);
+    expect(db.prepare("SELECT 1 FROM account_members WHERE userId = ?").get(diana.userId)).toBeUndefined();
+    expect(db.prepare("SELECT usedAt FROM invites WHERE id = 'old-proof-invite'").get()).toEqual({ usedAt: null });
+  });
+
   it("proves the mailbox in the original browser before creating password credentials and Viewer membership", async () => {
     const deliveries: string[] = [];
     const { app, db } = await fixture(async (_email, token) => {
       deliveries.push(token);
     });
+    await signUp(app, "bruce@studio.example");
     const metadata = await app.inject({ method: "GET", url: "/api/accounts/a-studio/join/metadata" });
     expect(metadata.json()).toEqual({
       accountId: "a-studio",
@@ -75,7 +103,7 @@ describe("company joining mailbox routes", () => {
       payload: { purpose: "policy", email: "diana@studio.example" },
     });
     expect(started.statusCode).toBe(200);
-    expect(db.prepare("SELECT COUNT(*) AS count FROM user").get()).toEqual({ count: 0 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM user").get()).toEqual({ count: 1 });
     const cookie = cookies(started);
     expect(
       (await app.inject({ method: "POST", url: "/api/company-join/confirm", payload: { token: deliveries[0] } }))
@@ -111,6 +139,33 @@ describe("company joining mailbox routes", () => {
         })
       ).statusCode,
     ).toBe(410);
+  });
+
+  it("keeps first-owner setup as the only way to create the first principal", async () => {
+    const deliveries: string[] = [];
+    const { app, db } = await fixture(async (_email, token) => {
+      deliveries.push(token);
+    });
+    const started = await app.inject({
+      method: "POST",
+      url: "/api/accounts/a-studio/join/start",
+      payload: { purpose: "policy", email: "diana@studio.example" },
+    });
+    const cookie = cookies(started);
+    await app.inject({
+      method: "POST",
+      url: "/api/company-join/confirm",
+      headers: { cookie },
+      payload: { token: deliveries[0] },
+    });
+    const completed = await app.inject({
+      method: "POST",
+      url: "/api/company-join/complete-password",
+      headers: { cookie },
+      payload: { displayName: "Diana Prince", password: "correct-horse-battery-staple" },
+    });
+    expect(completed.statusCode).toBe(403);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM user").get()).toEqual({ count: 0 });
   });
 
   it("keeps development signup outside companies and requires proof plus the same principal before joining", async () => {

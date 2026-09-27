@@ -5,6 +5,8 @@ import { tx } from "../txn";
 import {
   admitCompanyInTx,
   assertJoinIntentTargetLive,
+  cancelCompanyJoinForBrowser,
+  hasProofOwnerRestrictionConflict,
   prepareCompanyAdmissionIntent,
 } from "../accounts/adminPort/joiningAdmission";
 import { microsoftCallbackCapture } from "./captureContexts";
@@ -54,6 +56,7 @@ export function createMicrosoftProof(input: Input) {
   const { db, environment, publicUrl, applicationId, tenantId } = input;
   const callbackCipher = createMicrosoftReturnUrlCipher(input.secret);
   const cookieName = `${publicUrl.protocol === "https:" ? `__Host-${applicationId}` : applicationId}-microsoft-proof`;
+  const browserCookieName = `${publicUrl.protocol === "https:" ? `__Host-${applicationId}` : applicationId}-microsoft-join-browser`;
   const origins = new Set([publicUrl.origin, ...input.trustedOrigins.map((value) => new URL(value).origin)]);
   const mail = createMicrosoftProofMailer(environment, publicUrl);
   const cookieAttributes = `Path=/; HttpOnly; SameSite=Lax; Max-Age=900${publicUrl.protocol === "https:" ? "; Secure" : ""}`;
@@ -89,7 +92,14 @@ export function createMicrosoftProof(input: Input) {
 
   function fromHeaders(headers: Headers): Intent | null {
     const nonce = readProofCookie(headers, cookieName);
-    return nonce && nonce.length <= 128 ? readMicrosoftProofIntent(db, hashProofValue(nonce)) : null;
+    const intent = nonce && nonce.length <= 128 ? readMicrosoftProofIntent(db, hashProofValue(nonce)) : null;
+    if (intent?.purpose !== "join") return intent;
+    const browser = readProofCookie(headers, browserCookieName);
+    return browser &&
+      /^[A-Za-z0-9_-]{43}$/.test(browser) &&
+      intent.browserHash === hashProofValue(`microsoft-join-browser\0${browser}`)
+      ? intent
+      : null;
   }
   const callbackState = createMicrosoftCallbackState(db, fromHeaders);
   const callbackReturn = createMicrosoftProofReturn({
@@ -104,9 +114,9 @@ export function createMicrosoftProof(input: Input) {
       .prepare(
         `SELECT COALESCE(SUM(sentCount), 0) AS count, MAX(lastSentAt) AS latest
       FROM microsoft_identity_proofs WHERE lastSentAt > ? AND
-      (nonceHash = ? OR targetEmail = ? OR (oid IS NOT NULL AND oid = ?) OR sourceIpHash = ?)`,
+      (browserHash = ? OR targetEmail = ? OR (oid IS NOT NULL AND oid = ?) OR sourceIpHash = ?)`,
       )
-      .get(now - RATE_WINDOW_MS, intent.nonceHash, intent.targetEmail, intent.oid, intent.sourceIpHash) as {
+      .get(now - RATE_WINDOW_MS, intent.browserHash, intent.targetEmail, intent.oid, intent.sourceIpHash) as {
       count: number;
       latest: number | null;
     };
@@ -120,16 +130,22 @@ export function createMicrosoftProof(input: Input) {
   }
 
   async function sendToken(intent: Intent): Promise<void> {
-    assertRateLimit(intent);
     const token = newProofSecret();
     const now = Date.now();
-    const changed = db
-      .prepare(
-        `UPDATE microsoft_identity_proofs
+    const changed = tx(
+      db,
+      () => {
+        assertRateLimit(intent);
+        return db
+          .prepare(
+            `UPDATE microsoft_identity_proofs
       SET state = 'mail-sent', tokenHash = ?, tokenExpiresAt = ?, sentCount = sentCount + 1,
           lastSentAt = ?, updatedAt = ? WHERE id = ? AND state IN ('started', 'mail-sent') AND expiresAt > ?`,
-      )
-      .run(hashProofValue(token), now + TTL_MS, now, now, intent.id, now);
+          )
+          .run(hashProofValue(token), now + TTL_MS, now, now, intent.id, now);
+      },
+      "immediate",
+    );
     if (changed.changes !== 1) throw new MicrosoftProofError("MICROSOFT_PROOF_EXPIRED", 410);
     try {
       await mail(intent.targetEmail, token);
@@ -147,8 +163,9 @@ export function createMicrosoftProof(input: Input) {
     db.prepare(
       `INSERT INTO microsoft_identity_proofs
       (id, nonceHash, purpose, targetEmail, inviteId, accountId, principalId, sessionId, tenantId, oid, tokenHash,
-       state, expiresAt, tokenExpiresAt, sentCount, lastSentAt, sourceIpHash, callbackUrl, errorCallbackUrl, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 'started', ?, NULL, 0, NULL, ?, ?, ?, ?, ?)`,
+       state, expiresAt, tokenExpiresAt, sentCount, lastSentAt, sourceIpHash, browserHash,
+       callbackUrl, errorCallbackUrl, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 'started', ?, NULL, 0, NULL, ?, ?, ?, ?, ?, ?)`,
     ).run(
       intent.id,
       intent.nonceHash,
@@ -161,6 +178,7 @@ export function createMicrosoftProof(input: Input) {
       intent.tenantId,
       intent.expiresAt,
       intent.sourceIpHash,
+      intent.browserHash,
       intent.callbackUrl,
       intent.errorCallbackUrl,
       now,
@@ -168,15 +186,15 @@ export function createMicrosoftProof(input: Input) {
     );
   }
 
-  function assertJoinStartQuota(targetEmail: string, sourceIp: string): void {
+  function assertJoinStartQuota(targetEmail: string, sourceIp: string, browserHash: string): void {
     const since = Date.now() - RATE_WINDOW_MS;
     const sourceIpHash = callbackCipher.hashIp(sourceIp);
     const recent = db
       .prepare(
         `SELECT COUNT(*) AS count FROM microsoft_identity_proofs
-        WHERE purpose = 'join' AND createdAt > ? AND (targetEmail = ? OR sourceIpHash = ?)`,
+        WHERE purpose = 'join' AND createdAt > ? AND (targetEmail = ? OR sourceIpHash = ? OR browserHash = ?)`,
       )
-      .get(since, targetEmail, sourceIpHash) as { count: number };
+      .get(since, targetEmail, sourceIpHash, browserHash) as { count: number };
     const global = db
       .prepare(`SELECT COUNT(*) AS count FROM microsoft_identity_proofs WHERE purpose = 'join' AND createdAt > ?`)
       .get(since) as { count: number };
@@ -185,6 +203,7 @@ export function createMicrosoftProof(input: Input) {
     }
   }
 
+  // eslint-disable-next-line max-lines-per-function -- One reservation binds the target, browser, quota and encrypted redirects.
   async function start(args: {
     body: {
       purpose: Purpose;
@@ -204,17 +223,11 @@ export function createMicrosoftProof(input: Input) {
       body,
       headers,
     );
-    if (body.purpose === "join") assertJoinStartQuota(targetEmail, args.sourceIp);
+    const browser = body.purpose === "join" ? (readProofCookie(headers, browserCookieName) ?? newProofSecret()) : null;
+    const browserHash = browser ? hashProofValue(`microsoft-join-browser\0${browser}`) : null;
     const previous = fromHeaders(headers);
-    if (previous)
-      db.prepare(
-        "UPDATE microsoft_identity_proofs SET state = 'cancelled', tokenHash = NULL WHERE id = ? AND state IN ('started','mail-sent','approved')",
-      ).run(previous.id);
     const nonce = newProofSecret();
     const now = Date.now();
-    db.prepare("DELETE FROM microsoft_identity_proofs WHERE COALESCE(lastSentAt, createdAt) < ?").run(
-      now - RATE_WINDOW_MS,
-    );
     const intent: Intent = {
       id: newProofId(),
       nonceHash: hashProofValue(nonce),
@@ -233,20 +246,68 @@ export function createMicrosoftProof(input: Input) {
       sentCount: 0,
       lastSentAt: null,
       sourceIpHash: callbackCipher.hashIp(args.sourceIp),
+      browserHash,
       oauthStateHash: null,
       oauthStateHistory: "[]",
       callbackUrl: callbackCipher.encrypt(callbackUrl),
       errorCallbackUrl: callbackCipher.encrypt(errorCallbackUrl),
     };
-    saveIntent(intent, now);
-    return beginNativeProof(intent, headers, nonce);
+    tx(
+      db,
+      () => {
+        db.prepare("DELETE FROM microsoft_identity_proofs WHERE COALESCE(lastSentAt, createdAt) < ?").run(
+          now - RATE_WINDOW_MS,
+        );
+        if (body.purpose === "join") assertJoinStartQuota(targetEmail, args.sourceIp, browserHash as string);
+        saveIntent(intent, now);
+      },
+      "immediate",
+    );
+    return beginNativeProof({ intent, headers, nonce, previous, browser });
   }
 
-  async function beginNativeProof(intent: Intent, headers: Headers, nonce: string) {
+  async function beginNativeProof(input: {
+    intent: Intent;
+    headers: Headers;
+    nonce: string;
+    previous: Intent | null;
+    browser: string | null;
+  }) {
+    const { intent, headers, nonce, previous, browser } = input;
     try {
       const oauth = await startNativeOAuth(headers, intent);
-      callbackState.store(intent.id, oauth.url);
-      return { url: oauth.url, setCookies: [cookie(nonce), ...oauth.setCookies] };
+      tx(
+        db,
+        () => {
+          callbackState.store(intent.id, oauth.url);
+          if (previous)
+            db.prepare(
+              `UPDATE microsoft_identity_proofs SET state = 'cancelled', tokenHash = NULL, updatedAt = ?
+           WHERE id = ? AND (state IN ('started','mail-sent','approved') OR (purpose = 'join' AND state = 'completed'))`,
+            ).run(Date.now(), previous.id);
+          if (intent.purpose === "join")
+            cancelCompanyJoinForBrowser({
+              db,
+              headers,
+              applicationId,
+              secureCookies: publicUrl.protocol === "https:",
+              now: Date.now(),
+            });
+        },
+        "immediate",
+      );
+      return {
+        url: oauth.url,
+        setCookies: [
+          cookie(nonce),
+          ...(browser
+            ? [
+                `${browserCookieName}=${browser}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600${publicUrl.protocol === "https:" ? "; Secure" : ""}`,
+              ]
+            : []),
+          ...oauth.setCookies,
+        ],
+      };
     } catch (error) {
       db.prepare("UPDATE microsoft_identity_proofs SET state = 'cancelled' WHERE id = ?").run(intent.id);
       throw error;
@@ -268,10 +329,16 @@ export function createMicrosoftProof(input: Input) {
       "UPDATE microsoft_identity_proofs SET oid = ?, updatedAt = ? WHERE id = ? AND state = 'started' AND oid IS NULL",
     ).run(oid, Date.now(), intent.id);
     if (hasVerifiedMicrosoftEmail(profile, intent.targetEmail)) {
-      retireExpiredApprovals(oid);
-      db.prepare(
-        "UPDATE microsoft_identity_proofs SET state = 'approved', updatedAt = ? WHERE id = ? AND state = 'started'",
-      ).run(Date.now(), intent.id);
+      tx(
+        db,
+        () => {
+          retireExpiredApprovals(oid);
+          db.prepare(
+            "UPDATE microsoft_identity_proofs SET state = 'approved', updatedAt = ? WHERE id = ? AND state = 'started'",
+          ).run(Date.now(), intent.id);
+        },
+        "immediate",
+      );
       capture.proofId = intent.id;
       return;
     }
@@ -310,10 +377,17 @@ export function createMicrosoftProof(input: Input) {
       )
       .get(existing.principalId, intent.targetEmail);
     if (durable) {
-      db.prepare(
-        `UPDATE microsoft_identity_proofs SET oid = ?, state = 'approved', updatedAt = ?
-            WHERE id = ? AND state = 'started'`,
-      ).run(oid, Date.now(), intent.id);
+      tx(
+        db,
+        () => {
+          retireExpiredApprovals(oid);
+          db.prepare(
+            `UPDATE microsoft_identity_proofs SET oid = ?, state = 'approved', updatedAt = ?
+              WHERE id = ? AND state = 'started'`,
+          ).run(oid, Date.now(), intent.id);
+        },
+        "immediate",
+      );
       capture.proofId = intent.id;
       return;
     }
@@ -433,12 +507,18 @@ export function createMicrosoftProof(input: Input) {
     if (!token || !freshMailToken(intent, token)) {
       throw new MicrosoftProofError("MICROSOFT_PROOF_INVALID", 403);
     }
-    if (intent.oid) retireExpiredApprovals(intent.oid);
-    const changed = db
-      .prepare(
-        "UPDATE microsoft_identity_proofs SET state = 'approved', updatedAt = ? WHERE id = ? AND state = 'mail-sent' AND tokenHash = ?",
-      )
-      .run(Date.now(), intent.id, intent.tokenHash);
+    const changed = tx(
+      db,
+      () => {
+        if (intent.oid) retireExpiredApprovals(intent.oid);
+        return db
+          .prepare(
+            "UPDATE microsoft_identity_proofs SET state = 'approved', updatedAt = ? WHERE id = ? AND state = 'mail-sent' AND tokenHash = ?",
+          )
+          .run(Date.now(), intent.id, intent.tokenHash);
+      },
+      "immediate",
+    );
     if (changed.changes !== 1) throw new MicrosoftProofError("MICROSOFT_PROOF_INVALID", 403);
   }
 
@@ -475,7 +555,8 @@ export function createMicrosoftProof(input: Input) {
     const intent = fromHeaders(headers);
     if (intent)
       db.prepare(
-        "UPDATE microsoft_identity_proofs SET state = 'cancelled', tokenHash = NULL WHERE id = ? AND state IN ('started','mail-sent','approved')",
+        `UPDATE microsoft_identity_proofs SET state = 'cancelled', tokenHash = NULL
+         WHERE id = ? AND (state IN ('started','mail-sent','approved') OR (purpose = 'join' AND state = 'completed'))`,
       ).run(intent.id);
     return clearCookie();
   }
@@ -579,15 +660,8 @@ export function createMicrosoftProof(input: Input) {
           if (intent.state !== "approved" || !intent.tokenHash || intent.sentCount < 1) {
             throw new MicrosoftProofError("MICROSOFT_PROOF_REQUIRED", 403);
           }
-          const ownerConflict = db
-            .prepare(
-              `SELECT 1 FROM account_members AS member
-          JOIN account_access_restrictions AS restriction ON restriction.accountId = member.accountId
-          WHERE member.userId = ? AND member.role = 'owner' AND member.status = 'active'
-            AND (restriction.principalId = ? OR restriction.verifiedEmail = ?) LIMIT 1`,
-            )
-            .get(principalId, principalId, intent.targetEmail);
-          if (ownerConflict) throw new MicrosoftProofError("MICROSOFT_JOIN_ACCESS_DISABLED", 403);
+          if (hasProofOwnerRestrictionConflict(db, principalId, intent.targetEmail))
+            throw new MicrosoftProofError("MICROSOFT_JOIN_ACCESS_DISABLED", 403);
           db.prepare(
             `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
           VALUES (?, ?, 'microsoft', ?) ON CONFLICT(principalId) DO UPDATE SET
@@ -658,6 +732,9 @@ export function createMicrosoftProof(input: Input) {
         if ((invite?.id ?? null) !== intent.inviteId) throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403);
         const membership = admitCompanyInTx({
           db,
+          applicationId,
+          admissionId: intent.id,
+          confirmedSignIn: true,
           accountId: intent.accountId,
           principalId: input.actor.principalId,
           email: intent.targetEmail,

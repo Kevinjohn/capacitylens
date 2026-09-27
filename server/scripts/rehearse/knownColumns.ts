@@ -223,6 +223,7 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
       "sentCount",
       "lastSentAt",
       "sourceIpHash",
+      "browserHash",
       "oauthStateHash",
       "oauthStateHistory",
       "callbackUrl",

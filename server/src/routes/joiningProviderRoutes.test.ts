@@ -175,6 +175,29 @@ it("binds a new Google identity to one company intent and joins only after expli
   ).toEqual({ role: "viewer" });
 });
 
+it("replaces a provider journey with a password journey in the same browser", async () => {
+  const { db, app } = await fixture();
+  const provider = await app.inject({
+    method: "POST",
+    url: "/api/accounts/a-studio/join/provider/start",
+    payload: { providerId: "google", purpose: "policy", email: "diana@studio.example" },
+  });
+  expect(provider.statusCode).toBe(200);
+  const password = await app.inject({
+    method: "POST",
+    url: "/api/accounts/a-studio/join/start",
+    headers: { cookie: readCookies(provider) },
+    payload: { purpose: "policy", email: "diana@studio.example" },
+  });
+  expect(password.statusCode).toBe(200);
+  expect(db.prepare("SELECT state FROM company_join_intents WHERE providerId = 'google'").get()).toEqual({
+    state: "cancelled",
+  });
+  expect(db.prepare("SELECT state FROM company_join_intents WHERE providerId = 'password'").get()).toEqual({
+    state: "mail-sent",
+  });
+});
+
 it("rejects a stale callback when the browser intent is absent or the joining policy changes", async () => {
   const { db, app } = await fixture();
   const started = await app.inject({

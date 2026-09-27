@@ -64,15 +64,22 @@ function getRedeemableInvitation(context: InvitationRedemptionContext, input: Cl
   }
   if (!context.trustedLocal) {
     const settings = readJoiningPolicy(context.db, live.accountId);
-    if (settings.policy === "approved_domains" &&
-      (establishedProof === null || !isApprovedEmailDomain(establishedProof, settings.approvedDomains))) {
-      throw createAccountFailure("FORBIDDEN", "This company only accepts approved email domains.", input.command.commandId);
+    if (
+      settings.policy === "approved_domains" &&
+      (establishedProof === null || !isApprovedEmailDomain(establishedProof, settings.approvedDomains))
+    ) {
+      throw createAccountFailure(
+        "FORBIDDEN",
+        "This company only accepts approved email domains.",
+        input.command.commandId,
+      );
     }
   }
   return live;
 }
 
 // Admission checks and the membership write share one invitation transaction.
+// eslint-disable-next-line complexity -- Legacy redemption must retain its denial and replay ordering.
 function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput): Membership {
   const live = getRedeemableInvitation(context, input);
   if (isAccessRestricted(context.db, live.accountId, input.principalId)) {
@@ -90,6 +97,13 @@ function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvit
     throw createAccountFailure(
       "FORBIDDEN",
       "This membership is no longer active. An Owner or Admin must restore it before you can rejoin.",
+      input.command.commandId,
+    );
+  }
+  if (!context.trustedLocal && existing?.status !== "active") {
+    throw createAccountFailure(
+      "AUTHENTICATION_REQUIRED",
+      "Start company joining to verify this invitation and your identity.",
       input.command.commandId,
     );
   }

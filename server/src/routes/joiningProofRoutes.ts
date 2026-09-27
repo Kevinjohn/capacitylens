@@ -96,12 +96,14 @@ function registerMailRoutes(app: FastifyInstance, input: Dependencies, proof: Pr
   );
   app.get("/api/company-join/status", (req) => proof.status(toWebHeaders(req.headers)));
   app.post("/api/company-join/resend", (req, reply) =>
-    respond(reply, input.fail, () =>
-      proof.resend(toWebHeaders(req.headers), optionalInvitation(bodyObject(req.body ?? {}))),
-    ),
+    respond(reply, input.fail, () => {
+      if (!allowsPasswordSignIn(input.authMode)) invalid("Password joining is unavailable.");
+      return proof.resend(toWebHeaders(req.headers), optionalInvitation(bodyObject(req.body ?? {})));
+    }),
   );
   app.post("/api/company-join/confirm", (req, reply) =>
     respond(reply, input.fail, () => {
+      if (!allowsPasswordSignIn(input.authMode)) invalid("Password joining is unavailable.");
       const body = bodyObject(req.body);
       if (typeof body.token !== "string") invalid();
       return proof.confirm(toWebHeaders(req.headers), body.token);
@@ -204,6 +206,7 @@ function registerCompletionRoutes(app: FastifyInstance, input: Dependencies, pro
   );
   app.post("/api/company-join/complete-existing", (req, reply) =>
     respond(reply, input.fail, () => {
+      if (!allowsPasswordSignIn(input.authMode)) invalid("Password joining is unavailable.");
       if (!req.accountActor) invalid("Sign in as the addressed identity to continue.");
       const body = bodyObject(req.body);
       const invitationToken = optionalInvitation(body);

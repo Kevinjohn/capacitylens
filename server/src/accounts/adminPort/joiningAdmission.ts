@@ -15,12 +15,20 @@ import {
 import type { Invite } from "../../controlTables";
 import { readJoiningPolicy } from "../../controlTables";
 import type { Db } from "../../db";
-import type { JoinIntent } from "../../controlTables/joiningIntents";
+import { cancelJoinIntent, readJoinIntent, type JoinIntent } from "../../controlTables/joiningIntents";
+import { hashJoiningValue, joiningCookieNames, readJoiningCookie } from "./joiningIntentSecrets";
+import { getInviteTargetById } from "../../controlTables/invites";
+import { confirmTrackedMemberSignIn } from "../memberSignInTracking";
+import { enqueueAudit } from "../../auditOutbox";
+import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import { createAccountFailure } from "./failures";
 import { readMembership } from "./mappers";
 
 interface AdmissionInput {
   db: Db;
+  applicationId: string;
+  admissionId: string;
+  confirmedSignIn: boolean;
   accountId: string;
   principalId: string;
   email: string;
@@ -30,6 +38,33 @@ interface AdmissionInput {
 }
 
 type AdmissionTarget = Pick<AdmissionInput, "db" | "accountId" | "email" | "purpose" | "invitationToken" | "now">;
+
+/** Keep an Owner's proven address from crossing a disabled-access boundary. */
+export function hasProofOwnerRestrictionConflict(db: Db, principalId: string, email: string): boolean {
+  return Boolean(db.prepare(`SELECT 1 FROM account_members AS member
+    JOIN account_access_restrictions AS restriction ON restriction.accountId = member.accountId
+    WHERE member.userId = ? AND member.role = 'owner' AND member.status = 'active'
+      AND (restriction.principalId = ? OR restriction.verifiedEmail = ?) LIMIT 1`).get(
+    principalId, principalId, email,
+  ));
+}
+
+export function cancelCompanyJoinForBrowser(input: {
+  db: Db;
+  headers: Headers;
+  applicationId: string;
+  secureCookies: boolean;
+  now: number;
+}): void {
+  const { db, headers, applicationId, secureCookies, now } = input;
+  const names = joiningCookieNames(applicationId, secureCookies);
+  const nonce = readJoiningCookie(headers, names.intent);
+  const browser = readJoiningCookie(headers, names.browser);
+  if (!nonce || !browser) return;
+  const nonceHash = hashJoiningValue("nonce", nonce);
+  const current = readJoinIntent(db, nonceHash);
+  if (current?.browserHash === hashJoiningValue("browser", browser)) cancelJoinIntent(db, nonceHash, now);
+}
 
 function resolveLiveInvite(input: AdmissionTarget, now: number): Invite | null {
   if (input.purpose !== "invitation") return null;
@@ -68,10 +103,7 @@ export function assertJoinIntentTargetLive(
   }
   assertPolicyAllows(readJoiningPolicy(db, intent.accountId), intent.purpose, intent.email);
   if (intent.purpose === "invitation") {
-    const invite = db
-      .prepare(`SELECT accountId, preauthEmail, expiresAt, usedAt FROM invites WHERE id = ?`)
-      .get(intent.invitationId) as
-      { accountId: string; preauthEmail: string | null; expiresAt: string; usedAt: string | null } | undefined;
+    const invite = getInviteTargetById(db, intent.invitationId);
     if (
       !invite ||
       invite.accountId !== intent.accountId ||
@@ -138,6 +170,7 @@ export function admitCompanyInTx(input: AdmissionInput): Membership {
     throw createAccountFailure("FORBIDDEN", "Access to this company is disabled. Ask an administrator to enable it.");
   }
   const membership = applyMembership(input, invite, now);
+  if (input.confirmedSignIn) confirmTrackedMemberSignIn(db, principalId);
   if (invite && input.invitationToken) {
     settleInvitationPersonProposal({
       db,
@@ -147,6 +180,19 @@ export function admitCompanyInTx(input: AdmissionInput): Membership {
       now: new Date(now).toISOString(),
     });
     markInviteUsed(db, input.invitationToken, new Date(now).toISOString());
+    const event: AccountAuditEvent = {
+      id: `${input.admissionId}:invitation.accepted:success`,
+      occurredAt: new Date(now).toISOString(),
+      applicationId: input.applicationId,
+      workspaceId: accountId,
+      actorPrincipalId: principalId,
+      targetPrincipalId: principalId,
+      commandId: input.admissionId,
+      action: "invitation.accepted",
+      outcome: "success",
+      changedFields: ["membership"],
+    };
+    enqueueAudit(db, event, event.id);
   }
   return membership;
 }

@@ -31,6 +31,7 @@ export type MicrosoftProofIntent = {
   sentCount: number;
   lastSentAt: number | null;
   sourceIpHash: string;
+  browserHash: string | null;
   oauthStateHash: string | null;
   oauthStateHistory: string;
   callbackUrl: string;
