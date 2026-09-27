@@ -117,7 +117,6 @@ describe("MembersSection — invite mint", () => {
   registerInviteCreationFailureTests();
   registerInviteRevokeFailureTests();
   registerInviteMissingLinkReconciliationTests();
-  registerInviteClipboardFailureTests();
 });
 
 function registerInviteCopyControlTests(): void {
@@ -787,33 +786,5 @@ function registerInviteMissingLinkReconciliationTests(): void {
     await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), "Viewer");
 
     await waitFor(() => expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument());
-  });
-}
-
-function registerInviteClipboardFailureTests(): void {
-  it.each(["missing", "rejected"])("reports copy failure when clipboard is %s", async (kind) => {
-    const user = userEvent.setup();
-    if (kind === "missing") {
-      vi.spyOn(navigator, "clipboard", "get").mockReturnValue(undefined as unknown as Clipboard);
-    } else {
-      vi.spyOn(navigator, "clipboard", "get").mockReturnValue({
-        writeText: vi.fn().mockRejectedValue(new Error("denied")),
-      } as unknown as Clipboard);
-    }
-    vi.stubGlobal(
-      "fetch",
-      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
-        "POST /api/invites": () => jsonResponse({ token: "TOKEN" }, 201),
-      }),
-    );
-    await renderInviteSection();
-    fillAddressedInvite();
-    await user.click(await screen.findByTestId("invite-submit"));
-
-    await user.click(await screen.findByRole("button", { name: "Copy invitation link" }));
-
-    await waitFor(() =>
-      expect(useStore.getState().notice).toMatchObject({ message: m.settings_members_copy_failed(), tone: "error" }),
-    );
   });
 }

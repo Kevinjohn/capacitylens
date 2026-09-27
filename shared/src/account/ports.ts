@@ -1,5 +1,6 @@
 import type { AccountFailure } from "./errors";
 import type { AccountAuditEvent } from "./audit";
+import type { JoiningPolicyAdminPort } from "./joiningPolicyPort";
 import type { OwnershipTransferOutcome, OwnershipTransferProjection } from "./ownershipTransfer";
 import type {
   ActorContext,
@@ -12,7 +13,6 @@ import type {
   InvitationPreview,
   InvitationSummary,
   IsoInstant,
-  JoiningPolicySettings,
   Membership,
   MembershipStatus,
   OperationReceipt,
@@ -103,14 +103,7 @@ export interface OwnershipTransferCommandInput {
   command: CommandIdentity;
 }
 
-export interface AccountAdminPort {
-  readJoiningPolicy(input: { actor: ActorContext; workspaceId: WorkspaceId }): Promise<JoiningPolicySettings>;
-  setJoiningPolicy(input: {
-    actor: ActorContext;
-    workspaceId: WorkspaceId;
-    settings: JoiningPolicySettings;
-    command: CommandIdentity;
-  }): Promise<JoiningPolicySettings>;
+export interface AccountAdminPort extends JoiningPolicyAdminPort {
   listWorkspacesForPrincipal(input: { principalId: PrincipalId }): Promise<readonly WorkspaceMembershipSummary[]>;
   /** Active membership by default — this is the read request authorization goes through, so a
    *  disabled or archived row must look like no membership at all. `includeInactive` answers the

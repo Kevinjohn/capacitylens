@@ -1,9 +1,10 @@
 import { getIdentityProvider, linkIdentityProvider } from "./identityProviderClient";
+import { joiningPolicyClient } from "./joiningPolicyClient";
 import { apiFetchReauth } from "../auth/apiFetchReauth";
 import { API_BASE } from "../data/apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
-import type { JoiningPolicySettings, MembershipStatus, Role } from "@capacitylens/shared/account/types";
+import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
 import type { EndMasqueradePayload, StartMasqueradePayload } from "@capacitylens/shared/domain/masquerade";
 import { buildPayloadOperationKey } from "./commandOutcome";
 import type { CreateInvitationBody, CreateWorkspaceBody, InvitationSignupBody } from "./accountRequestTypes";
@@ -161,23 +162,7 @@ export const accountClient = {
     });
   },
 
-  readJoiningPolicy(workspaceId: string): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/joining-policy`, {
-      credentials: "include",
-    });
-  },
-
-  async setJoiningPolicy(workspaceId: string, settings: JoiningPolicySettings): Promise<Response> {
-    return runCommand({
-      operationKey: await buildPayloadOperationKey(`joining-policy:${workspaceId}`, settings),
-      explicit: undefined,
-      request: (command) => apiFetch(
-        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/joining-policy`,
-        buildCommandRequestInit({ method: "PUT", credentials: "include",
-          headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) }, command),
-      ),
-    });
-  },
+  ...joiningPolicyClient,
 
   startMasquerade(workspaceId: string, body: StartMasqueradePayload): Promise<Response> {
     return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/masquerade`, {
