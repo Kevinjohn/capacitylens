@@ -34,6 +34,14 @@ export function isIsoInstant(value: unknown): value is IsoInstant {
 export type AccountMode = "off" | "password-only" | "sso-only" | "password-and-sso";
 
 export type JoiningPolicy = "invitation_only" | "open" | "approved_domains" | "approved_domains_or_invitation";
+export function isJoiningPolicy(value: unknown): value is JoiningPolicy {
+  return (
+    value === "invitation_only" ||
+    value === "open" ||
+    value === "approved_domains" ||
+    value === "approved_domains_or_invitation"
+  );
+}
 
 export interface JoiningPolicySettings {
   policy: JoiningPolicy;

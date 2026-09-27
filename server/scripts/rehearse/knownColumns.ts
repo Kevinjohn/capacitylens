@@ -117,6 +117,12 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
     identity_email_proofs: ["principalId", "email", "source", "provenAt"],
     // Policy and domains are retained so the migration rehearsal preserves company access rules.
     account_joining_policies: ["accountId", "policy", "approvedDomains", "updatedAt"],
+    // Ephemeral mailbox and callback secrets are removed before rehearsal data is persisted.
+    company_join_intents: [
+      "id", "nonceHash", "browserHash", "purpose", "accountId", "invitationId", "email", "principalId", "providerId",
+      "state", "tokenHash", "deliveryGeneration", "expiresAt", "sentCount", "lastSentAt", "sourceIpHash",
+      "providerStateHash", "createdAt", "updatedAt",
+    ],
     // Opaque revisions and timestamps carry no source identity; all three coordinates are remapped.
     account_member_resources: ["accountId", "userId", "resourceId", "revision", "createdAt", "updatedAt"],
     invitation_person_proposals: ["invitationId", "accountId", "resourceId", "createdAt", "updatedAt"],

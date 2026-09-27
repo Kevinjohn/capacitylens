@@ -1,17 +1,6 @@
 import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";
-import type { JoiningPolicy, JoiningPolicySettings } from "@capacitylens/shared/account/types";
+import { isJoiningPolicy, type JoiningPolicySettings } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
-
-const POLICIES: readonly JoiningPolicy[] = [
-  "invitation_only",
-  "open",
-  "approved_domains",
-  "approved_domains_or_invitation",
-];
-
-export function isJoiningPolicy(value: unknown): value is JoiningPolicy {
-  return typeof value === "string" && POLICIES.includes(value as JoiningPolicy);
-}
 
 export function readJoiningPolicy(db: Db, accountId: string): JoiningPolicySettings {
   const row = db

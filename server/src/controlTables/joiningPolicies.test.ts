@@ -7,7 +7,8 @@ import { readJoiningPolicy, writeJoiningPolicy } from "./joiningPolicies";
 describe("company joining policy storage", () => {
   it("upgrades with invitation-only default and revokes unaddressed unused links and proposals", () => {
     const db = openDb(":memory:");
-    db.exec(`DROP TABLE account_joining_policies;
+    db.exec(`DROP TABLE company_join_intents;
+      DROP TABLE account_joining_policies;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 49;
       PRAGMA user_version = 48;`);
     for (const [token, email] of [

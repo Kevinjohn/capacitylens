@@ -334,6 +334,8 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/adminPort/cutover.ts"),
       resolve(serverRoot, "accounts/adminPort/invitationClaims.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
+      resolve(serverRoot, "accounts/adminPort/joiningPolicy.ts"),
+      resolve(serverRoot, "accounts/adminPort/memberReads.ts"),
       resolve(serverRoot, "accounts/proofInvitationPort.ts"),
       resolve(serverRoot, "accounts/adminPort/membership.ts"),
       resolve(serverRoot, "accounts/adminPort/ownershipTransfer.ts"),

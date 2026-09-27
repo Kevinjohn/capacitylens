@@ -1,6 +1,7 @@
 import type { CreatedInvitation } from "@capacitylens/shared/account/types";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { parseISOTimestamp } from "@capacitylens/shared/lib/integrity";
+import { isApprovedEmailDomain } from "@capacitylens/shared/account/approvedDomains";
 import { randomBytes } from "node:crypto";
 import {
   createInvite,
@@ -15,6 +16,7 @@ import {
   isEligibleInvitationPerson,
 } from "../../controlTables";
 import type { Db } from "../../db";
+import { readJoiningPolicy } from "../../controlTables";
 import { createOperationReceipt } from "../accountFlowRuntime";
 import {
   assertAccountAuthority,
@@ -155,6 +157,19 @@ function executeInvitationCreation(
       "The preauthorized invitation email address is invalid.",
       command.commandId,
     );
+  }
+  if (!context.trustedLocal) {
+    if (normalized === null) {
+      throw createAccountFailure("VALIDATION_FAILED", "Invitations require an email address.", command.commandId);
+    }
+    const settings = readJoiningPolicy(db, workspaceId);
+    if (settings.policy === "approved_domains" && !isApprovedEmailDomain(normalized, settings.approvedDomains)) {
+      throw createAccountFailure(
+        "FORBIDDEN",
+        "This company's joining policy permits invitations only to approved email domains.",
+        command.commandId,
+      );
+    }
   }
   if (proposedResourceId !== undefined && !isEligibleInvitationPerson(db, workspaceId, proposedResourceId)) {
     throw createAccountFailure(

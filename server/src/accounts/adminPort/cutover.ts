@@ -124,6 +124,7 @@ function createCutoverAdministration(
       removeAllMembersForAccount(db, workspaceId);
       db.prepare(`DELETE FROM account_access_restrictions WHERE accountId = ?`).run(workspaceId);
       db.prepare(`DELETE FROM account_joining_policies WHERE accountId = ?`).run(workspaceId);
+      db.prepare(`DELETE FROM company_join_intents WHERE accountId = ?`).run(workspaceId);
       removeAllInvitesForAccount(db, workspaceId);
       return principalIds.filter(
         (principalId) =>

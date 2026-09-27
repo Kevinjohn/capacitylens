@@ -7,6 +7,33 @@ CREATE TABLE account_joining_policies (
   approvedDomains TEXT NOT NULL DEFAULT '[]',
   updatedAt TEXT NOT NULL
 );
+CREATE TABLE company_join_intents (
+  id TEXT PRIMARY KEY,
+  nonceHash TEXT NOT NULL UNIQUE,
+  browserHash TEXT NOT NULL,
+  purpose TEXT NOT NULL CHECK (purpose IN ('policy', 'invitation')),
+  accountId TEXT NOT NULL,
+  invitationId TEXT,
+  email TEXT NOT NULL,
+  principalId TEXT,
+  providerId TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('started', 'mail-sent', 'approved', 'completed', 'cancelled')),
+  tokenHash TEXT UNIQUE,
+  deliveryGeneration INTEGER NOT NULL DEFAULT 0,
+  expiresAt INTEGER NOT NULL,
+  sentCount INTEGER NOT NULL DEFAULT 0,
+  lastSentAt INTEGER,
+  sourceIpHash TEXT NOT NULL,
+  providerStateHash TEXT UNIQUE,
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL,
+  CHECK ((purpose = 'policy' AND invitationId IS NULL)
+      OR (purpose = 'invitation' AND invitationId IS NOT NULL))
+);
+CREATE INDEX idx_company_join_intents_email ON company_join_intents(email, lastSentAt);
+CREATE INDEX idx_company_join_intents_browser ON company_join_intents(browserHash, lastSentAt);
+CREATE INDEX idx_company_join_intents_ip ON company_join_intents(sourceIpHash, lastSentAt);
+CREATE INDEX idx_company_join_intents_expiry ON company_join_intents(expiresAt, state);
 `;
 
 export const JOINING_POLICIES_V49_MIGRATION = defineMigration(

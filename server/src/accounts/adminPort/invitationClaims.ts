@@ -1,5 +1,6 @@
 import type { CommandIdentity, Membership } from "@capacitylens/shared/account/types";
 import { createHash } from "node:crypto";
+import { isApprovedEmailDomain } from "@capacitylens/shared/account/approvedDomains";
 import {
   getInvite,
   getMembershipRow,
@@ -8,11 +9,12 @@ import {
   inviteIsExpired,
   listMembershipsForUser,
   markInviteUsed,
-  preauthInviteAllows,
+  provenEmail,
   pruneInvites,
   settleInvitationPersonProposal,
   upsertMember,
 } from "../../controlTables";
+import { readJoiningPolicy } from "../../controlTables";
 import { markAccountCommandReplay, resumeExistingCommand } from "../commands";
 import { confirmTrackedMemberSignIn } from "../memberSignInTracking";
 import { assertWorkspaceExists } from "./authority";
@@ -52,19 +54,20 @@ function getRedeemableInvitation(context: InvitationRedemptionContext, input: Cl
   }
   assertRedeemableInvitationRole(live.role, input.command.commandId);
   assertWorkspaceExists(context.db, live.accountId);
-  if (
-    !context.trustedLocal &&
-    !preauthInviteAllows({
-      preauthEmail: live.preauthEmail,
-      user: { email: input.principalEmail, emailVerified: input.emailVerified },
-      passwordMode: input.passwordMode,
-    })
-  ) {
+  const establishedProof = context.trustedLocal ? null : provenEmail(context.db, input.principalId);
+  if (!context.trustedLocal && (live.preauthEmail === null || establishedProof !== live.preauthEmail)) {
     throw createAccountFailure(
       "INVITATION_EMAIL_MISMATCH",
-      "This invite is reserved for a different identity.",
+      "This invitation requires proof of its addressed mailbox.",
       input.command.commandId,
     );
+  }
+  if (!context.trustedLocal) {
+    const settings = readJoiningPolicy(context.db, live.accountId);
+    if (settings.policy === "approved_domains" &&
+      (establishedProof === null || !isApprovedEmailDomain(establishedProof, settings.approvedDomains))) {
+      throw createAccountFailure("FORBIDDEN", "This company only accepts approved email domains.", input.command.commandId);
+    }
   }
   return live;
 }

@@ -174,6 +174,8 @@ type MembershipAdministrationMethods = Pick<
   | "getMembership"
   | "listMemberships"
   | "listInvitations"
+  | "readJoiningPolicy"
+  | "setJoiningPolicy"
   | "previewInvitation"
   | "preparePasswordInvitationClaim"
   | "createInvitation"
@@ -224,6 +226,8 @@ function membershipAdministrationMethods(): MembershipAdministrationMethods {
     getMembership: vi.fn(async () => member),
     listMemberships: vi.fn(async () => [member]),
     listInvitations: vi.fn(async () => []),
+    readJoiningPolicy: vi.fn(async () => ({ policy: "invitation_only" as const, approvedDomains: [] })),
+    setJoiningPolicy: vi.fn(async ({ settings }) => settings),
     previewInvitation: vi.fn(async () => ({
       workspaceName: "Workspace",
       role: "editor" as const,

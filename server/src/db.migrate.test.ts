@@ -179,13 +179,14 @@ const V48_MIGRATION = {
 const V49_MIGRATION = {
   version: 49,
   name: "add-company-joining-policies",
-  checksum: "cb19f5ae1c5e37417818687c9d22e3c955cc3e860827882e991574072243118d",
+  checksum: "ed8f1716cf04b873aba98677f906bb060d1c46bc459d0fb703dcacb3fe775f69",
 } as const;
 
 describe("v47 company access restriction upgrade", () => {
   it("keeps disabled members denied and archived members inactive without restricting them", () => {
     const db = openDb(":memory:");
-    db.exec(`DROP TABLE account_joining_policies;
+    db.exec(`DROP TABLE company_join_intents;
+      DROP TABLE account_joining_policies;
       DROP TABLE identity_email_proofs;
       DROP TABLE account_access_restrictions;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version IN (47, 48, 49);
@@ -238,6 +239,7 @@ it("replaces the installed v46 Microsoft completion trigger during the v48 upgra
   const db = openDb(":memory:");
   try {
     db.exec(`CREATE TABLE account (id TEXT PRIMARY KEY, providerId TEXT, accountId TEXT, userId TEXT);
+      DROP TABLE company_join_intents;
       DROP TABLE account_joining_policies;
       DROP TABLE identity_email_proofs;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version IN (48, 49);
@@ -270,6 +272,7 @@ it("replaces the installed v46 Microsoft completion trigger during the v48 upgra
 });
 // Synthetic historical databases must not retain the new operational proof table or its runtime gates.
 const MICROSOFT_PROOF_ROLLBACK_SQL = `
+  DROP TABLE IF EXISTS company_join_intents;
   DROP TABLE IF EXISTS account_joining_policies;
   DROP TABLE IF EXISTS identity_email_proofs;
   DROP TABLE IF EXISTS account_access_restrictions;

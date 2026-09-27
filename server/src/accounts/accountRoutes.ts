@@ -33,6 +33,7 @@ import {
 import { reconcile } from "./routes/handlers/reconcile";
 import { listSessions, revokeSession, signOut } from "./routes/handlers/session";
 import { createReplyHelpers } from "./routes/createReplyHelpers";
+import { readJoiningPolicy, setJoiningPolicy } from "./routes/handlers/joiningPolicy";
 export type { AccountRouteDependencies } from "./routes/accountRouteDependencies";
 
 /**
@@ -69,6 +70,8 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   // ⇒ stored as null ⇒ a P1.9 link invite (any signed-in caller may accept). Nothing is ever
   // emailed — the admin still hands out the link; preauthEmail only narrows who may redeem it.
   app.post("/api/invites", async (req, reply) => createInvitation(req, reply, context));
+  app.get("/api/accounts/:accountId/joining-policy", async (req, reply) => readJoiningPolicy(req, reply, context));
+  app.put("/api/accounts/:accountId/joining-policy", async (req, reply) => setJoiningPolicy(req, reply, context));
 
   // Invite PREVIEW: public because a new invitee has no session yet, but still bearer-authorized —
   // only someone holding the unguessable token can read this deliberately small display shape.
