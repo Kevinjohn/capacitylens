@@ -7,6 +7,7 @@ describe("parseApprovedDomain", () => {
     ["staff.example.com", "staff.example.com"],
     ["bücher.example", "xn--bcher-kva.example"],
     ["XN--BCHER-KVA.EXAMPLE", "xn--bcher-kva.example"],
+    ["ab--cd.example", "ab--cd.example"],
     [`${"a".repeat(63)}.example`, `${"a".repeat(63)}.example`],
   ])("canonicalizes %s", (input, expected) => {
     expect(parseApprovedDomain(input)).toBe(expected);
@@ -41,6 +42,8 @@ describe("parseApprovedDomain", () => {
     "[::1]",
     "127.0.0.1",
     "127.1",
+    "0x7f.1",
+    "staff.123",
     "0x7f000001",
     " example.com",
     "example.com ",

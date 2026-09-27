@@ -49,7 +49,8 @@
     "./types/entities": "./src/types/entities.ts"
   },
   "dependencies": {
-    "date-fns": "^4.3.0"
+    "date-fns": "^4.3.0",
+    "tr46": "6.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
