@@ -58,23 +58,37 @@ export function prepareCompanyAdmissionIntent(input: AdmissionTarget): Invite | 
 }
 
 /** Recheck a callback-bound target without reconstructing or exposing its invitation bearer. */
-export function assertJoinIntentTargetLive(db: Db, intent: JoinIntent, now = Date.now()): void {
+export function assertJoinIntentTargetLive(
+  db: Db,
+  intent: Pick<JoinIntent, "accountId" | "email" | "purpose" | "invitationId">,
+  now = Date.now(),
+): void {
   if (!db.prepare("SELECT 1 FROM accounts WHERE id = ?").get(intent.accountId)) {
     throw createAccountFailure("NOT_FOUND", "This company is unavailable.");
   }
   assertPolicyAllows(readJoiningPolicy(db, intent.accountId), intent.purpose, intent.email);
   if (intent.purpose === "invitation") {
-    const invite = db.prepare(`SELECT accountId, preauthEmail, expiresAt, usedAt FROM invites WHERE id = ?`).get(
-      intent.invitationId,
-    ) as { accountId: string; preauthEmail: string | null; expiresAt: string; usedAt: string | null } | undefined;
-    if (!invite || invite.accountId !== intent.accountId || invite.preauthEmail !== intent.email ||
-        invite.usedAt !== null || inviteIsExpired(invite.expiresAt, now)) {
+    const invite = db
+      .prepare(`SELECT accountId, preauthEmail, expiresAt, usedAt FROM invites WHERE id = ?`)
+      .get(intent.invitationId) as
+      { accountId: string; preauthEmail: string | null; expiresAt: string; usedAt: string | null } | undefined;
+    if (
+      !invite ||
+      invite.accountId !== intent.accountId ||
+      invite.preauthEmail !== intent.email ||
+      invite.usedAt !== null ||
+      inviteIsExpired(invite.expiresAt, now)
+    ) {
       throw createAccountFailure("INVITATION_EXPIRED", "This invitation is no longer available.");
     }
   }
 }
 
-export function assertPolicyAllows(settings: JoiningPolicySettings, purpose: AdmissionInput["purpose"], email: string): void {
+export function assertPolicyAllows(
+  settings: JoiningPolicySettings,
+  purpose: AdmissionInput["purpose"],
+  email: string,
+): void {
   const domainApproved = isApprovedEmailDomain(email, settings.approvedDomains);
   if (purpose === "invitation") {
     if (settings.policy === "approved_domains" && !domainApproved) {

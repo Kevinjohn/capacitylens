@@ -86,7 +86,7 @@ async function seedClosureAccount(request: APIRequestContext) {
 
   const invitation = await request.post(`${AUTH_API}/api/invites`, {
     headers: { cookie: owner.cookie },
-    data: { accountId, role: "editor" },
+    data: { accountId, role: "editor", preauthEmail: editor.email },
   });
   expect(invitation.status()).toBe(201);
   const invitationToken = ((await invitation.json()) as { token: string }).token;

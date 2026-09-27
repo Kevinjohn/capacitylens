@@ -104,12 +104,12 @@ describe("InviteMemberPanel creation guidance", () => {
       "CapacityLens does not send invitation emails. After creating an invite, copy the link and send it yourself.",
     );
     expect(screen.getByLabelText("Email")).toBe(screen.getByTestId("invite-preauth"));
-    expect(screen.getByTestId("invite-preauth")).not.toHaveAttribute("aria-required");
+    expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-required", "true");
     expect(screen.getByTestId("invite-preauth")).not.toHaveAttribute("aria-describedby");
     expect(screen.queryByText(/Supply an email to restrict this invite/)).not.toBeInTheDocument();
   });
 
-  it("marks Email as required for SSO invitations without adding helper copy", () => {
+  it("marks Email as required for invitations without adding helper copy", () => {
     renderInvite({ authMode: "sso-only" });
     fireEvent.click(screen.getByTestId("invite-open"));
 

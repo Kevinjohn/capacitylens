@@ -34,7 +34,7 @@ async function setupCeremony(request: APIRequestContext) {
   ] as const) {
     const invite = await request.post(`${API}/api/invites`, {
       headers: { cookie: owner.cookie },
-      data: { accountId, role },
+      data: { accountId, role, preauthEmail: who.email },
     });
     expect(invite.status()).toBe(201);
     const token = (await invite.json()).token as string;

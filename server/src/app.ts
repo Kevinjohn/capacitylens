@@ -91,7 +91,7 @@ export interface AppOptions {
   joiningProof?: {
     secret: string;
     publicUrl: URL;
-    sendMail: (email: string, token: string, accountId: string) => Promise<void>;
+    sendMail: (email: string, token: string, target: { accountId: string; invitationToken?: string }) => Promise<void>;
   };
   /** Require an enrolled and completed TOTP second factor before password users may access tenant
    * data. Auth endpoints and /api/auth/me remain available so an existing user can enroll. */

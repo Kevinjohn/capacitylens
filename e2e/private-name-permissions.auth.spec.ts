@@ -82,7 +82,7 @@ async function inviteMembers(
   for (const { role, user } of members) {
     const invitation = await request.post(`${AUTH_API}/api/invites`, {
       headers: { cookie: ownerCookie },
-      data: { accountId, role },
+      data: { accountId, role, preauthEmail: user.email },
     });
     expect(invitation.status()).toBe(201);
     const token = (await invitation.json()).token as string;

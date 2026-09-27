@@ -94,7 +94,7 @@ async function seedViewerScenario(request: APIRequestContext) {
   ] as const) {
     const inv = await request.post(`${API}/api/invites`, {
       headers: { cookie: owner.cookie },
-      data: { accountId, role },
+      data: { accountId, role, preauthEmail: who.email },
     });
     expect(inv.status()).toBe(201);
     const token = (await inv.json()).token as string;

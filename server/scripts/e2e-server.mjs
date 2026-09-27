@@ -5,10 +5,11 @@
 // have to move together. A lane-shifted server with a lane-0 CORS origin starts perfectly and then
 // fails every browser request, which is a far worse failure than not starting at all.
 import { spawn } from "node:child_process";
-import { rmSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { mirrorChildExit } from "../../scripts/dev-processes.mjs";
 import { ports } from "../../scripts/ports.mjs";
+import { startE2eMailbox } from "./e2e-mailbox.mjs";
 
 const flavour = process.argv[2];
 const lanePorts = ports();
@@ -49,6 +50,20 @@ if (!Object.hasOwn(FLAVOURS, flavour)) {
 
 const { database, wipe, env } = FLAVOURS[flavour]();
 const serverDirectory = fileURLToPath(new URL("../", import.meta.url));
+let mailbox;
+if (flavour === "auth") {
+  const mailboxPath = fileURLToPath(new URL("../.auth-e2e-mailbox.jsonl", import.meta.url));
+  writeFileSync(mailboxPath, "");
+  mailbox = await startE2eMailbox({ port: lanePorts.authMail, mailboxPath });
+  Object.assign(env, {
+    SMALLSASS_ACCOUNT_MAIL_HOST: "127.0.0.1",
+    SMALLSASS_ACCOUNT_MAIL_PORT: String(lanePorts.authMail),
+    SMALLSASS_ACCOUNT_MAIL_USER: "e2e-mail",
+    SMALLSASS_ACCOUNT_MAIL_PASSWORD: "e2e-mail-password",
+    SMALLSASS_ACCOUNT_MAIL_FROM: "verify@capacitylens.dev",
+    NODE_EXTRA_CA_CERTS: mailbox.certPath,
+  });
+}
 
 // A fresh database per boot so sign-up state never leaks between runs; the bootstrap credential
 // only exists on a clean one.
@@ -61,5 +76,6 @@ const child = spawn("tsx", ["src/index.ts"], {
   stdio: "inherit",
   env: { ...process.env, CAPACITYLENS_DB: database, ...env },
 });
+child.once("exit", () => mailbox?.close());
 
 mirrorChildExit(child, { label: "e2e-server: tsx" });

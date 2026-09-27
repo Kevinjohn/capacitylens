@@ -38,7 +38,7 @@ async function setupMembersApi(request: APIRequestContext) {
   ] as const) {
     const inv = await request.post(`${API}/api/invites`, {
       headers: { cookie: owner.cookie },
-      data: { accountId, role },
+      data: { accountId, role, preauthEmail: who.email },
     });
     expect(inv.status()).toBe(201);
     const token = (await inv.json()).token as string;
@@ -77,6 +77,7 @@ async function createViewerInvite(page: Page): Promise<void> {
   await page.getByTestId("invite-open").click();
   const dialog = page.getByRole("dialog", { name: "Invite someone" });
   await selectShadOption(dialog.getByTestId("invite-role"), "viewer");
+  await dialog.getByTestId("invite-preauth").fill(`m-viewer-${STAMP}@capacitylens.dev`);
   await dialog.getByTestId("invite-submit").click();
   await expect(dialog.getByTestId("invite-link")).toContainText("/invite/");
   await dialog.getByRole("button", { name: "Cancel" }).click();

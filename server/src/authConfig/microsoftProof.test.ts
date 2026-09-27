@@ -18,6 +18,29 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { inviteTokenHash } from "../controlTables/inviteTokens";
 import { microsoftCallbackCapture } from "./captureContexts";
 import { createApp } from "../app";
+import type { Db } from "../db";
+import { writeJoiningPolicy } from "../controlTables/joiningPolicies";
+
+async function assertDisabledMicrosoftJoin(db: Db, app: ReturnType<typeof createApp>, cookie: string): Promise<void> {
+  const joinedPrincipal = db.prepare("SELECT id FROM user WHERE email = 'diana@example.com'").get() as { id: string };
+  db.prepare(
+    `INSERT INTO account_access_restrictions (accountId, principalId, verifiedEmail, role, createdAt)
+     VALUES ('a-studio', ?, 'diana@example.com', 'viewer', ?)`,
+  ).run(joinedPrincipal.id, new Date().toISOString());
+  const denied = await app.inject({
+    method: "POST",
+    url: "/api/company-join/complete-microsoft",
+    headers: { cookie },
+    payload: {},
+  });
+  expect(denied.statusCode).toBe(403);
+  expect(
+    db.prepare("SELECT 1 FROM account_members WHERE accountId = 'a-studio' AND userId = ?").get(joinedPrincipal.id),
+  ).toBeUndefined();
+  db.prepare("DELETE FROM account_access_restrictions WHERE accountId = 'a-studio' AND principalId = ?").run(
+    joinedPrincipal.id,
+  );
+}
 
 // eslint-disable-next-line max-lines-per-function -- The native callback cases share one controlled provider and SMTP harness.
 describe("Microsoft native callback proof", () => {
@@ -90,6 +113,217 @@ describe("Microsoft native callback proof", () => {
       expect(db.prepare("SELECT COUNT(*) AS count FROM account WHERE providerId = 'microsoft'").get()).toEqual({
         count: 1,
       });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("joins an open company through a verified Microsoft callback and explicit completion", async () => {
+    const { db, auth } = await configured();
+    const app = createApp(db, {
+      authMode: "sso-only",
+      auth,
+      joiningProof: {
+        secret: "unit-test-secret-0123456789abcdef-0123",
+        publicUrl: new URL(origin),
+        sendMail: async () => {},
+      },
+    });
+    try {
+      db.prepare(
+        `INSERT INTO user (id,name,email,emailVerified,createdAt,updatedAt)
+        VALUES ('existing','Clark Kent','clark@example.com',1,?,?)`,
+      ).run(Date.now(), Date.now());
+      insertProofAccount(db, "a-studio");
+      writeJoiningPolicy(db, "a-studio", { policy: "open", approvedDomains: [] });
+      const started = await auth.microsoftProof.start({
+        body: {
+          purpose: "join",
+          accountId: "a-studio",
+          email: "diana@example.com",
+          callbackURL: `${origin}/join/a-studio`,
+          errorCallbackURL: `${origin}/join/a-studio`,
+        },
+        headers: new Headers(),
+        sourceIp: "127.0.0.1",
+      });
+      const cookies = cookieHeader(started.setCookies);
+      mockMicrosoftToken({ ...claims("diana@example.com"), oid: "diana-oid", name: "Diana Prince" });
+      const callbackResult = await callback(auth, requiredState(started.url), cookies);
+      expect(callbackResult.status).toBe(302);
+      expect(callbackResult.headers.get("location")).toBe(`${origin}/join/a-studio`);
+      expect(
+        db.prepare("SELECT source,email FROM identity_email_proofs WHERE email = 'diana@example.com'").get(),
+      ).toEqual({ source: "microsoft", email: "diana@example.com" });
+      expect(
+        db.prepare("SELECT 1 FROM account_members WHERE accountId = 'a-studio' AND userId <> 'existing'").get(),
+      ).toBeUndefined();
+      const callbackCookies = replaceCookies(cookies, callbackResult.headers.getSetCookie());
+      await assertDisabledMicrosoftJoin(db, app, callbackCookies);
+      const completed = await app.inject({
+        method: "POST",
+        url: "/api/company-join/complete-microsoft",
+        headers: { cookie: callbackCookies },
+        payload: {},
+      });
+      expect(completed.statusCode).toBe(200);
+      expect(completed.json()).toMatchObject({ accountId: "a-studio", role: "viewer" });
+    } finally {
+      await app.close();
+      db.close();
+    }
+  });
+
+  it("creates no Microsoft identity before its same-browser company mailbox proof", async () => {
+    const { db, auth } = await configured();
+    try {
+      db.prepare(
+        `INSERT INTO user (id,name,email,emailVerified,createdAt,updatedAt)
+        VALUES ('existing','Clark Kent','clark@example.com',1,?,?)`,
+      ).run(Date.now(), Date.now());
+      insertProofAccount(db, "a-studio");
+      writeJoiningPolicy(db, "a-studio", { policy: "open", approvedDomains: [] });
+      const started = await auth.microsoftProof.start({
+        body: {
+          purpose: "join",
+          accountId: "a-studio",
+          email: "diana@example.com",
+          callbackURL: `${origin}/join/a-studio`,
+          errorCallbackURL: `${origin}/join/a-studio`,
+        },
+        headers: new Headers(),
+        sourceIp: "127.0.0.1",
+      });
+      const cookies = cookieHeader(started.setCookies);
+      mockMicrosoftToken({ ...claims(), oid: "diana-oid", name: "Diana Prince" });
+      const pending = await callback(auth, requiredState(started.url), cookies);
+      expect(pending.headers.get("location")).toContain("/verify-microsoft?state=check-email");
+      expect(db.prepare("SELECT id FROM user WHERE email = 'diana@example.com'").get()).toBeUndefined();
+      expect(db.prepare("SELECT id FROM account WHERE accountId = 'diana-oid'").get()).toBeUndefined();
+      const token = new URL(sentMessages[0]?.text.match(/http[^\s]+/)?.[0] ?? "").hash.replace(/^#token=/, "");
+      await expect(auth.microsoftProof.confirm(new Headers(), token)).rejects.toMatchObject({ status: 410 });
+      const resumed = await auth.microsoftProof.confirm(new Headers({ cookie: cookies }), token);
+      mockMicrosoftToken({ ...claims(), oid: "diana-oid", name: "Diana Prince" });
+      const signedIn = await callback(auth, requiredState(resumed.url), replaceCookies(cookies, resumed.setCookies));
+      expect(signedIn.headers.get("location")).toBe(`${origin}/join/a-studio`);
+      expect(db.prepare("SELECT email FROM user WHERE email = 'diana@example.com'").get()).toEqual({
+        email: "diana@example.com",
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("rejects a Microsoft callback when the company's joining policy changes before identity creation", async () => {
+    const { db, auth } = await configured();
+    try {
+      db.prepare(
+        `INSERT INTO user (id,name,email,emailVerified,createdAt,updatedAt)
+        VALUES ('existing','Clark Kent','clark@example.com',1,?,?)`,
+      ).run(Date.now(), Date.now());
+      insertProofAccount(db, "a-studio");
+      writeJoiningPolicy(db, "a-studio", { policy: "open", approvedDomains: [] });
+      const started = await auth.microsoftProof.start({
+        body: {
+          purpose: "join",
+          accountId: "a-studio",
+          email: "diana@example.com",
+          callbackURL: `${origin}/join/a-studio`,
+          errorCallbackURL: `${origin}/join/a-studio`,
+        },
+        headers: new Headers(),
+        sourceIp: "127.0.0.1",
+      });
+      writeJoiningPolicy(db, "a-studio", { policy: "invitation_only", approvedDomains: [] });
+      mockMicrosoftToken({ ...claims("diana@example.com"), oid: "diana-oid", name: "Diana Prince" });
+      const rejected = await callback(auth, requiredState(started.url), cookieHeader(started.setCookies));
+      expect(rejected.headers.get("location")).toContain("error=MICROSOFT_JOIN_UNAVAILABLE");
+      expect(db.prepare("SELECT id FROM user WHERE email = 'diana@example.com'").get()).toBeUndefined();
+    } finally {
+      db.close();
+    }
+  });
+
+  it("reuses a returning stable Microsoft identity's durable mailbox proof for a second company", async () => {
+    const { db, auth } = await configured();
+    const app = createApp(db, {
+      authMode: "sso-only",
+      auth,
+      joiningProof: {
+        secret: "unit-test-secret-0123456789abcdef-0123",
+        publicUrl: new URL(origin),
+        sendMail: async () => {},
+      },
+    });
+    try {
+      const bootstrap = await begin(auth);
+      mockMicrosoftToken(claims("bruce@example.com"));
+      await callback(auth, bootstrap.state, bootstrap.cookies);
+      insertProofAccount(db, "a-loft");
+      writeJoiningPolicy(db, "a-loft", { policy: "open", approvedDomains: [] });
+      const started = await auth.microsoftProof.start({
+        body: {
+          purpose: "join",
+          accountId: "a-loft",
+          email: "bruce@example.com",
+          callbackURL: `${origin}/join/a-loft`,
+          errorCallbackURL: `${origin}/join/a-loft`,
+        },
+        headers: new Headers(),
+        sourceIp: "127.0.0.2",
+      });
+      const cookies = cookieHeader(started.setCookies);
+      mockMicrosoftToken(claims());
+      const signedIn = await callback(auth, requiredState(started.url), cookies);
+      expect(signedIn.headers.get("location")).toBe(`${origin}/join/a-loft`);
+      expect(sentMessages).toHaveLength(0);
+      const completed = await app.inject({
+        method: "POST",
+        url: "/api/company-join/complete-microsoft",
+        headers: { cookie: replaceCookies(cookies, signedIn.headers.getSetCookie()) },
+        payload: {},
+      });
+      expect(completed.statusCode, completed.body).toBe(200);
+      expect(completed.json()).toMatchObject({ accountId: "a-loft", role: "viewer" });
+    } finally {
+      await app.close();
+      db.close();
+    }
+  });
+
+  it("requires a mailbox ceremony when a returning Microsoft identity has no durable address proof", async () => {
+    const { db, auth } = await configured();
+    try {
+      const bootstrap = await begin(auth);
+      mockMicrosoftToken(claims("bruce@example.com"));
+      await callback(auth, bootstrap.state, bootstrap.cookies);
+      db.prepare("DELETE FROM identity_email_proofs WHERE email = 'bruce@example.com'").run();
+      insertProofAccount(db, "a-loft");
+      writeJoiningPolicy(db, "a-loft", { policy: "open", approvedDomains: [] });
+      const started = await auth.microsoftProof.start({
+        body: {
+          purpose: "join",
+          accountId: "a-loft",
+          email: "bruce@example.com",
+          callbackURL: `${origin}/join/a-loft`,
+          errorCallbackURL: `${origin}/join/a-loft`,
+        },
+        headers: new Headers(),
+        sourceIp: "127.0.0.2",
+      });
+      const cookies = cookieHeader(started.setCookies);
+      mockMicrosoftToken(claims("bruce@example.com"));
+      const pending = await callback(auth, requiredState(started.url), cookies);
+      expect(pending.headers.get("location")).toContain("/verify-microsoft?state=check-email");
+      expect(sentMessages).toHaveLength(1);
+      const token = new URL(sentMessages[0]?.text.match(/http[^\s]+/)?.[0] ?? "").hash.replace(/^#token=/, "");
+      const resumed = await auth.microsoftProof.confirm(new Headers({ cookie: cookies }), token);
+      mockMicrosoftToken(claims());
+      const signedIn = await callback(auth, requiredState(resumed.url), replaceCookies(cookies, resumed.setCookies));
+      expect(signedIn.headers.get("location")).toBe(`${origin}/join/a-loft`);
+      expect(
+        db.prepare("SELECT source,email FROM identity_email_proofs WHERE email = 'bruce@example.com'").get(),
+      ).toEqual({ source: "microsoft", email: "bruce@example.com" });
     } finally {
       db.close();
     }

@@ -1,4 +1,7 @@
 import { expect, request as playwrightRequest, type APIRequestContext } from "@playwright/test";
+import { DatabaseSync } from "node:sqlite";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { ports } from "../scripts/ports.mjs";
 
 // Shared plumbing for the auth-backed Playwright specs (*.auth.spec.ts), which all run against the
@@ -49,7 +52,45 @@ async function postSignUp(ctx: APIRequestContext, email: string): Promise<string
     data: { email, password: AUTH_PASSWORD, name: email.split("@")[0] },
   });
   expect(res.ok(), `sign-up ${email}`).toBeTruthy();
+  seedFixtureMailboxProof(email);
   return cookiesOf(res.headers()["set-cookie"] ?? "");
+}
+
+/** Existing role/access suites use disposable auth-e2e identities as fixtures, not as proof-flow coverage.
+ * Give those fixture identities durable address proof so invitation acceptance exercises its
+ * ordinary membership path. The real mailbox journey has its own browser scenario. */
+function seedFixtureMailboxProof(email: string): void {
+  const path = fileURLToPath(new URL("../server/.auth-e2e.db", import.meta.url));
+  const db = new DatabaseSync(path);
+  try {
+    db.exec("PRAGMA busy_timeout = 5000");
+    const principal = db.prepare("SELECT id FROM user WHERE lower(email) = ?").get(email.toLowerCase()) as
+      { id: string } | undefined;
+    if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
+    db.prepare(
+      `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+       VALUES (?, ?, 'password', ?)`,
+    ).run(principal.id, email.toLowerCase(), new Date().toISOString());
+  } finally {
+    db.close();
+  }
+}
+
+/** Read only the local auth-E2E SMTP inbox; callers still complete the real browser proof flow. */
+export async function waitForJoiningMail(email: string, accountId: string): Promise<URL> {
+  const path = fileURLToPath(new URL("../server/.auth-e2e-mailbox.jsonl", import.meta.url));
+  const findLink = () => {
+    const records = readFileSync(path, "utf8").trim().split("\n").filter(Boolean);
+    for (const record of records.reverse()) {
+      const mail = JSON.parse(record) as { to: string; body: string };
+      if (mail.to !== email.toLowerCase()) continue;
+      const link = mail.body.match(/http:\/\/localhost:\d+\/join\/[^\s#]+#token=[A-Za-z0-9_-]+/)?.[0];
+      if (link && new URL(link).pathname === `/join/${encodeURIComponent(accountId)}`) return link;
+    }
+    return null;
+  };
+  await expect.poll(findLink, { timeout: 10_000 }).not.toBeNull();
+  return new URL(findLink() as string);
 }
 
 /**

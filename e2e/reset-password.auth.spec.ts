@@ -23,7 +23,7 @@ async function setupResetScenario(request: APIRequestContext) {
   const accountId = await bootstrapOrg(request, ownerCookie, `Reset Studio ${STAMP}`);
   const inviteRes = await request.post(`${API}/api/invites`, {
     headers: { cookie: ownerCookie },
-    data: { accountId, role: "editor" },
+    data: { accountId, role: "editor", preauthEmail: MEMBER },
   });
   expect(inviteRes.status()).toBe(201);
   const inviteToken = (await inviteRes.json()).token as string;

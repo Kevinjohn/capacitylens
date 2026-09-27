@@ -1,5 +1,12 @@
 import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
+import type { ActorContext } from "@capacitylens/shared/account/types";
+import { tx } from "../txn";
+import {
+  admitCompanyInTx,
+  assertJoinIntentTargetLive,
+  prepareCompanyAdmissionIntent,
+} from "../accounts/adminPort/joiningAdmission";
 import { microsoftCallbackCapture } from "./captureContexts";
 import { createMicrosoftCallbackState } from "./microsoftProofCallbackState";
 import { createMicrosoftProofAuthorization } from "./microsoftProofAuthorization";
@@ -161,8 +168,32 @@ export function createMicrosoftProof(input: Input) {
     );
   }
 
+  function assertJoinStartQuota(targetEmail: string, sourceIp: string): void {
+    const since = Date.now() - RATE_WINDOW_MS;
+    const sourceIpHash = callbackCipher.hashIp(sourceIp);
+    const recent = db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM microsoft_identity_proofs
+        WHERE purpose = 'join' AND createdAt > ? AND (targetEmail = ? OR sourceIpHash = ?)`,
+      )
+      .get(since, targetEmail, sourceIpHash) as { count: number };
+    const global = db
+      .prepare(`SELECT COUNT(*) AS count FROM microsoft_identity_proofs WHERE purpose = 'join' AND createdAt > ?`)
+      .get(since) as { count: number };
+    if (recent.count >= 10 || global.count >= 1000) {
+      throw new MicrosoftProofError("MICROSOFT_PROOF_RATE_LIMITED", 429);
+    }
+  }
+
   async function start(args: {
-    body: { purpose: Purpose; email?: string; inviteToken?: string; callbackURL: string; errorCallbackURL: string };
+    body: {
+      purpose: Purpose;
+      email?: string;
+      inviteToken?: string;
+      accountId?: string;
+      callbackURL: string;
+      errorCallbackURL: string;
+    };
     headers: Headers;
     sourceIp: string;
   }): Promise<{ url: string; setCookies: string[] }> {
@@ -173,6 +204,7 @@ export function createMicrosoftProof(input: Input) {
       body,
       headers,
     );
+    if (body.purpose === "join") assertJoinStartQuota(targetEmail, args.sourceIp);
     const previous = fromHeaders(headers);
     if (previous)
       db.prepare(
@@ -207,6 +239,10 @@ export function createMicrosoftProof(input: Input) {
       errorCallbackUrl: callbackCipher.encrypt(errorCallbackUrl),
     };
     saveIntent(intent, now);
+    return beginNativeProof(intent, headers, nonce);
+  }
+
+  async function beginNativeProof(intent: Intent, headers: Headers, nonce: string) {
     try {
       const oauth = await startNativeOAuth(headers, intent);
       callbackState.store(intent.id, oauth.url);
@@ -249,6 +285,52 @@ export function createMicrosoftProof(input: Input) {
     throw new MicrosoftProofError("MICROSOFT_PROOF_PENDING", 403);
   }
 
+  async function continueReturningJoin(input: {
+    intent: Intent;
+    existing: { principalId: string; email: string };
+    oid: string;
+    capture: NonNullable<ReturnType<typeof microsoftCallbackCapture.getStore>>;
+  }): Promise<void> {
+    const { intent, existing, oid, capture } = input;
+    if (normalizeAccountEmail(existing.email) !== intent.targetEmail) {
+      throw new MicrosoftProofError("MICROSOFT_IDENTITY_MISMATCH", 403);
+    }
+    if (intent.state === "approved") {
+      capture.proofId = intent.id;
+      return;
+    }
+    if (intent.state === "mail-sent") {
+      capture.pending = true;
+      throw new MicrosoftProofError("MICROSOFT_PROOF_PENDING", 403);
+    }
+    const durable = db
+      .prepare(
+        `SELECT 1 FROM identity_email_proofs WHERE principalId = ? AND email = ?
+          AND source = 'microsoft'`,
+      )
+      .get(existing.principalId, intent.targetEmail);
+    if (durable) {
+      db.prepare(
+        `UPDATE microsoft_identity_proofs SET oid = ?, state = 'approved', updatedAt = ?
+            WHERE id = ? AND state = 'started'`,
+      ).run(oid, Date.now(), intent.id);
+      capture.proofId = intent.id;
+      return;
+    }
+    db.prepare(
+      `UPDATE microsoft_identity_proofs SET oid = ?, updatedAt = ?
+          WHERE id = ? AND state = 'started' AND oid IS NULL`,
+    ).run(oid, Date.now(), intent.id);
+    try {
+      await sendToken({ ...intent, oid });
+    } catch (error) {
+      if (error instanceof MicrosoftProofError && error.code === "MAIL_DELIVERY_UNAVAILABLE") capture.pending = true;
+      throw error;
+    }
+    capture.pending = true;
+    throw new MicrosoftProofError("MICROSOFT_PROOF_PENDING", 403);
+  }
+
   async function onProfile(
     profile: Record<string, unknown>,
     oid: string,
@@ -257,10 +339,10 @@ export function createMicrosoftProof(input: Input) {
     if (!capture) throw new MicrosoftProofError("MICROSOFT_CALLBACK_REQUIRED", 403);
     const existing = db
       .prepare(
-        `SELECT user.email FROM account JOIN user ON user.id = account.userId
+        `SELECT user.id AS principalId, user.email FROM account JOIN user ON user.id = account.userId
       WHERE account.providerId = 'microsoft' AND account.accountId = ? LIMIT 1`,
       )
-      .get(oid) as { email: string } | undefined;
+      .get(oid) as { principalId: string; email: string } | undefined;
     const intent = fromHeaders(capture.request.headers);
     if (existing && isInactiveIntent(intent)) {
       return { email: existing.email, emailVerified: true };
@@ -272,6 +354,10 @@ export function createMicrosoftProof(input: Input) {
     // An invite for an already linked Microsoft identity signs in to that linked principal: the
     // principal is found by `oid`, never by email, and the invite must name its stored address.
     if (existing) {
+      if (intent.purpose === "join") {
+        await continueReturningJoin({ intent, existing, oid, capture });
+        return { email: existing.email, emailVerified: true };
+      }
       if (!matchesExistingInvitation(intent, existing.email)) {
         throw new MicrosoftProofError("MICROSOFT_IDENTITY_ALREADY_LINKED", 409);
       }
@@ -292,17 +378,34 @@ export function createMicrosoftProof(input: Input) {
     return intent.purpose === "invite" && normalizeAccountEmail(email) === intent.targetEmail;
   }
 
+  function isUnavailableStatus(intent: Intent): boolean {
+    return (
+      intent.expiresAt <= Date.now() ||
+      intent.state === "cancelled" ||
+      (intent.state === "completed" && intent.purpose !== "join")
+    );
+  }
+
   function status(headers: Headers): {
     state: "pending" | "approved" | "expired";
     emailHint?: string;
     deliveryUnavailable?: true;
+    accountId?: string;
+    purpose?: "policy" | "invitation";
+    providerId?: "microsoft";
   } {
     const intent = fromHeaders(headers);
-    if (!intent || intent.expiresAt <= Date.now() || intent.state === "cancelled" || intent.state === "completed")
-      return { state: "expired" };
+    if (!intent || isUnavailableStatus(intent)) return { state: "expired" };
     return {
-      state: intent.state === "approved" ? "approved" : "pending",
+      state: intent.state === "approved" || intent.state === "completed" ? "approved" : "pending",
       emailHint: hintProofEmail(intent.targetEmail),
+      ...(intent.purpose === "join" && intent.accountId
+        ? {
+            accountId: intent.accountId,
+            purpose: intent.inviteId ? ("invitation" as const) : ("policy" as const),
+            providerId: "microsoft" as const,
+          }
+        : {}),
       ...(intent.state === "started" && intent.oid && intent.sentCount > 0
         ? { deliveryUnavailable: true as const }
         : {}),
@@ -381,6 +484,199 @@ export function createMicrosoftProof(input: Input) {
     db.prepare("DELETE FROM capacitylens_bootstrap_claim WHERE id = 1 AND claimToken = ?").run(token);
   }
 
+  function hasJoiningCandidate(candidate: {
+    email?: string;
+    emailVerified?: boolean;
+    providerId: string | null;
+  }): boolean {
+    return candidate.providerId === "microsoft" && candidate.emailVerified === true && Boolean(candidate.email);
+  }
+
+  function matchesJoiningCallback(
+    intent: Intent,
+    proofId: string,
+    candidateEmail: string,
+  ): intent is Intent & { accountId: string; oid: string } {
+    return (
+      intent.id === proofId &&
+      intent.purpose === "join" &&
+      intent.state === "approved" &&
+      intent.expiresAt > Date.now() &&
+      normalizeAccountEmail(candidateEmail) === intent.targetEmail &&
+      Boolean(intent.accountId && intent.oid)
+    );
+  }
+
+  /** A new principal is allowed only from this exact approved, same-browser Microsoft callback. */
+  function admitsNewJoiningIdentity(candidate: {
+    email?: string;
+    emailVerified?: boolean;
+    providerId: string | null;
+  }): boolean {
+    const capture = microsoftCallbackCapture.getStore();
+    if (!capture?.proofId || !hasJoiningCandidate(candidate)) return false;
+    if ((db.prepare("SELECT COUNT(*) AS count FROM user").get() as { count: number }).count === 0) return false;
+    const intent = fromHeaders(capture.request.headers);
+    if (!intent || !matchesJoiningCallback(intent, capture.proofId, candidate.email as string)) return false;
+    try {
+      // assertLive is asynchronous because linking also accepts a session; joining is synchronous.
+      const principal = db.prepare("SELECT id FROM user WHERE lower(trim(email)) = ?").get(intent.targetEmail) as
+        { id: string } | undefined;
+      if (
+        principal ||
+        db
+          .prepare(
+            `SELECT 1 FROM account_access_restrictions WHERE accountId = ?
+        AND verifiedEmail = ?`,
+          )
+          .get(intent.accountId, intent.targetEmail)
+      )
+        return false;
+      assertJoinIntentTargetLive(db, {
+        accountId: intent.accountId,
+        email: intent.targetEmail,
+        purpose: intent.inviteId ? "invitation" : "policy",
+        invitationId: intent.inviteId,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Session creation is the proof boundary for a returning stable oid. */
+  function bindJoiningSession(principalId: string): void {
+    const capture = microsoftCallbackCapture.getStore();
+    if (!capture?.proofId) return;
+    const intent = fromHeaders(capture.request.headers);
+    if (intent?.purpose !== "join") return;
+    if (
+      intent.id !== capture.proofId ||
+      !intent.oid ||
+      intent.expiresAt <= Date.now() ||
+      (intent.state !== "approved" && intent.state !== "completed")
+    ) {
+      throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403);
+    }
+    tx(
+      db,
+      () => {
+        const linked = db
+          .prepare(
+            `SELECT 1 FROM account JOIN user ON user.id = account.userId
+        WHERE account.providerId = 'microsoft' AND account.accountId = ? AND account.userId = ?
+          AND lower(user.email) = ?`,
+          )
+          .get(intent.oid, principalId, intent.targetEmail);
+        if (!linked) throw new MicrosoftProofError("MICROSOFT_IDENTITY_MISMATCH", 403);
+        const durable = db
+          .prepare(
+            `SELECT 1 FROM identity_email_proofs WHERE principalId = ? AND email = ?
+        AND source = 'microsoft'`,
+          )
+          .get(principalId, intent.targetEmail);
+        if (!durable) {
+          if (intent.state !== "approved" || !intent.tokenHash || intent.sentCount < 1) {
+            throw new MicrosoftProofError("MICROSOFT_PROOF_REQUIRED", 403);
+          }
+          const ownerConflict = db
+            .prepare(
+              `SELECT 1 FROM account_members AS member
+          JOIN account_access_restrictions AS restriction ON restriction.accountId = member.accountId
+          WHERE member.userId = ? AND member.role = 'owner' AND member.status = 'active'
+            AND (restriction.principalId = ? OR restriction.verifiedEmail = ?) LIMIT 1`,
+            )
+            .get(principalId, principalId, intent.targetEmail);
+          if (ownerConflict) throw new MicrosoftProofError("MICROSOFT_JOIN_ACCESS_DISABLED", 403);
+          db.prepare(
+            `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+          VALUES (?, ?, 'microsoft', ?) ON CONFLICT(principalId) DO UPDATE SET
+          email = excluded.email, source = excluded.source, provenAt = excluded.provenAt`,
+          ).run(principalId, intent.targetEmail, new Date().toISOString());
+        }
+        db.prepare(
+          `UPDATE microsoft_identity_proofs SET state = 'completed', tokenHash = NULL, updatedAt = ?
+        WHERE id = ? AND state IN ('approved', 'completed')`,
+        ).run(Date.now(), intent.id);
+      },
+      "immediate",
+    );
+  }
+
+  function assertJoiningCompletion(input: {
+    headers: Headers;
+    actor: ActorContext;
+    providerId: string | null;
+    requireMfa: boolean;
+  }): Intent & { accountId: string; oid: string } {
+    const intent = fromHeaders(input.headers);
+    if (
+      !intent ||
+      intent.purpose !== "join" ||
+      intent.state !== "completed" ||
+      !intent.accountId ||
+      !intent.oid ||
+      intent.expiresAt <= Date.now() ||
+      input.providerId !== "microsoft" ||
+      (input.requireMfa && !input.actor.mfaSatisfied)
+    ) {
+      throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403);
+    }
+    return intent as Intent & { accountId: string; oid: string };
+  }
+
+  function completeJoining(input: {
+    headers: Headers;
+    actor: ActorContext;
+    providerId: string | null;
+    invitationToken?: string;
+    requireMfa: boolean;
+  }) {
+    const intent = assertJoiningCompletion(input);
+    return tx(
+      db,
+      () => {
+        const linked = db
+          .prepare(
+            `SELECT 1 FROM account JOIN user ON user.id = account.userId
+        JOIN identity_email_proofs AS proof ON proof.principalId = user.id
+        WHERE account.providerId = 'microsoft' AND account.accountId = ? AND account.userId = ?
+          AND lower(user.email) = ? AND proof.email = ? AND proof.source = 'microsoft'`,
+          )
+          .get(intent.oid, input.actor.principalId, intent.targetEmail, intent.targetEmail);
+        if (!linked) throw new MicrosoftProofError("MICROSOFT_IDENTITY_MISMATCH", 403);
+        const purpose = intent.inviteId ? "invitation" : "policy";
+        if (purpose === "invitation" && !input.invitationToken)
+          throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403);
+        const invite = prepareCompanyAdmissionIntent({
+          db,
+          accountId: intent.accountId,
+          email: intent.targetEmail,
+          purpose,
+          ...(input.invitationToken ? { invitationToken: input.invitationToken } : {}),
+        });
+        if ((invite?.id ?? null) !== intent.inviteId) throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403);
+        const membership = admitCompanyInTx({
+          db,
+          accountId: intent.accountId,
+          principalId: input.actor.principalId,
+          email: intent.targetEmail,
+          purpose,
+          ...(input.invitationToken ? { invitationToken: input.invitationToken } : {}),
+        });
+        const consumed = db
+          .prepare(
+            `UPDATE microsoft_identity_proofs SET state = 'cancelled', updatedAt = ?
+        WHERE id = ? AND state = 'completed' AND expiresAt > ?`,
+          )
+          .run(Date.now(), intent.id, Date.now());
+        if (consumed.changes !== 1) throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403);
+        return { accountId: intent.accountId, role: membership.role };
+      },
+      "immediate",
+    );
+  }
+
   return {
     start,
     onProfile,
@@ -390,6 +686,9 @@ export function createMicrosoftProof(input: Input) {
     cancel,
     validateCallback: callbackState.validate,
     releaseBootstrapClaim,
+    admitsNewJoiningIdentity,
+    bindJoiningSession,
+    completeJoining,
     errorReturnUrl: callbackReturn.errorReturnUrl,
     resolveInternalReturn: callbackReturn.resolveInternalReturn,
     cookieName,

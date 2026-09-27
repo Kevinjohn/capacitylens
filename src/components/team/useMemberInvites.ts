@@ -45,8 +45,8 @@ function buildInviteEmailValidation(
   email: string,
 ): InviteEmailValidationResult {
   const trimmed = email.trim();
-  if (authMode === "sso-only" && trimmed.length === 0) {
-    return { kind: "invalid", message: m.settings_sso_invite_email_required() };
+  if (authMode !== "off" && trimmed.length === 0) {
+    return { kind: "invalid", message: m.settings_invite_email_required() };
   }
   if (trimmed.length > 0 && !isAccountEmail(trimmed)) {
     return { kind: "invalid", message: m.identity_err_email() };

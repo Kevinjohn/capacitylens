@@ -11,7 +11,7 @@ import nodemailer from "nodemailer";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
 
-export type MicrosoftProofPurpose = "bootstrap" | "invite" | "link";
+export type MicrosoftProofPurpose = "bootstrap" | "invite" | "link" | "join";
 export type MicrosoftProofState = "started" | "mail-sent" | "approved" | "completed" | "cancelled";
 export type MicrosoftProofIntent = {
   id: string;

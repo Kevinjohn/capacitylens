@@ -35,7 +35,7 @@ permissions](/getting-started/roles-and-permissions) for why.
 
 2. Select **Invite someone**, above the member table, to open the centered invite dialog. Choose a
    role in the dialog. The consequences of that role are spelled out in plain language underneath
-   it. **Email** is optional for password sign-in and required on company-login-only installs.
+   it. **Email** is required: every invitation belongs to the named mailbox.
 
 3. Optionally choose **Link to Resource**, or leave **No Resource linked** selected.
    This proposes an existing person Resource without reserving it. The recipient cannot see this
@@ -65,8 +65,9 @@ From there:
 - Already have a sign-in? Choose **Sign in**, enter your email and password, then check the
   signed-in identity and select **Accept invite**. Choose **Use a different account** if needed;
   the invitation stays open.
-- New to this install? Choose **Create account**, enter your name, email and a new password,
-  then select **Create account and accept**. Only this choice asks for your name.
+- New to this install? Choose **Create account**, then **Verify email and create account**.
+  Open the verification email in the same browser before choosing a password. Creating the
+  account and accepting the invitation happen together after proof.
 - Use company login? Choose your configured provider, then review and accept the invitation.
 
 The role description is shown in full. Expiry uses your local date and time, without seconds.

@@ -139,9 +139,10 @@ not a completed live-tenant test.
 
 ## Allow the first person and invite teammates
 
-External sign-in does not make an account eligible by itself. New people need a
-verified matching email address and either the first-owner allowance on an
-empty installation or an unused CapacityLens invitation.
+External sign-in does not make an account eligible by itself. The first person
+on an empty installation needs the operator's exact-address allowance. After
+that, each company decides whether a verified address may join directly or
+needs an invitation. [See the joining policies](/company-login/#invitations-and-the-first-owner).
 
 For the first Owner on a new installation, set
 `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS` to the exact email address the
@@ -149,10 +150,10 @@ person will use at Google or Microsoft. This allowance only applies while there
 are no users. The first sign-in creates the first identity and closes bootstrap access.
 The person then follows **Set up your company** to create their company as Owner.
 
-For everyone else, an Owner or Admin creates an invitation in **Team & access**
-and copies its link to send to the intended person. CapacityLens does not email
-company invitations. The
-invited person opens that invitation and continues with the configured provider.
+For an invited person, an Owner or Admin creates an addressed invitation in
+**Team & access** and copies its link to send privately. CapacityLens does not
+email company invitations. The invited person opens it and continues with an
+eligible configured provider.
 The verified address must match the invitation. Google supplies verified-email
 evidence; Microsoft may need the mailbox proof below. A different address cannot
 use that invitation to create an identity.

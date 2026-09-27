@@ -9,6 +9,7 @@ describe("JoiningPolicySection", () => {
     const user = userEvent.setup();
     render(
       <JoiningPolicySection
+        accountId="a-studio"
         role="owner"
         settings={{ policy: "invitation_only", approvedDomains: [] }}
         onSave={onSave}
@@ -30,9 +31,25 @@ describe("JoiningPolicySection", () => {
     expect(screen.getByText(/automatically receive Viewer/i)).toBeInTheDocument();
   });
 
+  it("lets Owner and Admin copy their company joining link", async () => {
+    const writeText = vi.fn(async () => {});
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, "writeText").mockImplementation(writeText);
+    render(
+      <JoiningPolicySection accountId="a-studio" role="admin" settings={{ policy: "open", approvedDomains: [] }} />,
+    );
+    const link = screen.getByTestId("joining-policy-link") as HTMLInputElement;
+    expect(link.value).toBe(`${window.location.origin}/join/a-studio`);
+    await user.click(screen.getByTestId("joining-policy-copy-link"));
+    expect(writeText).toHaveBeenCalledWith(link.value);
+    expect(screen.getByRole("status")).toHaveTextContent("Joining link copied.");
+    vi.restoreAllMocks();
+  });
+
   it("shows the Admin the policy and every domain without edit controls", () => {
     render(
       <JoiningPolicySection
+        accountId="a-studio"
         role="admin"
         settings={{ policy: "approved_domains", approvedDomains: ["example.com", "staff.example.com"] }}
       />,
@@ -51,6 +68,7 @@ describe("JoiningPolicySection", () => {
     const user = userEvent.setup();
     render(
       <JoiningPolicySection
+        accountId="a-studio"
         role="owner"
         settings={{ policy: "invitation_only", approvedDomains: [] }}
         onSave={onSave}
@@ -72,6 +90,7 @@ describe("JoiningPolicySection", () => {
     const user = userEvent.setup();
     render(
       <JoiningPolicySection
+        accountId="a-studio"
         role="owner"
         settings={{ policy: "invitation_only", approvedDomains: [] }}
         onSave={vi.fn(async () => Promise.reject(new Error("server failure")))}

@@ -7,8 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { FieldError } from "../ui/field";
 
 type JoiningPolicySectionProps =
-  | { role: "owner"; settings: JoiningPolicySettings; onSave: (settings: JoiningPolicySettings) => Promise<void> }
-  | { role: "admin"; settings: JoiningPolicySettings; onSave?: never };
+  | {
+      role: "owner";
+      accountId: string;
+      settings: JoiningPolicySettings;
+      onSave: (settings: JoiningPolicySettings) => Promise<void>;
+    }
+  | { role: "admin"; accountId: string; settings: JoiningPolicySettings; onSave?: never };
 
 const POLICIES: readonly JoiningPolicy[] = [
   "invitation_only",
@@ -175,6 +180,22 @@ function JoiningPolicyEditor({ settings, onSave }: Extract<JoiningPolicySectionP
 
 /** The containing account view supplies current server settings and remounts on account changes. */
 export function JoiningPolicySection(props: JoiningPolicySectionProps) {
+  const [copyStatus, setCopyStatus] = useState<"copied" | "failed" | null>(null);
+  const link = `${window.location.origin}/join/${encodeURIComponent(props.accountId)}`;
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+  }
+
+  let copyMessage: string | null = null;
+  if (copyStatus === "copied") copyMessage = m.joining_policy_link_copied();
+  if (copyStatus === "failed") copyMessage = m.joining_policy_link_copy_failed();
+
   return (
     <Card data-testid="joining-policy-section">
       <CardHeader>
@@ -183,12 +204,39 @@ export function JoiningPolicySection(props: JoiningPolicySectionProps) {
         </CardTitle>
         <CardDescription>{m.joining_policy_intro()}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-5">
         {props.role === "owner" ? (
           <JoiningPolicyEditor {...props} />
         ) : (
           <JoiningPolicyReadOnly settings={props.settings} />
         )}
+        <div className="flex flex-col gap-2 border-t pt-4">
+          <label htmlFor="joining-policy-link" className="text-sm font-medium">
+            {m.joining_policy_link_label()}
+          </label>
+          <p className="text-sm text-muted-foreground">{m.joining_policy_link_hint()}</p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              id="joining-policy-link"
+              data-testid="joining-policy-link"
+              readOnly
+              value={link}
+              onFocus={(event) => event.currentTarget.select()}
+              className="min-w-0 flex-1 rounded-md border border-input bg-(--input-background) px-3 py-2 text-sm text-ink"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              data-testid="joining-policy-copy-link"
+              onClick={() => void copyLink()}
+            >
+              {m.joining_policy_copy_link()}
+            </Button>
+          </div>
+          <p role="status" className="text-sm text-muted-foreground">
+            {copyMessage}
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

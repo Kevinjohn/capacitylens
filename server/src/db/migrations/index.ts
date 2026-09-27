@@ -45,6 +45,7 @@ import { MICROSOFT_PROOF_V46_MIGRATION } from "./microsoftProofV46";
 import { ACCESS_RESTRICTIONS_V47_MIGRATION } from "./accessRestrictionsV47";
 import { IDENTITY_EMAIL_PROOF_V48_MIGRATION } from "./identityEmailProofV48";
 import { JOINING_POLICIES_V49_MIGRATION } from "./joiningPoliciesV49";
+import { MICROSOFT_JOIN_V50_MIGRATION } from "./microsoftJoinV50";
 import { validateMigrationSequence } from "./validateSequence";
 import {
   migrateTimeOffResourceNullableV33,
@@ -396,5 +397,6 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   ACCESS_RESTRICTIONS_V47_MIGRATION,
   IDENTITY_EMAIL_PROOF_V48_MIGRATION,
   JOINING_POLICIES_V49_MIGRATION,
+  MICROSOFT_JOIN_V50_MIGRATION,
 ];
 validateMigrationSequence(DATABASE_MIGRATIONS, DB_SCHEMA_VERSION);

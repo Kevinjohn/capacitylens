@@ -1176,8 +1176,8 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button named **Copy invitation link** — the token is write-once and never
   shown again; closing the dialog clears it, so reopening shows an empty form. The panel explicitly says CapacityLens does not send invitation emails: the creator
-  copies and sends the link. The field has no explanatory helper copy; it is optional in password
-  mode and required in SSO-only mode. Creation confirmation stays beside the link, with instructions to
+  copies and sends the link. The field has no explanatory helper copy and is required in every
+  server-auth mode. Creation confirmation stays beside the link, with instructions to
   revoke and recreate it if lost, rather than overlaying the panel in a toast.
   If any membership, invite or reset-token mutation loses its response after dispatch,
   the section reloads memberships, invites and authentication before enabling a retry. A lost invite
@@ -1187,23 +1187,29 @@ presented before the member directory, matching the action-first pattern of the 
   execution to record its actual completed, compensated or repair-required outcome first. An
   unreadable or unrecognised conflict response also keeps the original browser command identity;
   only a successfully decoded terminal rejection permits a later retry to mint a new identity.
-  In SSO-only mode **Email** is required by both the UI and server because a
-  bearer-only invitation cannot admit a brand-new external identity.
-- **Joining policy (Team & access; Owner/Admin)** — **Who can join** (`data-testid="joining-policy-section")
-shows the company's current **Invitation only**, **Open registration**, **Approved domains**, or
-**Approved domains or invitation** policy and every approved domain. Policy-only joins always
-receive Viewer. Under the combined policy, matching staff domains or an addressed invitation
-can admit a person; the invitation can grant its specified role. Only the Owner can edit the
-policy (`data-testid="joining-policy-select"`) and the one-domain-per-line **Approved domains**
-field (`data-testid="joining-policy-domains"`) and select **Save joining policy**
-(`data-testid="joining-policy-save"). The Admin sees the same settings with guidance to speak
+  **Email** is required by both the UI and server because a bearer-only invitation
+  cannot establish mailbox ownership for company joining.
+- **Joining policy (Team & access; Owner/Admin)** — **Who can join** (`data-testid="joining-policy-section"`)
+  shows the company's current **Invitation only**, **Open registration**, **Approved domains**, or
+  **Approved domains or invitation** policy and every approved domain. Policy-only joins always
+  receive Viewer. Under the combined policy, matching staff domains or an addressed invitation
+  can admit a person; the invitation can grant its specified role. Only the Owner can edit the
+  policy (`data-testid="joining-policy-select"`) and the one-domain-per-line **Approved domains**
+  field (`data-testid="joining-policy-domains"`) and select **Save joining policy**
+  (`data-testid="joining-policy-save"`). The Admin sees the same settings with guidance to speak
   to the Owner, without edit controls. Invalid domains and a domain policy with no domains are
   explained beside the field before a save is sent.
   The section loads the current company’s policy before showing controls; a failed read shows
   **Could not load the joining policy.** and a **Try again** action. Switching companies discards
   the previous company’s draft and loads its new settings.
+  Owner and Admin can select the company-specific **Joining link**
+  (`data-testid="joining-policy-link"`) and choose **Copy joining link**
+  (`data-testid="joining-policy-copy-link"`) to share `/join/:accountId`.
   `/join/:accountId` is a public company-bound entry outside the app's account picker. It shows
-  the company's name and available sign-in methods, then asks for an email. In password mode,
+  the company's name and available sign-in methods, then asks for an email. Eligible Google,
+  Microsoft and GitHub choices appear above the password option in mixed mode; GitHub remains
+  unavailable in company-sign-in-only mode. Microsoft uses its same-browser mailbox ceremony if
+  the signed-in identity has no durable address proof. In password mode,
   **Send verification email** starts a 15-minute proof with no credential yet; the pending view
   explains that the link must be opened in the same browser and offers **Resend email**. A verified
   new person enters **Name** and **Password**, then **Create account and join** creates the credential

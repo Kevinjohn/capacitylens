@@ -22,7 +22,7 @@ interface Dependencies {
   trustProxyHeaders: boolean;
   secret: string;
   publicUrl: URL;
-  sendMail: (email: string, token: string, accountId: string) => Promise<void>;
+  sendMail: (email: string, token: string, target: { accountId: string; invitationToken?: string }) => Promise<void>;
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;
 }
 
@@ -42,16 +42,25 @@ function optionalInvitation(body: Record<string, unknown>): string | undefined {
 }
 
 function respond<T>(reply: FastifyReply, fail: Dependencies["fail"], operation: () => Promise<T> | T) {
-  return Promise.resolve().then(operation).catch((error: unknown) => fail(reply, error));
+  return Promise.resolve()
+    .then(operation)
+    .catch((error: unknown) => fail(reply, error));
 }
 
 function registerMetadata(app: FastifyInstance, input: Dependencies): void {
   app.get("/api/accounts/:accountId/join/metadata", (req, reply) => {
     const { accountId } = req.params as { accountId: string };
-    const row = input.db.prepare("SELECT name FROM accounts WHERE id = ?").get(accountId) as { name: string } | undefined;
-    if (!row) return input.fail(reply, new AccountContractError({
-      code: "NOT_FOUND", message: "This company is unavailable.", retryable: false,
-    }));
+    const row = input.db.prepare("SELECT name FROM accounts WHERE id = ?").get(accountId) as
+      { name: string } | undefined;
+    if (!row)
+      return input.fail(
+        reply,
+        new AccountContractError({
+          code: "NOT_FOUND",
+          message: "This company is unavailable.",
+          retryable: false,
+        }),
+      );
     return {
       accountId,
       companyName: row.name,
@@ -70,24 +79,34 @@ function registerMailRoutes(app: FastifyInstance, input: Dependencies, proof: Pr
       const { accountId } = req.params as { accountId: string };
       const invitationToken = optionalInvitation(body);
       const result = await proof.start({
-        accountId, email: body.email, purpose: body.purpose,
+        accountId,
+        email: body.email,
+        purpose: body.purpose,
         ...(invitationToken === undefined ? {} : { invitationToken }),
         headers: toWebHeaders(req.headers),
         sourceIp: resolveRequestClientIp({ request: req, trustProxyHeaders: input.trustProxyHeaders }),
       });
       reply.header("set-cookie", result.setCookies);
-      return { emailHint: result.emailHint, expiresAt: result.expiresAt,
-        deliveryUnavailable: result.deliveryUnavailable };
-    }));
+      return {
+        emailHint: result.emailHint,
+        expiresAt: result.expiresAt,
+        deliveryUnavailable: result.deliveryUnavailable,
+      };
+    }),
+  );
   app.get("/api/company-join/status", (req) => proof.status(toWebHeaders(req.headers)));
   app.post("/api/company-join/resend", (req, reply) =>
-    respond(reply, input.fail, () => proof.resend(toWebHeaders(req.headers))));
+    respond(reply, input.fail, () =>
+      proof.resend(toWebHeaders(req.headers), optionalInvitation(bodyObject(req.body ?? {}))),
+    ),
+  );
   app.post("/api/company-join/confirm", (req, reply) =>
     respond(reply, input.fail, () => {
       const body = bodyObject(req.body);
       if (typeof body.token !== "string") invalid();
       return proof.confirm(toWebHeaders(req.headers), body.token);
-    }));
+    }),
+  );
   app.post("/api/company-join/cancel", (req, reply) => {
     const result = proof.cancel(toWebHeaders(req.headers));
     reply.header("set-cookie", result.setCookie);
@@ -95,49 +114,77 @@ function registerMailRoutes(app: FastifyInstance, input: Dependencies, proof: Pr
   });
 }
 
+async function startProviderOAuth(args: {
+  input: Dependencies;
+  request: FastifyRequest;
+  providerId: "google" | "github";
+  callbackURL: string;
+  errorCallbackURL: string;
+}): Promise<{ url: string; setCookies: string[] }> {
+  const { input, request, providerId, callbackURL, errorCallbackURL } = args;
+  const headers = toWebHeaders(request.headers);
+  headers.set("content-type", "application/json");
+  const response = await input.auth.handler(
+    new Request(new URL("/api/auth/sign-in/social", input.publicUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ provider: providerId, callbackURL, errorCallbackURL }),
+    }),
+  );
+  const payload: unknown = await response.json().catch(() => null);
+  const url = payload && typeof payload === "object" && "url" in payload ? payload.url : null;
+  if (!response.ok || typeof url !== "string") {
+    throw new AccountContractError({
+      code: "DEPENDENCY_UNAVAILABLE",
+      message: "Provider sign-in could not start.",
+      retryable: true,
+    });
+  }
+  return { url, setCookies: response.headers.getSetCookie() };
+}
+
 function registerProviderRoutes(app: FastifyInstance, input: Dependencies): void {
   const providerIntent = createJoiningProviderIntent({
-    db: input.db, applicationId: input.applicationId, secret: input.secret,
+    db: input.db,
+    applicationId: input.applicationId,
+    secret: input.secret,
     secureCookies: input.publicUrl.protocol === "https:",
   });
   app.post("/api/accounts/:accountId/join/provider/start", (req: FastifyRequest, reply) =>
     respond(reply, input.fail, async () => {
       if (!allowsProviderSignIn(input.authMode)) invalid("Provider joining is unavailable.");
       const body = bodyObject(req.body);
-      if (typeof body.email !== "string" || (body.purpose !== "policy" && body.purpose !== "invitation") ||
-          (body.providerId !== "google" && body.providerId !== "github")) invalid();
+      if (
+        typeof body.email !== "string" ||
+        (body.purpose !== "policy" && body.purpose !== "invitation") ||
+        (body.providerId !== "google" && body.providerId !== "github")
+      )
+        invalid();
       const providerId = body.providerId;
-      if (!input.auth.providers.some((provider) => provider.id === providerId) ||
-          (input.authMode === "sso-only" && !input.auth.permittedCompanyProviderIds?.has(providerId))) {
+      if (
+        !input.auth.providers.some((provider) => provider.id === providerId) ||
+        (input.authMode === "sso-only" && !input.auth.permittedCompanyProviderIds?.has(providerId))
+      ) {
         invalid("This provider is unavailable for company joining.");
       }
       const { accountId } = req.params as { accountId: string };
       const invitationToken = optionalInvitation(body);
       const result = await providerIntent.start({
-        accountId, providerId, email: body.email, purpose: body.purpose,
+        accountId,
+        providerId,
+        email: body.email,
+        purpose: body.purpose,
         ...(invitationToken === undefined ? {} : { invitationToken }),
         headers: toWebHeaders(req.headers),
         sourceIp: resolveRequestClientIp({ request: req, trustProxyHeaders: input.trustProxyHeaders }),
         publicUrl: input.publicUrl,
-        startOAuth: async (callbackURL, errorCallbackURL) => {
-          const headers = toWebHeaders(req.headers);
-          headers.set("content-type", "application/json");
-          const response = await input.auth.handler(new Request(new URL("/api/auth/sign-in/social", input.publicUrl), {
-            method: "POST", headers,
-            body: JSON.stringify({ provider: providerId, callbackURL, errorCallbackURL }),
-          }));
-          const payload: unknown = await response.json().catch(() => null);
-          const url = payload && typeof payload === "object" && "url" in payload ? payload.url : null;
-          if (!response.ok || typeof url !== "string") {
-            throw new AccountContractError({ code: "DEPENDENCY_UNAVAILABLE", message: "Provider sign-in could not start.",
-              retryable: true });
-          }
-          return { url, setCookies: response.headers.getSetCookie() };
-        },
+        startOAuth: (callbackURL, errorCallbackURL) =>
+          startProviderOAuth({ input, request: req, providerId, callbackURL, errorCallbackURL }),
       });
       reply.header("set-cookie", result.setCookies);
       return { url: result.url, emailHint: result.emailHint };
-    }));
+    }),
+  );
 }
 
 function registerCompletionRoutes(app: FastifyInstance, input: Dependencies, proof: Proof): void {
@@ -147,40 +194,82 @@ function registerCompletionRoutes(app: FastifyInstance, input: Dependencies, pro
       const body = bodyObject(req.body);
       if (typeof body.displayName !== "string" || typeof body.password !== "string") invalid();
       const invitationToken = optionalInvitation(body);
-      return proof.completeNew({ headers: toWebHeaders(req.headers), displayName: body.displayName,
-        password: body.password, ...(invitationToken === undefined ? {} : { invitationToken }) });
-    }));
+      return proof.completeNew({
+        headers: toWebHeaders(req.headers),
+        displayName: body.displayName,
+        password: body.password,
+        ...(invitationToken === undefined ? {} : { invitationToken }),
+      });
+    }),
+  );
   app.post("/api/company-join/complete-existing", (req, reply) =>
     respond(reply, input.fail, () => {
       if (!req.accountActor) invalid("Sign in as the addressed identity to continue.");
       const body = bodyObject(req.body);
       const invitationToken = optionalInvitation(body);
-      return proof.completeExisting({ headers: toWebHeaders(req.headers), actor: req.accountActor,
-        ...(invitationToken === undefined ? {} : { invitationToken }) });
-    }));
-  const provider = createJoiningProviderCallbacks({ db: input.db, applicationId: input.applicationId,
-    secret: input.secret, secureCookies: input.publicUrl.protocol === "https:" });
+      return proof.completeExisting({
+        headers: toWebHeaders(req.headers),
+        actor: req.accountActor,
+        ...(invitationToken === undefined ? {} : { invitationToken }),
+      });
+    }),
+  );
+  const provider = createJoiningProviderCallbacks({
+    db: input.db,
+    applicationId: input.applicationId,
+    secret: input.secret,
+    secureCookies: input.publicUrl.protocol === "https:",
+  });
   app.post("/api/company-join/complete-provider", (req, reply) =>
     respond(reply, input.fail, () => {
       if (!req.accountActor) invalid("Sign in with the verified provider to continue.");
-      if (!req.authenticationProviderId ||
-          !input.auth.providers.some((candidate) => candidate.id === req.authenticationProviderId) ||
-          (input.authMode === "sso-only" &&
-            !input.auth.permittedCompanyProviderIds?.has(req.authenticationProviderId))) {
+      if (
+        !req.authenticationProviderId ||
+        !input.auth.providers.some((candidate) => candidate.id === req.authenticationProviderId) ||
+        (input.authMode === "sso-only" && !input.auth.permittedCompanyProviderIds?.has(req.authenticationProviderId))
+      ) {
         invalid("This provider is unavailable for company joining.");
       }
       const invitationToken = optionalInvitation(bodyObject(req.body));
-      return provider.complete({ headers: toWebHeaders(req.headers), actor: req.accountActor,
-        providerId: req.authenticationProviderId, requireMfa: input.requireMfa,
-        ...(invitationToken === undefined ? {} : { invitationToken }) });
-    }));
+      return provider.complete({
+        headers: toWebHeaders(req.headers),
+        actor: req.accountActor,
+        providerId: req.authenticationProviderId,
+        requireMfa: input.requireMfa,
+        ...(invitationToken === undefined ? {} : { invitationToken }),
+      });
+    }),
+  );
+  registerMicrosoftCompletion(app, input);
+}
+
+function registerMicrosoftCompletion(app: FastifyInstance, input: Dependencies): void {
+  app.post("/api/company-join/complete-microsoft", (req, reply) =>
+    respond(reply, input.fail, () => {
+      if (!req.accountActor || !input.auth.microsoftProof || req.authenticationProviderId !== "microsoft") {
+        invalid("Sign in with Microsoft to continue.");
+      }
+      const invitationToken = optionalInvitation(bodyObject(req.body));
+      return input.auth.microsoftProof.completeJoining({
+        headers: toWebHeaders(req.headers),
+        actor: req.accountActor,
+        providerId: req.authenticationProviderId,
+        requireMfa: input.requireMfa,
+        ...(invitationToken === undefined ? {} : { invitationToken }),
+      });
+    }),
+  );
 }
 
 export function registerJoiningProofRoutes(app: FastifyInstance, input: Dependencies): void {
   const proof = createJoiningProof({
-    db: input.db, identity: input.identity, applicationId: input.applicationId,
-    secret: input.secret, secureCookies: input.publicUrl.protocol === "https:",
-    requireMfa: input.requireMfa, sendMail: input.sendMail,
+    db: input.db,
+    identity: input.identity,
+    applicationId: input.applicationId,
+    secret: input.secret,
+    secureCookies: input.publicUrl.protocol === "https:",
+    requireMfa: input.requireMfa,
+    sendMail: input.sendMail,
   });
   registerMetadata(app, input);
   registerMailRoutes(app, input, proof);

@@ -16,7 +16,7 @@ test.describe("member masquerade", () => {
     const accountId = await bootstrapOrg(request, owner.cookie, COMPANY);
     const invitation = await request.post(`${AUTH_API}/api/invites`, {
       headers: { cookie: owner.cookie },
-      data: { accountId, role: "viewer" },
+      data: { accountId, role: "viewer", preauthEmail: viewer.email },
     });
     expect(invitation.status()).toBe(201);
     const token = ((await invitation.json()) as { token: string }).token;

@@ -12,14 +12,6 @@
     "sha256": "42f4f6e15b086b6648605a14634eb468e86fc2f09a6d1d2106d203379add20cb"
   },
   {
-    "path": "docs-src/screenshots/flows/using_join_your_team_1.png",
-    "sha256": "e81e19d0bdc9fc37551ace0e7403cb113cdf30f3393e2d1729bc676b66cd1364"
-  },
-  {
-    "path": "docs-src/screenshots/flows/using_join_your_team_2.png",
-    "sha256": "3cbaf4363d27b1d990a5e1d5c4943d9cc8a6f6e16c0c90d189e55162f2407f76"
-  },
-  {
     "path": "docs-src/screenshots/flows/using_team_access_1.png",
     "sha256": "eee75099d8e8aac1d1ecba417c134290ebdfb9d8c434df0e44a835afc5539a83"
   },

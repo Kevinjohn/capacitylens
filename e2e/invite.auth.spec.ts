@@ -1,5 +1,11 @@
 import { test, expect } from "./fixtures";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
+import {
+  AUTH_API as API,
+  AUTH_PASSWORD as PASSWORD,
+  bootstrapOrg,
+  signUpUser,
+  waitForJoiningMail,
+} from "./auth-helpers";
 import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
@@ -35,7 +41,7 @@ function registerSuiteScenario1() {
 
     const inviteRes = await request.post(`${API}/api/invites`, {
       headers: { cookie: ownerCookie },
-      data: { accountId, role: "editor" },
+      data: { accountId, role: "editor", preauthEmail: JOINER },
     });
     expect(inviteRes.status()).toBe(201);
     const token = (await inviteRes.json()).token as string;
@@ -119,12 +125,10 @@ function registerSuiteScenario2() {
     const ownerCookie = (await signUpUser(`${OWNER}.signup`)).cookie;
     const accountId = await bootstrapOrg(request, ownerCookie, `Signup Invite Studio ${STAMP}`);
 
-    // A brand-new identity takes the atomic signup path. The consumed token cannot be re-opened, so
-    // the live route refreshes /me + /api/accounts, activates the exact joined company, and replaces
-    // the invite URL with the app route instead of dropping the user onto the company picker.
+    // A new identity proves the addressed mailbox in this browser before any credential exists.
     const signupInvite = await request.post(`${API}/api/invites`, {
       headers: { cookie: ownerCookie },
-      data: { accountId, role: "viewer", preauthEmail: NEW_JOINER },
+      data: { accountId, role: "editor", preauthEmail: NEW_JOINER },
     });
     expect(signupInvite.status()).toBe(201);
     const signupToken = (await signupInvite.json()).token as string;
@@ -132,10 +136,19 @@ function registerSuiteScenario2() {
     await expect(page.getByTestId("invite-preview")).toContainText(`${NEW_JOINER.split("@")[0]}@…`);
     await expect(page.getByTestId("invite-preview")).not.toContainText(NEW_JOINER);
     await page.getByRole("tab", { name: "Create account" }).click();
-    await page.getByLabel("Name", { exact: true }).fill("New Joiner");
+    await page.getByRole("link", { name: "Verify email and create account" }).click();
+    await expect(page).toHaveURL(new RegExp(`/join/${accountId}\\?invite=`));
     await page.getByLabel("Email", { exact: true }).fill(NEW_JOINER);
+    await page.getByRole("button", { name: "Send verification email" }).click();
+    await expect(page.getByText(/Open it in this same browser within 15 minutes/i)).toBeVisible();
+    const mailLink = await waitForJoiningMail(NEW_JOINER, accountId);
+    expect(mailLink.searchParams.get("invite")).toBe(signupToken);
+    // The E2E API and Vite are split origins; production serves both on one origin.
+    await page.goto(new URL(`${mailLink.pathname}${mailLink.search}${mailLink.hash}`, page.url()).toString());
+    await expect(page.getByText(/Email verified/i)).toBeVisible();
+    await page.getByLabel("Name", { exact: true }).fill("New Joiner");
     await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
-    await page.getByRole("button", { name: "Create account and accept" }).click();
+    await page.getByRole("button", { name: "Create account and join" }).click();
 
     await expect(page).toHaveURL(/\/$/);
     await waitForAppLanding(page, page.locator("#main"));
@@ -143,7 +156,7 @@ function registerSuiteScenario2() {
     // the sidebar. Team & access exposes the authoritative role projection.
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
     await page.getByRole("link", { name: "Team & access" }).click();
-    await expect(page.getByTestId("current-access")).toContainText("Viewer");
+    await expect(page.getByTestId("current-access")).toContainText("Editor");
   });
 }
 

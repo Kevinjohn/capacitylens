@@ -1,33 +1,77 @@
 import { API_BASE } from "../data/apiConfig";
 import { apiFetch } from "../data/requestTimeout";
 
-function post(path: string, body?: unknown): Promise<Response> {
+function post(path: string, body?: unknown, signal?: AbortSignal): Promise<Response> {
   return apiFetch(`${API_BASE}${path}`, {
-    method: "POST", credentials: "include",
+    method: "POST",
+    credentials: "include",
     ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    ...(signal ? { signal } : {}),
   });
 }
 
 export const companyJoinClient = {
-  metadata: (accountId: string) => apiFetch(
-    `${API_BASE}/api/accounts/${encodeURIComponent(accountId)}/join/metadata`, { credentials: "include" },
-  ),
+  metadata: (accountId: string) =>
+    apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(accountId)}/join/metadata`, { credentials: "include" }),
   status: () => apiFetch(`${API_BASE}/api/company-join/status`, { credentials: "include" }),
-  start: (input: { accountId: string; email: string; invitationToken: string | null }) => post(
-    `/api/accounts/${encodeURIComponent(input.accountId)}/join/start`,
-    { purpose: input.invitationToken ? "invitation" : "policy", email: input.email,
-      ...(input.invitationToken ? { invitationToken: input.invitationToken } : {}) },
-  ),
-  resend: () => post("/api/company-join/resend"),
+  start: (input: { accountId: string; email: string; invitationToken: string | null }) =>
+    post(`/api/accounts/${encodeURIComponent(input.accountId)}/join/start`, {
+      purpose: input.invitationToken ? "invitation" : "policy",
+      email: input.email,
+      ...(input.invitationToken ? { invitationToken: input.invitationToken } : {}),
+    }),
+  startProvider: (
+    input: { accountId: string; email: string; invitationToken: string | null; providerId: "google" | "github" },
+    signal?: AbortSignal,
+  ) =>
+    post(
+      `/api/accounts/${encodeURIComponent(input.accountId)}/join/provider/start`,
+      {
+        purpose: input.invitationToken ? "invitation" : "policy",
+        email: input.email,
+        providerId: input.providerId,
+        ...(input.invitationToken ? { invitationToken: input.invitationToken } : {}),
+      },
+      signal,
+    ),
+  microsoftStatus: () => apiFetch(`${API_BASE}/api/account/microsoft/status`, { credentials: "include" }),
+  startMicrosoft: (
+    input: { accountId: string; email: string; invitationToken: string | null },
+    signal?: AbortSignal,
+  ) => {
+    const target = new URL(`/join/${encodeURIComponent(input.accountId)}`, window.location.origin);
+    if (input.invitationToken) target.searchParams.set("invite", input.invitationToken);
+    const failure = new URL(target);
+    failure.searchParams.set("externalSignInError", "1");
+    return post(
+      "/api/account/microsoft/start",
+      {
+        purpose: "join",
+        accountId: input.accountId,
+        email: input.email,
+        ...(input.invitationToken ? { inviteToken: input.invitationToken } : {}),
+        callbackURL: target.href,
+        errorCallbackURL: failure.href,
+      },
+      signal,
+    );
+  },
+  microsoftResend: () => post("/api/account/microsoft/resend"),
+  microsoftCancel: () => post("/api/account/microsoft/cancel"),
+  resend: (invitationToken: string | null) =>
+    post("/api/company-join/resend", invitationToken ? { invitationToken } : {}),
   confirm: (token: string) => post("/api/company-join/confirm", { token }),
   cancel: () => post("/api/company-join/cancel"),
-  completeNew: (input: { displayName: string; password: string; invitationToken: string | null }) => post(
-    "/api/company-join/complete-password",
-    { displayName: input.displayName, password: input.password,
-      ...(input.invitationToken ? { invitationToken: input.invitationToken } : {}) },
-  ),
-  completeExisting: (invitationToken: string | null) => post(
-    "/api/company-join/complete-existing",
-    invitationToken ? { invitationToken } : {},
-  ),
+  completeNew: (input: { displayName: string; password: string; invitationToken: string | null }) =>
+    post("/api/company-join/complete-password", {
+      displayName: input.displayName,
+      password: input.password,
+      ...(input.invitationToken ? { invitationToken: input.invitationToken } : {}),
+    }),
+  completeExisting: (invitationToken: string | null) =>
+    post("/api/company-join/complete-existing", invitationToken ? { invitationToken } : {}),
+  completeProvider: (invitationToken: string | null) =>
+    post("/api/company-join/complete-provider", invitationToken ? { invitationToken } : {}),
+  completeMicrosoft: (invitationToken: string | null) =>
+    post("/api/company-join/complete-microsoft", invitationToken ? { invitationToken } : {}),
 };

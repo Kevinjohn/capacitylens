@@ -6,10 +6,7 @@ import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { JoiningPolicySection } from "./JoiningPolicySection";
 
-type LoadState =
-  | { kind: "loading" }
-  | { kind: "failed" }
-  | { kind: "ready"; settings: JoiningPolicySettings };
+type LoadState = { kind: "loading" } | { kind: "failed" } | { kind: "ready"; settings: JoiningPolicySettings };
 
 /** Account-keyed caller: only the authenticated Owner/Admin mounts this control-plane read. */
 export function JoiningPolicyPanel({ accountId, role }: { accountId: string; role: "owner" | "admin" }) {
@@ -17,13 +14,18 @@ export function JoiningPolicyPanel({ accountId, role }: { accountId: string; rol
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let current = true;
-    void teamAccessClient.readJoiningPolicy(accountId)
+    void teamAccessClient
+      .readJoiningPolicy(accountId)
       .then((result) => {
         if (!current) return;
         setState(result.kind === "ok" ? { kind: "ready", settings: result.value } : { kind: "failed" });
       })
-      .catch(() => { if (current) setState({ kind: "failed" }); });
-    return () => { current = false; };
+      .catch(() => {
+        if (current) setState({ kind: "failed" });
+      });
+    return () => {
+      current = false;
+    };
   }, [accountId, attempt]);
 
   if (state.kind === "loading") return null;
@@ -31,17 +33,31 @@ export function JoiningPolicyPanel({ accountId, role }: { accountId: string; rol
     return (
       <Alert variant="destructive">
         <AlertDescription>{m.joining_policy_load_failed()}</AlertDescription>
-        <Button type="button" size="sm" variant="outline" onClick={() => {
-          setState({ kind: "loading" });
-          setAttempt((value) => value + 1);
-        }}>{m.joining_policy_retry()}</Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setState({ kind: "loading" });
+            setAttempt((value) => value + 1);
+          }}
+        >
+          {m.joining_policy_retry()}
+        </Button>
       </Alert>
     );
   }
-  if (role === "admin") return <JoiningPolicySection role="admin" settings={state.settings} />;
-  return <JoiningPolicySection role="owner" settings={state.settings} onSave={async (settings) => {
-    const result = await teamAccessClient.setJoiningPolicy(accountId, settings);
-    if (result.kind !== "ok") throw new Error("Joining policy was not saved.");
-    setState({ kind: "ready", settings: result.value });
-  }} />;
+  if (role === "admin") return <JoiningPolicySection accountId={accountId} role="admin" settings={state.settings} />;
+  return (
+    <JoiningPolicySection
+      accountId={accountId}
+      role="owner"
+      settings={state.settings}
+      onSave={async (settings) => {
+        const result = await teamAccessClient.setJoiningPolicy(accountId, settings);
+        if (result.kind !== "ok") throw new Error("Joining policy was not saved.");
+        setState({ kind: "ready", settings: result.value });
+      }}
+    />
+  );
 }

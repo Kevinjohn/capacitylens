@@ -83,6 +83,10 @@ async function renderInviteSection(): Promise<void> {
   await screen.findByRole("dialog", { name: "Invite someone" });
 }
 
+function fillAddressedInvite(): void {
+  fireEvent.change(screen.getByTestId("invite-preauth"), { target: { value: "diana@example.test" } });
+}
+
 // A pending invite whose create resolves after its dialog was closed or reset.
 const LATE_INVITE = {
   id: "inv-late",
@@ -151,6 +155,7 @@ function registerInviteCopyControlTests(): void {
     expect(await screen.findByTestId("reset-link")).toHaveTextContent("/reset-password/reset%2Fpart%3Fx%23y");
 
     fireEvent.click(screen.getByTestId("invite-open"));
+    fillAddressedInvite();
     await user.click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/invite%2Fpart%3Fx%23y");
 
@@ -216,6 +221,7 @@ function registerInviteMintTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     await user.click(screen.getByTestId("invite-submit"));
     const link = await screen.findByTestId("invite-link");
     expect(link).toHaveTextContent("/invite/TOK123");
@@ -254,6 +260,7 @@ function registerInviteMintTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
     await waitFor(() => expect(pending.respond).toBeDefined());
     closeInviteDialog();
@@ -293,6 +300,7 @@ function registerInviteResetTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
     await waitFor(() => expect(pending.respond).toBeDefined());
     act(() => setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z")));
@@ -348,6 +356,7 @@ function registerInviteAccountTransitionTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/ACCOUNT_A_TOKEN");
 
@@ -397,6 +406,7 @@ function registerInviteClipboardTransitionTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toBeInTheDocument();
     act(() => useStore.getState().setNotice(null));
@@ -499,6 +509,7 @@ function registerInviteReloadTests(): void {
     await renderInviteSection();
     expect(await screen.findByText(/existing@example\.test/)).toBeInTheDocument();
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Invite reload failed.");
@@ -537,6 +548,7 @@ function registerInviteMutationTransitionTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
     await waitFor(() => expect(resolveCreate).toBeTypeOf("function"));
     act(() => useStore.setState({ activeAccountId: nextAccountId }));
@@ -579,6 +591,7 @@ function registerInviteReconciliationTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     await user.click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/TOK123");
     closeInviteDialog();
@@ -597,27 +610,31 @@ function registerInviteValidationTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/one-time link was lost|unknown invite/i);
     expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
   });
 
-  it("requires a preauthorised email for an SSO-only invite without posting", async () => {
-    const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
-    vi.stubGlobal("fetch", fetchMock);
-    renderSection({ authMode: "sso-only" });
-    await screen.findByTestId("invite-open");
-    fireEvent.click(screen.getByTestId("invite-open"));
+  it.each(["password-only", "sso-only"] as const)(
+    "requires a preauthorised email for a %s invite without posting",
+    async (authMode) => {
+      const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
+      vi.stubGlobal("fetch", fetchMock);
+      renderSection({ authMode });
+      await screen.findByTestId("invite-open");
+      fireEvent.click(screen.getByTestId("invite-open"));
 
-    await userEvent.setup().click(await screen.findByTestId("invite-submit"));
+      await userEvent.setup().click(await screen.findByTestId("invite-submit"));
 
-    const field = screen.getByTestId("invite-preauth");
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(m.settings_sso_invite_email_required());
-    expect(field.getAttribute("aria-describedby")?.split(" ")).toContain(alert.id);
-    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
-  });
+      const field = screen.getByTestId("invite-preauth");
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(m.settings_invite_email_required());
+      expect(field.getAttribute("aria-describedby")?.split(" ")).toContain(alert.id);
+      expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+    },
+  );
 }
 
 function registerInviteCreationFailureTests(): void {
@@ -635,6 +652,7 @@ function registerInviteCreationFailureTests(): void {
       );
       await renderInviteSection();
 
+      fillAddressedInvite();
       await userEvent.setup().click(await screen.findByTestId("invite-submit"));
 
       const alert = fieldError ? await screen.findByRole("alert") : null;
@@ -657,6 +675,7 @@ function registerInviteCreationFailureTests(): void {
     );
     await renderInviteSection();
 
+    fillAddressedInvite();
     await userEvent.setup().click(await screen.findByTestId("invite-submit"));
 
     await expectNotice(/unknown outcome.*invite transport lost.*reloaded/i);
@@ -760,6 +779,7 @@ function registerInviteMissingLinkReconciliationTests(): void {
       }),
     );
     await renderInviteSection();
+    fillAddressedInvite();
     await userEvent.setup().click(await screen.findByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toBeInTheDocument();
 
@@ -787,6 +807,7 @@ function registerInviteClipboardFailureTests(): void {
       }),
     );
     await renderInviteSection();
+    fillAddressedInvite();
     await user.click(await screen.findByTestId("invite-submit"));
 
     await user.click(await screen.findByRole("button", { name: "Copy invitation link" }));
