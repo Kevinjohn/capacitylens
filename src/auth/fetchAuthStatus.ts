@@ -1,4 +1,4 @@
-import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
+import { allowsPasswordSignIn, allowsProviderSignIn } from "@capacitylens/shared/account/types";
 import { accountClient } from "../account/accountClient";
 import { cacheAuthSnapshot, readCachedAuthSnapshot, setOfflineReadState } from "../data/offlineCache";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
@@ -54,7 +54,7 @@ function parseLoginResult(body: unknown, acceptEffects: () => boolean): AuthStat
     authMode,
     degraded,
     hadUnsavedChanges: hasUnsavedPersistenceWrites(),
-    providers: authMode === "password-only" ? [] : parseAuthProviders(fields?.providers),
+    providers: allowsProviderSignIn(authMode) ? parseAuthProviders(fields?.providers) : [],
     needsSetup: fields?.needsSetup === true,
   };
 }
