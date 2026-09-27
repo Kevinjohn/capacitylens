@@ -1,8 +1,7 @@
 import { type DatabaseMigration, defineMigration } from "../migrationLedger";
 import { tableHasColumns } from "../introspection";
 import { DB_SCHEMA_VERSION } from "../constants";
-import { SCHEMA_V8_SQL, INTERNAL_CLIENT_UNIQUE_INDEX_SQL } from "../../tables";
-import { renameLegacyActivityTables, migrateSchemaV8, assertSchemaV8, assertSchemaV9 } from "../../schema";
+import { assertSchemaV9 } from "../../schema";
 import { assertSchemaV16, assertSchemaV27, assertSchemaV28, assertSchemaV29, assertSchemaV30 } from "../../schema";
 import {
   assertSchemaV31,
@@ -14,17 +13,14 @@ import {
   assertSchemaV37,
   assertSchemaV38,
 } from "../../schema";
-import { ensureControlTables, assertControlTablesCurrent, SINGLE_OWNER_INDEX } from "../../controlTables";
+import { assertControlTablesCurrent, SINGLE_OWNER_INDEX } from "../../controlTables";
 import { migrateSingleOwnerControlPlaneV10, assertSingleOwnerControlPlaneV10 } from "../../controlTables";
 import { migrateOwnerlessControlPlaneV11, assertSingleOwnerControlPlaneCurrent } from "../../controlTables";
 import { reportOwnerlessPromotionsV11, migrateOwnerResetCeremoniesV12 } from "../../controlTables";
 import { migrateMemberResetCeremoniesV14, USED_INVITATION_RETENTION_V24_DEFINITION } from "../../controlTables";
 import { migrateUsedInvitationHistoryV24 } from "../../controlTables";
 import { OWNERSHIP_TRANSFER_REQUESTS_V41_SQL, runOwnershipTransfersV41 } from "../../controlTables";
-import { isInitialized, markInitialized } from "../initialization";
-import { isEmpty } from "@capacitylens/shared/types/entities";
-import { readState } from "../slices";
-import { ensureInternalClients, snapLegacyAccountColors, reactivateBuiltinInternalClientsV22 } from "../repairs";
+import { snapLegacyAccountColors, reactivateBuiltinInternalClientsV22 } from "../repairs";
 import { assertBuiltinInternalClientsActiveV22 } from "../repairs";
 import {
   V13_DEFINITION,
@@ -47,6 +43,7 @@ import { IDENTITY_EMAIL_PROOF_V48_MIGRATION } from "./identityEmailProofV48";
 import { JOINING_POLICIES_V49_MIGRATION } from "./joiningPoliciesV49";
 import { MICROSOFT_JOIN_V50_MIGRATION } from "./microsoftJoinV50";
 import { MICROSOFT_JOIN_BROWSER_V51_MIGRATION } from "./microsoftJoinBrowserV51";
+import { BASELINE_V8_MIGRATION } from "./baselineV8";
 import { validateMigrationSequence } from "./validateSequence";
 import {
   migrateTimeOffResourceNullableV33,
@@ -75,30 +72,7 @@ import { MEMBER_SIGN_IN_TRACKING_V26_DEFINITION } from "../../accounts/memberSig
 import { migrateMemberSignInTrackingV26 } from "../../accounts/memberSignInTracking";
 import { assertMemberSignInTrackingSchemaCurrent } from "../../accounts/memberSignInTracking";
 export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
-  defineMigration(
-    8,
-    "establish-explicit-migration-baseline",
-    [
-      "legacy-activity-table-rename:v1",
-      SCHEMA_V8_SQL,
-      "legacy-schema-shape-repair:v1",
-      "app-control-table-repair:v1",
-      "initialization-marker-repair:v1",
-      "internal-client-repair:v1",
-      INTERNAL_CLIENT_UNIQUE_INDEX_SQL,
-    ].join("\n-- migration component --\n"),
-    (db) => {
-      renameLegacyActivityTables(db);
-      db.exec(SCHEMA_V8_SQL);
-      migrateSchemaV8(db);
-      ensureControlTables(db);
-      if (!isInitialized(db) && !isEmpty(readState(db))) markInitialized(db);
-      ensureInternalClients(db);
-      db.exec(INTERNAL_CLIENT_UNIQUE_INDEX_SQL);
-      assertSchemaV8(db);
-      assertControlTablesCurrent(db);
-    },
-  ),
+  BASELINE_V8_MIGRATION,
   defineMigration(
     9,
     "add-internal-colour-mode",
