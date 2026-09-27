@@ -30,19 +30,21 @@ function configuredProviderInfo(environment: Env): AuthProviderInfo[] {
 
 export function buildProviders({
   env,
+  enabled = true,
   trustedOrigins,
   db,
   AuthConfigError,
   microsoftProof,
 }: {
   env: Env;
+  enabled?: boolean;
   trustedOrigins: string[] | undefined;
   AuthConfigError: AuthConfigErrorConstructor;
   db: Db;
   microsoftProof?: MicrosoftProof | null;
 }) {
   const configuredSocialProviders = parseSocialProvidersFromEnvironment({
-    environment: env,
+    environment: enabled ? env : {},
     ErrorType: AuthConfigError,
     db,
     microsoftProof: microsoftProof ?? null,
@@ -58,7 +60,7 @@ export function buildProviders({
   if (configuredSocialProviders.github) configuredFederatedIssuers.set("github", "urn:better-auth:github");
   return {
     configuredSocialProviders,
-    configuredProviderInfo: configuredProviderInfo(env),
+    configuredProviderInfo: configuredProviderInfo(enabled ? env : {}),
     configuredFederatedIssuers,
     trustedOrigins,
   };

@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { useAuth, type AuthProviderInfo } from "@/auth/authContext";
 import { m } from "@/i18n";
@@ -135,7 +136,9 @@ function PasswordDialog({
 }
 
 function shouldShowMfa(auth: ReturnType<typeof useAuth>): boolean {
-  return auth.authMode === "password" && auth.requireMfa === true && typeof auth.user?.twoFactorEnabled === "boolean";
+  return (
+    allowsPasswordSignIn(auth.authMode) && auth.requireMfa === true && typeof auth.user?.twoFactorEnabled === "boolean"
+  );
 }
 
 export function SecuritySection({
@@ -150,7 +153,7 @@ export function SecuritySection({
     (provider) => !provider.experimental && (provider.id === "google" || provider.id === "microsoft"),
   );
   const controller = useSecurityController();
-  const showPassword = auth.authMode === "password" && auth.reauthMethod !== "provider";
+  const showPassword = allowsPasswordSignIn(auth.authMode) && auth.reauthMethod !== "provider";
   const changePasswordOpen = (open: boolean) => {
     if (!open) controller.password.reset();
     onPasswordOpenChange(open);

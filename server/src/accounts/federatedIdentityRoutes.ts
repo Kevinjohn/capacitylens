@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { AuthorizeRouteInput } from "../routes/routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
@@ -135,7 +136,7 @@ function registerRepairRoutes(app: FastifyInstance, dependencies: FederatedIdent
 async function correctEmail(req: RouteRequest, reply: FastifyReply, dependencies: FederatedIdentityRouteDependencies) {
   const { accountId, userId } = req.params as { accountId: string; userId: string };
   if (!dependencies.authorize({ req, reply, accountId, action: "manageMembers" })) return;
-  if (dependencies.authMode !== "password") {
+  if (!allowsPasswordSignIn(dependencies.authMode)) {
     return reply.code(409).send({
       error: "Sign-in email correction is available only during mixed-mode SSO staging.",
       code: "CONFLICT",
@@ -232,7 +233,7 @@ async function removeFederatedLink(
 ) {
   const { accountId, userId } = req.params as { accountId: string; userId: string };
   if (!dependencies.authorize({ req, reply, accountId, action: "manageMembers" })) return;
-  if (dependencies.authMode !== "password") {
+  if (!allowsPasswordSignIn(dependencies.authMode)) {
     return reply.code(409).send({
       error: "The required provider cannot be removed while SSO-only mode is active.",
       code: "CONFLICT",

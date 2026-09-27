@@ -55,7 +55,7 @@ async function createSsoCutoverDatabase(): Promise<{ database: string; directory
   const database = join(directory, "capacitylens.db");
   const db = openDb(database);
   const { auth } = createAuthFromEnvironment(db, {
-    SMALLSASS_ACCOUNT_MODE: "password",
+    SMALLSASS_ACCOUNT_MODE: "password-only",
     SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
     SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
   });
@@ -114,7 +114,7 @@ function createSsoWorkspace(db: ReturnType<typeof openDb>): void {
 
 function buildSsoEnvironment(profile?: string): NodeJS.ProcessEnv {
   const environment = {
-    SMALLSASS_ACCOUNT_MODE: "sso",
+    SMALLSASS_ACCOUNT_MODE: "sso-only",
     SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
     SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
     SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",

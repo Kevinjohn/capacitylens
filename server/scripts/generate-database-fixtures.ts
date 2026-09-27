@@ -33,7 +33,7 @@ async function ensurePasswordAuthSchema(db: ReturnType<typeof openDb>): Promise<
   const fixtureEntropy = ["01234567", "89abcdef"].join("");
   const fixtureSecret = ["fixture", "secret", fixtureEntropy, "012345"].join("-");
   const configured = createAuthFromEnvironment(db, {
-    SMALLSASS_ACCOUNT_MODE: "password",
+    SMALLSASS_ACCOUNT_MODE: "password-only",
     SMALLSASS_ACCOUNT_SECRET: fixtureSecret,
     SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
   });

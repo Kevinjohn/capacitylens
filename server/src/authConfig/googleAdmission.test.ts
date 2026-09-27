@@ -41,7 +41,7 @@ function mockGoogle(profile: GoogleProfile): void {
 
 afterEach(() => vi.unstubAllGlobals());
 
-async function configured(mode: "password" | "sso" = "sso") {
+async function configured(mode: "password-and-sso" | "sso-only" = "sso-only") {
   const db = fixtures.trackDb(openDb(":memory:"));
   const { auth } = createAuthFromEnvironment(
     db,
@@ -202,7 +202,7 @@ it("rejects an uninvited new identity once an owner exists", async () => {
 });
 
 it("requires explicit linking for a matching password identity, then returns as that same principal", async () => {
-  const fixture = await configured("password");
+  const fixture = await configured("password-and-sso");
   const local = await fixture.app.inject({
     method: "POST",
     url: "/api/auth/sign-up/email",
@@ -239,7 +239,7 @@ it("requires explicit linking for a matching password identity, then returns as 
 });
 
 it("rolls back proof and provider linking when a new verified alias would restrict an Owner", async () => {
-  const fixture = await configured("password");
+  const fixture = await configured("password-and-sso");
   const local = await signUp(fixture.app, ownerEmail);
   fixture.db.prepare("UPDATE user SET emailVerified = 1 WHERE id = ?").run(local.userId);
   insertRow(fixture.db, "accounts", {

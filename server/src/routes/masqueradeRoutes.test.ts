@@ -80,7 +80,7 @@ function appFor(
     request.session = requestSession;
   });
   registerMasqueradeRoutes(app, {
-    authMode: "password",
+    authMode: "password-only",
     applicationId: "capacitylens",
     accountAudit: audit(),
     registry,

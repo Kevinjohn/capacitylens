@@ -152,7 +152,7 @@ function totpCode(secret: string, at = Date.now()): string {
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
-  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_MODE: "sso-only",
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -368,7 +368,7 @@ const sessionActivityBoundaryCases: SessionActivityBoundaryInput[] = (
 describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("accepts federated assurance as MFA in mixed mode and advertises provider step-up", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
+    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password-and-sso" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const principalId = "federated-principal";
     db.prepare(
@@ -411,7 +411,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
         })),
       },
     };
-    const app = createApp(db, { authMode: "password", auth, requireMfa: true });
+    const app = createApp(db, { authMode: "password-and-sso", auth, requireMfa: true });
 
     const data = await call(app, { method: "GET", url: "/api/accounts" });
     expect(data.statusCode).toBe(200);
@@ -503,7 +503,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
       headers: { cookie },
     });
     expect(me.statusCode).toBe(200);
-    expect(parseAuthMeResponse(me).authMode).toBe("password");
+    expect(parseAuthMeResponse(me).authMode).toBe("password-only");
     expect(parseAuthMeResponse(me).user.email).toBe("tester@capacitylens.dev");
     expect(parseAuthMeResponse(me).mfaRequired).toBe(false);
     expect(me.json()).toMatchObject({ requireMfa: false });

@@ -243,7 +243,7 @@ describe("startServerRuntime audit and backup composition", () => {
 
 describe("startServerRuntime startup and process forwarding", () => {
   it("warns when password setup is locked and forwards a successful listen address", async () => {
-    start({ applicationOptions: { authMode: "password", allowReset: false }, userCount: 0 });
+    start({ applicationOptions: { authMode: "password-only", allowReset: false }, userCount: 0 });
     await vi.waitFor(() => expect(logInfo).toHaveBeenCalled());
 
     expect(listen).toHaveBeenCalledWith({ host: "127.0.0.1", port: 8787 });
@@ -255,7 +255,7 @@ describe("startServerRuntime startup and process forwarding", () => {
 
   it("does not issue the setup warning outside a locked password installation", () => {
     start({ applicationOptions: { authMode: "off", allowReset: false }, userCount: 0 });
-    start({ applicationOptions: { authMode: "password", allowReset: false }, userCount: 1 });
+    start({ applicationOptions: { authMode: "password-only", allowReset: false }, userCount: 1 });
 
     expect(logWarning).not.toHaveBeenCalled();
   });

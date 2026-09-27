@@ -17,7 +17,7 @@ vi.mock("./masqueradeApi", () => ({
 }));
 
 const auth: AuthContextValue = {
-  authMode: "password",
+  authMode: "password-only",
   user: { id: "u1" },
   canCreateAccount: false,
   multiAccount: false,

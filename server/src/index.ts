@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
 import { DEFAULT_CORS, parseRateLimit } from "./app";
 import { initializeOpenDb, openDbConnection, planDatabaseMigrations, seedIfUninitialized, type Db } from "./db";
@@ -176,7 +177,7 @@ try {
     auth.reconcileFederatedLinks?.();
     stopStartupIfRequested({ startupSignals, openDb: db });
   }
-  if (auth && authMode === "sso") {
+  if (auth && authMode === "sso-only") {
     const companyProviders = auth.permittedCompanyProviderIds ?? new Set<string>();
     if (companyProviders.size === 0)
       throw new AuthConfigError("Provider-required mode has no configured company provider.");
@@ -208,7 +209,7 @@ try {
   stopStartupIfRequested({ startupSignals, openDb: db });
   userCount = countUsers(db);
   if (
-    authMode === "password" &&
+    allowsPasswordSignIn(authMode) &&
     userCount === 0 &&
     accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP !== "1" &&
     !accountEnv.SMALLSASS_ACCOUNT_SETUP_TOKEN

@@ -39,6 +39,7 @@ async function configured() {
     db,
     {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client",
       SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-secret",
       SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: ownerEmail,
@@ -56,7 +57,7 @@ async function configured() {
   if (!auth) throw new Error("Expected GitHub authentication.");
   await runAuthMigrations(auth);
   const app = fixtures.trackApp(
-    createApp(db, { auth, authMode: "password", multiAccount: true, allowOpenSignup: true }),
+    createApp(db, { auth, authMode: "password-and-sso", multiAccount: true, allowOpenSignup: true }),
   );
   return { db, app };
 }

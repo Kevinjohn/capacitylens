@@ -271,7 +271,7 @@ function InviteEmailField(props: InviteEmailFieldProps) {
       disabled={busy}
       invalid={errorField === "invite"}
       layout="label-control"
-      required={authMode === "sso"}
+      required={authMode === "sso-only"}
       describedById={errorId}
       placeholder={m.settings_invite_preauth_placeholder()}
       testId="invite-preauth"

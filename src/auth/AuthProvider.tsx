@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { isServerConfigured } from "../data/apiConfig";
@@ -38,7 +39,7 @@ type CheckAuth = (onNull: "fail-open" | "keep-previous") => Promise<AuthStatusRe
 
 function useTenantAccessReady(status: AuthStatusResult, onTenantAccessReady?: () => void) {
   const tenantAccessSignalled = useRef(false);
-  const ready = status.kind === "pass" && !(status.authMode === "password" && status.mfaRequired);
+  const ready = status.kind === "pass" && !(allowsPasswordSignIn(status.authMode) && status.mfaRequired);
   useEffect(() => {
     if (!ready) {
       tenantAccessSignalled.current = false;
@@ -283,7 +284,7 @@ function AuthenticatedAppProvider({
       </LoginBoundary>
     );
   }
-  if (status.mfaRequired && status.authMode === "password") {
+  if (status.mfaRequired && allowsPasswordSignIn(status.authMode)) {
     return (
       <Suspense fallback={<AuthLoading message={m.auth_loading_sign_in()} />}>
         <MfaEnrollmentScreen

@@ -29,7 +29,7 @@ export function ReauthMount({
   reauthMethod,
   reauthProviderId,
 }: {
-  authMode: "password" | "sso";
+  authMode: "password-only" | "sso-only" | "password-and-sso";
   user: AuthUser | null;
   providers: AuthProviderInfo[];
   reauthMethod: "password" | "provider";

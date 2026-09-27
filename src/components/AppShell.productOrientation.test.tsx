@@ -37,7 +37,7 @@ function authenticatedAuth(userId: string): AuthContextValue {
     "viewer-user": "Bruce Wayne",
   };
   return {
-    authMode: "password",
+    authMode: "password-only",
     user: { id: userId, name: subjectNames[userId] ?? "Bruce Wayne" },
     canCreateAccount: true,
     multiAccount: true,

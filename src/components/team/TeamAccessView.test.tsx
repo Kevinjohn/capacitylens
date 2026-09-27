@@ -68,7 +68,7 @@ describe("TeamAccessView access presentation", () => {
   });
 
   it("keeps the capability list collapsed until it is asked for", async () => {
-    renderView("viewer", "password");
+    renderView("viewer", "password-only");
     const toggle = screen.getByTestId("capabilities-toggle");
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("View the schedule")).not.toBeInTheDocument();
@@ -92,7 +92,7 @@ describe("TeamAccessView access presentation", () => {
   });
 
   it("shows every Viewer capability and keeps management understandable but unavailable", () => {
-    renderView("viewer", "password");
+    renderView("viewer", "password-only");
     expect(screen.getByTestId("current-access")).toHaveTextContent("Viewer");
     showCapabilities();
     expect(screen.getByText("View the schedule")).toBeInTheDocument();
@@ -106,7 +106,7 @@ describe("TeamAccessView access presentation", () => {
 
 describe("TeamAccessView member management", () => {
   it("shows management controls to the single Owner", () => {
-    renderView("owner", "password");
+    renderView("owner", "password-only");
     expect(screen.getByTestId("current-access")).toHaveTextContent("single Owner");
     expect(screen.getByTestId("member-management")).toBeInTheDocument();
   });
@@ -115,7 +115,7 @@ describe("TeamAccessView member management", () => {
     ["pending", "Checking access"],
     ["unavailable", "Access unavailable"],
   ] as const)("does not present Viewer as authoritative while membership is %s", (status, label) => {
-    renderView("viewer", "password", status);
+    renderView("viewer", "password-only", status);
 
     expect(screen.getByTestId("current-access")).toHaveTextContent(label);
     expect(screen.getByTestId("current-access")).not.toHaveTextContent("Viewer");
@@ -123,13 +123,13 @@ describe("TeamAccessView member management", () => {
   });
 
   it("unmounts member management while a membership recheck fails closed", () => {
-    const view = renderView("owner", "password", "resolved");
+    const view = renderView("owner", "password-only", "resolved");
     const controls = screen.getByTestId("member-management");
     expect(controls).toBeVisible();
 
     view.rerender(
       <MemoryRouter>
-        <AuthContext.Provider value={auth("password")}>
+        <AuthContext.Provider value={auth("password-only")}>
           <PermissionContext.Provider value={{ role: "viewer", status: "pending" }}>
             <TeamAccessView />
           </PermissionContext.Provider>
@@ -142,7 +142,7 @@ describe("TeamAccessView member management", () => {
   });
 
   it.each([
-    ["authenticated Owner", "owner", "password"],
+    ["authenticated Owner", "owner", "password-only"],
     ["auth-off installation", null, "off"],
   ] as const)("projects cached data as Viewer-only for an %s", (_label, role, authMode) => {
     setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
