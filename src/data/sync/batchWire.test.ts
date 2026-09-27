@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { emptyAppData, type Resource } from "@capacitylens/shared/types/entities";
 import { prepareBatchBody } from "./batchWire";
-import { SyncState } from "./state";
+import { SyncState } from "./SyncState";
 
 const resource = (overrides: Partial<Resource> = {}): Resource => ({
   id: "r1",

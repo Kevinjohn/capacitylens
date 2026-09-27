@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { openDb, type Db } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import type { Auth } from "./authConfig/authTypes";
-import { getAccountCommand, getAccountCommandByIdForReconciliation, reserveAccountCommand } from "./accounts/state";
+import { getAccountCommand, readAccountCommandAndFlagStalePending, reserveAccountCommand } from "./accounts/state";
 
 const serverDirectory = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 const fixture = fileURLToPath(new URL("./fixtures/credentialOnboardingCrashFixture.ts", import.meta.url));
@@ -121,7 +121,7 @@ function registerCrashRecoveryTests(): void {
       { accountId: user.id, providerId: "credential", userId: user.id },
     ]);
 
-    const reconciled = getAccountCommandByIdForReconciliation({
+    const reconciled = readAccountCommandAndFlagStalePending({
       db,
       applicationId: "crash-fixture",
       commandId: "crash-command",

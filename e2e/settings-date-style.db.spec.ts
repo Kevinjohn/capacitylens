@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
-import { resetServer, serverState, stateRows } from "./db-helpers";
+import { openApp } from "./browserTestSupport";
+import { resetServer, serverState, stateRows } from "./serverTestState";
 
 // DB-backed flavour of the date-format preference (US-SET-17, issue #866). The demo project
 // cannot carry this assertion: its in-memory store restores the seed on every reload, so a

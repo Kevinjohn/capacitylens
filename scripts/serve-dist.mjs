@@ -4,7 +4,7 @@ import { createReadStream, existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
-import { parsePort } from "./port.mjs";
+import { parsePort } from "./parsePort.mjs";
 import { ports } from "./ports.mjs";
 
 const DEFAULT_DIST = join(process.cwd(), "dist");

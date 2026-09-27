@@ -7,7 +7,7 @@ import {
   assertEntryBundleWithinBudget,
   ENTRY_GZIP_LIMIT_BYTES,
   ENTRY_RAW_LIMIT_BYTES,
-} from "../scripts/bundle-budget.mjs";
+} from "../scripts/bundleBudget.mjs";
 
 describe("bundle budget entry selection", () => {
   let directory: string | null = null;
@@ -25,7 +25,7 @@ describe("bundle budget entry selection", () => {
     directory = mkdtempSync(join(tmpdir(), "capacitylens-bundle-budget-"));
     mkdirSync(join(directory, "scripts"), { recursive: true });
     mkdirSync(join(directory, "dist/assets"), { recursive: true });
-    cpSync(resolve("scripts/bundle-budget.mjs"), join(directory, "scripts/bundle-budget.mjs"));
+    cpSync(resolve("scripts/bundleBudget.mjs"), join(directory, "scripts/bundleBudget.mjs"));
     cpSync(resolve("scripts/check-bundle-budget.mjs"), join(directory, "scripts/check-bundle-budget.mjs"));
     writeFileSync(join(directory, "dist/index.html"), html);
     writeFileSync(join(directory, "dist/assets/app.js"), "export const app = true\n");

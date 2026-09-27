@@ -1,5 +1,5 @@
 import type { Op } from "../syncOps";
-import type { SyncState } from "./state";
+import type { SyncState } from "./SyncState";
 
 export type WireOp = Omit<Op, "row"> & { row?: Record<string, unknown> };
 

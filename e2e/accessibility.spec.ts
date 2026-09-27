@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, resetSchedulerScroll, setZoom } from "./helpers";
+import { openApp, resetSchedulerScroll, setZoom } from "./browserTestSupport";
 
 // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
 function registerSuiteScenario1() {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { validateName, validateHex, validateWorkingDays, validateText } from "./validation";
+import { validateName, validatePresetColor, validateWorkingDays, validateText } from "./validation";
 import { m } from "@/i18n";
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strings";
 
@@ -93,12 +93,12 @@ describe("validateText (optional fields)", () => {
   });
 });
 
-describe("validateHex", () => {
+describe("validatePresetColor", () => {
   it("accepts a canonical preset colour and rejects arbitrary hex values", () => {
     const fail = vi.fn();
-    expect(validateHex("#5c34d4", fail)).toBe(true);
-    expect(validateHex("#3b82f6", fail)).toBe(false);
-    expect(validateHex("nope", fail)).toBe(false);
+    expect(validatePresetColor("#5c34d4", fail)).toBe(true);
+    expect(validatePresetColor("#3b82f6", fail)).toBe(false);
+    expect(validatePresetColor("nope", fail)).toBe(false);
     expect(fail).toHaveBeenCalledWith("color", m.validation_hex_invalid());
   });
 });

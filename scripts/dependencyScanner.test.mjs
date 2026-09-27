@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import ts from "typescript";
-import { createDependencyParser, parseDependencies, resolveDependency } from "./dependency-scanner.mjs";
+import { createDependencyParser, parseDependencies, resolveDependency } from "./dependencyScanner.mjs";
 
 test("classifies static, inline type, re-export, dynamic and import-equals syntax", () => {
   const source = `

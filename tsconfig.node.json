@@ -39,7 +39,7 @@
     "src/data/offlineWorker.test.ts",
     "src/playwrightFixturesPolicy.test.ts",
     "src/pnpmSpawn.test.ts",
-    "src/serveDist.test.ts",
+    "src/serve-dist.test.ts",
     "src/test/docs-lightbox.test.ts",
     "src/test/privacy-posture.test.ts"
   ]

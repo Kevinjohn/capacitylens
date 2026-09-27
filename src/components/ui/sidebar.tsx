@@ -4,7 +4,7 @@ import { PanelLeftIcon } from "lucide-react";
 import { Slot } from "radix-ui";
 
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 import { hasOpenModal, isTextEntryShortcutOwner } from "@/lib/shortcutGuards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

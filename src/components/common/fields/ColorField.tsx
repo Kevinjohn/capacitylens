@@ -9,7 +9,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { Field, FieldLabel } from "../../ui/field";
 import { Button } from "../../ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 import { m } from "@/i18n";
 import { useMarkFormDirty } from "../formDirty";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";

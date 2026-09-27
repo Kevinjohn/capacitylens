@@ -1,7 +1,7 @@
 import type { Allocation, AppData, AppDataKey, ID, ScopedEntity, Weekday } from "../types/entities";
 import type { ValidationResult } from "../lib/integrity";
 import { belongsToAccount } from "./tenancy";
-import { domainError } from "./errors";
+import { throwDomainError } from "./errors";
 import {
   inspectLifecycleAncestry,
   lifecycleStatus,
@@ -108,7 +108,7 @@ export const assertValid = (validation: ValidationResult): void => {
   if (code === undefined || message === undefined) {
     throw new Error("Invalid validation result must include a code and message.");
   }
-  domainError(code, message);
+  throwDomainError(code, message);
 };
 
 /** Match normal-read lifecycle closure at the shared active-write boundary. Indexed server batch

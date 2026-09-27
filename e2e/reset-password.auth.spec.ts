@@ -5,7 +5,7 @@ import {
   bootstrapOrg,
   seedFixtureMember,
   signUpUser,
-} from "./auth-helpers";
+} from "./authTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -15,7 +15,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // (the write-once reset-link block). B — signed OUT, which is the whole point of a reset — opens the
 // link, sets a new password, and signs in with it; the old password is asserted dead at the API
 // layer. Browser-agnostic (no UA branching). Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp)
-// comes from ./auth-helpers.
+// comes from ./authTestSupport.
 
 const NEW_PASSWORD = "fresh-password-456";
 // Unique per run so reruns against a reused auth server don't collide on existing users/accounts.

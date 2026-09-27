@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { goToSeedWeek, openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./helpers";
+import { goToSeedWeek, openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./browserTestSupport";
 
 // Covers US-TOF-01..05.
 function registerSuiteScenario1() {

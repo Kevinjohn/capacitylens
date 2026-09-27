@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp } from "./browserTestSupport";
 
 // P2.5b — the DEFERRED P2.4 "archived vanishes" end-to-end story, now landable because the client
 // admin UI (the Archive affordance + inline archive sections + Settings deleted items) exists. In-memory demo mode,

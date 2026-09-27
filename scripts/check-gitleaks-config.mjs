@@ -53,9 +53,9 @@ const fixtures = [
 // therefore assembles its high-entropy values at runtime from fragments too short to trip the
 // entropy rules, and holds no provider-shaped keys ("sk_live_…", "ghp_…", "AKIA…") at all. Keep it
 // that way when adding cases: the value the scanner must catch has to exist only in memory.
-const entropy = (...fragments) => fragments.join("");
-const randomLooking = entropy("Xk92mQpL", "zR7vT4nB", "8wYcJ3fH", "6sD1gA5e");
-const alsoRandomLooking = entropy("Zq4vN8xR", "2mK7pL5t", "W9yB3cF6", "hJ1sD0gA");
+const joinCredentialFragments = (...fragments) => fragments.join("");
+const randomLooking = joinCredentialFragments("Xk92mQpL", "zR7vT4nB", "8wYcJ3fH", "6sD1gA5e");
+const alsoRandomLooking = joinCredentialFragments("Zq4vN8xR", "2mK7pL5t", "W9yB3cF6", "hJ1sD0gA");
 
 // Values that must stay reportable: an ordinary high-entropy credential, then near-misses of the
 // fixture patterns that exist to catch a pattern loosened past its intent.

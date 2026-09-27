@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption, showScheduleFilters } from "./helpers";
+import { openApp, selectShadOption, showScheduleFilters } from "./browserTestSupport";
 
 // Covers US-FIL-01..08. Seed has 6 allocations (one tentative: Bruce's Visual Design)
 // and 5 resource rows across Design/Development/Copywriting.

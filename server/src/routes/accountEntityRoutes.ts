@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
-import type { AccountEntityRouteDependencies } from "./accountEntity/dependencies";
+import type { AccountEntityRouteDependencies } from "./accountEntity/AccountEntityRouteDependencies";
 import { createAccountLifecycleHandlers } from "./accountEntity/lifecycleHandlers";
 import { createAccountWriteHandlers } from "./accountEntity/writeHandlers";
-export type { AccountEntityRouteDependencies } from "./accountEntity/dependencies";
+export type { AccountEntityRouteDependencies } from "./accountEntity/AccountEntityRouteDependencies";
 export {
   ACCOUNT_CREATE_CLOSED_MESSAGE,
   ACCOUNT_FROZEN_FIELDS_MESSAGE,

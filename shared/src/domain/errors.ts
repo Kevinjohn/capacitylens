@@ -55,6 +55,9 @@ export class DomainError extends Error {
   }
 }
 
-export function domainError(code: DomainErrorCode, message: string): never {
+export function throwDomainError(code: DomainErrorCode, message: string): never {
   throw new DomainError(code, message);
 }
+
+/** Compatibility alias for the published domain contract. */
+export const domainError = throwDomainError;

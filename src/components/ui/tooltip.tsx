@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Tooltip as TooltipPrimitive } from "radix-ui";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 
 // shadcn Tooltip primitives on the `radix-ui` umbrella. The stock content uses bg-primary
 // (shadcn's slate) + text-primary-foreground; capacitylens's --primary is the slate brand and would

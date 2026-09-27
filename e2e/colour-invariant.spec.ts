@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp, resetSchedulerScroll, setZoom } from "./helpers";
+import { openApp, resetSchedulerScroll, setZoom } from "./browserTestSupport";
 
 // The hard colour invariant, end-to-end (Phase 9 verification). CapacityLens allows colour to be
 // set ONLY by picking a preset swatch (no hex/RGB entry — see ColorField + the "preset

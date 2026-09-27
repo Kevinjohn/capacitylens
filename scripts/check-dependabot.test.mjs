@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parseDocument } from "yaml";
-import { gateCommands } from "./gate-commands.mjs";
+import { gateCommands } from "./gateCommands.mjs";
 import { validateDependabot } from "./check-dependabot.mjs";
 
 const entry = (changes = {}) => ({

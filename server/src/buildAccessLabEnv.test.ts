@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAccessLabEnv } from "../../scripts/access-lab-env.mjs";
+import { buildAccessLabEnv } from "../../scripts/buildAccessLabEnv.mjs";
 
 describe("access lab environment isolation", () => {
   it("strips hostile deployment values and pins the fixed-credential lab to loopback", () => {

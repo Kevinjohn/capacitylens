@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./auth-helpers";
-import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from "./helpers";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
+import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

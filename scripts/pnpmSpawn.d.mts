@@ -14,7 +14,7 @@ export interface SynchronousSpawnResult {
   signal?: string | null;
 }
 
-export function synchronousSpawnStatus(
+export function reportSpawnFailureAndResolveExitStatus(
   label: string,
   result: SynchronousSpawnResult,
   report?: (message: string) => void,

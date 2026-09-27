@@ -13,7 +13,7 @@ import {
   type CommittedRevision,
 } from "./revisions";
 import { rememberRevisions } from "./snapshot";
-import type { SyncState } from "./state";
+import type { SyncState } from "./SyncState";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources/activities) — those
@@ -195,7 +195,7 @@ export async function archiveLifecycleRow(
     // Unparseable body — left null, which every arm below treats as "unproven" and surfaces.
     envelope = null;
   }
-  applyArchiveResponse({ state, op, res, detail, envelope });
+  recordArchiveResponse({ state, op, res, detail, envelope });
 }
 
 interface ApplyArchiveResponseInput {
@@ -206,7 +206,7 @@ interface ApplyArchiveResponseInput {
   envelope: Record<string, unknown> | null;
 }
 
-function applyArchiveResponse({ state, op, res, detail, envelope }: ApplyArchiveResponseInput): void {
+function recordArchiveResponse({ state, op, res, detail, envelope }: ApplyArchiveResponseInput): void {
   if (res.status === 409 && envelope?.code === "already_inactive") {
     state.archivedBySync.add(buildLifecycleKey(op));
     return;

@@ -8,7 +8,7 @@ import {
   showPlaceholders,
   showScheduleFilters,
   waitForWeekSnap,
-} from "./helpers";
+} from "./browserTestSupport";
 
 function registerSuiteScenario1() {
   test("filtering by project narrows the schedule to that project", async ({ page }) => {

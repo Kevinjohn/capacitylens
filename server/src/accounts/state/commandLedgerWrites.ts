@@ -52,7 +52,7 @@ interface GetAccountCommandByIdForReconciliationInput {
 }
 
 /** A reconciliation read is also the timeout boundary for abandoned in-flight commands. */
-export function getAccountCommandByIdForReconciliation({
+export function readAccountCommandAndFlagStalePending({
   db,
   applicationId,
   commandId,

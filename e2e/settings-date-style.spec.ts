@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -45,7 +45,7 @@ test.describe("Settings — date style", () => {
     const sheet = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
     // The header's range collapses the repeated month at both styles; only the order moves, so
     // this is the assertion that would catch a call site left on a hand-built range.
-    // "Jun" is a pin, not an accident: `freezeBrowserDate` (e2e/helpers.ts) holds the clock at
+    // "Jun" is a pin, not an accident: `freezeBrowserDate` (e2e/browserTestSupport.ts) holds the clock at
     // 2026-06-03, so a regression that rendered the window against the wrong month would show here.
     await expect(sheet.getByTestId("person-schedule-header")).toContainText(/Jun \d{1,2} – \d{1,2}/);
     await expect(sheet.getByTestId("person-schedule-header")).not.toContainText(/\d{1,2} – \d{1,2} Jun/);

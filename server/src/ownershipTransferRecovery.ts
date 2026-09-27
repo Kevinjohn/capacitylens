@@ -79,7 +79,7 @@ function decodeRevision(encoded: string): string {
   return revision;
 }
 
-function validateTarget(input: InspectOwnershipTransferRecoveryInput): void {
+function assertRecoveryTarget(input: InspectOwnershipTransferRecoveryInput): void {
   if (input.databasePath === ":memory:" || !existsSync(input.databasePath)) {
     throw new Error("The recovery database must be an existing on-disk CapacityLens database.");
   }
@@ -145,7 +145,7 @@ function inspectOnHandle(db: Db, input: InspectOwnershipTransferRecoveryInput): 
 export function inspectBrokenOwnershipTransfer(
   input: InspectOwnershipTransferRecoveryInput,
 ): OwnershipTransferRecoveryInspection {
-  validateTarget(input);
+  assertRecoveryTarget(input);
   const db = openDbConnection(input.databasePath);
   try {
     return inspectOnHandle(db, input);
@@ -162,7 +162,7 @@ export function inspectBrokenOwnershipTransfer(
 export function cancelBrokenOwnershipTransfer(
   input: CancelOwnershipTransferRecoveryInput,
 ): OwnershipTransferRecoveryResult {
-  validateTarget(input);
+  assertRecoveryTarget(input);
   if (!input.confirmServerStopped) {
     throw new Error(
       "Refusing without --confirm-server-stopped. Stop the CapacityLens server first; the exclusive database lock enforces this.",

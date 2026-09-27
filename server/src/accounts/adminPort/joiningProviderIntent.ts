@@ -1,6 +1,6 @@
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { parseApprovedDomain } from "@capacitylens/shared/account/approvedDomains";
-import { AccountContractError, retryAfterSeconds } from "@capacitylens/shared/account/errors";
+import { AccountContractError, assertRetryAfterSeconds } from "@capacitylens/shared/account/errors";
 import type { Db } from "../../db";
 import { tx } from "../../txn";
 import {
@@ -53,7 +53,7 @@ function assertProviderStartQuota(db: Db, intent: JoinIntent, now: number): void
       code: "RATE_LIMITED",
       message: "Too many sign-in attempts. Try again later.",
       retryable: true,
-      retryAfterSeconds: retryAfterSeconds(60),
+      retryAfterSeconds: assertRetryAfterSeconds(60),
     });
   }
 }

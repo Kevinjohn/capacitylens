@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleFilters } from "./helpers";
+import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleFilters } from "./browserTestSupport";
 
 // Covers US-CLI-04 — the built-in "Internal" pseudo-client.
 test.describe("Internal client", () => {

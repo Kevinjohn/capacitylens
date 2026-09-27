@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Switch as SwitchPrimitive } from "radix-ui";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 
 // CapacityLens deliberately enlarges both shadcn switch sizes for a clearer pointer/touch target.
 // Track padding plus fixed thumb travel keep the 5/3-unit thumbs inset at either end; preserve this

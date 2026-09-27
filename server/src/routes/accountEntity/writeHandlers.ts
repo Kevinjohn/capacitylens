@@ -6,7 +6,7 @@ import type { AuditRecord } from "../../audit";
 import { getRow, upsertRow } from "../../db";
 import { listAppliedRequestedFieldNames, sanitizeWrite, assertValidWrite } from "../../validate";
 import { checkEntityWriteBody, prepareScopedWrite, stampServerRevision, type PreparedWrite } from "../../writePipeline";
-import type { AccountEntityRouteDependencies } from "./dependencies";
+import type { AccountEntityRouteDependencies } from "./AccountEntityRouteDependencies";
 import { sendAccountRouteFailure, enforceAccountWriteGuards } from "./guards";
 import { ACCOUNT_CREATE_CLOSED_MESSAGE, isAccountCreateCapped, buildCanonicalAccountProductPayload } from "./policy";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";

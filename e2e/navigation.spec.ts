@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { waitForAppLanding, freezeBrowserDate, openApp, setTheme } from "./helpers";
+import { waitForAppLanding, freezeBrowserDate, openApp, setTheme } from "./browserTestSupport";
 
 // Covers US-NAV-01, 02, 06. (Loading gate, persist-error banner, toast and error
 // boundary are covered by unit tests / manual scripts — impractical to trigger reliably in E2E.)

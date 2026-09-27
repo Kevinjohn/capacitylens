@@ -4,7 +4,7 @@ import { ports } from "../scripts/ports.mjs";
 // Helpers for the DB-backed E2E project. State lives on the SQLite server (not
 // browser memory), so isolation comes from resetting the server over its API between
 // tests. The app itself is driven through the same real UI flows the demo specs use
-// (see ./helpers openApp), so these tests exercise the FULL stack:
+// (see ./browserTestSupport openApp), so these tests exercise the FULL stack:
 // UI → store → ServerSyncAdapter → REST → SQLite, and rehydration via GET /api/state.
 
 // The server origin the db-backed Vite build points at (see playwright.config.ts).

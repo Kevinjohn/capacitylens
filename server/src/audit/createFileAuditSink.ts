@@ -30,7 +30,7 @@ interface SerializedRecords {
   payloadBytes: number;
 }
 
-function validateLimits(maxBytes: number, recoveryScanBytes: number): void {
+function assertAuditLimits(maxBytes: number, recoveryScanBytes: number): void {
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_AUDIT_BYTES) {
     throw new RangeError(`maxBytes must be a safe integer from 1 to ${MAX_AUDIT_BYTES}.`);
   }
@@ -174,7 +174,7 @@ export function createFileAuditSink(
   const pinPermissions = options.pinPermissions ?? chmodSync;
   const syncFile = options.syncFile ?? fsyncSync;
   const recoveryScanBytes = options.recoveryScanBytes ?? Math.min(AUDIT_RECOVERY_SCAN_BYTES, maxBytes);
-  validateLimits(maxBytes, recoveryScanBytes);
+  assertAuditLimits(maxBytes, recoveryScanBytes);
   const state = createRecoveryState();
   let loggedOnce = false;
   const permissions = { pinned: false };

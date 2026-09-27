@@ -142,7 +142,7 @@
       "purpose": "CSPRNG installation identifiers that isolate staged service-worker shell caches until activation"
     },
     {
-      "path": "src/data/sync/state.ts",
+      "path": "src/data/sync/SyncState.ts",
       "purpose": "CSPRNG non-secret browser sync-session identifiers for server-side request ordering"
     },
     {

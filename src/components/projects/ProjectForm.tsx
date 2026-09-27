@@ -3,7 +3,7 @@ import { useStore } from "../../store/useStore";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { resolveDomainErrorMessage, resolveErrorMessage } from "../../lib/errorMessage";
-import { validateHex, validateName } from "../../lib/validation";
+import { validatePresetColor, validateName } from "../../lib/validation";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { validateProjectClient } from "@capacitylens/shared/lib/integrity";
 import { DEFAULT_COLORS } from "../../lib/palette";
@@ -146,7 +146,7 @@ function useProjectSubmit({
       fail("client", resolveDomainErrorMessage(code));
       return;
     }
-    if (!validateHex(color, fail)) return;
+    if (!validatePresetColor(color, fail)) return;
     try {
       if (project && isStaleEdit(useStore.getState().data.projects, project.id, project.updatedAt)) {
         fail(null, m.form_project_err_changed());

@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
-import { gateCommands } from "./gate-commands.mjs";
-import { spawnPnpmSync, synchronousSpawnStatus } from "./pnpm-spawn.mjs";
+import { gateCommands } from "./gateCommands.mjs";
+import { spawnPnpmSync, reportSpawnFailureAndResolveExitStatus } from "./pnpmSpawn.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -12,7 +12,7 @@ function main() {
       const label = `gate (${mode}): pnpm ${args.join(" ")}`;
       console.log(label);
       const result = spawnPnpmSync(args, { cwd: root, stdio: "inherit" });
-      const status = synchronousSpawnStatus(label, result);
+      const status = reportSpawnFailureAndResolveExitStatus(label, result);
       if (status !== 0) {
         process.exitCode = status;
         return;

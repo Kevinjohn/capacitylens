@@ -165,7 +165,7 @@ export function applyOps(base: AppData, ops: Op[]): AppData {
   // rebuilds from the live array rather than trusting a stale position.
   const indexByTable = new Map<TableKey, Map<string, number>>();
   for (const op of ops) {
-    applyOp({ next, indexByTable }, op);
+    applyOpInPlace({ next, indexByTable }, op);
   }
   return next as unknown as AppData;
 }
@@ -175,7 +175,7 @@ interface ApplyState {
   indexByTable: Map<TableKey, Map<string, number>>;
 }
 
-function applyOp(state: ApplyState, op: Op): void {
+function applyOpInPlace(state: ApplyState, op: Op): void {
   const list = state.next[op.table];
   if (op.method === "DELETE") {
     state.next[op.table] = list.filter((row) => row.id !== op.id);

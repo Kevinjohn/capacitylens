@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
-import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "./scripts/playwright-server-scope";
-import { resolvePlaywrightRunMode } from "./scripts/playwright-run-mode.mjs";
+import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "./scripts/playwrightServerScope";
+import { resolvePlaywrightRunMode } from "./scripts/playwrightRunMode.mjs";
 import { ports, testShare } from "./scripts/ports.mjs";
 
 // Playwright drives the real app via Vite. Three project flavours:
@@ -60,7 +60,7 @@ export default defineConfig({
   // These are measured suite budgets, stated explicitly instead of inheriting Playwright defaults.
   timeout: 30_000,
   expect: { timeout: 5_000 },
-  // This run's CPU reservation (scripts/lane-claim.mjs). A solo run reserves half the cores, which
+  // This run's CPU reservation (scripts/laneClaims.mjs). A solo run reserves half the cores, which
   // is exactly Playwright's own default; concurrent runs divide the machine instead of each taking
   // that half. Every worker drives a browser, so the reservation is the right unit here.
   workers: testShare(),

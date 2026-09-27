@@ -14,9 +14,9 @@
 //   node scripts/dev-fullstack.mjs   # = pnpm run dev
 
 import { spawn } from "node:child_process";
-import { parsePort } from "./port.mjs";
+import { parsePort } from "./parsePort.mjs";
 import { ports } from "./ports.mjs";
-import { portInUse, requireNode24, terminateProcessTrees } from "./dev-processes.mjs";
+import { portInUse, requireNode24, terminateProcessTrees } from "./devProcesses.mjs";
 
 // Fail fast, in the launcher's own process, with the fix in the message. Without this, an old
 // Node surfaces as a raw "No such built-in module: node:sqlite" from inside the API child's tsx

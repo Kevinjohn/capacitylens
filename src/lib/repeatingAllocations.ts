@@ -79,14 +79,14 @@ export function buildRepeatedAllocationDrafts(
   startDates: readonly ISODate[],
   context: RepeatProjectionContext,
 ): Draft<Allocation>[] {
-  validateRepeatProjection(baseDraft, startDates, context);
+  assertRepeatProjection(baseDraft, startDates, context);
   const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
   const usesCalendarSpan = isExternalResource(context.resource) || context.schedulingMode === "hourly";
   const spanOptions = {
     ...(context.effectiveWeek.kind === "days" ? { workingDays: context.effectiveWeek.days } : {}),
     ...(baseDraft.ignoreWeekends !== undefined ? { ignoreWeekends: baseDraft.ignoreWeekends } : {}),
   };
-  validateProjectedSpans({ startDates, daysOver: context.daysOver, spanOptions, usesCalendarSpan });
+  assertProjectedSpans({ startDates, daysOver: context.daysOver, spanOptions, usesCalendarSpan });
 
   return startDates.map((generatedStart, index) => {
     if (index === 0) return baseDraft;
@@ -97,7 +97,7 @@ export function buildRepeatedAllocationDrafts(
   });
 }
 
-function validateRepeatProjection(
+function assertRepeatProjection(
   baseDraft: Draft<Allocation>,
   startDates: readonly ISODate[],
   context: RepeatProjectionContext,
@@ -131,7 +131,7 @@ interface ValidateProjectedSpansInput {
   usesCalendarSpan: boolean;
 }
 
-function validateProjectedSpans({
+function assertProjectedSpans({
   startDates,
   daysOver,
   spanOptions,

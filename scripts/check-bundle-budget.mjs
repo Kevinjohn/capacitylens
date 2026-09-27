@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { resolve } from "node:path";
-import { assertEntryBundleWithinBudget } from "./bundle-budget.mjs";
+import { assertEntryBundleWithinBudget } from "./bundleBudget.mjs";
 
 // This is a BLOWUP DETECTOR, not a creep ratchet. It exists to catch the single careless commit —
 // a barrel import that pulls all of an icon set instead of five glyphs, a date library that doesn't

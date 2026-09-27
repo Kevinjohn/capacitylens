@@ -44,7 +44,7 @@ import { JOINING_POLICIES_V49_MIGRATION } from "./joiningPoliciesV49";
 import { MICROSOFT_JOIN_V50_MIGRATION } from "./microsoftJoinV50";
 import { MICROSOFT_JOIN_BROWSER_V51_MIGRATION } from "./microsoftJoinBrowserV51";
 import { BASELINE_V8_MIGRATION } from "./baselineV8";
-import { validateMigrationSequence } from "./validateSequence";
+import { assertMigrationSequence } from "./assertMigrationSequence";
 import {
   migrateTimeOffResourceNullableV33,
   COMPANY_CLOSURES_V34_DEFINITION,
@@ -375,4 +375,4 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   MICROSOFT_JOIN_V50_MIGRATION,
   MICROSOFT_JOIN_BROWSER_V51_MIGRATION,
 ];
-validateMigrationSequence(DATABASE_MIGRATIONS, DB_SCHEMA_VERSION);
+assertMigrationSequence(DATABASE_MIGRATIONS, DB_SCHEMA_VERSION);

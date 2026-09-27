@@ -2,7 +2,7 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyReply } from "fastify";
 import type { SanitizeWriteOptions } from "../../fieldPolicy";
 
-import type { AccountEntityRouteDependencies } from "./dependencies";
+import type { AccountEntityRouteDependencies } from "./AccountEntityRouteDependencies";
 import { ACCOUNT_FROZEN_FIELDS_MESSAGE, hasFrozenAccountFieldChanges } from "./policy";
 
 type AccountRouteFailureDependencies = Pick<AccountEntityRouteDependencies, "accountFail" | "fail">;

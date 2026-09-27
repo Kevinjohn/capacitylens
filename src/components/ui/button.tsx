@@ -2,7 +2,7 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Slot } from "radix-ui";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 
 // Local shadcn deviation: preserve the AA-tuned green default, danger-soft action, enabled-only
 // pressed feedback, semantic outline-fill variables for chrome bands, and compact/icon sizes

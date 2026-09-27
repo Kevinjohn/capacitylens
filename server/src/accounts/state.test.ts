@@ -11,7 +11,7 @@ import {
   eraseWorkspaceCommandHistoryInTx,
   finishAccountCommand,
   getAccountCommand,
-  getAccountCommandByIdForReconciliation,
+  readAccountCommandAndFlagStalePending,
   getSessionAuthentication,
   recordSessionAssurance,
   reserveAccountCommand,
@@ -167,7 +167,7 @@ function registerWallClockTests(): void {
         }),
       ).not.toBeNull();
       expect(
-        getAccountCommandByIdForReconciliation({ db, applicationId: "app", commandId: "pending-command" }),
+        readAccountCommandAndFlagStalePending({ db, applicationId: "app", commandId: "pending-command" }),
       ).toMatchObject({
         status: "pending",
       });
@@ -192,7 +192,7 @@ function registerReconciliationReadTests(): void {
     });
 
     expect(
-      getAccountCommandByIdForReconciliation({
+      readAccountCommandAndFlagStalePending({
         db,
         applicationId: "app",
         commandId: "command",

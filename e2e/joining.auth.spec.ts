@@ -6,8 +6,8 @@ import {
   seedFixtureEmailProof,
   seedFixtureLegacyEmailFlag,
   signUpUser,
-} from "./auth-helpers";
-import { waitForAppLanding } from "./helpers";
+} from "./authTestSupport";
+import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

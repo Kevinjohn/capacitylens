@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp } from "./browserTestSupport";
 
 async function seedDeviceData(page: Page) {
   await page.evaluate(() => {

@@ -11,7 +11,7 @@ import { resolveEndDate, validateAllocationDraft } from "./allocationDraft";
 import { resolveEffectiveWeekCreationBlockReason } from "./creationAvailability";
 
 import type { FieldError } from "../../hooks/useFieldError";
-import type { AllocationModalSnapshot } from "./allocationModalSnapshot";
+import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
 type CommandInput = Omit<AllocationModalSnapshot, "editId" | "repeatUntilMinimum"> &
   Pick<
     ReturnType<typeof useStore.getState>,

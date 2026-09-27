@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useStore } from "../../store/useStore";
 import { useFieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
-import { validateHex, validateName } from "../../lib/validation";
+import { validatePresetColor, validateName } from "../../lib/validation";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
 import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
@@ -73,7 +73,7 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
     if (!trimmed) return;
     const privacy = privateNameFields.validatePrivacy();
     if (!privacy) return;
-    if (!validateHex(color, fail)) return;
+    if (!validatePresetColor(color, fail)) return;
     // The store throws (with a display-safe message) on a tenancy/integrity rejection — surface it
     // as a form error rather than letting it escape as an uncaught React error. (See the store CRUD
     // contract.) Today the form's own validation precedes it, but the SQLite server seam adds real

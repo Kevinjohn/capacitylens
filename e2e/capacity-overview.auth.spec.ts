@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./auth-helpers";
-import { waitForAppLanding } from "./helpers";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
+import { waitForAppLanding } from "./browserTestSupport";
 
 const STAMP = Date.now();
 const OWNER = `overview-owner-${STAMP}@capacitylens.dev`;

@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./auth-helpers";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
 import {
   computedStyles,
   disableCssMotion,
@@ -8,7 +8,7 @@ import {
   goToSeedWeek,
   setZoom,
   showScheduleFilters,
-} from "./helpers";
+} from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

@@ -1,5 +1,11 @@
 import { test, expect } from "./fixtures";
-import { boundingBoxOrThrow as box, openApp, resetSchedulerScroll, setZoom, showScheduleFilters } from "./helpers";
+import {
+  boundingBoxOrThrow as box,
+  openApp,
+  resetSchedulerScroll,
+  setZoom,
+  showScheduleFilters,
+} from "./browserTestSupport";
 
 // Covers US-TBR-01..07 and the toolbar-owned week-snap cases from US-TBR-08; scheduler.spec.ts
 // covers the remaining US-TBR-08 navigation paths.

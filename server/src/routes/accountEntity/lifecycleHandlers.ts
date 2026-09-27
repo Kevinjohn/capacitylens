@@ -5,7 +5,7 @@ import { getRow, insertRow } from "../../db";
 import { listAppliedRequestedFieldNames, assertValidWrite } from "../../validate";
 import { checkEntityWriteBody, prepareScopedWrite } from "../../writePipeline";
 
-import type { AccountEntityRouteDependencies } from "./dependencies";
+import type { AccountEntityRouteDependencies } from "./AccountEntityRouteDependencies";
 import { sendAccountRouteFailure } from "./guards";
 import { ACCOUNT_CREATE_CLOSED_MESSAGE, buildCanonicalAccountProductPayload } from "./policy";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";

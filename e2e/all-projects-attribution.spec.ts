@@ -8,7 +8,7 @@ import {
   setZoom,
   showPlaceholders,
   showScheduleFilters,
-} from "./helpers";
+} from "./browserTestSupport";
 import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 
 const attributedBar = (page: Page) =>

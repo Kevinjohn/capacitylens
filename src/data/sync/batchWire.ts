@@ -23,13 +23,13 @@ import {
   type BatchCommitReceipt,
   type CommittedRevision,
 } from "./revisions";
-import type { SyncState } from "./state";
+import type { SyncState } from "./SyncState";
 import { addResourceAvailabilityClearMarkers } from "./resourceAvailabilityWire";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // Apply the complete ordered diff as ONE request and therefore ONE SQLite transaction. An
 // over-limit diff is never split into separately committed prefixes.
-export function applyBatch(
+export function commitBatch(
   state: SyncState,
   ops: Op[],
   options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },

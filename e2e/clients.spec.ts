@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, showScheduleFilters } from "./helpers";
+import { openApp, showScheduleFilters } from "./browserTestSupport";
 
 // Covers US-CLI-01..03.
 function registerSuiteScenario1() {

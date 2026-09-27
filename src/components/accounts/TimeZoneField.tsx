@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { RequiredFieldLabel } from "../common/fields/fieldLayout";
 import type { Option } from "../common/ui";
 import { m } from "@/i18n";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 
 interface TimeZoneFieldProps {
   label: string;
