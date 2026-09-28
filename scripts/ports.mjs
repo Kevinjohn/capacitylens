@@ -16,6 +16,7 @@ export const LANE_CEILING = 10;
 // file that tried to CLAIM a lane instead of reading this would claim too late to matter:
 // playwright.config.ts has already materialised its ports by the time its globalSetup runs.
 export const LANE_ENVIRONMENT_KEY = "CAPACITYLENS_PORT_LANE";
+export const LANE_CLAIM_ENVIRONMENT_KEY = "CAPACITYLENS_LANE_CLAIM";
 export const SHARE_ENVIRONMENT_KEY = "CAPACITYLENS_TEST_SHARE";
 
 // Lane 0 of each base is the port this repository bound before lanes existed. Keep it that way:

@@ -22,13 +22,23 @@ import {
   statSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
-import { LANE_CEILING, portsForLane, reservationCeiling, soloShare } from "./ports.mjs";
+import { join } from "node:path";
+import {
+  LANE_CEILING,
+  LANE_CLAIM_ENVIRONMENT_KEY,
+  LANE_ENVIRONMENT_KEY,
+  portsForLane,
+  reservationCeiling,
+  resolveLane,
+  soloShare,
+  testShare,
+} from "./ports.mjs";
 import { portInUse } from "./devProcesses.mjs";
 
 const MUTEX_STALE_MS = 30_000;
 // A legacy publisher wrote its owner microseconds after creating the file.
 const LEGACY_PUBLISH_GRACE_MS = 5_000;
+const MUTEX_WAIT_ARRAY = new Int32Array(new SharedArrayBuffer(4));
 let claimSequence = 0;
 
 export function laneDirectory(environment = process.env) {
@@ -91,6 +101,7 @@ function withMutex(directory, body) {
         }
         if (Date.now() > deadline)
           throw new Error(`lane: the legacy claim mutex at ${path} has no valid owner.`, { cause: error });
+        Atomics.wait(MUTEX_WAIT_ARRAY, 0, 0, 10);
         continue;
       }
       if (holder && !processAlive(holder.pid)) {
@@ -111,7 +122,8 @@ function withMutex(directory, body) {
           },
         );
       }
-      // Busy-wait rather than sleep: the window being guarded is a few file writes long.
+      // Pause briefly between attempts so mutex contention does not spin at full CPU.
+      Atomics.wait(MUTEX_WAIT_ARRAY, 0, 0, 10);
       continue;
     }
     try {
@@ -180,6 +192,28 @@ function claimPath(directory, lane) {
   return join(directory, `${lane}.json`);
 }
 
+/**
+ * Live claims by lane, read without the mutex and without deleting anything, so a report can never
+ * remove a claim that a concurrent starter is still writing.
+ */
+export function readLiveClaims(directory) {
+  const claims = new Map();
+  let names;
+  try {
+    names = readdirSync(directory);
+  } catch (error) {
+    if (error.code === "ENOENT") return claims;
+    throw error;
+  }
+  for (const name of names) {
+    const match = /^(\d+)\.json$/.exec(name);
+    if (!match) continue;
+    const claim = readClaim(join(directory, name));
+    if (claim && !claim.corrupt && processAlive(claim.pid)) claims.set(Number(match[1]), claim);
+  }
+  return claims;
+}
+
 /** Live claims only; a claim whose pid has gone is deleted as it is found. */
 function collectLiveClaimsAndPruneStaleFiles(directory) {
   const claims = new Map();
@@ -214,39 +248,41 @@ export function listenerPid(port, run = execFileSync) {
     const output = String(run("lsof", ["-ti", `tcp:${port}`, "-sTCP:LISTEN"], { stdio: ["ignore", "pipe", "ignore"] }));
     const pid = Number(output.trim().split(/\s+/)[0]);
     return Number.isInteger(pid) ? pid : null;
-  } catch {
+  } catch (error) {
+    if (error.code === "ENOENT")
+      throw new Error("lane: lsof is required to inspect an occupied lane port; install lsof and retry.", {
+        cause: error,
+      });
     // A non-zero exit means nothing is listening; lsof reports no match that way.
     return null;
   }
 }
 
-/** A listener's working directory, used to decide whether an orphan on our lane is ours to kill. */
-function listenerDirectory(pid, run = execFileSync) {
+/** A listener's working directory, included when reporting an occupied lane. */
+export function listenerDirectory(pid, run = execFileSync) {
   try {
     const output = String(
       run("lsof", ["-a", "-p", String(pid), "-d", "cwd", "-Fn"], { stdio: ["ignore", "pipe", "ignore"] }),
     );
     const line = output.split("\n").find((entry) => entry.startsWith("n"));
     return line ? line.slice(1) : null;
-  } catch {
+  } catch (error) {
+    if (error.code === "ENOENT")
+      throw new Error("lane: lsof is required to inspect an occupied lane port; install lsof and retry.", {
+        cause: error,
+      });
     return null;
   }
 }
 
 /**
- * Clear orphans left on a freshly claimed lane by an earlier run in this worktree — a hard kill can
- * leave a detached Vite or API server holding a port after the pid that started it is gone, and the
- * next run then fails for a reason that has nothing to do with its change.
- *
- * Occupancy is not ownership. A listener is killed only when it is running from this worktree; a
- * stranger's process on one of our ports is reported and the lane refused, never killed.
+ * Refuse a freshly claimed lane when any of its ports are occupied. Occupancy is not ownership, so
+ * the launcher reports the listener and leaves stopping it to the developer.
  */
-export async function reapLane(
+export async function assertLaneFree(
   lane,
-  worktree,
-  { probe = portInUse, owner = listenerPid, directoryOf = listenerDirectory, kill = process.kill } = {},
+  { probe = portInUse, owner = listenerPid, directoryOf = listenerDirectory } = {},
 ) {
-  const reaped = [];
   for (const [service, port] of Object.entries(portsForLane(lane))) {
     if (!(await probe(port))) continue;
     const pid = owner(port);
@@ -255,28 +291,25 @@ export async function reapLane(
         `lane ${lane}: port ${port} (${service}) is held by a process lsof cannot identify. Free it before retrying.`,
       );
     const directory = directoryOf(pid);
-    if (directory === null || resolve(directory) !== resolve(worktree)) {
-      throw new Error(
-        `lane ${lane}: port ${port} (${service}) is held by pid ${pid} running in ${directory ?? "an unknown directory"}, not this worktree. ` +
-          `Refusing to kill another checkout's process — stop it, or run with ${"CAPACITYLENS_PORT_LANE"} set to a free lane.`,
-      );
-    }
-    kill(pid, "SIGKILL");
-    reaped.push({ port, pid });
+    throw new Error(
+      `lane ${lane}: port ${port} (${service}) is held by pid ${pid} running in ${directory ?? "an unknown directory"}. ` +
+        `Stop it with kill ${pid}, or choose another lane with CAPACITYLENS_PORT_LANE=<n>.`,
+    );
   }
-  return reaped;
 }
 
 /**
- * Claim the lowest free lane plus a CPU share. Returns the lane, the share, and a release that is
- * safe to call more than once.
+ * Claim a selected lane, or the lowest free lane, plus a CPU share. Returns the lane, share, claim
+ * token, and a release that is safe to call more than once.
  */
-export function claimLane({ worktree, environment = process.env, cores } = {}) {
+export function claimLane({ worktree, environment = process.env, cores, lane: requestedLane } = {}) {
   const directory = laneDirectory(environment);
   mkdirSync(directory, { recursive: true });
   return withMutex(directory, () => {
     const claims = collectLiveClaimsAndPruneStaleFiles(directory);
-    const lane = [...Array(LANE_CEILING).keys()].find((candidate) => !claims.has(candidate));
+    const heldClaim = requestedLane === undefined ? undefined : claims.get(requestedLane);
+    if (heldClaim) throw new Error(`lane ${requestedLane} is held by pid ${heldClaim.pid} in ${heldClaim.worktree}`);
+    const lane = requestedLane ?? [...Array(LANE_CEILING).keys()].find((candidate) => !claims.has(candidate));
     if (lane === undefined) {
       const holders = [...claims.entries()]
         .map(([held, claim]) => `  lane ${held}: pid ${claim.pid} in ${claim.worktree}`)
@@ -294,7 +327,7 @@ export function claimLane({ worktree, environment = process.env, cores } = {}) {
     } finally {
       closeSync(descriptor);
     }
-    return { lane, share, release: () => releaseLane(directory, lane, token) };
+    return { lane, share, token, release: () => releaseLane(directory, lane, token) };
   });
 }
 
@@ -305,4 +338,24 @@ export function releaseLane(directory, lane, token) {
   if (!claim || claim.pid !== process.pid || claim.token !== token) return false;
   removeQuietly(path);
   return true;
+}
+
+/**
+ * The lane a launch runs in. A lane is inherited only when an outer launcher supplied both its lane
+ * and claim marker; that claim is never released here. Otherwise this launch claims its own lane —
+ * the one selected by hand when the lane variable is set, else the lowest free one.
+ */
+export function resolveLaunchClaim({ worktree, environment = process.env, claim = claimLane } = {}) {
+  const selected = Boolean(environment[LANE_ENVIRONMENT_KEY]);
+  if (selected && environment[LANE_CLAIM_ENVIRONMENT_KEY]) {
+    return {
+      inherited: true,
+      lane: resolveLane(environment),
+      share: testShare(environment),
+      token: environment[LANE_CLAIM_ENVIRONMENT_KEY],
+      release: () => false,
+    };
+  }
+  const claimed = claim({ worktree, environment, ...(selected ? { lane: resolveLane(environment) } : {}) });
+  return { inherited: false, ...claimed };
 }
