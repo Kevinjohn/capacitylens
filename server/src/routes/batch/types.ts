@@ -10,21 +10,8 @@ import type { TenantStore } from "../../tenantStore";
 
 import type { BatchRouteDependencies } from "../batchRoutes";
 
-// Cap on ops per POST /api/batch request (the MAX_IMPORT_RECORDS precedent, applied to the sync
-// path). BODY_LIMIT bounds request BYTES, but not request WORK: every operation is sanitized,
-// authorized, validated and applied to the in-memory projection. The transaction reads each
-// affected account slice once, then indexed point/reverse lookups keep per-op validation and
-// projection updates proportional to each operation's referenced/affected rows rather than the
-// whole tenant. Op COUNT is therefore the remaining request-controlled multiplier. 5 000 is
-// generous headroom over the largest realistic full-slice diff the client sync adapter produces
-// (a whole busy agency's slice is low-thousands of rows) while bounding a crafted/looping flood.
-// The inclusive boundary integration test applies 5 000 real existing-row updates and enforces a
-// four-second handler budget under the supported Node 24 gate, leaving headroom below the packaged
-// five-second container healthcheck timeout. Keep that budget, this cap and the client's matching
-// MAX_OPS_PER_BATCH in lockstep; an in-process queue cannot shorten one synchronous SQLite turn.
-// Checked BEFORE the pre-scan and tx, so an over-cap batch writes nothing.
-// Exported for the test that pins the boundary.
-export const MAX_BATCH_OPS = 5000;
+// The op-count cap is a client/server protocol limit; its rationale lives with the constant.
+export { MAX_BATCH_OPS } from "@capacitylens/shared/data/transfer";
 
 export interface BatchOp {
   method: "PUT" | "DELETE" | "ARCHIVE";

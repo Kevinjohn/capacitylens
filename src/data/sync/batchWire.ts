@@ -14,7 +14,7 @@ import {
   BatchValidationError,
   KEEPALIVE_BODY_BUDGET,
   KeepaliveNotDispatchedError,
-  MAX_OPS_PER_BATCH,
+  MAX_BATCH_OPS,
 } from "./batchErrors";
 import {
   buildRowKey,
@@ -48,8 +48,8 @@ export function prepareBatchBody(
   ops: Op[],
   options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
 ): string {
-  if (ops.length > MAX_OPS_PER_BATCH) {
-    throw new BatchTooLargeError(`Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`);
+  if (ops.length > MAX_BATCH_OPS) {
+    throw new BatchTooLargeError(`Atomic sync exceeds the ${MAX_BATCH_OPS}-operation server limit.`);
   }
   // Rebase PUT preconditions, then serialize ONCE — the same body feeds both the keepalive
   // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
@@ -113,7 +113,7 @@ interface PostBatchInput {
   options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean };
 }
 
-// POST the complete ≤MAX_OPS_PER_BATCH diff to /api/batch; the server applies it in one
+// POST the complete ≤MAX_BATCH_OPS diff to /api/batch; the server applies it in one
 // transaction (upserts parent-first, then deletes child-first — see syncOps.diffOps), so a
 // mid-batch failure rolls the whole transaction back. keepalive (unload) lets the request outlive
 // the page. `body` is the already-serialized, PUT-rebased wire payload; `ops` supplies the exact
