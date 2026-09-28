@@ -1,10 +1,8 @@
 import { allowsPasswordSignIn, allowsProviderSignIn, type AccountMode } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { mintJoinEmailProofToken, verifyJoinEmailProofToken } from "../accounts/adminPort/joiningIntentSecrets";
-import { conflictsWithOwnerAccess } from "../authConfig/federatedEmailProof";
-import { tx } from "../txn";
+import { readPrincipalEmail, recordPasswordEmailProof } from "../authConfig/federatedEmailProof";
 import { resolveMailDeliveryCause } from "../authConfig/mailSender";
 import type { Db } from "../db";
 import { createJoiningProviderLifecycle } from "../accounts/adminPort/joiningProviderLifecycle";
@@ -168,10 +166,10 @@ function requirePasswordPrincipal(req: FastifyRequest, input: Dependencies): str
   return req.accountActor.principalId;
 }
 
-function readPrincipalEmail(db: Db, principalId: string): string {
-  const principal = db.prepare("SELECT email FROM user WHERE id = ?").get(principalId) as { email: string } | undefined;
-  if (!principal) invalid();
-  return normalizeAccountEmail(principal.email);
+function requirePrincipalEmail(db: Db, principalId: string): string {
+  const email = readPrincipalEmail(db, principalId);
+  if (!email) invalid();
+  return email;
 }
 
 function registerEmailProofSendRoute(app: FastifyInstance, input: Dependencies): void {
@@ -183,7 +181,7 @@ function registerEmailProofSendRoute(app: FastifyInstance, input: Dependencies):
         const principalId = requirePasswordPrincipal(req, input);
         if (!input.auth.mail) invalid("Email verification is unavailable.");
         if (Object.keys(bodyObject(req.body)).length !== 0) invalid();
-        const email = readPrincipalEmail(input.db, principalId);
+        const email = requirePrincipalEmail(input.db, principalId);
         const token = mintJoinEmailProofToken(input.secret, {
           principalId,
           email,
@@ -199,7 +197,7 @@ function registerEmailProofSendRoute(app: FastifyInstance, input: Dependencies):
           });
         } catch (cause) {
           // Log only the redacted transport cause; never credentials, the link or the address.
-          req.log.error({ cause: resolveMailDeliveryCause(cause) }, "Join verification email delivery failed");
+          req.log.error({ cause: resolveMailDeliveryCause(cause) }, "Joining email verification delivery failed");
           throw createAccountFailure("DEPENDENCY_UNAVAILABLE", "Verification email could not be sent.");
         }
         return { sent: true };
@@ -213,22 +211,14 @@ function registerEmailProofConfirmRoute(app: FastifyInstance, input: Dependencie
       const principalId = requirePasswordPrincipal(req, input);
       const body = bodyObject(req.body);
       if (typeof body.token !== "string" || Object.keys(body).length !== 1) invalid();
-      const now = Date.now();
-      const proof = verifyJoinEmailProofToken(input.secret, body.token, now);
-      const email = readPrincipalEmail(input.db, principalId);
-      if (!proof || proof.principalId !== principalId || proof.email !== email) invalid();
-      tx(input.db, () => {
-        if (conflictsWithOwnerAccess(input.db, principalId, email)) {
-          throw createAccountFailure("FORBIDDEN", "This address cannot be verified for this account.");
-        }
-        input.db
-          .prepare(
-            `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
-          VALUES (?, ?, 'password', ?) ON CONFLICT(principalId) DO UPDATE SET
-          email = excluded.email, source = excluded.source, provenAt = excluded.provenAt`,
-          )
-          .run(principalId, email, new Date(now).toISOString());
-      });
+      const proof = verifyJoinEmailProofToken(input.secret, body.token, Date.now());
+      if (!proof || proof.principalId !== principalId) invalid();
+      const email = requirePrincipalEmail(input.db, principalId);
+      if (proof.email !== email) invalid();
+      if (!recordPasswordEmailProof(input.db, principalId, email)) {
+        // A policy refusal, not a server fault: this address would restrict an active Owner.
+        throw createAccountFailure("FORBIDDEN", "This address cannot be verified for this account.");
+      }
       return { ok: true };
     }),
   );

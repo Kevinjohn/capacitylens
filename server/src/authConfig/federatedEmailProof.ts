@@ -28,7 +28,7 @@ function captureVerifiedFacts(input: ProviderFact): { subject: string; email: st
 }
 
 /** True when this proof would disable an active Owner through an address restriction. */
-export function conflictsWithOwnerAccess(db: Db, principalId: string, email: string): boolean {
+function conflictsWithOwnerAccess(db: Db, principalId: string, email: string): boolean {
   const owner = db
     .prepare(
       `SELECT 1 FROM account_members AS member
@@ -62,11 +62,32 @@ export function captureVerifiedFederatedEmailProof(db: Db, input: ProviderFact):
   if (normalizeAccountEmail(existing.email) !== email) return;
   tx(db, () => {
     assertOwnerCanKeepAccess(db, existing.userId, email);
-    db.prepare(
-      `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
-      VALUES (?, ?, ?, ?) ON CONFLICT(principalId) DO UPDATE SET
-      email = excluded.email, source = excluded.source, provenAt = excluded.provenAt`,
-    ).run(existing.userId, email, input.providerId, new Date().toISOString());
+    upsertEmailProof(db, { principalId: existing.userId, email, source: input.providerId });
+  });
+}
+
+type EmailProof = { principalId: string; email: string; source: ProvenProvider | "password" };
+
+function upsertEmailProof(db: Db, { principalId, email, source }: EmailProof): void {
+  db.prepare(
+    `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+    VALUES (?, ?, ?, ?) ON CONFLICT(principalId) DO UPDATE SET
+    email = excluded.email, source = excluded.source, provenAt = excluded.provenAt`,
+  ).run(principalId, email, source, new Date().toISOString());
+}
+
+/** The principal's saved address, normalised, or null when the principal no longer exists. */
+export function readPrincipalEmail(db: Db, principalId: string): string | null {
+  const principal = db.prepare("SELECT email FROM user WHERE id = ?").get(principalId) as { email: string } | undefined;
+  return principal ? normalizeAccountEmail(principal.email) : null;
+}
+
+/** Record mailbox proof of the current address; false when it would disable an active Owner. */
+export function recordPasswordEmailProof(db: Db, principalId: string, email: string): boolean {
+  return tx(db, () => {
+    if (conflictsWithOwnerAccess(db, principalId, email)) return false;
+    upsertEmailProof(db, { principalId, email, source: "password" });
+    return true;
   });
 }
 

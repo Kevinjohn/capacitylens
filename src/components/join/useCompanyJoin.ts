@@ -82,11 +82,11 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   const [emailProofRequired, setEmailProofRequired] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   useEffect(() => {
-    const token = new URLSearchParams(window.location.hash.slice(1)).get("verify");
-    if (token) {
+    // Keep the one-time token out of the address bar and history once it is held in state.
+    if (verificationToken) {
       window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
     }
-  }, []);
+  }, [verificationToken]);
   const hasMicrosoft = providers.some((provider) => provider.id === "microsoft");
 
   useEffect(() => {
