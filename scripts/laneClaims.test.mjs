@@ -15,8 +15,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { presetEnvironment, resolvePlaywrightRunMode, E2E_RUN_PRESETS } from "./playwrightRunMode.mjs";
 import { nonColourEnvironment } from "./pnpmSpawn.mjs";
-import { claimLane, laneDirectory, reapLane, releaseLane, releaseMutex, shareForClaims } from "./laneClaims.mjs";
-import { LANE_CEILING, portsForLane } from "./ports.mjs";
+import {
+  assertLaneFree,
+  claimLane,
+  laneDirectory,
+  listenerDirectory,
+  listenerPid,
+  releaseLane,
+  releaseMutex,
+  shareForClaims,
+} from "./laneClaims.mjs";
+import { LANE_CEILING, LANE_CLAIM_ENVIRONMENT_KEY, portsForLane } from "./ports.mjs";
 
 function scratch() {
   const cache = mkdtempSync(join(tmpdir(), "lanes-"));
@@ -30,6 +39,24 @@ test("the first claim takes lane 0 and the next takes lane 1", () => {
   assert.equal(first.lane, 0);
   assert.equal(second.lane, 1);
   assert.notDeepEqual(portsForLane(first.lane), portsForLane(second.lane));
+});
+
+test("an explicitly selected lane is reserved", () => {
+  const environment = scratch();
+  const claim = claimLane({ worktree: "/tmp/pinned", environment, lane: 4 });
+  assert.equal(claim.lane, 4);
+  assert.equal(existsSync(join(laneDirectory(environment), "4.json")), true);
+  claim.release();
+});
+
+test("an explicitly selected lane held by a live claim is refused", () => {
+  const environment = scratch();
+  const held = claimLane({ worktree: "/tmp/holder", environment, lane: 4 });
+  assert.throws(
+    () => claimLane({ worktree: "/tmp/contender", environment, lane: 4 }),
+    new RegExp(`lane 4 is held by pid ${process.pid} in /tmp/holder`),
+  );
+  held.release();
 });
 
 test("a lane whose holder has gone is reclaimed, and a live holder's is not", () => {
@@ -298,7 +325,14 @@ test("a delayed release cannot delete a same-process successor", () => {
 });
 
 test("a signalled launcher exits unsuccessfully even when its child exits zero", async () => {
-  const environment = { ...process.env, CAPACITYLENS_PORT_LANE: "0", CAPACITYLENS_TEST_SHARE: "1" };
+  const scratchEnvironment = scratch();
+  const environment = {
+    ...process.env,
+    ...scratchEnvironment,
+    CAPACITYLENS_PORT_LANE: "0",
+    CAPACITYLENS_TEST_SHARE: "1",
+    [LANE_CLAIM_ENVIRONMENT_KEY]: "outer-claim",
+  };
   const child = spawn(
     process.execPath,
     [
@@ -319,10 +353,19 @@ test("a signalled launcher exits unsuccessfully even when its child exits zero",
 });
 
 test("both launchers report child startup failures with exit status 2", () => {
+  const environment = scratch();
   const withLane = spawnSync(
     process.execPath,
     [new URL("./with-lane.mjs", import.meta.url).pathname, "/missing-capacitylens-command"],
-    { env: { ...process.env, CAPACITYLENS_PORT_LANE: "0" }, encoding: "utf8" },
+    {
+      env: {
+        ...process.env,
+        ...environment,
+        CAPACITYLENS_PORT_LANE: "0",
+        [LANE_CLAIM_ENVIRONMENT_KEY]: "outer-claim",
+      },
+      encoding: "utf8",
+    },
   );
   assert.equal(withLane.status, 2);
 
@@ -335,6 +378,43 @@ test("both launchers report child startup failures with exit status 2", () => {
     },
   );
   assert.equal(server.status, 2);
+});
+
+test("a top-level pinned launcher writes its lane claim and a marked child does not", () => {
+  const pinnedEnvironment = scratch();
+  const pinned = spawnSync(
+    process.execPath,
+    [
+      new URL("./with-lane.mjs", import.meta.url).pathname,
+      process.execPath,
+      "-e",
+      `const { existsSync } = require("node:fs");
+       const { join } = require("node:path");
+       process.exit(existsSync(join(process.env.XDG_CACHE_HOME, "capacitylens", "lanes", "4.json")) ? 0 : 1);`,
+    ],
+    {
+      env: { ...process.env, ...pinnedEnvironment, CAPACITYLENS_PORT_LANE: "4" },
+      encoding: "utf8",
+    },
+  );
+  assert.equal(pinned.status, 0, pinned.stderr);
+
+  const inheritedEnvironment = scratch();
+  const inherited = spawnSync(
+    process.execPath,
+    [new URL("./with-lane.mjs", import.meta.url).pathname, process.execPath, "-e", "process.exit(0)"],
+    {
+      env: {
+        ...process.env,
+        ...inheritedEnvironment,
+        CAPACITYLENS_PORT_LANE: "4",
+        [LANE_CLAIM_ENVIRONMENT_KEY]: "outer-claim",
+      },
+      encoding: "utf8",
+    },
+  );
+  assert.equal(inherited.status, 0, inherited.stderr);
+  assert.equal(existsSync(join(laneDirectory(inheritedEnvironment), "4.json")), false);
 });
 
 test("the reservation shrinks as the pool fills and never reaches zero", () => {
@@ -354,26 +434,38 @@ test("the reservation shrinks as the pool fills and never reaches zero", () => {
   assert.equal(shareForClaims(new Map([[0, { share: 9 }]]), 2), 1);
 });
 
-test("an orphan from this worktree is reaped; a stranger's process is refused, not killed", async () => {
+test("an occupied port is reported without killing its same-worktree process", async () => {
   const lane = 3;
   const port = portsForLane(lane).web;
   const killed = [];
-  const reaped = await reapLane(lane, "/tmp/mine", {
-    probe: (candidate) => Promise.resolve(candidate === port),
-    owner: () => 4242,
-    directoryOf: () => "/tmp/mine",
-    kill: (pid) => killed.push(pid),
-  });
-  assert.deepEqual(reaped, [{ port, pid: 4242 }]);
-  assert.deepEqual(killed, [4242]);
-
   await assert.rejects(
-    reapLane(lane, "/tmp/mine", {
+    assertLaneFree(lane, {
       probe: (candidate) => Promise.resolve(candidate === port),
       owner: () => 4242,
-      directoryOf: () => "/tmp/someone-else",
-      kill: () => assert.fail("a process outside this worktree must never be killed"),
+      directoryOf: () => "/tmp/mine",
+      kill: (pid) => killed.push(pid),
     }),
-    /not this worktree/,
+    /lane 3.*pid 4242.*\/tmp\/mine.*kill 4242.*CAPACITYLENS_PORT_LANE=<n>/,
   );
+  assert.deepEqual(killed, []);
+});
+
+test("missing lsof is reported while an ordinary no-match exit returns null", () => {
+  for (const inspect of [
+    () =>
+      listenerPid(5173, () => {
+        throw Object.assign(new Error("missing"), { code: "ENOENT" });
+      }),
+    () =>
+      listenerDirectory(4242, () => {
+        throw Object.assign(new Error("missing"), { code: "ENOENT" });
+      }),
+  ]) {
+    assert.throws(inspect, /lane: lsof is required to inspect an occupied lane port; install lsof and retry\./);
+  }
+  const noMatch = () => {
+    throw Object.assign(new Error("no match"), { status: 1 });
+  };
+  assert.equal(listenerPid(5173, noMatch), null);
+  assert.equal(listenerDirectory(4242, noMatch), null);
 });

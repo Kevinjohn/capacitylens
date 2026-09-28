@@ -20,6 +20,7 @@ minutes; running the full check suite takes longer.
 
 - Node 24, pinned in `.nvmrc`.
 - pnpm, through Corepack — the version is pinned in `package.json`'s `packageManager` field.
+- `lsof`, which ships with macOS; install the `lsof` package on minimal Linux systems.
 - Docker, only if you plan to run the Docker Compose smoke tests.
 
 ## Set up the repository
@@ -53,7 +54,7 @@ after. Configuration files only read the resolved lane, so there is nothing to p
 
 ```bash
 pnpm run e2e              # claims the lowest free lane, prints which
-CAPACITYLENS_PORT_LANE=4 pnpm run e2e   # pin a lane (CI pins 0)
+CAPACITYLENS_PORT_LANE=4 pnpm run e2e   # pin a lane
 ```
 
 The claim also reserves a share of the machine's CPUs and passes it to Vitest and Playwright as a
@@ -65,9 +66,8 @@ Two deliberate exceptions:
 - `pnpm run dev:access` keeps fixed ports, so it is single-flight machine-wide.
 - Documentation screenshots are captured by hand on `:5199`, which no automated run binds.
 
-If a lane's port is still held when a run claims it, the launcher clears the process only when it
-belongs to this worktree. Anything else is reported by pid and the run stops, rather than killing
-another checkout's server.
+If a lane's port is still held when a run claims it, the launcher reports the process by pid and
+working directory, then stops. Stop that process yourself or select another lane before retrying.
 
 An empty `VITE_CAPACITYLENS_API` means same-origin server mode. A non-empty value must be
 an absolute HTTP(S) origin with no credentials, path, query or fragment; surrounding
