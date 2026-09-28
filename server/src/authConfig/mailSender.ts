@@ -55,7 +55,7 @@ export function createMailSender(environment: Record<string, string | undefined>
     port > 65535
   ) {
     throw new Error(
-      "Mailbox verification requires complete SMALLSASS_ACCOUNT_MAIL_HOST, PORT, USER, PASSWORD and FROM settings.",
+      "Email delivery requires complete SMALLSASS_ACCOUNT_MAIL_HOST, PORT, USER, PASSWORD and FROM settings.",
     );
   }
   const transport = nodemailer.createTransport({
