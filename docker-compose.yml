@@ -196,8 +196,8 @@ services:
       retries: 3
     ports:
       # Bind loopback by default so a public TLS edge is the only internet-reachable hop and its
-      # overwritten forwarding scheme can be trusted. Set WEB_BIND_IP deliberately for a platform
-      # load balancer that reaches the container host over a private network.
+      # overwritten forwarding scheme and client address can be trusted. Set WEB_BIND_IP deliberately
+      # for a platform load balancer that reaches the container host over a private network.
       - "${WEB_BIND_IP:-127.0.0.1}:${WEB_PORT:-8080}:8080"
 
   # Explicitly target this service for a client-only deployment:
