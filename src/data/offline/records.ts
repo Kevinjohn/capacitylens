@@ -7,6 +7,7 @@ import { awaitRequest, awaitTx, openOfflineDb } from "./idb";
 import { readOrCreateDeviceKey, assertWebCrypto, buildAssociatedData, writeEncryptedRecord } from "./crypto";
 import {
   pendingWrites,
+  readCacheWriteFailureGeneration,
   recordOfflineCacheWriteFailure,
   recordOfflineCacheWriteSuccess,
   scope,
@@ -18,14 +19,15 @@ import { isRecord } from "@capacitylens/shared/lib/isRecord";
  * order. Different cache records remain independent, and a rejected write does not poison the
  * queue for a later live value. */
 async function put<T>(record: CachedRecord<T>): Promise<void> {
+  const generation = readCacheWriteFailureGeneration();
   const previous = pendingWrites.get(record.key) ?? Promise.resolve();
   const current = previous.catch(() => undefined).then(() => writeEncryptedRecord(record));
   pendingWrites.set(record.key, current);
   try {
     await current;
-    recordOfflineCacheWriteSuccess(record.key);
+    recordOfflineCacheWriteSuccess(record.key, generation);
   } catch (error) {
-    recordOfflineCacheWriteFailure(record.key);
+    recordOfflineCacheWriteFailure(record.key, generation);
     throw error;
   } finally {
     if (pendingWrites.get(record.key) === current) pendingWrites.delete(record.key);
