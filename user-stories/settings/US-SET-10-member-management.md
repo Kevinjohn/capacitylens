@@ -190,10 +190,12 @@ the non-blocking product orientation if it is open.
     absent everywhere); ownership moves only through the ceremony in US-SET-18, which re-reads both
     membership projections afterwards so the former Owner's role badge and affordances reflect the
     demotion.
-- Invitation creation explains that CapacityLens sends no email: the administrator must copy and
-  send the link. The field label is simply **Email**, with no explanatory helper copy; it remains
-  required in every server-auth mode. Success and recovery instructions remain
-  inline with the one-time link.
+- With [account email configured](../../docs-src/self-hosting/configuration.md#account-email),
+  an addressed invitation is emailed once. Successful delivery shows **Invitation emailed to
+  {address}** above the copyable link. Delivery failure leaves the invitation usable and the
+  copy-link flow available. Replaying creation does not send another email. The **Email** field
+  remains required in every server-auth mode, with no explanatory helper copy. Success and recovery
+  instructions stay inline with the one-time link.
 - Recipients can choose **Sign in** or **Create account** with equally prominent controls. Only the
   selected journey's fields appear. Existing users review and explicitly accept as the signed-in
   identity; changing identity preserves the invitation. New password users create a credential and accept the addressed invitation atomically

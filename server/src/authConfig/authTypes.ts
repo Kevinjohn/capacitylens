@@ -1,3 +1,4 @@
+import type { MailSender } from "./mailSender";
 import type { BetterAuthOptions } from "better-auth";
 import type { AccountMode, BoundApplication } from "@capacitylens/shared/account/types";
 import { APP_NAME } from "@capacitylens/shared/brand";
@@ -36,6 +37,8 @@ export interface CreateCredentialUserInput {
  *  structural interface once at creation — everything downstream stays decoupled from
  *  the library's generics. */
 export interface Auth {
+  mail: MailSender | null;
+  publicUrl: URL;
   microsoftProof?: MicrosoftProof | null;
   /** Web-standard Request → Response handler, mounted at /api/auth/* when mode ≠ off. */
   handler: (request: Request) => Promise<Response>;

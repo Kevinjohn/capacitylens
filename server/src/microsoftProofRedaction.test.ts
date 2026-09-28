@@ -1,19 +1,19 @@
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
 import { MICROSOFT_PROOF_V46_SQL } from "./db/migrations/microsoftProofV46";
-import { resolveMicrosoftMailDeliveryCause } from "./authConfig/microsoftProofPrimitives";
+import { resolveMailDeliveryCause } from "./authConfig/mailSender";
 import { anonymise } from "../scripts/rehearse/anonymise";
 
 describe("Microsoft proof redaction", () => {
   it("does not retain arbitrary transport strings or response contents in delivery diagnostics", () => {
     expect(
-      resolveMicrosoftMailDeliveryCause({
+      resolveMailDeliveryCause({
         code: "secret-token",
         responseCode: "private-message",
         response: "private recipient",
       }),
     ).toEqual({ code: "MAIL_TRANSPORT_ERROR" });
-    expect(resolveMicrosoftMailDeliveryCause(new Error("private credential"))).toEqual({
+    expect(resolveMailDeliveryCause(new Error("private credential"))).toEqual({
       code: "MAIL_TRANSPORT_ERROR",
     });
   });

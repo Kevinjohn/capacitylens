@@ -604,10 +604,11 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
 // re-auth dialog recovers by minting a dated session), never as fresh: the field is unverifiable,
 // and treating its absence as "fresh" would let it bypass the step-up gate entirely.
 
-/** A stub Auth whose verified session carries NO sessionCreatedAt — the only way to drive the
- *  missing-timestamp branch, since the real adapter always sets it. */
+/** Omit sessionCreatedAt to exercise the missing-timestamp branch; the real adapter always sets it. */
 function timestamplessAuth(userId: string): Auth {
   return {
+    mail: null,
+    publicUrl: new URL("http://localhost:8787"),
     handler: async () => new Response(null),
     api: {
       getSession: async () => ({

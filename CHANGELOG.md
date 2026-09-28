@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Optional SMTP delivery for addressed invitations and **Forgot password?** email recovery.
+  Admin password-reset copy-links remain available without email (#1312).
+
 ### Fixed
 
 - A save made while someone else was signing up could be confirmed and then lost if that

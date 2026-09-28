@@ -1,3 +1,4 @@
+import { createMailSender, resolveMailDeliveryCause, type MailSender } from "./mailSender";
 import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
 import { tx } from "../txn";
@@ -9,7 +10,6 @@ import { createMicrosoftProofProfiles } from "./microsoftProofProfiles";
 import { createMicrosoftProofJoining } from "./microsoftProofJoining";
 import {
   MicrosoftProofError,
-  resolveMicrosoftMailDeliveryCause,
   createMicrosoftProofMailer,
   createMicrosoftReturnUrlCipher,
   equalProofHashes,
@@ -28,6 +28,7 @@ type Intent = MicrosoftProofIntent;
 type Input = {
   db: Db;
   environment: Record<string, string | undefined>;
+  mail?: MailSender;
   secret: string;
   publicUrl: URL;
   applicationId: string;
@@ -47,7 +48,7 @@ export function createMicrosoftProof(input: Input) {
   const cookieName = `${publicUrl.protocol === "https:" ? `__Host-${applicationId}` : applicationId}-microsoft-proof`;
   const browserCookieName = `${publicUrl.protocol === "https:" ? `__Host-${applicationId}` : applicationId}-microsoft-join-browser`;
   const origins = new Set([publicUrl.origin, ...input.trustedOrigins.map((value) => new URL(value).origin)]);
-  const mail = createMicrosoftProofMailer(environment, publicUrl);
+  const mail = createMicrosoftProofMailer(input.mail ?? createMailSender(environment), publicUrl);
   const cookieAttributes = `Path=/; HttpOnly; SameSite=Lax; Max-Age=900${publicUrl.protocol === "https:" ? "; Secure" : ""}`;
   const bootstrapEmails = new Set(
     (environment.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS ?? "")
@@ -142,7 +143,7 @@ export function createMicrosoftProof(input: Input) {
       db.prepare(
         "UPDATE microsoft_identity_proofs SET state = 'started', tokenHash = NULL, tokenExpiresAt = NULL WHERE id = ? AND tokenHash = ?",
       ).run(intent.id, hashProofValue(token));
-      const diagnostic = resolveMicrosoftMailDeliveryCause(cause);
+      const diagnostic = resolveMailDeliveryCause(cause);
       console.error("Microsoft mailbox proof delivery failed.", diagnostic);
       throw new MicrosoftProofError("MAIL_DELIVERY_UNAVAILABLE", 503, { cause: diagnostic });
     }

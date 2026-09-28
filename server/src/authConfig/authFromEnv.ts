@@ -1,3 +1,4 @@
+import { createMailSender, type MailSender } from "./mailSender";
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { randomBytes } from "node:crypto";
 import { betterAuth } from "better-auth";
@@ -83,6 +84,7 @@ type EnabledAuthContext = {
   baseURL: string;
   publicUrl: URL;
   sessionDeletionLifecycleRef: SessionDeletionLifecycleRef;
+  mail: MailSender | null;
 };
 
 function assertApplication(
@@ -168,6 +170,7 @@ function createEnabledAuthContext(input: {
     secret,
     baseURL,
     publicUrl,
+    mail: input.environment.SMALLSASS_ACCOUNT_MAIL_HOST ? createMailSender(input.environment) : null,
     sessionDeletionLifecycleRef: { current: null },
   };
 }
@@ -209,17 +212,10 @@ function buildProviderPolicies(context: EnabledAuthContext, microsoftProof: Micr
     mode,
     totpIssuer: application.branding.totpIssuer,
   });
-  // SECURE DEFAULT (P1.7) + FIRST-RUN SETUP: self-service signup is closed / invite-only by
-  // design (Decisions — social SSO is the primary path; email+password a secondary fallback),
-  // with EXACTLY ONE bootstrap exception: an EMPTY user table plus the operator-configured setup
-  // token. The first sign-up creates the owner; the token prevents an arbitrary network visitor
-  // from claiming that seat. The gate is enforced LIVE, per request, by the hooks.before below —
-  // NOT by Better Auth's static
-  // disableSignUp, because a boot-time boolean cannot express "open while zero users, closed the
-  // moment the first user exists": a still-running server would keep signup open until a restart
-  // (a hole). SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 keeps its meaning — an INTERIM trusted-instance/dev
-  // escape that re-opens signup unconditionally. With neither condition, POST
-  // /api/auth/sign-up/email returns the same 400 EMAIL_PASSWORD_SIGN_UP_DISABLED as before.
+  // Signup is invite-only by default. The before hook checks the live user count and
+  // setup token, allowing exactly one first-owner bootstrap; static disableSignUp would
+  // leave signup open after that owner existed. ALLOW_OPEN_SIGNUP remains the explicit
+  // trusted-instance/dev override. External principals still require provider admission.
   const allowOpenSignup = environment.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1";
   const setupToken = requireSetupToken(environment, mode, dependencies.AuthConfigError);
   const providerConfig = buildProviders({
@@ -264,7 +260,7 @@ function buildAuthPolicies(
     passwordContextWords: application.branding.passwordContextWords,
     passwordResetSessionCapture,
     sessionDeletionLifecycleRef: context.sessionDeletionLifecycleRef,
-    captureResetToken,
+    captureResetToken: (input) => captureResetToken(input, context),
     hashPasswordWithBackpressure,
     verifyPasswordWithBackpressure,
     resetLinkTtlSeconds: RESET_LINK_TTL_SECONDS,
@@ -360,6 +356,7 @@ function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; aut
     ? createConfiguredMicrosoftProof({
         db: context.db,
         environment: context.environment,
+        mail: context.mail,
         secret: context.secret,
         publicUrl: context.publicUrl,
         applicationId: context.application.applicationId,
@@ -387,6 +384,7 @@ function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; aut
     trustedOrigins: providers.providerConfig.trustedOrigins,
     sessionDeletionLifecycleRef: context.sessionDeletionLifecycleRef,
     microsoftProof,
+    mail: context.mail,
     ...(context.options.joiningProviderCallbacks === undefined
       ? {}
       : {

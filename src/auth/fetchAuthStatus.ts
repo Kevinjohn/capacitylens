@@ -16,6 +16,7 @@ interface AuthResponseFields {
   requireMfa: unknown;
   multiAccount: unknown;
   needsSetup: unknown;
+  passwordResetEmail: unknown;
   providers: unknown;
   reauthMethod: unknown;
   reauthProviderId: unknown;
@@ -35,6 +36,7 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
     requireMfa: readField(value, "requireMfa"),
     multiAccount: readField(value, "multiAccount"),
     needsSetup: readField(value, "needsSetup"),
+    passwordResetEmail: readField(value, "passwordResetEmail"),
     providers: readField(value, "providers"),
     reauthMethod: readField(value, "reauthMethod"),
     reauthProviderId: readField(value, "reauthProviderId"),
@@ -56,6 +58,7 @@ function parseLoginResult(body: unknown, acceptEffects: () => boolean): AuthStat
     hadUnsavedChanges: hasUnsavedPersistenceWrites(),
     providers: allowsProviderSignIn(authMode) ? parseAuthProviders(fields?.providers) : [],
     needsSetup: fields?.needsSetup === true,
+    passwordResetEmail: fields?.passwordResetEmail === true,
   };
 }
 

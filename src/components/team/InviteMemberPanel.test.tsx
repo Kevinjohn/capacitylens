@@ -128,12 +128,13 @@ describe("InviteMemberPanel creation guidance", () => {
 
   it("keeps the minted link and its recovery instructions in an inline status", () => {
     renderInvite({
-      mintedLink: { inviteId: "invite-1", link: "https://app.example/invite/secret" },
+      mintedLink: { inviteId: "invite-1", link: "https://app.example/invite/secret", emailedTo: "diana@example.test" },
     });
     fireEvent.click(screen.getByTestId("invite-open"));
 
     const status = screen.getByTestId("invite-created-status");
     expect(status).toHaveAttribute("role", "status");
+    expect(status).toHaveTextContent("Invitation emailed to diana@example.test");
     expect(status).toHaveTextContent("Invite created. Copy this link and send it yourself.");
     expect(status).toHaveTextContent("If you lose it, revoke this invite and create a new one.");
     expect(status).toContainElement(screen.getByRole("button", { name: "Copy invitation link" }));

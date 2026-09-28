@@ -146,6 +146,7 @@ function LoginBoundary({
       <LoginScreen
         authMode={status.authMode}
         needsSetup={status.needsSetup}
+        passwordResetEmail={status.passwordResetEmail}
         providers={status.providers}
         degraded={status.degraded}
         hadUnsavedChanges={status.hadUnsavedChanges}

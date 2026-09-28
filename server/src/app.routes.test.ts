@@ -210,6 +210,8 @@ function methods(method: HTTPMethods | HTTPMethods[]): HTTPMethods[] {
 
 function stubAuth(): Auth {
   return {
+    mail: null,
+    publicUrl: new URL("http://localhost:8787"),
     handler: async () => new Response(null),
     api: {
       getSession: async () => null,

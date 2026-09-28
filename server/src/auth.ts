@@ -60,13 +60,9 @@ export function isMatchingSecretToken(configured: string | undefined, presented:
 }
 
 // ── Admin-issued password-reset links ──────────────────────────────────────────────────────────
-// CapacityLens deliberately has NO email infrastructure (docs-src/security/privacy.md — a standing
-// non-goal), so Better Auth's reset flow is repurposed: `sendResetPassword` (the "send the email"
-// hook) doesn't send anything — it CAPTURES the minted token and hands it back to the admin-gated
-// route, which returns it exactly once (the invite-link pattern: write-once, distributed
-// out-of-band by the admin). Everything else — hashed-at-rest token storage, single-use
-// consumption, expiry, and the public POST /api/auth/reset-password redeem endpoint — stays
-// Better Auth's.
+// Admin requests capture the token instead of emailing it, preserving the write-once copy-link
+// flow. Public requests use optional SMTP. Better Auth owns token storage, expiry, single-use
+// consumption and the public POST /api/auth/reset-password redeem endpoint.
 
 /**
  * Mint a single-use, {@link RESET_LINK_TTL_SECONDS}-lived password-reset token for `email` via

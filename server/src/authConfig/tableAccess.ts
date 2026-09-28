@@ -22,3 +22,8 @@ export function revokeResetTokensForUser(db: Db, userId: string): void {
   if (!verificationTableExists(db)) return;
   db.prepare(`DELETE FROM verification WHERE value = ?`).run(userId);
 }
+
+/** Only principals with a password credential may receive an emailed reset link. */
+export function hasPasswordCredential(db: Db, userId: string): boolean {
+  return db.prepare(`SELECT 1 FROM account WHERE userId = ? AND providerId = 'credential'`).get(userId) !== undefined;
+}

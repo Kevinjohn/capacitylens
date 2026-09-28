@@ -17,6 +17,8 @@ const sessionUser: SessionUser = {
 
 function auth(getSession: Auth["api"]["getSession"]): Auth {
   return {
+    mail: null,
+    publicUrl: new URL("http://localhost:8787"),
     handler: vi.fn(async () => new Response(null, { status: 200 })),
     api: {
       getSession,

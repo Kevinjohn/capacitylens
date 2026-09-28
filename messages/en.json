@@ -1492,5 +1492,9 @@
   "ownership_transfer_outcome_on": "{outcome} ({date})",
   "ownership_transfer_read_failed": "The transfer status could not be loaded.",
   "ownership_transfer_retry": "Try again",
-  "ownership_transfer_command_failed": "That step could not be completed."
+  "ownership_transfer_command_failed": "That step could not be completed.",
+  "login_forgot_password": "Forgot password?",
+  "login_send_reset_link": "Email reset link",
+  "login_reset_confirmation": "If an account uses that address, we've emailed a reset link.",
+  "settings_invite_emailed": "Invitation emailed to {address}"
 }

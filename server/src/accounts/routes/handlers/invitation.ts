@@ -1,3 +1,5 @@
+import { resolveMailDeliveryCause } from "../../../authConfig/mailSender";
+import { wasAccountCommandReplayed } from "../../commands";
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { Role } from "@capacitylens/shared/account/types";
@@ -154,6 +156,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
       role: invite.role,
       expiresAt: invite.expiresAt,
       preauthEmail: invite.preauthorizedEmail,
+      emailed: await sendInvitationEmail({ req, context, invite }),
       ...(invite.proposedResourceId === undefined ? {} : { proposedResourceId: invite.proposedResourceId }),
     });
   } catch (error) {
@@ -350,5 +353,31 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
     return reply.code(204).send();
   } catch (error) {
     return accountFail(reply, error);
+  }
+}
+
+/** Delivery failure preserves the created invitation and its copyable link. */
+async function sendInvitationEmail({
+  req,
+  context,
+  invite,
+}: {
+  req: FastifyRequest;
+  context: AccountRouteContext;
+  invite: Awaited<ReturnType<AccountRouteContext["administration"]["createInvitation"]>>;
+}): Promise<boolean> {
+  const mail = context.invitationMail;
+  if (!mail || !invite.preauthorizedEmail || wasAccountCommandReplayed(invite)) return false;
+  try {
+    const link = new URL("/invite/" + encodeURIComponent(invite.token), mail.publicUrl);
+    await mail.sender.send({
+      to: invite.preauthorizedEmail,
+      subject: "Your invitation",
+      text: `Open this link to accept your invitation: ${link.href}`,
+    });
+    return true;
+  } catch (cause) {
+    req.log.error({ cause: resolveMailDeliveryCause(cause) }, "Invitation email delivery failed");
+    return false;
   }
 }

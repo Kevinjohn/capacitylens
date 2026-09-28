@@ -324,7 +324,8 @@ This is the short, present-tense record of decisions that constrain future work.
   Bare-metal deployments may instead use HTTP only across a same-host loopback proxy hop.
 - CSP violations enter the bounded, data-minimised security stream. Socket, scrypt and HIBP work
   limits are finite and fail closed under overload.
-- Better Auth telemetry is disabled. CapacityLens ships no product analytics or outbound email.
+- Better Auth telemetry is disabled. CapacityLens ships no product analytics. Optional SMTP
+  delivers addressed invitations, password resets and Microsoft mailbox proof only.
 - Errors on data paths are surfaced, not swallowed. See `DEFENSIVE-CODING.md`.
 
 ## Open source and hosted service

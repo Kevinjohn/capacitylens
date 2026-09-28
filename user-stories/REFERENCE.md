@@ -884,6 +884,10 @@ constants are never presented as the server's database schema. The projection co
 identifiers, paths, hostnames, secrets, invite or session values, raw errors or arbitrary response
 fields. The button reports a generic success or clipboard failure message.
 
+When SMTP is configured in a password-capable mode, `forgot-password` reveals the inline
+`forgot-password-email` field and `forgot-password-submit` button. A successful request shows
+`forgot-password-confirmation`: **If an account uses that address, we've emailed a reset link.**
+
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
 server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `SMALLSASS_ACCOUNT_MODE=password-only`, `password-and-sso` or
 `sso-only`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an

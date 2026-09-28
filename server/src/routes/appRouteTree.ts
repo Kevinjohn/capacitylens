@@ -132,6 +132,7 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
     memberResources: runtime.memberResources,
     authMode,
     authenticationConfigured: auth !== null,
+    invitationMail: auth?.mail ? { sender: auth.mail, publicUrl: auth.publicUrl } : null,
     requiredSsoProviderId: authMode === "sso-only" ? (auth?.defaultCompanyProvider?.id ?? null) : null,
     ...(auth?.permittedCompanyProviderIds === undefined
       ? {}

@@ -13,6 +13,11 @@ function assertConfiguredAuth(auth: Auth | null): Auth {
 
 describe("reset-token capture across the auth facade", () => {
   it("keeps overlapping capture chains separate and drops uncaptured tokens", async () => {
+    const dependencies = {
+      db: fixtures.trackDb(openDb(":memory:")),
+      mail: null,
+      publicUrl: new URL("http://localhost:8787"),
+    };
     let releaseFirst!: () => void;
     const firstCanFinish = new Promise<void>((resolve) => {
       releaseFirst = resolve;
@@ -21,7 +26,7 @@ describe("reset-token capture across the auth facade", () => {
       api: {
         async requestPasswordReset({ body: { email } }: { body: { email: string } }) {
           if (email === "bruce@example.com") await firstCanFinish;
-          await captureResetToken({ token: `token-for-${email}` });
+          await captureResetToken({ user: { id: email, email }, token: `token-for-${email}` }, dependencies);
           if (email === "clark@example.com") releaseFirst();
         },
       },
@@ -33,7 +38,10 @@ describe("reset-token capture across the auth facade", () => {
         mintPasswordResetToken(auth, "clark@example.com"),
       ]),
     ).resolves.toEqual(["token-for-bruce@example.com", "token-for-clark@example.com"]);
-    await captureResetToken({ token: "uncaptured-token" });
+    await captureResetToken(
+      { user: { id: "bruce", email: "bruce@example.com" }, token: "uncaptured-token" },
+      dependencies,
+    );
     expect(resetTokenCapture.getStore()).toBeUndefined();
   });
 

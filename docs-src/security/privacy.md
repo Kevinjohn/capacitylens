@@ -73,6 +73,12 @@ requests normally use the application server on the same origin. External avatar
 URLs can cause the browser to request images from the configured image host.
 Provider sign-in also uses the external services described below.
 
+When SMTP is configured, CapacityLens sends addressed invitations and self-service password-reset
+links through the operator's SMTP service. Messages contain the recipient's address and a bearer
+link. Password-reset links expire after 24 hours and are single-use. Unknown addresses and
+accounts using only company sign-in receive no reset email. Admin-issued reset copy-links do not
+send email. The operator is responsible for the SMTP provider's processing and retention.
+
 If Microsoft sign-in is configured,
 the server uses the operator's SMTP service to send a one-time mailbox proof when
 Microsoft does not return a verified matching email address. That message goes to

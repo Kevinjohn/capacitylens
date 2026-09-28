@@ -1,3 +1,4 @@
+import type { MailSender } from "../../authConfig/mailSender";
 import type { AuthorizeRouteInput } from "../../routes/routeShared";
 import type {
   AccountAdminPort,
@@ -33,6 +34,7 @@ export interface AccountRouteDependencies {
   memberResources: AccountMemberResourcePort;
   authMode: AccountMode;
   authenticationConfigured: boolean;
+  invitationMail: { sender: MailSender; publicUrl: URL } | null;
   /** SSO-only invitation acceptance must arrive through this provider so a new membership cannot
    * make the installation fail its next strict-provider readiness check. */
   requiredSsoProviderId: string | null;

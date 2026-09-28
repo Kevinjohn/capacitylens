@@ -1,3 +1,4 @@
+import type { MailSender } from "./mailSender";
 import type { Db } from "../db";
 import type * as AuthFacade from "../auth";
 import type { Auth } from "./authTypes";
@@ -7,6 +8,7 @@ import { resolveMicrosoftTenantId } from "./socialProviders";
 type Input = {
   db: Db;
   environment: Record<string, string | undefined>;
+  mail: MailSender | null;
   secret: string;
   publicUrl: URL;
   applicationId: string;
@@ -29,6 +31,7 @@ export function createConfiguredMicrosoftProof(input: Input) {
   return createMicrosoftProof({
     db: input.db,
     environment: input.environment,
+    ...(input.mail ? { mail: input.mail } : {}),
     secret: input.secret,
     publicUrl: input.publicUrl,
     applicationId: input.applicationId,
