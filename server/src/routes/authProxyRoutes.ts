@@ -81,9 +81,7 @@ async function resolveAuthenticationUserId({
   }
 }
 
-/** Turn Set-Cookie response fields into the Cookie header used to verify a newly issued session.
- * Response values replace request values with the same name (for example an MFA challenge cookie
- * replaced by the final session cookie); attributes never cross into the request header. */
+/** Convert Set-Cookie to Cookie: new values replace existing names, excluding response attributes. */
 function withResponseCookies(requestHeaders: Headers, setCookies: readonly string[]): Headers {
   const cookies = new Map<string, string>();
   for (const pair of (requestHeaders.get("cookie") ?? "").split(";")) {
