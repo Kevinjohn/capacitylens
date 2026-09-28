@@ -65,10 +65,14 @@ interface InstallResponseHooksInput {
   trustProxyHeaders: boolean;
 }
 
+function isApiRequest(request: FastifyRequest): boolean {
+  return (request.url.split("?", 1)[0] ?? request.url).startsWith("/api/");
+}
+
 function installResponseHooks(input: InstallResponseHooksInput): void {
   const { app, db, auditDrainer, repliesWithAuditDrain, securityEvent, trustProxyHeaders } = input;
   app.addHook("onSend", async (req: FastifyRequest, reply: FastifyReply, payload) => {
-    if ((req.url.split("?", 1)[0] ?? req.url).startsWith("/api/")) {
+    if (isApiRequest(req)) {
       reply.header("Cache-Control", "no-store");
       reply.header("Pragma", "no-cache");
       reply.header("Reporting-Endpoints", 'csp-endpoint="/api/security/csp-report"');
@@ -169,7 +173,7 @@ function installConnectionHooks(
 function installAuthTransactionGate(app: FastifyInstance, db: Db): void {
   const gate = authTransactionGateFor(db);
   app.addHook("onRequest", function holdAuthTransactionGate(request, reply, done) {
-    if (!(request.url.split("?", 1)[0] ?? request.url).startsWith("/api/")) {
+    if (!isApiRequest(request)) {
       done();
       return;
     }
