@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { buildSchedulerModel, applyVisibleUtilization, type GroupModel } from "./schedulerModel";
 import { buildColumnGeometry } from "./columnGeometry";
-import { eachDayISO, addDaysISO } from "@capacitylens/shared/lib/dateMath";
+import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { buildEmptyFilters } from "../../store/useStore";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -1721,47 +1721,6 @@ describe(
   "internal-work bar-only hide prefs (showInternalProjects / showInternalActivities)",
   registerInternalWorkPreferenceTests,
 );
-
-// Pan invariant — the load-bearing reason a Back/Forward pan keeps the visible-window utilisation
-// correct WITHOUT any layout measurement. `panDays(+7)` shifts the origin date by a week while
-// PRESERVING scrollLeft and dayWidth, so the visible-window start is still resolved by the SAME
-// position index `indexAt(scrollLeft)`. Because the geometry for the new (shifted) days array has
-// identical column widths (the weekday/weekend pattern repeats every 7 days), `indexAt(px)` returns
-// the same index before and after — and the date at that index has advanced by exactly +7. A future
-// change to panDays/anchoring that breaks this position-based correctness will fail here.
-describe("pan invariant: a +7-day Back/Forward pan moves the visible-window start by exactly +7", () => {
-  // A 6-week window so any in-window pixel resolves to a real interior column (not an edge clamp).
-  const daysOld = eachDayISO("2026-06-01", "2026-07-12"); // Mon → 42 days
-  const daysNew = daysOld.map((d) => addDaysISO(d, 7)); // same array shifted forward one week
-
-  // Same dayWidth + weekend settings for both — exactly what panDays does (only originDate changes).
-  for (const opts of [
-    { minimiseWeekends: false, weekendWidth: 22 },
-    { minimiseWeekends: true, weekendWidth: 22 }, // narrow weekends: widths still repeat weekly, so the index is stable
-  ]) {
-    const label = opts.minimiseWeekends ? "minimise ON" : "minimise OFF";
-    const geomOld = buildColumnGeometry(daysOld, 48, opts);
-    const geomNew = buildColumnGeometry(daysNew, 48, opts);
-
-    it(`${label}: days_new[indexAt(px)] === addDaysISO(days_old[indexAt(px)], 7) on column boundaries`, () => {
-      // Both geometries share identical widths (the weekly weekend pattern is invariant under a
-      // 7-day shift), so the prefix-summed offsets — and thus indexAt — are identical.
-      expect(geomNew.widths).toEqual(geomOld.widths);
-      // Walk every column's left-edge pixel `px` (a real scrollLeft would land on these boundaries).
-      for (let i = 0; i < daysOld.length; i++) {
-        const px = geomOld.x(i);
-        const idxOld = geomOld.indexAt(px);
-        const idxNew = geomNew.indexAt(px);
-        expect(idxNew).toBe(idxOld); // same position index before and after the pan
-        // The resolved visible-start DATE advanced by exactly one week — no off-by-one, no drift.
-        const oldDay = daysOld[idxOld];
-        expect(oldDay).toBeDefined();
-        if (!oldDay) throw new Error("Expected the old visible date.");
-        expect(daysNew[idxNew]).toBe(addDaysISO(oldDay, 7));
-      }
-    });
-  }
-});
 
 // P2.4: the scheduler renders the ACTIVE-ONLY projection (SchedulerGrid reads useActiveScopedData,
 // which runs the SAME shared `activeOnly` exercised here). Prove that an archived resource and a

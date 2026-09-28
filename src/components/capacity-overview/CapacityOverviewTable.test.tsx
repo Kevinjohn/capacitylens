@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useResourceAvatars } from "../../account/useResourceAvatars";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData, Resource } from "@capacitylens/shared/types/entities";
@@ -11,6 +11,8 @@ import {
   type CapacityOverviewPeriodResult,
 } from "./capacityOverviewModel";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
+import { resetStoreWithAccount, makeAccount } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
 
 vi.mock("../../account/useResourceAvatars", () => ({ useResourceAvatars: vi.fn() }));
 beforeEach(() => vi.mocked(useResourceAvatars).mockReturnValue(new Map()));
@@ -136,6 +138,22 @@ function renderTable(
     rerender: (next: typeof overrides) => view.rerender(<CapacityOverviewTable {...props} {...next} />),
   };
 }
+
+describe("CapacityOverviewTable date style", () => {
+  afterEach(() => resetStoreWithAccount());
+
+  it("re-reads column headers when the date style changes with a stable model", () => {
+    resetStoreWithAccount("account");
+    useStore.getState().replaceAll({ ...data, accounts: [makeAccount({ id: "account", dateStyle: "day-month" })] });
+    renderTable();
+    expect(screen.getByRole("columnheader", { name: /10 – 13 Sep/ })).toBeInTheDocument();
+
+    act(() => useStore.getState().updateAccount("account", { dateStyle: "month-day" }));
+
+    expect(screen.getByRole("columnheader", { name: /Sep 10 – 13/ })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /10 – 13 Sep/ })).not.toBeInTheDocument();
+  });
+});
 
 describe("CapacityOverviewTable content", () => {
   it("uses a linked-member image only when a person has no stored image", () => {
