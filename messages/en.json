@@ -1462,6 +1462,8 @@
   "joining_provider_failed": "Provider sign-in did not complete. Choose the provider again to restart company joining.",
   "joining_mfa_complete": "Signed in. Finish joining this company.",
   "joining_password_choice": "Or sign in with your password",
+  "joining_verify_email": "Email me a verification link",
+  "joining_verify_email_sent": "Check your inbox for a link to verify your email.",
   "joining_trusted_proof_required": "This account has no current trusted proof of its email address for company joining. Use a configured verified provider or ask for an addressed invitation.",
   "joining_use_invitation": "Use this invitation with a password",
   "ownership_transfer_heading": "Company ownership",

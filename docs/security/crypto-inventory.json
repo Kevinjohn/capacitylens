@@ -55,7 +55,7 @@
     },
     {
       "path": "server/src/accounts/adminPort/joiningIntentSecrets.ts",
-      "purpose": "Random 256-bit browser and mailbox secrets, domain-separated SHA-256 hashes, HMAC-SHA-256 source-IP rate-limit keys, and random non-secret intent identifiers for company-bound joining"
+      "purpose": "Random 256-bit browser and mailbox secrets, domain-separated SHA-256 hashes, HMAC-SHA-256 source-IP rate-limit keys and expiring current-address proof tokens with constant-time verification, and random non-secret intent identifiers for company-bound joining"
     },
     {
       "path": "server/src/auth.ts",

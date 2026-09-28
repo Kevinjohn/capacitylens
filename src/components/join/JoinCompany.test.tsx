@@ -223,3 +223,48 @@ it("routes an addressed password invitation to ordinary invitation acceptance", 
   );
   expect(screen.queryByRole("button", { name: "Join company" })).not.toBeInTheDocument();
 });
+
+it("offers email verification when proof is required and sends to the saved address", async () => {
+  const fetchMock = stubJoin((url) => {
+    if (url.endsWith("/join/complete-existing")) return Response.json({ error: "proof unavailable" }, { status: 401 });
+    if (url.endsWith("/join/verify-email")) return Response.json({ sent: true });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  const user = userEvent.setup();
+  renderJoin();
+  await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
+  await user.type(screen.getByLabelText("Password"), "password");
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  expect(await screen.findByTestId("joining-verify-email")).toHaveAccessibleName("Email me a verification link");
+  await user.click(screen.getByTestId("joining-verify-email"));
+  expect(await screen.findByTestId("joining-verify-email-status")).toHaveTextContent(
+    "Check your inbox for a link to verify your email.",
+  );
+  const sent = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/join/verify-email"));
+  expect(JSON.parse(String(sent?.[1]?.body))).toEqual({});
+});
+
+it("holds the verification fragment through sign-in and confirms it before joining", async () => {
+  window.history.replaceState({}, "", "/join/a-studio#verify=mail-proof");
+  const requests: string[] = [];
+  stubJoin((url, init) => {
+    requests.push(url);
+    if (url.endsWith("/api/company-join/verify-email")) {
+      expect(JSON.parse(String(init?.body))).toEqual({ token: "mail-proof" });
+      return Response.json({ ok: true });
+    }
+    if (url.endsWith("/join/complete-existing")) return Response.json({ accountId: "a-studio", role: "viewer" });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  const user = userEvent.setup();
+  renderJoin();
+  await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
+  expect(window.location.hash).toBe("");
+  await user.type(screen.getByLabelText("Password"), "password");
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
+  expect(requests).toEqual([
+    "http://api.test/api/company-join/verify-email",
+    "http://api.test/api/accounts/a-studio/join/complete-existing",
+  ]);
+});

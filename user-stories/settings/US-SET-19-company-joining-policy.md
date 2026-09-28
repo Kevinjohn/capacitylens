@@ -11,7 +11,8 @@ prospective members have a company-specific path to request access. The policy n
 to somebody whose access was explicitly disabled.
 
 **Guide:** [Invite teammates](../../docs-src/admin/invite-teammates.md#review-who-can-join) and
-[Join your team](../../docs-src/using/join-your-team.md).
+[Join your team](../../docs-src/using/join-your-team.md), and
+[Company sign-in](../../docs-src/company-login/index.md#invitations-and-the-first-owner).
 
 ## Why
 
@@ -34,7 +35,8 @@ establish company membership.
 3. Open `/join/:accountId` as a prospective member. The page names the company. Choose
    an eligible provider, or sign in with an existing password account and complete any required
    second factor. Choose **Join company** to finish. An existing password identity without
-   current trusted email proof is guided to a verified provider or an addressed invitation.
+   current trusted email proof can verify their address by an emailed link to join through an
+   open or approved-domain policy when email delivery is enabled.
 4. Check the company list after joining. The new membership is Viewer unless an addressed,
    unconsumed invitation grants another role. An existing active membership keeps its current role.
 

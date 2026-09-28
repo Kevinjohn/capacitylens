@@ -59,7 +59,9 @@ An existing password user signs in and finishes any required second factor befor
 **Join company**. The server admits only identities with current trusted email proof
 that meet the company's policy; password signup through an open or domain policy is
 not available. A person without that proof can use an eligible verified provider or
-an addressed invitation. Microsoft may use its same-browser mailbox check when the
+an addressed invitation. When email delivery is enabled, password users can choose
+**Email me a verification link** and open the link within 60 minutes while signed in
+to verify their address and join through an open or approved-domain policy. Microsoft may use its same-browser mailbox check when the
 address is not already proven. An invitation must be addressed to the verified
 email, and a company can disable access even when its joining policy allows it.
 

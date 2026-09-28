@@ -27,7 +27,8 @@ function captureVerifiedFacts(input: ProviderFact): { subject: string; email: st
   return { subject: input.subject, email };
 }
 
-function assertOwnerCanKeepAccess(db: Db, principalId: string, email: string): void {
+/** Refuse proof that would disable an active Owner through an address restriction. */
+export function assertOwnerCanKeepAccess(db: Db, principalId: string, email: string): void {
   const owner = db
     .prepare(
       `SELECT 1 FROM account_members AS member

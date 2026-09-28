@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { mintJoinEmailProofToken, verifyJoinEmailProofToken } from "../accounts/adminPort/joiningIntentSecrets";
 import { createAuthFromEnvironment, runAuthMigrations } from "../auth";
 import { createApp } from "../app";
 import { upsertMember } from "../controlTables";
@@ -9,7 +10,7 @@ import { PASSWORD_ENV, registerServerFixtureCleanup, signUp } from "../testHelpe
 
 const fixtures = registerServerFixtureCleanup();
 
-async function fixture() {
+async function fixture(options: { mail?: boolean; passwordAllowed?: boolean } = {}) {
   const db = fixtures.trackDb(openDb(":memory:"));
   const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
   if (!configured.auth) throw new Error("Expected configured authentication.");
@@ -21,7 +22,11 @@ async function fixture() {
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   });
-  const app = fixtures.trackApp(
+  const send = vi
+    .fn<(message: { to: string; subject: string; text: string }) => Promise<void>>()
+    .mockResolvedValue(undefined);
+  configured.auth.mail = options.mail ? { send } : null;
+  let app = fixtures.trackApp(
     createApp(db, {
       authMode: configured.mode,
       auth: configured.auth,
@@ -32,7 +37,19 @@ async function fixture() {
     }),
   );
   const diana = await signUp(app, "diana@studio.example");
-  return { app, db, diana };
+  if (options.passwordAllowed === false) {
+    app = fixtures.trackApp(
+      createApp(db, {
+        authMode: "sso-only",
+        auth: configured.auth,
+        joiningProof: {
+          secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
+          publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
+        },
+      }),
+    );
+  }
+  return { app, db, diana, send };
 }
 
 function currentProof(db: Db, principalId: string, email = "diana@studio.example") {
@@ -152,4 +169,119 @@ describe("existing password identity company joining", () => {
       ).toBe(404);
     }
   });
+});
+
+const secret = PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET;
+const sendPath = "/api/accounts/a-studio/join/verify-email";
+
+async function confirm(app: ReturnType<typeof createApp>, cookie: string, token: string) {
+  return app.inject({ method: "POST", url: "/api/company-join/verify-email", headers: { cookie }, payload: { token } });
+}
+
+it("round-trips email proof tokens and rejects malformed, tampered and expired tokens", () => {
+  const identity = { principalId: "diana", email: "diana@studio.example" };
+  const token = mintJoinEmailProofToken(secret, { ...identity, expiresAt: 1000 });
+  expect(verifyJoinEmailProofToken(secret, token, 999)).toEqual(identity);
+  expect(verifyJoinEmailProofToken(secret, token, 1000)).toBeNull();
+  expect(verifyJoinEmailProofToken(secret, token + "x", 999)).toBeNull();
+  expect(verifyJoinEmailProofToken("another-secret", token, 999)).toBeNull();
+  expect(verifyJoinEmailProofToken(secret, "malformed", 999)).toBeNull();
+});
+
+it("emails one link that proves the current address and permits open-policy joining", async () => {
+  const { app, db, diana, send } = await fixture({ mail: true });
+  writeJoiningPolicy(db, "a-studio", { policy: "open", approvedDomains: [] });
+  expect((await complete(app, diana.cookie)).statusCode).toBe(401);
+  const sent = await app.inject({ method: "POST", url: sendPath, headers: { cookie: diana.cookie }, payload: {} });
+  expect(sent.statusCode, sent.body).toBe(200);
+  expect(sent.json()).toEqual({ sent: true });
+  expect(send).toHaveBeenCalledTimes(1);
+  const message = send.mock.calls[0]?.[0];
+  expect(message).toMatchObject({ to: "diana@studio.example", subject: "Verify your email to join a company" });
+  expect(message?.text).toContain("60 minutes");
+  const links = message?.text.match(/https?:\/\/\S+/g);
+  expect(links).toHaveLength(1);
+  if (!links?.[0]) throw new Error("Expected a verification link.");
+  const link = new URL(links[0]);
+  expect(link.pathname).toBe("/join/a-studio");
+  expect(link.search).toBe("");
+  expect(link.href).not.toContain("diana@studio.example");
+  const token = new URLSearchParams(link.hash.slice(1)).get("verify");
+  if (!token) throw new Error("Expected a verification token.");
+  const before = db.prepare("SELECT * FROM user WHERE id = ?").get(diana.userId);
+  const result = await confirm(app, diana.cookie, token);
+  expect(result.statusCode, result.body).toBe(200);
+  expect(db.prepare("SELECT * FROM user WHERE id = ?").get(diana.userId)).toEqual(before);
+  expect(db.prepare("SELECT 1 FROM account_members WHERE userId = ?").get(diana.userId)).toBeUndefined();
+  expect(result.json()).toEqual({ ok: true });
+  expect(db.prepare("SELECT email, source FROM identity_email_proofs WHERE principalId = ?").get(diana.userId)).toEqual(
+    { email: "diana@studio.example", source: "password" },
+  );
+  expect((await confirm(app, diana.cookie, token)).statusCode).toBe(200);
+  expect((await complete(app, diana.cookie)).statusCode).toBe(200);
+});
+
+it.each(["expired", "tampered", "other-principal", "changed-email"])("rejects %s confirmation", async (kind) => {
+  const { app, db, diana } = await fixture({ mail: true });
+  let token = mintJoinEmailProofToken(secret, {
+    principalId: kind === "other-principal" ? "barbara" : diana.userId,
+    email: "diana@studio.example",
+    expiresAt: Date.now() + (kind === "expired" ? -1000 : 60_000),
+  });
+  if (kind === "tampered") token = token.replace(/\.[A-Za-z0-9_-]/, (prefix) => (prefix === ".A" ? ".B" : ".A"));
+  if (kind === "changed-email")
+    db.prepare("UPDATE user SET email = ? WHERE id = ?").run("diana@wayne.example", diana.userId);
+  const result = await confirm(app, diana.cookie, token);
+  expect(result.statusCode, result.body).toBe(400);
+  expect(db.prepare("SELECT 1 FROM identity_email_proofs WHERE principalId = ?").get(diana.userId)).toBeUndefined();
+});
+
+it("refuses proof that conflicts with Owner access without overwriting existing proof", async () => {
+  const { app, db, diana } = await fixture({ mail: true });
+  upsertMember(db, {
+    accountId: "a-studio",
+    userId: diana.userId,
+    role: "owner",
+    status: "active",
+    createdAt: new Date().toISOString(),
+  });
+  currentProof(db, diana.userId, "old@studio.example");
+  db.prepare(
+    "INSERT INTO account_access_restrictions (accountId, principalId, verifiedEmail, role, createdAt) VALUES (?, ?, ?, ?, ?)",
+  ).run("a-studio", "barbara", "diana@studio.example", "viewer", new Date().toISOString());
+  const token = mintJoinEmailProofToken(secret, {
+    principalId: diana.userId,
+    email: "diana@studio.example",
+    expiresAt: Date.now() + 60_000,
+  });
+  expect((await confirm(app, diana.cookie, token)).statusCode).toBe(500);
+  expect(db.prepare("SELECT email, source FROM identity_email_proofs WHERE principalId = ?").get(diana.userId)).toEqual(
+    { email: "old@studio.example", source: "google" },
+  );
+});
+
+it.each([
+  { mail: false, passwordAllowed: true, status: 400 },
+  { mail: true, passwordAllowed: false, status: 401 },
+])("refuses unavailable email verification: %j", async (options) => {
+  const { app, diana, send } = await fixture(options);
+  const result = await app.inject({ method: "POST", url: sendPath, headers: { cookie: diana.cookie }, payload: {} });
+  expect(result.statusCode, result.body).toBe(options.status);
+  expect(send).not.toHaveBeenCalled();
+});
+
+it("surfaces failed delivery and rejects caller-supplied addresses", async () => {
+  const { app, diana, send } = await fixture({ mail: true });
+  const invalid = await app.inject({
+    method: "POST",
+    url: sendPath,
+    headers: { cookie: diana.cookie },
+    payload: { email: "barbara@studio.example" },
+  });
+  expect(invalid.statusCode).toBe(400);
+  expect(send).not.toHaveBeenCalled();
+  send.mockRejectedValueOnce(new Error("private transport detail"));
+  const failed = await app.inject({ method: "POST", url: sendPath, headers: { cookie: diana.cookie }, payload: {} });
+  expect(failed.statusCode, failed.body).toBe(503);
+  expect(failed.body).not.toContain("private transport detail");
 });

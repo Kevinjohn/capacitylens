@@ -1192,7 +1192,9 @@ presented before the member directory, matching the action-first pattern of the 
   A person with an existing password account signs in, completes any required second factor,
   then chooses **Join company**. The server admits only a currently proven email that meets the
   live policy. A password identity without trusted email proof gets recovery guidance to use an
-  eligible verified provider or an addressed invitation. Open/domain policy joining does not
+  eligible verified provider or an addressed invitation, or choose **Email me a verification link**
+  (`data-testid="joining-verify-email"`); successful delivery shows an inbox status
+  (`data-testid="joining-verify-email-status"`). Open/domain policy joining does not
   create a new password account. On completion the normal authenticated company list verifies
   the destination before activation.
 - **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) using the

@@ -53,6 +53,9 @@ export const companyJoinClient = {
   microsoftResend: () => post("/api/account/microsoft/resend"),
   microsoftCancel: () => post("/api/account/microsoft/cancel"),
   cancel: () => post("/api/company-join/cancel"),
+  requestJoinEmailVerification: (accountId: string) =>
+    post(`/api/accounts/${encodeURIComponent(accountId)}/join/verify-email`, {}),
+  confirmJoinEmailVerification: (token: string) => post("/api/company-join/verify-email", { token }),
   completeExisting: (accountId: string) =>
     post(`/api/accounts/${encodeURIComponent(accountId)}/join/complete-existing`, {}),
   completeProvider: (invitationToken: string | null) =>
