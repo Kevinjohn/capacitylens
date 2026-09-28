@@ -67,6 +67,19 @@ export async function surveyLanes({
   return rows;
 }
 
+/**
+ * The pids safe to stop: a process is stopped only when every lane port it holds is a leftover, so
+ * a process that also serves a claimed lane is never touched. Each pid appears once.
+ */
+export function leftoverPids(rows) {
+  const eligible = new Map();
+  for (const row of rows) {
+    if (row.pid === null) continue;
+    eligible.set(row.pid, (eligible.get(row.pid) ?? true) && row.orphan);
+  }
+  return [...eligible].filter(([, leftover]) => leftover).map(([pid]) => pid);
+}
+
 function describe(row) {
   const who =
     row.pid === null ? "an unidentified process" : `pid ${row.pid} in ${row.directory ?? "an unknown directory"}`;
@@ -86,7 +99,7 @@ async function main() {
     return;
   }
   for (const row of rows) console.log(describe(row));
-  const orphans = [...new Set(rows.filter((row) => row.orphan).map((row) => row.pid))];
+  const orphans = leftoverPids(rows);
   if (!stopOrphans) {
     if (orphans.length > 0)
       console.log(`\n${orphans.length} leftover process(es). Stop them with: pnpm run lanes --stop-orphans`);

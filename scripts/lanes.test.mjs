@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { laneDirectory } from "./laneClaims.mjs";
-import { surveyLanes } from "./lanes.mjs";
+import { leftoverPids, surveyLanes } from "./lanes.mjs";
 import { portsForLane } from "./ports.mjs";
 
 function scratch() {
@@ -51,4 +51,9 @@ test("only an unclaimed listener from this repository's worktrees is a leftover"
 test("an empty or missing lane directory reports nothing in use", async () => {
   const rows = await surveyLanes({ environment: scratch(), worktrees: [], probe: async () => false });
   assert.deepEqual(rows, []);
+});
+
+test("a process is stopped once, and never when it also serves a claimed lane", () => {
+  const row = (pid, orphan) => ({ pid, orphan });
+  assert.deepEqual(leftoverPids([row(1, true), row(1, true), row(2, true), row(2, false), row(null, false)]), [1]);
 });
