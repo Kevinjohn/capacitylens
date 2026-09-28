@@ -9,8 +9,8 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { mirrorChildExit } from "./devProcesses.mjs";
-import { claimLane, reapLane } from "./laneClaims.mjs";
-import { LANE_ENVIRONMENT_KEY, SHARE_ENVIRONMENT_KEY, portsForLane, resolveLane, testShare } from "./ports.mjs";
+import { assertLaneFree, resolveLaunchClaim } from "./laneClaims.mjs";
+import { LANE_CLAIM_ENVIRONMENT_KEY, LANE_ENVIRONMENT_KEY, SHARE_ENVIRONMENT_KEY, portsForLane } from "./ports.mjs";
 
 const worktree = fileURLToPath(new URL("../", import.meta.url)).replace(/\/$/, "");
 const [command, ...args] = process.argv.slice(2);
@@ -20,10 +20,10 @@ if (!command) {
   process.exit(2);
 }
 
-// An inherited lane belongs to an outer launcher, which will also release it. Nesting must not
-// claim a second lane, and must never release a lane it did not take.
-const inherited = process.env[LANE_ENVIRONMENT_KEY] !== undefined && process.env[LANE_ENVIRONMENT_KEY] !== "";
-const claim = inherited ? { lane: resolveLane(), share: testShare(), release: () => false } : claimLane({ worktree });
+// An inherited lane belongs to an outer launcher, which also releases it; a hand-selected lane is
+// reserved and released here like an automatic one.
+const claim = resolveLaunchClaim({ worktree });
+const { inherited } = claim;
 
 let released = false;
 function release() {
@@ -38,9 +38,7 @@ function release() {
 
 try {
   if (!inherited) {
-    const reaped = await reapLane(claim.lane, worktree);
-    for (const { port, pid } of reaped)
-      console.error(`with-lane: cleared an orphan from this worktree on port ${port} (pid ${pid}).`);
+    await assertLaneFree(claim.lane);
   }
 } catch (error) {
   release();
@@ -57,7 +55,12 @@ if (!inherited) {
 
 const child = spawn(command, args, {
   stdio: "inherit",
-  env: { ...process.env, [LANE_ENVIRONMENT_KEY]: String(claim.lane), [SHARE_ENVIRONMENT_KEY]: String(claim.share) },
+  env: {
+    ...process.env,
+    [LANE_ENVIRONMENT_KEY]: String(claim.lane),
+    [LANE_CLAIM_ENVIRONMENT_KEY]: claim.token,
+    [SHARE_ENVIRONMENT_KEY]: String(claim.share),
+  },
 });
 
 process.on("exit", release);

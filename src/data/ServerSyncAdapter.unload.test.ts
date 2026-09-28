@@ -1,10 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  ServerSyncAdapter,
-  BatchTooLargeError,
-  KeepaliveNotDispatchedError,
-  MAX_OPS_PER_BATCH,
-} from "./ServerSyncAdapter";
+import { ServerSyncAdapter, BatchTooLargeError, KeepaliveNotDispatchedError, MAX_BATCH_OPS } from "./ServerSyncAdapter";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Client } from "@capacitylens/shared/types/entities";
 import type { Discipline } from "@capacitylens/shared/types/entities";
@@ -97,11 +92,9 @@ describe("atomic large diffs and unload behaviour", () => {
   it("refuses an over-limit diff before sending anything", async () => {
     const fetchImpl = okFetch() as unknown as typeof fetch;
     const a = new ServerSyncAdapter("http://x", fetchImpl);
-    const data = withData({ clients: manyClients(MAX_OPS_PER_BATCH + 1) });
+    const data = withData({ clients: manyClients(MAX_BATCH_OPS + 1) });
 
-    await expect(a.saveAll(data)).rejects.toThrow(
-      `Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`,
-    );
+    await expect(a.saveAll(data)).rejects.toThrow(`Atomic sync exceeds the ${MAX_BATCH_OPS}-operation server limit.`);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -129,7 +122,7 @@ describe("atomic large diffs and unload behaviour", () => {
     },
     {
       boundary: "server operation limit",
-      target: () => scopedData("a1", { clients: manyClients(MAX_OPS_PER_BATCH + 1) }),
+      target: () => scopedData("a1", { clients: manyClients(MAX_BATCH_OPS + 1) }),
       errorType: BatchTooLargeError,
     },
   ])(

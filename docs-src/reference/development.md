@@ -20,6 +20,7 @@ minutes; running the full check suite takes longer.
 
 - Node 24, pinned in `.nvmrc`.
 - pnpm, through Corepack — the version is pinned in `package.json`'s `packageManager` field.
+- `lsof`, which ships with macOS; install the `lsof` package on minimal Linux systems.
 - Docker, only if you plan to run the Docker Compose smoke tests.
 
 ## Set up the repository
@@ -53,7 +54,7 @@ after. Configuration files only read the resolved lane, so there is nothing to p
 
 ```bash
 pnpm run e2e              # claims the lowest free lane, prints which
-CAPACITYLENS_PORT_LANE=4 pnpm run e2e   # pin a lane (CI pins 0)
+CAPACITYLENS_PORT_LANE=4 pnpm run e2e   # pin a lane
 ```
 
 The claim also reserves a share of the machine's CPUs and passes it to Vitest and Playwright as a
@@ -65,9 +66,18 @@ Two deliberate exceptions:
 - `pnpm run dev:access` keeps fixed ports, so it is single-flight machine-wide.
 - Documentation screenshots are captured by hand on `:5199`, which no automated run binds.
 
-If a lane's port is still held when a run claims it, the launcher clears the process only when it
-belongs to this worktree. Anything else is reported by pid and the run stops, rather than killing
-another checkout's server.
+If a lane's port is still held when a run claims it, the launcher reports the process by pid and
+working directory, then stops. It never kills anything itself. To see what is holding the lanes, and
+to stop servers left behind by earlier runs:
+
+```bash
+pnpm run lanes                  # every lane port in use: pid, directory, and the run that owns it
+pnpm run lanes --stop-orphans   # stop listeners from this repository's worktrees that no live run owns
+```
+
+`--stop-orphans` leaves claimed lanes and other checkouts' processes alone. It also stops a server
+started directly in one of this repository's worktrees without the launcher, since nothing records
+that such a server is still wanted.
 
 An empty `VITE_CAPACITYLENS_API` means same-origin server mode. A non-empty value must be
 an absolute HTTP(S) origin with no credentials, path, query or fragment; surrounding
@@ -316,8 +326,8 @@ relevant area:
   container healthcheck's five-second timeout. Don't split the transaction or add an
   in-process queue as a latency workaround: splitting breaks ordered atomicity, and a queue
   can't preempt a synchronous SQLite turn. If the boundary test exceeds its budget, reduce
-  both `MAX_BATCH_OPS` and the client's `MAX_OPS_PER_BATCH` together, or move the database
-  work to a genuinely isolated execution model.
+  the shared `MAX_BATCH_OPS` (`shared/src/data/transfer.ts`, used by client and server), or
+  move the database work to a genuinely isolated execution model.
 
 ## Name modules and keep their contracts small
 
@@ -339,7 +349,7 @@ tracked debt. A green lint result does not yet prove that all these conventions 
 | Principal utility function | camelCase file and matching named export | `reloadPage.ts` exports `reloadPage`. |
 | Cohesive set of functions or types | camelCase capability name; name each export for its role | `gestureMath.ts`, `entities.ts`, `ports.ts`; keep a short ownership comment when the grouping is not obvious. |
 | Executable script | kebab-case filename | `check-import-cycles.mjs`, `rehearse-migrations.ts`. |
-| Constants | UPPER_SNAKE_CASE for fixed module policy values; camelCase for local values | `MAX_OPS_PER_BATCH`; a local `remainingAttempts`. |
+| Constants | UPPER_SNAKE_CASE for fixed module policy values; camelCase for local values | `MAX_BATCH_OPS`; a local `remainingAttempts`. |
 | Tests | Owner name plus `.test` or `.spec`, optionally a named behavior before the suffix | `ResourceLane.test.tsx`, `useStore.allocations.test.ts`. |
 
 Prefer named exports for application code. A framework-required default export, such as a
