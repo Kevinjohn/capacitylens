@@ -3,7 +3,7 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { mintJoinEmailProofToken, verifyJoinEmailProofToken } from "../accounts/adminPort/joiningIntentSecrets";
-import { assertOwnerCanKeepAccess } from "../authConfig/federatedEmailProof";
+import { conflictsWithOwnerAccess } from "../authConfig/federatedEmailProof";
 import { tx } from "../txn";
 import { resolveMailDeliveryCause } from "../authConfig/mailSender";
 import type { Db } from "../db";
@@ -218,10 +218,7 @@ function registerEmailProofConfirmRoute(app: FastifyInstance, input: Dependencie
       const email = readPrincipalEmail(input.db, principalId);
       if (!proof || proof.principalId !== principalId || proof.email !== email) invalid();
       tx(input.db, () => {
-        try {
-          assertOwnerCanKeepAccess(input.db, principalId, email);
-        } catch {
-          // A policy refusal, not a server fault: this address would restrict an active Owner.
+        if (conflictsWithOwnerAccess(input.db, principalId, email)) {
           throw createAccountFailure("FORBIDDEN", "This address cannot be verified for this account.");
         }
         input.db

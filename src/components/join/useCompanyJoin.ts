@@ -221,9 +221,10 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   const completeExisting = async () => {
     if (!accountId) return;
     if (verificationToken) {
+      // Drop the token first: a failed or expired link must not block later attempts.
+      setVerificationToken(null);
       const confirmed = await companyJoinClient.confirmJoinEmailVerification(verificationToken);
       if (!confirmed.ok) throw new Error(await responseError(confirmed));
-      setVerificationToken(null);
     }
     const response = await companyJoinClient.completeExisting(accountId);
     if (response.status === 401) {

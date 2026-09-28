@@ -268,3 +268,28 @@ it("holds the verification fragment through sign-in and confirms it before joini
     "http://api.test/api/accounts/a-studio/join/complete-existing",
   ]);
 });
+
+it("drops a rejected verification fragment so the next attempt can request a new link", async () => {
+  window.history.replaceState({}, "", "/join/a-studio#verify=expired-proof");
+  const requests: string[] = [];
+  stubJoin((url) => {
+    requests.push(url);
+    if (url.endsWith("/api/company-join/verify-email")) {
+      return Response.json({ error: { code: "INVALID", message: "Invalid request." } }, { status: 400 });
+    }
+    if (url.endsWith("/join/complete-existing")) return new Response(null, { status: 401 });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  const user = userEvent.setup();
+  renderJoin();
+  await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
+  await user.type(screen.getByLabelText("Password"), "password");
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  await vi.waitFor(() => expect(requests).toHaveLength(1));
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  expect(await screen.findByTestId("joining-verify-email")).toBeInTheDocument();
+  expect(requests).toEqual([
+    "http://api.test/api/company-join/verify-email",
+    "http://api.test/api/accounts/a-studio/join/complete-existing",
+  ]);
+});

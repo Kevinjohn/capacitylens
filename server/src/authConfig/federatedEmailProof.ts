@@ -27,8 +27,8 @@ function captureVerifiedFacts(input: ProviderFact): { subject: string; email: st
   return { subject: input.subject, email };
 }
 
-/** Refuse proof that would disable an active Owner through an address restriction. */
-export function assertOwnerCanKeepAccess(db: Db, principalId: string, email: string): void {
+/** True when this proof would disable an active Owner through an address restriction. */
+export function conflictsWithOwnerAccess(db: Db, principalId: string, email: string): boolean {
   const owner = db
     .prepare(
       `SELECT 1 FROM account_members AS member
@@ -37,7 +37,13 @@ export function assertOwnerCanKeepAccess(db: Db, principalId: string, email: str
       AND (restriction.principalId = ? OR restriction.verifiedEmail = ?) LIMIT 1`,
     )
     .get(principalId, principalId, email);
-  if (owner) throw new Error("Verified address conflicts with company Owner access.");
+  return owner !== undefined;
+}
+
+function assertOwnerCanKeepAccess(db: Db, principalId: string, email: string): void {
+  if (conflictsWithOwnerAccess(db, principalId, email)) {
+    throw new Error("Verified address conflicts with company Owner access.");
+  }
 }
 
 /** Store only the exact address verified by this provider in this callback. */
