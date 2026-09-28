@@ -294,3 +294,20 @@ it("reports email verification as available only when mail can be sent", async (
   expect(await metadata(true)).toMatchObject({ passwordAvailable: true, emailVerificationAvailable: true });
   expect(await metadata(false)).toMatchObject({ passwordAvailable: true, emailVerificationAvailable: false });
 });
+
+it("stops sending verification email to one address after the hourly budget", async () => {
+  const { app, diana, send } = await fixture({ mail: true });
+  const statuses: number[] = [];
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const response = await app.inject({
+      method: "POST",
+      url: sendPath,
+      headers: { cookie: diana.cookie },
+      payload: {},
+      remoteAddress: `198.51.100.${attempt}`,
+    });
+    statuses.push(response.statusCode);
+  }
+  expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
+  expect(send).toHaveBeenCalledTimes(5);
+});

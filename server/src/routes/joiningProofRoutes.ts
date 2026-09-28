@@ -3,7 +3,7 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { mintJoinEmailProofToken, verifyJoinEmailProofToken } from "../accounts/adminPort/joiningIntentSecrets";
 import { readPrincipalEmail, recordPasswordEmailProof } from "../authConfig/federatedEmailProof";
-import { resolveMailDeliveryCause } from "../authConfig/mailSender";
+import { MailBudgetExceededError, resolveMailDeliveryCause, type MailSender } from "../authConfig/mailSender";
 import type { Db } from "../db";
 import { createJoiningProviderLifecycle } from "../accounts/adminPort/joiningProviderLifecycle";
 import { completeExistingPolicyJoin } from "../accounts/adminPort/joiningAdmission";
@@ -19,6 +19,8 @@ type Lifecycle = ReturnType<typeof createJoiningProviderLifecycle>;
 interface Dependencies {
   db: Db;
   auth: Auth;
+  /** The budgeted sender; null when mail is not configured. */
+  mail: MailSender | null;
   applicationId: string;
   authMode: AccountMode;
   requireMfa: boolean;
@@ -69,7 +71,7 @@ function registerMetadata(app: FastifyInstance, input: Dependencies): void {
       passwordAvailable: allowsPasswordSignIn(input.authMode),
       providerAvailable: allowsProviderSignIn(input.authMode),
       // Only offer the verification link where the send route can deliver it.
-      emailVerificationAvailable: allowsPasswordSignIn(input.authMode) && input.auth.mail != null,
+      emailVerificationAvailable: allowsPasswordSignIn(input.authMode) && input.mail != null,
     };
   });
 }
@@ -181,7 +183,8 @@ function registerEmailProofSendRoute(app: FastifyInstance, input: Dependencies):
     (req, reply) =>
       respond(reply, input.fail, async () => {
         const principalId = requirePasswordPrincipal(req, input);
-        if (!input.auth.mail) invalid("Email verification is unavailable.");
+        const mail = input.mail;
+        if (!mail) invalid("Email verification is unavailable.");
         if (Object.keys(bodyObject(req.body)).length !== 0) invalid();
         const email = requirePrincipalEmail(input.db, principalId);
         const token = mintJoinEmailProofToken(input.secret, {
@@ -192,12 +195,15 @@ function registerEmailProofSendRoute(app: FastifyInstance, input: Dependencies):
         const { accountId } = req.params as { accountId: string };
         const link = new URL("/join/" + encodeURIComponent(accountId) + "#verify=" + token, input.publicUrl);
         try {
-          await input.auth.mail.send({
+          await mail.send({
             to: email,
             subject: "Verify your email to join a company",
             text: `Open this link while signed in to verify your email and join the company. The link expires in 60 minutes.\n\n${link.href}`,
           });
         } catch (cause) {
+          if (cause instanceof MailBudgetExceededError) {
+            throw createAccountFailure("RATE_LIMITED", "Too many verification emails. Try again later.");
+          }
           // Log only the redacted transport cause; never credentials, the link or the address.
           req.log.error({ cause: resolveMailDeliveryCause(cause) }, "Joining email verification delivery failed");
           throw createAccountFailure("DEPENDENCY_UNAVAILABLE", "Verification email could not be sent.");

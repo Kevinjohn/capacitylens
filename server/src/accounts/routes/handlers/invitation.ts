@@ -371,6 +371,7 @@ async function sendInvitationEmail({
   try {
     const link = new URL("/invite/" + encodeURIComponent(invite.token), mail.publicUrl);
     await mail.sender.send({
+      accountId: invite.workspaceId,
       to: invite.preauthorizedEmail,
       subject: "Your invitation",
       text: `Open this link to accept your invitation: ${link.href}`,

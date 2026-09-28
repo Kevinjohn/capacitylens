@@ -17,6 +17,10 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Invitation and joining-verification emails are limited to five an hour per address and
+  fifty invitation emails an hour per company, so they cannot be used to flood a mailbox or
+  exhaust the mail quota. Over the budget an invitation is still created with its copy link
+  (#1324).
 - A save made while someone else was signing up could be confirmed and then lost if that
   sign-up failed. Sign-up now checks and hashes the password before it starts writing, and a save
   that still overlaps a sign-in is refused instead of being tied to it (#1305).

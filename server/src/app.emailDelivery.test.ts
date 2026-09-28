@@ -191,3 +191,48 @@ describe("invitation email", () => {
     expect(sendMail).not.toHaveBeenCalled();
   });
 });
+
+describe("invitation email budget", () => {
+  it("stops emailing one recipient after the budget but still creates the invitation", async () => {
+    const { app, owner } = await configured();
+    const emailed: boolean[] = [];
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const created = await call(app, {
+        method: "POST",
+        url: "/api/invites",
+        headers: { cookie: owner.cookie },
+        payload: { accountId: "a1", role: "editor", preauthEmail: "Diana@Example.test" },
+      });
+      expect(created.statusCode).toBe(201);
+      const invite = created.json<{ id: string; token: string; emailed: boolean }>();
+      expect(invite.token).toBeTruthy();
+      emailed.push(invite.emailed);
+      const revoked = await call(app, {
+        method: "DELETE",
+        url: `/api/accounts/a1/invites/${invite.id}`,
+        headers: { cookie: owner.cookie },
+      });
+      expect(revoked.statusCode).toBeLessThan(300);
+    }
+    expect(emailed).toEqual([true, true, true, true, true, false]);
+    expect(sendMail).toHaveBeenCalledTimes(5);
+  });
+
+  it("stops emailing for one company after its hourly budget", async () => {
+    const { app, owner } = await configured();
+    const emailed: boolean[] = [];
+    for (let recipient = 0; recipient < 51; recipient += 1) {
+      const created = await call(app, {
+        method: "POST",
+        url: "/api/invites",
+        headers: { cookie: owner.cookie },
+        payload: { accountId: "a1", role: "viewer", preauthEmail: `recipient-${recipient}@example.test` },
+      });
+      expect(created.statusCode).toBe(201);
+      emailed.push(created.json<{ emailed: boolean }>().emailed);
+    }
+    expect(emailed.filter(Boolean)).toHaveLength(50);
+    expect(emailed.at(-1)).toBe(false);
+    expect(sendMail).toHaveBeenCalledTimes(50);
+  });
+});
