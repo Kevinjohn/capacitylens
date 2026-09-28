@@ -65,6 +65,12 @@ export function createMailSender(environment: Record<string, string | undefined>
     requireTLS: port !== 465,
     auth: { user, pass: password },
     tls: { rejectUnauthorized: true },
+    // Invitation and joining sends are awaited inside a request that holds the authentication
+    // transaction gate. Nodemailer's defaults (minutes) would let a stalled mail server hold every
+    // request behind a pending sign-in, and outlast the browser's deadline for the copy link.
+    connectionTimeout: 5_000,
+    greetingTimeout: 5_000,
+    socketTimeout: 10_000,
   });
   return {
     async send(message) {
