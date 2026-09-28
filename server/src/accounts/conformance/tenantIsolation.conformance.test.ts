@@ -682,6 +682,7 @@ const EXCLUDED = new Map<string, string>([
   ["accountMemberResources.ensureAccountMemberResources", "schema installer"],
   ["accountMemberResources.listAccountMemberResourceLinks", "account-scoped read"],
   ["accountMemberResources.listResourceAvatarProjection", "account-scoped privacy projection"],
+  ["accountMemberResources.isAccountMemberResourceConflict", "pure helper"],
   ["members.getMembershipRow", "read"],
   ["members.getMemberRole", "read"],
   ["members.getActiveMemberRole", "read"],
