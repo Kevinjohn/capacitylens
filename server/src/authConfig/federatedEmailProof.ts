@@ -86,7 +86,11 @@ export function readPrincipalEmail(db: Db, principalId: string): string | null {
 export function recordPasswordEmailProof(db: Db, principalId: string, email: string): boolean {
   return tx(db, () => {
     if (conflictsWithOwnerAccess(db, principalId, email)) return false;
-    upsertEmailProof(db, { principalId, email, source: "password" });
+    // Keep an existing proof of this same address: replacing a provider's source would make that
+    // provider repeat its mailbox ceremony and refuse a joining step already in progress.
+    const existing = db.prepare("SELECT email FROM identity_email_proofs WHERE principalId = ?").get(principalId) as
+      { email: string } | undefined;
+    if (existing?.email !== email) upsertEmailProof(db, { principalId, email, source: "password" });
     return true;
   });
 }
