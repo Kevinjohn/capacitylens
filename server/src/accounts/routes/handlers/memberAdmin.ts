@@ -2,7 +2,6 @@ import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
-import { isAccountMemberResourceConflict } from "../../../controlTables/accountMemberResources";
 import { NO_REPROMPT } from "../../../routes/routeShared";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAccountActor, requireAuthenticatedPrincipal } from "./authenticatedPrincipal";
@@ -91,7 +90,7 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
 }
 
 function linkFailure(error: unknown): never {
-  if (isAccountMemberResourceConflict(error)) {
+  if (error instanceof Error && error.name === "AccountMemberResourceConflict") {
     throw new AccountContractError({ code: "CONFLICT", message: error.message, retryable: false }, { cause: error });
   }
   throw error;
