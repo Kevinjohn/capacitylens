@@ -106,7 +106,7 @@ function persistPut(
 
 function readPutRow(op: BatchPutOp): Record<string, unknown> {
   const row = op.row;
-  if (!row || typeof row !== "object" || (row as { id?: unknown }).id !== op.id) {
+  if (row.id !== op.id) {
     throw new ValidationError("Each PUT op needs a row whose id matches the op id.");
   }
   return row;
@@ -181,7 +181,7 @@ function rejectStaleArchive(
     isStaleWrite({ existing, row: { updatedAt: op.updatedAt } }) &&
     !isSameSessionSuccessor({ db, order: syncOrder, table, id, current: existing })
   ) {
-    throw new StaleWriteError(redactWriteEcho(table, existing, fieldVisFor(table, op.accountId ?? id)));
+    throw new StaleWriteError(redactWriteEcho(table, existing, fieldVisFor(table, op.accountId)));
   }
 }
 
@@ -247,7 +247,7 @@ function applyDelete(parameters: OperationParameters, op: BatchDeleteOp): void {
     }
   }
   deleteRow(db, table, id);
-  projection.delete(table as AppDataKey, id);
+  projection.delete(table, id);
 }
 
 export function applyBatchOperation(parameters: ApplyBatchOperationParameters): void {

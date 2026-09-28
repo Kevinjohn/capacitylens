@@ -39,7 +39,7 @@ function listAffectedAccountIds(ops: BatchOp[]): Set<string> {
       continue;
     }
     if (!isScopedTable(op.table)) continue;
-    const accountId = op.method === "PUT" ? op.row?.accountId : op.accountId;
+    const accountId = op.method === "PUT" ? op.row.accountId : op.accountId;
     if (typeof accountId !== "string") {
       throw new Error("A validated scoped batch operation requires an account ID.");
     }

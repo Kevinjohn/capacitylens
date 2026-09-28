@@ -24,10 +24,11 @@ export function assertUniqueTableColumns(tableKey: string, columns: readonly Col
 
 for (const table of Object.values(TABLE_DEFINITIONS)) assertUniqueTableColumns(table.key, table.columns);
 
-// Runtime adapters accept untrusted string table names, so expose the checked closed definition
-// through a string index while retaining the exact-key completeness check above.
+/** A table name that has passed `isKnownTable`. */
 export type TableName = keyof typeof TABLE_DEFINITIONS;
 
+// Runtime adapters accept untrusted string table names, so expose the checked closed definition
+// through a string index while retaining the exact-key completeness check above.
 export const TABLES: Record<string, TableSpec> = TABLE_DEFINITIONS;
 
 // Parent-before-child order for creates/updates. Deletes use the reverse so a child
