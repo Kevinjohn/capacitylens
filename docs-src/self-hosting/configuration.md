@@ -98,7 +98,7 @@ HTTPS origin. These paths must match exactly. Restart after changing server sett
 Set `SMALLSASS_ACCOUNT_MAIL_HOST` and all the SMTP settings below to enable account email.
 Addressed invitations are emailed automatically. **Invitation emailed to {address}** confirms
 delivery to the SMTP service; the copyable invitation link remains available. If delivery fails,
-copy and send the link yourself. Replaying a creation request does not send another email.
+copy and send the link yourself.
 
 In password-capable modes, **Forgot password?** on the sign-in screen opens an email form.
 Choose **Email reset link**, then open the link in the email to set a new password. The link
