@@ -32,7 +32,7 @@ interface BatchOperationBase {
   id: string;
 }
 
-/** A validated PUT: its row is a record whose id matches the op id. */
+/** A validated PUT: its row is a record, whose id is checked against the op id when applied. */
 export interface BatchPutOp extends BatchOperationBase {
   method: "PUT";
   row: Record<string, unknown>;
