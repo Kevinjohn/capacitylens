@@ -28,6 +28,21 @@ export function serializeData(data: AppData): string {
 // (I.e. the error is reachable, not dead code; keep it.)
 export const MAX_IMPORT_RECORDS = 200_000;
 
+// Cap on ops per POST /api/batch request: one protocol limit that the client (which refuses an
+// over-cap diff) and the server (which rejects one) both import from here. The MAX_IMPORT_RECORDS
+// precedent, applied to the sync path. BODY_LIMIT bounds request BYTES, but not request WORK: every operation is sanitized,
+// authorized, validated and applied to the in-memory projection. The transaction reads each
+// affected account slice once, then indexed point/reverse lookups keep per-op validation and
+// projection updates proportional to each operation's referenced/affected rows rather than the
+// whole tenant. Op COUNT is therefore the remaining request-controlled multiplier. 5 000 is
+// generous headroom over the largest realistic full-slice diff the client sync adapter produces
+// (a whole busy agency's slice is low-thousands of rows) while bounding a crafted/looping flood.
+// The inclusive boundary integration test applies 5 000 real existing-row updates and enforces a
+// four-second handler budget under the supported Node 24 gate, leaving headroom below the packaged
+// five-second container healthcheck timeout. Keep that budget and this cap in lockstep; an in-process queue cannot shorten one synchronous SQLite turn.
+// Checked BEFORE the pre-scan and tx, so an over-cap batch writes nothing.
+export const MAX_BATCH_OPS = 5000;
+
 function parseJson(json: string): unknown {
   return JSON.parse(json) as unknown;
 }

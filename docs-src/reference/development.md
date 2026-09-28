@@ -316,8 +316,8 @@ relevant area:
   container healthcheck's five-second timeout. Don't split the transaction or add an
   in-process queue as a latency workaround: splitting breaks ordered atomicity, and a queue
   can't preempt a synchronous SQLite turn. If the boundary test exceeds its budget, reduce
-  both `MAX_BATCH_OPS` and the client's `MAX_OPS_PER_BATCH` together, or move the database
-  work to a genuinely isolated execution model.
+  the shared `MAX_BATCH_OPS` (`shared/src/data/transfer.ts`, used by client and server), or
+  move the database work to a genuinely isolated execution model.
 
 ## Name modules and keep their contracts small
 
@@ -339,7 +339,7 @@ tracked debt. A green lint result does not yet prove that all these conventions 
 | Principal utility function | camelCase file and matching named export | `reloadPage.ts` exports `reloadPage`. |
 | Cohesive set of functions or types | camelCase capability name; name each export for its role | `gestureMath.ts`, `entities.ts`, `ports.ts`; keep a short ownership comment when the grouping is not obvious. |
 | Executable script | kebab-case filename | `check-import-cycles.mjs`, `rehearse-migrations.ts`. |
-| Constants | UPPER_SNAKE_CASE for fixed module policy values; camelCase for local values | `MAX_OPS_PER_BATCH`; a local `remainingAttempts`. |
+| Constants | UPPER_SNAKE_CASE for fixed module policy values; camelCase for local values | `MAX_BATCH_OPS`; a local `remainingAttempts`. |
 | Tests | Owner name plus `.test` or `.spec`, optionally a named behavior before the suffix | `ResourceLane.test.tsx`, `useStore.allocations.test.ts`. |
 
 Prefer named exports for application code. A framework-required default export, such as a

@@ -39,7 +39,7 @@ export {
   BatchValidationError,
   KeepaliveNotDispatchedError,
   LifecycleRestoreError,
-  MAX_OPS_PER_BATCH,
+  MAX_BATCH_OPS,
 } from "./sync/batchErrors";
 
 interface DrainTarget {
