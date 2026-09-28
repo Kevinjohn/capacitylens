@@ -175,11 +175,7 @@ function installAuthTransactionGate(app: FastifyInstance, db: Db): void {
     }
     const slot: GateSlot = { held: false, closed: false };
     reply.raw.once("close", () => gate.release(slot));
-    void gate.enter(slot).then(() => {
-      // The client left while waiting: never run its handler without a slot.
-      if (slot.closed) reply.hijack();
-      else gate.runInSlot(slot, done);
-    });
+    void gate.enter(slot).then(() => gate.runInSlot(slot, done));
   });
 }
 
