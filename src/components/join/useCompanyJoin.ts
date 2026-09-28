@@ -9,7 +9,8 @@ import { readApiError } from "../../lib/readApiError";
 import { replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
 import { m } from "@/i18n";
 import { runExternalSignIn } from "../invites/externalSignIn";
-import { readMetadata, readStatus, resolveJoinStatus, type Metadata } from "./joinStatus";
+import { readMetadata, readStatus, resolveJoinStatus } from "./joinStatus";
+import type { Metadata } from "./joinStatus";
 
 type Stage = "loading" | "entry" | "pending" | "approved" | "second-factor" | "joined" | "error" | "local";
 async function responseError(response: Response): Promise<string> {
