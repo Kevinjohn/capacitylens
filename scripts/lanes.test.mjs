@@ -48,6 +48,32 @@ test("only an unclaimed listener from this repository's worktrees is a leftover"
   );
 });
 
+test("a run that claims its lane during the scan is not a leftover", async () => {
+  const environment = scratch();
+  const worktree = mkdtempSync(join(tmpdir(), "lanes-worktree-"));
+  const directory = laneDirectory(environment);
+  mkdirSync(directory, { recursive: true });
+  const port = portsForLane(4).web;
+
+  const rows = await surveyLanes({
+    environment,
+    worktrees: [worktree],
+    probe: async (probed) => {
+      if (probed !== port) return false;
+      // Another worktree claims lane 4 and starts its server while this survey is scanning.
+      writeFileSync(join(directory, "4.json"), JSON.stringify({ pid: process.pid, worktree, share: 1, token: "t" }));
+      return true;
+    },
+    owner: () => 1004,
+    directoryOf: () => worktree,
+  });
+
+  assert.deepEqual(
+    rows.map(({ lane, orphan }) => ({ lane, orphan })),
+    [{ lane: 4, orphan: false }],
+  );
+});
+
 test("an empty or missing lane directory reports nothing in use", async () => {
   const rows = await surveyLanes({ environment: scratch(), worktrees: [], probe: async () => false });
   assert.deepEqual(rows, []);
