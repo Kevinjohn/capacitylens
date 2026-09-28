@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 - A save made while someone else was signing up could be confirmed and then lost if that
   sign-up failed. Sign-up now checks and hashes the password before it starts writing, and a save
   that still overlaps a sign-in is refused instead of being tied to it (#1305).
+- A save that overlapped a sign-up or company sign-in could fail with a server error. It now waits
+  for the sign-in to finish and then saves (#1307).
 
 ## [0.71.0-alpha.1] - 2026-09-27
 

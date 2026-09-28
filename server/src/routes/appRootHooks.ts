@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { authTransactionGateFor, type GateSlot } from "../authTransactionGate";
 import { AccountContractError, statusForAccountFailure } from "@capacitylens/shared/account/errors";
 import { CSP_REPORT_BODY_LIMIT } from "./systemRoutes";
 import { runWithRequestAbortSignal } from "../requestAbort";
@@ -64,10 +65,14 @@ interface InstallResponseHooksInput {
   trustProxyHeaders: boolean;
 }
 
+function isApiRequest(request: FastifyRequest): boolean {
+  return (request.url.split("?", 1)[0] ?? request.url).startsWith("/api/");
+}
+
 function installResponseHooks(input: InstallResponseHooksInput): void {
   const { app, db, auditDrainer, repliesWithAuditDrain, securityEvent, trustProxyHeaders } = input;
   app.addHook("onSend", async (req: FastifyRequest, reply: FastifyReply, payload) => {
-    if ((req.url.split("?", 1)[0] ?? req.url).startsWith("/api/")) {
+    if (isApiRequest(req)) {
       reply.header("Cache-Control", "no-store");
       reply.header("Pragma", "no-cache");
       reply.header("Reporting-Endpoints", 'csp-endpoint="/api/security/csp-report"');
@@ -160,12 +165,31 @@ function installConnectionHooks(
   });
 }
 
+/** Hold the authentication transaction gate for each API request, from arrival until the response
+ * closes, so the request's writes never meet a library transaction left open across an await.
+ * Fastify binds body parsing to the request's async context, so the slot stays visible to a library
+ * transaction the handler starts. The slot spans the whole request, so a long-lived streaming route
+ * would stall every sign-in. */
+function installAuthTransactionGate(app: FastifyInstance, db: Db): void {
+  const gate = authTransactionGateFor(db);
+  app.addHook("onRequest", function holdAuthTransactionGate(request, reply, done) {
+    if (!isApiRequest(request)) {
+      done();
+      return;
+    }
+    const slot: GateSlot = { held: false, closed: false };
+    reply.raw.once("close", () => gate.release(slot));
+    void gate.enter(slot).then(() => gate.runInSlot(slot, done));
+  });
+}
+
 export function installRootHooks({ app, db, runtime, config, options }: InstallRootHooksInput) {
   const { auditDrainer, repliesWithAuditDrain } = runtime;
   const { logOn, rateLimitMax } = config;
   app.addHook("onClose", () => auditDrainer.stop());
   const securityEvent = createSecurityEvent(app, options, logOn);
   installConnectionHooks(app, options, securityEvent);
+  installAuthTransactionGate(app, db);
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
   const corsOrigin = options.corsOrigin ?? DEFAULT_CORS;
   const corsOrigins = resolveCorsOrigins(corsOrigin);
