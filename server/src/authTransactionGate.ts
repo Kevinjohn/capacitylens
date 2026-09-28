@@ -14,6 +14,7 @@ export interface GateSlot {
  * instead of meeting an open foreign transaction. */
 export class AuthTransactionGate {
   readonly #slots = new AsyncLocalStorage<GateSlot>();
+  readonly #exclusiveHolder = new AsyncLocalStorage<true>();
   readonly #wakers = new Set<() => void>();
   #sharedHolders = 0;
   #exclusiveActive = false;
@@ -55,6 +56,9 @@ export class AuthTransactionGate {
 
   /** Run one library transaction alone: wait for every shared holder, then block new ones. */
   async runExclusive<Result>(transaction: () => Promise<Result>): Promise<Result> {
+    // Work already holding the gate exclusively (a verification consume) runs its nested library
+    // transaction directly instead of waiting for itself.
+    if (this.#exclusiveHolder.getStore()) return transaction();
     // A request that reaches the library (sign-up, provider callback) must not wait for itself.
     const own = this.#slots.getStore();
     const yielded = own?.held === true;
@@ -68,7 +72,7 @@ export class AuthTransactionGate {
       },
     );
     try {
-      return await transaction();
+      return await this.#exclusiveHolder.run(true, transaction);
     } finally {
       this.#exclusiveActive = false;
       this.#wake();
