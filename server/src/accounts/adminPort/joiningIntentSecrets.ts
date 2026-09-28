@@ -44,6 +44,11 @@ export function joiningEmailHint(email: string): string {
   return `${email.slice(0, 1)}***${email.slice(email.indexOf("@"))}`;
 }
 
+/** A key derived for this purpose only, so the application secret is never used directly. */
+function joinEmailProofKey(secret: string): Buffer {
+  return createHmac("sha256", secret).update("join-email-proof-key").digest();
+}
+
 /** Sign current-address proof with a domain-separated HMAC; expiry is epoch milliseconds. */
 export function mintJoinEmailProofToken(
   secret: string,
@@ -52,7 +57,7 @@ export function mintJoinEmailProofToken(
   const payload = Buffer.from(JSON.stringify({ p: input.principalId, e: input.email, x: input.expiresAt })).toString(
     "base64url",
   );
-  const signature = createHmac("sha256", secret)
+  const signature = createHmac("sha256", joinEmailProofKey(secret))
     .update("join-email-proof\0" + payload)
     .digest("base64url");
   return `${payload}.${signature}`;
@@ -68,7 +73,7 @@ export function verifyJoinEmailProofToken(
   const [payload, signature] = parts;
   if (parts.length !== 2 || !payload || !signature || !/^[A-Za-z0-9_-]+$/.test(payload) || !SECRET_RE.test(signature))
     return null;
-  const expected = createHmac("sha256", secret)
+  const expected = createHmac("sha256", joinEmailProofKey(secret))
     .update("join-email-proof\0" + payload)
     .digest();
   const actual = Buffer.from(signature, "base64url");

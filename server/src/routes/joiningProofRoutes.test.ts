@@ -254,7 +254,7 @@ it("refuses proof that conflicts with Owner access without overwriting existing 
     email: "diana@studio.example",
     expiresAt: Date.now() + 60_000,
   });
-  expect((await confirm(app, diana.cookie, token)).statusCode).toBe(500);
+  expect((await confirm(app, diana.cookie, token)).statusCode).toBe(403);
   expect(db.prepare("SELECT email, source FROM identity_email_proofs WHERE principalId = ?").get(diana.userId)).toEqual(
     { email: "old@studio.example", source: "google" },
   );

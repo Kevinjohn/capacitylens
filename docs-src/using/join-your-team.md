@@ -16,7 +16,8 @@ For a company joining link, choose an available Google, Microsoft or GitHub
 provider, or sign in with an existing password account. Finish any second-factor
 challenge before choosing **Join company**. Your email must have current trusted
 proof and meet the company's joining policy. If the page says proof is unavailable,
-use a configured verified provider or ask for an invitation addressed to your email.
+choose **Email me a verification link** when it appears and open the link while signed in, use
+a configured verified provider, or ask for an invitation addressed to your email.
 A company joining link does not create a new password account.
 
 On an invitation screen, review the company and proposed role. Use your existing

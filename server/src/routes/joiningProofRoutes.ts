@@ -5,6 +5,7 @@ import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { mintJoinEmailProofToken, verifyJoinEmailProofToken } from "../accounts/adminPort/joiningIntentSecrets";
 import { assertOwnerCanKeepAccess } from "../authConfig/federatedEmailProof";
 import { tx } from "../txn";
+import { resolveMailDeliveryCause } from "../authConfig/mailSender";
 import type { Db } from "../db";
 import { createJoiningProviderLifecycle } from "../accounts/adminPort/joiningProviderLifecycle";
 import { completeExistingPolicyJoin } from "../accounts/adminPort/joiningAdmission";
@@ -196,8 +197,9 @@ function registerEmailProofSendRoute(app: FastifyInstance, input: Dependencies):
             subject: "Verify your email to join a company",
             text: `Open this link while signed in to verify your email and join the company. The link expires in 60 minutes.\n\n${link.href}`,
           });
-        } catch {
-          // Surface a generic delivery failure without disclosing transport credentials or mailbox contents.
+        } catch (cause) {
+          // Log only the redacted transport cause; never credentials, the link or the address.
+          req.log.error({ cause: resolveMailDeliveryCause(cause) }, "Join verification email delivery failed");
           throw createAccountFailure("DEPENDENCY_UNAVAILABLE", "Verification email could not be sent.");
         }
         return { sent: true };
@@ -216,7 +218,12 @@ function registerEmailProofConfirmRoute(app: FastifyInstance, input: Dependencie
       const email = readPrincipalEmail(input.db, principalId);
       if (!proof || proof.principalId !== principalId || proof.email !== email) invalid();
       tx(input.db, () => {
-        assertOwnerCanKeepAccess(input.db, principalId, email);
+        try {
+          assertOwnerCanKeepAccess(input.db, principalId, email);
+        } catch {
+          // A policy refusal, not a server fault: this address would restrict an active Owner.
+          throw createAccountFailure("FORBIDDEN", "This address cannot be verified for this account.");
+        }
         input.db
           .prepare(
             `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
