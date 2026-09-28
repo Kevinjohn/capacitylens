@@ -191,6 +191,7 @@ const EXPECTED_AUTH_ROUTES = [
 
 const EXPECTED_ROOT_HOOKS = {
   onRequest: [
+    "stampAuthClientIp",
     "abortOnClientDisconnect",
     "holdAuthTransactionGate",
     "helmetConfigureReply",
