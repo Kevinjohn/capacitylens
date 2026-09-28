@@ -195,6 +195,12 @@ or admin.
 | `CAPACITYLENS_STORAGE_ENCRYPTED`       | Set `1` only after you have verified that the database, audit log and backup storage are encrypted at rest. This is an operator attestation; it does not encrypt storage itself. |
 | `CAPACITYLENS_SECURITY_LOG_FORWARDING` | An attestation that you're forwarding audit and security events to a separate collector. Doesn't create the collector itself.      |
 
+Sign-in, sign-up and password changes have a stricter built-in limit of three attempts per
+10 seconds per client, and reset and verification emails of three per minute. It is fixed and
+applies only in production. The server identifies each client the same way for every limit:
+by the connection address, or by the proxy's `X-Forwarded-For` when proxy headers are trusted
+(see `CAPACITYLENS_TRUST_PROXY_HEADERS`). A client cannot choose its own address.
+
 Without structured logging, the server prints its startup line and reports server errors
 to stderr. Deep health checks are off by default: `/api/health` returns `{ ok: true }`.
 With deep checks enabled, the endpoint runs `SELECT 1`, reports audit state and pending

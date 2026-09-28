@@ -15,6 +15,12 @@ new features and **patch** versions carry fixes.
 - A save that overlapped a sign-up or company sign-in could fail with a server error. It now waits
   for the sign-in to finish and then saves (#1307).
 
+### Security
+
+- Sign-in and other credential limits now count each client by the address the server trusts.
+  A client could previously avoid them by sending its own forwarding header, and without one
+  every client shared a single allowance (#1308).
+
 ## [0.71.0-alpha.1] - 2026-09-27
 
 ### Added

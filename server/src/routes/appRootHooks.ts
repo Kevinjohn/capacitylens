@@ -12,6 +12,7 @@ import type { createAppRuntime } from "./appRuntime";
 import { DEFAULT_CORS } from "./appConfig";
 import type { AppOptions } from "../app";
 import { installSecurityPlugins } from "./appSecurityPlugins";
+import { AUTH_CLIENT_IP_HEADER } from "../authConfig/sessionPolicy";
 
 interface InstallRootHooksInput {
   app: FastifyInstance;
@@ -137,6 +138,14 @@ function installConnectionHooks(
   options: AppOptions,
   securityEvent: (event: Record<string, unknown>) => void,
 ): void {
+  // Every conversion of these headers for Better Auth carries the server's own client address.
+  app.addHook("onRequest", function stampAuthClientIp(request, _reply, done) {
+    request.headers[AUTH_CLIENT_IP_HEADER] = resolveRequestClientIp({
+      request,
+      trustProxyHeaders: options.trustProxyHeaders === true,
+    });
+    done();
+  });
   app.addHook("onRequest", function abortOnClientDisconnect(request, reply, done) {
     const controller = new AbortController();
     request.raw.once("aborted", () => controller.abort(new Error("The request was aborted.")));
