@@ -5,7 +5,13 @@ import { isAuthMode } from "../../auth/authStatus";
 import { STORE_NAME, MAX_AGE_MS } from "./constants";
 import { awaitRequest, awaitTx, openOfflineDb } from "./idb";
 import { readOrCreateDeviceKey, assertWebCrypto, buildAssociatedData, writeEncryptedRecord } from "./crypto";
-import { pendingWrites, setOfflineCacheWriteFailed, scope, isOfflineReadEnabled } from "./state";
+import {
+  pendingWrites,
+  recordOfflineCacheWriteFailure,
+  recordOfflineCacheWriteSuccess,
+  scope,
+  isOfflineReadEnabled,
+} from "./state";
 import type { CachedRecord, OfflineAuthSnapshot, OfflineAccountSummary, OfflineCacheWriteResult } from "./types";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 /** Keep same-key writes in acceptance order even when key lookup or encryption settles out of
@@ -17,9 +23,9 @@ async function put<T>(record: CachedRecord<T>): Promise<void> {
   pendingWrites.set(record.key, current);
   try {
     await current;
-    setOfflineCacheWriteFailed(false);
+    recordOfflineCacheWriteSuccess(record.key);
   } catch (error) {
-    setOfflineCacheWriteFailed(true);
+    recordOfflineCacheWriteFailure(record.key);
     throw error;
   } finally {
     if (pendingWrites.get(record.key) === current) pendingWrites.delete(record.key);
