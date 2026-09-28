@@ -547,14 +547,12 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
 });
 
 describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
-  it("the public /api/auth/request-password-reset endpoint is SHADOWED (404) — no unauthenticated reset path", async () => {
+  it("the public /api/auth/request-password-reset endpoint returns 404 when mail is disabled", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
     await member({ app, db, accountId: "a1", email: "someone@capacitylens.dev", role: "editor" });
 
-    // Configuring sendResetPassword would otherwise expose Better Auth's public request endpoint; we
-    // shadow it with a 404 so there is no unauthenticated, rate-limit-off-by-default token-minting
-    // (DB-growth DoS) surface. A real and an unknown email alike get 404, and nothing is minted.
+    // Without SMTP, public reset requests remain closed for known and unknown addresses.
     for (const email of ["someone@capacitylens.dev", "nobody@capacitylens.dev"]) {
       const res = await call(app, {
         method: "POST",

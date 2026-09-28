@@ -75,7 +75,7 @@ export function InviteMemberPanel(props: {
   errorField: string | null;
   errorId: string;
   clear(): void;
-  mintedLink: { inviteId: string | null; link: string } | null;
+  mintedLink: { inviteId: string | null; link: string; emailedTo?: string | null } | null;
   inviteDialogOpen: boolean;
   openInviteDialog(): void;
   closeInviteDialog(): void;
@@ -231,6 +231,9 @@ function MintedInviteLink({ mintedLink, copyLink }: Pick<InviteFormProps, "minte
       className="flex flex-col gap-2 rounded border border-ok/40 bg-ok/5 p-3"
     >
       <p className="text-sm font-medium text-ok">{m.settings_members_invite_created()}</p>
+      {mintedLink.emailedTo && (
+        <p className="text-sm">{m.settings_invite_emailed({ address: mintedLink.emailedTo })}</p>
+      )}
       <CopyableLinkBlock
         link={mintedLink.link}
         testId="invite-link"

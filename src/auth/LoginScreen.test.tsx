@@ -670,3 +670,23 @@ describe("LoginScreen — unsaved session-expiry notice", () => {
     expect(screen.queryByText(/could not be saved before your session expired/i)).not.toBeInTheDocument();
   });
 });
+
+it("reveals email password recovery and shows a neutral confirmation", async () => {
+  const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 200 }));
+  render(<LoginScreen authMode="password-only" passwordResetEmail onSignedIn={vi.fn()} />);
+  expect(screen.queryByTestId("forgot-password-email")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByTestId("forgot-password"));
+  fireEvent.change(screen.getByTestId("forgot-password-email"), { target: { value: "bruce@example.test" } });
+  fireEvent.click(screen.getByTestId("forgot-password-submit"));
+  expect(await screen.findByTestId("forgot-password-confirmation")).toHaveTextContent(
+    "If an account uses that address, we've emailed a reset link.",
+  );
+  expect(request).toHaveBeenCalledWith(
+    "/api/auth/request-password-reset",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ email: "bruce@example.test" }),
+    }),
+  );
+  request.mockRestore();
+});

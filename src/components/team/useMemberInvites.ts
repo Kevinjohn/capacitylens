@@ -18,6 +18,7 @@ interface MemberInviteDependencies extends MemberActionDependencies {
 }
 
 interface MintedInviteLink {
+  emailedTo: string | null;
   inviteId: string | null;
   link: string;
 }
@@ -117,6 +118,7 @@ function createSubmitInvite({
         if (readLinkGeneration() === linkGeneration) {
           setMintedLink({
             inviteId: result.value.id ?? null,
+            emailedTo: result.value.emailed === true ? trimmed : null,
             link: `${window.location.origin}/invite/${encodeURIComponent(result.value.token)}`,
           });
         } else {

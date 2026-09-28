@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { parseAuthProviders } from "./authStatus";
 
 describe("parseAuthProviders", () => {
@@ -24,4 +24,22 @@ describe("parseAuthProviders", () => {
       { id: "google", label: "Google", kind: "social", experimental: true, brand: "google" },
     ]);
   });
+});
+
+it.each([true, false, undefined, "true"])("parses the signed-out reset-email flag %s", async (passwordResetEmail) => {
+  const { accountClient } = await import("../account/accountClient");
+  const { fetchAuthStatus } = await import("./fetchAuthStatus");
+  const request = vi
+    .spyOn(accountClient, "me")
+    .mockResolvedValue(
+      new Response(JSON.stringify({ authMode: "password-only", passwordResetEmail }), { status: 401 }),
+    );
+  try {
+    expect(await fetchAuthStatus(() => false)).toMatchObject({
+      kind: "login",
+      passwordResetEmail: passwordResetEmail === true,
+    });
+  } finally {
+    request.mockRestore();
+  }
 });

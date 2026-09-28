@@ -136,6 +136,8 @@ const administration: SsoCutoverAccountAdminPort = {
 };
 
 const auth = {
+  mail: null,
+  publicUrl: new URL("http://localhost:8787"),
   handler: unusedAsync,
   api: {
     getSession: unusedAsync,

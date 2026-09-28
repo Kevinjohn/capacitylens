@@ -93,7 +93,20 @@ Register `https://your-capacitylens-address/api/auth/callback/google` for Google
 `https://your-capacitylens-address/api/auth/callback/microsoft` for Microsoft, using your actual
 HTTPS origin. These paths must match exactly. Restart after changing server settings.
 
-### Microsoft verification email
+### Account email
+
+Set `SMALLSASS_ACCOUNT_MAIL_HOST` and all the SMTP settings below to enable account email.
+Addressed invitations are emailed automatically. **Invitation emailed to {address}** confirms
+delivery to the SMTP service; the copyable invitation link remains available. If delivery fails,
+copy and send the link yourself. Replaying a creation request does not send another email.
+
+In password-capable modes, **Forgot password?** on the sign-in screen opens an email form.
+Choose **Email reset link**, then open the link in the email to set a new password. The link
+is single-use and expires after 24 hours. The confirmation is the same for every address;
+unknown addresses and accounts using only company sign-in receive no reset email. Admin-issued
+copy-links still send no email. With SMTP disabled, the sign-in form has no recovery-email control.
+
+#### Microsoft verification email
 
 Microsoft first connections may need a one-time email verification. All five SMTP settings are
 required whenever Microsoft is configured, even if a particular identity arrives with adequate

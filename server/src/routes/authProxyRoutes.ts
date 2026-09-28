@@ -20,8 +20,7 @@ type SessionResolutionResult =
   | { kind: "verified"; session: ApplicationSession }
   | { kind: "backend_failure"; error: unknown };
 
-/** Build the absolute URL Better Auth requires from Fastify's relative request URL. Host is
- * proxy/client input, so malformed authority syntax is a bounded caller error, not an exception. */
+/** Build Better Auth's absolute URL; malformed client/proxy Host input returns null. */
 function parseAuthenticationRequestUrl(req: FastifyRequest): URL | null {
   try {
     return new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
@@ -30,13 +29,13 @@ function parseAuthenticationRequestUrl(req: FastifyRequest): URL | null {
   }
 }
 
-/** CapacityLens's complete public seam into Better Auth. New dependency routes remain closed until
- * they are deliberately classified here and covered by the application's own policy surface. */
+/** Complete public allowlist: new Better Auth routes stay closed until classified and tested here. */
 function isBetterAuthProxyRouteAllowed(
-  authMode: Exclude<AccountMode, "off">,
+  policy: { authMode: Exclude<AccountMode, "off">; mailEnabled: boolean },
   method: string,
   pathname: string,
 ): boolean {
+  const { authMode, mailEnabled } = policy;
   const common = new Set(["GET /get-session", "POST /sign-out", "POST /sign-in/social"]);
   if (common.has(`${method} ${pathname}`)) {
     return pathname !== "/sign-in/social" || allowsProviderSignIn(authMode);
@@ -45,6 +44,7 @@ function isBetterAuthProxyRouteAllowed(
     return allowsProviderSignIn(authMode);
   }
   if (!allowsPasswordSignIn(authMode)) return false;
+  if (method === "POST" && pathname === "/request-password-reset") return mailEnabled;
   return new Set([
     "POST /sign-up/email",
     "POST /sign-in/email",
@@ -65,8 +65,7 @@ interface ResolveAuthenticationUserIdInput {
   logOn: boolean;
 }
 
-/** Resolve only an already-issued, verified session for security-event attribution. Submitted
- * identifiers are intentionally never used: a failed sign-in must not be able to claim a user. */
+/** Attribute security events only to verified sessions, never to submitted user identifiers. */
 async function resolveAuthenticationUserId({
   auth,
   headers,
@@ -227,6 +226,9 @@ async function readAuthenticatedIdentity(
   };
 }
 
+const canEmailPasswordReset = (authMode: AccountMode, auth: Auth | null): boolean =>
+  allowsPasswordSignIn(authMode) && auth?.mail != null;
+
 async function sendIdentity(req: FastifyRequest, reply: FastifyReply, dependencies: IdentityRouteDependencies) {
   const { auth, authMode, db, multiAccount, resolveIncomingSession } = dependencies;
   const capAllows = !isAccountCreateCapped({ db, multiAccount });
@@ -243,6 +245,7 @@ async function sendIdentity(req: FastifyRequest, reply: FastifyReply, dependenci
       authMode,
       providers: auth?.providers ?? [],
       error: "Sign in to continue.",
+      passwordResetEmail: canEmailPasswordReset(authMode, auth),
       ...(needsSetup ? { needsSetup: true } : {}),
     });
   }
@@ -349,7 +352,7 @@ async function forwardAuthenticationRequest(
   const url = parseAuthenticationRequestUrl(req);
   if (!url) return reply.code(400).send({ error: "Invalid request authority." });
   const authPath = url.pathname.slice("/api/auth".length);
-  if (!isBetterAuthProxyRouteAllowed(authMode, req.method, authPath)) {
+  if (!isBetterAuthProxyRouteAllowed({ authMode, mailEnabled: auth.mail != null }, req.method, authPath)) {
     return reply.code(404).send({ error: "Not found." });
   }
   const socialError = socialSignInError({ req, authPath, auth, authMode });

@@ -1,3 +1,4 @@
+import { ForgotPassword } from "./ForgotPassword";
 import { allowsPasswordSignIn, allowsProviderSignIn } from "@capacitylens/shared/account/types";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
@@ -26,6 +27,7 @@ import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/acco
 type LoginScreenProps = {
   authMode: "password-only" | "sso-only" | "password-and-sso";
   needsSetup?: boolean;
+  passwordResetEmail?: boolean;
   providers?: AuthProviderInfo[];
   degraded?: boolean;
   hadUnsavedChanges?: boolean;
@@ -46,6 +48,7 @@ function useLoginIds() {
 export function LoginScreen({
   authMode,
   needsSetup = false,
+  passwordResetEmail = false,
   providers = [],
   degraded = false,
   hadUnsavedChanges = false,
@@ -87,6 +90,7 @@ export function LoginScreen({
     <LoginView
       authMode={authMode}
       needsSetup={needsSetup}
+      passwordResetEmail={passwordResetEmail}
       providers={allowsProviderSignIn(authMode) ? providers : []}
       degraded={degraded}
       hadUnsavedChanges={hadUnsavedChanges}
@@ -169,6 +173,7 @@ function createProviderSignIn({
 type LoginViewProps = {
   authMode: "password-only" | "sso-only" | "password-and-sso";
   needsSetup: boolean;
+  passwordResetEmail: boolean;
   providers: AuthProviderInfo[];
   degraded: boolean;
   hadUnsavedChanges: boolean;
@@ -231,6 +236,10 @@ function LoginView(props: LoginViewProps) {
               passwordSignIn={props.passwordSignIn}
               ownerSetup={props.ownerSetup}
             />
+            {props.passwordResetEmail &&
+              allowsPasswordSignIn(props.authMode) &&
+              !setup &&
+              !props.secondFactor.twoFactorPending && <ForgotPassword />}
             {showTrailingProviders && (
               <ProviderButtons
                 authMode={props.authMode}

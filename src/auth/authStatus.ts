@@ -24,6 +24,7 @@ export type AuthStatusResult =
     }
   | {
       kind: "login";
+      passwordResetEmail: boolean;
       authMode: Exclude<AccountMode, "off">;
       needsSetup: boolean;
       providers: AuthProviderInfo[];

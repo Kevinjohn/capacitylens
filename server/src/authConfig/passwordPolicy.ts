@@ -31,7 +31,7 @@ interface BuildPasswordPolicyInput {
   passwordContextWords: readonly string[];
   passwordResetSessionCapture: AsyncLocalStorage<{ sessionHandles: readonly string[] }>;
   sessionDeletionLifecycleRef: SessionDeletionLifecycleRef;
-  captureResetToken: (input: { token: string }) => Promise<void>;
+  captureResetToken: (input: { user: { id: string; email: string }; token: string }) => Promise<void>;
   hashPasswordWithBackpressure: (hasher: PasswordHasher, password: string) => Promise<string>;
   verifyPasswordWithBackpressure: (
     hasher: PasswordHasher,
@@ -154,9 +154,8 @@ export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<Bette
         hash: passwordHash,
         verify: (input) => verifyPasswordWithBackpressure(baseHasher, input),
       },
-      // Admin-issued reset links (P1.18) — password mode ONLY: 'sso' delegates credentials to the
-      // IdP, and configuring sendResetPassword would needlessly enable Better Auth's public
-      // request-password-reset endpoint there. See captureResetToken/mintPasswordResetToken above.
+      // Password modes support admin copy-links and optional self-service reset email.
+      // SSO-only installations delegate password recovery to their identity provider.
       ...passwordResetOptions(input),
     },
     assertAuthRequestPasswordLength,

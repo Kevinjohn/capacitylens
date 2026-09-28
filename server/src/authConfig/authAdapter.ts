@@ -1,3 +1,4 @@
+import type { MailSender } from "./mailSender";
 import { randomBytes } from "node:crypto";
 import { APIError } from "better-auth/api";
 import type { BetterAuthOptions } from "better-auth";
@@ -45,6 +46,7 @@ type AdapterOptions = {
   trustedOrigins: string[] | undefined;
   sessionDeletionLifecycleRef: LifecycleRef;
   microsoftProof: MicrosoftProof | null;
+  mail: MailSender | null;
   joiningProviderCallbacks?: Pick<ReturnType<typeof createJoiningProviderCallbacks>, "preflight">;
 };
 type RawAuth = {
@@ -324,6 +326,8 @@ function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactory
   });
   return {
     handler,
+    mail: options.mail,
+    publicUrl: options.publicUrl,
     options: raw.options,
     providers: options.configuredProviderInfo,
     permittedCompanyProviderIds: companyProviderIds(options.configuredProviderInfo),

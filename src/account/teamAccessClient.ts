@@ -60,6 +60,7 @@ export interface TeamInvitation {
 }
 
 export interface OneTimeToken {
+  emailed?: boolean;
   id?: string;
   token: string;
   expiresAt?: string;
@@ -266,8 +267,7 @@ function hasValidOptionalTokenFields(
 
 function parseToken(value: unknown): OneTimeToken | null {
   if (!isRecord(value) || typeof value.token !== "string") return null;
-  // Both current issuers return compact opaque strings. Keep the provider-owned alphabet opaque,
-  // but reject values that cannot safely form one write-once URL segment or indicate a skewed body.
+  // Keep the token alphabet opaque, but reject unsafe URL segments or skewed bodies.
   if (value.token.length === 0 || value.token.length > 4_096) return null;
   if (value.token !== value.token.trim() || hasUnsafeTokenCharacter(value.token)) {
     return null;
@@ -276,12 +276,12 @@ function parseToken(value: unknown): OneTimeToken | null {
   return {
     ...(typeof value.id === "string" ? { id: value.id } : {}),
     token: value.token,
+    ...(typeof value.emailed === "boolean" ? { emailed: value.emailed } : {}),
     ...(typeof value.expiresAt === "string" ? { expiresAt: value.expiresAt } : {}),
   };
 }
 
-/** The decoder for an endpoint whose success carries no body: there is nothing to read, and the ok
- *  response itself is the whole answer. */
+/** A successful no-content response is the whole answer; there is no body to decode. */
 const noContent = (): true => true;
 
 function parseJoiningPolicy(value: unknown): JoiningPolicySettings | null {
