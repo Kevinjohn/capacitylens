@@ -16,6 +16,7 @@ test("only an unclaimed listener from this repository's worktrees is a leftover"
   const environment = scratch();
   const worktree = mkdtempSync(join(tmpdir(), "lanes-worktree-"));
   const elsewhere = mkdtempSync(join(tmpdir(), "lanes-elsewhere-"));
+  mkdirSync(join(worktree, "server"));
   const directory = laneDirectory(environment);
   mkdirSync(directory, { recursive: true });
   writeFileSync(join(directory, "1.json"), JSON.stringify({ pid: process.pid, worktree, share: 1, token: "t" }));
