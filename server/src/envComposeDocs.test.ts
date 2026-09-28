@@ -124,3 +124,14 @@ describe("Compose exceptions in the environment register", () => {
     }
   });
 });
+
+describe("Packaged nginx client address", () => {
+  it("takes the client address from the edge's X-Forwarded-For only for a private-network peer", () => {
+    // The API keys per-client limits on the address this nginx forwards. Behind the host's public
+    // proxy that is the edge's client; trusting a public peer would let any client choose its own.
+    const trusted = [...nginxConf.matchAll(/^\s*set_real_ip_from\s+(\S+);/gm)].map((match) => match[1]);
+    expect(trusted).toEqual(["127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "::1", "fc00::/7"]);
+    expect(nginxConf).toMatch(/^\s*real_ip_header X-Forwarded-For;/m);
+    expect(nginxConf).not.toMatch(/real_ip_recursive\s+on/);
+  });
+});
