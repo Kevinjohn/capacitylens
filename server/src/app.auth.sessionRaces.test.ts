@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
+import { request as httpRequest } from "node:http";
+import type { AddressInfo } from "node:net";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
@@ -572,4 +574,48 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
 
     expect((await signUp).statusCode).toBe(200);
   });
+});
+
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
+  // The gate finds a request's slot through async context. inject() always keeps that context, so
+  // prove it also survives a real socket whose body arrives after the headers.
+  it("completes a sign-up whose body arrives after its headers", async () => {
+    const db = openDb(":memory:");
+    const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
+    const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    try {
+      const { port } = app.server.address() as AddressInfo;
+      const body = JSON.stringify({
+        email: "cassandra@capacitylens.dev",
+        password: "password-123456",
+        name: "Cassandra Cain",
+      });
+      const status = await new Promise<number>((resolve, reject) => {
+        const request = httpRequest(
+          {
+            host: "127.0.0.1",
+            port,
+            method: "POST",
+            path: "/api/auth/sign-up/email",
+            headers: {
+              "content-type": "application/json",
+              "content-length": Buffer.byteLength(body),
+            },
+          },
+          (response) => {
+            response.resume();
+            resolve(response.statusCode ?? 0);
+          },
+        );
+        request.on("error", reject);
+        request.flushHeaders();
+        setTimeout(() => request.end(body), 100);
+      });
+      expect(status).toBe(200);
+    } finally {
+      await app.close();
+    }
+  }, 10_000);
 });

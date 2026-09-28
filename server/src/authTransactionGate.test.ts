@@ -81,3 +81,24 @@ describe("authentication transaction gate slots", () => {
     expect(events).toEqual(["library", "background"]);
   });
 });
+
+describe("authentication transaction gate exclusivity", () => {
+  it("never runs two queued library transactions at once", async () => {
+    const gate = authTransactionGateFor(new DatabaseSync(":memory:"));
+    const inFlight = openSlot();
+    await gate.enter(inFlight);
+    let running = 0;
+    let maxRunning = 0;
+    const transaction = async () => {
+      running++;
+      maxRunning = Math.max(maxRunning, running);
+      await turn();
+      running--;
+    };
+    const queued = [gate.runExclusive(transaction), gate.runExclusive(transaction), gate.runExclusive(transaction)];
+    await turn();
+    gate.release(inFlight);
+    await Promise.all(queued);
+    expect(maxRunning).toBe(1);
+  });
+});

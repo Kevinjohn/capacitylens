@@ -22,10 +22,14 @@ export class AuthTransactionGate {
   /** Wait for any library transaction to finish, then hold a shared slot until {@link release}. */
   async enter(slot: GateSlot): Promise<void> {
     // Writers take precedence: a waiting library transaction is not starved by a stream of requests.
-    await this.#waitUntil(() => !this.#exclusiveActive && this.#exclusiveWaiters === 0);
-    if (slot.closed) return;
-    slot.held = true;
-    this.#sharedHolders++;
+    await this.#acquire(
+      () => slot.closed || (!this.#exclusiveActive && this.#exclusiveWaiters === 0),
+      () => {
+        if (slot.closed) return;
+        slot.held = true;
+        this.#sharedHolders++;
+      },
+    );
   }
 
   release(slot: GateSlot): void {
@@ -56,12 +60,13 @@ export class AuthTransactionGate {
     const yielded = own?.held === true;
     if (own) this.#yield(own);
     this.#exclusiveWaiters++;
-    try {
-      await this.#waitUntil(() => this.#sharedHolders === 0 && !this.#exclusiveActive);
-    } finally {
-      this.#exclusiveWaiters--;
-    }
-    this.#exclusiveActive = true;
+    await this.#acquire(
+      () => this.#sharedHolders === 0 && !this.#exclusiveActive,
+      () => {
+        this.#exclusiveWaiters--;
+        this.#exclusiveActive = true;
+      },
+    );
     try {
       return await transaction();
     } finally {
@@ -84,8 +89,11 @@ export class AuthTransactionGate {
     for (const resume of pending) resume();
   }
 
-  async #waitUntil(ready: () => boolean): Promise<void> {
+  /** Take the gate in the same turn that found it free; waking resumes every waiter, so a check
+   * separated from its update by an await would let two waiters in at once. */
+  async #acquire(ready: () => boolean, take: () => void): Promise<void> {
     while (!ready()) await new Promise<void>((resume) => this.#wakers.add(resume));
+    take();
   }
 }
 

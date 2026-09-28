@@ -162,7 +162,10 @@ function installConnectionHooks(
 }
 
 /** Hold the authentication transaction gate for each API request, from arrival until the response
- * closes, so the request's writes never meet a library transaction left open across an await. */
+ * closes, so the request's writes never meet a library transaction left open across an await.
+ * Fastify binds body parsing to the request's async context, so the slot stays visible to a library
+ * transaction the handler starts. The slot spans the whole request, so a long-lived streaming route
+ * would stall every sign-in. */
 function installAuthTransactionGate(app: FastifyInstance, db: Db): void {
   const gate = authTransactionGateFor(db);
   app.addHook("onRequest", function holdAuthTransactionGate(request, reply, done) {
@@ -172,7 +175,11 @@ function installAuthTransactionGate(app: FastifyInstance, db: Db): void {
     }
     const slot: GateSlot = { held: false, closed: false };
     reply.raw.once("close", () => gate.release(slot));
-    void gate.enter(slot).then(() => gate.runInSlot(slot, done));
+    void gate.enter(slot).then(() => {
+      // The client left while waiting: never run its handler without a slot.
+      if (slot.closed) reply.hijack();
+      else gate.runInSlot(slot, done);
+    });
   });
 }
 
