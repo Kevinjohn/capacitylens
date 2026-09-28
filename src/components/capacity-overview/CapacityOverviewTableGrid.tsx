@@ -5,6 +5,7 @@ import { Fragment, useMemo, useState } from "react";
 import { m } from "@/i18n";
 import { formatWeekColumnRange } from "@/lib/dateDisplay";
 import { resolveResourceDisplayName } from "@/lib/metadata";
+import { useDateStyle } from "@/store/useDateStyle";
 import { useStore } from "../../store/useStore";
 import { PersonScheduleTrigger } from "../person-schedule/PersonScheduleTrigger";
 import { resolveResourceAvatarUrl } from "../../account/resolveResourceAvatarUrl";
@@ -242,9 +243,14 @@ export function CapacityTable({
   ResourceAvatarProp) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const periods = model.periods;
+  const dateStyle = useDateStyle();
+  // Memoise the labels so they are not rebuilt on every render. The date formatters read the
+  // active style from a module-level mirror rather than an argument, so the linter cannot
+  // see that dependency.
   const rangeLabels = useMemo(
     () => periods.map((period) => formatWeekColumnRange(period.start, period.end)),
-    [periods],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the style is a real input to the labels
+    [periods, dateStyle],
   );
   const totals = useMemo(
     () => (showTotals ? buildPeriodTotals(model.groups, periods.length) : undefined),

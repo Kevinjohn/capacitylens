@@ -110,7 +110,7 @@
     },
     {
       "path": "src/components/scheduler/schedulerModel.test.ts",
-      "baseline": 1933,
+      "baseline": 1892,
       "reason": "test-size ratchet baseline; split when touched"
     },
     {
