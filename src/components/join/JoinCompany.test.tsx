@@ -37,10 +37,12 @@ function renderJoin(path = "/join/a-studio", context = auth) {
   );
 }
 
+// eslint-disable-next-line max-params -- Keep existing fixture calls intact while allowing independent Microsoft status.
 function stubJoin(
   extra?: (url: string, init?: RequestInit) => Response,
   providerAvailable = false,
   status: () => Record<string, unknown> = () => ({ state: "expired" }),
+  microsoftStatus: Record<string, unknown> = { state: "expired" },
 ) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
@@ -53,7 +55,7 @@ function stubJoin(
         emailVerificationAvailable: true,
       });
     if (url.endsWith("/api/company-join/status")) return Response.json(status());
-    if (url.endsWith("/api/account/microsoft/status")) return Response.json({ state: "expired" });
+    if (url.endsWith("/api/account/microsoft/status")) return Response.json(microsoftStatus);
     if (extra) return extra(url, init);
     throw new Error(`Unexpected request: ${url}`);
   });
@@ -320,4 +322,172 @@ it("does not offer email verification where the server cannot send it", async ()
   await user.click(screen.getByRole("button", { name: "Join company" }));
   expect(await screen.findByText(/no current trusted proof of its email address/)).toBeInTheDocument();
   expect(screen.queryByTestId("joining-verify-email")).not.toBeInTheDocument();
+});
+
+it.each([
+  { providerId: "google", label: "Google", endpoint: "complete-provider" },
+  { providerId: "microsoft", label: "Microsoft", endpoint: "complete-microsoft" },
+] as const)(
+  "completes an approved $label invitation and hands off after refreshing auth",
+  async ({ providerId, label, endpoint }) => {
+    const status = {
+      state: "approved",
+      accountId: "a-studio",
+      purpose: "invitation",
+      providerId,
+      email: "diana@example.test",
+    };
+    const fetchMock = stubJoin(
+      (url) => {
+        if (url.endsWith(`/api/company-join/${endpoint}`))
+          return Response.json({ accountId: "a-studio", role: "viewer" });
+        throw new Error(`Unexpected request: ${url}`);
+      },
+      true,
+      () => (providerId === "google" ? status : { state: "expired" }),
+      providerId === "microsoft" ? status : { state: "expired" },
+    );
+    const refreshAuth = vi.fn(async () => {
+      expect(handoffMock.replaceWithJoinedAccount).not.toHaveBeenCalled();
+    });
+    const user = userEvent.setup();
+    renderJoin("/join/a-studio?invite=invite-token", {
+      ...auth,
+      refreshAuth,
+      providers: [{ id: providerId, label, kind: "social", experimental: false }],
+    });
+    expect(
+      await screen.findByText("Your sign-in provider verified this address. Join this company to finish."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Join company" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Join company");
+    expect(fetchMock).toHaveBeenCalledWith(
+      `http://api.test/api/company-join/${endpoint}`,
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ invitationToken: "invite-token" }) }),
+    );
+    expect(refreshAuth).toHaveBeenCalledTimes(1);
+    expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledExactlyOnceWith("a-studio");
+    expect(screen.queryByRole("button", { name: "Join company" })).not.toBeInTheDocument();
+  },
+);
+
+it("resends pending Microsoft verification and keeps the journey retryable after a server error", async () => {
+  let resendCount = 0;
+  const fetchMock = stubJoin(
+    (url) => {
+      if (url.endsWith("/api/account/microsoft/resend")) {
+        resendCount += 1;
+        return resendCount === 1
+          ? Response.json({ ok: true })
+          : Response.json({ error: "Verification email unavailable" }, { status: 503 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    },
+    true,
+    undefined,
+    {
+      state: "pending",
+      accountId: "a-studio",
+      purpose: "policy",
+      providerId: "microsoft",
+      emailHint: "diana@example.test",
+    },
+  );
+  const user = userEvent.setup();
+  renderJoin("/join/a-studio", {
+    ...auth,
+    providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+  });
+  const resend = await screen.findByRole("button", { name: "Resend email" });
+  await user.click(resend);
+  expect(fetchMock).toHaveBeenCalledWith(
+    "http://api.test/api/account/microsoft/resend",
+    expect.objectContaining({ method: "POST" }),
+  );
+  expect(resendCount).toBe(1);
+  expect(
+    screen.getByText(
+      "Check diana@example.test for a verification link. Open it in this same browser within 15 minutes.",
+    ),
+  ).toBeInTheDocument();
+  expect(resend).toBeEnabled();
+  await user.click(resend);
+  expect(await screen.findByText("Verification email unavailable")).toBeInTheDocument();
+  expect(resendCount).toBe(2);
+  expect(screen.getByRole("button", { name: "Resend email" })).toBeEnabled();
+  expect(
+    screen.getByText(
+      "Check diana@example.test for a verification link. Open it in this same browser within 15 minutes.",
+    ),
+  ).toBeInTheDocument();
+  expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+});
+
+it("restarts a pending Microsoft journey by cancelling both intents and returning to entry", async () => {
+  const fetchMock = stubJoin(
+    (url) => {
+      if (url.endsWith("/api/company-join/cancel") || url.endsWith("/api/account/microsoft/cancel"))
+        return Response.json({ ok: true });
+      throw new Error(`Unexpected request: ${url}`);
+    },
+    true,
+    undefined,
+    {
+      state: "pending",
+      accountId: "a-studio",
+      purpose: "policy",
+      providerId: "microsoft",
+      emailHint: "diana@example.test",
+    },
+  );
+  const user = userEvent.setup();
+  renderJoin("/join/a-studio", {
+    ...auth,
+    providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+  });
+  await user.click(await screen.findByRole("button", { name: "Start again" }));
+  expect(await screen.findByLabelText("Email")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Resend email" })).not.toBeInTheDocument();
+  for (const endpoint of ["/api/company-join/cancel", "/api/account/microsoft/cancel"]) {
+    expect(fetchMock).toHaveBeenCalledWith(`http://api.test${endpoint}`, expect.objectContaining({ method: "POST" }));
+  }
+});
+
+it("keeps a pending Microsoft journey retryable when restarting fails", async () => {
+  const fetchMock = stubJoin(
+    (url) => {
+      if (url.endsWith("/api/company-join/cancel")) return Response.json({ ok: true });
+      if (url.endsWith("/api/account/microsoft/cancel"))
+        return Response.json({ error: "Could not cancel verification" }, { status: 503 });
+      throw new Error(`Unexpected request: ${url}`);
+    },
+    true,
+    undefined,
+    {
+      state: "pending",
+      accountId: "a-studio",
+      purpose: "policy",
+      providerId: "microsoft",
+      emailHint: "diana@example.test",
+    },
+  );
+  const user = userEvent.setup();
+  renderJoin("/join/a-studio", {
+    ...auth,
+    providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+  });
+  await user.click(await screen.findByRole("button", { name: "Start again" }));
+  expect(await screen.findByText("Could not cancel verification")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Start again" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Resend email" })).toBeEnabled();
+  expect(
+    screen.getByText(
+      "Check diana@example.test for a verification link. Open it in this same browser within 15 minutes.",
+    ),
+  ).toBeInTheDocument();
+  expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+  for (const endpoint of ["/api/company-join/cancel", "/api/account/microsoft/cancel"]) {
+    expect(fetchMock).toHaveBeenCalledWith(`http://api.test${endpoint}`, expect.objectContaining({ method: "POST" }));
+  }
 });
