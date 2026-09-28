@@ -307,6 +307,9 @@ Use this lightweight workflow for user-facing changes:
 ## Validation environment
 
 - Run focused tests during implementation. Select submission checks using “Green gate” below.
+- Local servers left by earlier or concurrent runs can hold a port lane. Run
+  `pnpm run lanes --stop-orphans` before the full suites and when finishing a task that started
+  servers; it stops only unclaimed listeners from this repository's worktrees.
 - Type-check with `pnpm run typecheck`, never a bare `tsc` at the repository root, which reads no
   files and exits 0 whatever the tree contains — `docs-src/reference/development.md` explains why.
   It covers the shared, application, Node and end-to-end projects, but not `server/`, which

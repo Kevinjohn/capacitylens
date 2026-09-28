@@ -3,6 +3,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import {
   cacheAccountSlice,
+  isOfflineReadEnabled,
   readCachedAccountSlice,
   readCachedAuthSnapshot,
   setOfflineReadState,
@@ -212,8 +213,9 @@ export async function hydrateFromOfflineCache(
   if (accountId === undefined) {
     try {
       const cachedIdentity = await readCachedAuthSnapshot({
-        acceptEffects: () => myGen === state.loadGen,
+        acceptEffects: () => myGen === state.loadGen && isOfflineReadEnabled(),
       });
+      if (!isOfflineReadEnabled()) return null;
       if (cachedIdentity) {
         const empty = emptyAppData();
         applyCachedLoadEffects({ state, data: empty, savedAt: cachedIdentity.savedAt, myGen });
@@ -226,6 +228,7 @@ export async function hydrateFromOfflineCache(
   }
   try {
     const cached = await readCachedAccountSlice(accountId);
+    if (!isOfflineReadEnabled()) return null;
     if (cached) {
       applyCachedLoadEffects({ state, data: cached.value, savedAt: cached.savedAt, myGen, accountId });
       return cached.value;

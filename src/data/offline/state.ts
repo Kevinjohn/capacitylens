@@ -13,6 +13,10 @@ let state: OfflineState = {
   lastUpdated: null,
   cacheWriteFailed: false,
 };
+const failedCacheKeys = new Set<string>();
+// Advances whenever failures are cleared, so a write that settles after disable/reset cannot
+// repopulate the set with a failure from the cleared episode.
+let cacheWriteFailureGeneration = 0;
 let offlineReadOwner: OfflineReadOwner | null = null;
 // Monotonic in-memory tag for role/data projections resolved before an offline episode. It advances
 // only when entering offline read mode; clearing the marker retains the new tag so pre-offline
@@ -115,7 +119,34 @@ function isCurrentOfflineReadState(owner: OfflineReadOwner, readOnly: boolean, l
   return state.readOnly === readOnly && state.lastUpdated === lastUpdated && (!readOnly || offlineReadOwner === owner);
 }
 
-export function setOfflineCacheWriteFailed(cacheWriteFailed: boolean): void {
+/** The failure episode a cache write belongs to; capture it before the write starts. */
+export function readCacheWriteFailureGeneration(): number {
+  return cacheWriteFailureGeneration;
+}
+
+/** Keep failures visible until the same cache record is successfully written or cache claims reset. */
+export function recordOfflineCacheWriteFailure(key: string, generation: number): void {
+  if (generation !== cacheWriteFailureGeneration) return;
+  failedCacheKeys.add(key);
+  publishCacheWriteFailures();
+}
+
+/** A successful record write clears only that record's outstanding failure. */
+export function recordOfflineCacheWriteSuccess(key: string, generation: number): void {
+  if (generation !== cacheWriteFailureGeneration) return;
+  failedCacheKeys.delete(key);
+  publishCacheWriteFailures();
+}
+
+/** Disabling or clearing the cache drops every page-local write failure. */
+export function clearOfflineCacheWriteFailures(): void {
+  cacheWriteFailureGeneration += 1;
+  failedCacheKeys.clear();
+  publishCacheWriteFailures();
+}
+
+function publishCacheWriteFailures(): void {
+  const cacheWriteFailed = failedCacheKeys.size > 0;
   if (state.cacheWriteFailed === cacheWriteFailed) return;
   state = { ...state, cacheWriteFailed };
   for (const listener of listeners) listener();
@@ -125,7 +156,7 @@ export function setOfflineCacheWriteFailed(cacheWriteFailed: boolean): void {
  * any offline read state. Cleanup and cross-tab boundary changes all end here. */
 export function resetOfflineState(): void {
   scope = null;
-  setOfflineCacheWriteFailed(false);
+  clearOfflineCacheWriteFailures();
   setOfflineReadState("cleanup", false);
 }
 

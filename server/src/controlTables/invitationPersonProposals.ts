@@ -1,6 +1,7 @@
 import type { Db } from "../db";
 import { INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "../db/constants";
 import {
+  isAccountMemberResourceConflict,
   setAccountMemberResourceLinkInTransaction,
   type AccountMemberResourceMutation,
 } from "./accountMemberResources";
@@ -250,7 +251,7 @@ export function settleInvitationPersonProposal(input: {
       void mutation;
       removeMemberResourceLinkException(input.db, input.accountId, input.userId);
     } catch (cause) {
-      if (!isResourceAlreadyLinkedConflict(cause)) throw cause;
+      if (!isAccountMemberResourceConflict(cause, "resource_already_linked")) throw cause;
       upsertMemberResourceLinkException({
         db: input.db,
         accountId: input.accountId,
@@ -262,10 +263,4 @@ export function settleInvitationPersonProposal(input: {
     }
   }
   removeInvitationPersonProposal(input.db, input.invitationId);
-}
-
-function isResourceAlreadyLinkedConflict(error: unknown): boolean {
-  return (
-    error instanceof Error && error.name === "AccountMemberResourceConflict" && /already linked/i.test(error.message)
-  );
 }

@@ -155,10 +155,22 @@ export function listAccountMemberResourceLinks(db: Db, accountId: string): Accou
     .all(accountId) as unknown as AccountMemberResourceLink[];
 }
 
-function conflict(message: string, options?: ErrorOptions): Error {
-  const error = new Error(message, options);
+// A recoverable conflict carries a stable code so callers never branch on its wording.
+type AccountMemberResourceConflictCode = "resource_already_linked";
+
+function conflict(message: string, options?: ErrorOptions, code?: AccountMemberResourceConflictCode): Error {
+  const error = Object.assign(new Error(message, options), code ? { code } : {});
   error.name = "AccountMemberResourceConflict";
   return error;
+}
+
+/** Any member-link conflict, or only the one with `code` when given. */
+export function isAccountMemberResourceConflict(
+  error: unknown,
+  code?: AccountMemberResourceConflictCode,
+): error is Error {
+  if (!(error instanceof Error) || error.name !== "AccountMemberResourceConflict") return false;
+  return code === undefined || (error as Error & { code?: unknown }).code === code;
 }
 
 type SetLinkInput = {
@@ -220,7 +232,11 @@ function persistLink(input: SetLinkInput, revision: string): void {
         "UNIQUE constraint failed: account_member_resources.accountId, account_member_resources.resourceId",
       )
     )
-      throw conflict("That scheduled person is already linked to another member.", { cause });
+      throw conflict(
+        "That scheduled person is already linked to another member.",
+        { cause },
+        "resource_already_linked",
+      );
     throw cause;
   }
 }
