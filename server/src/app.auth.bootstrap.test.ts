@@ -256,8 +256,14 @@ function registerClosedSignupStatusTests(): void {
     const before = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(before.statusCode).toBe(401);
     expect(parseNeedsSetup(before)).toBe(true);
-    // The 401 shape still excludes account facts (only authMode/error/needsSetup — no capFields).
-    expect(Object.keys(parseJsonObject(before)).sort()).toEqual(["authMode", "error", "needsSetup", "providers"]);
+    // The 401 shape still excludes account facts (sign-in options and needsSetup only — no capFields).
+    expect(Object.keys(parseJsonObject(before)).sort()).toEqual([
+      "authMode",
+      "error",
+      "needsSetup",
+      "passwordResetEmail",
+      "providers",
+    ]);
     // One user later, the flag is GONE (absent, not false — the client fail-closes on absence).
     expect((await signUpWithSetupToken(app, "owner@capacitylens.dev")).statusCode).toBe(200);
     const after = await call(app, { method: "GET", url: "/api/auth/me" });
