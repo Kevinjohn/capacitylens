@@ -20,7 +20,7 @@ export function repositoryWorktrees(run = execFileSync) {
   return output
     .split("\n")
     .filter((line) => line.startsWith("worktree "))
-    .map((line) => canonical(line.slice("worktree ".length)));
+    .map((line) => line.slice("worktree ".length));
 }
 
 // lsof reports a process's resolved directory, so compare resolved paths on both sides.
@@ -52,6 +52,7 @@ export async function surveyLanes({
   directoryOf = listenerDirectory,
 } = {}) {
   const claims = readLiveClaims(laneDirectory(environment));
+  const roots = worktrees.map(canonical);
   const rows = [];
   for (let lane = 0; lane < LANE_CEILING; lane += 1) {
     const claim = claims.get(lane) ?? null;
@@ -59,7 +60,7 @@ export async function surveyLanes({
       if (!(await probe(port))) continue;
       const pid = owner(port);
       const directory = pid === null ? null : directoryOf(pid);
-      const orphan = pid !== null && claim === null && insideAny(directory, worktrees);
+      const orphan = pid !== null && claim === null && insideAny(directory, roots);
       rows.push({ lane, service, port, pid, directory, claim, orphan });
     }
   }
