@@ -1,16 +1,17 @@
 import { useId, useState, type FormEvent } from "react";
 import { m } from "@/i18n";
+import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { API_BASE } from "../data/apiConfig";
+import { createRequestSignal } from "../data/requestTimeout";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Field, FieldError, FieldLabel } from "../components/ui/field";
 
 /** Optional self-service recovery; success never reveals whether an address is registered. */
 export function ForgotPassword() {
-  const [open, setOpen] = useState(false);
+  const [phase, setPhase] = useState<"closed" | "form" | "sent">("closed");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const emailId = useId();
   const errorId = useId();
@@ -23,9 +24,10 @@ export function ForgotPassword() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        body: JSON.stringify({ email: normalizeAccountEmail(email) }),
+        signal: createRequestSignal(),
       });
-      if (response.ok) setSent(true);
+      if (response.ok) setPhase("sent");
       else setError(m.login_failed());
     } catch {
       setError(m.login_network_error());
@@ -33,15 +35,21 @@ export function ForgotPassword() {
       setBusy(false);
     }
   };
-  if (sent)
+  if (phase === "sent")
     return (
       <p className="mt-3 text-sm" role="status" data-testid="forgot-password-confirmation">
         {m.login_reset_confirmation()}
       </p>
     );
-  if (!open)
+  if (phase === "closed")
     return (
-      <Button className="mt-3" variant="link" type="button" data-testid="forgot-password" onClick={() => setOpen(true)}>
+      <Button
+        className="mt-3"
+        variant="link"
+        type="button"
+        data-testid="forgot-password"
+        onClick={() => setPhase("form")}
+      >
         {m.login_forgot_password()}
       </Button>
     );

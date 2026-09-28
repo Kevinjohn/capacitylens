@@ -109,6 +109,31 @@ describe("password reset email", () => {
   });
 });
 
+describe("password reset email in SSO-only mode", () => {
+  it("keeps the public reset route closed and the sign-in link hidden even with mail configured", async () => {
+    const db = fixtures.trackDb(openDb(":memory:"));
+    const { mode, auth } = createAuthFromEnvironment(db, {
+      ...PASSWORD_ENV,
+      ...mailEnvironment,
+      SMALLSASS_ACCOUNT_MODE: "sso-only",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+    });
+    if (!auth) throw new Error("Expected SSO authentication.");
+    await runAuthMigrations(auth);
+    const app = fixtures.trackApp(createApp(db, { authMode: mode, auth }));
+    const reset = await call(app, {
+      method: "POST",
+      url: "/api/auth/request-password-reset",
+      payload: { email: "bruce@example.test" },
+    });
+    expect(reset.statusCode).toBe(404);
+    const identity = await call(app, { method: "GET", url: "/api/auth/me" });
+    expect(identity.json()).toMatchObject({ passwordResetEmail: false });
+    expect(sendMail).not.toHaveBeenCalled();
+  });
+});
+
 describe("invitation email", () => {
   it("emails an addressed invitation once, including across command replay", async () => {
     const { app, owner } = await configured();

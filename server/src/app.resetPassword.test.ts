@@ -552,7 +552,9 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     seedAccount(db, "a1");
     await member({ app, db, accountId: "a1", email: "someone@capacitylens.dev", role: "editor" });
 
-    // Without SMTP, public reset requests remain closed for known and unknown addresses.
+    // Without SMTP, public reset requests remain closed for known and unknown addresses. Each open
+    // request mints a verification row and sends an email, so the route opens only with mail; the
+    // global limiter (required in production) and Better Auth's production 3-per-60 s rule bound it.
     for (const email of ["someone@capacitylens.dev", "nobody@capacitylens.dev"]) {
       const res = await call(app, {
         method: "POST",
