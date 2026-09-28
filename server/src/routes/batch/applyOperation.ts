@@ -18,7 +18,7 @@ import { isLifecycleEntity, isScopedTable, isStaleWrite, ownsRow, writeActivityR
 
 import { isMatchingMintedInternalClient } from "./appData";
 import { StaleWriteError } from "./errors";
-import { type ApplyBatchOperationParameters } from "./types";
+import { type ApplyBatchOperationParameters, type BatchPutOp, type BatchDeleteOp, type BatchArchiveOp } from "./types";
 
 type OperationParameters = Omit<ApplyBatchOperationParameters, "opIndex" | "op"> &
   Pick<ApplyBatchOperationParameters, "opIndex">;
@@ -104,7 +104,7 @@ function persistPut(
   mintedInternalIds.add(internalClient.id as string);
 }
 
-function readPutRow(op: ApplyBatchOperationParameters["op"]): Record<string, unknown> {
+function readPutRow(op: BatchPutOp): Record<string, unknown> {
   const row = op.row;
   if (!row || typeof row !== "object" || (row as { id?: unknown }).id !== op.id) {
     throw new ValidationError("Each PUT op needs a row whose id matches the op id.");
@@ -134,7 +134,7 @@ function sanitizePut(parameters: OperationParameters, state: PutRowState): Recor
 
 // accountId is immutable (ownsRow), frozen account fields keep the direct route's 409 semantics,
 // and sanitisation pins fields hidden from the writer before any state is changed.
-function applyPut(parameters: OperationParameters, op: ApplyBatchOperationParameters["op"]): void {
+function applyPut(parameters: OperationParameters, op: BatchPutOp): void {
   const { req, db, projection, revisions, auditRecords, multiAccount, projectedWorkspaceCount, accountFlows, opIndex } =
     parameters;
   const { table, id } = op;
@@ -171,7 +171,7 @@ function applyPut(parameters: OperationParameters, op: ApplyBatchOperationParame
 // ARCHIVE uses the same ordered-write rejection and redacted current row as direct mutations.
 function rejectStaleArchive(
   parameters: OperationParameters,
-  op: ApplyBatchOperationParameters["op"],
+  op: BatchArchiveOp,
   existing: Record<string, unknown>,
 ): void {
   const { db, syncOrder, redactWriteEcho, fieldVisFor } = parameters;
@@ -197,7 +197,7 @@ function recordExistingArchive(
   return true;
 }
 
-function applyArchive(parameters: OperationParameters, op: ApplyBatchOperationParameters["op"]): void {
+function applyArchive(parameters: OperationParameters, op: BatchArchiveOp): void {
   const { db, store, projection, lifecycleArchives } = parameters;
   const { table, id } = op;
   if (!isLifecycleEntity(table)) throw new ValidationError("ARCHIVE is supported only for lifecycle entities.");
@@ -214,7 +214,6 @@ function applyArchive(parameters: OperationParameters, op: ApplyBatchOperationPa
   }
   rejectStaleArchive(parameters, op, existing);
   if (recordExistingArchive(parameters, { table, id, existing })) return;
-  if (typeof op.accountId !== "string") throw new ValidationError("An ARCHIVE op needs a string accountId.");
   const now = createServerRevision(existing.updatedAt);
   const archived = { ...archive(existing as unknown as LifecycleRow, now), updatedAt: now };
   store.writeLifecycleRow(op.accountId, table, archived);
@@ -222,7 +221,7 @@ function applyArchive(parameters: OperationParameters, op: ApplyBatchOperationPa
   lifecycleArchives.push({ table, id, archived: true });
 }
 
-function applyDelete(parameters: OperationParameters, op: ApplyBatchOperationParameters["op"]): void {
+function applyDelete(parameters: OperationParameters, op: BatchDeleteOp): void {
   const { db, projection, syncOrder, redactWriteEcho, fieldVisFor } = parameters;
   const { table, id } = op;
   if (table === "accounts") throw new ValidationError("Use the dedicated company deletion endpoint.");

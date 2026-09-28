@@ -6,6 +6,7 @@ import { BatchStateProjection } from "../../BatchStateProjection";
 import { type Db } from "../../db";
 import { type SanitizeWriteOptions } from "../../fieldPolicy";
 import { type SyncOrder } from "../../syncOrdering";
+import type { TableName } from "../../tables";
 import type { TenantStore } from "../../tenantStore";
 
 import type { BatchRouteDependencies } from "../batchRoutes";
@@ -26,14 +27,30 @@ import type { BatchRouteDependencies } from "../batchRoutes";
 // Exported for the test that pins the boundary.
 export const MAX_BATCH_OPS = 5000;
 
-export interface BatchOp {
-  method: "PUT" | "DELETE" | "ARCHIVE";
-  table: string;
+interface BatchOperationBase {
+  table: TableName;
   id: string;
-  row?: Record<string, unknown>;
+}
+
+export interface BatchPutOp extends BatchOperationBase {
+  method: "PUT";
+  row: Record<string, unknown>;
+  accountId?: never;
+}
+
+export interface BatchDeleteOp extends BatchOperationBase {
+  method: "DELETE";
   accountId?: string;
   updatedAt?: string;
 }
+
+export interface BatchArchiveOp extends BatchOperationBase {
+  method: "ARCHIVE";
+  accountId: string;
+  updatedAt?: string;
+}
+
+export type BatchOp = BatchPutOp | BatchDeleteOp | BatchArchiveOp;
 
 export interface ParsedBatchRequest {
   ops: BatchOp[];

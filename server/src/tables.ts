@@ -26,6 +26,8 @@ for (const table of Object.values(TABLE_DEFINITIONS)) assertUniqueTableColumns(t
 
 // Runtime adapters accept untrusted string table names, so expose the checked closed definition
 // through a string index while retaining the exact-key completeness check above.
+export type TableName = keyof typeof TABLE_DEFINITIONS;
+
 export const TABLES: Record<string, TableSpec> = TABLE_DEFINITIONS;
 
 // Parent-before-child order for creates/updates. Deletes use the reverse so a child

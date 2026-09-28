@@ -73,7 +73,7 @@ function createBatchAuthorizer({
 }
 
 function readScopedAccountId(op: BatchOp): string {
-  const accountId = op.method === "PUT" ? op.row?.accountId : op.accountId;
+  const accountId = op.method === "PUT" ? op.row.accountId : op.accountId;
   if (typeof accountId !== "string") {
     throw new Error("A validated scoped batch operation requires an account ID.");
   }
@@ -81,7 +81,7 @@ function readScopedAccountId(op: BatchOp): string {
 }
 
 function resolveScopedAction(op: BatchOp): Action {
-  return op.method === "PUT" && op.table === "clients" && op.row?.builtin === true ? "manageInternalClient" : "write";
+  return op.method === "PUT" && op.table === "clients" && op.row.builtin === true ? "manageInternalClient" : "write";
 }
 
 function authorizeAccountPut(parameters: AuthorizeAccountPutInput): boolean {
