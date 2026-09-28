@@ -20,7 +20,7 @@ new features and **patch** versions carry fixes.
 - Sign-in and other credential limits now count each client by the address the server trusts.
   A client could previously avoid them by sending its own forwarding header, and without one
   every client shared a single allowance (#1308).
-- In the Docker deployment, three failed sign-ins by anyone locked every user out of signing in
+- In the Docker deployment, three sign-in attempts by anyone locked every user out of signing in
   for 10 seconds, because all requests reached the server from the host proxy's address. The
   packaged nginx now passes on the browser's address from a proxy on the host or a private
   network (#1311).

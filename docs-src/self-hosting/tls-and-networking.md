@@ -48,7 +48,10 @@ the API container directly.
 
 - The Docker Compose `web` service binds port 8080 to `127.0.0.1` by default, so only a
   proxy on the same host can reach it. Set `WEB_BIND_IP` only if a private platform load
-  balancer needs to reach the container host over a network you trust.
+  balancer needs to reach the container host over a network you trust. Only that load
+  balancer may reach the bound address, and it must connect from a private address:
+  anyone else on that network could pick their own rate-limit address, and a load balancer
+  with a public source address makes every person share one sign-in allowance.
 - The public edge must overwrite `X-Forwarded-Proto` with the browser-visible scheme —
   not append to it. CapacityLens trusts this single hop for CSRF's same-origin check.
 - The public edge must set `X-Forwarded-For` to the browser's address. The packaged nginx
