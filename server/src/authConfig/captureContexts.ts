@@ -1,13 +1,9 @@
 import type { Db } from "../db";
 import { resolveMailDeliveryCause, type MailSender } from "./mailSender";
-import { cachedStatement } from "../controlTables/preparedStatement";
+import { hasPasswordCredential } from "./tableAccess";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 /** Per-call admin token capture prevents concurrent copy-link requests from swapping tokens. */
-const credentialAccountStatement = cachedStatement(
-  "SELECT 1 FROM account WHERE userId = ? AND providerId = 'credential'",
-);
-
 export const resetTokenCapture = new AsyncLocalStorage<{ token: string | null }>();
 export const passwordResetSessionCapture = new AsyncLocalStorage<{ sessionHandles: readonly string[] }>();
 
@@ -68,7 +64,7 @@ export async function captureResetToken(
     store.token = token;
     return;
   }
-  if (!mail || !credentialAccountStatement(db).get(user.id)) return;
+  if (!mail || !hasPasswordCredential(db, user.id)) return;
   const link = new URL("/reset-password/" + encodeURIComponent(token), publicUrl);
   void mail
     .send({
