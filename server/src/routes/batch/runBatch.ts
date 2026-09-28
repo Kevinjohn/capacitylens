@@ -66,7 +66,7 @@ function buildAuditRecords({
       return {
         ts: auditTs,
         userId,
-        accountId: (op.row as { accountId?: string } | undefined)?.accountId ?? op.id,
+        accountId: (op.row as { accountId?: string }).accountId ?? op.id,
         action,
         entity: op.table,
         id: op.id,
@@ -74,7 +74,6 @@ function buildAuditRecords({
       };
     }
     if (op.method === "ARCHIVE") {
-      if (typeof op.accountId !== "string") throw new Error("An audited archive requires an account ID.");
       return {
         ts: auditTs,
         userId,
@@ -100,7 +99,7 @@ function buildAuditRecords({
 function resolveSyncAccountId(op: BatchOp): string {
   if (op.table === "accounts") return op.id;
   if (op.method === "PUT") {
-    const accountId = op.row?.accountId;
+    const accountId = op.row.accountId;
     if (typeof accountId !== "string") throw new Error("A synced scoped write requires an account ID.");
     return accountId;
   }

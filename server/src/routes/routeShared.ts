@@ -7,7 +7,7 @@ import type { SanitizeWriteOptions } from "../fieldPolicy";
 import { allocationAttributionAllowed } from "@capacitylens/shared/lib/integrity";
 import { clearAllocationAttributionForActivities, type Db, type RewrittenAllocationRevision, upsertRow } from "../db";
 import type { BatchStateProjection } from "../BatchStateProjection";
-import { TABLES } from "../tables";
+import { TABLES, type TableName } from "../tables";
 
 export interface StaleWriteInput {
   existing: Record<string, unknown> | undefined;
@@ -43,7 +43,7 @@ export interface AuthorizeRouteInput {
  */
 export const NO_REPROMPT: AuthorizeRouteInput["options"] = { requireFreshSession: false };
 
-export const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
+export const isKnownTable = (entity: string): entity is TableName =>
   Object.prototype.hasOwnProperty.call(TABLES, entity);
 
 /**

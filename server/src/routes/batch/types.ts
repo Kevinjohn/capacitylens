@@ -6,6 +6,7 @@ import { BatchStateProjection } from "../../BatchStateProjection";
 import { type Db } from "../../db";
 import { type SanitizeWriteOptions } from "../../fieldPolicy";
 import { type SyncOrder } from "../../syncOrdering";
+import type { TableName } from "../../tables";
 import type { TenantStore } from "../../tenantStore";
 
 import type { BatchRouteDependencies } from "../batchRoutes";
@@ -13,14 +14,37 @@ import type { BatchRouteDependencies } from "../batchRoutes";
 // The op-count cap is a client/server protocol limit; its rationale lives with the constant.
 export { MAX_BATCH_OPS } from "@capacitylens/shared/data/transfer";
 
-export interface BatchOp {
-  method: "PUT" | "DELETE" | "ARCHIVE";
-  table: string;
+interface BatchOperationBase {
+  table: TableName;
   id: string;
-  row?: Record<string, unknown>;
+}
+
+/** A validated PUT: its row is a record, whose id is checked against the op id when applied. */
+export interface BatchPutOp extends BatchOperationBase {
+  method: "PUT";
+  row: Record<string, unknown>;
+  accountId?: never;
+}
+
+/** A validated DELETE; scoped tables also carry the owning accountId. */
+export interface BatchDeleteOp extends BatchOperationBase {
+  method: "DELETE";
   accountId?: string;
   updatedAt?: string;
 }
+
+/** A validated ARCHIVE of a lifecycle entity in its owning account. */
+export interface BatchArchiveOp extends BatchOperationBase {
+  method: "ARCHIVE";
+  accountId: string;
+  updatedAt?: string;
+}
+
+/**
+ * One operation after `validateRequest` has checked it. Handlers rely on these shapes instead of
+ * re-checking them; untrusted request bodies never take this type.
+ */
+export type BatchOp = BatchPutOp | BatchDeleteOp | BatchArchiveOp;
 
 export interface ParsedBatchRequest {
   ops: BatchOp[];
