@@ -9,15 +9,8 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { mirrorChildExit } from "./devProcesses.mjs";
-import { assertLaneFree, claimLane } from "./laneClaims.mjs";
-import {
-  LANE_CLAIM_ENVIRONMENT_KEY,
-  LANE_ENVIRONMENT_KEY,
-  SHARE_ENVIRONMENT_KEY,
-  portsForLane,
-  resolveLane,
-  testShare,
-} from "./ports.mjs";
+import { assertLaneFree, resolveLaunchClaim } from "./laneClaims.mjs";
+import { LANE_CLAIM_ENVIRONMENT_KEY, LANE_ENVIRONMENT_KEY, SHARE_ENVIRONMENT_KEY, portsForLane } from "./ports.mjs";
 
 const worktree = fileURLToPath(new URL("../", import.meta.url)).replace(/\/$/, "");
 const [command, ...args] = process.argv.slice(2);
@@ -27,13 +20,10 @@ if (!command) {
   process.exit(2);
 }
 
-// A lane is inherited only when an outer launcher supplied both its lane and claim marker. A lane
-// selected by hand still needs its own reservation and release.
-const inherited = Boolean(process.env[LANE_CLAIM_ENVIRONMENT_KEY]) && Boolean(process.env[LANE_ENVIRONMENT_KEY]);
-const selectedLane = process.env[LANE_ENVIRONMENT_KEY] ? resolveLane() : undefined;
-const claim = inherited
-  ? { lane: resolveLane(), share: testShare(), token: process.env[LANE_CLAIM_ENVIRONMENT_KEY], release: () => false }
-  : claimLane({ worktree, ...(selectedLane === undefined ? {} : { lane: selectedLane }) });
+// An inherited lane belongs to an outer launcher, which also releases it; a hand-selected lane is
+// reserved and released here like an automatic one.
+const claim = resolveLaunchClaim({ worktree });
+const { inherited } = claim;
 
 let released = false;
 function release() {

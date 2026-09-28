@@ -23,7 +23,16 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { LANE_CEILING, portsForLane, reservationCeiling, soloShare } from "./ports.mjs";
+import {
+  LANE_CEILING,
+  LANE_CLAIM_ENVIRONMENT_KEY,
+  LANE_ENVIRONMENT_KEY,
+  portsForLane,
+  reservationCeiling,
+  resolveLane,
+  soloShare,
+  testShare,
+} from "./ports.mjs";
 import { portInUse } from "./devProcesses.mjs";
 
 const MUTEX_STALE_MS = 30_000;
@@ -307,4 +316,24 @@ export function releaseLane(directory, lane, token) {
   if (!claim || claim.pid !== process.pid || claim.token !== token) return false;
   removeQuietly(path);
   return true;
+}
+
+/**
+ * The lane a launch runs in. A lane is inherited only when an outer launcher supplied both its lane
+ * and claim marker; that claim is never released here. Otherwise this launch claims its own lane —
+ * the one selected by hand when the lane variable is set, else the lowest free one.
+ */
+export function resolveLaunchClaim({ worktree, environment = process.env, claim = claimLane } = {}) {
+  const selected = Boolean(environment[LANE_ENVIRONMENT_KEY]);
+  if (selected && environment[LANE_CLAIM_ENVIRONMENT_KEY]) {
+    return {
+      inherited: true,
+      lane: resolveLane(environment),
+      share: testShare(environment),
+      token: environment[LANE_CLAIM_ENVIRONMENT_KEY],
+      release: () => false,
+    };
+  }
+  const claimed = claim({ worktree, environment, ...(selected ? { lane: resolveLane(environment) } : {}) });
+  return { inherited: false, ...claimed };
 }

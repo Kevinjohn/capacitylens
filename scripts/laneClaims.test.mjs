@@ -23,6 +23,7 @@ import {
   listenerPid,
   releaseLane,
   releaseMutex,
+  resolveLaunchClaim,
   shareForClaims,
 } from "./laneClaims.mjs";
 import { LANE_CEILING, LANE_CLAIM_ENVIRONMENT_KEY, portsForLane } from "./ports.mjs";
@@ -380,41 +381,41 @@ test("both launchers report child startup failures with exit status 2", () => {
   assert.equal(server.status, 2);
 });
 
-test("a top-level pinned launcher writes its lane claim and a marked child does not", () => {
-  const pinnedEnvironment = scratch();
-  const pinned = spawnSync(
-    process.execPath,
-    [
-      new URL("./with-lane.mjs", import.meta.url).pathname,
-      process.execPath,
-      "-e",
-      `const { existsSync } = require("node:fs");
-       const { join } = require("node:path");
-       process.exit(existsSync(join(process.env.XDG_CACHE_HOME, "capacitylens", "lanes", "4.json")) ? 0 : 1);`,
-    ],
-    {
-      env: { ...process.env, ...pinnedEnvironment, CAPACITYLENS_PORT_LANE: "4" },
-      encoding: "utf8",
-    },
-  );
-  assert.equal(pinned.status, 0, pinned.stderr);
+test("a hand-selected lane is claimed exactly and a marked child inherits without claiming", () => {
+  const pinnedEnvironment = { ...scratch(), CAPACITYLENS_PORT_LANE: "4" };
+  const pinned = resolveLaunchClaim({ worktree: "/tmp/pinned", environment: pinnedEnvironment });
+  try {
+    assert.equal(pinned.inherited, false);
+    assert.equal(pinned.lane, 4);
+    assert.equal(existsSync(join(laneDirectory(pinnedEnvironment), "4.json")), true);
+  } finally {
+    pinned.release();
+  }
 
-  const inheritedEnvironment = scratch();
-  const inherited = spawnSync(
-    process.execPath,
-    [new URL("./with-lane.mjs", import.meta.url).pathname, process.execPath, "-e", "process.exit(0)"],
+  const inheritedEnvironment = { ...scratch(), CAPACITYLENS_PORT_LANE: "4", [LANE_CLAIM_ENVIRONMENT_KEY]: "outer" };
+  const inherited = resolveLaunchClaim({
+    worktree: "/tmp/nested",
+    environment: inheritedEnvironment,
+    claim: () => assert.fail("a marked child must not claim a lane"),
+  });
+  assert.deepEqual(
+    { inherited: inherited.inherited, lane: inherited.lane, token: inherited.token },
     {
-      env: {
-        ...process.env,
-        ...inheritedEnvironment,
-        CAPACITYLENS_PORT_LANE: "4",
-        [LANE_CLAIM_ENVIRONMENT_KEY]: "outer-claim",
-      },
-      encoding: "utf8",
+      inherited: true,
+      lane: 4,
+      token: "outer",
     },
   );
-  assert.equal(inherited.status, 0, inherited.stderr);
-  assert.equal(existsSync(join(laneDirectory(inheritedEnvironment), "4.json")), false);
+  assert.equal(inherited.release(), false);
+
+  const unmarked = { ...scratch() };
+  const automatic = resolveLaunchClaim({ worktree: "/tmp/automatic", environment: unmarked });
+  try {
+    assert.equal(automatic.inherited, false);
+    assert.equal(existsSync(join(laneDirectory(unmarked), `${automatic.lane}.json`)), true);
+  } finally {
+    automatic.release();
+  }
 });
 
 test("the reservation shrinks as the pool fills and never reaches zero", () => {
