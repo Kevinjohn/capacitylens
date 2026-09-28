@@ -9,6 +9,7 @@ import { openDb } from "../db";
 import { upsertMember } from "./members";
 import {
   clearAccountMemberResourceLink,
+  isAccountMemberResourceConflict,
   listAccountMemberResourceLinks,
   listResourceAvatarProjection,
   reconcileAccountMemberResources,
@@ -95,17 +96,6 @@ describe("account member resource links", () => {
         now: NOW,
       }),
     ).toThrow(/already linked/);
-    // Invitation acceptance recovers from this conflict by its code, never by its wording.
-    expect(() =>
-      setAccountMemberResourceLink({
-        db,
-        accountId: "a1",
-        userId: "u2",
-        resourceId: "r1",
-        expectedRevision: null,
-        now: NOW,
-      }),
-    ).toThrow(expect.objectContaining({ name: "AccountMemberResourceConflict", code: "resource_already_linked" }));
     expect(() =>
       setAccountMemberResourceLink({
         db,
@@ -116,6 +106,27 @@ describe("account member resource links", () => {
         now: NOW,
       }),
     ).toThrow(/no longer available/);
+  });
+
+  it("gives only the already-linked conflict the code invitation acceptance recovers from", () => {
+    const link = (userId: string, resourceId: string) => () =>
+      setAccountMemberResourceLink({ db, accountId: "a1", userId, resourceId, expectedRevision: null, now: NOW });
+    const thrownBy = (action: () => unknown): unknown => {
+      try {
+        action();
+      } catch (error) {
+        return error;
+      }
+      throw new Error("Expected the link to be rejected.");
+    };
+    link("u1", "r1")();
+    const alreadyLinked = thrownBy(link("u2", "r1"));
+    const unavailable = thrownBy(link("u2", "placeholder"));
+
+    expect(isAccountMemberResourceConflict(alreadyLinked, "resource_already_linked")).toBe(true);
+    expect(isAccountMemberResourceConflict(unavailable)).toBe(true);
+    expect(isAccountMemberResourceConflict(unavailable, "resource_already_linked")).toBe(false);
+    expect(isAccountMemberResourceConflict(new Error("already linked"), "resource_already_linked")).toBe(false);
   });
 
   // eslint-disable-next-line max-lines-per-function
