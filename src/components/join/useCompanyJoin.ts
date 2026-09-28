@@ -9,59 +9,25 @@ import { readApiError } from "../../lib/readApiError";
 import { replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
 import { m } from "@/i18n";
 import { runExternalSignIn } from "../invites/externalSignIn";
+import { readMetadata, readStatus, resolveJoinStatus } from "./joinStatus";
+import type { Metadata } from "./joinStatus";
 
 type Stage = "loading" | "entry" | "pending" | "approved" | "second-factor" | "joined" | "error" | "local";
-interface Metadata {
-  companyName: string;
-  passwordAvailable: boolean;
-  providerAvailable: boolean;
-  emailVerificationAvailable: boolean;
-}
-
-function readMetadata(value: unknown): Metadata | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const row = value as Record<string, unknown>;
-  if (
-    typeof row.companyName !== "string" ||
-    !row.companyName.trim() ||
-    typeof row.passwordAvailable !== "boolean" ||
-    typeof row.providerAvailable !== "boolean"
-  )
-    return null;
-  return {
-    companyName: row.companyName,
-    passwordAvailable: row.passwordAvailable,
-    providerAvailable: row.providerAvailable,
-    emailVerificationAvailable: row.emailVerificationAvailable === true,
-  };
-}
-
-// eslint-disable-next-line complexity -- Provider status has independent optional fields from two endpoints.
-function readStatus(value: unknown): {
-  state: "expired" | "pending" | "approved";
-  accountId?: string;
-  purpose?: string;
-  providerId?: string;
-  email?: string;
-  emailHint?: string;
-  deliveryUnavailable?: boolean;
-} | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const row = value as Record<string, unknown>;
-  if (row.state !== "expired" && row.state !== "pending" && row.state !== "approved") return null;
-  return {
-    state: row.state,
-    ...(typeof row.accountId === "string" ? { accountId: row.accountId } : {}),
-    ...(typeof row.purpose === "string" ? { purpose: row.purpose } : {}),
-    ...(typeof row.providerId === "string" ? { providerId: row.providerId } : {}),
-    ...(typeof row.email === "string" ? { email: row.email } : {}),
-    ...(typeof row.emailHint === "string" ? { emailHint: row.emailHint } : {}),
-    ...(row.deliveryUnavailable === true ? { deliveryUnavailable: true } : {}),
-  };
-}
-
 async function responseError(response: Response): Promise<string> {
   return (await readApiError(response)) ?? m.joining_failed();
+}
+
+async function readJoinResponses([metadataResponse, statusResponse, microsoftResponse]: [
+  Response,
+  Response,
+  Response,
+]) {
+  if (!metadataResponse.ok || !statusResponse.ok || !microsoftResponse.ok) throw new Error();
+  const metadata = readMetadata(await metadataResponse.json());
+  const local = readStatus(await statusResponse.json());
+  const microsoft = readStatus(await microsoftResponse.json());
+  if (!metadata || !local || !microsoft) throw new Error();
+  return { metadata, local, microsoft };
 }
 
 // eslint-disable-next-line max-lines-per-function -- The account-keyed journey coordinates provider, password MFA and completion state.
@@ -94,7 +60,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   useEffect(() => {
     if (!accountId || !isServerConfigured()) return;
     const request = { active: true };
-    // eslint-disable-next-line complexity -- Reconcile the two provider proof states with the current account and purpose.
+    const isRequestActive = () => request.active;
     void (async () => {
       try {
         const [metadataResponse, statusResponse, microsoftResponse] = await Promise.all([
@@ -102,31 +68,26 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
           companyJoinClient.status(),
           hasMicrosoft ? companyJoinClient.microsoftStatus() : Promise.resolve(Response.json({ state: "expired" })),
         ]);
-        if (!request.active) return;
-        if (!metadataResponse.ok || !statusResponse.ok || !microsoftResponse.ok) throw new Error();
-        const decodedMetadata = readMetadata(await metadataResponse.json());
-        const localStatus = readStatus(await statusResponse.json());
-        const microsoftStatus = readStatus(await microsoftResponse.json());
-        if (!decodedMetadata || !localStatus || !microsoftStatus) throw new Error();
-        setMetadata(decodedMetadata);
+        if (!isRequestActive()) return;
+        const decoded = await readJoinResponses([metadataResponse, statusResponse, microsoftResponse]);
+        if (!isRequestActive()) return;
+        setMetadata(decoded.metadata);
         if (new URLSearchParams(window.location.search).has("externalSignInError"))
           setError(m.joining_provider_failed());
-        const purpose = invitationToken ? "invitation" : "policy";
-        const microsoftMatches =
-          microsoftStatus.accountId === accountId &&
-          microsoftStatus.purpose === purpose &&
-          microsoftStatus.state !== "expired";
-        const status = microsoftMatches ? microsoftStatus : localStatus;
-        if (status.accountId !== accountId || status.purpose !== purpose || status.state === "expired") {
+        const status = resolveJoinStatus({
+          accountId,
+          purpose: invitationToken ? "invitation" : "policy",
+          local: decoded.local,
+          microsoft: decoded.microsoft,
+        });
+        if (!status.matched) {
           setStage("entry");
           return;
         }
-        setEmailHint(status.emailHint ?? "");
+        setEmailHint(status.emailHint);
         if (status.email) setEmail(status.email);
-        setProviderId(status.providerId ?? null);
-        if (status.state === "approved") setStage("approved");
-        else if (status.providerId === "microsoft") setStage("pending");
-        else setStage("entry");
+        setProviderId(status.providerId);
+        setStage(status.stage);
         if (status.deliveryUnavailable) setError(m.joining_mail_failed());
       } catch {
         if (request.active) {
@@ -180,24 +141,28 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     });
   };
 
-  const resend = async () => {
-    if (busy || providerId !== "microsoft") return;
+  const runAction = async (fallback: string, action: () => Promise<void>) => {
     setBusy(true);
     setError(null);
     try {
-      const response = await companyJoinClient.microsoftResend();
-      if (!response.ok) throw new Error(await responseError(response));
+      await action();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : m.joining_failed());
+      setError(cause instanceof Error ? cause.message : fallback);
     } finally {
       setBusy(false);
     }
   };
 
+  const resend = async () => {
+    if (busy || providerId !== "microsoft") return;
+    await runAction(m.joining_failed(), async () => {
+      const response = await companyJoinClient.microsoftResend();
+      if (!response.ok) throw new Error(await responseError(response));
+    });
+  };
+
   const restart = async () => {
-    setBusy(true);
-    setError(null);
-    try {
+    await runAction(m.joining_failed(), async () => {
       const responses = await Promise.all([
         companyJoinClient.cancel(),
         ...(hasMicrosoft ? [companyJoinClient.microsoftCancel()] : []),
@@ -205,11 +170,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
       const failed = responses.find((response) => !response.ok);
       if (failed) throw new Error(await responseError(failed));
       setStage("entry");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : m.joining_failed());
-    } finally {
-      setBusy(false);
-    }
+    });
   };
 
   const finish = async (response: Response) => {
@@ -258,9 +219,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   const signInAndJoin = async (event: FormEvent) => {
     event.preventDefault();
     if (busy || invitationToken) return;
-    setBusy(true);
-    setError(null);
-    try {
+    await runAction(m.joining_failed(), async () => {
       if (!user) {
         const signIn = await authClient.signIn.email({ email, password: existingPassword });
         if (signIn.error) throw new Error(signIn.error.message ?? m.login_failed());
@@ -270,19 +229,13 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
         }
       }
       await completeExisting();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : m.joining_failed());
-    } finally {
-      setBusy(false);
-    }
+    });
   };
 
   const verifySecondFactor = async (event: FormEvent) => {
     event.preventDefault();
     if (busy || (!secondFactorVerified && !secondFactorCode)) return;
-    setBusy(true);
-    setError(null);
-    try {
+    await runAction(m.login_network_error(), async () => {
       if (!secondFactorVerified) {
         const result = useRecoveryCode
           ? await authClient.twoFactor.verifyBackupCode({ code: secondFactorCode, trustDevice: false })
@@ -291,28 +244,18 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
         setSecondFactorVerified(true);
       }
       await completeExisting();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : m.login_network_error());
-    } finally {
-      setBusy(false);
-    }
+    });
   };
 
   const completeProvider = async () => {
     if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
+    await runAction(m.joining_failed(), async () => {
       await finish(
         await (providerId === "microsoft"
           ? companyJoinClient.completeMicrosoft(invitationToken)
           : companyJoinClient.completeProvider(invitationToken)),
       );
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : m.joining_failed());
-    } finally {
-      setBusy(false);
-    }
+    });
   };
 
   const eligibleProviders = metadata?.providerAvailable
