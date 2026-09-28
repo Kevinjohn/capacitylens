@@ -17,8 +17,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
-- Invitation and joining-verification emails are limited to five an hour per address and
-  fifty invitation emails an hour per company, so they cannot be used to flood a mailbox or
+- Invitation emails are limited to five an hour per address from each company and fifty an hour
+  per company, and joining-verification emails to five an hour per address, so they cannot be
+  used to flood a mailbox or
   exhaust the mail quota. Over the budget an invitation is still created with its copy link
   (#1324).
 - A save made while someone else was signing up could be confirmed and then lost if that

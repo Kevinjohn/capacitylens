@@ -214,8 +214,10 @@ applies only in production. The server identifies each client the same way for e
 by the connection address, or by the proxy's `X-Forwarded-For` when proxy headers are trusted
 (see `CAPACITYLENS_TRUST_PROXY_HEADERS`). A client cannot choose its own address.
 
-Invitation and joining-verification emails have a fixed send budget in every mode: five an hour to any
-one address, and fifty invitation emails an hour from any one company. Over the budget an
+Invitation and joining-verification emails have a fixed send budget in every mode. A company can
+send five invitation emails an hour to any one address and fifty in total, and one address can
+receive five joining-verification emails an hour. One company's invitations never use up another
+company's budget or a person's own verification emails. Over the budget an
 invitation is still created and its link can be copied and shared by hand; a joining
 verification request is refused until the hour has passed. The budget resets when the server
 restarts.

@@ -18,8 +18,11 @@ export class MailBudgetExceededError extends Error {
   }
 }
 
-/** Cap user-triggered mail per recipient and per company over a rolling hour. The server is one
- * process, so an in-memory window covers every send; a restart only resets it early. Password
+/** Cap user-triggered mail per recipient and per company over a rolling hour. The recipient budget
+ * is kept per company (and separately for uncharged sends such as joining verification), so one
+ * company's administrator cannot spend it and block another company's invitation or the recipient's
+ * own verification email. The server is one process, so an in-memory window covers every send; a
+ * restart only resets it early. Password
  * reset and Microsoft proof keep their own limiters and must not share this budget: a stranger
  * could otherwise spend it on a victim's address and block the victim's own recovery mail. */
 export function withSendBudget(sender: MailSender, now: () => number = Date.now): MailSender {
@@ -29,7 +32,10 @@ export function withSendBudget(sender: MailSender, now: () => number = Date.now)
     async send(message) {
       // Forget expired recipients so a long-running server keeps only the last hour.
       for (const [key, times] of sent) if (!times.some((at) => at > now() - HOUR_MS)) sent.delete(key);
-      const budgets: [string, number][] = [[`to:${normalizeAccountEmail(message.to)}`, RECIPIENT_SENDS_PER_HOUR]];
+      const chargedTo = message.accountId === undefined ? "uncharged" : `company:${message.accountId}`;
+      const budgets: [string, number][] = [
+        [`to:${chargedTo}:${normalizeAccountEmail(message.to)}`, RECIPIENT_SENDS_PER_HOUR],
+      ];
       if (message.accountId !== undefined) budgets.push([`company:${message.accountId}`, COMPANY_SENDS_PER_HOUR]);
       if (budgets.some(([key, limit]) => recent(key).length >= limit)) throw new MailBudgetExceededError();
       // Count the attempt before awaiting delivery, so concurrent requests cannot overspend.

@@ -61,3 +61,13 @@ it("counts company sends only for messages charged to that company", async () =>
   await budgeted.send(message("late@example.test"));
   expect(send).toHaveBeenCalledTimes(52);
 });
+
+it("keeps one company's sends to a recipient from blocking another company's or uncharged sends", async () => {
+  const send = vi.fn().mockResolvedValue(undefined);
+  const budgeted = withSendBudget({ send }, () => 0);
+  for (let sent = 0; sent < 5; sent += 1) await budgeted.send(message("diana@example.test", "a1"));
+  await expect(budgeted.send(message("diana@example.test", "a1"))).rejects.toBeInstanceOf(MailBudgetExceededError);
+  await budgeted.send(message("diana@example.test", "a2"));
+  await budgeted.send(message("diana@example.test"));
+  expect(send).toHaveBeenCalledTimes(7);
+});
