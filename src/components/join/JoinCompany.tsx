@@ -182,7 +182,7 @@ function JoinCompanyForAccount({ accountId, invitationToken }: { accountId: stri
           <CardContent className="flex flex-col gap-4">
             <FieldError>{flow.error}</FieldError>
             <JoinContent flow={flow} invitationToken={invitationToken} />
-            {flow.emailProofRequired && flow.passwordAvailable && (
+            {flow.emailProofRequired && flow.emailVerificationAvailable && (
               <div className="flex flex-col gap-2">
                 <Button
                   type="button"

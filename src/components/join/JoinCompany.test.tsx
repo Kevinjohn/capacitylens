@@ -50,6 +50,7 @@ function stubJoin(
         companyName: "Wayne Enterprises",
         passwordAvailable: true,
         providerAvailable,
+        emailVerificationAvailable: true,
       });
     if (url.endsWith("/api/company-join/status")) return Response.json(status());
     if (url.endsWith("/api/account/microsoft/status")) return Response.json({ state: "expired" });
@@ -292,4 +293,31 @@ it("drops a rejected verification fragment so the next attempt can request a new
     "http://api.test/api/company-join/verify-email",
     "http://api.test/api/accounts/a-studio/join/complete-existing",
   ]);
+});
+
+it("does not offer email verification where the server cannot send it", async () => {
+  const fetchMock = stubJoin((url) => {
+    if (url.endsWith("/join/complete-existing")) return Response.json({ error: "proof unavailable" }, { status: 401 });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  const stubbed = fetchMock.getMockImplementation();
+  if (!stubbed) throw new Error("Expected the join fetch stub.");
+  fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+    String(input).endsWith("/join/metadata")
+      ? Response.json({
+          accountId: "a-studio",
+          companyName: "Wayne Enterprises",
+          passwordAvailable: true,
+          providerAvailable: false,
+          emailVerificationAvailable: false,
+        })
+      : stubbed(input, init),
+  );
+  const user = userEvent.setup();
+  renderJoin();
+  await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
+  await user.type(screen.getByLabelText("Password"), "password");
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  expect(await screen.findByText(/no current trusted proof of its email address/)).toBeInTheDocument();
+  expect(screen.queryByTestId("joining-verify-email")).not.toBeInTheDocument();
 });

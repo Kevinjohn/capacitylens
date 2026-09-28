@@ -68,6 +68,8 @@ function registerMetadata(app: FastifyInstance, input: Dependencies): void {
       companyName: row.name,
       passwordAvailable: allowsPasswordSignIn(input.authMode),
       providerAvailable: allowsProviderSignIn(input.authMode),
+      // Only offer the verification link where the send route can deliver it.
+      emailVerificationAvailable: allowsPasswordSignIn(input.authMode) && input.auth.mail != null,
     };
   });
 }

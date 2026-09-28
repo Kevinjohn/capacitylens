@@ -15,6 +15,7 @@ interface Metadata {
   companyName: string;
   passwordAvailable: boolean;
   providerAvailable: boolean;
+  emailVerificationAvailable: boolean;
 }
 
 function readMetadata(value: unknown): Metadata | null {
@@ -31,6 +32,7 @@ function readMetadata(value: unknown): Metadata | null {
     companyName: row.companyName,
     passwordAvailable: row.passwordAvailable,
     providerAvailable: row.providerAvailable,
+    emailVerificationAvailable: row.emailVerificationAvailable === true,
   };
 }
 
@@ -323,6 +325,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     requestEmailVerification,
     metadata,
     passwordAvailable: metadata?.passwordAvailable === true && authMode !== "sso-only",
+    emailVerificationAvailable: metadata?.emailVerificationAvailable === true && authMode !== "sso-only",
     email,
     emailHint,
     providerId,

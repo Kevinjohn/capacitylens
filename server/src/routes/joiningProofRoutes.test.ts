@@ -285,3 +285,12 @@ it("surfaces failed delivery and rejects caller-supplied addresses", async () =>
   expect(failed.statusCode, failed.body).toBe(503);
   expect(failed.body).not.toContain("private transport detail");
 });
+
+it("reports email verification as available only when mail can be sent", async () => {
+  const metadata = async (mail: boolean) => {
+    const { app } = await fixture({ mail });
+    return (await app.inject({ method: "GET", url: "/api/accounts/a-studio/join/metadata" })).json();
+  };
+  expect(await metadata(true)).toMatchObject({ passwordAvailable: true, emailVerificationAvailable: true });
+  expect(await metadata(false)).toMatchObject({ passwordAvailable: true, emailVerificationAvailable: false });
+});
