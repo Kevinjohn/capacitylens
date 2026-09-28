@@ -192,6 +192,28 @@ function claimPath(directory, lane) {
   return join(directory, `${lane}.json`);
 }
 
+/**
+ * Live claims by lane, read without the mutex and without deleting anything, so a report can never
+ * remove a claim that a concurrent starter is still writing.
+ */
+export function readLiveClaims(directory) {
+  const claims = new Map();
+  let names;
+  try {
+    names = readdirSync(directory);
+  } catch (error) {
+    if (error.code === "ENOENT") return claims;
+    throw error;
+  }
+  for (const name of names) {
+    const match = /^(\d+)\.json$/.exec(name);
+    if (!match) continue;
+    const claim = readClaim(join(directory, name));
+    if (claim && !claim.corrupt && processAlive(claim.pid)) claims.set(Number(match[1]), claim);
+  }
+  return claims;
+}
+
 /** Live claims only; a claim whose pid has gone is deleted as it is found. */
 function collectLiveClaimsAndPruneStaleFiles(directory) {
   const claims = new Map();

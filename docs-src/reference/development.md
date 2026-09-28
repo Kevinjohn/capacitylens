@@ -67,7 +67,17 @@ Two deliberate exceptions:
 - Documentation screenshots are captured by hand on `:5199`, which no automated run binds.
 
 If a lane's port is still held when a run claims it, the launcher reports the process by pid and
-working directory, then stops. Stop that process yourself or select another lane before retrying.
+working directory, then stops. It never kills anything itself. To see what is holding the lanes, and
+to stop servers left behind by earlier runs:
+
+```bash
+pnpm run lanes                  # every lane port in use: pid, directory, and the run that owns it
+pnpm run lanes --stop-orphans   # stop listeners from this repository's worktrees that no live run owns
+```
+
+`--stop-orphans` leaves claimed lanes and other checkouts' processes alone. It also stops a server
+started directly in one of this repository's worktrees without the launcher, since nothing records
+that such a server is still wanted.
 
 An empty `VITE_CAPACITYLENS_API` means same-origin server mode. A non-empty value must be
 an absolute HTTP(S) origin with no credentials, path, query or fragment; surrounding
