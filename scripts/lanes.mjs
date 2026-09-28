@@ -51,20 +51,23 @@ export async function surveyLanes({
   owner = listenerPid,
   directoryOf = listenerDirectory,
 } = {}) {
-  const claims = readLiveClaims(laneDirectory(environment));
   const roots = worktrees.map(canonical);
-  const rows = [];
+  const listeners = [];
   for (let lane = 0; lane < LANE_CEILING; lane += 1) {
-    const claim = claims.get(lane) ?? null;
     for (const [service, port] of Object.entries(portsForLane(lane))) {
       if (!(await probe(port))) continue;
       const pid = owner(port);
-      const directory = pid === null ? null : directoryOf(pid);
-      const orphan = pid !== null && claim === null && insideAny(directory, roots);
-      rows.push({ lane, service, port, pid, directory, claim, orphan });
+      listeners.push({ lane, service, port, pid, directory: pid === null ? null : directoryOf(pid) });
     }
   }
-  return rows;
+  // Read claims only after the scan: a launcher writes its claim before its server listens, so a run
+  // that started during the scan is already claimed here and never mistaken for a leftover.
+  const claims = readLiveClaims(laneDirectory(environment));
+  return listeners.map((listener) => {
+    const claim = claims.get(listener.lane) ?? null;
+    const orphan = listener.pid !== null && claim === null && insideAny(listener.directory, roots);
+    return { ...listener, claim, orphan };
+  });
 }
 
 /**
