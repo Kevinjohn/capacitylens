@@ -6,6 +6,7 @@ import {
   captureGoogleEmailProof,
   captureVerifiedFederatedEmailProof,
   ensureFederatedEmailProofGate,
+  recordPasswordEmailProof,
 } from "./federatedEmailProof";
 
 function proofDatabase() {
@@ -150,6 +151,26 @@ it.each([
     expect(captured?.active).toBe(false);
     expect(captured?.email).toBeNull();
     expect(captured?.subject).toBeNull();
+  } finally {
+    db.close();
+  }
+});
+
+it("keeps a provider's proof of the same address when a password link confirms it", () => {
+  const db = proofDatabase();
+  try {
+    db.prepare(
+      `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+      VALUES ('principal-a', 'alpha@example.test', 'microsoft', '2026-09-01T00:00:00.000Z')`,
+    ).run();
+    expect(recordPasswordEmailProof(db, "principal-a", "alpha@example.test")).toBe(true);
+    expect(recordPasswordEmailProof(db, "principal-b", "beta@example.test")).toBe(true);
+    expect(
+      db.prepare("SELECT principalId, email, source FROM identity_email_proofs ORDER BY principalId").all(),
+    ).toEqual([
+      { principalId: "principal-a", email: "alpha@example.test", source: "microsoft" },
+      { principalId: "principal-b", email: "beta@example.test", source: "password" },
+    ]);
   } finally {
     db.close();
   }

@@ -1,6 +1,9 @@
 import { allowsPasswordSignIn, allowsProviderSignIn, type AccountMode } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { mintJoinEmailProofToken, verifyJoinEmailProofToken } from "../accounts/adminPort/joiningIntentSecrets";
+import { readPrincipalEmail, recordPasswordEmailProof } from "../authConfig/federatedEmailProof";
+import { resolveMailDeliveryCause } from "../authConfig/mailSender";
 import type { Db } from "../db";
 import { createJoiningProviderLifecycle } from "../accounts/adminPort/joiningProviderLifecycle";
 import { completeExistingPolicyJoin } from "../accounts/adminPort/joiningAdmission";
@@ -65,6 +68,8 @@ function registerMetadata(app: FastifyInstance, input: Dependencies): void {
       companyName: row.name,
       passwordAvailable: allowsPasswordSignIn(input.authMode),
       providerAvailable: allowsProviderSignIn(input.authMode),
+      // Only offer the verification link where the send route can deliver it.
+      emailVerificationAvailable: allowsPasswordSignIn(input.authMode) && input.auth.mail != null,
     };
   });
 }
@@ -151,24 +156,83 @@ function registerProviderRoutes(app: FastifyInstance, input: Dependencies): void
   );
 }
 
+function requirePasswordPrincipal(req: FastifyRequest, input: Dependencies): string {
+  if (!allowsPasswordSignIn(input.authMode)) invalid("Password joining is unavailable.");
+  if (
+    !req.accountActor ||
+    (req.accountActor.assurance !== "password" && req.accountActor.assurance !== "mfa") ||
+    (input.requireMfa && !req.accountActor.mfaSatisfied)
+  ) {
+    throw createAccountFailure("AUTHENTICATION_REQUIRED", "Sign in with your password and complete MFA to continue.");
+  }
+  return req.accountActor.principalId;
+}
+
+function requirePrincipalEmail(db: Db, principalId: string): string {
+  const email = readPrincipalEmail(db, principalId);
+  if (!email) invalid();
+  return email;
+}
+
+function registerEmailProofSendRoute(app: FastifyInstance, input: Dependencies): void {
+  app.post(
+    "/api/accounts/:accountId/join/verify-email",
+    { config: { rateLimit: { max: 3, timeWindow: "10 minutes" } } },
+    (req, reply) =>
+      respond(reply, input.fail, async () => {
+        const principalId = requirePasswordPrincipal(req, input);
+        if (!input.auth.mail) invalid("Email verification is unavailable.");
+        if (Object.keys(bodyObject(req.body)).length !== 0) invalid();
+        const email = requirePrincipalEmail(input.db, principalId);
+        const token = mintJoinEmailProofToken(input.secret, {
+          principalId,
+          email,
+          expiresAt: Date.now() + 60 * 60 * 1000,
+        });
+        const { accountId } = req.params as { accountId: string };
+        const link = new URL("/join/" + encodeURIComponent(accountId) + "#verify=" + token, input.publicUrl);
+        try {
+          await input.auth.mail.send({
+            to: email,
+            subject: "Verify your email to join a company",
+            text: `Open this link while signed in to verify your email and join the company. The link expires in 60 minutes.\n\n${link.href}`,
+          });
+        } catch (cause) {
+          // Log only the redacted transport cause; never credentials, the link or the address.
+          req.log.error({ cause: resolveMailDeliveryCause(cause) }, "Joining email verification delivery failed");
+          throw createAccountFailure("DEPENDENCY_UNAVAILABLE", "Verification email could not be sent.");
+        }
+        return { sent: true };
+      }),
+  );
+}
+
+function registerEmailProofConfirmRoute(app: FastifyInstance, input: Dependencies): void {
+  app.post("/api/company-join/verify-email", (req, reply) =>
+    respond(reply, input.fail, () => {
+      const principalId = requirePasswordPrincipal(req, input);
+      const body = bodyObject(req.body);
+      if (typeof body.token !== "string" || Object.keys(body).length !== 1) invalid();
+      const proof = verifyJoinEmailProofToken(input.secret, body.token, Date.now());
+      if (!proof || proof.principalId !== principalId) invalid();
+      const email = requirePrincipalEmail(input.db, principalId);
+      if (proof.email !== email) invalid();
+      if (!recordPasswordEmailProof(input.db, principalId, email)) {
+        // A policy refusal, not a server fault: this address would restrict an active Owner.
+        throw createAccountFailure("FORBIDDEN", "This address cannot be verified for this account.");
+      }
+      return { ok: true };
+    }),
+  );
+}
+
 function registerCompletionRoutes(app: FastifyInstance, input: Dependencies): void {
   app.post("/api/accounts/:accountId/join/complete-existing", (req, reply) =>
     respond(reply, input.fail, () => {
-      if (!allowsPasswordSignIn(input.authMode)) invalid("Password joining is unavailable.");
-      if (
-        !req.accountActor ||
-        (req.accountActor.assurance !== "password" && req.accountActor.assurance !== "mfa") ||
-        (input.requireMfa && !req.accountActor.mfaSatisfied)
-      ) {
-        throw createAccountFailure(
-          "AUTHENTICATION_REQUIRED",
-          "Sign in with your password and complete MFA to continue.",
-        );
-      }
+      const principalId = requirePasswordPrincipal(req, input);
       const body = bodyObject(req.body);
       if (Object.keys(body).length !== 0) invalid();
       const { accountId } = req.params as { accountId: string };
-      const principalId = req.accountActor.principalId;
       return completeExistingPolicyJoin({
         db: input.db,
         applicationId: input.applicationId,
@@ -235,4 +299,6 @@ export function registerJoiningProofRoutes(app: FastifyInstance, input: Dependen
   registerLifecycleRoutes(app, lifecycle);
   registerProviderRoutes(app, input);
   registerCompletionRoutes(app, input);
+  registerEmailProofSendRoute(app, input);
+  registerEmailProofConfirmRoute(app, input);
 }

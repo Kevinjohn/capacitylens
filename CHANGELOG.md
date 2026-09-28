@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Password users can verify their email by link to join through an open or approved-domain
+  company policy when email delivery is enabled (#1300).
+
 - Optional SMTP delivery for addressed invitations and **Forgot password?** email recovery.
   Admin password-reset copy-links remain available without email (#1312).
 

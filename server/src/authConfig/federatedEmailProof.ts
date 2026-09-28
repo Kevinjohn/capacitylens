@@ -27,7 +27,8 @@ function captureVerifiedFacts(input: ProviderFact): { subject: string; email: st
   return { subject: input.subject, email };
 }
 
-function assertOwnerCanKeepAccess(db: Db, principalId: string, email: string): void {
+/** True when this proof would disable an active Owner through an address restriction. */
+function conflictsWithOwnerAccess(db: Db, principalId: string, email: string): boolean {
   const owner = db
     .prepare(
       `SELECT 1 FROM account_members AS member
@@ -36,7 +37,13 @@ function assertOwnerCanKeepAccess(db: Db, principalId: string, email: string): v
       AND (restriction.principalId = ? OR restriction.verifiedEmail = ?) LIMIT 1`,
     )
     .get(principalId, principalId, email);
-  if (owner) throw new Error("Verified address conflicts with company Owner access.");
+  return owner !== undefined;
+}
+
+function assertOwnerCanKeepAccess(db: Db, principalId: string, email: string): void {
+  if (conflictsWithOwnerAccess(db, principalId, email)) {
+    throw new Error("Verified address conflicts with company Owner access.");
+  }
 }
 
 /** Store only the exact address verified by this provider in this callback. */
@@ -55,11 +62,36 @@ export function captureVerifiedFederatedEmailProof(db: Db, input: ProviderFact):
   if (normalizeAccountEmail(existing.email) !== email) return;
   tx(db, () => {
     assertOwnerCanKeepAccess(db, existing.userId, email);
-    db.prepare(
-      `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
-      VALUES (?, ?, ?, ?) ON CONFLICT(principalId) DO UPDATE SET
-      email = excluded.email, source = excluded.source, provenAt = excluded.provenAt`,
-    ).run(existing.userId, email, input.providerId, new Date().toISOString());
+    upsertEmailProof(db, { principalId: existing.userId, email, source: input.providerId });
+  });
+}
+
+type EmailProof = { principalId: string; email: string; source: ProvenProvider | "password" };
+
+function upsertEmailProof(db: Db, { principalId, email, source }: EmailProof): void {
+  db.prepare(
+    `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+    VALUES (?, ?, ?, ?) ON CONFLICT(principalId) DO UPDATE SET
+    email = excluded.email, source = excluded.source, provenAt = excluded.provenAt`,
+  ).run(principalId, email, source, new Date().toISOString());
+}
+
+/** The principal's saved address, normalised, or null when the principal no longer exists. */
+export function readPrincipalEmail(db: Db, principalId: string): string | null {
+  const principal = db.prepare("SELECT email FROM user WHERE id = ?").get(principalId) as { email: string } | undefined;
+  return principal ? normalizeAccountEmail(principal.email) : null;
+}
+
+/** Record mailbox proof of the current address; false when it would disable an active Owner. */
+export function recordPasswordEmailProof(db: Db, principalId: string, email: string): boolean {
+  return tx(db, () => {
+    if (conflictsWithOwnerAccess(db, principalId, email)) return false;
+    // Keep an existing proof of this same address: replacing a provider's source would make that
+    // provider repeat its mailbox ceremony and refuse a joining step already in progress.
+    const existing = db.prepare("SELECT email FROM identity_email_proofs WHERE principalId = ?").get(principalId) as
+      { email: string } | undefined;
+    if (existing?.email !== email) upsertEmailProof(db, { principalId, email, source: "password" });
+    return true;
   });
 }
 

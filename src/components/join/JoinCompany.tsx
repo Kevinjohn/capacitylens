@@ -182,6 +182,23 @@ function JoinCompanyForAccount({ accountId, invitationToken }: { accountId: stri
           <CardContent className="flex flex-col gap-4">
             <FieldError>{flow.error}</FieldError>
             <JoinContent flow={flow} invitationToken={invitationToken} />
+            {flow.emailProofRequired && flow.emailVerificationAvailable && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  data-testid="joining-verify-email"
+                  disabled={flow.busy}
+                  onClick={() => void flow.requestEmailVerification()}
+                >
+                  {m.joining_verify_email()}
+                </Button>
+                {flow.verificationSent && (
+                  <p role="status" data-testid="joining-verify-email-status" className="text-sm text-muted-foreground">
+                    {m.joining_verify_email_sent()}
+                  </p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

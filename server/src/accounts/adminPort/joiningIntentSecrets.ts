@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 
 const SECRET_RE = /^[A-Za-z0-9_-]{43}$/;
 
@@ -42,4 +42,62 @@ export function joiningCookie(input: { name: string; value: string; secure: bool
 
 export function joiningEmailHint(email: string): string {
   return `${email.slice(0, 1)}***${email.slice(email.indexOf("@"))}`;
+}
+
+/** Sign with a key derived for this purpose only, so the application secret is never used directly. */
+function signJoinEmailProof(secret: string, payload: string): Buffer {
+  const key = createHmac("sha256", secret).update("join-email-proof-key").digest();
+  return createHmac("sha256", key)
+    .update("join-email-proof\0" + payload)
+    .digest();
+}
+
+/** Sign current-address proof with a domain-separated HMAC; expiry is epoch milliseconds. */
+export function mintJoinEmailProofToken(
+  secret: string,
+  input: { principalId: string; email: string; expiresAt: number },
+): string {
+  const payload = Buffer.from(JSON.stringify({ p: input.principalId, e: input.email, x: input.expiresAt })).toString(
+    "base64url",
+  );
+  return `${payload}.${signJoinEmailProof(secret, payload).toString("base64url")}`;
+}
+
+/** Return verified claims, or null so the route can surface invalid or expired proof. */
+export function verifyJoinEmailProofToken(
+  secret: string,
+  token: string,
+  now: number,
+): { principalId: string; email: string } | null {
+  const parts = token.split(".");
+  const [payload, signature] = parts;
+  if (parts.length !== 2 || !payload || !signature || !/^[A-Za-z0-9_-]+$/.test(payload) || !SECRET_RE.test(signature))
+    return null;
+  const expected = signJoinEmailProof(secret, payload);
+  const actual = Buffer.from(signature, "base64url");
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
+  return parseJoinEmailProofClaims(payload, now);
+}
+
+function parseJoinEmailProofClaims(payload: string, now: number): { principalId: string; email: string } | null {
+  let claims: unknown;
+  try {
+    claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+  } catch {
+    // Malformed credentials are surfaced by the caller as invalid proof.
+    return null;
+  }
+  if (!claims || typeof claims !== "object") return null;
+  const { p, e, x } = claims as Record<string, unknown>;
+  if (
+    typeof p !== "string" ||
+    !p ||
+    typeof e !== "string" ||
+    !e ||
+    typeof x !== "number" ||
+    !Number.isFinite(x) ||
+    x <= now
+  )
+    return null;
+  return { principalId: p, email: e };
 }

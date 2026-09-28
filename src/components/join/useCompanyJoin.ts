@@ -15,6 +15,7 @@ interface Metadata {
   companyName: string;
   passwordAvailable: boolean;
   providerAvailable: boolean;
+  emailVerificationAvailable: boolean;
 }
 
 function readMetadata(value: unknown): Metadata | null {
@@ -31,6 +32,7 @@ function readMetadata(value: unknown): Metadata | null {
     companyName: row.companyName,
     passwordAvailable: row.passwordAvailable,
     providerAvailable: row.providerAvailable,
+    emailVerificationAvailable: row.emailVerificationAvailable === true,
   };
 }
 
@@ -76,6 +78,17 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   const [secondFactorVerified, setSecondFactorVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [verificationToken, setVerificationToken] = useState(() =>
+    new URLSearchParams(window.location.hash.slice(1)).get("verify"),
+  );
+  const [emailProofRequired, setEmailProofRequired] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  useEffect(() => {
+    // Keep the one-time token out of the address bar and history once it is held in state.
+    if (verificationToken) {
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+    }
+  }, [verificationToken]);
   const hasMicrosoft = providers.some((provider) => provider.id === "microsoft");
 
   useEffect(() => {
@@ -209,9 +222,37 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
 
   const completeExisting = async () => {
     if (!accountId) return;
+    if (verificationToken) {
+      // Drop the token first: a failed or expired link must not block later attempts.
+      setVerificationToken(null);
+      const confirmed = await companyJoinClient.confirmJoinEmailVerification(verificationToken);
+      if (!confirmed.ok) throw new Error(await responseError(confirmed));
+    }
     const response = await companyJoinClient.completeExisting(accountId);
-    if (response.status === 401) throw new Error(m.joining_trusted_proof_required());
+    if (response.status === 401) {
+      setEmailProofRequired(true);
+      throw new Error(m.joining_trusted_proof_required());
+    }
     await finish(response);
+  };
+
+  const requestEmailVerification = async () => {
+    if (!accountId || busy) return;
+    setBusy(true);
+    setError(null);
+    setVerificationSent(false);
+    try {
+      const response = await companyJoinClient.requestJoinEmailVerification(accountId);
+      if (!response.ok) {
+        setError(m.joining_mail_failed());
+        return;
+      }
+      setVerificationSent(true);
+    } catch {
+      setError(m.joining_mail_failed());
+    } finally {
+      setBusy(false);
+    }
   };
 
   const signInAndJoin = async (event: FormEvent) => {
@@ -279,8 +320,12 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     : [];
   return {
     stage,
+    emailProofRequired,
+    verificationSent,
+    requestEmailVerification,
     metadata,
     passwordAvailable: metadata?.passwordAvailable === true && authMode !== "sso-only",
+    emailVerificationAvailable: metadata?.emailVerificationAvailable === true && authMode !== "sso-only",
     email,
     emailHint,
     providerId,
