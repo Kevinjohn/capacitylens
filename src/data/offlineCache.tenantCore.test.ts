@@ -18,6 +18,8 @@ import {
   setOfflineReadEnabled,
 } from "./offlineCache";
 
+import { resetOfflineState } from "./offline/state";
+
 const DB_NAME = "capacitylens-offline-v1";
 const STORE_NAME = "records";
 const KEY_STORE_NAME = "keys";
@@ -125,6 +127,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetOfflineState();
   localStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
@@ -175,6 +178,45 @@ describe("offline tenant cache", () => {
 
 describe("offline tenant cache write failures", () => {
   registerTenantCacheHooks();
+  it("keeps a failed tenant warning until that tenant write succeeds", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const slice = accountSlice("a-studio");
+    const cause = new Error("slice encryption failed");
+    vi.spyOn(crypto.subtle, "encrypt").mockRejectedValueOnce(cause);
+
+    await expect(cacheAccountSlice("a-studio", slice)).rejects.toBe(cause);
+    expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(true);
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ kind: "written" });
+    expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(true);
+
+    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ kind: "written" });
+    expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(false);
+  });
+
+  it("ignores a write failure that settles after the failures were cleared", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    let markEncryptStarted: () => void = () => {};
+    const encryptStarted = new Promise<void>((resolve) => {
+      markEncryptStarted = resolve;
+    });
+    let failEncrypt: (error: Error) => void = () => {};
+    vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(() => {
+      markEncryptStarted();
+      return new Promise<ArrayBuffer>((_, reject) => {
+        failEncrypt = reject;
+      });
+    });
+
+    const write = cacheAccountSlice("a-studio", accountSlice("a-studio"));
+    await encryptStarted;
+    resetOfflineState();
+    const cause = new Error("slice encryption failed");
+    failEncrypt(cause);
+
+    await expect(write).rejects.toBe(cause);
+    expect(readOfflineStateSnapshot().cacheWriteFailed).toBe(false);
+  });
+
   it("does not suppress a retry after a failed slice write", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     const slice = accountSlice("a-studio");

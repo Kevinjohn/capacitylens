@@ -6,7 +6,7 @@ import {
   OFFLINE_WORKER_URL,
   SHELL_ACTIVATION_TIMEOUT_MS,
 } from "./constants";
-import { isOfflineReadEnabled, publishPreference, setOfflineCacheWriteFailed } from "./state";
+import { isOfflineReadEnabled, publishPreference, clearOfflineCacheWriteFailures } from "./state";
 import { assertWebCrypto, readOrCreateDeviceKey, initialiseWriteBoundary } from "./crypto";
 import { openOfflineDb } from "./idb";
 import { clearAllOfflineData } from "./cleanup";
@@ -115,7 +115,7 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
 
     localStorage.removeItem(OFFLINE_PREF_KEY);
     publishPreference();
-    setOfflineCacheWriteFailed(false);
+    clearOfflineCacheWriteFailures();
     await clearAllOfflineData();
     if (!("serviceWorker" in navigator)) return;
     const registrations = await navigator.serviceWorker.getRegistrations();

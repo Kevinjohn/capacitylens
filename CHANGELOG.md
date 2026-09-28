@@ -20,6 +20,8 @@ new features and **patch** versions carry fixes.
 - Dev tooling now reserves explicitly selected port lanes, reports missing `lsof`, and stops with
   instructions instead of terminating a process that occupies a lane (#1316, #1317, #1322).
   `pnpm run lanes` lists what holds each lane, and `--stop-orphans` stops leftover servers.
+- Pending offline snapshots no longer restore data after offline access is disabled (#1320).
+- Offline cache warnings stay visible until the failed snapshot is saved successfully (#1321).
 - Invitation emails are limited to five an hour per address from each company and fifty an hour
   per company, and joining-verification emails to five an hour per address, so they cannot be
   used to flood a mailbox or
