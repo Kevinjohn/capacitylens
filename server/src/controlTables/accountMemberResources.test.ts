@@ -95,6 +95,17 @@ describe("account member resource links", () => {
         now: NOW,
       }),
     ).toThrow(/already linked/);
+    // Invitation acceptance recovers from this conflict by its code, never by its wording.
+    expect(() =>
+      setAccountMemberResourceLink({
+        db,
+        accountId: "a1",
+        userId: "u2",
+        resourceId: "r1",
+        expectedRevision: null,
+        now: NOW,
+      }),
+    ).toThrow(expect.objectContaining({ name: "AccountMemberResourceConflict", code: "resource_already_linked" }));
     expect(() =>
       setAccountMemberResourceLink({
         db,
