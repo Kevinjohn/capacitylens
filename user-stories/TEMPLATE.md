@@ -9,6 +9,7 @@ stated precondition with no other setup.
 
 **Area:** <area> · **Persona:** <who> · **Linked E2E:** `e2e/<file>.spec.ts` → "<test title>"
 _(use **Coverage:** with a unit test or "manual" instead when no dedicated E2E test exists)_
+**Documentation:** <link to the guide page or section that explains how to do this>
 
 ## Goal
 <one sentence — the outcome the user wants>
