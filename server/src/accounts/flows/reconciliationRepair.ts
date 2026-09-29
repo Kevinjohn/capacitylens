@@ -87,8 +87,9 @@ export function parseStoredReconciliationRepair(
   let parsed: unknown;
   try {
     parsed = JSON.parse(row.resultJson);
-  } catch (error) {
-    throw new CorruptAccountCommandStateError(row.commandId, { cause: error });
+  } catch {
+    // No cause: the parser's message quotes the stored metadata, and this error is logged.
+    throw new CorruptAccountCommandStateError(row.commandId);
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new CorruptAccountCommandStateError(row.commandId);
