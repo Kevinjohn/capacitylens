@@ -1383,11 +1383,14 @@ it.each(corruptRepairMetadata)(
       .prepare(`SELECT status, resultJson FROM account_commands WHERE commandId = ?`)
       .get(command.commandId);
 
-    await expect(flows.reconcileCommand({ command, operation })).rejects.toMatchObject({
+    const failure: unknown = await flows.reconcileCommand({ command, operation }).catch((error: unknown) => error);
+    expect(failure).toMatchObject({
       name: "CorruptAccountCommandStateError",
       code: "ACCOUNT_COMMAND_STATE_CORRUPT",
       commandId: command.commandId,
     });
+    // The error is logged, so it must not carry a parser message quoting the stored bytes.
+    expect(failure).not.toHaveProperty("cause");
     expect(
       currentDb().prepare(`SELECT status, resultJson FROM account_commands WHERE commandId = ?`).get(command.commandId),
     ).toEqual(stored);

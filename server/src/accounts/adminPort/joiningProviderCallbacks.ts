@@ -36,8 +36,11 @@ export function currentJoiningProviderFacts(providerId: string | null): JoiningP
 }
 
 export class JoiningProviderCallbackError extends Error {
-  constructor(readonly code = "company_join_expired") {
-    super(code);
+  constructor(
+    readonly code = "company_join_expired",
+    options?: ErrorOptions,
+  ) {
+    super(code, options);
   }
 }
 
@@ -55,8 +58,8 @@ function assertCallbackIntent(db: Db, capture: CallbackContext): JoinIntent {
   }
   try {
     assertJoinIntentTargetLive(db, intent);
-  } catch {
-    throw new JoiningProviderCallbackError("company_join_policy_changed");
+  } catch (error) {
+    throw new JoiningProviderCallbackError("company_join_policy_changed", { cause: error });
   }
   return intent;
 }

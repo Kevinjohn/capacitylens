@@ -4,7 +4,7 @@ import type { Db } from "../db";
 /** Map a provider picture claim: valid HTTPS updates while absent or invalid input clears. */
 export function mapExternalAvatar(value: unknown): { image?: string } {
   const parsed = parseResourceAvatarUrl(value);
-  return { image: ((parsed.ok ? parsed.value : null) ?? null) as unknown as string };
+  return { image: (parsed ?? null) as unknown as string };
 }
 
 /** Persist only the avatar claim for an existing provider/subject link; identity fields remain local-authority. */

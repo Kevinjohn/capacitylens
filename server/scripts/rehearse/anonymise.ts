@@ -199,6 +199,7 @@ function parseSourceApprovedDomains(policies: IdentityAddressRows["policies"]): 
     try {
       parsed = JSON.parse(value) as unknown;
     } catch {
+      // No cause: the parser's message quotes the source text, and rehearsal never prints tenant content.
       throw new Error("Invalid approved domain list in rehearsal source.");
     }
     if (!Array.isArray(parsed)) throw new Error("Invalid approved domain list in rehearsal source.");
