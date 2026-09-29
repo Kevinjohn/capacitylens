@@ -19,6 +19,24 @@ import {
 const trustedLocalProposalFailure = () =>
   new AccountContractError({ code: "FORBIDDEN", message: "Forbidden.", retryable: false });
 
+/** The account-route members the invitation handlers read. */
+type InvitationRouteContext = Pick<
+  AccountRouteContext,
+  | "administration"
+  | "auditUnlessReplayed"
+  | "authMode"
+  | "authenticationConfigured"
+  | "authorize"
+  | "command"
+  | "fail"
+  | "flows"
+  | "invitationMail"
+  | "isKnownRole"
+  | "permittedCompanyProviderIds"
+  | "requiredSsoProviderId"
+  | "validationFailed"
+>;
+
 type ParseResult<T, E> = { value: T; failure?: never } | { failure: E; value?: never };
 
 function parsePreauthorizedEmail(
@@ -97,7 +115,7 @@ function parseCreateInvitationAuthorizationInput({
   };
 }
 
-export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const {
     authMode,
     administration: accountAdminPort,
@@ -164,7 +182,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   }
 }
 
-export async function previewInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function previewInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const { administration: accountAdminPort, fail: accountFail } = context;
 
   const { token } = req.params as { token: string };
@@ -183,7 +201,7 @@ export async function previewInvitation(req: FastifyRequest, reply: FastifyReply
   }
 }
 
-function permitsInvitationProvider(req: FastifyRequest, context: AccountRouteContext): boolean {
+function permitsInvitationProvider(req: FastifyRequest, context: InvitationRouteContext): boolean {
   if (context.authMode !== "sso-only") return true;
   const providerId = req.authenticationProviderId;
   return (
@@ -192,7 +210,7 @@ function permitsInvitationProvider(req: FastifyRequest, context: AccountRouteCon
   );
 }
 
-export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const {
     authMode,
     administration: accountAdminPort,
@@ -252,7 +270,7 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
   }
 }
 
-export async function signupInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function signupInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const { authMode, authenticationConfigured, flows, command, fail, auditUnlessReplayed } = context;
   if (!allowsPasswordSignIn(authMode) || !authenticationConfigured) {
     return reply.code(404).send({ error: "Not found." });
@@ -287,7 +305,7 @@ export async function signupInvitation(req: FastifyRequest, reply: FastifyReply,
   }
 }
 
-export async function listInvitations(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function listInvitations(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const { authMode, administration: accountAdminPort, authorize, fail: accountFail } = context;
 
   const { accountId } = req.params as { accountId: string };
@@ -317,7 +335,7 @@ export async function listInvitations(req: FastifyRequest, reply: FastifyReply, 
   }
 }
 
-export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const {
     administration: accountAdminPort,
     authorize,
@@ -363,7 +381,7 @@ async function sendInvitationEmail({
   invite,
 }: {
   req: FastifyRequest;
-  context: AccountRouteContext;
+  context: Pick<InvitationRouteContext, "invitationMail">;
   invite: Awaited<ReturnType<AccountRouteContext["administration"]["createInvitation"]>>;
 }): Promise<boolean> {
   const mail = context.invitationMail;

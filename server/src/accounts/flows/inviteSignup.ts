@@ -316,9 +316,8 @@ async function acceptInviteWithPasswordSignup(
 }
 
 export function createInviteSignupFlows(
-  context: LocalAccountFlowContext,
+  dependencies: InviteSignupDependencies,
 ): Pick<LocalAccountFlows, "acceptInviteWithPasswordSignup"> {
-  const dependencies: InviteSignupDependencies = context;
   return {
     acceptInviteWithPasswordSignup: (input) => acceptInviteWithPasswordSignup(dependencies, input),
   };
