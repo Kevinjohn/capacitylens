@@ -35,7 +35,7 @@ async function seedUser(request: APIRequestContext, email = EMAIL) {
   if (!res.ok()) expect(res.status()).toBe(422);
 }
 
-function registerSuiteScenario1() {
+function registerUnauthenticatedVisitShowsLoginScreenTest() {
   test("unauthenticated visit shows the login screen, not the app — and the API 401s", async ({ page, request }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
@@ -66,7 +66,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerSigningRevealsAppSigningOutTest() {
   test("signing in reveals the app; signing out from Account via the sidebar returns to the login screen", async ({
     page,
     request,
@@ -116,7 +116,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerCreateOwnerAdminAdminBootstrapTest() {
   test("the --create-owner-admin-admin bootstrap credential signs in through the real form", async ({
     page,
     request,
@@ -142,7 +142,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerLoginMembershipsSeesEMPTYPickerTests() {
   test("a login with NO memberships sees an EMPTY picker (tenant isolation — no cross-tenant leak)", async ({
     page,
     request,
@@ -175,8 +175,8 @@ function registerSuiteScenario4() {
 }
 
 test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
+  registerUnauthenticatedVisitShowsLoginScreenTest();
+  registerSigningRevealsAppSigningOutTest();
+  registerCreateOwnerAdminAdminBootstrapTest();
+  registerLoginMembershipsSeesEMPTYPickerTests();
 });

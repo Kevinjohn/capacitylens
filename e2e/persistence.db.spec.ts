@@ -9,13 +9,13 @@ import { resetServer, serverState, requireStateRows } from "./serverTestState";
 // (there is no localStorage fallback), so a surviving record proves a real server
 // round-trip: UI → store → adapter → PUT/DELETE → SQLite → GET on reload.
 
-function registerSuiteScenario1() {
+function registerBeforeEachHooks() {
   test.beforeEach(async ({ request }) => {
     await resetServer(request, true); // wipe + re-seed before each test
   });
 }
 
-function registerSuiteScenario2() {
+function registerHydratesSeededDatasetServerLoadTest() {
   test("hydrates the seeded dataset from the server on load", async ({ page }) => {
     await openApp(page); // picks "Wayne Enterprises" from the server-seeded accounts
     // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/state → UI.
@@ -23,7 +23,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerCreateReloadNewClientRoundTest() {
   test("create + reload: a new client round-trips through the DB", async ({ page, request }) => {
     await openApp(page);
     await page.getByRole("link", { name: "Clients" }).click();
@@ -49,7 +49,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerRepeatCreationPersistsAllAllocationTest() {
   test("repeat creation persists all allocation PUTs through one atomic client batch", async ({ page, request }) => {
     const before = requireStateRows(await serverState(request), "allocations");
     const batchBodies: Array<{ ops?: Array<{ method?: string; table?: string; id?: string }> }> = [];
@@ -90,7 +90,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerEditReloadRenameRoundTripsTest() {
   test("edit + reload: a rename round-trips through the DB", async ({ page, request }) => {
     await openApp(page);
     await page.getByRole("link", { name: "Clients" }).click();
@@ -120,7 +120,7 @@ function registerSuiteScenario5() {
   });
 }
 
-function registerSuiteScenario6() {
+function registerEditFreshHydrationEngagementHalfTest() {
   test("edit + fresh hydration: engagement and half days survive the server round-trip", async ({ page, request }) => {
     await openApp(page);
     await page.getByRole("link", { name: "Resources" }).click();
@@ -160,7 +160,7 @@ function registerSuiteScenario6() {
 // the DB (the archive route sets archivedAt; it is NOT a hard delete), but it is HIDDEN from the
 // active views (useActiveScopedData) and STAYS hidden across a reload — the real server round-trip
 // this proves: UI archive → POST .../archive → reload → still absent from the active list.
-function registerSuiteScenario7() {
+function registerArchiveReloadArchivedClientRetainedTests() {
   test("archive + reload: an archived client is retained in the DB but hidden from the active view", async ({
     page,
     request,
@@ -206,11 +206,11 @@ function registerSuiteScenario7() {
 }
 
 test.describe("database-backed persistence", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
-  registerSuiteScenario7();
+  registerBeforeEachHooks();
+  registerHydratesSeededDatasetServerLoadTest();
+  registerCreateReloadNewClientRoundTest();
+  registerRepeatCreationPersistsAllAllocationTest();
+  registerEditReloadRenameRoundTripsTest();
+  registerEditFreshHydrationEngagementHalfTest();
+  registerArchiveReloadArchivedClientRetainedTests();
 });
