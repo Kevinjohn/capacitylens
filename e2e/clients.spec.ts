@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 import { openApp, showScheduleFilters } from "./browserTestSupport";
 
 // Covers US-CLI-01..03.
-function registerSuiteScenario1() {
+function registerAddsClientMakesAvailableScheduleTest() {
   test("adds a client and makes it available as a schedule filter", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
@@ -19,7 +19,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerOwnerCanAddPrivateClientTest() {
   test("an owner can add a private client with a code name", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
@@ -41,7 +41,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerRejectsEmojiJunkCharactersNameTest() {
   test("rejects emoji / junk characters in a name and blocks the save", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
@@ -57,7 +57,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerEditsClientRenameReflectsProjectTest() {
   test("edits a client and the rename reflects in project labels", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page
@@ -80,7 +80,7 @@ function registerSuiteScenario4() {
 // P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
 // a hard cascade-delete). Its projects keep their OWN active status (archiving filters by each row's
 // own status, it does not cascade), so they stay visible; archiving is undoable via the local store.
-function registerSuiteScenario5() {
+function registerArchivingClientHidesListRestorableTests() {
   test("archiving a client hides it from the list, restorable with undo", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page
@@ -101,9 +101,9 @@ function registerSuiteScenario5() {
 }
 
 test.describe("Clients", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
+  registerAddsClientMakesAvailableScheduleTest();
+  registerOwnerCanAddPrivateClientTest();
+  registerRejectsEmojiJunkCharactersNameTest();
+  registerEditsClientRenameReflectsProjectTest();
+  registerArchivingClientHidesListRestorableTests();
 });

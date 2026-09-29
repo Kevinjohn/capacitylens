@@ -5,13 +5,13 @@ import { waitForAppLanding, freezeBrowserDate, openApp } from "./browserTestSupp
 
 const PERSISTENCE_WARNING = "Changes aren’t being saved right now — we’ll keep retrying.";
 
-function registerSuiteScenario1() {
+function registerBeforeEachHooks() {
   test.beforeEach(async ({ request }) => {
     await resetServer(request, true);
   });
 }
 
-function registerSuiteScenario2() {
+function registerInitialStateFailurePreventsEditingTest() {
   test("an initial state failure prevents editing and Retry recovers the real server data", async ({ page }) => {
     const stateFailure = await failRequestsUntilReleased(page, "**/api/state", {
       status: 503,
@@ -36,7 +36,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerFailedSaveStaysVisiblyUnsavedTest() {
   test("a failed save stays visibly unsaved, retries, and persists exactly once", async ({ page, request }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     const batchFailure = await failRequestsUntilReleased(page, "**/api/batch", {
@@ -71,7 +71,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerStaleConcurrentEditRejectedExplainedTests() {
   test("a stale concurrent edit is rejected, explained, and replaced by server truth", async ({
     page,
     request,
@@ -112,8 +112,8 @@ function registerSuiteScenario4() {
 }
 
 test.describe("database-backed resilience", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
+  registerBeforeEachHooks();
+  registerInitialStateFailurePreventsEditingTest();
+  registerFailedSaveStaysVisiblyUnsavedTest();
+  registerStaleConcurrentEditRejectedExplainedTests();
 });

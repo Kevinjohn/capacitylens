@@ -22,7 +22,7 @@ const OWNER = `owner-${STAMP}@capacitylens.dev`;
 const JOINER = `joiner-${STAMP}@capacitylens.dev`;
 const NEW_JOINER = `new-joiner-${STAMP}@capacitylens.dev`;
 
-function registerSuiteScenario1() {
+function registerSignedUserOpensValidInviteTest() {
   test("a signed-in user opens a valid invite link and joins; reusing the token is 409", async ({ page, request }) => {
     test.setTimeout(60_000);
     // Owner A: sign up (auto-signed-in → session cookie), bootstrap an org, mint an invite. The
@@ -112,7 +112,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerNewPreAuthorizedIdentitySignsTests() {
   test("a new pre-authorized identity signs up and enters the invited company", async ({ page, request }) => {
     test.setTimeout(60_000);
 
@@ -148,8 +148,8 @@ function registerSuiteScenario2() {
 }
 
 test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
+  registerSignedUserOpensValidInviteTest();
+  registerNewPreAuthorizedIdentitySignsTests();
 
   test("a maximum-length addressed hint wraps within a narrow invitation preview", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 1000 });

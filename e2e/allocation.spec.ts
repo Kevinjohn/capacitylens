@@ -10,7 +10,7 @@ import {
 
 // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
 // clicking a bar. Seed bars live in June 2026, so each test explicitly opens that visible week.
-function registerSuiteScenario1() {
+function registerBeforeEachHooks() {
   test.beforeEach(async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -18,7 +18,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerCreatesAllocationRowButtonAssigneeTest() {
   test("creates an allocation from the row + button (assignee preselected)", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
@@ -35,7 +35,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerSeparatesAllocationScopesSortsChoicesTest() {
   test("separates allocation scopes, sorts choices and uses compact status and note controls", async ({ page }) => {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
@@ -83,7 +83,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerCreatesUndoesWeeklyRepeatBatchTest() {
   test("creates and undoes a weekly repeat batch", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
@@ -118,7 +118,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerCreatesThreeWeeksDirectDateTest() {
   test("creates every-three-weeks from direct date input", async ({ page }) => {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
@@ -136,7 +136,7 @@ function registerSuiteScenario5() {
   });
 }
 
-function registerSuiteScenario6() {
+function registerEditsMonthlyOccurrenceDeletesSeriesTest() {
   test("edits one monthly occurrence, deletes its series tail and restores the tail with one Undo", async ({
     page,
   }) => {
@@ -196,7 +196,7 @@ function registerSuiteScenario6() {
   });
 }
 
-function registerSuiteScenario7() {
+function registerEditsAllocationReflectsChangeBarTest() {
   test("edits an allocation and reflects the change on the bar", async ({ page }) => {
     await page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit allocation" });
@@ -206,7 +206,7 @@ function registerSuiteScenario7() {
   });
 }
 
-function registerSuiteScenario8() {
+function registerDuplicatesAllocationEditDialogTest() {
   test("duplicates an allocation from the edit dialog", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
@@ -218,7 +218,7 @@ function registerSuiteScenario8() {
   });
 }
 
-function registerSuiteScenario9() {
+function registerDeletesAllocationEditDialogRestoresTest() {
   test("deletes an allocation from the edit dialog and ⌘Z restores it", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
@@ -263,7 +263,7 @@ function registerSuiteScenario9() {
   });
 }
 
-function registerSuiteScenario10() {
+function registerAddsNewActivityInlineUsesTest() {
   test("adds a new activity inline and uses it for the allocation", async ({ page }) => {
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     const inlineActivityCreation = page.getByRole("switch", { name: "Inline activity creation" });
@@ -283,7 +283,7 @@ function registerSuiteScenario10() {
   });
 }
 
-function registerSuiteScenario11() {
+function registerReassignsAllocationAnotherResourceDialogTest() {
   test("reassigns an allocation to another resource via the dialog", async ({ page }) => {
     await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).click();
     await selectShadOption(page.getByRole("dialog", { name: "Edit allocation" }).getByLabel("Assignee"), "r-nike");
@@ -294,7 +294,7 @@ function registerSuiteScenario11() {
   });
 }
 
-function registerSuiteScenario12() {
+function registerSnapsProjectPlaceholderBoundProjectTest() {
   test("snaps the project to a placeholder bound project when chosen", async ({ page }) => {
     // Placeholders are hidden by default (per-account pref) — turn them on in Settings first so
     // the seeded placeholder's lane (and its "+" button) appears in the schedule.
@@ -321,7 +321,7 @@ function registerSuiteScenario12() {
   });
 }
 
-function registerSuiteScenario13() {
+function registerRejectsEmptyDatesAcceptsListedTests() {
   test("rejects empty dates and accepts a listed hours option", async ({ page }) => {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
@@ -342,17 +342,17 @@ function registerSuiteScenario13() {
 }
 
 test.describe("Allocation editor", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
-  registerSuiteScenario7();
-  registerSuiteScenario8();
-  registerSuiteScenario9();
-  registerSuiteScenario10();
-  registerSuiteScenario11();
-  registerSuiteScenario12();
-  registerSuiteScenario13();
+  registerBeforeEachHooks();
+  registerCreatesAllocationRowButtonAssigneeTest();
+  registerSeparatesAllocationScopesSortsChoicesTest();
+  registerCreatesUndoesWeeklyRepeatBatchTest();
+  registerCreatesThreeWeeksDirectDateTest();
+  registerEditsMonthlyOccurrenceDeletesSeriesTest();
+  registerEditsAllocationReflectsChangeBarTest();
+  registerDuplicatesAllocationEditDialogTest();
+  registerDeletesAllocationEditDialogRestoresTest();
+  registerAddsNewActivityInlineUsesTest();
+  registerReassignsAllocationAnotherResourceDialogTest();
+  registerSnapsProjectPlaceholderBoundProjectTest();
+  registerRejectsEmptyDatesAcceptsListedTests();
 });
