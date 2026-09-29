@@ -169,16 +169,16 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
       : undefined;
   if (table === "resources" && Object.hasOwn(copy, "avatarUrl") && copy.avatarUrl != null) {
     const parsed = parseResourceAvatarUrl(copy.avatarUrl);
-    if (!parsed.ok) {
+    if (parsed === null) {
       throw new ValidationError("Avatar URL must be an HTTPS URL without embedded credentials.", {
         code: "resource_avatar_url_invalid",
       });
     }
     const resourceKind = typeof copy.kind === "string" ? copy.kind : existing?.kind;
-    if (parsed.value && resourceKind !== "person") {
+    if (parsed !== undefined && resourceKind !== "person") {
       throw new ValidationError("Only a person can have an avatar URL.", { code: "resource_avatar_url_forbidden" });
     }
-    copy.avatarUrl = parsed.value;
+    copy.avatarUrl = parsed;
   }
   assertScopedWriteFields(table, copy, options);
   const cleaned = sanitizeImportedRecord(table, copy);

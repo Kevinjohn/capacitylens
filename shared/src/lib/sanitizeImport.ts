@@ -41,13 +41,12 @@ export { sanitizeAccount } from "./sanitize/account";
 // a non-hex colour can't land in the store and render as broken geometry.
 
 // Resource kinds deliberately share this normalisation boundary so kind transitions are atomic.
-// eslint-disable-next-line complexity
 function sanitizeResource(record: Record<string, unknown>): void {
   const kind = oneOf(record.kind, VALID_KIND, "person");
   const isPlaceholder = isPlaceholderResource({ kind });
   record.kind = kind;
   const avatarUrl = kind === "person" ? parseResourceAvatarUrl(record.avatarUrl) : undefined;
-  if (avatarUrl?.ok && avatarUrl.value) record.avatarUrl = avatarUrl.value;
+  if (avatarUrl !== null && avatarUrl !== undefined) record.avatarUrl = avatarUrl;
   else delete record.avatarUrl;
   if (kind === "external") {
     Object.assign(record, externalCapacityDefaults());
