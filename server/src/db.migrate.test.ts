@@ -1910,7 +1910,7 @@ describe("schema migration of an existing on-disk DB", () => {
     // accounts.schedulingMode is OPTIONAL in the spec (nullable), but here the on-disk column
     // exists as NOT NULL. It's present, so migrateSchema won't touch it and the missing-column
     // check passes — only the nullability check catches that the two sources of truth (TABLES'
-    // optional? flag vs SCHEMA_SQL's NOT NULL) have drifted. Without it, a write that legitimately
+    // optional? flag vs the migrated schema's NOT NULL) have drifted. Without it, a write that legitimately
     // omits schedulingMode would hit a confusing NOT NULL error instead.
     const path = join(tmpdir(), `capacitylens-migrate-null-${process.pid}-${Date.now()}.db`);
     const cleanup = () => {
