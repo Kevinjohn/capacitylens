@@ -58,10 +58,18 @@ function processAlive(pid) {
 }
 
 function readClaim(path) {
+  let text;
   try {
-    return JSON.parse(readFileSync(path, "utf8"));
+    text = readFileSync(path, "utf8");
   } catch (error) {
     if (error.code === "ENOENT") return null;
+    // Any other read failure says nothing about the holder, so reaping the lane would break
+    // invariant 1.
+    throw error;
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
     // A truncated or unparseable claim is treated as abandoned: a run died mid-write.
     return { pid: 0, corrupt: true };
   }

@@ -104,7 +104,7 @@ async function expectCompactMonthLabelsDoNotOverlap(page: Page) {
   }
 }
 
-function registerSuiteScenario1() {
+function registerShowsSeededResourcesGroupingCapacityTest() {
   test("shows seeded resources, grouping and capacity cues", async ({ page }) => {
     await openApp(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
@@ -145,7 +145,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerDrawsNewAllocationEmptyPartTest() {
   test("draws a new allocation on an empty part of a lane", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -173,7 +173,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerDragsBarMoveLaterTest() {
   test("drags a bar to move it later", async ({ page }, testInfo) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -208,7 +208,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerResizesBarEndHandleTest() {
   test("resizes a bar via its end handle", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -231,7 +231,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerZoomingMoreWeeksShrinksDayTest() {
   test("zooming to more weeks shrinks the day columns (same bar gets narrower)", async ({ page }, testInfo) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -256,7 +256,7 @@ function registerSuiteScenario5() {
   });
 }
 
-function registerSuiteScenario6() {
+function registerClickingTodayReCentresTimelineTest() {
   test("clicking Today re-centres the timeline after scrolling away", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
     await openApp(page, "Wayne Enterprises", "/settings");
@@ -309,7 +309,7 @@ function registerSuiteScenario6() {
 // This used to jump straight to August through the date picker. That picker is hidden as of
 // #173, so the same "the header follows the window into another month" behaviour is driven by
 // the controls that remain: Today, then Next a week at a time.
-function registerSuiteScenario7() {
+function registerPaningForwardMovesTimelineNextTest() {
   test("paning forward moves the timeline into the next month", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -324,7 +324,7 @@ function registerSuiteScenario7() {
   });
 }
 
-function registerSuiteScenario8() {
+function registerVerticallyCentresMonthLabelsAcrossTest() {
   test("vertically centres month labels across zoom and density settings", async ({ page }) => {
     await openApp(page);
     await goToSeedWeek(page);
@@ -358,7 +358,7 @@ function registerSuiteScenario8() {
   });
 }
 
-function registerSuiteScenario9() {
+function registerAlignsWideMonthLabelsFirstTest() {
   test("aligns wide month labels to their first visible day and keeps compact labels separate", async ({ page }) => {
     await openApp(page);
     await goToSeedWeek(page);
@@ -421,7 +421,7 @@ async function scrollSchedulerForwardOneWeek(page: Page, grid: Locator) {
     .toBeLessThanOrEqual(2);
 }
 
-function registerSuiteScenario10() {
+function registerShowsDetailPopoverHoverUSTests() {
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -486,7 +486,7 @@ function registerSuiteScenario10() {
   });
 }
 
-function registerSuiteScenario11() {
+function registerShowsOverallPerDisciplineUtilisationTest() {
   test("shows overall and per-discipline utilisation summaries (US-SCH-14)", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("overall-utilization")).toContainText("%");
@@ -494,7 +494,7 @@ function registerSuiteScenario11() {
   });
 }
 
-function registerSuiteScenario12() {
+function registerWeekRangeToggleRecomputesUtilisationTest() {
   test("the week-range toggle recomputes utilisation over the visible window (US-SCH-14)", async ({ page }) => {
     await openApp(page);
     // Own the visible window explicitly instead of relying on the global frozen clock plus the
@@ -562,7 +562,7 @@ function registerSuiteScenario12() {
   });
 }
 
-function registerSuiteScenario13() {
+function registerStacksOverlappingAllocationsOntoTallerTest() {
   test("stacks overlapping allocations onto a taller row (US-SCH-08)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -576,14 +576,14 @@ function registerSuiteScenario13() {
   });
 }
 
-function registerSuiteScenario14() {
+function registerMarksTodayVerticalLineRangeTest() {
   test("marks today with a vertical line when in range (US-SCH-12)", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("today-line").first()).toBeVisible();
   });
 }
 
-function registerSuiteScenario15() {
+function registerAllocationStatusNoteVisuallyDistinctTest() {
   test("allocation status and note are visually distinct on the bar (US-SCH-19)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -615,7 +615,7 @@ function registerSuiteScenario15() {
 // So we turn F2 OFF first — now a free nudge to a mid-week day STICKS, and the ONLY thing that can
 // re-anchor the left edge to a Monday is the navigation branch under test (zoom / Next / Prev).
 // Frozen clock 2026-06-03 (Wed); week origin Monday 2026-06-01 → the 1w view opens flush on "1Mon".
-function registerSuiteScenario16() {
+function registerNavigationReAnchorsLeftEdgeTest() {
   test("navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
     await openApp(page, "Wayne Enterprises", "/settings");
@@ -674,7 +674,7 @@ function registerSuiteScenario16() {
 // of the bar and the scroll container's viewport. The device-global "Snap to week start" pref is
 // turned OFF first: its idle snap animates the scroll position shortly AFTER the scroll is written,
 // and measuring through that animation has produced CI-only flakes before.
-function registerSuiteScenario17() {
+function registerKeepsBarsLabelScreenScrollingTests() {
   test("keeps a bar's label on screen after scrolling past the bar's start (#786)", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     const snap = page.getByRole("switch", { name: "Snap to week start" });
@@ -719,21 +719,21 @@ function registerSuiteScenario17() {
 }
 
 test.describe("Scheduler", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
-  registerSuiteScenario7();
-  registerSuiteScenario8();
-  registerSuiteScenario9();
-  registerSuiteScenario10();
-  registerSuiteScenario11();
-  registerSuiteScenario12();
-  registerSuiteScenario13();
-  registerSuiteScenario14();
-  registerSuiteScenario15();
-  registerSuiteScenario16();
-  registerSuiteScenario17();
+  registerShowsSeededResourcesGroupingCapacityTest();
+  registerDrawsNewAllocationEmptyPartTest();
+  registerDragsBarMoveLaterTest();
+  registerResizesBarEndHandleTest();
+  registerZoomingMoreWeeksShrinksDayTest();
+  registerClickingTodayReCentresTimelineTest();
+  registerPaningForwardMovesTimelineNextTest();
+  registerVerticallyCentresMonthLabelsAcrossTest();
+  registerAlignsWideMonthLabelsFirstTest();
+  registerShowsDetailPopoverHoverUSTests();
+  registerShowsOverallPerDisciplineUtilisationTest();
+  registerWeekRangeToggleRecomputesUtilisationTest();
+  registerStacksOverlappingAllocationsOntoTallerTest();
+  registerMarksTodayVerticalLineRangeTest();
+  registerAllocationStatusNoteVisuallyDistinctTest();
+  registerNavigationReAnchorsLeftEdgeTest();
+  registerKeepsBarsLabelScreenScrollingTests();
 });

@@ -131,8 +131,7 @@ in-memory demo adapter.
 ## Contributing
 
 ```bash
-pnpm run gate         # formatting, generated i18n, typecheck, lint, coverage and build budget
-pnpm run gate:server  # server/shared formatting, typecheck, tests, coverage and architecture checks
+pnpm run gate:all     # app and server: formatting, typecheck, lint, tests, coverage and build budget
 pnpm run e2e          # Chromium demo, database and authentication flows
 ```
 
