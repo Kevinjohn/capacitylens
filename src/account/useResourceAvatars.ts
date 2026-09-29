@@ -23,9 +23,9 @@ function parseProjection(body: unknown): ReadonlyMap<string, string> {
     if (!row || typeof row !== "object") throw new Error("Resource avatars returned an invalid row.");
     const { resourceId, imageUrl } = row as Record<string, unknown>;
     const parsed = parseResourceAvatarUrl(imageUrl);
-    if (typeof resourceId !== "string" || !resourceId || !parsed.ok || !parsed.value)
+    if (typeof resourceId !== "string" || !resourceId || parsed === null || parsed === undefined)
       throw new Error("Resource avatars returned an unsafe row.");
-    next.set(resourceId, parsed.value);
+    next.set(resourceId, parsed);
   }
   return next;
 }

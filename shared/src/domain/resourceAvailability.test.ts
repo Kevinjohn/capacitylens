@@ -11,8 +11,8 @@ const person = (overrides: Record<string, unknown> = {}) => ({
 
 describe("resource availability boundaries", () => {
   it("allows optional unbounded and equal inclusive boundaries", () => {
-    expect(validateResourceAvailabilityPair()).toEqual({ ok: true });
-    expect(validateResourceAvailabilityPair("2026-06-15", "2026-06-15")).toEqual({ ok: true });
+    expect(validateResourceAvailabilityPair()).toEqual({ ok: true, errors: [], codes: [] });
+    expect(validateResourceAvailabilityPair("2026-06-15", "2026-06-15")).toEqual({ ok: true, errors: [], codes: [] });
     expect(() =>
       assertAllocationWithinResourceAvailability({
         allocation: { startDate: "2026-06-15", endDate: "2026-06-15" },
@@ -54,7 +54,11 @@ describe("resource availability boundaries", () => {
         accountWorkingDays: [1, 2, 3, 4, 5],
       }),
     ).not.toThrow();
-    expect(validateResourceAvailabilityPair("2026-06-16", "2026-06-15")).toEqual({ ok: false, code: "date_reversed" });
+    expect(validateResourceAvailabilityPair("2026-06-16", "2026-06-15")).toMatchObject({
+      ok: false,
+      codes: ["date_reversed"],
+    });
+    expect(validateResourceAvailabilityPair("2026-02-30")).toMatchObject({ ok: false, codes: ["date_invalid"] });
   });
 
   it("checks availability only on the company/person effective working-day intersection", () => {

@@ -23,16 +23,20 @@ export type LifecycleAncestryRow = LifecycleFields & {
 
 export type LifecycleAncestryLookup = (table: AppDataKey, id: string) => LifecycleAncestryRow | undefined;
 
-export interface LifecycleAncestryResult {
-  /** False only when a resolved ancestor is inactive; unresolved references remain visible. */
-  visible: boolean;
-  /** Present only for a proven archived/deleted ancestor; missing refs remain the FK guard's job. */
-  inactiveAncestor?: {
-    table: LifecycleEntityKey;
-    id: string;
-    state: Exclude<LifecycleState, "active">;
-  };
-}
+/**
+ * `hidden` only when a resolved ancestor is archived or deleted; unresolved, malformed or
+ * cross-account references stay `visible` because missing refs remain the FK guard's job.
+ */
+export type LifecycleAncestryResult =
+  | { kind: "visible" }
+  | {
+      kind: "hidden";
+      inactiveAncestor: {
+        table: LifecycleEntityKey;
+        id: string;
+        state: Exclude<LifecycleState, "active">;
+      };
+    };
 
 interface LifecycleAncestryRelation {
   child: AppDataKey;
@@ -80,7 +84,7 @@ export type LifecycleAncestryMemo = Map<string, LifecycleAncestryResult>;
 
 /**
  * Inspect only an entity's lifecycle ancestry, not the entity's own lifecycle state. `activeOnly`
- * combines this with its own-state filter; generic writes use `inactiveAncestor` so ordinary
+ * combines this with its own-state filter; generic writes reject a `hidden` result so ordinary
  * missing/cross-account references retain their existing validation messages.
  */
 export function inspectLifecycleAncestry(
@@ -93,7 +97,7 @@ export function inspectLifecycleAncestry(
 
 export function inspectAncestry({ table, row, lookup, memo }: InspectAncestryOptions): LifecycleAncestryResult {
   const relations = CHILD_RELATIONS.get(table);
-  if (!relations) return { visible: true };
+  if (!relations) return { kind: "visible" };
   for (const relation of relations) {
     const parentId = row[relation.field];
     if (relation.optional && parentId === undefined) continue;
@@ -108,15 +112,15 @@ export function inspectAncestry({ table, row, lookup, memo }: InspectAncestryOpt
       const state = lifecycleStatus(parent);
       if (state !== "active") {
         return {
-          visible: false,
+          kind: "hidden",
           inactiveAncestor: { table: relation.parent, id: parent.id, state },
         };
       }
     }
     const upstream = resolveMemoisedAncestry({ table: relation.parent, row: parent, lookup, memo });
-    if (!upstream.visible) return upstream;
+    if (upstream.kind === "hidden") return upstream;
   }
-  return { visible: true };
+  return { kind: "visible" };
 }
 
 /** One resolved parent's verdict, reused across every child that reaches it (see
