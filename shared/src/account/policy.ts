@@ -47,12 +47,17 @@ const IDENTITY_ADMIN_ACTIONS: ReadonlySet<IdentityAdminAction> = new Set([
   "remove-federated-link",
 ]);
 
+/** Whether `role` ranks at or above `minimum` in the owner > admin > editor > viewer order. Pure. */
 export function isAtLeast(role: Role, minimum: Role): boolean {
   const actualRank = ROLE_RANK[role];
   const requiredRank = ROLE_RANK[minimum];
   return actualRank >= requiredRank;
 }
 
+/**
+ * Whether `role` meets the minimum tier for one account administration `action`. This is the role
+ * check only; the server still applies session, MFA and fresh-session policy separately.
+ */
 export function canAdministerAccount(role: Role, action: AccountAdminAction): boolean {
   const minimum = MIN_ADMIN_TIER[action];
   return isAtLeast(role, minimum);
@@ -110,6 +115,12 @@ export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf:
   return canRemoveMember(actorRole, targetRole);
 }
 
+/**
+ * Whether `actorRole` may run identity security operations (password reset, session revocation and
+ * similar) against a member holding `targetRole` in one workspace. Requires admin tier; only an
+ * Owner may act on an Owner. Fails closed on an unrecognised target role. Callers acting on an
+ * identity that spans workspaces use {@link canAdministerIdentityAcrossWorkspaces}.
+ */
 export function canAdministerIdentity(actorRole: Role, targetRole: Role): boolean {
   if (!canAdministerAccount(actorRole, "manage-members") || !isAccountRole(targetRole)) return false;
   return targetRole !== "owner" || actorRole === "owner";
