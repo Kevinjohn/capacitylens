@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
-import type { TeamMember } from "../../account/teamAccessClient";
-import { Modal, SelectField } from "../common/ui";
-import { Button } from "../ui/button";
+import type { TeamMember } from "@/account/teamAccessClient";
+import { Modal, SelectField } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
 import { Link as LinkIcon } from "lucide-react";
 import { useMemberResourceLinkRequest } from "./useMemberResourceLinkRequest";
 

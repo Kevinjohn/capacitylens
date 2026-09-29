@@ -239,7 +239,7 @@ export async function hydrateFromOfflineCache(
   return null;
 }
 
-export async function hasExisting(state: SyncState): Promise<boolean> {
+export async function readHasExistingData(state: SyncState): Promise<boolean> {
   const res = await state.request(`${state.baseUrl}/api/meta`, {
     credentials: "include",
   });

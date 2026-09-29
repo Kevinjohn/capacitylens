@@ -19,29 +19,29 @@ import {
 const trustedLocalProposalFailure = () =>
   new AccountContractError({ code: "FORBIDDEN", message: "Forbidden.", retryable: false });
 
-type ParseResult<T, E> = { value: T; failure?: never } | { failure: E; value?: never };
+type ParseResult<T, E> = { kind: "parsed"; value: T } | { kind: "invalid"; failure: E };
 
 function parsePreauthorizedEmail(
   value: unknown,
   createValidationFailure: AccountRouteContext["validationFailed"],
 ): ParseResult<string | null, AccountContractError> {
   if (value !== undefined && typeof value !== "string") {
-    return { failure: createValidationFailure("preauthEmail must be a valid email address.") };
+    return { kind: "invalid", failure: createValidationFailure("preauthEmail must be a valid email address.") };
   }
-  if (typeof value !== "string" || value.trim().length === 0) return { value: null };
-  return { value: normalizeAccountEmail(value) };
+  if (typeof value !== "string" || value.trim().length === 0) return { kind: "parsed", value: null };
+  return { kind: "parsed", value: normalizeAccountEmail(value) };
 }
 
 function parseInvitationExpiry(
   value: unknown,
   createValidationFailure: AccountRouteContext["validationFailed"],
 ): ParseResult<string | null, AccountContractError> {
-  if (value === undefined) return { value: null };
+  if (value === undefined) return { kind: "parsed", value: null };
   const parsed = typeof value === "string" ? parseStrictIsoInstant(value) : null;
   if (parsed === null) {
-    return { failure: createValidationFailure("expiresAt must be a valid ISO-8601 timestamp.") };
+    return { kind: "invalid", failure: createValidationFailure("expiresAt must be a valid ISO-8601 timestamp.") };
   }
-  return { value: new Date(parsed).toISOString() };
+  return { kind: "parsed", value: new Date(parsed).toISOString() };
 }
 
 function parseCreateInvitationAuthorizationInput({
@@ -72,17 +72,21 @@ function parseCreateInvitationAuthorizationInput({
     proposedResourceId?: unknown;
   };
   if (typeof body.accountId !== "string" || body.accountId.length === 0) {
-    return { failure: createValidationFailure("accountId must be a non-empty string.") };
+    return { kind: "invalid", failure: createValidationFailure("accountId must be a non-empty string.") };
   }
-  if (!isKnownRole(body.role)) return { failure: createValidationFailure(INVALID_ROLE_MESSAGE) };
+  if (!isKnownRole(body.role)) return { kind: "invalid", failure: createValidationFailure(INVALID_ROLE_MESSAGE) };
 
   const emailResult = parsePreauthorizedEmail(body.preauthEmail, createValidationFailure);
-  if ("failure" in emailResult) return { failure: emailResult.failure };
+  if (emailResult.kind === "invalid") return { kind: "invalid", failure: emailResult.failure };
   if (authMode === "sso-only" && emailResult.value === null) {
-    return { failure: createValidationFailure("SSO-only onboarding requires an email-preauthorized invitation.") };
+    return {
+      kind: "invalid",
+      failure: createValidationFailure("SSO-only onboarding requires an email-preauthorized invitation."),
+    };
   }
 
   return {
+    kind: "parsed",
     value: {
       accountId: body.accountId,
       role: body.role,
@@ -110,7 +114,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   } = context;
 
   const input = parseCreateInvitationAuthorizationInput({ req, authMode, isKnownRole, createValidationFailure });
-  if ("failure" in input) return accountFail(reply, input.failure);
+  if (input.kind === "invalid") return accountFail(reply, input.failure);
   const { value } = input;
   // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
   if (!authorize({ req, reply, accountId: value.accountId, action: "manageInvites", options: NO_REPROMPT })) return;
@@ -119,7 +123,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   if (authMode === "off" && value.proposedResourceId !== undefined)
     return accountFail(reply, trustedLocalProposalFailure());
   const expiryResult = parseInvitationExpiry(value.requestedExpiry, createValidationFailure);
-  if ("failure" in expiryResult) return accountFail(reply, expiryResult.failure);
+  if (expiryResult.kind === "invalid") return accountFail(reply, expiryResult.failure);
   try {
     const { actor, user } = requireAuthenticatedPrincipal(req);
     const invite = await accountAdminPort.createInvitation({
