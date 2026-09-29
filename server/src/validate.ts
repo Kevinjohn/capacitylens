@@ -238,7 +238,7 @@ function assertResourceWrite(input: AssertValidWriteInput, accountId: string): v
   const availability = validateResourceAvailabilityPair(resource.firstAvailableDate, resource.lastAvailableDate);
   if (!availability.ok) {
     throw new ValidationError(
-      availability.code === "date_reversed"
+      availability.codes[0] === "date_reversed"
         ? "First available date cannot be after last available date."
         : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
     );
@@ -355,7 +355,7 @@ function assertLifecycleWrite(
 function assertActiveAncestry({ state, table, row, lookup }: AssertValidWriteInput): void {
   if (isAppDataKey(table)) {
     const ancestry = inspectLifecycleAncestry(table, parseAncestryRow(row), createAncestryLookup(state, lookup));
-    if (ancestry.inactiveAncestor) {
+    if (ancestry.kind === "hidden") {
       throw new ValidationError(
         "Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.",
       );
