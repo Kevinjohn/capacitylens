@@ -67,8 +67,11 @@ export class CorruptAccountCommandStateError extends Error {
   readonly code = "ACCOUNT_COMMAND_STATE_CORRUPT";
   readonly commandId: string;
 
-  constructor(commandId: string) {
-    super(`Account command ${commandId} has corrupt reconciliation metadata; preserve the row for operator repair.`);
+  constructor(commandId: string, options?: ErrorOptions) {
+    super(
+      `Account command ${commandId} has corrupt reconciliation metadata; preserve the row for operator repair.`,
+      options,
+    );
     this.name = "CorruptAccountCommandStateError";
     this.commandId = commandId;
   }
@@ -84,8 +87,8 @@ export function parseStoredReconciliationRepair(
   let parsed: unknown;
   try {
     parsed = JSON.parse(row.resultJson);
-  } catch {
-    throw new CorruptAccountCommandStateError(row.commandId);
+  } catch (error) {
+    throw new CorruptAccountCommandStateError(row.commandId, { cause: error });
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new CorruptAccountCommandStateError(row.commandId);

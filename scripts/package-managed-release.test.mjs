@@ -6,9 +6,11 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
+  assertDeploySucceeded,
   inspectManagedRelease,
   packageManagedRelease,
   readDevelopmentPackages,
+  requireNonemptyFile,
   resetGeneratedOutput,
 } from "./package-managed-release.mjs";
 
@@ -148,4 +150,36 @@ test("reports an unreadable marker as itself and leaves production/ in place", a
 
   await assert.rejects(() => resetGeneratedOutput(output), { code: "EISDIR" });
   assert.deepEqual(await readdir(root), ["production"]);
+});
+
+test("reports an uninspectable artifact file as itself, not as missing", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "capacitylens-release-test-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, "dist"), "a file where a directory belongs");
+  const path = join(root, "dist", "index.html");
+
+  await assert.rejects(
+    () => requireNonemptyFile(path, "dist/index.html"),
+    (error) => {
+      assert.equal(error.cause?.code, "ENOTDIR");
+      assert.match(error.message, /Could not inspect .*index\.html/);
+      return true;
+    },
+  );
+  await assert.rejects(() => requireNonemptyFile(join(root, "absent"), "absent"), /missing absent/);
+});
+
+test("reports a deploy that could not start or was terminated before its status", () => {
+  const cause = Object.assign(new Error("spawn pnpm ENOENT"), { code: "ENOENT" });
+  assert.throws(
+    () => assertDeploySucceeded({ error: cause, status: null, signal: null }),
+    (error) => {
+      assert.equal(error.cause, cause);
+      assert.match(error.message, /could not start: spawn pnpm ENOENT/);
+      return true;
+    },
+  );
+  assert.throws(() => assertDeploySucceeded({ status: null, signal: "SIGTERM" }), /terminated by SIGTERM/);
+  assert.throws(() => assertDeploySucceeded({ status: 1, signal: null }), /failed with status 1/);
+  assert.doesNotThrow(() => assertDeploySucceeded({ status: 0, signal: null }));
 });

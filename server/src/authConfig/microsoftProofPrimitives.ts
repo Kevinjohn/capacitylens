@@ -108,8 +108,8 @@ export function assertMicrosoftReturnUrl(value: string, origins: ReadonlySet<str
   let parsed: URL;
   try {
     parsed = new URL(value);
-  } catch {
-    throw new MicrosoftProofError("INVALID_CALLBACK_URL", 400);
+  } catch (error) {
+    throw new MicrosoftProofError("INVALID_CALLBACK_URL", 400, { cause: error });
   }
   if (!origins.has(parsed.origin) || parsed.username || parsed.password) {
     throw new MicrosoftProofError("INVALID_CALLBACK_URL", 400);

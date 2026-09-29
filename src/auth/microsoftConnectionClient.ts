@@ -31,8 +31,8 @@ async function request(path: string, body?: unknown, signal?: AbortSignal): Prom
 export class MicrosoftConnectionError extends Error {
   readonly status: number;
 
-  constructor(status: number) {
-    super("Microsoft connection request failed.");
+  constructor(status: number, options?: ErrorOptions) {
+    super("Microsoft connection request failed.", options);
     this.name = "MicrosoftConnectionError";
     this.status = status;
   }
@@ -43,8 +43,8 @@ function parseProviderUrl(value: unknown): string {
   let url: URL;
   try {
     url = new URL(value, window.location.href);
-  } catch {
-    throw new MicrosoftConnectionError(502);
+  } catch (error) {
+    throw new MicrosoftConnectionError(502, { cause: error });
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new MicrosoftConnectionError(502);
   return url.href;

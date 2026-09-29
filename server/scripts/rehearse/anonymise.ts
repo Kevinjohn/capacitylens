@@ -198,8 +198,8 @@ function parseSourceApprovedDomains(policies: IdentityAddressRows["policies"]): 
     let parsed: unknown;
     try {
       parsed = JSON.parse(value) as unknown;
-    } catch {
-      throw new Error("Invalid approved domain list in rehearsal source.");
+    } catch (error) {
+      throw new Error("Invalid approved domain list in rehearsal source.", { cause: error });
     }
     if (!Array.isArray(parsed)) throw new Error("Invalid approved domain list in rehearsal source.");
     return parsed.flatMap((candidate) => {
