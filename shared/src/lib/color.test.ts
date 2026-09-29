@@ -177,7 +177,14 @@ describe("resolveBarColor fallbacks", () => {
   it("falls back to the client's colour when its project has no colour of its own", () => {
     // project.color is "" (falsy), so `if (project?.color)` must skip past it to the
     // `if (client?.color)` branch rather than short-circuiting to the resource/neutral fallback.
-    const client: Client = { id: "c", accountId: "acct", createdAt: TS, updatedAt: TS, name: "Acme", color: "#112233" };
+    const client: Client = {
+      id: "c",
+      accountId: "acct",
+      createdAt: TS,
+      updatedAt: TS,
+      name: "Ferris",
+      color: "#112233",
+    };
     const m = maps({
       activities: [activity("t", "p")],
       projects: [project("p", "")],

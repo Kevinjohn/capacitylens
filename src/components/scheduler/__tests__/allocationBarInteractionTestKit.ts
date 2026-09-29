@@ -21,7 +21,7 @@ export const rect = (top: number, bottom: number): DOMRect =>
 
 export function seedAllocation(overrides: Partial<Allocation> = {}): Allocation {
   const s = useStore.getState();
-  const c = requireCreated(s.addClient({ name: "Acme", color: "#1" }));
+  const c = requireCreated(s.addClient({ name: "Ferris", color: "#1" }));
   const p = requireCreated(s.addProject({ name: "P", clientId: c.id, color: "#2" }));
   const t = requireCreated(s.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
   const r = requireCreated(s.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));

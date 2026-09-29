@@ -21,7 +21,7 @@ function registerViewerAndAnnotationPopoverTests() {
     const allocation = seedAllocation({ status: "tentative" });
     render(
       <AllocationBar
-        bar={{ ...barFor(allocation), project: "Project Watchtower", client: "Acme" }}
+        bar={{ ...barFor(allocation), project: "Project Watchtower", client: "Ferris" }}
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
@@ -30,9 +30,9 @@ function registerViewerAndAnnotationPopoverTests() {
 
     fireEvent.mouseEnter(screen.getByTestId("allocation-bar"));
 
-    expect(projectClientMessage).toHaveBeenCalledWith({ project: "Project Watchtower", client: "Acme" });
+    expect(projectClientMessage).toHaveBeenCalledWith({ project: "Project Watchtower", client: "Ferris" });
     expect(statusMessage).toHaveBeenCalledWith({ status: "Tentative" });
-    expect(screen.getByTestId("allocation-popover")).toHaveTextContent("Project Watchtower · Acme");
+    expect(screen.getByTestId("allocation-popover")).toHaveTextContent("Project Watchtower · Ferris");
     expect(screen.getByTestId("allocation-popover")).toHaveTextContent("8h/day · Tentative");
   });
 
@@ -45,7 +45,7 @@ function registerViewerAndAnnotationPopoverTests() {
     render(
       <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
         <AllocationBar
-          bar={{ ...barFor(allocation), project: "Project Watchtower", client: "Acme" }}
+          bar={{ ...barFor(allocation), project: "Project Watchtower", client: "Ferris" }}
           geom={GEOM}
           indexAtClientX={indexAtClientX}
           onEdit={onEdit}
@@ -57,7 +57,7 @@ function registerViewerAndAnnotationPopoverTests() {
     expect(bar).toHaveAttribute("role", "img");
     expect(bar).toHaveAttribute("tabindex", "0");
     expect(bar).not.toHaveTextContent("Project Watchtower");
-    expect(bar).not.toHaveTextContent("Acme");
+    expect(bar).not.toHaveTextContent("Ferris");
     expect(screen.queryByTestId("resize-start")).toBeNull();
     expect(screen.queryByTestId("resize-end")).toBeNull();
 
@@ -70,7 +70,7 @@ function registerViewerAndAnnotationPopoverTests() {
     expect(bar).toHaveAccessibleDescription("Read-only allocation details");
     expect(popover).not.toHaveTextContent(/drag|resize|reassign/i);
     expect(bar).toHaveAccessibleName(
-      /Wires, Project Watchtower · Acme, 8h per day, 1 Jun to 3 Jun, note: Call the client before kickoff\./,
+      /Wires, Project Watchtower · Ferris, 8h per day, 1 Jun to 3 Jun, note: Call the client before kickoff\./,
     );
     expect(bar).not.toHaveAccessibleName(/Confirmed/);
     const details = [...popover.querySelectorAll("div.text-muted-foreground")].find((element) =>
@@ -133,7 +133,7 @@ function registerFocusPopoverTests() {
     const allocation = seedAllocation();
     render(
       <AllocationBar
-        bar={{ ...barFor(allocation), project: "Project Watchtower", client: "Acme" }}
+        bar={{ ...barFor(allocation), project: "Project Watchtower", client: "Ferris" }}
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
@@ -216,7 +216,7 @@ function registerPopoverAndEditorTests() {
     const a = seedAllocation();
     render(
       <AllocationBar
-        bar={{ ...barFor(a), project: "Project Watchtower", client: "Acme" }}
+        bar={{ ...barFor(a), project: "Project Watchtower", client: "Ferris" }}
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
@@ -228,7 +228,7 @@ function registerPopoverAndEditorTests() {
     fireEvent.mouseEnter(bar);
     const pop = screen.getByTestId("allocation-popover");
     expect(pop).toHaveTextContent("Project Watchtower");
-    expect(pop).toHaveTextContent("Acme");
+    expect(pop).toHaveTextContent("Ferris");
     expect(pop.querySelector(".text-2xs.text-faint")).toBeNull();
     expect(bar).toHaveAccessibleDescription("Drag to move · edges to resize · drop on another row to reassign");
     fireEvent.mouseLeave(bar);

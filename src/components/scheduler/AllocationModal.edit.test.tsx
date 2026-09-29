@@ -57,7 +57,7 @@ describe("AllocationModal edit", () => {
       caseName: "attributed All-projects",
       activityKind: "repeatable",
       allocationProjectId: "p1",
-      expectedScope: "Acme / Lightning",
+      expectedScope: "Ferris / Lightning",
       activityName: "Planning",
     },
     {
@@ -78,7 +78,7 @@ describe("AllocationModal edit", () => {
       caseName: "project-specific",
       activityKind: "project",
       allocationProjectId: undefined,
-      expectedScope: "Acme / Lightning",
+      expectedScope: "Ferris / Lightning",
       activityName: "Wireframes",
     },
   ] satisfies readonly AllocationScopeCaseInput[])(
@@ -515,12 +515,12 @@ describe("AllocationModal edit", () => {
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     await chooseOption(user, "Assignee", "Placeholder (slot)");
-    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Acme / Other");
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Ferris / Other");
     // The non-bound project (p1 / "Lightning") is no longer offered to the placeholder.
     fireEvent.keyDown(screen.getByRole("combobox", { name: "Project" }), {
       key: "ArrowDown",
     });
-    expect(screen.queryByRole("option", { name: "Acme / Lightning" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Ferris / Lightning" })).not.toBeInTheDocument();
   });
 
   it("risk A: editing an allocation on a HIDDEN placeholder still offers that placeholder so the value is preserved", async () => {
@@ -673,7 +673,7 @@ describe("AllocationModal edit", () => {
 
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
-    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Acme / Lightning");
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Ferris / Lightning");
   });
 
   it("duplicates the current validated form values without changing the saved allocation", async () => {

@@ -18,7 +18,7 @@ import { signUp } from "./testHelpers";
 // without auth coverage is a one-line add to the matrix below (and a visible omission if forgotten).
 
 const TS = "2026-01-01T00:00:00.000Z";
-const client = { id: "c1", accountId: "a1", name: "Acme", color: "#3b82f6", createdAt: TS, updatedAt: TS };
+const client = { id: "c1", accountId: "a1", name: "Ferris", color: "#3b82f6", createdAt: TS, updatedAt: TS };
 
 const readResponse = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> => app.inject(opts);
 

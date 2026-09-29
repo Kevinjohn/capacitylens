@@ -139,7 +139,7 @@ function makeEngagementOrderingData(): AppData {
       ...designTemplate,
       id: "external-alpha",
       kind: "external",
-      name: "Acme",
+      name: "Ferris",
       role: "Print",
     },
     {
@@ -174,7 +174,7 @@ it("keeps discipline groups while ordering engagement partitions and externals d
     "Zulu",
     "Gamma",
   ]);
-  expect(requireValue(model[2], "external group").rows.map((row) => row.resource.name)).toEqual(["Zeta", "Acme"]);
+  expect(requireValue(model[2], "external group").rows.map((row) => row.resource.name)).toEqual(["Zeta", "Ferris"]);
 
   const ungroupedByEngagement = buildSchedulerModel({
     data,
@@ -1007,7 +1007,7 @@ function registerMovedSchedulerTests11387(buildBoundaryModel: (id: string, alloc
 function buildVisibleWindowDensityData(): AppData {
   return {
     ...emptyAppData(),
-    clients: [makeClient({ accountId: "acct-test", name: "Acme", color: "#1" })],
+    clients: [makeClient({ accountId: "acct-test", name: "Ferris", color: "#1" })],
     projects: [makeProject({ accountId: "acct-test", name: "P1", color: "#2" })],
     activities: [makeActivity({ accountId: "acct-test", name: "T1" })],
     resources: [makeResource({ id: "r1", accountId: "acct-test", name: "Dana", role: "Designer", color: "#4" })],
@@ -1294,7 +1294,7 @@ function withInternal(): AppData {
     name: "Admin",
     kind: "internal",
   });
-  // r1 books both; a3 (under p1/Acme) is unrelated to Internal.
+  // r1 books both; a3 (under p1/Ferris) is unrelated to Internal.
   d.allocations.push(
     makeAllocation({ id: "aIntProj", accountId: "acct-test", activityId: "tIntProj", hoursPerDay: 4 }),
     makeAllocation({
@@ -1365,7 +1365,7 @@ describe("repeatable allocation effective project", () => {
     const bars = allBars(buildAttributed());
     expect(bars.find((bar) => bar.allocation.id === "aRepAttributed")).toMatchObject({
       project: "P1",
-      client: "Acme",
+      client: "Ferris",
       color: "#2",
     });
     const unattributed = bars.find((bar) => bar.allocation.id === "aRepUnattributed");
@@ -1398,7 +1398,7 @@ function registerMovedSchedulerTests14851(
   it("filtering by the Internal client shows BOTH the project-less activity AND the Internal-owned project activity", () => {
     const model = buildInternal({ ...buildEmptyFilters(), clientId: internalId });
     // aIntProj (under the Internal-owned project pInt) + aIntNoProj (project-less, derived Internal);
-    // a3 (under Acme's p1) and the other Acme work are excluded.
+    // a3 (under Ferris's p1) and the other Ferris work are excluded.
     expect(internalBarIds(model)).toEqual(["aIntNoProj", "aIntProj"]);
   });
 }
@@ -1409,7 +1409,7 @@ function registerMovedSchedulerTests14852(
 ) {
   it("a project-less activity is NOT shown when filtering by a different (non-Internal) client", () => {
     const model = buildInternal({ ...buildEmptyFilters(), clientId: "c1" });
-    // Only Acme (c1) work — never the project-less internal activity.
+    // Only Ferris (c1) work — never the project-less internal activity.
     expect(internalBarIds(model)).not.toContain("aIntNoProj");
     expect(internalBarIds(model)).not.toContain("aIntProj");
   });
@@ -1528,8 +1528,8 @@ describe("built-in Internal client bucketing + filter", () => {
 });
 
 // Per-account BAR-ONLY hide prefs for internal work (showInternalProjects / showInternalActivities).
-// withInternal() gives r1 four allocations: a1 (Acme project), aIntProj (a project under the built-in
-// Internal client), aIntNoProj (a project-less internal-KIND activity), plus a2 (tentative Acme); we
+// withInternal() gives r1 four allocations: a1 (Ferris project), aIntProj (a project under the built-in
+// Internal client), aIntNoProj (a project-less internal-KIND activity), plus a2 (tentative Ferris); we
 // add an unattributed repeatable allocation and one attributed to the Internal-owned project to pin
 // the revised OWNER DECISION (2026-08-19): only unattributed all-projects work keeps the derived
 // Internal label without becoming an Internal-project bar. The
@@ -1565,7 +1565,7 @@ function registerMovedSchedulerTests16012(
     expect(ids).toContain("aRep"); // kind 'repeatable' — a distinct group, NEVER hidden by this toggle
     expect(ids).toContain("aRepAttributedInternal"); // effective client does not change the activity kind
     expect(ids).toContain("aIntProj"); // a 'project' activity — NOT an internal activity, still shown
-    expect(ids).toContain("a1"); // ordinary Acme work untouched
+    expect(ids).toContain("a1"); // ordinary Ferris work untouched
   });
 }
 
@@ -1578,7 +1578,7 @@ function registerMovedSchedulerTests16013(
     expect(ids).not.toContain("aRepAttributedInternal"); // attributed repeatable work follows that project
     expect(ids).toContain("aIntNoProj"); // project-less internal-kind activity — still shown
     expect(ids).toContain("aRep"); // project-less repeatable activity — still shown
-    expect(ids).toContain("a1"); // ordinary Acme project (non-Internal client) untouched
+    expect(ids).toContain("a1"); // ordinary Ferris project (non-Internal client) untouched
   });
 }
 

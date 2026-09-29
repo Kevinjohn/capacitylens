@@ -66,7 +66,7 @@ describe("AllocationModal inline activity creation pref", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await user.type(screen.getByLabelText("New activity name"), "Alpha delivery");
     await user.click(screen.getByRole("button", { name: "Add activity" }));
     fireEvent.keyDown(screen.getByRole("combobox", { name: "Activity" }), { key: "ArrowDown" });
@@ -156,7 +156,7 @@ describe("AllocationModal task field", () => {
       />,
     );
     await user.type(screen.getByLabelText("Task"), "Launch review");
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(useStore.getState().data.allocations[0]?.task).toBe("Launch review");

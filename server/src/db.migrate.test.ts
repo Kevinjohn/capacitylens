@@ -642,7 +642,7 @@ function writeOldDb(path: string): void {
   old.exec(OLD_SCHEMA);
   old.exec(`
     INSERT INTO accounts VALUES ('a1','Studio','#111','${TS}','${TS}');
-    INSERT INTO clients  VALUES ('c1','a1','Acme','#222','${TS}','${TS}');
+    INSERT INTO clients  VALUES ('c1','a1','Ferris','#222','${TS}','${TS}');
     INSERT INTO projects VALUES ('p1','a1','Web','c1','#333','${TS}','${TS}');
     INSERT INTO tasks    VALUES ('t1','a1','Existing task','p1',NULL,'${TS}','${TS}');
   `);

@@ -407,8 +407,8 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
   });
 
   it("handles an EXTERNAL resource: the COMPANY name is gone, replaced by the token", () => {
-    const result = obfuscateResource(makeResource({ kind: "external", name: "Acme Print Co" }));
-    expect(result.name).not.toContain("Acme");
+    const result = obfuscateResource(makeResource({ kind: "external", name: "Ferris Print Co" }));
+    expect(result.name).not.toContain("Ferris");
     expect(result.name?.startsWith("Removed person #")).toBe(true);
   });
 

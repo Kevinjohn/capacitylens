@@ -6,15 +6,15 @@ function registerAddsClientMakesAvailableScheduleTest() {
   test("adds a client and makes it available as a schedule filter", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Initech");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Kord Industries");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("client-row").filter({ hasText: "Initech" })).toBeVisible();
+    await expect(page.getByTestId("client-row").filter({ hasText: "Kord Industries" })).toBeVisible();
 
     // Available as a client filter on the schedule.
     await page.getByRole("link", { name: "Schedule" }).click();
     await showScheduleFilters(page);
     await page.getByLabel("Filter by client").click();
-    await expect(page.getByRole("option", { name: "Initech" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Kord Industries" })).toBeVisible();
     await page.keyboard.press("Escape");
   });
 }
@@ -46,7 +46,7 @@ function registerRejectsEmojiJunkCharactersNameTest() {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
     // An emoji is rejected…
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Acme \u{1F389} Co");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Ferris \u{1F389} Co");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("alert")).toContainText(/emoji or special characters/i);
     await expect(page.getByRole("dialog")).toBeVisible(); // dialog stays open; nothing added
@@ -65,15 +65,15 @@ function registerEditsClientRenameReflectsProjectTest() {
       .filter({ hasText: "Queen Consolidated" })
       .getByRole("button", { name: /^Edit / })
       .click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Acme Worldwide");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Ferris Worldwide");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("client-row").filter({ hasText: "Acme Worldwide" })).toBeVisible();
+    await expect(page.getByTestId("client-row").filter({ hasText: "Ferris Worldwide" })).toBeVisible();
 
     // Project labels use "Client / Project".
     await page.getByRole("link", { name: "Activities" }).click();
     await page.getByRole("button", { name: "Add activity" }).click();
     await page.getByLabel("Project").click();
-    await expect(page.getByRole("option", { name: /Acme Worldwide \/ Project Watchtower/ })).toBeVisible();
+    await expect(page.getByRole("option", { name: /Ferris Worldwide \/ Project Watchtower/ })).toBeVisible();
   });
 }
 

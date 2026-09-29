@@ -10,7 +10,7 @@ beforeEach(() => resetStoreWithAccount());
 
 function registerExternalFlip1(): void {
   it("flipping a person with a loaded allocation to external THROWS and does not mutate", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     const r = requireCreated(s().addResource({ ...personDraft }));
@@ -45,7 +45,7 @@ function registerExternalFlip2(): void {
 
 function registerExternalFlip3(): void {
   it("rejects flipping a person with no dependents or a zero-load allocation to external", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     const free = requireCreated(
@@ -100,7 +100,7 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
 
 describe("parent edits cannot invalidate existing placeholder allocations", () => {
   it("rejects a placeholder project rebind atomically", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p1 = requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
     const p2 = requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p1.id }));
@@ -125,7 +125,7 @@ describe("parent edits cannot invalidate existing placeholder allocations", () =
   });
 
   it("rejects an activity project change atomically", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p1 = requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
     const p2 = requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p1.id }));

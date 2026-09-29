@@ -5,7 +5,7 @@ import { ExternalResourceSection } from "./ExternalResourceSection";
 
 beforeEach(() => resetStoreWithAccount());
 
-const acme = makeResource({ id: "ext-acme", kind: "external", name: "Acme Studio", role: "Partner" });
+const acme = makeResource({ id: "ext-acme", kind: "external", name: "Ferris Studio", role: "Partner" });
 const zed = makeResource({ id: "ext-zed", kind: "external", name: "Zed Films", role: "Partner" });
 
 function renderSection(externals = [acme]) {
@@ -37,13 +37,13 @@ describe("ExternalResourceSection", () => {
     expect(rows).toHaveLength(2);
     const firstRow = rows[0];
     expect(firstRow).toBeDefined();
-    expect(within(firstRow as HTMLElement).getByText("Acme Studio")).toBeInTheDocument();
+    expect(within(firstRow as HTMLElement).getByText("Ferris Studio")).toBeInTheDocument();
   });
 
   it("passes the selected external to onEdit", () => {
     const { onEdit } = renderSection();
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit Acme Studio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Ferris Studio" }));
 
     expect(onEdit).toHaveBeenCalledWith(acme);
   });
@@ -51,7 +51,7 @@ describe("ExternalResourceSection", () => {
   it("requests archive without calling the add or edit handlers", () => {
     const { onAdd, onEdit, onRequestArchive } = renderSection();
 
-    fireEvent.click(screen.getByRole("button", { name: "Archive Acme Studio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Archive Ferris Studio" }));
 
     expect(onRequestArchive).toHaveBeenCalledWith(acme);
     expect(onEdit).not.toHaveBeenCalled();

@@ -51,7 +51,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -77,7 +77,7 @@ describe("AllocationModal days mode", () => {
 
     expect(screen.getByLabelText("Days over")).toHaveValue(4);
     expect(screen.getByLabelText("Days of work")).toHaveValue(4);
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "5" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -102,7 +102,7 @@ describe("AllocationModal days mode", () => {
         onClose={vi.fn()}
       />,
     );
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
     const daysOver = screen.getByLabelText("Days over");
@@ -132,7 +132,7 @@ describe("AllocationModal days mode", () => {
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "5" } });
     expect(screen.getByText("Ends Wed 3 Jun 2026 · 1.6h/day")).toBeInTheDocument();
     expect(screen.queryByText(/9999/)).not.toBeInTheDocument();
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -154,7 +154,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("checkbox", { name: "Ignore working days" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -179,7 +179,7 @@ describe("AllocationModal days mode", () => {
 
     const ignoreWorkingDays = screen.getByRole("checkbox", { name: "Ignore working days" });
     expect(ignoreWorkingDays).not.toBeChecked();
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "3" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -206,7 +206,7 @@ describe("AllocationModal days mode", () => {
     const ignoreWorkingDays = screen.getByRole("checkbox", { name: "Ignore working days" });
     await user.click(ignoreWorkingDays);
     expect(ignoreWorkingDays).toBeChecked();
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "3" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -268,7 +268,7 @@ describe("AllocationModal days mode", () => {
     expect(screen.queryByLabelText("End")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Hours / day")).not.toBeInTheDocument();
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days of work"), {
       target: { value: "5" },
@@ -305,7 +305,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days of work"), {
       target: { value: "0" },
@@ -333,7 +333,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days over"), {
       target: { value: "2" },
@@ -363,7 +363,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days of work"), {
       target: { value: "5" },
@@ -400,7 +400,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days of work"), {
       target: { value: "5" },
@@ -438,7 +438,7 @@ describe("AllocationModal days mode", () => {
     expect(screen.getByLabelText("Days over")).toHaveValue(5);
     expect(screen.getByLabelText("Days of work")).toHaveValue(5); // full-time across the span
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 

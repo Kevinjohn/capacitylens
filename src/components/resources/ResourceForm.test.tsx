@@ -499,7 +499,7 @@ it("saves a placeholder once a bound project is chosen", async () => {
   useStore
     .getState()
     .updateAccount(requireValue(useStore.getState().data.accounts[0], "account").id, { workingDays: [1, 3, 5] });
-  const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+  const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
   const project = requireCreated(
     useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
   );
@@ -507,7 +507,7 @@ it("saves a placeholder once a bound project is chosen", async () => {
 
   await user.type(screen.getByLabelText("Role"), "Senior Designer");
   fireEvent.keyDown(screen.getByLabelText("Bound project"), { key: "ArrowDown" });
-  fireEvent.click(screen.getByRole("option", { name: "Acme / Lightning" }));
+  fireEvent.click(screen.getByRole("option", { name: "Ferris / Lightning" }));
   await user.click(screen.getByRole("button", { name: "Save" }));
 
   expect(onClose).toHaveBeenCalled();
@@ -527,7 +527,7 @@ it("saves a placeholder once a bound project is chosen", async () => {
 it("edits a placeholder bound to an archived project without forcing a reassignment", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+  const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
   const project = requireCreated(
     useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
   );
@@ -549,9 +549,9 @@ it("edits a placeholder bound to an archived project without forcing a reassignm
 
   // The archived project renders as a disabled option, still selected as the current value.
   const select = screen.getByLabelText("Bound project");
-  expect(select).toHaveTextContent("Acme / Lightning (archived)");
+  expect(select).toHaveTextContent("Ferris / Lightning (archived)");
   fireEvent.keyDown(select, { key: "ArrowDown" });
-  expect(screen.getByRole("option", { name: "Acme / Lightning (archived)" })).toHaveAttribute("data-disabled");
+  expect(screen.getByRole("option", { name: "Ferris / Lightning (archived)" })).toHaveAttribute("data-disabled");
   fireEvent.keyDown(document, { key: "Escape" });
 
   await user.clear(screen.getByLabelText("Role"));

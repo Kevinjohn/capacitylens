@@ -140,7 +140,7 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 

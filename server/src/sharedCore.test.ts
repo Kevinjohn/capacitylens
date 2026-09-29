@@ -21,7 +21,7 @@ describe("shared domain-core runs under Node", () => {
     };
     const incoming: AppData = {
       ...emptyAppData(),
-      clients: [{ id: "c", accountId: "x", name: "Acme", color: "#3b82f6", createdAt: "t", updatedAt: "t" }],
+      clients: [{ id: "c", accountId: "x", name: "Ferris", color: "#3b82f6", createdAt: "t", updatedAt: "t" }],
     };
     const out = remapAndValidateImport(base, "a1", incoming, "2026-01-01T00:00:00.000Z");
     expect(out.imported).toBe(1);
