@@ -209,7 +209,12 @@ function assertResourceKindImmutable(
   }
 }
 
-/** Assert that a scoped record and every reference it carries belong to `accountId`. Throws a `DomainError` on a violation. */
+/**
+ * Assert that the catalog references a scoped record carries (client, project, phase, activity and
+ * resource links) resolve within `accountId`. It does not check the record's own `accountId`, and it
+ * leaves allocation and time-off references to their own validators, so it is not a tenancy guard
+ * on its own. Throws a `DomainError` on a violation.
+ */
 export function assertScopedRefs(
   ...[data, accountId, key, record, existing, lookup, options = {}]: ScopedRefsArgs
 ): void {

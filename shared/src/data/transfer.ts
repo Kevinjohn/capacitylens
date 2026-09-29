@@ -62,7 +62,11 @@ function countRecords(value: unknown): number {
   return isUnknownArray(value) ? value.length : 0;
 }
 
-/** Parse, migrate and sanitize an export document. Throws a display-safe `Error` on unreadable or oversized input. */
+/**
+ * Parse, structurally validate and migrate an export document. Field values are not sanitised here:
+ * callers must still pass the result through the import remapper before storing it. Throws a
+ * display-safe `Error` on unreadable, unrecognised, damaged or oversized input.
+ */
 export function parseData(json: string): AppData {
   let raw: unknown;
   try {

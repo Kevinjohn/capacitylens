@@ -207,7 +207,11 @@ export interface StoreState extends StoreEntityActions {
   addAccount: (input: Draft<Account>) => Account | null;
   /** Patch a company's settings; undoable. Throws a display-safe `Error` on invalid working days. */
   updateAccount: (id: ID, patch: Patch<Account>) => void;
-  /** Delete the active company and everything it owns, clearing undo history. Throws for any other company. */
+  /**
+   * Delete a company and everything it owns, clearing undo history. With a company active, only that
+   * company may be deleted and any other id throws; from the picker (no active company) any existing
+   * company may be deleted. An unknown id is ignored.
+   */
   deleteAccount: (id: ID) => void;
   /** Enter a company, or pass null for the picker. Clears undo history; an unknown id returns to the picker with a notice. */
   setActiveAccount: (id: ID | null) => void;

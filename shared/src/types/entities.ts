@@ -287,7 +287,7 @@ export interface Allocation extends ScopedEntity {
   // future-additive (NOT built in v1): startTime?/endTime? for "9am–1pm" allocations
 }
 
-/** Personal or company-wide time off over a date range. */
+/** One person's time off over a date range; company-wide closures are {@link Closure} records. */
 export interface TimeOff extends ScopedEntity {
   /** The resource taking personal time off. */
   resourceId: ID;
