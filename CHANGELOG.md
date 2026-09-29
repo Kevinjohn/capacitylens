@@ -42,6 +42,8 @@ new features and **patch** versions carry fixes.
   for 10 seconds, because all requests reached the server from the host proxy's address. The
   packaged nginx now passes on the browser's address from a proxy on the host or a private
   network (#1311).
+- Updated the transitive `undici` dependency to 7.29.1, resolving two high-severity advisories
+  (a WebSocket denial of service and a TLS certificate validation bypass).
 
 ## [0.71.0-alpha.1] - 2026-09-27
 
