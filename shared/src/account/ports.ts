@@ -29,6 +29,8 @@ import type {
   WorkspaceMembershipSummary,
 } from "./types";
 
+export type { AccountMemberResourcePort, MemberResourceLink, ResourceAvatarEntry } from "./memberResourcePort";
+
 /**
  * Append-only normalized account audit destination.
  *
@@ -95,6 +97,7 @@ export interface IdentityPort {
   }): Promise<OperationReceipt>;
 }
 
+/** The actor, company, request and command identity one ownership-transfer command acts on. */
 export interface OwnershipTransferCommandInput {
   actor: ActorContext;
   workspaceId: WorkspaceId;
@@ -103,6 +106,7 @@ export interface OwnershipTransferCommandInput {
   command: CommandIdentity;
 }
 
+/** Persistence port for company memberships, invitations, ownership transfers and administration. */
 export interface AccountAdminPort extends JoiningPolicyAdminPort {
   listWorkspacesForPrincipal(input: { principalId: PrincipalId }): Promise<readonly WorkspaceMembershipSummary[]>;
   /** Active membership by default — this is the read request authorization goes through, so a
@@ -242,74 +246,19 @@ export interface AccountAdminPort extends JoiningPolicyAdminPort {
   }): Promise<boolean>;
 }
 
+/** The verified session and active membership a request is authorized under. */
 export interface RequestAccess {
   session: ApplicationSession;
   membership: Membership;
 }
 
+/** One member-directory row: the membership and whatever principal details the caller may see. */
 export interface MemberDirectoryEntry {
   membership: Membership;
   principal: PrincipalSummary | null;
 }
 
-/** App-owned association metadata exposed only to the privileged member directory. */
-export interface MemberResourceLink {
-  resourceId: string;
-  revision: string;
-  resourceName?: string | null;
-  resourceStatus?: "active" | "disabled" | "archived" | null;
-}
-
-/** Minimum identity-derived projection required to render a scheduled person's avatar. */
-export interface ResourceAvatarEntry {
-  resourceId: string;
-  imageUrl: string;
-}
-
-/** Account-scoped storage seam for association administration and its privacy-preserving read model. */
-export interface AccountMemberResourcePort {
-  listLinks(workspaceId: WorkspaceId): Promise<ReadonlyMap<PrincipalId, MemberResourceLink>>;
-  listCandidates(workspaceId: WorkspaceId): Promise<readonly { resourceId: string; label: string }[]>;
-  listExceptions(workspaceId: WorkspaceId): Promise<
-    ReadonlyMap<
-      PrincipalId,
-      {
-        proposedResourceId: string | null;
-        reason: "resource_unavailable" | "resource_already_linked" | "member_already_linked";
-      }
-    >
-  >;
-  listAvatarProjection(workspaceId: WorkspaceId): Promise<readonly ResourceAvatarEntry[]>;
-  setLink(input: {
-    workspaceId: WorkspaceId;
-    principalId: PrincipalId;
-    resourceId: string;
-    expectedRevision: string | null;
-    now: IsoInstant;
-    actor: ActorContext;
-    command: CommandIdentity;
-  }): Promise<MemberResourceLink>;
-  clearLink(input: {
-    workspaceId: WorkspaceId;
-    principalId: PrincipalId;
-    expectedRevision: string;
-    actor: ActorContext;
-    command: CommandIdentity;
-  }): Promise<void>;
-  dismissException(input: {
-    workspaceId: WorkspaceId;
-    principalId: PrincipalId;
-    actor: ActorContext;
-    command: CommandIdentity;
-  }): Promise<void>;
-  reconcileImportedLinks(input: {
-    workspaceId: WorkspaceId;
-    resourceIdMap: ReadonlyMap<string, string>;
-    updatedAt: IsoInstant;
-  }): void;
-  removeResourceLink(workspaceId: WorkspaceId, resourceId: string): void;
-}
-
+/** The principal and membership created by an invitation signup. */
 export interface InviteSignupResult {
   principalId: PrincipalId;
   membership: Membership;
@@ -343,6 +292,7 @@ export function isAccountFlowOperation(value: unknown): value is AccountFlowOper
   return typeof value === "string" && (ACCOUNT_FLOW_OPERATIONS as readonly string[]).includes(value);
 }
 
+/** Kinds of interrupted command that reconciliation can repair or escalate. */
 export type ReconciliationRepairKind =
   | "invitation-claim-committed"
   | "provisional-principal-compensation-failed"
@@ -353,6 +303,7 @@ export type ReconciliationRepairKind =
   | "stale-pending"
   | "operator-review";
 
+/** The settled or pending outcome of a ledgered account command. */
 export type CommandOutcome =
   | { status: "completed"; receipt: OperationReceipt }
   | { status: "compensated"; receipt: OperationReceipt }
@@ -370,6 +321,7 @@ export type CommandOutcome =
       };
     };
 
+/** The account use cases the HTTP routes call, independent of any adapter. */
 export interface AccountFlows {
   resolveRequestAccess(input: { headers: Headers; workspaceId: WorkspaceId }): Promise<RequestAccess | null>;
   listMemberDirectory(input: {

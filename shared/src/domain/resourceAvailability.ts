@@ -6,6 +6,7 @@ import { isExternalResource, isPlaceholderResource } from "../types/entities";
 import type { Allocation, ISODate, Resource, Weekday } from "../types/entities";
 import { throwDomainError } from "./errors";
 
+/** The allocation span, resource and company working days an availability check needs. */
 export interface ResourceAvailabilityInput {
   allocation: Pick<Allocation, "startDate" | "endDate" | "ignoreWeekends">;
   resource: Pick<Resource, "kind" | "workingDays" | "firstAvailableDate" | "lastAvailableDate">;

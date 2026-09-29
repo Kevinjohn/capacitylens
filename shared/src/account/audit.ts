@@ -1,6 +1,7 @@
 import type { ApplicationId, CommandId, IsoInstant, PrincipalId, WorkspaceId } from "./types";
 import type { MasqueradeEndReason } from "../domain/masquerade";
 
+/** Every audit action the account subsystem records. */
 export type AccountAuditAction =
   | "workspace.provisioned"
   | "workspace.erased"

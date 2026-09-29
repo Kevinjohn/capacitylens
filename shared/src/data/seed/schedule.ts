@@ -1,6 +1,7 @@
 import type { AppData } from "../../types/entities";
 import { SEED_TIMESTAMP, STUDIO } from "./constants";
 
+/** The seed time off and company closures. */
 export function createSchedule(): Pick<AppData, "timeOff" | "closures"> {
   return {
     timeOff: [

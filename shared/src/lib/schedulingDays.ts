@@ -19,6 +19,7 @@ import type { ISODate, Weekday } from "../types/entities";
 // "Working day" is whatever isWeekendAware() decides for this allocation, so the
 // span here and a drag in gestureMath always agree on the same count.
 
+/** Working weekdays and weekend handling for a days-mode span calculation. */
 export interface DaysModeOpts {
   workingDays?: Weekday[];
   ignoreWeekends?: boolean;

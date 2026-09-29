@@ -209,6 +209,7 @@ function assertResourceKindImmutable(
   }
 }
 
+/** Assert that a scoped record and every reference it carries belong to `accountId`. Throws a `DomainError` on a violation. */
 export function assertScopedRefs(
   ...[data, accountId, key, record, existing, lookup, options = {}]: ScopedRefsArgs
 ): void {
@@ -319,6 +320,7 @@ function assertAllocationProject(context: AllocationRefsContext, activity: Activ
   return resolvedProjectId;
 }
 
+/** Assert an allocation's resource, activity, project and hours are valid for `accountId`. Throws a `DomainError` on a violation. */
 export function assertAllocationRefs(
   ...[data, accountId, resourceId, activityId, hoursPerDay, projectId, existing, lookup]: AllocationRefsArgs
 ): void {

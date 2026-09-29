@@ -142,6 +142,7 @@ const ORG_TABLES: OrgTables = {
   ],
 };
 
+/** Fresh copies of the seed accounts, disciplines, clients, projects and phases. */
 export function createOrgTables(): OrgTables {
   return {
     accounts: ORG_TABLES.accounts.map((account) => ({

@@ -73,6 +73,7 @@ const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
  *  SKIPPED rather than poisoning every distance with NaN. */
 const PRESET_RGB: readonly (RgbChannels | null)[] = PRESET_COLORS.map((preset) => parseRgb(preset));
 
+/** True when the value is one of the preset swatches, ignoring case and surrounding space. Pure. */
 export function isPresetColor(value: unknown): value is string {
   return typeof value === "string" && PRESET_COLOR_SET.has(value.trim().toLowerCase());
 }
@@ -218,6 +219,7 @@ function calculateRelativeLuminance(hex: string): number | null {
   return 0.2126 * normalizeLinearChannel(r) + 0.7152 * normalizeLinearChannel(g) + 0.0722 * normalizeLinearChannel(b);
 }
 
+/** WCAG contrast ratio of two hex colours; 1 when either cannot be parsed. Pure. */
 export function contrastRatio(hexA: string, hexB: string): number {
   const leftLuminance = calculateRelativeLuminance(hexA);
   const rightLuminance = calculateRelativeLuminance(hexB);

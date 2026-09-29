@@ -16,11 +16,13 @@ interface MemoisedAncestryOptions {
   memo: LifecycleAncestryMemo | undefined;
 }
 
+/** The lifecycle fields and id of a row inspected for ancestry. */
 export type LifecycleAncestryRow = LifecycleFields & {
   id: string;
   accountId?: string;
 } & Record<string, unknown>;
 
+/** Resolve a row by table and id for ancestry inspection; `undefined` when absent. */
 export type LifecycleAncestryLookup = (table: AppDataKey, id: string) => LifecycleAncestryRow | undefined;
 
 /**
@@ -95,6 +97,7 @@ export function inspectLifecycleAncestry(
   return inspectAncestry({ table, row, lookup, memo: undefined });
 }
 
+/** Report whether any resolved ancestor of the row is archived or deleted. Pure apart from the optional memo. */
 export function inspectAncestry({ table, row, lookup, memo }: InspectAncestryOptions): LifecycleAncestryResult {
   const relations = CHILD_RELATIONS.get(table);
   if (!relations) return { kind: "visible" };
