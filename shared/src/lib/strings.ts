@@ -15,8 +15,10 @@ export const MAX_NAME_INPUT_CODE_UNITS = MAX_NAME_LENGTH * 2;
 export const MAX_EMAIL_LENGTH = 254;
 /** Max Unicode code points for a multi-line note. */
 export const MAX_NOTE_LENGTH = 1000;
+/** HTML maxlength for a note, sized like {@link MAX_NAME_INPUT_CODE_UNITS}. */
 export const MAX_NOTE_INPUT_CODE_UNITS = MAX_NOTE_LENGTH * 2;
 
+/** Length in Unicode code points, the unit every `MAX_*_LENGTH` text limit uses. */
 export function unicodeCharacterCount(value: string): number {
   return Array.from(value).length;
 }
@@ -25,6 +27,7 @@ export function unicodeCharacterCount(value: string): number {
 // instead of allocating a fresh encoder on every length check.
 const TEXT_ENCODER = new TextEncoder();
 
+/** Length in UTF-8 bytes, the unit of {@link MAX_EMAIL_LENGTH}. */
 export function utf8ByteLength(value: string): number {
   return TEXT_ENCODER.encode(value).byteLength;
 }
