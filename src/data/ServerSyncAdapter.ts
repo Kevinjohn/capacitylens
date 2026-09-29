@@ -14,7 +14,7 @@ import {
   restoreRememberedLifecycleRows,
   splitLifecycleDeletes,
 } from "./sync/lifecycleOps";
-import { hasExisting, loadAll } from "./sync/loadSlice";
+import { loadAll, readHasExistingData } from "./sync/loadSlice";
 import { applyCommittedRevisions, writeRows, type BatchCommitReceipt } from "./sync/revisions";
 import {
   canonicalizeAcknowledged,
@@ -185,7 +185,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   hasExisting(): Promise<boolean> {
-    return hasExisting(this.state);
+    return readHasExistingData(this.state);
   }
 
   setAllocationRewriteHandler(handler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null): void {

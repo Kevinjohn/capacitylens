@@ -17,10 +17,10 @@ import { fetchAuthStatus } from "./fetchAuthStatus";
 import { AuthenticatedExternalSignInFailure, AuthLoading, ReauthMount } from "./authScreens";
 import { useAuthContextValue } from "./useAuthContextValue";
 
-// Auth boundary (production plan P3.3). In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
+// Auth boundary. In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
 // pure pass-through that performs NO fetch at all. In server mode (the default) it asks
 // GET /api/auth/me once at boot: authMode 'off' (the default deploy) renders the app
-// exactly as today; a 401 replaces everything with the LoginScreen. The screen is a
+// without a sign-in; a 401 replaces everything with the LoginScreen. The screen is a
 // lazy chunk so better-auth's client never loads unless a login is actually shown.
 
 const LoginScreen = lazy(() => import("./LoginScreen").then((screenModule) => ({ default: screenModule.LoginScreen })));

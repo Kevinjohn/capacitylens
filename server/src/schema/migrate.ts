@@ -16,8 +16,9 @@ import { hasColumn, isNotNull, tableExists } from "./introspection";
  * fresh, current, or already-migrated DB falls straight through with no transaction. Runs with
  * foreign keys OFF (openDb enables them afterwards) so renaming a referenced table is safe.
  *
- * MUST run before SCHEMA_SQL — otherwise the IF-NOT-EXISTS create of `activities` wins the race
- * and the rename's guard (`activities` absent) never fires, abandoning the legacy rows.
+ * MUST run before the baseline DDL (SCHEMA_V8_SQL in the v8 baseline migration) — otherwise the
+ * IF-NOT-EXISTS create of `activities` wins the race and the rename's guard (`activities` absent)
+ * never fires, abandoning the legacy rows.
  */
 export function renameLegacyActivityTables(db: Db): void {
   // Rename the table only when the old one exists and the new one hasn't been created yet.

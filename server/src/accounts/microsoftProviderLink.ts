@@ -11,8 +11,8 @@ function returnUrl(value: string, marker: string, ceremonyId: string): string {
   let url: URL;
   try {
     url = new URL(value);
-  } catch {
-    throw new MicrosoftProofError("INVALID_CALLBACK_URL", 400);
+  } catch (error) {
+    throw new MicrosoftProofError("INVALID_CALLBACK_URL", 400, { cause: error });
   }
   url.searchParams.set("capacitylensIdentityProvider", "microsoft");
   url.searchParams.set(marker, ceremonyId);
