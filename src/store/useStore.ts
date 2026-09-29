@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { setActiveDateStyle } from "../lib/dateDisplay";
+import { setActiveDateStyle } from "@/lib/dateDisplay";
 import { resolveDateStyle } from "./selectors";
 import { createAccountSlice } from "./slices/accountSlice";
 import { createAllocationSlice } from "./slices/allocationSlice";
@@ -10,7 +10,8 @@ import { createResourceSlice } from "./slices/resourceSlice";
 import { createRuntimeSlice } from "./slices/runtimeSlice";
 import { createSchedulerSlice } from "./slices/schedulerSlice";
 import { createStoreInternals } from "./storeInternal";
-import { buildEmptyFilters, type StoreState } from "./types";
+import { buildEmptyFilters } from "./types";
+import type { StoreState } from "./types";
 
 export type {
   AccountSummary,
@@ -28,6 +29,11 @@ export type {
 } from "./types";
 export { clearEntityLenses, buildEmptyFilters, hasActiveFilters, hasLensFilter, hasProjectClientLens } from "./types";
 
+/**
+ * The app store: scoped entity data, UI state and undo/redo history, composed from the slices.
+ * CRUD actions throw on a tenancy or integrity violation and silently ignore a stale id; ids and
+ * timestamps are assigned here, never by callers.
+ */
 export const useStore = create<StoreState>()((set, get, store) => {
   const internals = createStoreInternals(set, get);
   return {

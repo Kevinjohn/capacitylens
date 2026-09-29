@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { resolveRejectionMessage, teamAccessClient, type TeamMember } from "../../account/teamAccessClient";
-import { invalidateResourceAvatars } from "../../account/useResourceAvatars";
-import { Modal, SelectField } from "../common/ui";
-import { Button } from "../ui/button";
+import { resolveRejectionMessage, teamAccessClient } from "@/account/teamAccessClient";
+import type { TeamMember } from "@/account/teamAccessClient";
+import { invalidateResourceAvatars } from "@/account/useResourceAvatars";
+import { Modal, SelectField } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
 import { Link as LinkIcon } from "lucide-react";
 
 function resolveResourceStatus(expectedResourceId: string | null | undefined, reconciled: boolean): string {

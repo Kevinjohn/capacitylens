@@ -438,16 +438,22 @@ Inside a module, function verbs, variable names, parameter style and result shap
 
 ## Checks
 
-Run these before proposing a change:
+Run these before proposing a change, on the Node version in `.nvmrc`:
 
 ```bash
 pnpm run gate:all
-pnpm run test:account-conformance
 pnpm run e2e
-pnpm run rehearse:migrations
-pnpm run coverage
-pnpm run mutation
 ```
+
+`gate:all` already includes coverage. A prose-only change needs formatting and a content and link
+review instead; rebuild the documentation when its sources change. Add these checks when their
+trigger applies:
+
+| Check | Run it when a change touches |
+| --- | --- |
+| `pnpm run test:account-conformance` | Authentication, accounts, invitations, membership, authorization, sessions or erasure. |
+| `pnpm run rehearse:migrations` | A database migration, the persisted authentication shape or the Better Auth version. |
+| `pnpm run mutation` | The pure logic it mutates (see [Mutation testing](#mutation-testing)), or before a release. |
 
 Installing dependencies configures lightweight Git hooks. Each commit lints only staged authored
 JavaScript and TypeScript files, so small commits stay fast. Each push runs the complete repository
@@ -469,7 +475,8 @@ Lint also holds the typed packages to the mechanical rules of the code conventio
 identifier casing, no negated boolean names, and at most three parameters. Existing violations
 are recorded per file and rule in `eslint-suppressions.json` at the repository root. A count
 that rises fails lint, and an entry that is no longer needed fails lint until
-`pnpm exec eslint . --prune-suppressions` removes it, so the baseline only shrinks.
+`pnpm exec eslint . --prune-suppressions` removes it, so the baseline only shrinks. Inline
+`eslint-disable` comments sit outside that per-file baseline, so the ratchet does not count them.
 
 Shared production compiles without Node types. Its standard web declarations preserve the existing
 `Headers` contract, UUID generation and UTF-8 encoding; lint permits ECMAScript globals except
@@ -487,8 +494,10 @@ than `tsc` at the repository root.
 
 Both gates verify the effective lint configuration against the authored source inventory and
 representative new files. The JavaScript and TypeScript recommended rules cover scripts and
-declarations too, including `.mts` and `.cts`. Vue documentation components receive the Vue
-essential rules for their scripts and templates. Generated output and prose are excluded.
+declarations too, including `.mts` and `.cts`. Lint does not cover the documentation: it
+excludes `docs/`, all of `docs-src/` (including the VitePress configuration, theme and Vue
+components), `scripts/docs-lightbox.js` and `scripts/docs-standalone.mjs`, as well as generated
+output.
 
 | Source | Promise linting | Environment and other checks |
 | --- | --- | --- |
@@ -496,8 +505,8 @@ essential rules for their scripts and templates. Generated output and prose are 
 | Server `.ts` files under `server/src/` and `server/scripts/`, including tests | Typed | Node compiler project and globals. |
 | Shared source and colocated tests | Typed | Separate pure production and Node test projects, as described above. |
 | E2E, root/package configuration and remaining scripts | Untyped | Recommended lint rules; compiler checks apply where a tool has its own TypeScript project. |
-| Public scripts and docs lightbox handler | Untyped | Browser globals; the offline worker receives service-worker globals instead. |
-| VitePress build modules and theme | Untyped | Node build-time globals, browser theme globals, and Vue template checks. |
+| Public scripts | Untyped | Browser globals; the offline worker receives service-worker globals instead. |
+| Documentation sources, VitePress, lightbox and standalone build | Not linted | Excluded in `eslint.config.js`. |
 
 “Untyped” means ESLint does not load a TypeScript project for promise analysis. It does not
 exempt the source from linting. Real temporary production and test files prove that floating
@@ -834,8 +843,9 @@ version inside one `BEGIN IMMEDIATE` transaction and stamps `user_version` plus 
 CapacityLens `application_id` in that same commit. The same transaction inserts a row into
 `capacitylens_schema_migrations` containing the version, name, SHA-256 definition checksum
 and application timestamp. Startup validates the complete ledger before planning writes
-and refuses a missing, reordered, renamed or checksummed-different migration. `SCHEMA_SQL`
-creates fresh databases; already-released files advance through migrations. Shape
+and refuses a missing, reordered, renamed or checksummed-different migration. A fresh database
+runs the retained v8 baseline and then every migration, exactly as a released file advances
+through the migrations it has not yet applied; `SCHEMA_SQL` has no runtime caller. Shape
 introspection remains a post-migration assertion and a v0-v7 baseline repair, not the
 mechanism for silently applying new fields. That assertion verifies the TABLES write
 contract (declared types, nullability and id primary keys) and rejects unknown required
