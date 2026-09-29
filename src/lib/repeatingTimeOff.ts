@@ -6,7 +6,7 @@ import {
   type RepeatPattern,
 } from "@capacitylens/shared/lib/repeatingDates";
 import type { ISODate, TimeOff } from "@capacitylens/shared/types/entities";
-import type { Draft } from "../store/useStore";
+import type { Draft } from "@/store/useStore";
 
 /** A create-only cadence; persisted time-off entries remain independent dated records. */
 export type TimeOffRepeatSelection =
@@ -21,6 +21,7 @@ const TIME_OFF_REPEAT_PATTERNS: Record<TimeOffRepeatSelection, RepeatPattern> = 
   "monthly-last-weekday": { kind: "monthly-last-weekday" },
 };
 
+/** The shared repeat pattern behind one time-off cadence choice. Pure. */
 export function resolveTimeOffRepeatPattern(selection: TimeOffRepeatSelection): RepeatPattern {
   return TIME_OFF_REPEAT_PATTERNS[selection];
 }

@@ -3,10 +3,10 @@ import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWor
 import { parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { carriesHourlyLoad } from "@capacitylens/shared/types/entities";
 import { useEffect, useMemo, useState } from "react";
-import { useCanEdit } from "../../auth/permissionContext";
-import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
-import { formatWeekdayScheduleDate } from "../../lib/dateDisplay";
-import { resolveResourceDisplayName } from "../../lib/metadata";
+import { useCanEdit } from "@/auth/permissionContext";
+import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
+import { formatWeekdayScheduleDate } from "@/lib/dateDisplay";
+import { resolveResourceDisplayName } from "@/lib/metadata";
 import {
   hasExternalResourcesEnabled,
   canCreateInlineActivity,
@@ -14,9 +14,9 @@ import {
   hasPlaceholdersEnabled,
   resolveSchedulingMode,
   resolveTimeZone,
-} from "../../store/selectors";
-import { useActiveScopedData } from "../../store/useScopedData";
-import { useStore } from "../../store/useStore";
+} from "@/store/selectors";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { useStore } from "@/store/useStore";
 import { buildAllocationAdvisory } from "./buildAllocationAdvisory";
 import { buildAllocationModalSeed } from "./buildAllocationModalSeed";
 import type { AllocationModalProps } from "./allocationModalTypes";
