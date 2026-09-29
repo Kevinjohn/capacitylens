@@ -25,8 +25,11 @@ import {
   resolveAttributedProject,
   INTERNAL_PROJECT_SELECTION,
 } from "./allocationModalSelection";
+/** Tables the resource, project and activity pickers read. */
+type TargetData = Pick<AppData, "activities" | "clients" | "phases" | "projects" | "resources">;
+
 interface TargetInput {
-  data: AppData;
+  data: TargetData;
   seed: AllocationModalSeed;
   resourceById: Map<string, Resource>;
   canEdit: boolean;
@@ -64,7 +67,10 @@ function buildResourceOptions({
     .map((resource) => ({ value: resource.id, label: describeResource(resource) }));
 }
 
-function buildProjectOptions(data: AppData, lockedProjectId: string | undefined): Option[] {
+function buildProjectOptions(
+  data: Pick<TargetData, "clients" | "projects">,
+  lockedProjectId: string | undefined,
+): Option[] {
   const clientNamesById = new Map(data.clients.map((client) => [client.id, client.name]));
   const projects = data.projects
     .filter((project) => lockedProjectId === undefined || project.id === lockedProjectId)
