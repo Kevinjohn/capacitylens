@@ -192,9 +192,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      # The out-of-the-box posture: open instance explicitly accepted, every optional
-      # hardening left off (matching what a first-run community deployment gets).
+      # The explicit no-login posture, deliberately chosen: production now defaults to
+      # password-only, so this job opts in to the open instance and leaves every optional
+      # hardening off to document that posture's residual surface.
       CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
+      SMALLSASS_ACCOUNT_MODE: "off"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
