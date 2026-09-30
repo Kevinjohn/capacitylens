@@ -61,7 +61,7 @@ describe("InviteMemberPanel creation guidance", () => {
 
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveAccessibleName("Invite someone");
-    expect(dialog).toHaveAccessibleDescription(/CapacityLens does not send invitation emails/);
+    expect(dialog).toHaveAccessibleDescription(/When SMTP is configured and email sending is available/);
     expect(dialog.querySelector('[data-slot="dialog-header"]')).toHaveClass("border-b");
     expect(dialog.querySelector("form > div.p-4")).toBeInTheDocument();
     expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass("border-t");
@@ -101,7 +101,7 @@ describe("InviteMemberPanel creation guidance", () => {
     fireEvent.click(screen.getByTestId("invite-open"));
 
     expect(screen.getByTestId("invites-section")).toHaveTextContent(
-      "CapacityLens does not send invitation emails. After creating an invite, copy the link and send it yourself.",
+      /When SMTP is configured and email sending is available, CapacityLens emails addressed invitations\./,
     );
     expect(screen.getByLabelText("Email")).toBe(screen.getByTestId("invite-preauth"));
     expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-required", "true");
@@ -113,6 +113,7 @@ describe("InviteMemberPanel creation guidance", () => {
     renderInvite({ authMode: "sso-only" });
     fireEvent.click(screen.getByTestId("invite-open"));
 
+    expect(screen.getByTestId("invites-section")).toHaveTextContent(/If email is unavailable or sending fails/);
     expect(screen.getByLabelText("Email")).toBe(screen.getByTestId("invite-preauth"));
     expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-required", "true");
     expect(screen.getByTestId("invite-preauth")).not.toHaveAttribute("aria-describedby");
@@ -135,7 +136,7 @@ describe("InviteMemberPanel creation guidance", () => {
     const status = screen.getByTestId("invite-created-status");
     expect(status).toHaveAttribute("role", "status");
     expect(status).toHaveTextContent("Invitation emailed to diana@example.test");
-    expect(status).toHaveTextContent("Invite created. Copy this link and send it yourself.");
+    expect(status).toHaveTextContent("Invite created. Its one-time link is available below.");
     expect(status).toHaveTextContent("If you lose it, revoke this invite and create a new one.");
     expect(status).toContainElement(screen.getByRole("button", { name: "Copy invitation link" }));
   });

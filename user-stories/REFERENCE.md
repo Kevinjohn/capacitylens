@@ -1028,8 +1028,10 @@ address, current policy, invitation, access restrictions and session at acceptan
 refreshes the authenticated company list and activates the joined company without persisting
 `activeAccountId` or treating the URL as membership proof.
 An accept is refused (403) while **Disable Access** applies, including after removal or identity
-recreation with the same proven email; the invitation remains unused. An archived member without
-the restriction can rejoin through a valid invitation at the invitation's role. A
+recreation at the same address when both identities have durable mailbox proof; an addressed
+invitation or legacy verified-email flag alone does not establish that link. The invitation remains
+unused. An archived member without the restriction can rejoin through a valid invitation at the
+invitation's role. A
 **used** link shows _"This invite has already been used."_; an
 **expired** link shows _"This invite has expired."_ (expiry is evaluated as an instant, including
 explicit UTC offsets, and malformed stored values fail closed); an **unknown** token shows _"Invite not
@@ -1160,8 +1162,10 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button named **Copy invitation link** — the token is write-once and never
-  shown again; closing the dialog clears it, so reopening shows an empty form. The panel explicitly says CapacityLens does not send invitation emails: the creator
-  copies and sends the link. The field has no explanatory helper copy and is required in every
+  shown again; closing the dialog clears it, so reopening shows an empty form. The panel says
+  CapacityLens emails addressed invitations when SMTP is configured and sending is available; if
+  email is unavailable or sending fails, the creator copies and sends the link. The field has no
+  explanatory helper copy and is required in every
   server-auth mode. Creation confirmation stays beside the link, with instructions to
   revoke and recreate it if lost, rather than overlaying the panel in a toast.
   If any membership, invite or reset-token mutation loses its response after dispatch,

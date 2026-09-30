@@ -17,6 +17,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Invitation guidance now reflects conditional SMTP delivery and the copy-link fallback, and
+  explains that Disable Access follows recreated identities only with durable mailbox proof (#1367).
 - Connecting a company sign-in provider now offers identity confirmation when a
   session has aged and explains how to recover from an unverified local account
   email (#1364).
