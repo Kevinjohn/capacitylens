@@ -10,10 +10,8 @@ import type { AppOptions } from "../app";
 // serializer is ever added, extend this list to cover any new path it surfaces.
 const LOG_REDACT_PATHS = ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'];
 
-// Mask the bearer token in every token-scoped invite URL before it reaches the access log. The token
-// is the ONLY path-borne secret in the API; every other URL passes through unchanged. Anchored to
-// the exact `/api/invites/<token>/accept` shape (optionally with a query string) so a normal path
-// is never mangled. The match is on the path-with-query string pino logs (req.url).
+// Keep only the path in access logs so query and fragment data cannot expose one-time credentials.
+// The invite token is carried in the path, so mask that exact route segment before taking its pathname.
 const INVITE_OPERATION_URL_RE = /^(\/api\/invites\/)[^/?#]+(\/(?:accept|signup|preview))(.*)$/;
 
 // `url` is typed unknown because the serializer may also run over a hand-built `{ req: {...} }`
@@ -23,12 +21,10 @@ export const redactSecretUrl = (url: unknown): string | undefined => {
   const inviteSafe = url.replace(INVITE_OPERATION_URL_RE, "$1[redacted]$2$3");
   try {
     const parsed = new URL(inviteSafe, "http://capacitylens.invalid");
-    for (const key of ["token", "code", "state"]) {
-      if (parsed.searchParams.has(key)) parsed.searchParams.set(key, "[redacted]");
-    }
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    return parsed.pathname;
   } catch {
-    return inviteSafe;
+    const suffixIndex = inviteSafe.search(/[?#]/u);
+    return suffixIndex < 0 ? inviteSafe : inviteSafe.slice(0, suffixIndex);
   }
 };
 
