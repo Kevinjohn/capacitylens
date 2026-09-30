@@ -4,3 +4,15 @@ document.addEventListener("keydown", function (event) {
     toggle.checked = false;
   });
 });
+
+if (typeof location !== "undefined" && location.protocol === "file:") {
+  const makeNotFoundLinkRelative = function () {
+    document.querySelector?.(".cl-standalone-not-found a")?.setAttribute("href", "index.html");
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", makeNotFoundLinkRelative, { once: true });
+  } else {
+    makeNotFoundLinkRelative();
+  }
+}

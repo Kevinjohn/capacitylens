@@ -217,7 +217,7 @@ This is the short, present-tense record of decisions that constrain future work.
   before storage or bootstrap writes; the server never falls back to password or sign-in-off mode.
   Deterministic and library evidence never substitutes for live-provider checks.
 - Named profiles are `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` and
-  `hosted-sso-only`. Hosted SSO requires `mode=sso`, complete Google and/or tenant-specific
+  `hosted-sso-only`. Hosted SSO requires `mode=sso-only`, complete Google and/or tenant-specific
   Microsoft configuration, and refuses passwords, GitHub, open signup or incomplete provider
   settings. Its shared conformance capability is `companyProviderRequired`; it has an independent
   contract version. A future product grouping layer must use the public named-provider boundary,
@@ -245,7 +245,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - Self-hosted provider-required access uses `self-hosted-sso-only` and requires a configured Google
   or Microsoft company-provider session, including for invitation acceptance. GitHub and password
   sessions cannot satisfy that requirement. Existing password credentials remain available if an
-  operator returns the installation to `mode=password`; that restores the password entrance but
+  operator returns the installation to `mode=password-only`; that restores the password entrance but
   does not reset credentials or change provider connections. The in-app readiness panel is retired;
   the read-only `cutover:preflight` and guarded stopped-server `cutover:repair` operator commands
   remain available for named-provider preparation and recovery. Preflight checks the full configured

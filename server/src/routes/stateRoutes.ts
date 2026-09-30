@@ -12,7 +12,7 @@ import { insertRow, listAccountSummaries, readState } from "../db";
 import type { LocalAccountFlows } from "../accounts/createLocalAccountFlows";
 import type { MasqueradeRegistry } from "../MasqueradeRegistry";
 import type { TenantStore } from "../tenantStore";
-import { listAcceptedFieldNames, sanitizeWrite, assertValidWrite } from "../validate";
+import { listAcceptedFieldNames, sanitizeWrite, assertValidWrite, ValidationError } from "../validate";
 import { buildReadSliceVisibility, resolveVisibilityForRole } from "../fieldPolicy";
 import { enqueueAudit } from "../auditOutbox";
 import { buildCanonicalAccountProductPayload } from "./accountEntityRoutes";
@@ -273,6 +273,8 @@ async function createOrganisation(
   // exists, absent a bootstrap token. The gate runs in auth-on AND off; in off mode (1)/(2) already
   // allow, so the token/membership branches are moot there.
   try {
+    if (!isRecord(req.body)) throw new ValidationError("Company details must be an object.");
+
     // Build a VALID account row from the body (name required; colour repaired; junk schedulingMode
     // dropped) via the SAME sanitize/validate the generic account create uses — so /api/orgs can't
     // persist a row the generic path would reject. The id is generated server-side when the body
@@ -295,9 +297,9 @@ async function createOrganisation(
     const accountRow = sanitizeWrite({
       table: "accounts",
       row: {
-        ...(req.body as Record<string, unknown>),
-        schedulingMode: (req.body as Record<string, unknown>).schedulingMode ?? "days",
-        inlineActivityCreateEnabled: (req.body as Record<string, unknown>).inlineActivityCreateEnabled ?? false,
+        ...req.body,
+        schedulingMode: req.body.schedulingMode ?? "days",
+        inlineActivityCreateEnabled: req.body.inlineActivityCreateEnabled ?? false,
         id,
         createdAt: now,
         updatedAt: now,

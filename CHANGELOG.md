@@ -17,6 +17,21 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Creating a company with a malformed request body now returns a validation error without creating partial company data (#1371).
+- Switching companies while a member view is waiting to save pending changes now cancels that
+  start before it can load the previous company's view (#1370).
+- Selecting a company that is no longer available returns to the picker and clears the previous
+  company's dirty form, drag and screen-reader announcement state while keeping the not-found notice.
+- The documentation 404 page now explains the missing page and returns hosted visitors
+  to the documentation home, including from nested routes (#1368).
+- Invitation guidance now reflects conditional SMTP delivery and the copy-link fallback, and
+  explains that Disable Access follows recreated identities only with durable mailbox proof (#1367).
+- Connecting a company sign-in provider now offers identity confirmation when a
+  session has aged and explains how to recover from an unverified local account
+  email (#1364).
+- A first start on an empty database no longer logs a "Database schema mismatch" error telling
+  the operator to run `npx auth migrate`. The server creates those tables itself, and still refuses
+  to start if they cannot be brought up to date (#1353).
 - Dev tooling now reserves explicitly selected port lanes, reports missing `lsof`, and stops with
   instructions instead of terminating a process that occupies a lane (#1316, #1317, #1322).
   `pnpm run lanes` lists what holds each lane, and `--stop-orphans` stops leftover servers.
@@ -36,6 +51,8 @@ new features and **patch** versions carry fixes.
 
 ### Security
 
+- Git now ignores `.env` and `.env.*` (except `.env.example`), so the secret and setup token an
+  install writes to `.env` cannot be committed by `git add .` (#1358).
 - Sign-in and other credential limits now count each client by the address the server trusts.
   A client could previously avoid them by sending its own forwarding header, and without one
   every client shared a single allowance (#1308).

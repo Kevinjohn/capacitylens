@@ -210,6 +210,32 @@ function registerAuthOnBootstrapTests(): void {
   });
 }
 
+function registerNullOrganizationBodyTest(): void {
+  it("rejects a null organization body without changing provisioning state", async () => {
+    const { app, db } = await appWithAuth();
+    const { cookie } = await signUp(app, "null-org-body@capacitylens.dev");
+    const before = {
+      accounts: readState(db).accounts,
+      clients: readState(db).clients,
+      members: db.prepare("SELECT * FROM account_members ORDER BY accountId, userId").all(),
+      outbox: db.prepare("SELECT * FROM capacitylens_audit_outbox ORDER BY sequence").all(),
+    };
+
+    const response = await call(app, {
+      method: "POST",
+      url: "/api/orgs",
+      headers: { cookie, "content-type": "application/json" },
+      payload: "null",
+    });
+
+    expect(response.statusCode, response.body).toBe(400);
+    expect(readState(db).accounts).toEqual(before.accounts);
+    expect(readState(db).clients).toEqual(before.clients);
+    expect(db.prepare("SELECT * FROM account_members ORDER BY accountId, userId").all()).toEqual(before.members);
+    expect(db.prepare("SELECT * FROM capacitylens_audit_outbox ORDER BY sequence").all()).toEqual(before.outbox);
+  });
+}
+
 function registerAuthOnMembershipTests(): void {
   it("existing-account stranger DENIED: no owner/admin membership -> 403 and the account is NOT created", async () => {
     const { app, db } = await appWithAuth();
@@ -322,6 +348,7 @@ function registerAuthOnRestrictionTests(): void {
 describe("POST /api/orgs (P1.8) — auth-on", () => {
   registerAuthOnDurabilityTests();
   registerAuthOnBootstrapTests();
+  registerNullOrganizationBodyTest();
   registerFreshCompanyResourceTest();
   registerAuthOnMembershipTests();
   registerAuthOnRestrictionTests();

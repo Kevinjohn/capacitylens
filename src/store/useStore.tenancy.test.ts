@@ -311,4 +311,26 @@ describe("unknown account selection while on the picker", () => {
     expect(s().notice).toMatchObject({ tone: "error" }); // but no longer silent
     warn.mockRestore();
   });
+
+  it("clears the leaving company session state and keeps its breadcrumb when selection is unknown", () => {
+    const dirtySourceA = Symbol("company A form");
+    const dirtySourceB = Symbol("company A dialog");
+    s().setDirtyFormSource(dirtySourceA, true);
+    s().setDirtyFormSource(dirtySourceB, true);
+    s().setDraggingAllocation("allocation-a");
+    s().announceCapacity("Company A capacity changed");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    s().setActiveAccount("company-does-not-exist");
+
+    expect(s().activeAccountId).toBeNull();
+    expect(s().previousAccountId).toBe(A);
+    expect(s().notice).toMatchObject({ tone: "error" });
+    expect(s().notice?.message).toMatch(/company no longer exists/i);
+    expect(s().dirtyForm).toBe(false);
+    expect(s().dirtyFormSources.size).toBe(0);
+    expect(s().draggingAllocationId).toBeNull();
+    expect(s().srAnnouncement).toBeNull();
+    warn.mockRestore();
+  });
 });

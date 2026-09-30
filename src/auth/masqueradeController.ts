@@ -194,6 +194,11 @@ export class MasqueradeController {
   async transitionAccount(accountId: string | null): Promise<boolean> {
     const runtime = useStore.getState().masquerade;
     if (runtime.kind === "inactive") {
+      // A start still flushing belongs to the old company and must not run after the switch.
+      if (this.startPendingGeneration !== null) {
+        ++this.generation;
+        this.startPendingGeneration = null;
+      }
       const outcome = await this.dependencies.switchAccount(accountId);
       return isSwitchSuccessful(outcome, accountId);
     }

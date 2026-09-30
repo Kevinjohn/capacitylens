@@ -10,7 +10,8 @@ see, and how they accept it. It takes about ten seconds on your side and roughly
 seconds on theirs. It's optional — a solo [Owner](/reference/glossary) can finish setting
 up the schedule without inviting anyone, and can come back to this page later.
 
-CapacityLens sends no invitation emails. You create a single-use link and paste it
+When SMTP is configured and email sending is available, CapacityLens emails an addressed
+invitation. If email is unavailable or sending fails, copy the single-use link and send it
 wherever your team already talks — Slack, a text message, whatever's fastest.
 
 ::: tip
@@ -45,11 +46,12 @@ permissions](/getting-started/roles-and-permissions) for why.
 
    ![Invite someone dialog with the optional Link to Resource selection](../screenshots/flows/invitation_created.png)
 
-4. Select **Create invite**, then **Copy** the one-time link. It's shown exactly once — the server keeps only a hash of it —
-   so copy it now and send it to the [person](/reference/glossary). The confirmation stays beside
-   the link. CapacityLens does not send it for you. Closing the dialog clears the link; if you
-   close it before the invite finishes creating, a notice says the link was not shown. If you
-   lose it, revoke the invite and create another one.
+4. Select **Create invite**. The one-time link is shown once — the server keeps only a hash of it —
+   and the confirmation stays beside it. When SMTP is configured and email sending is available,
+   CapacityLens emails the addressed invitation. If email is unavailable or sending fails, select
+   **Copy** and send the link to the [person](/reference/glossary). Closing the dialog clears the
+   link; if you close it before the invite finishes creating, a notice says the link was not shown.
+   If you lose it, revoke the invite and create another one.
 
 ## What the invitee sees
 
@@ -106,8 +108,9 @@ reverses a completed change. See [Link a person to a member](/guide/people-and-p
 ![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/remove_resource_link.png)
 
 **Disable Access** stops this person opening the company immediately, including through an
-existing session or a later invitation. It also survives removal and recreation with the same
-verified email. **Enable Access** removes that restriction. A retained active member then keeps
+existing session or a later invitation. It follows a recreated identity at the same address only
+when both identities have durable proof of mailbox ownership. An addressed invitation or an
+older verified-email flag alone does not establish that link. **Enable Access** removes that restriction. A retained active member then keeps
 their existing role; an archived or removed person still needs the ordinary restore or invitation
 process. Only an Owner or Admin can enable access, including for a removed person listed under
 **No longer active**.
