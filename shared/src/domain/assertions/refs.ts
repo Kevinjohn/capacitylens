@@ -209,6 +209,12 @@ function assertResourceKindImmutable(
   }
 }
 
+/**
+ * Assert that the catalog references a scoped record carries (client, project, phase, activity and
+ * resource links) resolve within `accountId`. It does not check the record's own `accountId`, and it
+ * leaves allocation and time-off references to their own validators, so it is not a tenancy guard
+ * on its own. Throws a `DomainError` on a violation.
+ */
 export function assertScopedRefs(
   ...[data, accountId, key, record, existing, lookup, options = {}]: ScopedRefsArgs
 ): void {
@@ -319,6 +325,7 @@ function assertAllocationProject(context: AllocationRefsContext, activity: Activ
   return resolvedProjectId;
 }
 
+/** Assert an allocation's resource, activity, project and hours are valid for `accountId`. Throws a `DomainError` on a violation. */
 export function assertAllocationRefs(
   ...[data, accountId, resourceId, activityId, hoursPerDay, projectId, existing, lookup]: AllocationRefsArgs
 ): void {

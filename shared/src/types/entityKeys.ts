@@ -18,6 +18,7 @@ export const APP_DATA_KEYS = [
   "closures",
 ] as const satisfies readonly (keyof AppData)[];
 
+/** A portable table name; see {@link APP_DATA_KEYS}. */
 export type AppDataKey = (typeof APP_DATA_KEYS)[number];
 
 type MissingAppDataKey = Exclude<keyof AppData, AppDataKey>;
@@ -27,6 +28,7 @@ void appDataKeysAreComplete;
 /** The AppData arrays holding account-scoped entities (everything except `accounts`). */
 export type ScopedEntityKey = Exclude<AppDataKey, "accounts">;
 
+/** Every table whose rows carry `accountId`. */
 export const SCOPED_KEYS = [
   "disciplines",
   "resources",

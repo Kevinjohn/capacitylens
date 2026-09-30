@@ -6,6 +6,7 @@ import { isAccountRole, type IdentityAdminAction, type Role } from "./types";
 export const SINGLE_COMPANY_CAP_MESSAGE =
   "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
 
+/** Company administration actions the role policy authorizes. */
 export type AccountAdminAction =
   | "list-members"
   | "manage-members"
@@ -85,6 +86,7 @@ export function canEditAnyMemberRole(actorRole: Role, targetRole: Role): boolean
   return targetRole !== "owner";
 }
 
+/** Whether the actor may change the target's role to `nextRole`. Promotion to Owner is never allowed here. Pure. */
 export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
   // Standing over this target first, then the destination-specific rule: promoting anyone TO Owner
   // is likewise reserved to the ownership transfer.
@@ -92,6 +94,7 @@ export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole:
   return nextRole !== "owner";
 }
 
+/** Whether the actor may remove the target. An Owner cannot be removed. Pure. */
 export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
   return isAccountRole(targetRole) && canAdministerAccount(actorRole, "manage-members") && targetRole !== "owner";
 }

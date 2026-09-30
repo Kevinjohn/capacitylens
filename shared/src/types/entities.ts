@@ -1,14 +1,18 @@
 // Core domain types for CapacityLens. Pure data shapes — no behaviour lives here.
 
-export type ID = string; // crypto.randomUUID()
-export type ISODate = string; // date-only, "YYYY-MM-DD"
-export type ISOTimestamp = string; // full ISO datetime, e.g. new Date().toISOString()
+/** Opaque row identifier, generated with `crypto.randomUUID()`. */
+export type ID = string;
+/** Calendar date without a time, `YYYY-MM-DD`. */
+export type ISODate = string;
+/** Full UTC instant as produced by `new Date().toISOString()`. */
+export type ISOTimestamp = string;
 
 /** 0 = Sunday … 6 = Saturday (matches JS Date.getDay()). */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 /** Fixed capacity of a resource weekday marked as a half day. */
 export const HALF_DAY_HOURS = 4;
 
+/** Whether an allocation is confirmed, tentative or completed. */
 export type AllocationStatus = "confirmed" | "tentative" | "completed";
 /** How allocations are entered: by daily load against a fixed end date ('hourly',
  *  the default), by volume of work spread over a span ('days'), or as a pure
@@ -51,9 +55,11 @@ export const INTERNAL_COLOUR_MODES: InternalColourMode[] = ["grey", "palette"];
  *   defaults. See the external-resource rule in DECISIONS.md.
  */
 export type ResourceKind = "person" | "placeholder" | "external";
+/** A person's contract status. */
 export type EmploymentType = "permanent" | "freelancer" | "contractor";
 /** How the agency regards a person, independently of contract status or discipline. */
 export type ResourceEngagement = "studio" | "supplementary";
+/** The reason for a time-off entry. */
 export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
 /**
  * What an activity IS — the axis the schedule's "activity view" filters on. Three kinds:
@@ -134,12 +140,14 @@ export interface ScopedEntity extends Entity {
   accountId: ID;
 }
 
+/** A team discipline that groups people and sets their colour. */
 export interface Discipline extends ScopedEntity {
   name: string;
   color?: string;
   sortOrder: number; // controls grouping order in the scheduler
 }
 
+/** A schedulable resource: a person, a placeholder or an external supplier. */
 export interface Resource extends ScopedEntity {
   kind: ResourceKind;
   /** Optional: placeholders may be nameless (shown by `role`). For `external` this holds the
@@ -181,6 +189,7 @@ export interface Resource extends ScopedEntity {
   deletedAt?: ISOTimestamp;
 }
 
+/** A client whose projects are scheduled. */
 export interface Client extends ScopedEntity {
   name: string;
   color: string;
@@ -208,6 +217,7 @@ export interface Client extends ScopedEntity {
   deletedAt?: ISOTimestamp;
 }
 
+/** A client project. */
 export interface Project extends ScopedEntity {
   name: string;
   clientId: ID; // REQUIRED — a project must belong to a client
@@ -230,11 +240,13 @@ export interface Project extends ScopedEntity {
   deletedAt?: ISOTimestamp;
 }
 
+/** A named phase of a project. */
 export interface Phase extends ScopedEntity {
   name: string;
   projectId: ID;
 }
 
+/** A unit of work that allocations book time against. */
 export interface Activity extends ScopedEntity {
   name: string;
   /** What this activity is: project-specific work, internal work, or an all-projects activity. The
@@ -252,6 +264,7 @@ export interface Activity extends ScopedEntity {
   deletedAt?: ISOTimestamp;
 }
 
+/** A booking of one resource onto one activity over a date range. */
 export interface Allocation extends ScopedEntity {
   resourceId: ID;
   activityId: ID;
@@ -274,6 +287,7 @@ export interface Allocation extends ScopedEntity {
   // future-additive (NOT built in v1): startTime?/endTime? for "9am–1pm" allocations
 }
 
+/** One person's time off over a date range; company-wide closures are {@link Closure} records. */
 export interface TimeOff extends ScopedEntity {
   /** The resource taking personal time off. */
   resourceId: ID;
@@ -290,6 +304,7 @@ export interface Closure extends ScopedEntity {
   endDate: ISODate;
 }
 
+/** Every portable table, as held in memory and exported. */
 export interface AppData {
   accounts: Account[];
   disciplines: Discipline[];
@@ -338,6 +353,7 @@ export type { AppDataKey, ScopedEntityKey } from "./entityKeys";
  *  Resource.avatarUrl for externally hosted scheduled-person avatars.) */
 export const EXPORT_SCHEMA_VERSION = 23;
 
+/** The versioned export document. */
 export interface PersistedState {
   schemaVersion: number;
   data: AppData;

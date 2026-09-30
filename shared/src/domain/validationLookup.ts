@@ -54,6 +54,7 @@ export interface ValidationDataLookup {
   accountWorkingDays(accountId: ID): Weekday[];
 }
 
+/** Find a row by table and id through the lookup when given, otherwise by scanning `data`. Pure. */
 export const resolveValidationRow = ({
   data,
   table,

@@ -24,17 +24,21 @@ export const OWNERSHIP_TRANSFER_STATES = Object.freeze([
   "completed",
 ] as const);
 
+/** An ownership-transfer request state; see {@link OWNERSHIP_TRANSFER_STATES}. */
 export type OwnershipTransferState = (typeof OWNERSHIP_TRANSFER_STATES)[number];
 
 /** The two states that hold the company's single live-request slot. */
 export const LIVE_OWNERSHIP_TRANSFER_STATES = Object.freeze(["awaiting_target", "awaiting_owner"] as const);
 
+/** A state that holds the company's single live-request slot. */
 export type LiveOwnershipTransferState = (typeof LIVE_OWNERSHIP_TRANSFER_STATES)[number];
 
+/** Narrow an untrusted value to a known {@link OwnershipTransferState}. Pure. */
 export function isOwnershipTransferState(value: unknown): value is OwnershipTransferState {
   return typeof value === "string" && (OWNERSHIP_TRANSFER_STATES as readonly string[]).includes(value);
 }
 
+/** True when the state holds the company's live-request slot. Pure. */
 export function isLiveOwnershipTransferState(state: OwnershipTransferState): state is LiveOwnershipTransferState {
   return (LIVE_OWNERSHIP_TRANSFER_STATES as readonly string[]).includes(state);
 }
@@ -68,6 +72,7 @@ export const OWNERSHIP_TRANSFER_ACTIONS = Object.freeze([
   "complete",
 ] as const);
 
+/** A command applied to an ownership-transfer request. */
 export type OwnershipTransferAction = (typeof OWNERSHIP_TRANSFER_ACTIONS)[number];
 
 /** Why a request reached a terminal state without the roles being exchanged. Bounded on purpose:
@@ -84,6 +89,7 @@ export const OWNERSHIP_TRANSFER_TERMINAL_REASONS = Object.freeze([
   "owner_repaired",
 ] as const);
 
+/** A bounded reason code for a request that ended without exchanging roles. */
 export type OwnershipTransferTerminalReason = (typeof OWNERSHIP_TRANSFER_TERMINAL_REASONS)[number];
 
 /**

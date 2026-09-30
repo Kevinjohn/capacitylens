@@ -17,6 +17,7 @@ import { createSchedule } from "./seed/schedule";
 // switching companies swaps the whole dataset. Every scoped entity carries an
 // `accountId`; the store filters on it everywhere.
 
+/** Build the demo dataset: two companies with their people, work and schedule. Pure. */
 export function seed(): AppData {
   const { accounts, disciplines, clients, projects, phases } = createOrgTables();
   return {

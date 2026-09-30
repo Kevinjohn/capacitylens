@@ -116,6 +116,7 @@ const RESOURCES: AppData["resources"] = [
   },
 ];
 
+/** Fresh copies of the seed resources. */
 export function createResources(): AppData["resources"] {
   return RESOURCES.map((resource) => ({
     ...resource,

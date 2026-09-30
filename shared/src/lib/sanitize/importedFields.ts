@@ -58,6 +58,7 @@ type MissingImportedField = {
 const importedFieldsAreComplete: MissingImportedField extends never ? true : never = true;
 void importedFieldsAreComplete;
 
+/** Delete every field the table's import contract does not name. Mutates `record`. */
 export const stripUnknownFields = (key: ScopedEntityKey, record: Record<string, unknown>): void => {
   const allowed: readonly string[] = IMPORTED_FIELDS[key];
   for (const field of Object.keys(record)) {

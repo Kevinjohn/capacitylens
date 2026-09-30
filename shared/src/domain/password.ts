@@ -34,6 +34,7 @@ export const MAX_PASSWORD_LENGTH = 128;
  */
 export const MAX_PASSWORD_INPUT_CODE_UNITS = MAX_PASSWORD_LENGTH * 2;
 
+/** Why a password's length is rejected. */
 export type PasswordLengthFailure = "too-short" | "too-long";
 
 /** Count the length unit CapacityLens calls a password "character": a Unicode code point. */
