@@ -132,7 +132,7 @@ rather than guessing.
    sudo systemctl stop capacitylens
    snapshot_dir="/var/lib/capacitylens/pre-upgrade-$(date -u +%Y%m%d-%H%M%S)"
    sudo install -d -o capacitylens -g capacitylens -m 0700 "$snapshot_dir"
-   sudo sh -c 'cp -p /var/lib/capacitylens/capacitylens.db* /var/lib/capacitylens/capacitylens-audit.jsonl* "$1"' sh "$snapshot_dir"
+   sudo sh -c 'cp -p /var/lib/capacitylens/capacitylens* "$1"' sh "$snapshot_dir"
    sudo ls -l "$snapshot_dir"
    ```
 
