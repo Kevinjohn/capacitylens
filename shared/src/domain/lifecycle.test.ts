@@ -750,38 +750,20 @@ const registerActiveOnlyTest6 = (): void => {
       if (!row) throw new Error(`Missing lifecycle test row ${table}.${id}`);
       return inspectLifecycleAncestry(table, row, lookup);
     };
-
-    expect(inspect("projects", "p-hidden-parent").inactiveAncestor).toMatchObject({
-      table: "clients",
-      id: "c-archived",
-      state: "archived",
-    });
-    expect(inspect("phases", "ph-hidden").inactiveAncestor).toMatchObject({
-      table: "clients",
-      id: "c-archived",
-      state: "archived",
-    });
-    expect(inspect("activities", "act-hidden").inactiveAncestor).toMatchObject({
-      table: "clients",
-      id: "c-archived",
-      state: "archived",
-    });
-    expect(inspect("allocations", "al-hidden-activity").inactiveAncestor).toMatchObject({
-      table: "clients",
-      id: "c-archived",
-      state: "archived",
-    });
-    expect(inspect("allocations", "al-hidden-resource").inactiveAncestor).toMatchObject({
-      table: "resources",
-      id: "r-archived",
-      state: "archived",
-    });
-    expect(inspect("timeOff", "to-hidden").inactiveAncestor).toMatchObject({
-      table: "resources",
-      id: "r-archived",
-      state: "archived",
-    });
-    expect(inspect("allocations", "al1")).toEqual({ visible: true });
+    for (const [table, id, ancestorTable, ancestorId] of [
+      ["projects", "p-hidden-parent", "clients", "c-archived"],
+      ["phases", "ph-hidden", "clients", "c-archived"],
+      ["activities", "act-hidden", "clients", "c-archived"],
+      ["allocations", "al-hidden-activity", "clients", "c-archived"],
+      ["allocations", "al-hidden-resource", "resources", "r-archived"],
+      ["timeOff", "to-hidden", "resources", "r-archived"],
+    ] as const) {
+      expect(inspect(table, id)).toEqual({
+        kind: "hidden",
+        inactiveAncestor: { table: ancestorTable, id: ancestorId, state: "archived" },
+      });
+    }
+    expect(inspect("allocations", "al1")).toEqual({ kind: "visible" });
   });
 };
 

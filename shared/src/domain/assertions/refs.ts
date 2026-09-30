@@ -169,7 +169,7 @@ function assertResourceRefs(context: ScopedRefsContext): void {
     if (mergedKind !== "person")
       throwDomainError("resource_avatar_url_forbidden", "Only a person can have an avatar URL.");
     const avatarUrl = parseResourceAvatarUrl(mergedAvatarUrl);
-    if (!avatarUrl.ok || avatarUrl.value !== mergedAvatarUrl) {
+    if (avatarUrl !== mergedAvatarUrl) {
       throwDomainError("resource_avatar_url_invalid", "Avatar URL must be a normalised HTTPS URL without credentials.");
     }
   }

@@ -3,7 +3,7 @@ import { TABLE_DEFINITIONS } from "./tables/columns";
 import type { ColumnSpec, TableSpec } from "./tables/tableSpecs";
 // Preserve existing consumers while the column owner depends only on the pure contract.
 export type { ColumnSpec, TableSpec } from "./tables/tableSpecs";
-export { INTERNAL_CLIENT_UNIQUE_INDEX_SQL, SCHEMA_SQL, SCHEMA_V8_SQL } from "./tables/ddl";
+export { INTERNAL_CLIENT_UNIQUE_INDEX_SQL, SCHEMA_V8_SQL } from "./tables/ddl";
 // The single source of truth for the SQL schema and the row<->object mapping. One
 // entry per AppData table. `columns` is the exact column order used for INSERT and
 // for reading rows back. `json` columns are JSON.stringify'd on write / parsed on

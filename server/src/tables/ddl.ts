@@ -1,4 +1,3 @@
-import { BOOTSTRAP_CLAIM_TABLE_SQL } from "../bootstrapClaim";
 // DDL. Foreign keys mirror the shared cascade rules in shared/src/lib/integrity.ts exactly:
 //   resource → allocations/timeOff : CASCADE        (deleteResourceCascade)
 //   activity     → allocations          : CASCADE        (deleteActivityCascade)
@@ -100,45 +99,6 @@ CREATE TABLE IF NOT EXISTS timeOff (
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
 `;
-
-/** Current fresh-schema reference. Physical upgrades still run the immutable v8 DDL followed by
- * explicit migrations, so this string is for current-shape assertions/documentation rather than a
- * shortcut around the ledger. */
-export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
-  "placeholdersEnabled TEXT, externalEnabled TEXT,",
-  "placeholdersEnabled TEXT, externalEnabled TEXT, internalColourMode TEXT, groupResourcesByEngagement TEXT, workingDays TEXT, " +
-    "showInternalProjects TEXT, showInternalActivities TEXT, inlineActivityCreateEnabled TEXT, showTaskFieldInSchedule TEXT, capacityOverviewAccess TEXT, dateStyle TEXT,",
-)
-  .replace(
-    "  color TEXT NOT NULL,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS activities",
-    "  color TEXT NOT NULL, isFavourite TEXT, firstAvailableDate TEXT, lastAvailableDate TEXT, avatarUrl TEXT,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS activities",
-  )
-  .replace(
-    "  workingDays TEXT NOT NULL,\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,",
-    "  workingDays TEXT NOT NULL, halfDays TEXT NOT NULL DEFAULT '[]',\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,",
-  )
-  .replace(
-    "  employmentType TEXT NOT NULL, workingHoursPerDay REAL NOT NULL,",
-    "  employmentType TEXT NOT NULL, engagement TEXT NOT NULL DEFAULT 'studio', workingHoursPerDay REAL NOT NULL,",
-  )
-  .replace(
-    "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT,",
-    "  status TEXT NOT NULL, note TEXT, task TEXT, ignoreWeekends TEXT, seriesId TEXT,",
-  )
-  .replace(
-    "  activityId TEXT NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  startDate TEXT NOT NULL",
-    "  activityId TEXT NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,\n  startDate TEXT NOT NULL",
-  )
-  .replace(
-    "  phaseId TEXT REFERENCES phases(id) ON DELETE SET NULL,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS allocations",
-    "  phaseId TEXT REFERENCES phases(id) ON DELETE SET NULL,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS allocations",
-  )}\nCREATE TABLE IF NOT EXISTS closures (
-  id TEXT NOT NULL PRIMARY KEY,
-  accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  startDate TEXT NOT NULL, endDate TEXT NOT NULL,
-  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
-);\n${BOOTSTRAP_CLAIM_TABLE_SQL}`;
 
 /** Installed after boot-time duplicate repair so existing databases can be reconciled first. */
 export const INTERNAL_CLIENT_UNIQUE_INDEX_SQL = `

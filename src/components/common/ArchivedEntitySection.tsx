@@ -79,8 +79,8 @@ function archivedAncestor(
   const result = inspectLifecycleAncestry(entity, row as unknown as LifecycleAncestryRow, (table, id) =>
     indexes.get(table)?.get(id),
   );
+  if (result.kind === "visible") return null;
   const ancestor = result.inactiveAncestor;
-  if (!ancestor) return null;
   const parent = indexes.get(ancestor.table)?.get(ancestor.id);
   const name = parent && typeof parent.name === "string" ? parent.name : m.list_archived_unknown_parent();
   const noun = ancestor.table === "clients" ? m.settings_archived_type_clients() : m.settings_archived_type_projects();

@@ -149,7 +149,7 @@ interface CommitGateInput {
   dates: DateRange;
 }
 
-function isCommitBlocked({ options, mode, resourceId, dates }: CommitGateInput) {
+function refuseBlockedCommit({ options, mode, resourceId, dates }: CommitGateInput) {
   const { bar } = options;
   const startChanged = dates.startDate !== bar.allocation.startDate;
   if (mode !== "move" && !startChanged) return false;
@@ -247,7 +247,7 @@ function commitPointerGesture(options: ControllerOptions, runtime: GestureRuntim
   const effectiveResourceId = targetResourceId ?? resourceId;
   if (refuseIneffectiveResize(options.bar, mode, effectiveResourceId)) return;
   const result = resolveCommitDates({ options, mode, deltaDays, resourceId: effectiveResourceId });
-  if (isCommitBlocked({ options, mode, resourceId: effectiveResourceId, dates: result.dates })) return;
+  if (refuseBlockedCommit({ options, mode, resourceId: effectiveResourceId, dates: result.dates })) return;
   savePointerCommit({ options, effectiveResourceId, targetResourceId, result });
 }
 
@@ -270,7 +270,7 @@ interface KeyboardGateInput {
   next: DateRange;
 }
 
-function isKeyboardGestureBlocked({ options, mode, current, next }: KeyboardGateInput) {
+function refuseBlockedKeyboardGesture({ options, mode, current, next }: KeyboardGateInput) {
   const { bar } = options;
   if (next.endDate < next.startDate) return true;
   const state = useStore.getState();
@@ -326,7 +326,7 @@ function nudgeAllocation(
   const { mode, deltaDays } = input;
   if (refuseIneffectiveResize(bar, mode, bar.allocation.resourceId)) return;
   const { current, next, gestureOptions } = resolveKeyboardGesture(options, mode, deltaDays);
-  if (isKeyboardGestureBlocked({ options, mode, current, next })) return;
+  if (refuseBlockedKeyboardGesture({ options, mode, current, next })) return;
   const rescale =
     options.isDays && mode !== "move"
       ? resolveVolumePreservingHours({

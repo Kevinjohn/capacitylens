@@ -15,6 +15,19 @@ import { createAuthorityChangedError, createAuthorityDenial, createReplayCapacit
 
 type PasswordResetInput = Parameters<LocalAccountFlows["issuePasswordReset"]>[0];
 
+type PasswordResetDependencies = Pick<
+  LocalAccountFlowContext,
+  | "administration"
+  | "applicationId"
+  | "buildCommandExecutionKey"
+  | "db"
+  | "denyIdentityAdminCommand"
+  | "identity"
+  | "lock"
+  | "persistTerminalOutcome"
+  | "resetReplay"
+>;
+
 interface PasswordResetScope {
   applicationId: string;
   operation: string;
@@ -29,7 +42,7 @@ interface PasswordResetExecutionState {
 }
 
 interface PasswordResetOperation {
-  context: LocalAccountFlowContext;
+  context: PasswordResetDependencies;
   input: PasswordResetInput;
   scope: PasswordResetScope;
 }
@@ -47,7 +60,7 @@ function createCompensationFailedError(commandId: string, cause: unknown): Accou
 }
 
 async function replayPasswordReset(
-  context: LocalAccountFlowContext,
+  context: PasswordResetDependencies,
   input: PasswordResetInput,
   commandId: string,
 ): Promise<PasswordResetCeremony> {
@@ -274,7 +287,7 @@ async function issueNewPasswordReset(operation: PasswordResetOperation): Promise
 }
 
 export function createPasswordResetFlows(
-  context: LocalAccountFlowContext,
+  context: PasswordResetDependencies,
 ): Pick<LocalAccountFlows, "issuePasswordReset"> {
   return {
     async issuePasswordReset(input) {

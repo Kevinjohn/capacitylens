@@ -127,6 +127,6 @@ export const isEffectivelyActive = ({ data, table, row, lookup }: IsEffectivelyA
       // (id / accountId / tombstones / FK ids) is present on these rows.
       row as unknown as LifecycleAncestryRow,
       (parentTable, id) => resolveValidationRow({ data, table: parentTable, id, ...lookupOptions }),
-    ).visible
+    ).kind === "visible"
   );
 };

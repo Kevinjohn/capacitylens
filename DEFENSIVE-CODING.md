@@ -144,8 +144,8 @@ When you want "more safety" on a pure path, **add a clamp/early-return in the pu
 
 We comment for the **junior contributor reading this cold**, and we explain **why**, not what.
 
-- **Every exported symbol gets TSDoc.** `shared/` is published (`@capacitylens/shared`) and imported by
-  others — its public API is the highest priority. State **preconditions** ("input must be a
+- **Every exported symbol gets TSDoc.** `shared/` is a private workspace package
+  (`@capacitylens/shared`) imported by both the app and the server — its API is the highest priority. State **preconditions** ("input must be a
   validated `ISODate` — see `isValidISODate`"), **`@throws`** (and what a throw _means_ — e.g. "a
   throw from `downloadTextFile` means the file was NOT saved; do not proceed with a dependent
   delete"), and **purity** ("returns a new `AppData`, never mutates").
@@ -178,6 +178,7 @@ next real drift.
 
 ---
 
-**Green gate** (`pnpm run gate` + `pnpm run e2e`, plus `pnpm run gate:server`) is the proof. A change
+**Green gate** (`pnpm run gate:all` + `pnpm run e2e`, plus the triggered checks in the
+[development guide](docs-src/reference/development.md#checks)) is the proof. A change
 that follows this standard but reds the gate isn't done. See [`CLAUDE.md`](CLAUDE.md) and
 [`DECISIONS.md`](DECISIONS.md).

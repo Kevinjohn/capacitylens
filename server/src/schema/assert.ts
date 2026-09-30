@@ -222,7 +222,7 @@ END`;
  * requires a corresponding migration, including an explicit rebuild when constraints need it.
  *
  *  (1) COLUMN CONTRACT. A column's optional? flag (object-level, in TABLES) and its
- *      NULL/NOT NULL in SCHEMA_SQL (DB-level) are two hand-maintained sources of truth; nothing
+ *      NULL/NOT NULL in the migrated schema (DB-level) are two hand-maintained sources of truth; nothing
  *      else checks they still agree. A drift is a real bug: a column marked optional but left
  *      NOT NULL rejects a legitimately-omitted field (confusing 400), and a required column left
  *      nullable lets a NULL read back as undefined for a field the model treats as always-present.
@@ -337,7 +337,7 @@ function describeSchemaProblems(schemaProblems: SchemaProblems): string[] {
   }
   if (schemaProblems.nullability.length > 0) {
     messages.push(
-      `nullability mismatch: ${schemaProblems.nullability.join("; ")} — the spec's optional? flag and SCHEMA_SQL's ` +
+      `nullability mismatch: ${schemaProblems.nullability.join("; ")} — the spec's optional? flag and the migrated schema's ` +
         `NOT NULL have drifted; reconcile them (a NOT NULL change to an existing table needs a rebuild)`,
     );
   }
