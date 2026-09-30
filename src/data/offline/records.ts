@@ -4,7 +4,13 @@ import { parseAuthUser } from "../../auth/validateAuthUser";
 import { isAuthMode } from "../../auth/authStatus";
 import { STORE_NAME, MAX_AGE_MS } from "./constants";
 import { awaitRequest, awaitTx, openOfflineDb } from "./idb";
-import { readOrCreateDeviceKey, assertWebCrypto, buildAssociatedData, writeEncryptedRecord } from "./crypto";
+import {
+  readOrCreateDeviceKey,
+  assertWebCrypto,
+  buildAssociatedData,
+  readWriteBoundary,
+  writeEncryptedRecord,
+} from "./crypto";
 import {
   pendingWrites,
   readCacheWriteFailureGeneration,
@@ -20,8 +26,9 @@ import { isRecord } from "@capacitylens/shared/lib/isRecord";
  * queue for a later live value. */
 async function put<T>(record: CachedRecord<T>): Promise<"stored" | "discarded"> {
   const generation = readCacheWriteFailureGeneration();
+  const writeBoundary = readWriteBoundary();
   const previous = pendingWrites.get(record.key) ?? Promise.resolve();
-  const current = previous.catch(() => undefined).then(() => writeEncryptedRecord(record));
+  const current = previous.catch(() => undefined).then(() => writeEncryptedRecord(record, writeBoundary));
   pendingWrites.set(record.key, current);
   try {
     const outcome = await current;

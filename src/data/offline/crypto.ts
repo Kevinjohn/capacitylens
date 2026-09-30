@@ -123,11 +123,15 @@ export function buildAssociatedData(key: string, savedAt: number): Uint8Array<Ar
   return new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v1`);
 }
 
-export async function writeEncryptedRecord<T>(record: CachedRecord<T>): Promise<"stored" | "discarded"> {
-  const writeBoundary: WriteBoundary = {
-    generation: cacheGeneration,
-    token: readStoredWriteBoundaryToken(),
-  };
+/** Capture when a write is accepted, not when it leaves the queue: cleanup in between must discard it. */
+export function readWriteBoundary(): WriteBoundary {
+  return { generation: cacheGeneration, token: readStoredWriteBoundaryToken() };
+}
+
+export async function writeEncryptedRecord<T>(
+  record: CachedRecord<T>,
+  writeBoundary: WriteBoundary,
+): Promise<"stored" | "discarded"> {
   const db = await openOfflineDb();
   try {
     const encryptionKey = await readOrCreateDeviceKey(db);
