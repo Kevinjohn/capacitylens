@@ -445,9 +445,9 @@ pnpm run gate:all
 pnpm run e2e
 ```
 
-`gate:all` already includes coverage. A prose-only change needs formatting and a content and link
-review instead; rebuild the documentation when its sources change. Add these checks when their
-trigger applies:
+`gate:all` already includes coverage. `e2e` runs the demo, database-backed and password-auth flows
+in Chromium. A prose-only change needs formatting and a content and link review instead; rebuild the
+documentation when its sources change. Add these checks when their trigger applies:
 
 | Check | Run it when a change touches |
 | --- | --- |
@@ -580,7 +580,6 @@ destructive description text for the verified contrast boundary.
   instead of stranding the complete unit run. Migration regression subprocesses have a
   30-second execution limit and a 45-second Vitest assertion budget, leaving room to report
   a child timeout even when a shared runner is contended.
-- Default E2E runs demo, database-backed and password-auth flows in Chromium.
 - Both root and shared Vitest projects pin `TZ=UTC`; timezone-specific helper coverage
   must set its zone deliberately in an isolated child process rather than inheriting a
   maintainer's machine.
@@ -681,8 +680,9 @@ pnpm run e2e:all
 Keep specs browser-agnostic. Screenshots and axe checks are the visual/accessibility
 oracles. `e2e:all` runs Chromium plus the server-backed projects first, then WebKit and
 Firefox in isolated Vite-only invocations; all three phases run even when an earlier phase
-fails. The pull-request workflow runs those same phases as independent matrix jobs, so the
-browser engines run in parallel and a failure in one engine can't suppress the others.
+fails. The `e2e` workflow runs those same phases as independent matrix jobs, so the browser
+engines run in parallel and a failure in one engine can't suppress the others. It runs on pushes
+to `main`, release tags, a monthly schedule and manual dispatch, not on pull requests.
 
 The production API image builds `server/dist/index.mjs` and `server/dist/importWorker.mjs`
 with `pnpm --filter capacitylens-server build:runtime`, then runs plain Node without the
@@ -709,9 +709,10 @@ recognize their category.
 
 ## GitHub Actions policy
 
-CapacityLens is a public repository. Pull requests, pushes to `main`, release tags and the
-documented scheduled canaries run automatically. `workflow_dispatch` stays available for
-deliberate reruns:
+CapacityLens is a public repository. Pull requests run static analysis and CodeQL, plus the docs
+build when documentation inputs change. The `gate`, `e2e`, `docker` and `security` workflows
+run on pushes to `main` and release tags; `gate`, `e2e` and `security` also run on schedules (see
+[When CI runs](#when-ci-runs)). `workflow_dispatch` stays available for deliberate reruns:
 
 ```bash
 gh workflow run gate.yml --ref main
@@ -757,10 +758,10 @@ thread-pool reuse or a larger outer timeout.
 ### When CI runs
 
 Static analysis and CodeQL analyze every pull request targeting `main`. The focused static-analysis
-workflow checks whole-repository formatting first, then compiles translations, type-checks the shared
-and application projects, and lints all authored sources. The heavier workflows run when the merge
-reaches `main`, plus their own weekly or monthly schedules. To see those gates green before merging,
-dispatch them against the branch:
+workflow checks whole-repository formatting first, then compiles translations, type-checks the
+shared and application projects, and lints all authored sources. The heavier workflows run when the
+merge reaches `main` and on release tags; `gate` and `e2e` also run monthly and `security` weekly.
+To see those gates green before merging, dispatch them against the branch:
 
 ```bash
 gh workflow run gate.yml --ref <branch>
