@@ -158,7 +158,8 @@ describe("offline tenant cache concurrent writes", () => {
     });
 
     await expect(cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }])).resolves.toEqual({
-      kind: "written",
+      kind: "skipped",
+      reason: "discarded",
     });
     await expect(getRaw(`accounts:${currentCacheNamespace()}:user-a`)).resolves.toBeUndefined();
   });
@@ -172,8 +173,87 @@ describe("offline tenant cache concurrent writes", () => {
       clock.mockReturnValue(savedAt + 7 * DAY_MS + 1);
       return originalEncrypt(algorithm, key, data);
     });
-    await cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }]);
+    await expect(cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }])).resolves.toEqual({
+      kind: "skipped",
+      reason: "discarded",
+    });
     await expect(getRaw(`accounts:${currentCacheNamespace()}:user-a`)).resolves.toBeUndefined();
+  });
+
+  it("retries the same tenant slice after cleanup discards its in-flight encryption", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const slice = accountSlice("a-studio");
+    const key = `slice:${currentCacheNamespace()}:user-a:a-studio`;
+    const originalEncrypt = crypto.subtle.encrypt.bind(crypto.subtle);
+    let releaseEncryption!: () => void;
+    const encryptionGate = new Promise<void>((resolve) => {
+      releaseEncryption = resolve;
+    });
+    let reportStarted!: () => void;
+    const encryptionStarted = new Promise<void>((resolve) => {
+      reportStarted = resolve;
+    });
+    vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(async (algorithm, key, data) => {
+      reportStarted();
+      await encryptionGate;
+      return originalEncrypt(algorithm, key, data);
+    });
+
+    const pending = cacheAccountSlice("a-studio", slice);
+    await encryptionStarted;
+    await clearAllOfflineData();
+    releaseEncryption();
+    await expect(pending).resolves.toEqual({ kind: "skipped", reason: "discarded" });
+    await expect(getRaw(key)).resolves.toBeUndefined();
+
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    await expect(cacheAccountSlice("a-studio", structuredClone(slice))).resolves.toEqual({ kind: "written" });
+    await expect(readCachedAccountSlice("a-studio")).resolves.toMatchObject({ value: { accounts: slice.accounts } });
+  });
+
+  it("discards a same-key write queued before cleanup", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const key = `accounts:${currentCacheNamespace()}:user-a`;
+    const originalEncrypt = crypto.subtle.encrypt.bind(crypto.subtle);
+    let releaseEncryption!: () => void;
+    const encryptionGate = new Promise<void>((resolve) => {
+      releaseEncryption = resolve;
+    });
+    let reportStarted!: () => void;
+    const encryptionStarted = new Promise<void>((resolve) => {
+      reportStarted = resolve;
+    });
+    vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(async (algorithm, key, data) => {
+      reportStarted();
+      await encryptionGate;
+      return originalEncrypt(algorithm, key, data);
+    });
+
+    const first = cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }]);
+    await encryptionStarted;
+    const queued = cacheAccountSummaries([{ id: "a-studio", name: "Studio 2", role: "owner" }]);
+    await clearAllOfflineData();
+    releaseEncryption();
+
+    await expect(first).resolves.toEqual({ kind: "skipped", reason: "discarded" });
+    await expect(queued).resolves.toEqual({ kind: "skipped", reason: "discarded" });
+    await expect(getRaw(key)).resolves.toBeUndefined();
+  });
+
+  it("does not mark a tenant slice written when the durable boundary has changed", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const slice = accountSlice("a-studio");
+    const key = `slice:${currentCacheNamespace()}:user-a:a-studio`;
+    const originalToken = "current-page-boundary";
+    localStorage.setItem("capacitylens/offlineWriteBoundary", originalToken);
+    await putRawInto(KEY_STORE_NAME, { id: "write-boundary-v1", token: "other-tab-cleanup" });
+
+    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ kind: "skipped", reason: "discarded" });
+    await expect(getRaw(key)).resolves.toBeUndefined();
+
+    await putRawInto(KEY_STORE_NAME, { id: "write-boundary-v1", token: originalToken });
+    await expect(cacheAccountSlice("a-studio", structuredClone(slice))).resolves.toEqual({ kind: "written" });
+    await expect(readCachedAccountSlice("a-studio")).resolves.toMatchObject({ value: { accounts: slice.accounts } });
   });
 
   it("deletes primitive and non-numeric-timestamp cache entries", async () => {

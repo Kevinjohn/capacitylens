@@ -346,7 +346,7 @@ describe("offline tenant cache durable boundary", () => {
       return "on";
     });
 
-    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ kind: "written" });
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ kind: "skipped", reason: "discarded" });
     await expect(getRaw(`auth:${currentCacheNamespace()}`)).resolves.toBeUndefined();
     expect(warning).toHaveBeenCalledWith(
       "offlineCache: the offline write boundary could not be read; rejecting cache writes",
