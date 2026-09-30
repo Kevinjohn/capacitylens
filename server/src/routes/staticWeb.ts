@@ -28,6 +28,7 @@ export const WEB_SECURITY_HEADERS: Readonly<Record<string, string>> = {
 };
 
 const NO_STORE = "no-store";
+const ASSETS_ROUTE = "/assets/*";
 const IMMUTABLE = "public, max-age=31536000, immutable";
 
 // Same extension list as nginx.conf's file-like location: these paths name a file, so a miss is a
@@ -55,7 +56,18 @@ export function registerStaticWeb(app: FastifyInstance, { webDir }: StaticWebOpt
     const root = path.resolve(webDir);
     // serve:false — the plugin only contributes reply.sendFile; routing is explicit below so the
     // /api fall-through, cache policy and 404 headers all match the nginx edge.
-    await web.register(staticPlugin, { root, serve: false, cacheControl: false, index: false });
+    // setHeaders runs only when a file is actually sent (200/304), which is the only time the
+    // immutable policy may apply: a miss must never be cached for a year (nginx's add_header without
+    // `always` and `expires` likewise skip error responses).
+    await web.register(staticPlugin, {
+      root,
+      serve: false,
+      cacheControl: false,
+      index: false,
+      setHeaders: (reply) => {
+        if (reply.request.routeOptions.url === ASSETS_ROUTE) reply.header("Cache-Control", IMMUTABLE);
+      },
+    });
 
     // sendFile reports a path that escapes the web directory (or differs only by letter case on a
     // case-insensitive disk) as a 403 error. The edge answers those as plain misses, so do the same
@@ -69,8 +81,8 @@ export function registerStaticWeb(app: FastifyInstance, { webDir }: StaticWebOpt
     // config.rateLimit:false — page loads and assets must never consume the API's request budget.
     const config = { rateLimit: false } as const;
 
-    web.get("/assets/*", { config }, async (request, reply) => {
-      applyWebHeaders(reply, IMMUTABLE);
+    web.get(ASSETS_ROUTE, { config }, async (request, reply) => {
+      applyWebHeaders(reply, NO_STORE);
       const { "*": file } = request.params as { "*": string };
       return reply.sendFile(`assets/${file}`);
     });

@@ -70,6 +70,23 @@ describe("static web app", () => {
     expectWebHeaders(res.headers);
   });
 
+  it("keeps a conditional asset hit immutable and never marks an asset directory request immutable", async () => {
+    const app = serve();
+    const first = await app.inject({ method: "GET", url: "/assets/x.js" });
+    const etag = first.headers.etag;
+    expect(typeof etag).toBe("string");
+    const revalidated = await app.inject({
+      method: "GET",
+      url: "/assets/x.js",
+      headers: { "if-none-match": String(etag) },
+    });
+    expect(revalidated.statusCode).toBe(304);
+    expect(revalidated.headers["cache-control"]).toBe("public, max-age=31536000, immutable");
+    const directory = await app.inject({ method: "GET", url: "/assets/" });
+    expect(directory.statusCode).toBe(404);
+    expect(directory.headers["cache-control"]).toBe("no-store");
+  });
+
   it("serves a real root file such as the service worker without caching it", async () => {
     const res = await serve().inject({ method: "GET", url: "/sw.js" });
     expect(res.statusCode).toBe(200);
@@ -83,6 +100,7 @@ describe("static web app", () => {
       const res = await serve().inject({ method: "GET", url });
       expect(res.statusCode).toBe(404);
       expect(res.body).not.toContain("<title>shell</title>");
+      expect(res.headers["cache-control"]).toBe("no-store");
       expectWebHeaders(res.headers);
     },
   );
@@ -92,6 +110,7 @@ describe("static web app boundaries", () => {
   it("does not serve files outside the web directory", async () => {
     const res = await serve().inject({ method: "GET", url: "/assets/..%2F..%2Fpackage.json" });
     expect(res.statusCode).toBe(404);
+    expect(res.headers["cache-control"]).toBe("no-store");
   });
 
   it("leaves the API alone: health keeps the API CSP and an unknown API path keeps the API 404", async () => {
