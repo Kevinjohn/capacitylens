@@ -45,6 +45,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ...createResourceSlice(internals)(set, get, store),
     ...createAllocationSlice({
       createGuardedAction: internals.createGuardedAction,
+      createGuardedValueAction: internals.createGuardedValueAction,
       createAllocations: internals.createAllocations,
       updateOwned: internals.updateOwned,
       assertAllocation: internals.assertAllocation,
