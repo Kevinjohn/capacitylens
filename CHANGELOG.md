@@ -17,6 +17,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Selecting a company that is no longer available returns to the picker and clears the previous
+  company's dirty form, drag and screen-reader announcement state while keeping the not-found notice.
 - Dev tooling now reserves explicitly selected port lanes, reports missing `lsof`, and stops with
   instructions instead of terminating a process that occupies a lane (#1316, #1317, #1322).
   `pnpm run lanes` lists what holds each lane, and `--stop-orphans` stops leftover servers.
