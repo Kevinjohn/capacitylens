@@ -73,6 +73,15 @@ Complete the provider sign-in using the same email address as your CapacityLens
 account. Your local email must already be verified, and CapacityLens may ask you
 to confirm your identity again before connecting.
 
+If you cancel **Confirm it's you**, no connection starts. If confirmation still
+cannot refresh your session, sign out, sign in again, and retry. If CapacityLens
+says your local account email is unverified, ask your server operator to check
+and correct your sign-in email through the guarded account repair route, then
+sign in again. The joining verification link is for company admission and does
+not verify the local account email required for this connection. See
+[Require company sign-in](/company-login/move-to-single-sign-on#connect-existing-accounts)
+for the operator recovery steps.
+
 CapacityLens does not merge accounts because their email addresses match.
 Explicit connection preserves your existing memberships and work. A provider
 identity already connected to another person cannot be connected again.

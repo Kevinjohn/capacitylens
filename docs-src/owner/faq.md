@@ -20,7 +20,9 @@ Yes. Wait for the invitation to be accepted, check the Admin role in Team & acce
 
 ## Why is the Admin invitation still pending?
 
-Check that you sent the link and the recipient accepted it. CapacityLens does not send invitation emails.
+Check that you shared the link or that the invitation email was sent, then ask the recipient to
+accept it. CapacityLens emails addressed invitations when SMTP is configured and sending is
+available. If email is unavailable or sending fails, copy the link and send it yourself.
 
 If the link is lost, revoke it under Outstanding invites and create a replacement.
 

@@ -66,6 +66,10 @@ self-registration closes automatically and only the Sign in form below is reacha
   when none are available, the documented first-company or invitation path is shown instead.
 - Account shows the signed-in identity and personal security controls only while signed in on an
   auth-enabled deploy; it never exposes credential controls with auth off or in local mode.
+- In mixed mode, connecting a company provider from Account asks for **Confirm it's you** when the
+  session has aged. Cancelling leaves the account unconnected; a successful confirmation starts
+  the provider connection once. A further freshness refusal asks for a new sign-in. An unverified
+  local email gives the person an operator-assisted sign-in email correction path.
 - Password-mode first-Owner signup uses **name**, **email**, **Create a password** and
   **Owner setup token** under the **Setup the account Owner** heading. Password length and token
   validation remain enforced, while the token field gives the installer handoff instructions. It

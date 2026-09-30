@@ -19,14 +19,10 @@ One screen. People down the side, days across the top, the work in between. Red 
 over capacity that day. The percentage next to each name is how full they are across the window
 you're looking at.
 
-## Alpha 5
+## Latest release
 
-Find archived people and work beneath their usual lists, and restore an accidental archive where
-you expect to find it. Plan repeated personal time off with a preview before saving, book shared
-activities against real projects, and check what a team member can see through a read-only access preview.
-
-[Read the Alpha 5 release notes](https://github.com/Kevinjohn/capacitylens/releases/tag/v0.62.0-alpha.5)
-for the highlights and upgrade notes.
+[Read the latest release notes](https://github.com/Kevinjohn/capacitylens/releases/latest) for the
+highlights and upgrade notes.
 
 ## Try it in two minutes
 

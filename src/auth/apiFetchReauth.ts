@@ -4,8 +4,8 @@ import { readReauthResolution, requestReauth, type ReauthAction } from "./reauth
 import { m } from "@/i18n";
 
 // The step-up interception seam (DEFECT B). A drop-in replacement for `apiFetch` used only at
-// security-sensitive call sites: membership/invitation mutations, ownership transfer, and
-// company/entity purge. These are the actions the server 403s with `code: SESSION_NOT_FRESH` once
+// security-sensitive call sites: provider linking, membership/invitation mutations, ownership
+// transfer, and company/entity purge. These are the actions the server 403s with `code: SESSION_NOT_FRESH` once
 // the session is older than 15 minutes
 // (server/src/app.ts authorize()). Ordinary scheduling reads/writes remain freshness-ungated and
 // keep using plain `apiFetch`.
@@ -49,11 +49,11 @@ function cloneRequestInput(input: RequestInfo | URL) {
   return input instanceof Request ? input.clone() : input;
 }
 
-function canReplayRequest(input: RequestInfo | URL, requestOptions: RequestInit) {
+function canReplayRequest(input: RequestInfo | URL, requestOptions: RequestInit, replayAfterFreshnessRefusal: boolean) {
   const method = (requestOptions.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(requestOptions.headers).forEach((value, key) => headers.set(key, value));
-  return method === "GET" || method === "HEAD" || headers.has("Idempotency-Key");
+  return method === "GET" || method === "HEAD" || headers.has("Idempotency-Key") || replayAfterFreshnessRefusal;
 }
 
 /**
@@ -72,7 +72,12 @@ function canReplayRequest(input: RequestInfo | URL, requestOptions: RequestInit)
 export async function apiFetchReauth(
   input: RequestInfo | URL,
   requestOptions: RequestInit = {},
-  options: { timeoutMs?: number | null; action?: ReauthAction | null } = {},
+  options: {
+    timeoutMs?: number | null;
+    action?: ReauthAction | null;
+    /** Only for a route that rejects SESSION_NOT_FRESH before any side effect. */
+    replayAfterFreshnessRefusal?: boolean;
+  } = {},
 ): Promise<Response> {
   const timeoutMs = options.timeoutMs === undefined ? API_REQUEST_TIMEOUT_MS : options.timeoutMs;
   const action = options.action ?? null;
@@ -87,7 +92,7 @@ export async function apiFetchReauth(
   const retryInput = cloneRequestInput(input);
   const res = await apiFetch(firstInput, requestOptions, timeoutMs);
   if (!(await isSessionNotFresh(res))) return res;
-  if (!canReplayRequest(input, requestOptions)) return res;
+  if (!canReplayRequest(input, requestOptions, options.replayAfterFreshnessRefusal === true)) return res;
   const resolutionAfterResponse = readReauthResolution();
   if (resolutionAfterResponse.epoch !== resolutionAtDispatch.epoch) {
     return resolutionAfterResponse.outcome?.kind === "authenticated"
