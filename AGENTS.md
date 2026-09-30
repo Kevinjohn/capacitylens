@@ -410,3 +410,5 @@ validation failures.
   use `[skip ci]` on the preceding functional change.
 - For a minor-version release, ask whether GitHub CI should run only if the user has not already
   specified. For a major-version release, run the applicable full GitHub CI and wait for success.
+- Tagging and publishing a merged release follow `docs-src/reference/development.md` → "Publish a
+  release".
