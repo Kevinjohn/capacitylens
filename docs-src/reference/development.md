@@ -1031,6 +1031,34 @@ flag selects a narrower supported matrix.
 
 The access lab reserves web/API 5473/8897 and is single-flight machine-wide.
 
+### Browser upgrade rehearsal {#browser-upgrade-rehearsal}
+
+The browser rehearsal runs the database-backed E2E specs against a staged production build. It is
+separate from the migration rehearsal in [Upgrades](/self-hosting/upgrades),
+which checks schema migration and rollback behavior.
+
+Build the release:
+
+```bash
+pnpm run build
+```
+
+Then prepare a disposable test deployment with the built `dist/` files served through
+`scripts/serve-dist.mjs`. Its same-origin `/api` proxy must point to an auth-off test API with a
+temporary database and `CAPACITYLENS_ALLOW_RESET=1` in a non-production environment. The E2E specs
+reset and reseed that API, so never point the browser rehearsal at production or data that must be
+kept. For the staged site's base URL, run:
+
+```bash
+CAPACITYLENS_REHEARSAL_URL=http://127.0.0.1:4173 \
+VITE_CAPACITYLENS_API=http://127.0.0.1:4173 \
+pnpm run e2e:rehearsal
+```
+
+`scripts/serve-dist.mjs` defaults to `http://127.0.0.1:4173` and proxies `/api` to the API port
+configured by `API_PORT` (default `8787`). Set those ports to match the staged test API. The
+rehearsal project supplies no web or API servers itself; both must be running before the command.
+
 Development/test environment controls are intentionally separate from production
 configuration. `API_PORT` belongs only to `scripts/serve-dist.mjs`; Playwright/package
 orchestration owns `CAPACITYLENS_E2E_PHASE`, `CAPACITYLENS_WEBKIT`,
