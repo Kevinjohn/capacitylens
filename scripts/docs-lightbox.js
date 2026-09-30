@@ -4,3 +4,7 @@ document.addEventListener("keydown", function (event) {
     toggle.checked = false;
   });
 });
+
+if (typeof location !== "undefined" && location.protocol === "file:") {
+  document.querySelector?.(".cl-standalone-not-found a")?.setAttribute("href", "index.html");
+}

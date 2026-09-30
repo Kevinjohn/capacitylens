@@ -12,7 +12,7 @@ import { ports } from "../../scripts/ports.mjs";
 // the styling are pure CSS (see lightbox.mts); these keystrokes are the only
 // part CSS cannot express, so it is retained in the standalone build with the
 // data-cl-keep marker that scripts/docs-standalone.mjs looks for. The generated
-// 404 page also keeps one small script to root its home link when hosted at a nested URL.
+// 404 page uses the same script to make its hosted home link work from file://.
 //
 // It is a pure enhancement, deliberately: it adds a way to close the lightbox
 // and takes nothing away, so a reader with JavaScript off, or a copy of the

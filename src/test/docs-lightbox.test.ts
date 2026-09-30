@@ -119,7 +119,7 @@ describe("docs image lightbox", () => {
     expect(broken).toEqual([]);
   });
 
-  it("ships no JavaScript beyond the one inline Escape handler", () => {
+  it("ships only the single inline standalone enhancement script", () => {
     // docs-standalone.mjs strips every script except the data-cl-keep one; if others
     // come back, a script-based lightbox could look like it works locally while being
     // deleted from the real artifact. The allowlist is checked strictly — an external
@@ -134,12 +134,40 @@ describe("docs image lightbox", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("embeds the same Escape handler on every page", () => {
+  it("embeds the same standalone enhancement script on every page", () => {
     const mismatched = pages.filter((page) => {
       const script = page.html.match(/<script\b[^>]*data-cl-keep[^>]*>([\s\S]*?)<\/script>/)?.[1];
       return script !== publishedRuntime;
     });
     expect(mismatched.map((page) => page.name)).toEqual([]);
+  });
+
+  it("uses the standalone enhancement to keep the 404 home link working from disk", () => {
+    const page = pages.find((candidate) => candidate.name === "404.html");
+    expect(page).toBeDefined();
+    if (!page) throw new Error("The built documentation must include 404.html");
+    expect(page.html).toContain('href="/capacitylens/index.html"');
+
+    const script = page.html.match(/<script\b[^>]*data-cl-keep[^>]*>([\s\S]*?)<\/script>/)?.[1];
+    expect(script).toBeDefined();
+    if (script === undefined) throw new Error("The 404 page must include the retained script");
+
+    const link = { setAttribute: vi.fn() };
+    const querySelector = vi.fn(() => link);
+    const document = {
+      addEventListener: vi.fn(),
+      querySelectorAll: vi.fn(() => []),
+      querySelector,
+    };
+    runInNewContext(script, { document, location: { protocol: "file:" } });
+    expect(querySelector).toHaveBeenCalledWith(".cl-standalone-not-found a");
+    expect(link.setAttribute).toHaveBeenCalledWith("href", "index.html");
+
+    querySelector.mockClear();
+    link.setAttribute.mockClear();
+    runInNewContext(script, { document, location: { protocol: "https:" } });
+    expect(querySelector).not.toHaveBeenCalled();
+    expect(link.setAttribute).not.toHaveBeenCalled();
   });
 });
 

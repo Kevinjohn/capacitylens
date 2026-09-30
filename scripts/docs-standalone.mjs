@@ -59,9 +59,6 @@ const STANDALONE_NOT_FOUND = (hostedHomeHref) =>
   `<p>The page you’re looking for doesn’t exist or may have moved.</p>` +
   `<a href="${hostedHomeHref}">Go to the documentation home</a></main>`;
 
-const STANDALONE_NOT_FOUND_FILE_LINK_SCRIPT = (fileHomeHref) =>
-  `<script data-cl-keep>if(location.protocol==="file:"){document.querySelector(".cl-standalone-not-found a").setAttribute("href","${fileHomeHref}")}</script>`;
-
 const STANDALONE_NOT_FOUND_CSS =
   "<style>body{margin:0;background:#fff;color:#2c3e50;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}" +
   ".cl-standalone-not-found{box-sizing:border-box;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center}" +
@@ -125,16 +122,14 @@ for (const file of files.filter((f) => f.endsWith(".html"))) {
     .replace(/[^\S\r\n]+$/gm, "");
 
   if (relative(siteDir, file) === "404.html") {
-    const homeHref = toRelative(pageDir, BASE);
     const hostedHomeHref = `${BASE}index.html`;
     const notFoundContent = STANDALONE_NOT_FOUND(hostedHomeHref);
-    const fileLinkScript = STANDALONE_NOT_FOUND_FILE_LINK_SCRIPT(homeHref);
     html = html
       .replace(/<link rel="stylesheet"[^>]*>\s*/g, "")
       .replace("</head>", `${STANDALONE_NOT_FOUND_CSS}</head>`)
-      .replace('<div id="app"></div>', `<div id="app">${notFoundContent}${fileLinkScript}</div>`);
-    if (!html.includes(notFoundContent) || !html.includes(fileLinkScript)) {
-      throw new Error("docs-standalone: 404 page is missing its message or hosted and file home links.");
+      .replace('<div id="app"></div>', `<div id="app">${notFoundContent}</div>`);
+    if (!html.includes(notFoundContent)) {
+      throw new Error("docs-standalone: 404 page is missing its visible message or hosted home link.");
     }
   }
 
