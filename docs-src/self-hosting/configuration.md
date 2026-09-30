@@ -35,7 +35,7 @@ The server binds to localhost by default. Set the host explicitly to expose it o
 
 | Variable                                | What it does                                                                                                                                                                                    |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SMALLSASS_ACCOUNT_MODE`                | `off`, `password-only`, `sso-only` or `password-and-sso`. `off` creates no sign-in at all; production refuses to boot with it unset unless you explicitly opt in (see below).                                                 |
+| `SMALLSASS_ACCOUNT_MODE`                | `off`, `password-only`, `sso-only` or `password-and-sso`. `off` creates no sign-in at all. Under `NODE_ENV=production` an unset mode is `password-only`, and an explicit `off` refuses to boot unless you opt in (see below). Outside production, unset means `off`.                                                 |
 | `SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE`  | An optional named policy: `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` or `hosted-sso-only`. Enforced at startup.                                                       |
 | `SMALLSASS_ACCOUNT_SECRET`              | The session-signing secret. Required for every authenticated mode. Generate with `openssl rand -base64 48` — anything 32 characters or longer is fine; the install guide's command produces 48. |
 | `SMALLSASS_ACCOUNT_PUBLIC_URL`          | The exact browser-facing origin, for example `https://capacity.example.com`. Required for every authenticated mode.                                                                             |
@@ -139,7 +139,7 @@ to password or sign-in-off mode.
 | Variable                           | What it does                                                                                                                                                                                              |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CAPACITYLENS_DB`                  | Path to the SQLite file. Docker Compose pins this to `/data/capacitylens.db` inside a named volume; only change it for a bare-metal run.                                                                  |
-| `CAPACITYLENS_BACKUP_DIR`          | Directory for scheduled snapshots. On by default in Docker (`/backups`). Set it explicitly empty (`CAPACITYLENS_BACKUP_DIR=`) to turn scheduled backups off.                                              |
+| `CAPACITYLENS_BACKUP_DIR`          | Directory for scheduled snapshots. On by default in Docker (`/backups`), and in production with a file database (a `backups` folder beside the database file). Set it explicitly empty (`CAPACITYLENS_BACKUP_DIR=`) to turn scheduled backups off.                                              |
 | `CAPACITYLENS_BACKUP_INTERVAL_MIN` | Minutes between snapshots. Whole minutes, default 60; startup clamps over-maximum values to 35,000 with a warning.                                                                                        |
 | `CAPACITYLENS_BACKUP_KEEP`         | How many snapshots to retain. Default 48. Invalid and lower values use the safe default; over-maximum values clamp to 10,000 with a startup warning, so leave disk capacity for that many restore points. |
 | `CAPACITYLENS_AUDIT_FILE`          | Path to the audit log. Default `capacitylens-audit.jsonl` next to `CAPACITYLENS_DB`; Docker Compose pins it to `/data/capacitylens-audit.jsonl`. Only read when audit logging is on.                      |
@@ -151,7 +151,7 @@ the current one — a restore that only picks up the live file can miss recent a
 history still sitting in the rotated generation.
 
 For a bare-metal run, the database defaults to `./capacitylens.db`; `:memory:` is also
-accepted. Scheduled backups stay off unless `CAPACITYLENS_BACKUP_DIR` is set. Positive
+accepted. Outside production, scheduled backups stay off unless `CAPACITYLENS_BACKUP_DIR` is set. Positive
 fractional retention counts are rounded down.
 
 Audit logging is on by default. Set `CAPACITYLENS_AUDIT=off` only for development;
@@ -169,11 +169,11 @@ The size setting is only read when audit logging is enabled.
 | Variable                           | What it does                                                                                                                                                                                                                                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CAPACITYLENS_CORS_ORIGIN`         | Comma-separated browser origins to allow, only needed if the web app and API are on different origins. Defaults to local development origins. Wildcards are rejected because browser requests use cookie credentials.                                                                          |
-| `CAPACITYLENS_HTTPS`               | Set `1` when the public origin is genuinely HTTPS, to enable a two-year HSTS header. Leave unset if your proxy already emits HSTS.                                                                                                                                                             |
+| `CAPACITYLENS_HTTPS`               | Controls the two-year HSTS header. Unset, it is on when `SMALLSASS_ACCOUNT_PUBLIC_URL` is `https` and off otherwise. `1` forces it on; `0` forces it off, for a proxy that already emits its own HSTS. Any other value is treated as unset, so the URL scheme decides.                                                                                                                                                             |
 | `CAPACITYLENS_TRUST_PROXY_HEADERS` | Trusts `X-Forwarded-For`/`X-Forwarded-Proto` from a non-loopback listener. Docker Compose sets this to `1` because its API only accepts connections from the packaged nginx. Loopback listeners (`127.0.0.1`, `localhost`, `::1`) trust their same-host proxy automatically without this flag. |
 
-The HTTPS setting enables HSTS including subdomains. Leave it off for plain HTTP.
-The other baseline security headers are always enabled.
+HSTS is host-only: it never covers subdomains. It is never sent over a plain-HTTP public URL unless
+you force it on. The other baseline security headers are always enabled.
 
 | Variable | What it does |
 | --- | --- |
@@ -201,12 +201,16 @@ or admin.
 
 | Variable                               | What it does                                                                                                                       |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `CAPACITYLENS_LOG`                     | Set `1` for structured per-request JSON logs. Recommended for a real deployment.                                                   |
-| `CAPACITYLENS_HEALTH_DEEP`             | Set `1` to make `/api/health` run a readiness query and report audit, backup and certificate status. Compose sets this by default. |
-| `CAPACITYLENS_RATE_LIMIT`              | Requests per minute per IP across rate-limited routes. Accepts integers 1–1,000,000. Production refuses missing, zero or invalid values. `/api/health` is exempt.                          |
-| `CAPACITYLENS_AUDIT_STDOUT`            | Set `1` to also write each audit record to stdout as JSON, for a container log collector. Compose defaults this on.                |
+| `CAPACITYLENS_LOG`                     | Set `1` for structured per-request JSON logs. On by default in production.                                                         |
+| `CAPACITYLENS_HEALTH_DEEP`             | Set `1` to make `/api/health` run a readiness query and report audit, backup and certificate status. On by default in production. |
+| `CAPACITYLENS_RATE_LIMIT`              | Requests per minute per IP across rate-limited routes. Accepts integers 1–1,000,000. Production defaults to 300 when unset and refuses zero or invalid values. `/api/health` is exempt.                          |
+| `CAPACITYLENS_AUDIT_STDOUT`            | Set `1` to also write each audit record to stdout as JSON, for a container log collector. On by default in production.                |
 | `CAPACITYLENS_STORAGE_ENCRYPTED`       | Set `1` only after you have verified that the database, audit log and backup storage are encrypted at rest. This is an operator attestation; it does not encrypt storage itself. |
 | `CAPACITYLENS_SECURITY_LOG_FORWARDING` | An attestation that you're forwarding audit and security events to a separate collector. Doesn't create the collector itself.      |
+
+In production, an unset `CAPACITYLENS_STORAGE_ENCRYPTED`, `CAPACITYLENS_SECURITY_LOG_FORWARDING` or
+internal TLS identity is reported as one startup warning that names each missing control. It does not
+block startup.
 
 Sign-in, sign-up and password changes have a stricter built-in limit of three attempts per
 10 seconds per client, and reset and verification emails of three per minute. It is fixed and
@@ -223,7 +227,7 @@ verification request is refused until the hour has passed. The budget resets whe
 restarts.
 
 Without structured logging, the server prints its startup line and reports server errors
-to stderr. Deep health checks are off by default: `/api/health` returns `{ ok: true }`.
+to stderr. Deep health checks are off by default outside production (on under `NODE_ENV=production`): without them `/api/health` returns `{ ok: true }`.
 With deep checks enabled, the endpoint runs `SELECT 1`, reports audit state and pending
 records, and includes internal certificate expiry when configured. Failed readiness
 returns HTTP 503 with `{ ok: false }`.

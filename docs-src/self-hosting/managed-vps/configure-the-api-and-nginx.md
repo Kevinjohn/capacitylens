@@ -87,8 +87,8 @@ SMALLSASS_ACCOUNT_REQUIRE_MFA
 Unset is different from `0` for some environment parsers. Remove the lines unless the
 [Configure the service](/installation/configure-the-service) page specifically says that an empty value has meaning.
 
-If the platform already emits an HSTS header, leave `CAPACITYLENS_HTTPS` unset to avoid duplicate
-headers. The public origin must still use HTTPS.
+If the platform already emits an HSTS header, set `CAPACITYLENS_HTTPS=0` to avoid duplicate
+headers; otherwise leave it unset and an `https` public URL makes the API emit host-only HSTS. The public origin must still use HTTPS.
 
 `CAPACITYLENS_HOST=127.0.0.1` does more than hide the API from the internet. A loopback listener
 automatically trusts the `X-Forwarded-For` and `X-Forwarded-Proto` headers that nginx sets on the

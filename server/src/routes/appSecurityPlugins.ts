@@ -15,8 +15,8 @@ export function installSecurityPlugins(app: FastifyInstance, options: AppOptions
   // legacy and current reporting targets — useDefaults:false below keeps
   // helmet from merging its defaults (script-src/style-src 'unsafe-inline'/img-src/etc.), since
   // nothing here loads scripts or styles. HSTS is the ONE header
-  // gated OFF by default — see opts.https: it is only valid over real HTTPS, and this server
-  // usually runs HTTP behind a TLS proxy, so the operator opts in via CAPACITYLENS_HTTPS=1.
+  // gated — see opts.https: it is only valid over real HTTPS, so it follows the https public URL
+  // (or CAPACITYLENS_HTTPS) rather than being always on.
   void app.register(helmetPlugin, {
     contentSecurityPolicy: {
       // useDefaults:false — we emit EXACTLY these directives, nothing merged in. This is a
@@ -41,9 +41,9 @@ export function installSecurityPlugins(app: FastifyInstance, options: AppOptions
     // X-Frame-Options: DENY for legacy browsers (helmet's default is SAMEORIGIN); the modern
     // equivalent is the CSP frame-ancestors 'none' above. This API is never framed, so DENY.
     frameguard: { action: "deny" },
-    // OFF over HTTP (the default deploy: HTTP behind a TLS-terminating proxy); only emitted
-    // when the operator asserts real HTTPS fronts the origin (opts.https / CAPACITYLENS_HTTPS=1).
-    hsts: options.https === true ? { maxAge: 63072000, includeSubDomains: true } : false,
+    // OFF over HTTP; only emitted when real HTTPS fronts the origin (opts.https, derived from
+    // CAPACITYLENS_HTTPS or the https public URL). Host-only: sibling subdomains are not ours to pin.
+    hsts: options.https === true ? { maxAge: 63072000, includeSubDomains: false } : false,
   });
 
   // Rate limiting (P1.5, flag CAPACITYLENS_RATE_LIMIT): registered ONLY when a positive limit
