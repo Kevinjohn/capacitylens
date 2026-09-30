@@ -17,6 +17,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Connecting a company sign-in provider now offers identity confirmation when a
+  session has aged and explains how to recover from an unverified local account
+  email (#1364).
 - A first start on an empty database no longer logs a "Database schema mismatch" error telling
   the operator to run `npx auth migrate`. The server creates those tables itself, and still refuses
   to start if they cannot be brought up to date (#1353).

@@ -4,6 +4,7 @@ import { StrictMode, useState } from "react";
 import { AuthContext, type AuthContextValue } from "../../auth/authContext";
 import { m } from "@/i18n";
 import { SecuritySection } from "./SecuritySection";
+import { completeReauth, isReauthPending } from "../../auth/reauthCoordinator";
 
 const changePassword = vi.fn();
 const readIdentityProvider = vi.fn();
@@ -374,6 +375,47 @@ it("dispatches Microsoft connection through the shared identity route and retain
     expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
   } finally {
     errorLog.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
+
+it.each([
+  ["LOCAL_EMAIL_NOT_VERIFIED", m.settings_sso_local_email_not_verified()],
+  ["SESSION_NOT_FRESH", m.settings_sso_reauth_cancelled()],
+])("shows the supported recovery for %s", async (code, message) => {
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ code }, { status: 403 }));
+  vi.stubGlobal("fetch", fetchMock);
+  readIdentityProvider.mockResolvedValue(Response.json({ connected: false, verified: false }));
+  try {
+    renderSecurity({ providers: [{ id: "google", label: "Google", kind: "social", experimental: false }] });
+    fireEvent.click(await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Google" }) }));
+    if (code === "SESSION_NOT_FRESH") {
+      await waitFor(() => expect(isReauthPending()).toBe(true));
+      act(() => completeReauth(false));
+    }
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: m.settings_sso_connect_button({ provider: "Google" }) })).toBeEnabled();
+  } finally {
+    if (isReauthPending()) completeReauth(false);
+    vi.unstubAllGlobals();
+  }
+});
+
+it("shows sign-in recovery when step-up succeeds but the provider link is still refused as stale", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: "SESSION_NOT_FRESH" }, { status: 403 }));
+  vi.stubGlobal("fetch", fetchMock);
+  readIdentityProvider.mockResolvedValue(Response.json({ connected: false, verified: false }));
+  try {
+    renderSecurity({ providers: [{ id: "google", label: "Google", kind: "social", experimental: false }] });
+    fireEvent.click(await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Google" }) }));
+    await waitFor(() => expect(isReauthPending()).toBe(true));
+    act(() => completeReauth(true));
+    expect(await screen.findByText(m.reauth_still_not_fresh())).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(isReauthPending()).toBe(false);
+  } finally {
+    if (isReauthPending()) completeReauth(false);
     vi.unstubAllGlobals();
   }
 });
