@@ -52,6 +52,17 @@ const DEAD_CHROME_CSS =
   "<style>.VPNavBarSearch,.VPNavBarHamburger,.VPLocalNav,.VPBackdrop,.VPFlyout," +
   ".VPSidebarItem .caret,.vp-doc [class*='language-'] button.copy{display:none !important}</style>";
 
+const STANDALONE_NOT_FOUND = (homeHref) =>
+  `<main class="cl-standalone-not-found"><h1>Page not found</h1>` +
+  `<p>The page you’re looking for doesn’t exist or may have moved.</p>` +
+  `<a href="${homeHref}">Go to the documentation home</a></main>`;
+
+const STANDALONE_NOT_FOUND_CSS =
+  "<style>.cl-standalone-not-found{box-sizing:border-box;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center;color:var(--vp-c-text-1)}" +
+  ".cl-standalone-not-found h1{margin:0;font-size:2rem;line-height:1.25}" +
+  ".cl-standalone-not-found p{margin:1rem 0;color:var(--vp-c-text-2)}" +
+  ".cl-standalone-not-found a{color:var(--vp-c-brand-1);font-weight:600}</style>";
+
 // Map an absolute base-rooted URL to one relative to the page's directory.
 // A trailing slash means the directory's index page.
 const toRelative = (pageDir, absolutePath) => {
@@ -108,6 +119,17 @@ for (const file of files.filter((f) => f.endsWith(".html"))) {
     // Removing VitePress scripts can leave indentation on otherwise empty lines.
     // Normalise it here so a rebuild is both Prettier-clean and byte-for-byte stable.
     .replace(/[^\S\r\n]+$/gm, "");
+
+  if (relative(siteDir, file) === "404.html") {
+    const homeHref = toRelative(pageDir, BASE);
+    const notFoundContent = STANDALONE_NOT_FOUND(homeHref);
+    html = html
+      .replace("</head>", `${STANDALONE_NOT_FOUND_CSS}</head>`)
+      .replace('<div id="app"></div>', `<div id="app">${notFoundContent}</div>`);
+    if (!html.includes(notFoundContent)) {
+      throw new Error("docs-standalone: 404 page is missing its visible message and documentation home link.");
+    }
+  }
 
   html = markSidebarCurrent(html, file);
 
