@@ -1,5 +1,16 @@
 const enabled = (environment, name) => environment[name] === "1";
 
+/** The reset and direct API calls follow the server selected by this Playwright run. */
+export function serverTestApiOrigin(laneApiPort, environment = process.env) {
+  const rehearsalUrl = environment.CAPACITYLENS_REHEARSAL_URL;
+  if (!rehearsalUrl) return `http://localhost:${laneApiPort}`;
+  const url = new URL(rehearsalUrl);
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
+    throw new Error("CAPACITYLENS_REHEARSAL_URL must be an HTTP(S) URL without credentials.");
+  }
+  return url.origin;
+}
+
 export const E2E_RUN_PRESETS = Object.freeze({
   chromiumWebkit: Object.freeze({
     environment: Object.freeze({ CAPACITYLENS_WEBKIT: "1", CAPACITYLENS_VITE_ONLY: "1" }),
