@@ -5,7 +5,7 @@ description: How to upgrade a self-hosted CapacityLens instance safely, what hap
 
 # Upgrades
 
-CapacityLens upgrades in place: pull the new release, rebuild, and restart. Schema
+CapacityLens upgrades in place: check out the new release tag, rebuild, and restart. Schema
 changes are handled automatically and safely, with an automatic rollback snapshot taken
 before anything changes. This page is the upgrade procedure and its rollback path.
 
@@ -119,14 +119,31 @@ rather than guessing.
 
 ## Upgrade procedure
 
-1. Take a fresh, explicit snapshot and keep it outside the release tree. A recent restore
+1. Confirm you have a recent, successful restore test on record.
+2. Read `CHANGELOG.md` for migrations or breaking changes in the target release.
+3. Take a fresh, explicit snapshot and keep it outside the release tree. A recent restore
    test proves the _procedure_ works — it isn't a current copy of live data, so keep an
    off-host copy too. See [Backups and restore](/self-hosting/backups-and-restore).
-2. Confirm you have a recent, successful restore test on record.
-3. Read `CHANGELOG.md` for migrations or breaking changes in the target release.
-4. Pull the target tag and rebuild all three targets. For Compose:
+
+   On a [native install](/self-hosting/install-without-docker), stop the service and copy the
+   database, its sidecars and the audit log into a new directory beside them:
 
    ```bash
+   sudo systemctl stop capacitylens
+   snapshot_dir="/var/lib/capacitylens/pre-upgrade-$(date -u +%Y%m%d-%H%M%S)"
+   sudo install -d -o capacitylens -g capacitylens -m 0700 "$snapshot_dir"
+   sudo sh -c 'cp -p /var/lib/capacitylens/capacitylens.db* /var/lib/capacitylens/capacitylens-audit.jsonl* "$1"' sh "$snapshot_dir"
+   sudo ls -l "$snapshot_dir"
+   ```
+
+   The service is stopped, so the copy is consistent. Any `-wal` or `-shm` file copied with the
+   database belongs to it; restore them together. Leave the service stopped for step 4.
+
+4. Check out the target release tag and rebuild. For Docker Compose:
+
+   ```bash
+   git fetch --tags
+   git checkout vX.Y.Z
    docker compose up --build --force-recreate -d
    ```
 
@@ -142,14 +159,33 @@ rather than guessing.
    command. This step also reruns the internal certificate initializer and reloads the
    resulting identity into both long-running services.
 
+   For a native install, with the service still stopped from step 3:
+
+   ```bash
+   cd /opt/capacitylens
+   git fetch --tags
+   git checkout vX.Y.Z
+   nvm install
+   nvm use
+   pnpm install --frozen-lockfile
+   pnpm run build
+   pnpm --filter capacitylens-server run build:runtime
+   sudo install -D -m 0755 "$(command -v node)" /opt/capacitylens/bin/node
+   sudo systemctl start capacitylens
+   ```
+
+   Replace `vX.Y.Z` with the release tag you're deploying, not `main`. The `install` line
+   refreshes the Node binary the service runs, in case the release selects a newer Node 24.
+   Change `.env` first if the release notes above ask for it.
+
 5. On first start, if the database needs a schema upgrade, CapacityLens automatically
    creates and verifies a `capacitylens-pre-migration-vN-to-vM.db` snapshot before making
    any schema change. If that snapshot creation fails, startup refuses rather than
    proceeding — resolve the underlying storage or permissions problem rather than
    bypassing the snapshot.
 6. Check API health, sign in, confirm account access, and make one safe write.
-7. Keep the old container image and the recovery snapshot until you're satisfied the
-   upgrade is good.
+7. Keep the old container image, or on a native install the previous release tag, and the
+   recovery snapshot until you're satisfied the upgrade is good.
 
 ### Current schema changes
 
@@ -195,8 +231,10 @@ this applies.
 ## Roll back
 
 Rollback means stopping the API, restoring the pre-migration snapshot this release
-created (or, if there wasn't one, the explicit snapshot from step 1) with no stale
-`-wal`/`-shm` files, then starting the old image again. An old image deliberately refuses
+created (or, if there wasn't one, the explicit snapshot from step 3) with no stale
+`-wal`/`-shm` files, then starting the old image again. On a native install, the old version is
+the previous release tag: check it out and rebuild it with the native commands in step 4 before
+starting the service. An old image deliberately refuses
 to start against an upgraded database — CapacityLens has no down migrations, so rollback
 always means restoring the matching snapshot, not just switching images back.
 

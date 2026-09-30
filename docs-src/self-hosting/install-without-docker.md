@@ -27,16 +27,29 @@ installed.
 
 ## Steps
 
-1. Clone the repository and select Node 24:
+1. Create `/opt/capacitylens` for your own account, clone the repository into it, check out
+   the release you're deploying and select Node 24:
 
    ```bash
-   git clone https://github.com/Kevinjohn/capacitylens.git
-   cd capacitylens
+   sudo install -d -o "$(id -un)" -g "$(id -gn)" -m 0755 /opt/capacitylens
+   git clone https://github.com/Kevinjohn/capacitylens.git /opt/capacitylens
+   cd /opt/capacitylens
+   git checkout vX.Y.Z
    nvm install
    nvm use
    node --version
    corepack enable
    ```
+
+   Replace `vX.Y.Z` with the release tag you're deploying. The newest is on the
+   [releases page](https://github.com/Kevinjohn/capacitylens/releases/latest). Don't deploy
+   `main`: it carries changes that haven't been released yet.
+
+   The service and nginx configuration below use these `/opt/capacitylens` paths. Your account
+   owns the clone and builds it. The `capacitylens` service user needs to read the clone,
+   and nginx needs to reach `dist/` inside it. Git leaves the files readable by every account,
+   so this works as written. If you clone somewhere else, every directory above the clone must
+   let other accounts through; a clone under a `0750` home directory fails at start.
 
    nvm reads `.nvmrc` from the repository, so run it after changing into the cloned
    directory. The reported version must be `v24.x`; the server refuses to start with
@@ -47,7 +60,12 @@ installed.
    ```bash
    pnpm install --frozen-lockfile
    cp .env.example .env
+   chmod 600 .env
    ```
+
+   `.env` will hold the session-signing secret and the setup token, so only your account may
+   read it. systemd reads the file as root before it starts the service, so the service user
+   doesn't need access.
 
 3. Generate two secrets:
 
@@ -105,9 +123,8 @@ installed.
    `server/dist/index.mjs`, the same build Docker's image runs.
 
 5. Install a systemd unit so the API starts on boot and restarts if it exits. Create
-   `/etc/systemd/system/capacitylens.service`. Adjust `WorkingDirectory` and
-   `EnvironmentFile` to where you cloned the repo, but keep `ExecStart` at the runtime
-   path installed in step 3:
+   `/etc/systemd/system/capacitylens.service`. Its paths match the clone from step 1 and the
+   runtime installed in step 3:
 
    ```ini
    [Unit]
@@ -209,8 +226,7 @@ installed.
    over](/installation/verify-and-hand-over) procedure before giving the address or setup
    details to the first Owner.
 
-After changing Node with nvm during an upgrade, redo the binary copy from step 3 and restart the
-service.
+To install a newer release later, follow the native steps in [Upgrades](/self-hosting/upgrades).
 
 ## What's next
 
