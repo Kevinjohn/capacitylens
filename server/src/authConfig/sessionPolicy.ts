@@ -56,6 +56,11 @@ export function buildSessionPolicy({
     // Better Auth would otherwise read a raw `X-Forwarded-For`: a client could spoof it past the
     // credential rate limits, and without it every client would share one bucket per path.
     advanced: {
+      // Better Auth checks the schema as soon as it is constructed, which on a fresh database is
+      // before runAuthMigrations creates its tables: it logged a false "schema mismatch" error
+      // advising `npx auth migrate`, which would bypass the app's ledger and snapshot.
+      // runAuthMigrations verifies the same schema after migrating and refuses to start instead.
+      database: { validateSchema: false },
       ipAddress: { ipAddressHeaders: [AUTH_CLIENT_IP_HEADER] },
       useSecureCookies: false,
       cookiePrefix,

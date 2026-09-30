@@ -9,6 +9,11 @@ export const E2E_RUN_PRESETS: Readonly<
   Record<"chromiumWebkit" | "firefoxOnly" | "standard" | "webkitOnly", E2ERunPreset>
 >;
 
+export function serverTestApiOrigin(
+  laneApiPort: number,
+  environment?: Readonly<Record<string, string | undefined>>,
+): string;
+
 export function resolvePlaywrightRunMode(
   environment: Readonly<Record<string, string | undefined>>,
   argv: readonly string[],

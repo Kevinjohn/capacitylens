@@ -35,6 +35,26 @@ open and confirm it in the browser that started the connection within 15
 minutes. Returning Microsoft sign-in uses the saved identity and does not repeat
 mailbox proof.
 
+If CapacityLens reports that the local account email is unverified, the server
+operator must first confirm which mailbox the person controls. In mixed mode,
+an authorised administrator can use the existing guarded repair request:
+
+```http
+PATCH /api/accounts/{accountId}/members/{principalId}/email
+Content-Type: application/json
+
+{"email":"verified-address@example.com"}
+```
+
+Use the target member's company and principal IDs from the member directory.
+The request needs an authenticated, fresh session with any required MFA,
+membership-management permission in that company, and identity-wide authority
+over the target across their companies. The server checks those rules again in
+the write transaction. The repair marks the corrected address verified and
+revokes the target's sessions; the person signs in again before connecting.
+There is no email-correction control in Account settings. A joining verification
+link does not satisfy the local-account verification check for provider linking.
+
 CapacityLens never combines accounts just because their email addresses match.
 Explicitly connecting the provider preserves the existing person's memberships,
 role and scheduled work. A company may allow a verified new person to join as

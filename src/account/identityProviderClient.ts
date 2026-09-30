@@ -17,6 +17,7 @@ export function linkIdentityProvider(callbackURL: string, providerId?: string): 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callbackURL, errorCallbackURL: callbackURL, ...(providerId ? { providerId } : {}) }),
     },
-    { action: "connect-provider" satisfies ReauthAction },
+    // The server rejects stale sessions before starting either provider flow or setting cookies.
+    { action: "connect-provider" satisfies ReauthAction, replayAfterFreshnessRefusal: true },
   );
 }

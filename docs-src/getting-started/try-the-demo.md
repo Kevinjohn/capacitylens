@@ -18,13 +18,18 @@ way of `corepack`, which ships with Node) on your machine. Check your version wi
 
 ## Run it
 
-1. Clone the repository and install dependencies:
+1. Clone the repository, check out a release and install dependencies:
 
    ```bash
    git clone https://github.com/Kevinjohn/capacitylens.git
    cd capacitylens
+   git checkout vX.Y.Z
    corepack enable && pnpm install
    ```
+
+   Replace `vX.Y.Z` with the newest tag on the
+   [releases page](https://github.com/Kevinjohn/capacitylens/releases/latest). Without this
+   step you run `main`, which carries changes that haven't been released yet.
 
 2. Start the demo:
 
