@@ -17,7 +17,7 @@ Your Admin can run everyday setup. You keep the decisions that change company ow
 
 ## Transfer ownership
 
-![Team & access showing Company ownership, Next Owner and Start transfer](../screenshots/flows/owner_appoint_an_admin_1.png)
+![Team & access showing Company ownership, Next Owner and Start transfer](../screenshots/flows/owner_transfer_ownership.png)
 
 Open Team & access, find Company ownership and select **Manage ownership**. In the modal, choose an
 active Admin in Next Owner, then select Start transfer.

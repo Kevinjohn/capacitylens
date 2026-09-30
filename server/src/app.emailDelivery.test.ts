@@ -152,7 +152,9 @@ describe("invitation email", () => {
     expect(response.json()).toMatchObject({ emailed: true });
     expect(sentLink("invite").pathname).toBe(`/invite/${response.json<{ token: string }>().token}`);
     expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ to: "diana@example.test" }));
-    expect((await call(app, request)).statusCode).toBe(201);
+    const replay = await call(app, request);
+    expect(replay.statusCode).toBe(201);
+    expect(replay.json()).toMatchObject({ emailed: false });
     expect(sendMail).toHaveBeenCalledTimes(1);
   });
 

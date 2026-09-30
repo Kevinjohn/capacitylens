@@ -66,8 +66,10 @@ describe("browser account client", () => {
       credentials: "include",
     });
     await accountClient.linkIdentityProvider("https://app.example/account", "microsoft");
-    const [url, init] = mocks.apiFetchReauth.mock.calls[0] ?? [];
+    const [url, init, options] = mocks.apiFetchReauth.mock.calls[0] ?? [];
     expect(url).toBe("https://app.example/api/identity/link-provider");
+    expect(options).toMatchObject({ action: "connect-provider", replayAfterFreshnessRefusal: true });
+    expect(new Headers(init?.headers).has("Idempotency-Key")).toBe(false);
     expect(JSON.parse(String(init?.body))).toEqual({
       providerId: "microsoft",
       callbackURL: "https://app.example/account",

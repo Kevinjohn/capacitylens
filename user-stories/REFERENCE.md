@@ -971,6 +971,11 @@ ask for the one-time mailbox verification below. A conflicting identity is rejec
 accounts. A successful callback shows **Connected to _provider_**. The same verified provider identity
 is used for subsequent sign-in. GitHub retains its existing experimental sign-in behavior.
 
+If the session is stale, **Connect _provider_** opens **Confirm it's you**. Cancelling does not start a
+provider connection; success continues the request once, and another freshness refusal directs the
+person to sign out and back in. An unverified local email directs the person to ask the server
+operator for sign-in email correction through the guarded repair route, then sign in again.
+
 **Microsoft mailbox verification (`/verify-microsoft`, with an optional trailing slash).** This is a
 public entry before auth or company-data hydration. If the first connection needs email proof, the
 person opens the emailed link in the browser that started the request and chooses **Confirm and
@@ -1027,8 +1032,10 @@ address, current policy, invitation, access restrictions and session at acceptan
 refreshes the authenticated company list and activates the joined company without persisting
 `activeAccountId` or treating the URL as membership proof.
 An accept is refused (403) while **Disable Access** applies, including after removal or identity
-recreation with the same proven email; the invitation remains unused. An archived member without
-the restriction can rejoin through a valid invitation at the invitation's role. A
+recreation at the same address when both identities have durable mailbox proof; an addressed
+invitation or legacy verified-email flag alone does not establish that link. The invitation remains
+unused. An archived member without the restriction can rejoin through a valid invitation at the
+invitation's role. A
 **used** link shows _"This invite has already been used."_; an
 **expired** link shows _"This invite has expired."_ (expiry is evaluated as an instant, including
 explicit UTC offsets, and malformed stored values fail closed); an **unknown** token shows _"Invite not
@@ -1159,8 +1166,10 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button named **Copy invitation link** — the token is write-once and never
-  shown again; closing the dialog clears it, so reopening shows an empty form. The panel explicitly says CapacityLens does not send invitation emails: the creator
-  copies and sends the link. The field has no explanatory helper copy and is required in every
+  shown again; closing the dialog clears it, so reopening shows an empty form. The panel says
+  CapacityLens emails addressed invitations when SMTP is configured and sending is available; if
+  email is unavailable or sending fails, the creator copies and sends the link. The field has no
+  explanatory helper copy and is required in every
   server-auth mode. Creation confirmation stays beside the link, with instructions to
   revoke and recreate it if lost, rather than overlaying the panel in a toast.
   If any membership, invite or reset-token mutation loses its response after dispatch,
