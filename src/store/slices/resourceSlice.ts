@@ -78,10 +78,11 @@ export function createResourceSlice(
               preparedResource.firstAvailableDate,
               preparedResource.lastAvailableDate,
             );
-            if (!availability.ok) {
+            const [availabilityCode] = availability.codes;
+            if (availabilityCode) {
               throwDomainError(
-                availability.code,
-                availability.code === "date_reversed"
+                availabilityCode,
+                availabilityCode === "date_reversed"
                   ? "End date cannot be before the start date."
                   : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
               );
@@ -143,10 +144,11 @@ function createResourceAddAction(internals: ResourceSliceInternals, get: StoreAp
         delete entity.lastAvailableDate;
       }
       const availability = validateResourceAvailabilityPair(entity.firstAvailableDate, entity.lastAvailableDate);
-      if (!availability.ok) {
+      const [availabilityCode] = availability.codes;
+      if (availabilityCode) {
         throwDomainError(
-          availability.code,
-          availability.code === "date_reversed"
+          availabilityCode,
+          availabilityCode === "date_reversed"
             ? "End date cannot be before the start date."
             : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
         );

@@ -3,7 +3,11 @@ import { isAccountCommandId, isAccountIdempotencyKey } from "@capacitylens/share
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountRouteContext } from "../createReplyHelpers";
 
-export async function reconcile(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function reconcile(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "fail" | "flows">,
+) {
   const { flows: accountFlows, fail: accountFail } = context;
 
   const body = (req.body ?? {}) as {

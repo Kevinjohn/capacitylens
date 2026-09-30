@@ -17,7 +17,7 @@ const deepDestinations = [
 
 // #216: exercise real document navigations, not React Router transitions. The Vite history
 // fallback must serve index.html, then the session-only company gate must preserve the URL.
-function registerSuiteScenario1() {
+function registerValidDeepLinkPathSurvivesTest() {
   for (const [path, heading] of deepDestinations) {
     test(`valid deep link ${path} survives a browser reload`, async ({ page }) => {
       await freezeBrowserDate(page);
@@ -61,7 +61,7 @@ function registerSuiteScenario1() {
   }
 }
 
-function registerSuiteScenario2() {
+function registerUnknownExtensionlessPathReachesApplicationsTest() {
   test("an unknown extensionless path reaches the application's Not Found screen", async ({ page }) => {
     await openApp(page);
     const unknownResponse = await page.goto("/stale-bookmark-that-does-not-exist");
@@ -70,7 +70,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerSidebarLinksRouteSectionTest() {
   test("sidebar links route to each section", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -107,7 +107,7 @@ function registerSuiteScenario3() {
 
 // Issues #169/#172. Assert real DOM order and the account block below it — mere presence of the
 // links passed under the old layout too, so only order proves the move happened.
-function registerSuiteScenario4() {
+function registerPinsTeamAccessSettingsBelowTest() {
   test("pins Team & access and Settings below the working destinations, above the account block", async ({ page }) => {
     await openApp(page);
 
@@ -140,7 +140,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerSettingsTogglesColourThemeTest() {
   test("settings toggles the colour theme", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     // Light is the default preference.
@@ -158,7 +158,7 @@ function registerSuiteScenario5() {
 // WCAG 2.4.2 (Page Titled): each route sets a descriptive document.title of "<nav label> · CapacityLens",
 // derived from the SAME nav labels — so the tab/history/bookmark differs per page rather than the
 // static "CapacityLens" index.html sets. Assert a couple of routes are distinct AND descriptive.
-function registerSuiteScenario6() {
+function registerRouteSetsDescriptiveDistinctDocumentTest() {
   test("each route sets a descriptive, distinct document.title", async ({ page }) => {
     await openApp(page);
     // The index route reads as the scheduler's nav label, not the bare brand.
@@ -180,7 +180,7 @@ function registerSuiteScenario6() {
   });
 }
 
-function registerSuiteScenario7() {
+function registerActiveSectionMarkedAriaCurrentTest() {
   test("the active section is marked aria-current", async ({ page }) => {
     await openApp(page);
     await page.getByRole("link", { name: "Resources" }).click();
@@ -189,7 +189,7 @@ function registerSuiteScenario7() {
   });
 }
 
-function registerSuiteScenario8() {
+function registerUsesBlueIdentityGreenPositiveTest() {
   test("uses blue identity, green positive actions and red destructive actions", async ({ page }) => {
     await openApp(page);
 
@@ -210,7 +210,7 @@ function registerSuiteScenario8() {
   });
 }
 
-function registerSuiteScenario9() {
+function registerRendersDarkModeTest() {
   test("renders in dark mode", async ({ page }) => {
     // Dark is now an explicit preference, not OS-driven: seed the stored theme so
     // the pre-paint script in index.html resolves the app to dark.
@@ -225,7 +225,7 @@ function registerSuiteScenario9() {
 // The sidebar collapse toggle's hover label is the shadcn Radix Tooltip (ui/tooltip.tsx),
 // not a native `title`. This runs cross-engine (e2e:browsers → Chromium/WebKit/Firefox) on
 // purpose: Radix Tooltip's hover behavior was the uncertainty that deferred this pass.
-function registerSuiteScenario10() {
+function registerCollapseToggleRevealsShadcnTooltipTest() {
   test("the collapse toggle reveals its shadcn Tooltip on hover", async ({ page }) => {
     await openApp(page);
     // Desktop default = sidebar open, so the focusable toggle reads "Collapse menu" and
@@ -241,7 +241,7 @@ function registerSuiteScenario10() {
   });
 }
 
-function registerSuiteScenario11() {
+function registerSidebarTogglesBetweenLightDarkTests() {
   test("sidebar toggles between light and dark mode", async ({ page }) => {
     await openApp(page);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -255,15 +255,15 @@ function registerSuiteScenario11() {
 }
 
 test.describe("Navigation & shell", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
-  registerSuiteScenario7();
-  registerSuiteScenario8();
-  registerSuiteScenario9();
-  registerSuiteScenario10();
-  registerSuiteScenario11();
+  registerValidDeepLinkPathSurvivesTest();
+  registerUnknownExtensionlessPathReachesApplicationsTest();
+  registerSidebarLinksRouteSectionTest();
+  registerPinsTeamAccessSettingsBelowTest();
+  registerSettingsTogglesColourThemeTest();
+  registerRouteSetsDescriptiveDistinctDocumentTest();
+  registerActiveSectionMarkedAriaCurrentTest();
+  registerUsesBlueIdentityGreenPositiveTest();
+  registerRendersDarkModeTest();
+  registerCollapseToggleRevealsShadcnTooltipTest();
+  registerSidebarTogglesBetweenLightDarkTests();
 });

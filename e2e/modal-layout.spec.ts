@@ -50,7 +50,7 @@ async function openStackedDialog(page: Page, section: string, button: string, ti
   await dialog.getByRole("button", { name: "Cancel" }).click();
 }
 
-function registerSuiteScenario1() {
+function registerUsesResourceForms2575Test() {
   test("uses the Resource form's 25/75 rows across the six management flows", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show external resources" }).click();
@@ -64,7 +64,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerStacksContainsScopedForm360pxTest() {
   test("stacks and contains every scoped form at 360px", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show external resources" }).click();
@@ -79,7 +79,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerWrapsLongLabelStacksNarrowTests() {
   test("wraps a long label, stacks on a narrow screen, and preserves required-error association", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
@@ -125,7 +125,7 @@ function registerSuiteScenario3() {
 }
 
 test.describe("compact input modal layouts", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
+  registerUsesResourceForms2575Test();
+  registerStacksContainsScopedForm360pxTest();
+  registerWrapsLongLabelStacksNarrowTests();
 });

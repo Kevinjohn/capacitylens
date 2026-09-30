@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 import { openApp, resetSchedulerScroll, setZoom } from "./browserTestSupport";
 
 // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
-function registerSuiteScenario1() {
+function registerAllocationBarFocusableEnterOpensTest() {
   test("an allocation bar is focusable and Enter opens the editor", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -14,7 +14,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerArrowKeysMoveFocusedBarTest() {
   test("arrow keys move a focused bar by a day", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -27,7 +27,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerModalTrapsFocusClosesEscapeTest() {
   test("a modal traps focus, closes on Escape, and restores its trigger", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
     const trigger = page.getByRole("button", { name: "Add resource" });
@@ -55,7 +55,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerSchedulerExposesGridRolesSrTest() {
   test("the scheduler exposes grid roles and an sr-only per-row capacity summary", async ({ page }) => {
     await openApp(page);
     const grid = page.getByRole("grid", { name: "Resource schedule" });
@@ -73,7 +73,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerInvalidFieldMarkedAriaInvalidTests() {
   test("an invalid field is marked aria-invalid and described by the error", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
     await page.getByRole("button", { name: "Add resource" }).click();
@@ -106,9 +106,9 @@ function registerSuiteScenario5() {
 }
 
 test.describe("Keyboard & accessibility", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
+  registerAllocationBarFocusableEnterOpensTest();
+  registerArrowKeysMoveFocusedBarTest();
+  registerModalTrapsFocusClosesEscapeTest();
+  registerSchedulerExposesGridRolesSrTest();
+  registerInvalidFieldMarkedAriaInvalidTests();
 });
