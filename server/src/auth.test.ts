@@ -611,7 +611,7 @@ describe("auth schema check at startup", () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV, { deferDatabaseSetup: true });
     const passwordAuth = assertPresent(auth, "password auth");
-    // Any library endpoint waits for its startup schema check, so this settles it before migrating.
+    // A library endpoint awaits any pending startup schema check, so an enabled check would reject here.
     await expect(passwordAuth.api.getSession({ headers: new Headers() })).resolves.toBeNull();
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
