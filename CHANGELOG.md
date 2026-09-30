@@ -35,6 +35,8 @@ new features and **patch** versions carry fixes.
 
 ### Security
 
+- Git now ignores `.env` and `.env.*` (except `.env.example`), so the secret and setup token an
+  install writes to `.env` cannot be committed by `git add .` (#1358).
 - Sign-in and other credential limits now count each client by the address the server trusts.
   A client could previously avoid them by sending its own forwarding header, and without one
   every client shared a single allowance (#1308).
