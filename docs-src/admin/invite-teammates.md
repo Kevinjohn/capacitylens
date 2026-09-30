@@ -26,9 +26,9 @@ Choose the role and enter the teammate's email in the dialog. An invitation tied
 
 Leave No Resource linked selected unless their scheduled person already exists.
 
-When SMTP is configured and email sending is available, CapacityLens emails the addressed
-invitation. If email is unavailable or sending fails, select **Copy** and send the link privately.
-The link remains available either way.
+Select **Create invite**. When SMTP is configured and email sending is available, CapacityLens
+emails the addressed invitation. If email is unavailable or sending fails, select **Copy** and send
+the link privately. The link remains available either way.
 
 The link is only displayed now. If you lose it, revoke it under Outstanding invites and create a replacement.
 

@@ -16,9 +16,9 @@ Open Team & access in the left menu and find Invite someone.
 
 Set Role to Admin and enter the person's email. Leave No Resource linked selected unless their scheduled person already exists.
 
-When SMTP is configured and email sending is available, CapacityLens emails the addressed
-invitation. If email is unavailable or sending fails, select **Copy** and send the link privately.
-The link remains available either way.
+Select **Create invite**. When SMTP is configured and email sending is available, CapacityLens
+emails the addressed invitation. If email is unavailable or sending fails, select **Copy** and send
+the link privately. The link remains available either way.
 
 ## Hand over
 

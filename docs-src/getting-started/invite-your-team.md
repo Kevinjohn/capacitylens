@@ -46,11 +46,12 @@ permissions](/getting-started/roles-and-permissions) for why.
 
    ![Invite someone dialog with the optional Link to Resource selection](../screenshots/flows/invitation_created.png)
 
-4. Select **Create invite**, then **Copy** the one-time link. It's shown exactly once — the server keeps only a hash of it —
-   so copy it now and send it to the [person](/reference/glossary). The confirmation stays beside
-   the link. If SMTP is not configured or email sending fails, copy the link and send it yourself.
-   Closing the dialog clears the link; if you close it before the invite finishes creating, a notice
-   says the link was not shown. If you lose it, revoke the invite and create another one.
+4. Select **Create invite**. The one-time link is shown once — the server keeps only a hash of it —
+   and the confirmation stays beside it. When SMTP is configured and email sending is available,
+   CapacityLens emails the addressed invitation. If email is unavailable or sending fails, select
+   **Copy** and send the link to the [person](/reference/glossary). Closing the dialog clears the
+   link; if you close it before the invite finishes creating, a notice says the link was not shown.
+   If you lose it, revoke the invite and create another one.
 
 ## What the invitee sees
 
