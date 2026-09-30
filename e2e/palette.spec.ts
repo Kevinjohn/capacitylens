@@ -6,7 +6,7 @@ const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-function registerSuiteScenario1() {
+function registerOpensControlShowsActionsPagesTest() {
   test("opens with Control+K, shows Actions and Pages, closes with Escape", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -49,7 +49,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerToggleSecondControlClosesOpenTest() {
   test("toggle: second Control+K closes an open palette", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -61,7 +61,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerOpensInputFieldCtrlFiresTest() {
   test("opens from an input field (Ctrl+K fires even while typing)", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -76,7 +76,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerFuzzyFindsSeededResourceJumpsTest() {
   test("fuzzy-finds a seeded resource and jumps to their lane", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -107,7 +107,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerKeyboardTypeArrowDownEnterTest() {
   test("keyboard: type + arrow down + Enter selects and closes", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -137,7 +137,7 @@ function registerSuiteScenario5() {
   });
 }
 
-function registerSuiteScenario6() {
+function registerNavigatesPagePaletteTest() {
   test("navigates to a page via the palette", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -155,7 +155,7 @@ function registerSuiteScenario6() {
   });
 }
 
-function registerSuiteScenario7() {
+function registerGoTodayActionNavigatesScheduleTest() {
   test("Go to today action navigates to schedule and recenters", async ({ page }) => {
     await openApp(page);
     const grid = page.getByTestId("scheduler-grid");
@@ -175,7 +175,7 @@ function registerSuiteScenario7() {
   });
 }
 
-function registerSuiteScenario8() {
+function registerClientActivityResultsApplyDocumentedTest() {
   test("client and activity results apply their documented destinations", async ({ page }) => {
     await openApp(page);
 
@@ -193,7 +193,7 @@ function registerSuiteScenario8() {
   });
 }
 
-function registerSuiteScenario9() {
+function registerGoDateActionAppearsValidTest() {
   test("Go to date action appears for valid ISO date query", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -208,7 +208,7 @@ function registerSuiteScenario9() {
   });
 }
 
-function registerSuiteScenario10() {
+function registerBackdropClickClosesPaletteTest() {
   test("backdrop click closes the palette", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -222,7 +222,7 @@ function registerSuiteScenario10() {
   });
 }
 
-function registerSuiteScenario11() {
+function registerDirtyFormGuardCtrlWhileTest() {
   test("dirty-form guard: Ctrl+K while a modal is dirty does not open the palette", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -246,7 +246,7 @@ function registerSuiteScenario11() {
   });
 }
 
-function registerSuiteScenario12() {
+function registerImpossibleDate20260231Test() {
   test("impossible date 2026-02-31 does not show a Go to date option", async ({ page }) => {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -259,7 +259,7 @@ function registerSuiteScenario12() {
   });
 }
 
-function registerSuiteScenario13() {
+function registerPaletteProjectSelectionReplacesStaleTest() {
   test("palette project selection replaces stale schedule filters", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -294,7 +294,7 @@ function registerSuiteScenario13() {
   });
 }
 
-function registerSuiteScenario14() {
+function registerPaletteHasSeriousCriticalAccessibilityTests() {
   test("palette has no serious or critical accessibility violations (light mode)", async ({ page }) => {
     await openApp(page);
     await disableCssMotion(page);
@@ -315,18 +315,18 @@ function registerSuiteScenario14() {
 }
 
 test.describe("Command palette", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
-  registerSuiteScenario7();
-  registerSuiteScenario8();
-  registerSuiteScenario9();
-  registerSuiteScenario10();
-  registerSuiteScenario11();
-  registerSuiteScenario12();
-  registerSuiteScenario13();
-  registerSuiteScenario14();
+  registerOpensControlShowsActionsPagesTest();
+  registerToggleSecondControlClosesOpenTest();
+  registerOpensInputFieldCtrlFiresTest();
+  registerFuzzyFindsSeededResourceJumpsTest();
+  registerKeyboardTypeArrowDownEnterTest();
+  registerNavigatesPagePaletteTest();
+  registerGoTodayActionNavigatesScheduleTest();
+  registerClientActivityResultsApplyDocumentedTest();
+  registerGoDateActionAppearsValidTest();
+  registerBackdropClickClosesPaletteTest();
+  registerDirtyFormGuardCtrlWhileTest();
+  registerImpossibleDate20260231Test();
+  registerPaletteProjectSelectionReplacesStaleTest();
+  registerPaletteHasSeriousCriticalAccessibilityTests();
 });

@@ -3,7 +3,7 @@ import { openApp, selectShadOption, showScheduleFilters } from "./browserTestSup
 
 // Covers US-FIL-01..08. Seed has 6 allocations (one tentative: Bruce's Visual Design)
 // and 5 resource rows across Design/Development/Copywriting.
-function registerSuiteScenario1() {
+function registerOrdersFilterOptionsPlanningHierarchyTest() {
   test("orders filter options by their planning hierarchy", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -32,7 +32,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerSearchesResourcesNameHidesNonTest() {
   test("searches resources by name and hides non-matching rows", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -43,7 +43,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerFiltersScheduleDisciplineTest() {
   test("filters the schedule by discipline", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -55,7 +55,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerFiltersBarsClientTest() {
   test("filters bars to a client", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -72,7 +72,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerFiltersScheduleSingleProjectTest() {
   test("filters the schedule to a single project", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -81,7 +81,7 @@ function registerSuiteScenario5() {
   });
 }
 
-function registerSuiteScenario6() {
+function registerHidesTentativeBarsWhileCapacityTest() {
   test("hides tentative bars while capacity still counts them", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -100,7 +100,7 @@ function registerSuiteScenario6() {
   });
 }
 
-function registerSuiteScenario7() {
+function registerClearsAllActiveFiltersClearTest() {
   test("clears all active filters with the Clear Filters button", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -121,7 +121,7 @@ function registerSuiteScenario7() {
   });
 }
 
-function registerSuiteScenario8() {
+function registerShowsFilteredEmptyStateNothingTest() {
   test("shows the filtered empty state when nothing matches", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -136,7 +136,7 @@ function registerSuiteScenario8() {
   });
 }
 
-function registerSuiteScenario9() {
+function registerFiltersScheduleAllProjectsActivityTest() {
   test("filters the schedule to an all-projects activity (the activity lens)", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -147,7 +147,7 @@ function registerSuiteScenario9() {
   });
 }
 
-function registerSuiteScenario10() {
+function registerActivityLensMutuallyExclusiveClientTests() {
   test("the activity lens is mutually exclusive with the client / project lens", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -164,14 +164,14 @@ function registerSuiteScenario10() {
 }
 
 test.describe("Filters", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
-  registerSuiteScenario7();
-  registerSuiteScenario8();
-  registerSuiteScenario9();
-  registerSuiteScenario10();
+  registerOrdersFilterOptionsPlanningHierarchyTest();
+  registerSearchesResourcesNameHidesNonTest();
+  registerFiltersScheduleDisciplineTest();
+  registerFiltersBarsClientTest();
+  registerFiltersScheduleSingleProjectTest();
+  registerHidesTentativeBarsWhileCapacityTest();
+  registerClearsAllActiveFiltersClearTest();
+  registerShowsFilteredEmptyStateNothingTest();
+  registerFiltersScheduleAllProjectsActivityTest();
+  registerActivityLensMutuallyExclusiveClientTests();
 });

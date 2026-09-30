@@ -82,7 +82,7 @@ function projectAvatarRow(row: ResourceAvatarRow, accountId: string): ResourceAv
     throw new Error(`Corrupt member/resource link detected for account ${accountId}.`);
   if (row.status !== "active" || row.archivedAt || row.deletedAt) return [];
   const parsed = parseResourceAvatarUrl(row.image);
-  return parsed.ok && parsed.value ? [{ resourceId: row.resourceId, imageUrl: parsed.value }] : [];
+  return parsed === null || parsed === undefined ? [] : [{ resourceId: row.resourceId, imageUrl: parsed }];
 }
 
 function associationTableExists(db: Db): boolean {

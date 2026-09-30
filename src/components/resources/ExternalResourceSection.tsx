@@ -19,7 +19,7 @@ export interface ExternalResourceSectionProps {
 export function ExternalResourceSection({ externals, onAdd, onEdit, onRequestArchive }: ExternalResourceSectionProps) {
   return (
     <section aria-labelledby="external-heading">
-      {/* Decorative rule before the External section (Phase 8) — see the People→Placeholders
+      {/* Decorative rule before the External section — see the People→Placeholders
           Separator above. */}
       <Separator className="mt-8" />
       <div className="mb-4 mt-8 flex items-center justify-between gap-4">

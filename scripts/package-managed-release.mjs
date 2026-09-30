@@ -5,9 +5,20 @@ import { fileURLToPath } from "node:url";
 
 const generatedMarker = "CapacityLens generated production artifact\n";
 
-async function requireNonemptyFile(path, label) {
-  const details = await stat(path).catch(() => undefined);
+export async function requireNonemptyFile(path, label) {
+  // Only a missing entry means "missing"; any other stat failure is reported as itself.
+  const details = await stat(path).catch((error) => {
+    if (error?.code === "ENOENT") return undefined;
+    throw new Error(`Could not inspect ${path}: ${error.message}`, { cause: error });
+  });
   if (!details?.isFile() || details.size === 0) throw new Error(`Production artifact is missing ${label}.`);
+}
+
+/** Report a deploy that could not start or was terminated before its exit status. */
+export function assertDeploySucceeded(result) {
+  if (result.error) throw new Error(`pnpm deploy could not start: ${result.error.message}`, { cause: result.error });
+  if (result.signal) throw new Error(`pnpm deploy was terminated by ${result.signal}.`);
+  if (result.status !== 0) throw new Error(`pnpm deploy failed with status ${result.status ?? "unknown"}.`);
 }
 
 // `pnpm deploy --prod` is the primary guard. This secondary check follows the manifests instead
@@ -108,7 +119,7 @@ export async function packageManagedRelease(outputPath = "production") {
     encoding: "utf8",
     stdio: "inherit",
   });
-  if (deployed.status !== 0) throw new Error(`pnpm deploy failed with status ${deployed.status ?? "unknown"}.`);
+  assertDeploySucceeded(deployed);
   return inspectManagedRelease(output, await readDevelopmentPackages(repositoryRoot));
 }
 

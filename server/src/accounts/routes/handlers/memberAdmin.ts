@@ -5,7 +5,11 @@ import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import { NO_REPROMPT } from "../../../routes/routeShared";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAccountActor, requireAuthenticatedPrincipal } from "./authenticatedPrincipal";
-import { AccountContractError } from "@capacitylens/shared/account/errors";
+
+type MemberMutationContext = Pick<
+  AccountRouteContext,
+  "administration" | "auditUnlessReplayed" | "authorizeMemberMutation" | "command" | "fail" | "isKnownRole"
+>;
 
 function projectMemberResourceLink(
   link:
@@ -21,9 +25,14 @@ function projectMemberResourceLink(
     : null;
 }
 
+type ListMembersContext = Pick<
+  AccountRouteContext,
+  "authMode" | "authorize" | "fail" | "flows" | "memberReadProjection" | "memberResources" | "memberSignInTracking"
+>;
+
 // This projection binds directory, resource and account-level permissions in one response.
 // eslint-disable-next-line max-lines-per-function
-export async function listMembers(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function listMembers(req: FastifyRequest, reply: FastifyReply, context: ListMembersContext) {
   const {
     authMode,
     flows: accountFlows,
@@ -89,15 +98,12 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
   }
 }
 
-function linkFailure(error: unknown): never {
-  if (error instanceof Error && error.name === "AccountMemberResourceConflict") {
-    throw new AccountContractError({ code: "CONFLICT", message: error.message, retryable: false }, { cause: error });
-  }
-  throw error;
-}
-
 /** Serve the authorized, privacy-minimal scheduled-person avatar projection for one account. */
-export async function listResourceAvatars(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function listResourceAvatars(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "authMode" | "authorize" | "fail" | "memberResources">,
+) {
   const { accountId } = req.params as { accountId: string };
   if (!context.authorize({ req, reply, accountId, action: "read", options: NO_REPROMPT })) return;
   if (context.authMode === "off") return { avatars: [] };
@@ -108,92 +114,11 @@ export async function listResourceAvatars(req: FastifyRequest, reply: FastifyRep
   }
 }
 
-/** Create, retry, or change one member/person association under opaque revision CAS. */
-export async function setMemberResourceLink(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
-  const { accountId, userId } = req.params as { accountId: string; userId: string };
-  if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
-    return;
-  const body = req.body as Record<string, unknown> | null;
-  if (
-    !body ||
-    typeof body.resourceId !== "string" ||
-    body.resourceId.length === 0 ||
-    !(body.expectedRevision === null || typeof body.expectedRevision === "string")
-  ) {
-    return context.fail(reply, context.validationFailed("resourceId and expectedRevision are required."));
-  }
-  try {
-    const actor = requireAccountActor(req);
-    const link = await context.memberResources.setLink({
-      workspaceId: accountId,
-      principalId: userId,
-      resourceId: body.resourceId,
-      expectedRevision: body.expectedRevision,
-      now: new Date().toISOString(),
-      actor,
-      command: context.command(req),
-    });
-    return reply.code(200).send({ resourceId: link.resourceId, revision: link.revision });
-  } catch (error) {
-    try {
-      linkFailure(error);
-    } catch (failure) {
-      return context.fail(reply, failure);
-    }
-  }
-}
-
-/** Remove one member/person association only when its opaque revision still matches. */
-export async function clearMemberResourceLink(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
-  const { accountId, userId } = req.params as { accountId: string; userId: string };
-  if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
-    return;
-  const body = req.body as Record<string, unknown> | null;
-  if (!body || typeof body.expectedRevision !== "string" || body.expectedRevision.length === 0) {
-    return context.fail(reply, context.validationFailed("expectedRevision is required."));
-  }
-  try {
-    const actor = requireAccountActor(req);
-    await context.memberResources.clearLink({
-      workspaceId: accountId,
-      principalId: userId,
-      expectedRevision: body.expectedRevision,
-      actor,
-      command: context.command(req),
-    });
-    return reply.code(204).send();
-  } catch (error) {
-    try {
-      linkFailure(error);
-    } catch (failure) {
-      return context.fail(reply, failure);
-    }
-  }
-}
-
-/** Dismiss the current proposal exception without changing a live member/person link. */
-export async function dismissMemberResourceLinkException(
+export async function setMemberSignInTracking(
   req: FastifyRequest,
   reply: FastifyReply,
-  context: AccountRouteContext,
+  context: Pick<AccountRouteContext, "audit" | "authorize" | "fail" | "memberSignInTracking">,
 ) {
-  const { accountId, userId } = req.params as { accountId: string; userId: string };
-  if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
-    return;
-  try {
-    await context.memberResources.dismissException({
-      workspaceId: accountId,
-      principalId: userId,
-      actor: requireAccountActor(req),
-      command: context.command(req),
-    });
-    return reply.code(204).send();
-  } catch (error) {
-    return context.fail(reply, error);
-  }
-}
-
-export async function setMemberSignInTracking(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const { memberSignInTracking, authorize, audit, fail: accountFail } = context;
 
   const { accountId } = req.params as { accountId: string };
@@ -226,7 +151,7 @@ export async function setMemberSignInTracking(req: FastifyRequest, reply: Fastif
   }
 }
 
-export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply, context: MemberMutationContext) {
   const {
     administration: accountAdminPort,
     command: accountCommand,
@@ -274,7 +199,7 @@ export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply,
   }
 }
 
-export async function changeMemberStatus(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function changeMemberStatus(req: FastifyRequest, reply: FastifyReply, context: MemberMutationContext) {
   const {
     administration: accountAdminPort,
     command: accountCommand,
@@ -325,7 +250,7 @@ export async function changeMemberStatus(req: FastifyRequest, reply: FastifyRepl
   }
 }
 
-export async function enableMemberAccess(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function enableMemberAccess(req: FastifyRequest, reply: FastifyReply, context: MemberMutationContext) {
   const { accountId, userId } = req.params as { accountId: string; userId: string };
   if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
     return;
@@ -356,7 +281,7 @@ export async function enableMemberAccess(req: FastifyRequest, reply: FastifyRepl
   }
 }
 
-export async function removeMember(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function removeMember(req: FastifyRequest, reply: FastifyReply, context: MemberMutationContext) {
   const {
     administration: accountAdminPort,
     command: accountCommand,

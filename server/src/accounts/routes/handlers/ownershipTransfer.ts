@@ -57,13 +57,21 @@ function sendTerminal(reply: FastifyReply, outcome: Extract<OwnershipTransferOut
  * refuses here. Concealment, not redaction: a masquerading session is not the participant whose
  * ceremony this is.
  */
-function refuseUnderMasquerade(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext): boolean {
+function refuseUnderMasquerade(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "isMasquerading">,
+): boolean {
   if (!context.isMasquerading(req)) return false;
   void reply.code(403).send({ error: "Masquerade is read-only.", code: MASQUERADE_ERROR_CODES.readOnly });
   return true;
 }
 
-export async function readOwnershipTransfer(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function readOwnershipTransfer(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "administration" | "authMode" | "authorize" | "fail" | "isMasquerading">,
+) {
   const { administration, authMode, authorize, fail: accountFail } = context;
   const { accountId } = req.params as { accountId: string };
   if (!authorize({ req, reply, accountId, action: "actOnOwnershipTransfer", options: { requireFreshSession: false } }))
@@ -103,10 +111,15 @@ function readReplacementPredicate(body: Record<string, unknown>): ReplacementPre
   return { expectedRequestId: id, expectedRevision: revision };
 }
 
+type InitiateOwnershipTransferContext = Pick<
+  AccountRouteContext,
+  "administration" | "auditUnlessReplayed" | "authorizeMemberMutation" | "command" | "fail"
+>;
+
 export async function initiateOwnershipTransfer(
   req: FastifyRequest,
   reply: FastifyReply,
-  context: AccountRouteContext,
+  context: InitiateOwnershipTransferContext,
 ) {
   const { administration, command: accountCommand, fail: accountFail, auditUnlessReplayed } = context;
   const { accountId } = req.params as { accountId: string };
@@ -156,7 +169,10 @@ type RowCommand = "accept" | "withdraw" | "decline" | "cancel" | "complete";
 interface RowCommandInput {
   req: FastifyRequest;
   reply: FastifyReply;
-  context: AccountRouteContext;
+  context: Pick<
+    AccountRouteContext,
+    "administration" | "auditUnlessReplayed" | "authorizeMemberMutation" | "command" | "fail"
+  >;
   action: RowCommand;
 }
 
@@ -166,7 +182,7 @@ function auditActionFor(action: RowCommand): "ownershipTransfer" | "ownershipTra
   return action === "complete" ? "ownershipTransfer" : "ownershipTransferRequest";
 }
 
-function commandFor(context: AccountRouteContext, action: RowCommand) {
+function commandFor(context: Pick<AccountRouteContext, "administration">, action: RowCommand) {
   const { administration } = context;
   return {
     accept: administration.acceptOwnershipTransfer,
@@ -225,17 +241,47 @@ async function runRowCommand({ req, reply, context, action }: RowCommandInput) {
   }
 }
 
-export const acceptOwnershipTransfer = (req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) =>
-  runRowCommand({ req, reply, context, action: "accept" });
+export const acceptOwnershipTransfer = (
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<
+    AccountRouteContext,
+    "administration" | "auditUnlessReplayed" | "authorizeMemberMutation" | "command" | "fail"
+  >,
+) => runRowCommand({ req, reply, context, action: "accept" });
 
-export const withdrawOwnershipTransfer = (req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) =>
-  runRowCommand({ req, reply, context, action: "withdraw" });
+export const withdrawOwnershipTransfer = (
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<
+    AccountRouteContext,
+    "administration" | "auditUnlessReplayed" | "authorizeMemberMutation" | "command" | "fail"
+  >,
+) => runRowCommand({ req, reply, context, action: "withdraw" });
 
-export const declineOwnershipTransfer = (req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) =>
-  runRowCommand({ req, reply, context, action: "decline" });
+export const declineOwnershipTransfer = (
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<
+    AccountRouteContext,
+    "administration" | "auditUnlessReplayed" | "authorizeMemberMutation" | "command" | "fail"
+  >,
+) => runRowCommand({ req, reply, context, action: "decline" });
 
-export const cancelOwnershipTransfer = (req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) =>
-  runRowCommand({ req, reply, context, action: "cancel" });
+export const cancelOwnershipTransfer = (
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<
+    AccountRouteContext,
+    "administration" | "auditUnlessReplayed" | "authorizeMemberMutation" | "command" | "fail"
+  >,
+) => runRowCommand({ req, reply, context, action: "cancel" });
 
-export const completeOwnershipTransfer = (req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) =>
-  runRowCommand({ req, reply, context, action: "complete" });
+export const completeOwnershipTransfer = (
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<
+    AccountRouteContext,
+    "administration" | "auditUnlessReplayed" | "authorizeMemberMutation" | "command" | "fail"
+  >,
+) => runRowCommand({ req, reply, context, action: "complete" });

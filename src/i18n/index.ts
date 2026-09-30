@@ -45,8 +45,8 @@ export function readActiveDateLocale(): DateFnsLocale {
  *
  * `reload: false` is deliberate: the locale is account-scoped and client-only (the Vite plugin uses
  * the `globalVariable` strategy, not a cookie), so switching must NOT trigger a page reload — React
- * re-renders pick up the new messages on the next render. English-only today; the resolve/validate
- * path is already correct for additional locales (P1.5.2+).
+ * re-renders pick up the new messages on the next render. The resolve/validate path accepts any
+ * compiled locale, not only English.
  *
  * @param language - The active Account's `language` field (e.g. `'en'`); `undefined` ⇒ baseLocale.
  */

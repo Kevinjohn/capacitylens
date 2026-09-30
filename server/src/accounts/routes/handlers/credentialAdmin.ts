@@ -9,7 +9,12 @@ function assertAuthenticatedRequestContext(req: FastifyRequest) {
   return { actor, userId: user.id };
 }
 
-export async function resetPassword(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+type ResetPasswordContext = Pick<
+  AccountRouteContext,
+  "auditUnlessReplayed" | "authMode" | "authorize" | "command" | "fail" | "flows" | "requireMembership"
+>;
+
+export async function resetPassword(req: FastifyRequest, reply: FastifyReply, context: ResetPasswordContext) {
   const {
     authMode,
     flows: accountFlows,
@@ -61,7 +66,23 @@ export async function resetPassword(req: FastifyRequest, reply: FastifyReply, co
   }
 }
 
-export async function revokeMemberSessions(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+type RevokeMemberSessionsContext = Pick<
+  AccountRouteContext,
+  | "auditUnlessReplayed"
+  | "authMode"
+  | "authenticationConfigured"
+  | "authorize"
+  | "command"
+  | "fail"
+  | "flows"
+  | "requireMembership"
+>;
+
+export async function revokeMemberSessions(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: RevokeMemberSessionsContext,
+) {
   const {
     authMode,
     authenticationConfigured,

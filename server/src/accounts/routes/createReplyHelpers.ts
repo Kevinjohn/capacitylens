@@ -28,7 +28,20 @@ interface RequireMembershipInput {
   command: CommandIdentity;
 }
 
-export function createReplyHelpers(dependencies: AccountRouteDependencies) {
+/** Reply and gate helpers every account route handler shares; built once from the route dependencies. */
+export interface AccountReplyHelpers {
+  isKnownRole: typeof isAccountRole;
+  validationFailed(message: string): AccountContractError;
+  memberNotFound(command: CommandIdentity): AccountContractError;
+  auditUnlessReplayed(input: AuditUnlessReplayedInput): void;
+  rejectTrustedLocalMemberMutation(reply: FastifyReply): unknown;
+  authorizeMemberMutation(input: AuthorizeMemberMutationInput): boolean;
+  requireMembership(
+    input: RequireMembershipInput,
+  ): ReturnType<AccountRouteDependencies["administration"]["getMembership"]>;
+}
+
+export function createReplyHelpers(dependencies: AccountRouteDependencies): AccountReplyHelpers {
   const { authMode, administration: accountAdminPort, authorize, audit, fail: accountFail } = dependencies;
 
   const isKnownRole = isAccountRole;
@@ -109,4 +122,4 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies) {
   };
 }
 
-export type AccountRouteContext = AccountRouteDependencies & ReturnType<typeof createReplyHelpers>;
+export type AccountRouteContext = AccountRouteDependencies & AccountReplyHelpers;

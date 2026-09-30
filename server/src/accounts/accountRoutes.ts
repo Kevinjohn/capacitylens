@@ -17,10 +17,12 @@ import {
   removeMember,
   setMemberSignInTracking,
   listResourceAvatars,
-  setMemberResourceLink,
+} from "./routes/handlers/memberAdmin";
+import {
   clearMemberResourceLink,
   dismissMemberResourceLinkException,
-} from "./routes/handlers/memberAdmin";
+  setMemberResourceLink,
+} from "./routes/handlers/memberResourceLink";
 import {
   acceptOwnershipTransfer,
   cancelOwnershipTransfer,
@@ -56,7 +58,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
 
   app.delete("/api/account/sessions/:sessionId", async (req, reply) => revokeSession(req, reply, context));
 
-  // Invite CREATE (P1.9): mint a single-use, expiring link that pre-sets a role for `accountId`.
+  // Invite CREATE: mint a single-use, expiring link that pre-sets a role for `accountId`.
   // Body: { accountId, role, expiresAt? }. GATED 'manageInvites' (admin+ of THAT account) via the
   // same authorize seam every permissioned route uses — OFF mode is the allow-all no-op (the token
   // is minted as DEMO_USER's act), auth-on requires admin-tier membership of `accountId` (a

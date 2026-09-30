@@ -70,6 +70,17 @@ test("a lane whose holder has gone is reclaimed, and a live holder's is not", ()
   assert.equal(next.lane, 1, "the dead holder's lane is the first free one");
 });
 
+test("an unreadable claim surfaces its read error instead of being reclaimed", () => {
+  const environment = scratch();
+  const directory = laneDirectory(environment);
+  claimLane({ worktree: "/tmp/initial", environment }).release();
+  // A directory in place of the claim file makes the read fail with EISDIR, portably and as root.
+  mkdirSync(join(directory, "0.json"));
+  assert.throws(() => claimLane({ worktree: "/tmp/b", environment }), { code: "EISDIR" });
+  assert.throws(() => releaseLane(directory, 0, "token"), { code: "EISDIR" });
+  assert.equal(existsSync(join(directory, "0.json")), true);
+});
+
 test("a live mutex is not reclaimed solely because its timestamp is old", () => {
   const environment = scratch();
   const directory = laneDirectory(environment);

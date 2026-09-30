@@ -29,7 +29,13 @@ type AccountSlice = Pick<
 type AccountSliceCreator = StateCreator<StoreState, [], [], AccountSlice>;
 type AccountSliceInternals = Pick<
   StoreInternals,
-  "createGuardedAction" | "assertWorkingDays" | "snapColor" | "mutate" | "updateById" | "applySnappedColor"
+  | "createGuardedAction"
+  | "createGuardedValueAction"
+  | "assertWorkingDays"
+  | "snapColor"
+  | "mutate"
+  | "updateById"
+  | "applySnappedColor"
 >;
 type AccountSliceSet = Parameters<AccountSliceCreator>[0];
 type AccountSliceGet = Parameters<AccountSliceCreator>[1];
@@ -41,8 +47,8 @@ interface AccountActionContext {
 }
 
 function createAddAccountAction({ internals, set }: AccountActionContext): StoreState["addAccount"] {
-  const { createGuardedAction, assertWorkingDays, snapColor, mutate } = internals;
-  return createGuardedAction((input: Draft<Account>): Account | null => {
+  const { createGuardedValueAction, assertWorkingDays, snapColor, mutate } = internals;
+  return createGuardedValueAction((input: Draft<Account>): Account | null => {
     const timestamps = stamp();
     const weekStartsOn = input.weekStartsOn ?? 1;
     if (input.workingDays !== undefined) assertWorkingDays(input.workingDays);
