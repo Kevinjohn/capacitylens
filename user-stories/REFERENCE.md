@@ -62,11 +62,13 @@ accept responses never include it.
    steps: **New company** or **Ask an admin for an invite**. A caller without create permission sees
    only the invite step. With one or more companies already listed, the subtitle says
    _"Choose a company to plan, or create another one."_
-   If a refresh or account switch returns a slice that no longer contains the selected company,
-   CapacityLens installs no active workspace: it returns atomically to this picker, clears the
-   leaving company's dirty-form, drag and screen-reader announcement state, keeps the prior-company
-   breadcrumb, shows the company-not-found notification, and rejects scoped edits until a real
-   company is selected.
+   If the app is asked to select an unknown company while another company is active, it returns to
+   this picker, clears the leaving company's dirty-form, drag and screen-reader announcement state,
+   keeps the prior-company breadcrumb, shows the company-not-found notification, and rejects scoped
+   edits until a real company is selected. If a refresh or account switch publishes a slice that no
+   longer contains the selected company, CapacityLens returns atomically to this picker, clears the
+   same transient state and the prior-company breadcrumb, shows the company-not-found notification,
+   and rejects scoped edits until a real company is selected.
    If switching companies fails before a slice can be loaded, the previous company's data stays
    hidden behind the recovery stage (`data-testid="account-load-recovery"`). **Retry** loads the
    selected company again; **Choose another company** returns to the picker.
