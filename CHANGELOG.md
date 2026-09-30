@@ -17,6 +17,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Connecting a company sign-in provider now offers identity confirmation when a
+  session has aged and explains how to recover from an unverified local account
+  email (#1364).
 - Dev tooling now reserves explicitly selected port lanes, reports missing `lsof`, and stops with
   instructions instead of terminating a process that occupies a lane (#1316, #1317, #1322).
   `pnpm run lanes` lists what holds each lane, and `--stop-orphans` stops leftover servers.

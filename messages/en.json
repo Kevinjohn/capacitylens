@@ -204,6 +204,8 @@
   "settings_sso_connect_button": "Connect {provider}",
   "settings_sso_connected": "Connected to {provider}",
   "settings_sso_connect_error": "The sign-in connection could not be completed. Try again.",
+  "settings_sso_reauth_cancelled": "Confirm it's you to connect company sign-in. Try connecting again when you're ready.",
+  "settings_sso_local_email_not_verified": "Your account email is not verified. Ask your server operator to check and correct your sign-in email, then sign in again before connecting.",
   "settings_sso_status_error": "Company sign-in status could not be loaded.",
   "settings_sso_readiness_heading": "SSO cutover readiness",
   "settings_sso_readiness_description": "Check whether every active member is ready for company-login cutover.",
