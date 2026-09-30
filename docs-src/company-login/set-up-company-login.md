@@ -151,9 +151,10 @@ are no users. The first sign-in creates the first identity and closes bootstrap 
 The person then follows **Set up your company** to create their company as Owner.
 
 For an invited person, an Owner or Admin creates an addressed invitation in
-**Team & access** and copies its link to send privately. CapacityLens does not
-email company invitations. The invited person opens it and continues with an
-eligible configured provider.
+**Team & access**. When SMTP is configured and sending is available, CapacityLens
+emails the invitation; the copyable link remains available if email is unavailable
+or sending fails. The invited person opens the email or shared link and continues
+with an eligible configured provider.
 The verified address must match the invitation. Google supplies verified-email
 evidence; Microsoft may need the mailbox proof below. A different address cannot
 use that invitation to create an identity.
