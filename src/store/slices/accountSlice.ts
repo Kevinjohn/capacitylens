@@ -143,7 +143,7 @@ function resolveAccountSelection(rawId: ID | null, get: AccountSliceGet): { id: 
 
 function buildAccountNoticeTransition(switching: boolean, unknown: boolean): Partial<StoreState> {
   if (unknown) {
-    return { notice: { message: m.notice_company_not_found(), tone: "error" } };
+    return { ...buildClearedSession(), notice: { message: m.notice_company_not_found(), tone: "error" } };
   }
   return switching ? { notice: null, ...buildClearedSession() } : {};
 }
