@@ -17,6 +17,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Creating a company with a malformed request body now returns a validation error without creating partial company data (#1371).
 - Switching companies while a member view is waiting to save pending changes now cancels that
   start before it can load the previous company's view (#1370).
 - Selecting a company that is no longer available returns to the picker and clears the previous
