@@ -32,13 +32,21 @@ installed, most of it waiting for the first build.
 
 ## Steps
 
-1. Clone the repository and copy the example environment file:
+1. Clone the repository, check out the release you're deploying and copy the example
+   environment file:
 
    ```bash
    git clone https://github.com/Kevinjohn/capacitylens.git
    cd capacitylens
+   git checkout vX.Y.Z
    cp .env.example .env
+   chmod 600 .env
    ```
+
+   Replace `vX.Y.Z` with the release tag you're deploying. The newest is on the
+   [releases page](https://github.com/Kevinjohn/capacitylens/releases/latest). Don't deploy
+   `main`: it carries changes that haven't been released yet. `.env` will hold the signing
+   secret and setup token, so only your account may read it.
 
 2. Generate two secrets — one for signing sessions, one for the first-owner setup
    token:

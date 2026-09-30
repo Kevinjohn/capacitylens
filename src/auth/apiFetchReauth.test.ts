@@ -156,6 +156,28 @@ describe("apiFetchReauth replay behavior", () => {
     },
   );
 
+  it("replays an explicitly marked POST after a freshness refusal", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json(403, { code: "SESSION_NOT_FRESH" }))
+      .mockResolvedValueOnce(json(200, { url: "https://identity.test/authorize" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const requestOptions = { method: "POST", body: JSON.stringify({ providerId: "google" }) };
+
+    const pending = apiFetchReauth("http://api.test/api/identity/link-provider", requestOptions, {
+      action: "connect-provider",
+      replayAfterFreshnessRefusal: true,
+    });
+    await vi.waitFor(() => expect(isReauthPending()).toBe(true));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    completeReauth(true);
+
+    expect((await pending).status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: "POST", body: requestOptions.body });
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: "POST", body: requestOptions.body });
+  });
+
   it("replays a Request body after successful re-authentication", async () => {
     const bodies: string[] = [];
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
