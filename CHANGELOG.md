@@ -17,6 +17,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Switching companies while a member view is waiting to save pending changes now cancels that
+  start before it can load the previous company's view (#1370).
 - Selecting a company that is no longer available returns to the picker and clears the previous
   company's dirty form, drag and screen-reader announcement state while keeping the not-found notice.
 - The documentation 404 page now explains the missing page and returns hosted visitors
