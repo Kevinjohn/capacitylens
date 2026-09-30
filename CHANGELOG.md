@@ -20,6 +20,9 @@ new features and **patch** versions carry fixes.
 - Connecting a company sign-in provider now offers identity confirmation when a
   session has aged and explains how to recover from an unverified local account
   email (#1364).
+- A first start on an empty database no longer logs a "Database schema mismatch" error telling
+  the operator to run `npx auth migrate`. The server creates those tables itself, and still refuses
+  to start if they cannot be brought up to date (#1353).
 - Dev tooling now reserves explicitly selected port lanes, reports missing `lsof`, and stops with
   instructions instead of terminating a process that occupies a lane (#1316, #1317, #1322).
   `pnpm run lanes` lists what holds each lane, and `--stop-orphans` stops leftover servers.
@@ -38,6 +41,8 @@ new features and **patch** versions carry fixes.
 
 ### Security
 
+- Git now ignores `.env` and `.env.*` (except `.env.example`), so the secret and setup token an
+  install writes to `.env` cannot be committed by `git add .` (#1358).
 - Sign-in and other credential limits now count each client by the address the server trusts.
   A client could previously avoid them by sending its own forwarding header, and without one
   every client shared a single allowance (#1308).
