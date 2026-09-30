@@ -17,6 +17,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- A first start on an empty database no longer logs a "Database schema mismatch" error telling
+  the operator to run `npx auth migrate`. The server creates those tables itself, and still refuses
+  to start if they cannot be brought up to date (#1353).
 - Dev tooling now reserves explicitly selected port lanes, reports missing `lsof`, and stops with
   instructions instead of terminating a process that occupies a lane (#1316, #1317, #1322).
   `pnpm run lanes` lists what holds each lane, and `--stop-orphans` stops leftover servers.
