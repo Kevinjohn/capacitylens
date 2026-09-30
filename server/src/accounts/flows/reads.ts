@@ -4,7 +4,7 @@ import { resolveDirectorySortName } from "./actorContext";
 import type { LocalAccountFlowContext } from "./context";
 
 export function createAccountReadFlows(
-  context: LocalAccountFlowContext,
+  context: Pick<LocalAccountFlowContext, "identity" | "administration">,
 ): Pick<LocalAccountFlows, "resolveRequestAccess" | "listMemberDirectory"> {
   const { identity, administration } = context;
   return {

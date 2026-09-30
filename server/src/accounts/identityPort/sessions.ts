@@ -63,9 +63,7 @@ async function verifyApplicationSession(
 }
 
 function narrowProviderImage(value: unknown): string | null {
-  const parsed = parseResourceAvatarUrl(value);
-  if (!parsed.ok) return null;
-  return parsed.value ?? null;
+  return parseResourceAvatarUrl(value) ?? null;
 }
 
 function buildVerifiedApplicationSession(

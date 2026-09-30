@@ -24,6 +24,7 @@ describe("store slice composition", () => {
       createResourceSlice(internals)(set, get, useStore),
       createAllocationSlice({
         createGuardedAction: internals.createGuardedAction,
+        createGuardedValueAction: internals.createGuardedValueAction,
         createAllocations: internals.createAllocations,
         updateOwned: internals.updateOwned,
         assertAllocation: internals.assertAllocation,

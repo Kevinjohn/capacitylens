@@ -279,7 +279,10 @@ function createWorkspaceProvisioningFlows(
   };
 }
 
-export function createWorkspaceLifecycleFlows(context: LocalAccountFlowContext): WorkspaceLifecycleFlows {
+/** Composes the replay, provisioning and erasure flows; each receives only its own `Pick`. */
+export function createWorkspaceLifecycleFlows(
+  context: Omit<LocalAccountFlowContext, "denyIdentityAdminCommand" | "resetReplay">,
+): WorkspaceLifecycleFlows {
   return {
     ...createWorkspaceReplayFlows(context),
     ...createWorkspaceProvisioningFlows(context),

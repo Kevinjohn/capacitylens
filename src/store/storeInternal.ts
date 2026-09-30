@@ -72,16 +72,22 @@ const updateById = <T extends Entity>(list: T[], id: ID, patch: Patch<T>): T[] =
 
 function createGuardedActions(blockedByViewer: ReturnType<typeof createGuards>["blockedByViewer"]) {
   const createGuardedAction =
-    <A extends unknown[], R>(action: (...parameters: A) => R, blockedValue?: R) =>
+    <A extends unknown[]>(action: (...parameters: A) => void) =>
+    (...parameters: A): void => {
+      if (!blockedByViewer()) action(...parameters);
+    };
+  // A value-returning action must say what a blocked viewer receives; there is no implicit default.
+  const createGuardedValueAction =
+    <A extends unknown[], R>(action: (...parameters: A) => R, blockedValue: R) =>
     (...parameters: A): R =>
-      blockedByViewer() ? (blockedValue as R) : action(...parameters);
+      blockedByViewer() ? blockedValue : action(...parameters);
   const createGuardedAddAction =
     <A extends unknown[], E>(build: (...parameters: A) => E, persist: (built: E, ...args: A) => E) =>
     (...parameters: A): CreateResult<E> => {
       const built = build(...parameters);
       return blockedByViewer() ? { kind: "blocked" } : { kind: "created", value: persist(built, ...parameters) };
     };
-  return { createGuardedAction, createGuardedAddAction };
+  return { createGuardedAction, createGuardedValueAction, createGuardedAddAction };
 }
 
 interface OwnedUpdateDependencies {
@@ -179,9 +185,9 @@ function createTimeOffCreator(dependencies: TimeOffCreationDependencies) {
 function createImportAction(
   set: StoreApi<StoreState>["setState"],
   get: StoreApi<StoreState>["getState"],
-  createGuardedAction: ReturnType<typeof createGuardedActions>["createGuardedAction"],
+  createGuardedValueAction: ReturnType<typeof createGuardedActions>["createGuardedValueAction"],
 ) {
-  return createGuardedAction(
+  return createGuardedValueAction(
     (accountId: ID, incoming: AppData): ImportSummary => {
       const result = remapAndValidateImport(get().data, accountId, incoming, touch());
       if (result.imported === 0) return { imported: 0, skipped: result.skipped };
@@ -212,11 +218,12 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     applySnappedColor,
   } = createGuards(get, set);
 
-  const { createGuardedAction, createGuardedAddAction } = createGuardedActions(blockedByViewer);
+  const { createGuardedAction, createGuardedValueAction, createGuardedAddAction } =
+    createGuardedActions(blockedByViewer);
   const updateOwned = createOwnedUpdater({ get, resolveOwnedRow, mutate });
   const createAllocations = createAllocationCreator({ get, requireAccount, blockedByViewer, assertAllocation, mutate });
   const createTimeOffs = createTimeOffCreator({ get, requireAccount, blockedByViewer, assertResourceExists, mutate });
-  const importSlice = createImportAction(set, get, createGuardedAction);
+  const importSlice = createImportAction(set, get, createGuardedValueAction);
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
   // come from the shared core (entities.ts) so the store write boundary and the import
@@ -237,6 +244,7 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     snapColor,
     applySnappedColor,
     createGuardedAction,
+    createGuardedValueAction,
     createGuardedAddAction,
     updateOwned,
     createAllocations,

@@ -18,11 +18,17 @@ workspace contains the web app, the pure `@capacitylens/shared` domain package, 
 
 ## Before opening a pull request
 
+Use the Node version in `.nvmrc`:
+
 ```bash
-pnpm run gate
-pnpm run gate:server
+pnpm run gate:all
 pnpm run e2e
 ```
+
+A prose-only change needs formatting and a content and link review instead; rebuild the
+documentation when its sources change. The
+[development guide](docs-src/reference/development.md#checks) lists when to add the account
+boundary check, migration rehearsal and mutation testing.
 
 Authentication, account, invitation, membership, authorization, session and erasure changes must
 also run the portable account boundary check. For changes to Google or Microsoft integration, use

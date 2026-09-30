@@ -15,7 +15,11 @@ function createRequestHeaders(headers: FastifyRequest["headers"]): Headers {
   return requestHeaders;
 }
 
-export async function signOut(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function signOut(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "fail" | "identity">,
+) {
   const { identity: identityPort, fail: accountFail } = context;
 
   try {
@@ -29,7 +33,11 @@ export async function signOut(req: FastifyRequest, reply: FastifyReply, context:
   }
 }
 
-export async function listSessions(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function listSessions(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "fail" | "identity">,
+) {
   const { identity: identityPort, fail: accountFail } = context;
 
   try {
@@ -39,7 +47,11 @@ export async function listSessions(req: FastifyRequest, reply: FastifyReply, con
   }
 }
 
-export async function revokeSession(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function revokeSession(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "command" | "fail" | "identity">,
+) {
   const { identity: identityPort, command: accountCommand, fail: accountFail } = context;
 
   const params: unknown = req.params;
