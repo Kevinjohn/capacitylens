@@ -45,17 +45,25 @@ describe("rowCodec", () => {
     ).not.toHaveProperty("timezone");
   });
 
-  it("identifies corrupt JSON by table, column and row", () => {
-    expect(() =>
+  it("identifies corrupt JSON by table, column and row without exposing cell contents", () => {
+    let caught: unknown;
+    try {
       fromRow(accountSpec, {
         id: "a-broken",
         name: "Studio",
         color: "#fff",
-        weekStartsOn: "not-json",
+        weekStartsOn: "SENTINEL_CORRUPT_CELL",
         createdAt: "c",
         updatedAt: "u",
-      }),
-    ).toThrow(/Corrupt JSON in accounts\.weekStartsOn \(id=a-broken\)/);
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toBe("Corrupt JSON in accounts.weekStartsOn (id=a-broken)");
+    expect((caught as Error).message).not.toContain("SENTINEL_CORRUPT_CELL");
+    expect((caught as Error).cause).toBeUndefined();
   });
 });
 

@@ -35,7 +35,7 @@ function parseAccountSummary(entry: unknown): AccountSummary | null {
   if (typeof summaryRecord.id !== "string" || summaryRecord.id.length === 0) return null;
   if (typeof summaryRecord.name !== "string") return null;
   if (!isAccountRole(summaryRecord.role)) {
-    console.warn("fetchAccountSummaries: /api/accounts returned an unrecognized role; marking it unavailable", entry);
+    console.warn("fetchAccountSummaries: /api/accounts returned an unrecognized role; marking it unavailable");
     return { id: summaryRecord.id, name: summaryRecord.name, role: "viewer", roleStatus: "unavailable" };
   }
   return { id: summaryRecord.id, name: summaryRecord.name, role: summaryRecord.role };
@@ -66,14 +66,13 @@ function parseAccountSummaryList(body: unknown): AccountSummaryParseOutcome {
   if (!Array.isArray(body)) {
     console.warn(
       "fetchAccountSummaries: /api/accounts returned a non-array body; reporting null (callers keep their existing list)",
-      body,
     );
     return { kind: "rejected", droppedCount: 0 };
   }
   const valid = body.map(parseAccountSummary).filter((state): state is AccountSummary => state !== null);
   const droppedCount = body.length - valid.length;
   if (droppedCount > 0) {
-    console.warn(`fetchAccountSummaries: dropped ${droppedCount} malformed /api/accounts row(s)`, body);
+    console.warn(`fetchAccountSummaries: dropped ${droppedCount} malformed /api/accounts row(s)`);
   }
   if (body.length > 0 && valid.length === 0) return { kind: "rejected", droppedCount };
   if (hasDuplicateIdentity(valid, (summary) => summary.id)) {
