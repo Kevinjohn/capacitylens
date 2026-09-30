@@ -34,6 +34,7 @@ import {
 
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort } from "./boot/refusals";
 import { startServerRuntime } from "./boot/serverRuntime";
+import { applyProductionDefaults, resolveHttps } from "./boot/productionDefaults";
 
 export { parseAuditMaxMb } from "./boot/refusals";
 
@@ -58,6 +59,8 @@ if (isResetForbidden(process.env)) {
   process.exit(1);
 }
 
+// Production defaults must land before any parser or the posture guard reads the environment.
+applyProductionDefaults(process.env);
 const accountResolution = tryOrRefuse(() => resolveAccountEnvironment(process.env));
 const accountEnv: Record<string, string | undefined> = accountResolution.env;
 
@@ -72,9 +75,9 @@ const optimisticConcurrency = process.env.CAPACITYLENS_OPTIMISTIC_CONCURRENCY !=
 // Single-company cap (see AppOptions.multiAccount) — off by default, so a fresh real deploy starts
 // capped to the first company it creates until the operator deliberately opts in to more.
 const multiAccount = process.env.CAPACITYLENS_MULTI_ACCOUNT === "1";
-// HSTS only — gated OFF by default (HSTS over plain HTTP is harmful; this server usually
-// runs HTTP behind a TLS proxy). The other helmet baseline headers are on regardless.
-const https = process.env.CAPACITYLENS_HTTPS === "1";
+// HSTS only — emitted when CAPACITYLENS_HTTPS=1, or (unless "0") when the public URL is https,
+// since HSTS over plain HTTP is harmful. The other helmet baseline headers are on regardless.
+const https = resolveHttps(accountEnv);
 const log = process.env.CAPACITYLENS_LOG === "1";
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === "1";
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT);
