@@ -335,7 +335,7 @@ async function testStaleImportConflict(): Promise<void> {
   });
   const current = await readValidatedState(app);
   expect(current.resources).toContainEqual(expect.objectContaining({ id: "concurrent", accountId: "a1" }));
-  expect(current.clients).not.toContainEqual(expect.objectContaining({ name: "Acme", builtin: false }));
+  expect(current.clients).not.toContainEqual(expect.objectContaining({ name: "Ferris", builtin: false }));
   expect(auditedActions).not.toContain("import");
 }
 

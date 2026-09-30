@@ -74,6 +74,6 @@ export const addPerson = () =>
   requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Tyler", color: "#111111" })));
 
 export const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
-  await chooseOption(user, "Project", "Acme / Lightning");
+  await chooseOption(user, "Project", "Ferris / Lightning");
   await chooseOption(user, "Activity", "Wireframes");
 };

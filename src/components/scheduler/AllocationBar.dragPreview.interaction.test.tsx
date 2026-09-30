@@ -14,7 +14,7 @@ beforeEach(() => resetStoreWithAccount());
 function registerTargetCalendarTest() {
   it("a cross-row reassign computes dates against the TARGET resource’s working week, not the source’s", () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     // Source works EVERY day (not weekend-aware); target works Mon–Fri (weekend-aware).
@@ -85,7 +85,7 @@ function registerTargetCalendarTest() {
 
   it("does not reread a destination resource from the store on every preview frame", () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const src = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
@@ -149,7 +149,7 @@ function registerSourceCalendarTest() {
 
   function seedCrossWeekPair() {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const src = requireCreated(
@@ -226,7 +226,7 @@ function registerSourceCalendarTest() {
     // range it would otherwise take (five of their working days, running to 06-18) would stretch
     // the bar to twice its width and then snap it back on release.
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const src = requireCreated(
@@ -291,7 +291,7 @@ function registerSourceCalendarTest() {
     // take the destination's re-placement, and it must not freeze at its old column either: it
     // previews the range this drag would give it on its OWN row, so it tracks the pointer.
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const src = requireCreated(
@@ -354,7 +354,7 @@ function registerSourceCalendarTest() {
 
   it("keeps previewing a zero-column reassignment when the source resource disappears", () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const src = requireCreated(
@@ -427,7 +427,7 @@ function registerSourceCalendarTest() {
 
   it("a same-row vertical wiggle previews nothing, even for a range its own week would renormalise", () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const r = requireCreated(
@@ -488,7 +488,7 @@ function registerSourceCalendarTest() {
 function registerWeekendPreviewTests() {
   it("previews the SAME weekend-snapped geometry the commit applies (no jump on release)", () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));

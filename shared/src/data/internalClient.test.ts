@@ -312,7 +312,7 @@ function registerMigrationTests(): void {
             color: "#9c3ace",
             builtin: true,
           },
-          { id: "acme", accountId: "a1", createdAt: TS, updatedAt: TS, name: "Acme", color: "#ef4444" },
+          { id: "acme", accountId: "a1", createdAt: TS, updatedAt: TS, name: "Ferris", color: "#ef4444" },
         ],
       },
     };

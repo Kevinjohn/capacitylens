@@ -5,7 +5,11 @@ import { NO_REPROMPT } from "../../../routes/routeShared";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAccountActor } from "./authenticatedPrincipal";
 
-export async function readJoiningPolicy(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function readJoiningPolicy(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "administration" | "authMode" | "authorize" | "fail">,
+) {
   const { accountId } = req.params as { accountId: string };
   if (!context.authorize({ req, reply, accountId, action: "manageInvites", options: NO_REPROMPT })) return;
   if (context.authMode === "off") return { policy: "invitation_only", approvedDomains: [] };
@@ -16,7 +20,12 @@ export async function readJoiningPolicy(req: FastifyRequest, reply: FastifyReply
   }
 }
 
-export async function setJoiningPolicy(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+type SetJoiningPolicyContext = Pick<
+  AccountRouteContext,
+  "administration" | "authMode" | "authorize" | "command" | "fail" | "validationFailed"
+>;
+
+export async function setJoiningPolicy(req: FastifyRequest, reply: FastifyReply, context: SetJoiningPolicyContext) {
   const { accountId } = req.params as { accountId: string };
   if (!context.authorize({ req, reply, accountId, action: "manageInvites", options: NO_REPROMPT })) return;
   if (context.authMode === "off") return context.fail(reply, context.validationFailed("Authentication is required."));

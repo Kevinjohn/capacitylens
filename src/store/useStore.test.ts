@@ -95,7 +95,7 @@ function registerStoreCrudPart2(): void {
   });
 
   it("rejects assigning a placeholder to an activity outside its bound project", () => {
-    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p1 = requireCreated(s().addProject({ name: "P1", clientId: client.id, color: "#2" }));
     const p2 = requireCreated(s().addProject({ name: "P2", clientId: client.id, color: "#3" }));
     const activityP2 = requireCreated(
@@ -311,7 +311,7 @@ function registerSchedulerUiPart3(): void {
 
     // It is a device pref, NOT a data mutation, so undo must not revert it (mirrors theme /
     // minimiseWeekends — those never touch the undo/redo stack either).
-    s().addClient({ name: "Acme", color: "#1" }); // a real mutation to give undo something to pop
+    s().addClient({ name: "Ferris", color: "#1" }); // a real mutation to give undo something to pop
     s().undo();
     expect(s().snapToWeekStart).toBe(false); // still off — the pref rode through the undo untouched
 
@@ -372,7 +372,7 @@ function registerSchedulerUiPart3(): void {
 function registerSchedulerUiPart4(): void {
   it("undo and redo move through mutation history", () => {
     resetStoreWithAccount();
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     expect(s().data.clients).toHaveLength(1);
     s().undo();
     expect(s().data.clients).toHaveLength(0);

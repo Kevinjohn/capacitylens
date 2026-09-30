@@ -167,7 +167,7 @@ function sampleData(): AppData {
         accountId: "acct-test",
         createdAt: "t",
         updatedAt: "t",
-        name: "Acme",
+        name: "Ferris",
         color: "#111",
       },
     ],

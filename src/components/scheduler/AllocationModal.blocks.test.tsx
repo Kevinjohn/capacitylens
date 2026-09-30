@@ -63,7 +63,7 @@ describe("AllocationModal blocks mode", () => {
     expect(screen.queryByLabelText("Hours / day")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Days of work")).not.toBeInTheDocument();
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days over"), {
       target: { value: "10" },
@@ -135,7 +135,7 @@ describe("AllocationModal blocks mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days over"), {
       target: { value: "2" },
@@ -166,7 +166,7 @@ describe("AllocationModal blocks mode", () => {
 
     expect(screen.getByLabelText("Days over")).toHaveValue(5);
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -223,7 +223,7 @@ describe("AllocationModal blocks mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days over"), {
       target: { value: "1.5" },

@@ -6,7 +6,7 @@ import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strin
 describe("parseName", () => {
   it("returns the trimmed value for a clean name", () => {
     const fail = vi.fn();
-    expect(parseName("  Acme  ", fail)).toBe("Acme");
+    expect(parseName("  Ferris  ", fail)).toBe("Ferris");
     expect(fail).not.toHaveBeenCalled();
   });
   it("fails an empty/whitespace name", () => {

@@ -31,7 +31,7 @@ function twoAccountData(): AppData {
 
 const invalidImportedData: AppData = {
   ...emptyAppData(),
-  clients: [{ id: "old-c1", accountId: "foreign", createdAt: "t", updatedAt: "t", name: "Acme", color: "#ef4444" }],
+  clients: [{ id: "old-c1", accountId: "foreign", createdAt: "t", updatedAt: "t", name: "Ferris", color: "#ef4444" }],
   projects: [
     {
       id: "old-p1",
@@ -169,7 +169,7 @@ describe("account CRUD", () => {
 
   it("addAccount works with no active account (bootstraps the first tenant)", () => {
     expect(s().activeAccountId).toBeNull();
-    const a = present(s().addAccount({ name: "Acme Co", color: "#6366f1" }));
+    const a = present(s().addAccount({ name: "Ferris Co", color: "#6366f1" }));
     expect(a.id).toBeTruthy();
     expect(s().data.accounts).toHaveLength(1);
   });

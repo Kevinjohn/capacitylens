@@ -171,7 +171,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
   it.each([
     ["Internal", "Operations", undefined],
     ["No specific project", "Planning", undefined],
-    ["Acme / Lightning", "Planning", "p1"],
+    ["Ferris / Lightning", "Planning", "p1"],
   ] as const)(
     "derives every repeated allocation's attribution for the %s scope",
     async (scope, activityName, projectId) => {

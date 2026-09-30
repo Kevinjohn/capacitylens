@@ -68,7 +68,7 @@ export const account = (id: string) => ({
 export const client = (id: string, accountId: string) => ({
   id,
   accountId,
-  name: "Acme",
+  name: "Ferris",
   color: "#5c34d4",
   ...meta(),
 });

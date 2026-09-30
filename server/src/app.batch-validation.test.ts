@@ -186,7 +186,7 @@ function createPlaceholderRebindRollbackTest() {
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toMatch(/placeholder’s work/i);
     const snapshot = await readValidatedState(app);
-    expect(readFirstClientName(snapshot.clients)).toBe("Acme");
+    expect(readFirstClientName(snapshot.clients)).toBe("Ferris");
     expect(readProjectId(snapshot.resources, "ph")).toBe("p1");
   });
 }

@@ -75,17 +75,17 @@ describe("ProjectList", () => {
   });
 
   it("lists a seeded project with its client name", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris Corp", color: "#111" }));
     useStore.getState().addProject({ name: "Alpha Project", clientId: client.id, color: "#ec4899" });
 
     render(<ProjectList />);
 
     expect(screen.getByText("Alpha Project")).toBeInTheDocument();
-    expect(screen.getByText("· Acme Corp")).toBeInTheDocument();
+    expect(screen.getByText("· Ferris Corp")).toBeInTheDocument();
   });
 
   it("gives repeated project edit controls distinct contextual names", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris Corp", color: "#111" }));
     useStore.getState().addProject({ name: "Alpha", clientId: client.id, color: "#ec4899" });
     useStore.getState().addProject({ name: "Beta", clientId: client.id, color: "#3b82f6" });
     render(<ProjectList />);
@@ -97,7 +97,7 @@ describe("ProjectList", () => {
 
   it("adds a project via the form and displays it with the client name", async () => {
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris Corp", color: "#111" }));
 
     render(<ProjectList />);
 
@@ -110,14 +110,14 @@ describe("ProjectList", () => {
     // Fill in Name and Client
     await user.type(within(dialog).getByLabelText("Name"), "New Project");
     fireEvent.keyDown(within(dialog).getByLabelText("Client", { exact: true }), { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Acme Corp" }));
+    fireEvent.click(screen.getByRole("option", { name: "Ferris Corp" }));
 
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
     // Dialog closes and project appears in the list
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByText("New Project")).toBeInTheDocument();
-    expect(screen.getByText("· Acme Corp")).toBeInTheDocument();
+    expect(screen.getByText("· Ferris Corp")).toBeInTheDocument();
 
     // Store is updated
     const projects = useStore.getState().data.projects;
@@ -130,7 +130,7 @@ describe("ProjectList", () => {
   // set (its activities are RETAINED — reversible) and vanishes from this active-only list.
   it("shows the Archive ConfirmDialog when the archive button is clicked", async () => {
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris Corp", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "Doomed Project", clientId: client.id, color: "#ec4899" }),
     );
@@ -151,7 +151,7 @@ describe("ProjectList", () => {
 
   it("keeps exactly one quote pair around a redacted private code name in confirmation copy", async () => {
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris Corp", color: "#111111" }));
     const created = requireCreated(
       useStore.getState().addProject({ name: "Real project", clientId: client.id, color: "#ec4899" }),
     );
@@ -167,7 +167,7 @@ describe("ProjectList", () => {
 
   it("cancels archival and keeps the project active", async () => {
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris Corp", color: "#111" }));
     useStore.getState().addProject({ name: "Kept Project", clientId: client.id, color: "#ec4899" });
 
     render(<ProjectList />);
@@ -184,7 +184,7 @@ describe("ProjectList", () => {
 
   it("confirms archival and hides the project from the list (kept in the store)", async () => {
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris Corp", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "Doomed Project", clientId: client.id, color: "#ec4899" }),
     );
@@ -208,7 +208,7 @@ describe("ProjectList", () => {
   });
 
   it("hides a project whose client is archived", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris Corp", color: "#111" }));
     useStore.getState().addProject({ name: "Alpha Project", clientId: client.id, color: "#ec4899" });
     useStore.getState().archiveEntity("clients", client.id);
 
@@ -220,7 +220,7 @@ describe("ProjectList", () => {
 
     expect(screen.queryByTestId("project-row")).not.toBeInTheDocument();
     expect(within(screen.getByTestId("archived-projects-section")).getByText("Alpha Project")).toBeInTheDocument();
-    expect(screen.getByText("Hidden because Client Acme Corp is archived.")).toBeInTheDocument();
+    expect(screen.getByText("Hidden because Client Ferris Corp is archived.")).toBeInTheDocument();
     expect(screen.getByText("No projects yet.")).toBeInTheDocument();
   });
 

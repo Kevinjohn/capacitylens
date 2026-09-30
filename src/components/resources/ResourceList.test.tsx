@@ -69,7 +69,7 @@ describe("ResourceList display", () => {
     useStore.getState().addResource(personDraft("alpha"));
     useStore.getState().addResource(personDraft("Bravo"));
     useStore.getState().addResource({ ...personDraft("Zeta Partners"), kind: "external", role: "Partner studio" });
-    useStore.getState().addResource({ ...personDraft("Acme Print"), kind: "external", role: "Print partner" });
+    useStore.getState().addResource({ ...personDraft("Ferris Print"), kind: "external", role: "Print partner" });
     const storedIds = useStore.getState().data.resources.map((resource) => resource.id);
 
     render(<ResourceList />);
@@ -80,7 +80,7 @@ describe("ResourceList display", () => {
       "Zulu",
     ]);
     expect(screen.getAllByTestId("external-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
-      "Acme Print",
+      "Ferris Print",
       "Zeta Partners",
     ]);
     expect(useStore.getState().data.resources.map((resource) => resource.id)).toEqual(storedIds);
@@ -91,7 +91,7 @@ describe("ResourceList display", () => {
     setExternalEnabled(true);
     useStore.getState().addResource(personDraft("Alpha"));
     useStore.getState().addResource({ ...personDraft("Zulu"), isFavourite: true });
-    useStore.getState().addResource({ ...personDraft("Acme"), kind: "external", role: "Print partner" });
+    useStore.getState().addResource({ ...personDraft("Ferris"), kind: "external", role: "Print partner" });
     useStore
       .getState()
       .addResource({ ...personDraft("Zeta"), kind: "external", role: "Partner studio", isFavourite: true });
@@ -104,7 +104,7 @@ describe("ResourceList display", () => {
     ]);
     expect(screen.getAllByTestId("external-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
       "Zeta",
-      "Acme",
+      "Ferris",
     ]);
 
     const favouriteAlpha = screen.getByRole("button", { name: "Add Alpha to favourites" });
@@ -309,7 +309,7 @@ describe("ResourceList display", () => {
   });
 
   it('shows a "placeholder" tag for a placeholder resource and its role as its label', () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
     );
@@ -340,7 +340,7 @@ describe("ResourceList display", () => {
 
 describe("ResourceList display", () => {
   it("does not show global first-resource onboarding when only a visible later section has rows", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
     );
@@ -365,7 +365,7 @@ describe("ResourceList display", () => {
   });
 
   it("hides the Placeholders section + its placeholders when the pref is OFF (default)", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
     );
@@ -395,7 +395,7 @@ describe("ResourceList display", () => {
 
 describe("ResourceList display", () => {
   it("renders all three resource types together", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
     );
@@ -619,7 +619,7 @@ describe("ResourceList archive flow", () => {
 
   it("archives a placeholder resource", async () => {
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
     );

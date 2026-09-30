@@ -50,7 +50,7 @@ export async function chooseOption(
 }
 
 /** A minimal scheduler dataset: one discipline ("Design"), one person ("Bruce") in it, one client
- *  ("Acme"), one project ("Lightning"), one activity ("Wireframes") and one confirmed allocation —
+ *  ("Ferris"), one project ("Lightning"), one activity ("Wireframes") and one confirmed allocation —
  *  all filed under {@link DEFAULT_ACCOUNT_ID}. Override any AppData slice per test (e.g. add an
  *  external resource, or replace `allocations`). */
 export function schedulerDataset(overrides: Partial<AppData> = {}): AppData {

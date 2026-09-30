@@ -68,7 +68,7 @@ export function createMicrosoftProofAuthorization(input: {
         throw new MicrosoftProofError("MICROSOFT_JOIN_ACCESS_DISABLED", 403);
     } catch (error) {
       if (error instanceof MicrosoftProofError) throw error;
-      throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403);
+      throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403, { cause: error });
     }
   }
 
@@ -125,8 +125,8 @@ export function createMicrosoftProofAuthorization(input: {
         ...(body.inviteToken ? { invitationToken: body.inviteToken } : {}),
       });
       inviteId = invite?.id ?? null;
-    } catch {
-      throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403);
+    } catch (error) {
+      throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403, { cause: error });
     }
     assertJoinTarget({ accountId: body.accountId, targetEmail, inviteId });
     return { targetEmail, inviteId, accountId: body.accountId, principalId: null, sessionId: null };

@@ -20,13 +20,13 @@ const DOUBLE_EXCLAMATION = String.fromCodePoint(0x203c); // Extended_Pictographi
 
 describe("hasDisallowedChars", () => {
   it("accepts ordinary names incl. accents, CJK and punctuation", () => {
-    for (const ok of ["José Müller", "O'Brien & Co", "Acme, Inc.", "设计部", "Project Lightning 2"]) {
+    for (const ok of ["José Müller", "O'Brien & Co", "Ferris, Inc.", "设计部", "Project Lightning 2"]) {
       expect(hasDisallowedChars(ok)).toBe(false);
     }
   });
 
   it("rejects emoji / pictographs", () => {
-    expect(hasDisallowedChars(`Acme ${PARTY} Co`)).toBe(true);
+    expect(hasDisallowedChars(`Ferris ${PARTY} Co`)).toBe(true);
     expect(hasDisallowedChars(POO)).toBe(true);
     expect(hasDisallowedChars(`done ${CHECK}`)).toBe(true);
   });
@@ -34,7 +34,7 @@ describe("hasDisallowedChars", () => {
   it("rejects flag emoji (regional indicators) and symbol marks", () => {
     const FLAG_GB = String.fromCodePoint(0x1f1ec, 0x1f1e7); // 🇬🇧
     expect(hasDisallowedChars(`from ${FLAG_GB}`)).toBe(true);
-    expect(hasDisallowedChars(`Acme${String.fromCodePoint(0x2122)}`)).toBe(true); // trademark sign
+    expect(hasDisallowedChars(`Ferris${String.fromCodePoint(0x2122)}`)).toBe(true); // trademark sign
   });
 
   it("rejects control and zero-width / format characters", () => {
@@ -77,7 +77,7 @@ describe("hasDisallowedChars", () => {
 
 describe("cleanText", () => {
   it("strips emoji and collapses whitespace", () => {
-    expect(cleanText(`Acme  ${PARTY}  Co`)).toBe("Acme Co");
+    expect(cleanText(`Ferris  ${PARTY}  Co`)).toBe("Ferris Co");
     expect(cleanText(PARTY)).toBe("");
   });
 

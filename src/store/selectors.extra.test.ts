@@ -14,7 +14,7 @@ import { DEFAULT_ACCOUNT_ID, makeResource } from "../test/fixtures";
 
 const data: AppData = {
   ...emptyAppData(),
-  clients: [{ id: "c1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Acme", color: "#1" }],
+  clients: [{ id: "c1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Ferris", color: "#1" }],
   projects: [
     { id: "p1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "P1", clientId: "c1", color: "#2" },
     { id: "p2", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "P2", clientId: "c1", color: "#3" },
@@ -66,7 +66,7 @@ describe("lookup + relation selectors", () => {
     const activity = assertDefined(activityById(data, "t1"), "activity t1");
     const resource = assertDefined(resourceById(data, "r1"), "resource r1");
 
-    expect(client.name).toBe("Acme");
+    expect(client.name).toBe("Ferris");
     expect(project.name).toBe("P1");
     expect(activity.name).toBe("T1");
     expect(resource.name).toBe("A");

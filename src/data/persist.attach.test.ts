@@ -163,7 +163,7 @@ it("attachPersistence rejects a second live persistence owner without leaving it
     expect(() => attachPersistence({ store: useStore, adapter: rejectedAdapter, debounceMs: 0 })).toThrow(
       "Persistence is already attached.",
     );
-    useStore.getState().addClient({ name: "Acme", color: "#1" });
+    useStore.getState().addClient({ name: "Ferris", color: "#1" });
     await vi.waitFor(async () => expect((await firstAdapter.loadAll()).clients).toHaveLength(1));
   } finally {
     detach();
@@ -176,7 +176,7 @@ it("attachPersistence rejects a second live persistence owner without leaving it
 it("attachPersistence persists data changes (immediate mode)", async () => {
   const adapter = new InMemoryDemoAdapter();
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
-  useStore.getState().addClient({ name: "Acme", color: "#1" });
+  useStore.getState().addClient({ name: "Ferris", color: "#1" });
   const loaded = await adapter.loadAll();
   expect(loaded.clients).toHaveLength(1);
   detach();
@@ -223,7 +223,7 @@ it("attachPersistence stops persisting after detach", async () => {
   const adapter = new InMemoryDemoAdapter();
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
   detach();
-  useStore.getState().addClient({ name: "Acme", color: "#1" });
+  useStore.getState().addClient({ name: "Ferris", color: "#1" });
   expect(await adapter.loadAll()).toEqual(emptyAppData());
 });
 
@@ -352,7 +352,7 @@ it("attachPersistence a successful save settling after detach cannot call the ol
 it("attachPersistence flushes a pending debounced write on pagehide (so a tab close does not lose it)", async () => {
   const adapter = new InMemoryDemoAdapter();
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 300 }); // debounced, NOT immediate
-  useStore.getState().addClient({ name: "Acme", color: "#1" });
+  useStore.getState().addClient({ name: "Ferris", color: "#1" });
   expect((await adapter.loadAll()).clients).toHaveLength(0); // still inside the debounce window
   window.dispatchEvent(new Event("pagehide"));
   expect((await adapter.loadAll()).clients).toHaveLength(1); // flushed synchronously

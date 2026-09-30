@@ -541,13 +541,13 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
   });
 
   it("commits pending search text when another toolbar filter changes", async () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     render(<SchedulerToolbar />);
     showFilters();
     const box = screen.getByLabelText("Search people") as HTMLInputElement;
 
     fireEvent.change(box, { target: { value: "ali" } });
-    await chooseOption(userEvent.setup(), "Filter by client", "Acme");
+    await chooseOption(userEvent.setup(), "Filter by client", "Ferris");
 
     expect(box.value).toBe("ali");
     expect(useStore.getState().ui.filters).toMatchObject({
@@ -617,7 +617,7 @@ describe("SchedulerToolbar activity and project lens interaction", () => {
   it("selecting a project clears an active activity lens (mutual exclusion both ways)", async () => {
     const user = userEvent.setup();
     const { repeatable } = seedLensActivities();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
     );
@@ -625,7 +625,7 @@ describe("SchedulerToolbar activity and project lens interaction", () => {
     render(<SchedulerToolbar />);
     showFilters();
 
-    await chooseOption(user, "Filter by project", "Acme / Lightning");
+    await chooseOption(user, "Filter by project", "Ferris / Lightning");
 
     expect(useStore.getState().ui.filters.projectId).toBe(project.id);
     expect(useStore.getState().ui.filters.activityId).toBeNull();
@@ -633,7 +633,7 @@ describe("SchedulerToolbar activity and project lens interaction", () => {
   });
 
   it("qualifies same-named projects with their client names", () => {
-    const firstClient = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const firstClient = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const secondClient = requireCreated(useStore.getState().addClient({ name: "Globex", color: "#222" }));
     useStore.getState().addProject({ name: "Website", clientId: firstClient.id, color: "#333" });
     useStore.getState().addProject({
@@ -645,7 +645,7 @@ describe("SchedulerToolbar activity and project lens interaction", () => {
     showFilters();
 
     fireEvent.keyDown(screen.getByRole("combobox", { name: "Filter by project" }), { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Acme / Website" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Ferris / Website" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Globex / Website" })).toBeInTheDocument();
   });
 });

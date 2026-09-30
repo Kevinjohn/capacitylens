@@ -1,4 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
+import { inspect } from "node:util";
 import { isApprovedEmailDomain } from "@capacitylens/shared/account/approvedDomains";
 import { describe, expect, it } from "vitest";
 import { anonymise } from "../scripts/rehearse/anonymise";
@@ -87,6 +88,26 @@ describe("joining policy rehearsal redaction", () => {
         expect(isApprovedEmailDomain(email ?? "", approvedDomains)).toBe(true);
       }
       expect(isApprovedEmailDomain(users[2]?.email ?? "", approvedDomains)).toBe(false);
+    } finally {
+      db.close();
+    }
+  });
+});
+
+describe("joining policy rehearsal failures", () => {
+  it("reports a malformed approved-domain list without printing its contents", () => {
+    const db = joiningPolicyDatabase();
+    try {
+      db.exec(`UPDATE account_joining_policies SET approvedDomains = 'private.example'`);
+      let failure: unknown;
+      try {
+        anonymise(db);
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toBeInstanceOf(Error);
+      expect(inspect(failure)).toContain("Invalid approved domain list in rehearsal source.");
+      expect(inspect(failure)).not.toContain("private.example");
     } finally {
       db.close();
     }

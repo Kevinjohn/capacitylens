@@ -90,7 +90,7 @@ export function dataset(
   return {
     ...emptyAppData(),
     disciplines,
-    clients: [makeClient({ accountId: "acct-test", name: "Acme", color: "#1" })],
+    clients: [makeClient({ accountId: "acct-test", name: "Ferris", color: "#1" })],
     projects: [
       makeProject({ accountId: "acct-test", name: "P1", color: "#2" }),
       makeProject({ id: "p2", accountId: "acct-test", name: "P2", color: "#3" }),

@@ -17,10 +17,12 @@ import {
   removeMember,
   setMemberSignInTracking,
   listResourceAvatars,
-  setMemberResourceLink,
+} from "./routes/handlers/memberAdmin";
+import {
   clearMemberResourceLink,
   dismissMemberResourceLinkException,
-} from "./routes/handlers/memberAdmin";
+  setMemberResourceLink,
+} from "./routes/handlers/memberResourceLink";
 import {
   acceptOwnershipTransfer,
   cancelOwnershipTransfer,

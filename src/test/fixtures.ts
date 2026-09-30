@@ -93,7 +93,7 @@ export function makeClient(overrides: Partial<Client> = {}): Client {
     accountId: "a1",
     createdAt: "t",
     updatedAt: "t",
-    name: "Acme",
+    name: "Ferris",
     color: "#222",
     ...overrides,
   };
