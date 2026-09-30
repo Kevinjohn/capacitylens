@@ -163,7 +163,7 @@ export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
     // CAPACITYLENS_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
     // ON always attaches the redact config (both branches) so a secret can never reach the
     // logs — see LOG_REDACT_PATHS. Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
-    // requestLoggerOptions also owns invite/query URL masking and reconstructs Fastify's request
+    // requestLoggerOptions also owns invite-token masking and URL query/fragment removal and reconstructs Fastify's request
     // serializer so method/hostname/remote address remain available without emitting headers.
     logger: config.logOn ? createRequestLoggerOptions(options.logStream) : false,
   });

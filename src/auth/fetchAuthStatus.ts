@@ -62,8 +62,8 @@ function parseLoginResult(body: unknown, acceptEffects: () => boolean): AuthStat
   };
 }
 
-function invalidResponse(body: unknown): AuthStatusResult {
-  console.warn("AuthProvider: /api/auth/me returned an unexpected authMode; nothing trustworthy learned", body);
+function invalidResponse(): AuthStatusResult {
+  console.warn("AuthProvider: /api/auth/me returned an unexpected authMode; nothing trustworthy learned");
   return { kind: "error", message: m.auth_service_invalid_response() };
 }
 
@@ -80,11 +80,11 @@ function updateLiveIdentityState(next: Extract<AuthStatusResult, { kind: "pass" 
 
 function parsePassResult(body: unknown, acceptEffects: () => boolean): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
-  if (!fields || !isAuthMode(fields.authMode)) return invalidResponse(body);
+  if (!fields || !isAuthMode(fields.authMode)) return invalidResponse();
   const authMode = fields.authMode;
   const user = parseAuthUser({ value: fields.user, requireEmail: authMode !== "off" });
   if (authMode !== "off" && !user) {
-    console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user", body);
+    console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user");
     return { kind: "error", message: m.auth_service_invalid_response() };
   }
   const next: Extract<AuthStatusResult, { kind: "pass" }> = {

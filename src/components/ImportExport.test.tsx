@@ -674,7 +674,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/import complete/i));
     expect(useStore.getState().notice?.tone).not.toBe("error");
-    expect(warn).toHaveBeenCalled(); // breadcrumb for the off-spec body
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("off-spec body"));
     warn.mockRestore();
   });
 });
