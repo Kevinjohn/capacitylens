@@ -169,7 +169,7 @@ The size setting is only read when audit logging is enabled.
 | Variable                           | What it does                                                                                                                                                                                                                                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CAPACITYLENS_CORS_ORIGIN`         | Comma-separated browser origins to allow, only needed if the web app and API are on different origins. Defaults to local development origins. Wildcards are rejected because browser requests use cookie credentials.                                                                          |
-| `CAPACITYLENS_HTTPS`               | Controls the two-year HSTS header. Unset, it is on when `SMALLSASS_ACCOUNT_PUBLIC_URL` is `https` and off otherwise. `1` forces it on; `0` forces it off, for a proxy that already emits its own HSTS.                                                                                                                                                             |
+| `CAPACITYLENS_HTTPS`               | Controls the two-year HSTS header. Unset, it is on when `SMALLSASS_ACCOUNT_PUBLIC_URL` is `https` and off otherwise. `1` forces it on; `0` forces it off, for a proxy that already emits its own HSTS. Any other value is treated as unset, so the URL scheme decides.                                                                                                                                                             |
 | `CAPACITYLENS_TRUST_PROXY_HEADERS` | Trusts `X-Forwarded-For`/`X-Forwarded-Proto` from a non-loopback listener. Docker Compose sets this to `1` because its API only accepts connections from the packaged nginx. Loopback listeners (`127.0.0.1`, `localhost`, `::1`) trust their same-host proxy automatically without this flag. |
 
 HSTS is host-only: it never covers subdomains. It is never sent over a plain-HTTP public URL unless
@@ -227,7 +227,7 @@ verification request is refused until the hour has passed. The budget resets whe
 restarts.
 
 Without structured logging, the server prints its startup line and reports server errors
-to stderr. Deep health checks are off by default: `/api/health` returns `{ ok: true }`.
+to stderr. Deep health checks are off by default outside production (on under `NODE_ENV=production`): without them `/api/health` returns `{ ok: true }`.
 With deep checks enabled, the endpoint runs `SELECT 1`, reports audit state and pending
 records, and includes internal certificate expiry when configured. Failed readiness
 returns HTTP 503 with `{ ok: false }`.

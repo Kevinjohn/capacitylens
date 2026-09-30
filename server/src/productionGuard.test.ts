@@ -88,7 +88,7 @@ function productionPosture(overrides: ProductionEnv) {
 
 describe("evaluateProductionPosture", () => {
   it("is a no-op outside production, even with the worst-looking env (dev/self-host untouched)", () => {
-    // SMALLSASS_ACCOUNT_MODE unset (off), CAPACITYLENS_HTTPS unset, open signup on — none of which may
+    // SMALLSASS_ACCOUNT_MODE unset (off), open signup on — none of which may
     // produce a refusal OR a warning unless NODE_ENV is explicitly 'production'.
     const worst = {
       SMALLSASS_ACCOUNT_MODE: undefined,

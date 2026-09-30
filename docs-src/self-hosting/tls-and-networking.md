@@ -58,9 +58,9 @@ the API container directly.
   accepts it only from a loopback or private-network peer and keys per-client rate limits
   on it. Without it, every person shares one sign-in allowance. The nginx and Caddy
   examples below already do this.
-- If that proxy already emits its own HSTS header, leave `CAPACITYLENS_HTTPS` unset.
-  Otherwise set `CAPACITYLENS_HTTPS=1` once the public response is genuinely HTTPS, and
-  CapacityLens adds a two-year HSTS header itself.
+- If that proxy already emits its own HSTS header, set `CAPACITYLENS_HTTPS=0`. Otherwise
+  leave it unset: with an `https` `SMALLSASS_ACCOUNT_PUBLIC_URL`, CapacityLens adds a
+  two-year host-only HSTS header itself.
 - `SMALLSASS_ACCOUNT_PUBLIC_URL` must exactly match the browser origin the proxy serves,
   including the scheme.
 
