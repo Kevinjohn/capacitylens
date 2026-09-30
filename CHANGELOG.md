@@ -17,6 +17,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- The documentation 404 page now explains the missing page and returns hosted visitors
+  to the documentation home, including from nested routes (#1368).
 - Dev tooling now reserves explicitly selected port lanes, reports missing `lsof`, and stops with
   instructions instead of terminating a process that occupies a lane (#1316, #1317, #1322).
   `pnpm run lanes` lists what holds each lane, and `--stop-orphans` stops leftover servers.
