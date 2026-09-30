@@ -1,4 +1,5 @@
 import { expect, type APIRequestContext } from "@playwright/test";
+import { ports } from "../scripts/ports.mjs";
 import { serverTestApiOrigin } from "../scripts/playwrightRunMode.mjs";
 
 // Helpers for the DB-backed E2E project. State lives on the SQLite server (not
@@ -8,7 +9,7 @@ import { serverTestApiOrigin } from "../scripts/playwrightRunMode.mjs";
 // UI → store → ServerSyncAdapter → REST → SQLite, and rehydration via GET /api/state.
 
 // Ordinary tests own a lane API; rehearsal explicitly selects its disposable same-origin stack.
-export const API = serverTestApiOrigin();
+export const API = serverTestApiOrigin(ports().dbApi);
 
 /** Wipe the server DB and re-seed the demo data so each test starts identically. */
 export async function resetServer(request: APIRequestContext, withSeed = true): Promise<void> {

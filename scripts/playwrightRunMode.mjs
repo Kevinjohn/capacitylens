@@ -1,11 +1,9 @@
-import { ports } from "./ports.mjs";
-
 const enabled = (environment, name) => environment[name] === "1";
 
 /** The reset and direct API calls follow the server selected by this Playwright run. */
-export function serverTestApiOrigin(environment = process.env) {
+export function serverTestApiOrigin(laneApiPort, environment = process.env) {
   const rehearsalUrl = environment.CAPACITYLENS_REHEARSAL_URL;
-  if (!rehearsalUrl) return `http://localhost:${ports(environment).dbApi}`;
+  if (!rehearsalUrl) return `http://localhost:${laneApiPort}`;
   const url = new URL(rehearsalUrl);
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
     throw new Error("CAPACITYLENS_REHEARSAL_URL must be an HTTP(S) URL without credentials.");

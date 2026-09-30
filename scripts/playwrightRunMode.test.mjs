@@ -32,14 +32,14 @@ test("ordinary server tests reset only their claimed lane despite an inherited A
 
 test("an explicit rehearsal URL selects its same-origin disposable API", () => {
   assert.equal(
-    serverTestApiOrigin({
+    serverTestApiOrigin(8787, {
       CAPACITYLENS_REHEARSAL_URL: "https://rehearsal.example.test:9443",
       VITE_CAPACITYLENS_API: "http://localhost:9000",
     }),
     "https://rehearsal.example.test:9443",
   );
   assert.throws(
-    () => serverTestApiOrigin({ CAPACITYLENS_REHEARSAL_URL: "file:///tmp/rehearsal" }),
+    () => serverTestApiOrigin(8787, { CAPACITYLENS_REHEARSAL_URL: "file:///tmp/rehearsal" }),
     /must be an HTTP\(S\) URL/,
   );
 });
