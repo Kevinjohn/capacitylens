@@ -831,6 +831,68 @@ quote registry metadata and a base-image digest carries none, `.github/workflows
 comments a plain-English summary of each update on the pull request. The comment is advisory and
 gates nothing.
 
+## Publish a release
+
+The version pull request described in `AGENTS.md` → "Version and CI policy" ends when it merges.
+Publishing is a separate maintainer task. Nothing in `.github/` or `scripts/` creates tags or
+releases.
+
+1. Find the merged release commit and build the managed-release package from it once. No workflow
+   runs the packager, and its tests use fixtures:
+
+   ```bash
+   git fetch origin main --tags
+   git log --oneline -5 origin/main
+   git switch --detach <release-commit>
+   pnpm install --frozen-lockfile
+   pnpm run build
+   pnpm --filter capacitylens-server run build:runtime
+   pnpm run package:managed-release
+   test -f production/dist/index.html
+   test -f production/server/dist/index.mjs
+   test -f production/server/dist/importWorker.mjs
+   ```
+
+2. Tag that commit and push the tag. Earlier releases use lightweight tags on the release merge
+   commit:
+
+   ```bash
+   git tag vX.Y.Z <release-commit>
+   git push origin vX.Y.Z
+   ```
+
+3. Wait for the tag's own `gate`, `e2e`, `security` and `docker` runs to succeed. A green run on
+   `main` is not enough: concurrency cancels superseded `main` runs, so the release commit may
+   have none of its own. The gate also re-runs the production dependency audit, so a new advisory
+   can fail a tag even without a code change.
+
+   ```bash
+   gh run list --branch vX.Y.Z
+   ```
+
+4. Publish the GitHub release with notes taken from the version's `CHANGELOG.md` section. Decide
+   whether it is a prerelease. Every alpha so far was published as a full release. A prerelease
+   is never marked Latest, so `https://github.com/Kevinjohn/capacitylens/releases/latest`, which
+   the README links to, keeps pointing at the previous full release.
+
+   ```bash
+   gh release create vX.Y.Z --verify-tag --title "CapacityLens <name>" --notes-file <notes.md>
+   ```
+
+   Add `--prerelease` if you decided on one.
+
+5. Confirm that `release-provenance` ran for the tag and attached its three files. Publishing also
+   triggers the `pages` workflow.
+
+   ```bash
+   gh run list --workflow release-provenance.yml --limit 1
+   gh release view vX.Y.Z --json assets --jq '.assets[].name'
+   ```
+
+   Expect `capacitylens-web.tar.gz`, `capacitylens.spdx.json` and
+   `capacitylens-release.intoto.jsonl`. If the run failed, rerun it for the existing tag:
+   `gh workflow run release-provenance.yml -f tag=vX.Y.Z`.
+
 ## Database migrations
 
 The portable AppData/export format uses `EXPORT_SCHEMA_VERSION` in `shared/`. The physical
