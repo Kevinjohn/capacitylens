@@ -841,8 +841,8 @@ releases.
 
    ```bash
    git fetch origin main --tags
-   git switch --detach origin/main
-   git log -1 --format='%H %s'
+   git log --oneline -5 origin/main
+   git switch --detach <release-commit>
    pnpm install --frozen-lockfile
    pnpm run build
    pnpm --filter capacitylens-server run build:runtime
