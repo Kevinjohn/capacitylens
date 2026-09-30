@@ -129,8 +129,8 @@ to make it look substantial.
   made a link yourself (`[![alt](path)](target)`), since the click has to mean one thing
   or the other. The mechanism is CSS by necessity
   (`docs-src/.vitepress/lightbox.mts` explains why): the published docs keep an inline
-  Escape-key handler and the standalone 404 adjusts its home link for nested hosted fallbacks.
-  Its link stays relative when opened from disk. Never reach for a
+  Escape-key handler. The standalone 404 link points to the hosted base so nested fallback URLs
+  work; its retained script makes the link relative when opened from disk. Never reach for a
   lightbox library.
 - **Commands are copy-pasteable.** One command per block, no `$` prompts, and the
   expected output (or the relevant part of it) shown after.

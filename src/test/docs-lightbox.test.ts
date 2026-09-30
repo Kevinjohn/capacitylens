@@ -142,7 +142,7 @@ describe("docs image lightbox", () => {
     expect(mismatched.map((page) => page.name)).toEqual([]);
   });
 
-  it("uses the standalone enhancement to keep the 404 home link working from disk", () => {
+  it("rewrites the standalone 404 home link after its markup loads from disk", () => {
     const page = pages.find((candidate) => candidate.name === "404.html");
     expect(page).toBeDefined();
     if (!page) throw new Error("The built documentation must include 404.html");
@@ -152,22 +152,53 @@ describe("docs image lightbox", () => {
     expect(script).toBeDefined();
     if (script === undefined) throw new Error("The 404 page must include the retained script");
 
-    const link = { setAttribute: vi.fn() };
-    const querySelector = vi.fn(() => link);
+    const homeLink: { current?: { setAttribute: ReturnType<typeof vi.fn> } } = {};
+    const querySelector = vi.fn(() => homeLink.current);
+    const listeners = new Map<string, unknown>();
     const document = {
-      addEventListener: vi.fn(),
+      readyState: "loading",
+      addEventListener: vi.fn((type: string, listener: unknown) => listeners.set(type, listener)),
       querySelectorAll: vi.fn(() => []),
       querySelector,
     };
+    runInNewContext(script, { document, location: { protocol: "file:" } });
+
+    expect(querySelector).not.toHaveBeenCalled();
+    expect(document.addEventListener).toHaveBeenCalledWith("DOMContentLoaded", expect.any(Function), { once: true });
+    homeLink.current = { setAttribute: vi.fn() };
+    const onReady = listeners.get("DOMContentLoaded");
+    expect(typeof onReady).toBe("function");
+    if (typeof onReady !== "function") throw new Error("The file home link must wait for the page markup");
+    onReady();
+
+    expect(querySelector).toHaveBeenCalledWith(".cl-standalone-not-found a");
+    expect(homeLink.current.setAttribute).toHaveBeenCalledWith("href", "index.html");
+  });
+
+  it("rewrites a ready standalone 404 immediately and leaves hosted pages alone", () => {
+    const page = pages.find((candidate) => candidate.name === "404.html");
+    expect(page).toBeDefined();
+    if (!page) throw new Error("The built documentation must include 404.html");
+    const script = page.html.match(/<script\b[^>]*data-cl-keep[^>]*>([\s\S]*?)<\/script>/)?.[1];
+    expect(script).toBeDefined();
+    if (script === undefined) throw new Error("The 404 page must include the retained script");
+
+    const link = { setAttribute: vi.fn() };
+    const querySelector = vi.fn(() => link);
+    const addEventListener = vi.fn();
+    const document = { readyState: "complete", addEventListener, querySelectorAll: vi.fn(() => []), querySelector };
     runInNewContext(script, { document, location: { protocol: "file:" } });
     expect(querySelector).toHaveBeenCalledWith(".cl-standalone-not-found a");
     expect(link.setAttribute).toHaveBeenCalledWith("href", "index.html");
 
     querySelector.mockClear();
     link.setAttribute.mockClear();
+    addEventListener.mockClear();
     runInNewContext(script, { document, location: { protocol: "https:" } });
     expect(querySelector).not.toHaveBeenCalled();
     expect(link.setAttribute).not.toHaveBeenCalled();
+    expect(addEventListener).toHaveBeenCalledTimes(1);
+    expect(addEventListener).toHaveBeenCalledWith("keydown", expect.any(Function));
   });
 });
 
