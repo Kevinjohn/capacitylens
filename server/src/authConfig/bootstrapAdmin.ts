@@ -82,6 +82,11 @@ export async function runAuthMigrations(auth: Auth): Promise<void> {
       `Better Auth schema migration did not converge; pending table change(s): ${remaining.tables.join(", ")}`,
     );
   }
+  // The library's own check is disabled (see sessionPolicy); its migrations never repair a required
+  // column it does not write, and every insert into that table would fail, so refuse to start.
+  if (remaining.problems.length > 0) {
+    throw new Error(`Better Auth schema migration did not converge; ${remaining.problems.join(" ")}`);
+  }
   // A fresh database reaches application v25 before Better Auth creates `account`; install the
   // composite uniqueness backstop now that the provider-owned table is guaranteed to exist.
   const database: unknown = auth.options.database;
@@ -97,6 +102,8 @@ export async function runAuthMigrations(auth: Auth): Promise<void> {
 interface AuthSchemaMigrationPlan {
   pending: boolean;
   tables: string[];
+  /** Schema faults Better Auth's migrations cannot repair, as the library's own sentences. */
+  problems: string[];
 }
 
 /** Inspect Better Auth's pinned desired schema without executing its DDL. Production startup folds
@@ -107,14 +114,21 @@ export async function planAuthSchemaMigrations(auth: Auth): Promise<AuthSchemaMi
     throw new Error("Better Auth returned an invalid schema migration plan");
   }
   const tables = [...plan.toBeCreated.map((entry) => entry.table), ...plan.toBeAdded.map((entry) => entry.table)];
-  return { pending: tables.length > 0, tables: [...new Set(tables)] };
+  return { pending: tables.length > 0, tables: [...new Set(tables)], problems: plan.schemaProblems };
 }
 
-function isAuthSchemaMigrationPlan(
-  value: unknown,
-): value is { toBeCreated: Array<{ table: string }>; toBeAdded: Array<{ table: string }> } {
+function isAuthSchemaMigrationPlan(value: unknown): value is {
+  toBeCreated: Array<{ table: string }>;
+  toBeAdded: Array<{ table: string }>;
+  schemaProblems: string[];
+} {
   if (!value || typeof value !== "object" || !("toBeCreated" in value) || !("toBeAdded" in value)) return false;
-  return isMigrationTableList(value.toBeCreated) && isMigrationTableList(value.toBeAdded);
+  if (!("schemaProblems" in value) || !Array.isArray(value.schemaProblems)) return false;
+  return (
+    isMigrationTableList(value.toBeCreated) &&
+    isMigrationTableList(value.toBeAdded) &&
+    value.schemaProblems.every((problem: unknown) => typeof problem === "string")
+  );
 }
 
 function isMigrationTableList(value: unknown): value is Array<{ table: string }> {

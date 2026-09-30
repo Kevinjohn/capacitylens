@@ -967,6 +967,11 @@ ask for the one-time mailbox verification below. A conflicting identity is rejec
 accounts. A successful callback shows **Connected to _provider_**. The same verified provider identity
 is used for subsequent sign-in. GitHub retains its existing experimental sign-in behavior.
 
+If the session is stale, **Connect _provider_** opens **Confirm it's you**. Cancelling does not start a
+provider connection; success continues the request once, and another freshness refusal directs the
+person to sign out and back in. An unverified local email directs the person to ask the server
+operator for sign-in email correction through the guarded repair route, then sign in again.
+
 **Microsoft mailbox verification (`/verify-microsoft`, with an optional trailing slash).** This is a
 public entry before auth or company-data hydration. If the first connection needs email proof, the
 person opens the emailed link in the browser that started the request and chooses **Confirm and
