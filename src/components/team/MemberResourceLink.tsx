@@ -1,33 +1,20 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { resolveRejectionMessage, teamAccessClient } from "@/account/teamAccessClient";
 import type { TeamMember } from "@/account/teamAccessClient";
-import { invalidateResourceAvatars } from "@/account/useResourceAvatars";
 import { Modal, SelectField } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
 import { Link as LinkIcon } from "lucide-react";
+import { useMemberResourceLinkRequest } from "./useMemberResourceLinkRequest";
 
-function resolveResourceStatus(expectedResourceId: string | null | undefined, reconciled: boolean): string {
-  if (!reconciled) return "";
-  return expectedResourceId === null
-    ? m.settings_member_resource_remove_done()
-    : m.settings_member_resource_update_done();
+function resolveExceptionMessage(exception: TeamMember["resourceLinkException"]): string | null {
+  if (!exception) return null;
+  if (exception.reason === "resource_already_linked") return m.settings_member_resource_attention_occupied();
+  if (exception.reason === "member_already_linked") return m.settings_member_resource_attention_member_linked();
+  return m.settings_member_resource_attention_unavailable();
 }
 
-/** Account-admin control linking a login member to one eligible person Resource. */
-// The branches mirror the complete selector state machine: authorization, CAS create/update/unlink,
-// retained inactive display, in-flight reconciliation and explicit error presentation.
-// eslint-disable-next-line complexity, max-lines-per-function
-export function MemberResourceLink({
-  member,
-  myRole,
-  linkedResourceIds,
-  resourceCandidates,
-  workspaceId,
-  reload,
-  dialog = false,
-}: {
+interface MemberResourceLinkProps {
   member: TeamMember;
   myRole: Role | undefined;
   linkedResourceIds: ReadonlySet<string>;
@@ -36,186 +23,151 @@ export function MemberResourceLink({
   reload(): void;
   /** Render inside the centered resource-link dialog instead of a table cell. */
   dialog?: boolean;
-}) {
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [expectedResourceId, setExpectedResourceId] = useState<string | null | undefined>(undefined);
+}
+
+type MemberResourceView = ReturnType<typeof buildMemberResourceView>;
+
+/** A link whose person is missing from the candidates, archived or disabled is retained but inactive. */
+function isLinkedPersonInactive(link: TeamMember["resourceLink"], listed: boolean): boolean {
+  if (!link) return false;
+  return !listed || link.resourceStatus === "archived" || link.resourceStatus === "disabled";
+}
+
+function isMemberLinkEditable(member: TeamMember): boolean {
+  return member.status === "active" && !member.accessDisabled && member.membershipPresent !== false;
+}
+
+/** What the cell and the editor show for one member, derived from the member and the candidates. */
+function buildMemberResourceView(
+  member: TeamMember,
+  linkedResourceIds: ReadonlySet<string>,
+  resourceCandidates: MemberResourceLinkProps["resourceCandidates"],
+) {
+  const linkedId = member.resourceLink?.resourceId;
+  const currentPerson = resourceCandidates.find((resource) => resource.resourceId === linkedId);
+  const people = resourceCandidates
+    .filter((resource) => !linkedResourceIds.has(resource.resourceId) || resource.resourceId === linkedId)
+    .map((resource) => ({ id: resource.resourceId, name: resource.label }));
+  const currentPersonInactive = isLinkedPersonInactive(member.resourceLink, currentPerson !== undefined);
+  return {
+    people,
+    memberLabel: member.name ?? member.email ?? member.userId,
+    currentPersonLabel:
+      currentPerson?.label ?? member.resourceLink?.resourceName ?? m.settings_member_resource_default_person(),
+    // A retained link to an archived or disabled person is shown, never offered as a choice.
+    showInactive: currentPersonInactive,
+    canEdit: isMemberLinkEditable(member) && !currentPersonInactive && people.length > 0,
+    exceptionMessage: resolveExceptionMessage(member.resourceLinkException),
+  };
+}
+
+/** Account-admin control linking a login member to one eligible person Resource. */
+export function MemberResourceLink(props: MemberResourceLinkProps) {
+  const { member, myRole, linkedResourceIds, resourceCandidates, dialog = false } = props;
+  if (myRole !== "owner" && myRole !== "admin") return dialog ? <div /> : <td className="py-2 px-4" />;
+  const view = buildMemberResourceView(member, linkedResourceIds, resourceCandidates);
   // The row icon opens the editor directly. The non-dialog cell remains a compact status-only
   // view, while the centered dialog starts with its selector ready for the requested change.
-  const requestGeneration = useRef(0);
-  const currentWorkspace = useRef(workspaceId);
-  useLayoutEffect(() => {
-    currentWorkspace.current = workspaceId;
-    requestGeneration.current += 1;
-  }, [workspaceId]);
-  const selectorScopeRef = useRef<HTMLDivElement>(null);
-  if (myRole !== "owner" && myRole !== "admin") return dialog ? <div /> : <td className="py-2 px-4" />;
-  const currentPerson = resourceCandidates.find((resource) => resource.resourceId === member.resourceLink?.resourceId);
-  const people = resourceCandidates
-    .filter(
-      (resource) =>
-        !linkedResourceIds.has(resource.resourceId) || resource.resourceId === member.resourceLink?.resourceId,
-    )
-    .map((resource) => ({ id: resource.resourceId, name: resource.label }));
-  const memberLabel = member.name ?? member.email ?? member.userId;
-  const currentPersonLabel =
-    currentPerson?.label ?? member.resourceLink?.resourceName ?? m.settings_member_resource_default_person();
-  const currentPersonInactive =
-    Boolean(member.resourceLink && !currentPerson) ||
-    member.resourceLink?.resourceStatus === "archived" ||
-    member.resourceLink?.resourceStatus === "disabled";
-  const canEdit =
-    member.status === "active" &&
-    !member.accessDisabled &&
-    member.membershipPresent !== false &&
-    !currentPersonInactive &&
-    people.length > 0;
-  const change = (resourceId: string) => {
-    if (!workspaceId) return;
-    const generation = ++requestGeneration.current;
-    const current = () => generation === requestGeneration.current && currentWorkspace.current === workspaceId;
-    setPending(true);
-    setError(null);
-    setExpectedResourceId(undefined);
-    let request;
-    if (resourceId !== "")
-      request = teamAccessClient.setMemberResourceLink({
-        workspaceId,
-        principalId: member.userId,
-        resourceId,
-        expectedRevision: member.resourceLink?.revision ?? null,
-      });
-    else if (member.resourceLink)
-      request = teamAccessClient.clearMemberResourceLink(workspaceId, member.userId, member.resourceLink.revision);
-    else request = Promise.resolve({ kind: "ok", value: true, status: 204 } as const);
-    void request
-      .then((result) => {
-        if (!current()) return;
-        if (result.kind === "unknown" || result.kind === "invalid") setError(m.settings_member_resource_unknown());
-        else if (result.kind === "rejected")
-          setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
-        else {
-          setExpectedResourceId(resourceId === "" ? null : resourceId);
-        }
-        if (result.kind !== "rejected") invalidateResourceAvatars();
-      })
-      .catch((cause: unknown) => {
-        console.warn("Resource link request failed", cause);
-        if (current()) {
-          setError(m.settings_member_resource_unknown());
-          invalidateResourceAvatars();
-        }
-      })
-      .finally(() => {
-        if (current()) {
-          reload();
-          setPending(false);
-        }
-      });
-  };
-  const dismissException = () => {
-    if (!workspaceId || !member.resourceLinkException) return;
-    const generation = ++requestGeneration.current;
-    const current = () => generation === requestGeneration.current && currentWorkspace.current === workspaceId;
-    setPending(true);
-    setError(null);
-    void teamAccessClient
-      .dismissMemberResourceLinkException(workspaceId, member.userId)
-      .then((result) => {
-        if (!current()) return;
-        if (result.kind !== "ok") setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
-        else invalidateResourceAvatars();
-      })
-      .catch((cause: unknown) => {
-        console.warn("Resource link exception dismissal failed", cause);
-        if (current()) setError(m.settings_member_resource_error());
-      })
-      .finally(() => {
-        if (current()) {
-          reload();
-          setPending(false);
-        }
-      });
-  };
-  let exceptionMessage: string | null = null;
-  if (member.resourceLinkException?.reason === "resource_already_linked")
-    exceptionMessage = m.settings_member_resource_attention_occupied();
-  else if (member.resourceLinkException?.reason === "member_already_linked")
-    exceptionMessage = m.settings_member_resource_attention_member_linked();
-  else if (member.resourceLinkException) exceptionMessage = m.settings_member_resource_attention_unavailable();
-  const resourceLinkReconciled =
-    !pending && expectedResourceId !== undefined && (member.resourceLink?.resourceId ?? null) === expectedResourceId;
-  const statusMessage = resolveResourceStatus(expectedResourceId, resourceLinkReconciled);
-  if (!dialog) {
-    return (
-      <td className="py-2 px-4" data-testid="member-resource-cell">
-        <div className="flex flex-col items-start gap-1">
-          <span className="text-xs text-muted-foreground" aria-live="polite" data-testid="member-resource-status">
-            {member.resourceLink ? currentPersonLabel : m.settings_member_resource_not_linked()}
+  if (!dialog) return <MemberResourceCell linked={Boolean(member.resourceLink)} view={view} />;
+  return <MemberResourceEditor {...props} view={view} />;
+}
+
+function MemberResourceCell({ linked, view }: { linked: boolean; view: MemberResourceView }) {
+  return (
+    <td className="py-2 px-4" data-testid="member-resource-cell">
+      <div className="flex flex-col items-start gap-1">
+        <span className="text-xs text-muted-foreground" aria-live="polite" data-testid="member-resource-status">
+          {linked ? view.currentPersonLabel : m.settings_member_resource_not_linked()}
+        </span>
+        {view.exceptionMessage && (
+          <span className="text-xs text-warn">
+            {m.settings_member_resource_attention_heading()}: {view.exceptionMessage}
           </span>
-          {exceptionMessage && (
-            <span className="text-xs text-warn">
-              {m.settings_member_resource_attention_heading()}: {exceptionMessage}
-            </span>
-          )}
-          {member.resourceLink && currentPersonInactive && (
-            <span className="text-xs text-muted-foreground">
-              {m.settings_member_resource_inactive({ name: currentPersonLabel })}
-            </span>
-          )}
-        </div>
-      </td>
-    );
-  }
-  const content = (
+        )}
+        {view.showInactive && (
+          <span className="text-xs text-muted-foreground">
+            {m.settings_member_resource_inactive({ name: view.currentPersonLabel })}
+          </span>
+        )}
+      </div>
+    </td>
+  );
+}
+
+function MemberResourceException({
+  message,
+  canEdit,
+  disabled,
+  onChooseAnother,
+  onDismiss,
+}: {
+  message: string;
+  canEdit: boolean;
+  disabled: boolean;
+  onChooseAnother(): void;
+  onDismiss(): void;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-1 rounded border border-warn/40 bg-warn/5 p-2 text-xs">
+      <strong className="font-medium text-ink">{m.settings_member_resource_attention_heading()}</strong>
+      <span>{message}</span>
+      <div className="flex flex-wrap gap-2">
+        {canEdit && (
+          <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={onChooseAnother}>
+            {m.settings_member_resource_choose_another()}
+          </Button>
+        )}
+        <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={onDismiss}>
+          {m.settings_member_resource_dismiss()}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function MemberResourceEditor({
+  member,
+  workspaceId,
+  reload,
+  view,
+}: MemberResourceLinkProps & { view: MemberResourceView }) {
+  const { pending, error, statusMessage, change, dismissException } = useMemberResourceLinkRequest({
+    member,
+    workspaceId,
+    reload,
+  });
+  const selectorScopeRef = useRef<HTMLDivElement>(null);
+  const disabled = pending || !workspaceId;
+  return (
     <div ref={selectorScopeRef} className="flex flex-col items-start gap-2">
-      {exceptionMessage && (
-        <div className="flex flex-col items-start gap-1 rounded border border-warn/40 bg-warn/5 p-2 text-xs">
-          <strong className="font-medium text-ink">{m.settings_member_resource_attention_heading()}</strong>
-          <span>{exceptionMessage}</span>
-          <div className="flex flex-wrap gap-2">
-            {canEdit && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={pending || !workspaceId}
-                onClick={() =>
-                  selectorScopeRef.current?.querySelector<HTMLElement>('[data-testid="member-resource-link"]')?.focus()
-                }
-              >
-                {m.settings_member_resource_choose_another()}
-              </Button>
-            )}
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={pending || !workspaceId}
-              onClick={dismissException}
-            >
-              {m.settings_member_resource_dismiss()}
-            </Button>
-          </div>
-        </div>
+      {view.exceptionMessage && (
+        <MemberResourceException
+          message={view.exceptionMessage}
+          canEdit={view.canEdit}
+          disabled={disabled}
+          onChooseAnother={() =>
+            selectorScopeRef.current?.querySelector<HTMLElement>('[data-testid="member-resource-link"]')?.focus()
+          }
+          onDismiss={dismissException}
+        />
       )}
-      {member.resourceLink && currentPersonInactive && (
+      {view.showInactive && (
         <span className="text-xs text-muted-foreground">
-          {m.settings_member_resource_inactive({ name: currentPersonLabel })}
+          {m.settings_member_resource_inactive({ name: view.currentPersonLabel })}
         </span>
       )}
-      {canEdit && (
+      {view.canEdit && (
         <SelectField
           label={m.settings_member_col_scheduled_person()}
-          ariaLabel={m.settings_member_resource_choose_aria({ member: memberLabel })}
+          ariaLabel={m.settings_member_resource_choose_aria({ member: view.memberLabel })}
           testId="member-resource-link"
           autoFocus
           layout="label-control"
-          disabled={pending || !workspaceId}
+          disabled={disabled}
           value={member.resourceLink?.resourceId ?? ""}
           options={[
             { value: "", label: m.settings_member_resource_unlinked() },
-            ...people.map((person) => ({ value: person.id, label: person.name })),
+            ...view.people.map((person) => ({ value: person.id, label: person.name })),
           ]}
           onChange={(resourceId) => {
             change(resourceId);
@@ -228,8 +180,8 @@ export function MemberResourceLink({
             type="button"
             size="sm"
             variant="danger-soft"
-            disabled={pending || !workspaceId}
-            aria-label={m.settings_member_resource_remove_aria({ member: memberLabel })}
+            disabled={disabled}
+            aria-label={m.settings_member_resource_remove_aria({ member: view.memberLabel })}
             onClick={() => change("")}
           >
             {m.settings_member_resource_remove()}
@@ -246,7 +198,6 @@ export function MemberResourceLink({
       )}
     </div>
   );
-  return content;
 }
 
 /** Row action that opens the resource-link editor without mixing it into lifecycle settings. */
