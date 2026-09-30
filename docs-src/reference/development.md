@@ -845,7 +845,7 @@ CapacityLens `application_id` in that same commit. The same transaction inserts 
 and application timestamp. Startup validates the complete ledger before planning writes
 and refuses a missing, reordered, renamed or checksummed-different migration. A fresh database
 runs the retained v8 baseline and then every migration, exactly as a released file advances
-through the migrations it has not yet applied; `SCHEMA_SQL` has no runtime caller. Shape
+through the migrations it has not yet applied. Shape
 introspection remains a post-migration assertion and a v0-v7 baseline repair, not the
 mechanism for silently applying new fields. That assertion verifies the TABLES write
 contract (declared types, nullability and id primary keys) and rejects unknown required
