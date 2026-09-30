@@ -17,6 +17,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Creating a company with a malformed request body now returns a validation error without creating partial company data (#1371).
 - Dev tooling now reserves explicitly selected port lanes, reports missing `lsof`, and stops with
   instructions instead of terminating a process that occupies a lane (#1316, #1317, #1322).
   `pnpm run lanes` lists what holds each lane, and `--stop-orphans` stops leftover servers.
