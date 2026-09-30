@@ -84,10 +84,10 @@ async function requireCurrentAuth(db: Db, env: Record<string, string | undefined
   const { auth } = createAuthFromEnvironment(db, env, { deferDatabaseSetup: true });
   if (!auth) throw new Error("Better Auth did not initialize for password mode.");
   const authPlan = await planAuthSchemaMigrations(auth);
-  if (authPlan.pending) {
+  if (authPlan.pending || authPlan.problems.length > 0) {
     throw new Error(
-      `Better Auth schema is not current (pending table change(s): ${authPlan.tables.join(", ")}); ` +
-        "start this release normally before recovery.",
+      `Better Auth schema is not current (pending table change(s): ${authPlan.tables.join(", ")}; ` +
+        `${authPlan.problems.join(" ")}); start this release normally before recovery.`,
     );
   }
   return auth;
