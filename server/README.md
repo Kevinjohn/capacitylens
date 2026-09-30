@@ -27,22 +27,27 @@ for disposable tests.
 - Accepted sockets, scrypt and breached-password calls have finite process-wide queues/limits;
   multi-company deployments do not receive separate password-work reservations.
 
-The authoritative environment register is `.env.example`. Production deployment and operations
-are documented in `docs-src/self-hosting.md`, `docs-src/authentication.md` and `docs-src/runbook.md`.
+The authoritative environment register is `.env.example`. See the
+[self-hosting guide](../docs-src/self-hosting/index.md),
+[company sign-in guide](../docs-src/company-login/index.md) and
+[incident procedures](../docs-src/self-hosting/incidents.md) for deployment and operations.
 
 ## Authentication
 
-`SMALLSASS_ACCOUNT_MODE=off|password|sso`. Password mode can also expose configured experimental social
-or generic OIDC providers. External identities need verified email and an invitation, with an
-explicit bootstrap email allow-list for the first identity. Provider configuration is fail-closed;
-partial credentials or missing OIDC endpoints refuse startup.
+`SMALLSASS_ACCOUNT_MODE=off|password-only|sso-only|password-and-sso`. Named Google and Microsoft
+providers are supported; GitHub remains experimental. `password-and-sso` requires at least one
+configured provider, while `sso-only` requires Google or tenant-specific Microsoft. External
+identities need verified email and an invitation, with an explicit bootstrap email allow-list for
+the first identity. Provider configuration is fail-closed; incomplete credentials refuse startup.
 
 Production password mode defaults to breached-password screening and supports opt-in required TOTP
 MFA. Sessions retain a fixed twelve-hour lifetime and thirty-minute inactivity timeout. HTTPS
 cookies use the host-only `__Host-` prefix. New credentials use a versioned OWASP-strength scrypt
 profile; legacy Better Auth hashes are accepted only for compatibility. When MFA is required,
-tenant operations are blocked until enrollment. Privileged actions always require a session no
-older than fifteen minutes, and users/authorised administrators can revoke sessions immediately.
+tenant operations are blocked until enrollment. A session no older than fifteen minutes is required
+to transfer company ownership, reset another member's password, revoke another member's sessions,
+delete a company, import or purge data, or link or repair an SSO identity. Other administrative
+actions require the actor's role and MFA policy. Data export does not require a fresh session.
 
 Production refuses auth-off unless `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1` explicitly accepts the
 risk. That escape hatch is for trusted/local use, not an internet deployment.

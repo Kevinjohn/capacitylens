@@ -200,7 +200,7 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 ## Authentication
 
 - Password authentication and named Google/Microsoft company providers are implemented. GitHub
-  remains experimental in mixed mode. `hosted-sso-only` requires mode `sso` and complete Google
+  remains experimental in mixed mode. `hosted-sso-only` requires mode `sso-only` and complete Google
   and/or tenant-specific Microsoft configuration; it forbids password, GitHub and open signup.
   Retired generic OIDC settings and the `hosted-oidc-only` profile fail startup before writes.
   Deterministic checks are not evidence of live-provider validation.
@@ -217,7 +217,7 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   may establish mailbox proof through its single-use, same-browser email ceremony. Returning
   Microsoft sign-in uses stable `oid` and the stored proven email; never merge by email or repeat
   mailbox proof for an established identity.
-- Password mode may include providers; `sso` mode removes password sign-in.
+- Password mode may include providers; `sso-only` mode removes password sign-in.
 - Never weaken server authorization because the UI hides an action.
 - Password/session reset authority is identity-global: enforce it across every account the target
   can enter, and never render bearer session tokens.

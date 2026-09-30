@@ -8,7 +8,7 @@ import { ports, testShare } from "./scripts/ports.mjs";
 //   db-backed   — the SQLite server (lane db API, reset enabled, temp DB) + a second Vite
 //                 dev server (lane db web) whose same-origin /api proxy targets that server
 //                 through the entity-level ServerSyncAdapter. *.db.spec.ts run here.
-//   auth-backed — a third server (lane auth API) booted with SMALLSASS_ACCOUNT_MODE=password (fresh
+//   auth-backed — a third server (lane auth API) booted with SMALLSASS_ACCOUNT_MODE=password-only (fresh
 //                 DB per run) + a Vite dev server (lane auth web) proxying to it — the ONLY place the
 //                 flag-gated login screen exists (US-NAV-10). *.auth.spec.ts run here.
 // Lane-derived (scripts/ports.mjs). Lane 0 is the historical 5173/5273/5373/8787/8887, so a single
@@ -151,10 +151,10 @@ export default defineConfig({
           },
         ]
       : []),
-    // Upgrade rehearsal (docs-src/self-hosting/upgrades.md): exists only when CAPACITYLENS_REHEARSAL_URL is set —
-    // the PRODUCTION build served behind a local /api proxy (scripts/serve-dist.mjs), with
-    // the droplet's flags ON in the daemon. Reuses the db-backed specs verbatim; the
-    // baseURL override is the only difference. Started by hand per the runbook, so the
+    // Browser upgrade rehearsal (docs-src/reference/development.md#browser-upgrade-rehearsal): exists only when CAPACITYLENS_REHEARSAL_URL is set —
+    // the production build served behind a local /api proxy (scripts/serve-dist.mjs), with
+    // test reset enabled on a disposable API. Reuses the db-backed specs verbatim; the
+    // baseURL override is the only difference. Started by the operator, so the
     // dev webServers below are skipped for these runs (see the webServer conditional).
     ...(projectEnabled("rehearsal")
       ? [
@@ -174,7 +174,7 @@ export default defineConfig({
         ]
       : []),
   ],
-  // Rehearsal runs bring their own production-shaped stack (runbook) — don't boot the dev
+  // Rehearsal runs bring their own production-shaped stack (development guide) — don't boot the dev
   // servers under them. A core-specs-only run (`e2e:webkit`/`e2e:firefox`/`e2e:browsers`, i.e.
   // viteOnly) needs only Vite on the lane web port. Every other run keeps the full list (the SQLite + auth
   // servers the db/auth specs depend on).
@@ -205,7 +205,7 @@ export default defineConfig({
               env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT), VITE_CAPACITYLENS_API: "" },
             },
             {
-              // SMALLSASS_ACCOUNT_MODE=password + a dev-only secret live in the pnpm script; the DB file is
+              // SMALLSASS_ACCOUNT_MODE=password-only + a dev-only secret live in the pnpm script; the DB file is
               // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
               // already-running auth API — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
               // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
