@@ -11,7 +11,7 @@ export const TS2 = "2026-01-02T00:00:00.000Z";
 export const client = (id: string, updatedAt = TS1): Client => ({
   id,
   accountId: "a1",
-  name: "Acme",
+  name: "Ferris",
   color: "#3b82f6",
   createdAt: TS1,
   updatedAt,

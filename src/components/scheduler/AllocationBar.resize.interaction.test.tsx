@@ -54,7 +54,7 @@ function registerDayModeKeyboardNoticeTests() {
   it("surfaces a non-blocking notice when a shrink-resize clamps the work volume at the cap", () => {
     enableDays();
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
@@ -109,7 +109,7 @@ function registerDayModePointerNoticeTests() {
     // toast must persist (tone 'warning') so the truncation isn't auto-dismissed on the 4s timer.
     enableDays();
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));

@@ -27,7 +27,7 @@ import {
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
 const account = (id: string) => ({ id, name: "Studio", color: "#5c34d4", ...meta() });
-const client = (id: string, accountId: string) => ({ id, accountId, name: "Acme", color: "#5c34d4", ...meta() });
+const client = (id: string, accountId: string) => ({ id, accountId, name: "Ferris", color: "#5c34d4", ...meta() });
 const project = (id: string, accountId: string, clientId: string) => ({
   id,
   accountId,

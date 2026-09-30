@@ -97,16 +97,16 @@ function registerStoreCrudEntity3(): void {
 
 function registerStoreCrudEntity4(): void {
   it("clients: add / update", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
-    s().updateClient(c.id, { name: "Acme 2" });
-    expect(s().data.clients[0]?.name).toBe("Acme 2");
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    s().updateClient(c.id, { name: "Ferris 2" });
+    expect(s().data.clients[0]?.name).toBe("Ferris 2");
     expectRevisionAdvanced(c, requireValue(s().data.clients[0], "updated client"));
   });
 }
 
 function registerStoreCrudEntity5(): void {
   it("projects: add / update", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     s().updateProject(p.id, { name: "P2" });
     expect(s().data.projects[0]?.name).toBe("P2");
@@ -120,7 +120,7 @@ function registerStoreCrudEntity6(): void {
       /private client requires a code name/i,
     );
 
-    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     expect(() =>
       requireCreated(
         s().addProject({
@@ -140,7 +140,7 @@ function registerStoreCrudEntity6(): void {
 
 function registerStoreCrudEntity7(): void {
   it("phases: add / update / delete (activities survive)", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const ph = requireCreated(s().addPhase({ name: "Discovery", projectId: p.id }));
     const t = requireCreated(
@@ -167,7 +167,7 @@ function registerStoreCrudEntity7(): void {
 
 function registerStoreCrudEntity8(): void {
   it("activities: add / update / delete", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     s().updateActivity(t.id, { name: "T2" });
@@ -189,7 +189,7 @@ function registerStoreCrudEntity9(): void {
 
 function registerStoreCrudEntity10(): void {
   it("activities: a project-specific activity converts to all-projects by clearing its project + kind together", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     s().updateActivity(t.id, { kind: "repeatable", projectId: undefined });
@@ -200,7 +200,7 @@ function registerStoreCrudEntity10(): void {
 
 function registerStoreCrudEntity11(): void {
   it("activities: kind ⇆ projectId coherence is enforced — clearing a project activity’s project alone throws", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     // Leaving kind='project' while removing the project is incoherent — rejected at the store boundary.
@@ -217,7 +217,7 @@ function registerStoreCrudEntity11(): void {
 function registerStoreCrudEntity12(): void {
   it("activities: moving out of repeatable atomically clears allocation attribution", () => {
     const resource = requireCreated(s().addResource({ ...personDraft }));
-    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const project = requireCreated(s().addProject({ name: "P", clientId: client.id, color: "#2" }));
     const activity = requireCreated(s().addActivity({ name: "Shared", kind: "repeatable" }));
     const allocation = requireCreated(
@@ -245,7 +245,7 @@ function registerStoreCrudEntity12(): void {
 
 function registerStoreCrudEntity13(): void {
   it("updateActivity validates the MERGED row, not the raw patch (partial phase/project patches)", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p1 = requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
     const p2 = requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
     const ph1 = requireCreated(s().addPhase({ name: "Disco", projectId: p1.id })); // a phase OF p1
@@ -286,7 +286,7 @@ function registerStoreCrudEntity15(): void {
     const person = requireCreated(s().addResource(legacyPersonDraft));
     expect(person.engagement).toBe("studio");
 
-    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const project = requireCreated(s().addProject({ name: "Project", clientId: client.id, color: "#2" }));
     const placeholder = requireCreated(
       s().addResource({
@@ -346,7 +346,7 @@ function registerStoreCrudEntity17(): void {
 
 function registerStoreCrudEntity18(): void {
   it("allocations: add / update / delete", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     const r = requireCreated(s().addResource({ ...personDraft }));
@@ -499,7 +499,7 @@ describe("store UI + history extras", () => {
 
 describe("allocation integrity at the store boundary", () => {
   it("updateAllocation enforces the placeholder binding", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p1 = requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
     const p2 = requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
     const t1 = requireCreated(
@@ -566,7 +566,7 @@ describe("allocation integrity at the store boundary", () => {
 });
 
 const seedAlloc = () => {
-  const c = requireCreated(s().addClient({ name: "Acme", color: "#111111" }));
+  const c = requireCreated(s().addClient({ name: "Ferris", color: "#111111" }));
   const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#222222" }));
   const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
   const r = requireCreated(s().addResource({ ...personDraft }));
@@ -844,7 +844,7 @@ const externalResource = (id: string): Resource =>
 
 function registerMergedRow1(): void {
   it("a normal-resource note/date-only updateAllocation + updateTimeOff still succeed (no false reject)", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     const r = requireCreated(s().addResource({ ...personDraft }));
@@ -1011,7 +1011,7 @@ const NEAREST_PRESET = "#7adae3";
 
 function registerColourSnap1(): void {
   it("addClient / addProject / addDiscipline / addResource snap a non-preset colour to its nearest preset", () => {
-    const client = requireCreated(s().addClient({ name: "Acme", color: NON_PRESET }));
+    const client = requireCreated(s().addClient({ name: "Ferris", color: NON_PRESET }));
     expect(client.color).toBe(NEAREST_PRESET);
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
 
@@ -1045,7 +1045,7 @@ function registerColourSnap1(): void {
 
 function registerColourSnap2(): void {
   it("updateClient / updateProject / updateDiscipline / updateResource / updateAccount snap a non-preset colour on patch", () => {
-    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     s().updateClient(client.id, { color: NON_PRESET });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
 
@@ -1107,7 +1107,7 @@ function registerColourSnap4(): void {
   it("a preset colour with stray whitespace/casing is stored normalized, not verbatim", () => {
     const RAW = "  #E02727  ";
     const NORMALIZED = "#e02727";
-    const client = requireCreated(s().addClient({ name: "Acme", color: RAW }));
+    const client = requireCreated(s().addClient({ name: "Ferris", color: RAW }));
     expect(client.color).toBe(NORMALIZED);
     const stored = s().data.clients.find((c) => c.id === client.id)?.color;
     expect(stored).toBe(NORMALIZED);
@@ -1120,8 +1120,8 @@ function registerColourSnap4(): void {
 
 function registerColourSnap5(): void {
   it("a colourless patch leaves the stored colour untouched", () => {
-    const client = requireCreated(s().addClient({ name: "Acme", color: NON_PRESET }));
-    s().updateClient(client.id, { name: "Acme 2" });
+    const client = requireCreated(s().addClient({ name: "Ferris", color: NON_PRESET }));
+    s().updateClient(client.id, { name: "Ferris 2" });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
   });
 }
@@ -1129,7 +1129,7 @@ function registerColourSnap5(): void {
 function registerColourSnap6(): void {
   it("a REJECTED add (viewer no-op) does NOT snap the colour and does NOT persist — the rejection surfaces via notice, not a silent repair", () => {
     s().setActiveRole("viewer");
-    const returned = s().addClient({ name: "Acme", color: NON_PRESET });
+    const returned = s().addClient({ name: "Ferris", color: NON_PRESET });
     // The store never persisted anything for a viewer — no client landed in state.
     expect(s().data.clients).toHaveLength(0);
     // The rejection is SURFACED (per DEFENSIVE-CODING.md's "surface, never swallow"), not swallowed.
@@ -1140,7 +1140,7 @@ function registerColourSnap6(): void {
 
 function registerColourSnap7(): void {
   it("a REJECTED update (viewer no-op) does not touch the stored colour", () => {
-    const client = requireCreated(s().addClient({ name: "Acme", color: NON_PRESET }));
+    const client = requireCreated(s().addClient({ name: "Ferris", color: NON_PRESET }));
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
     s().setActiveRole("viewer");
     s().updateClient(client.id, { color: "#123456" });

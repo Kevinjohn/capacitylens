@@ -14,7 +14,7 @@ function expectPresent<T>(value: T | null | undefined, message: string): T {
 
 function addsAccountWithBuiltinClient(): void {
   const a = expectPresent(
-    s().addAccount({ name: "Acme Co", color: "#6366f1" }),
+    s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
     "Expected the test account to be created.",
   );
   const internal = s().data.clients.filter((c) => c.builtin && c.accountId === a.id);
@@ -31,7 +31,7 @@ function addsAccountWithBuiltinClient(): void {
 
 function rejectsBuiltinRename(): void {
   const a = expectPresent(
-    s().addAccount({ name: "Acme Co", color: "#6366f1" }),
+    s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
@@ -50,7 +50,7 @@ function rejectsBuiltinRename(): void {
 
 function renamesNormalClient(): void {
   const a = expectPresent(
-    s().addAccount({ name: "Acme Co", color: "#6366f1" }),
+    s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
@@ -65,7 +65,7 @@ function renamesNormalClient(): void {
 
 function stripsAddedBuiltinFlag(): void {
   const a = expectPresent(
-    s().addAccount({ name: "Acme Co", color: "#6366f1" }),
+    s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
@@ -82,7 +82,7 @@ function stripsAddedBuiltinFlag(): void {
 
 function stripsPromotedBuiltinFlag(): void {
   const a = expectPresent(
-    s().addAccount({ name: "Acme Co", color: "#6366f1" }),
+    s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);

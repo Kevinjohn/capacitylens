@@ -300,7 +300,7 @@ describe("error status mapping (statusFor)", () => {
       const db = openDb(":memory:"); // openDb turns foreign_keys ON
       const e = grab(() =>
         db.exec(
-          `INSERT INTO clients (id, accountId, name, color, createdAt, updatedAt) VALUES ('c', 'no-such-account', 'Acme', '#fff', 't', 't')`,
+          `INSERT INTO clients (id, accountId, name, color, createdAt, updatedAt) VALUES ('c', 'no-such-account', 'Ferris', '#fff', 't', 't')`,
         ),
       );
       expectConstraint(e);

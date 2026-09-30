@@ -55,7 +55,7 @@ describe("AllocationModal Enter key submission", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
     const hours = screen.getByRole("combobox", { name: "Hours / day" });
@@ -82,7 +82,7 @@ describe("AllocationModal Enter key submission", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
     const noteInput = screen.getByLabelText("Note");

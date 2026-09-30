@@ -40,7 +40,7 @@ function createDirectPutConcurrencyTests(): void {
       },
     });
     expect(stale.statusCode).toBe(409);
-    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Acme"); // not overwritten
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Ferris"); // not overwritten
     // A PUT at a newer time succeeds.
     const fresh = await put({
       app,
@@ -157,12 +157,12 @@ function createBatchStalePutConcurrencyTests(): void {
     expect(readConflictResponse(res).error).toBe("The record was modified more recently on the server.");
     expect(readConflictResponse(res).current).toMatchObject({
       id: "c1",
-      name: "Acme",
+      name: "Ferris",
       updatedAt: readClientResponse(created).updatedAt,
     });
     const s = await readValidatedState(app);
     expect(readClientIds(s.clients)).toEqual(["c1"]); // c2 rolled back with the batch
-    expect(readFirstClientName(s.clients)).toBe("Acme"); // c1 not overwritten
+    expect(readFirstClientName(s.clients)).toBe("Ferris"); // c1 not overwritten
   });
 }
 
@@ -243,7 +243,7 @@ function createMissingRevisionConcurrencyTests(): void {
     });
     expect(viaBatch.statusCode).toBe(viaPut.statusCode);
     expect(viaBatch.statusCode).toBe(409);
-    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Acme");
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Ferris");
   });
 }
 
@@ -265,7 +265,7 @@ function createFutureRevisionConcurrencyTests(): void {
     });
 
     expect(res.statusCode).toBe(409);
-    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Acme");
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Ferris");
   });
 }
 
@@ -294,7 +294,7 @@ function createNullPatchConcurrencyTests(): void {
 
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toMatch(/required field.*cannot be null/i);
-    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Acme");
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Ferris");
   });
 }
 

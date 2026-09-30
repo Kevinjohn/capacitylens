@@ -58,7 +58,7 @@ describe("archiveEntity", () => {
   });
 
   it("rejects stale descendant creates beneath a client hidden after the caller captured its ids", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     const r = requireCreated(s().addResource(personDraft));
@@ -161,7 +161,7 @@ function registerSoftDeleteGuardsAndResourceScrubTests() {
 
 function registerDependentNoteScrubTest() {
   it("scrubs and re-stamps only dependent rows that actually carry a note", () => {
-    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const project = requireCreated(s().addProject({ name: "Project", clientId: client.id, color: "#2" }));
     const activity = requireCreated(s().addActivity({ name: "Activity", kind: "project", projectId: project.id }));
     const resource = requireCreated(s().addResource(personDraft));
@@ -220,12 +220,12 @@ function registerDependentNoteScrubTest() {
 
 function registerSoftDeleteTimestampAndNameTests() {
   it("on a non-resource (client/project), the name is unchanged", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     s().archiveEntity("clients", c.id);
     s().softDeleteEntity("clients", c.id);
     const row = requireById(s().data.clients, c.id, "deleted client");
     expect(lifecycleStatus(row)).toBe("deleted");
-    expect(row.name).toBe("Acme");
+    expect(row.name).toBe("Ferris");
 
     const c2 = requireCreated(s().addClient({ name: "Beta", color: "#2" }));
     const p = requireCreated(s().addProject({ name: "Project X", clientId: c2.id, color: "#3" }));
@@ -277,7 +277,7 @@ function registerResourcePurgeTests() {
     // Seed a resource with an allocation, then back-date the soft-delete past the grace window so
     // canPurge passes. Build the deleted state directly (the store owns the clock, so we can't fake
     // "30 days ago" through the live actions) and re-activate the account.
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     const r = requireCreated(s().addResource(personDraft));
@@ -312,7 +312,7 @@ function registerResourcePurgeTests() {
 
 function registerClientPurgeTest() {
   it("cascades a purged client through its projects/activities/allocations", () => {
-    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     const r = requireCreated(s().addResource(personDraft));
@@ -353,7 +353,7 @@ describe("built-in Internal client is protected from every lifecycle action", ()
   // privileged path) — matching internalClient.test.ts.
   const seedWithInternal = () => {
     s().replaceAll({ ...s().data, accounts: [], clients: [] });
-    const a = s().addAccount({ name: "Acme Co", color: "#6366f1" });
+    const a = s().addAccount({ name: "Ferris Co", color: "#6366f1" });
     if (a === null) throw new Error("Expected account creation to succeed");
     s().setActiveAccount(a.id);
     return requireValue(internalClientFor(s().data.clients, a.id), "built-in Internal client");

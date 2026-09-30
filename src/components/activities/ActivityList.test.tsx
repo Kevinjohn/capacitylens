@@ -44,7 +44,7 @@ describe("ActivityList", () => {
   });
 
   it("focuses the activity selected by a command-palette deep link", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
     );
@@ -144,7 +144,7 @@ describe("ActivityList", () => {
 
   it("adds a project-specific activity under one client and project heading", async () => {
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
     );
@@ -156,7 +156,7 @@ describe("ActivityList", () => {
     // 'Project-specific' is the default kind, so the project picker is shown.
     await user.type(within(dialog).getByLabelText("Name"), "My Activity");
     fireEvent.keyDown(within(dialog).getByLabelText("Project"), { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Acme / Lightning" }));
+    fireEvent.click(screen.getByRole("option", { name: "Ferris / Lightning" }));
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -165,9 +165,9 @@ describe("ActivityList", () => {
 
     const row = within(screen.getByTestId("project-specific-activities")).getByTestId("activity-row");
     expect(row).toHaveTextContent("My Activity");
-    expect(row).not.toHaveTextContent("Acme");
+    expect(row).not.toHaveTextContent("Ferris");
     expect(row).not.toHaveTextContent("Lightning");
-    expect(screen.getByRole("heading", { name: "Acme", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ferris", level: 3 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Lightning", level: 4 })).toBeInTheDocument();
   });
 
@@ -212,7 +212,7 @@ describe("ActivityList", () => {
 
   it("rejects a project-specific activity with no project chosen", async () => {
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
     render(<ActivityList />);
 
@@ -231,7 +231,7 @@ describe("ActivityList", () => {
 
   it("hides an activity under an archived project", () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
     );
@@ -252,7 +252,7 @@ describe("ActivityList", () => {
 
   it("hides an activity whose project belongs to an archived client", () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
     );
@@ -266,7 +266,7 @@ describe("ActivityList", () => {
     );
 
     expect(within(screen.getByTestId("archived-activities-section")).getByText("My Activity")).toBeInTheDocument();
-    expect(screen.getByText("Hidden because Client Acme is archived.")).toBeInTheDocument();
+    expect(screen.getByText("Hidden because Client Ferris is archived.")).toBeInTheDocument();
     vi.unstubAllEnvs();
   });
 
@@ -320,7 +320,7 @@ describe("ActivityList", () => {
   it("confirms before archiving and shows the activity in its archive section", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
     );
@@ -350,7 +350,7 @@ describe("ActivityList", () => {
   it("warns how many allocations an archive would hide from the schedule", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
     );
@@ -451,7 +451,7 @@ describe("ActivityList", () => {
 
   it("keeps the edit form open when its activity vanished during editing", async () => {
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
     );

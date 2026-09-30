@@ -18,7 +18,7 @@ beforeEach(() => resetStoreWithAccount());
 
 function seedConflictPair() {
   const st = useStore.getState();
-  const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+  const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
   const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
   const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
   const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
@@ -96,7 +96,7 @@ function registerVisibleWindowAnnouncementTest() {
     // Pin a deterministic, narrow visible window to early June, independent of "today".
     useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 14 } })); // [2026-06-01 .. 2026-06-14]
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));

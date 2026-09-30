@@ -695,7 +695,7 @@ function createMissingTimestampReadWriteTest(): void {
       payload: {
         id: "c-undated",
         accountId: "a1",
-        name: "Acme",
+        name: "Ferris",
         color: "#3b82f6",
         createdAt: TS,
         updatedAt: TS,

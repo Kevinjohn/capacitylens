@@ -21,7 +21,7 @@ describe("ProjectForm", () => {
   it("stores an owner-configured private project and normalizes display quotes out of storage", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111111" }));
     render(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "Secret Launch");
@@ -42,7 +42,7 @@ describe("ProjectForm", () => {
   it("rejects a code name that contains only display quotes", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111111" }));
     render(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "Secret Launch");
@@ -62,7 +62,7 @@ describe("ProjectForm", () => {
   });
 
   it("does not expose privacy settings or an editable redacted name to a non-owner", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111111" }));
     const created = requireCreated(
       useStore.getState().addProject({ name: "Real project", clientId: client.id, color: "#ec4899" }),
     );
@@ -95,7 +95,7 @@ describe("ProjectForm", () => {
   it("saves when a client is chosen", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     render(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "New Project");
@@ -171,7 +171,7 @@ describe("ProjectForm", () => {
   it("renames a project under an archived client without forcing a reassignment", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     const project = requireCreated(
       useStore.getState().addProject({ name: "Alpha", clientId: client.id, color: "#ec4899" }),
     );
@@ -180,9 +180,9 @@ describe("ProjectForm", () => {
 
     // The archived client renders as a disabled option, still selected as the current value.
     const select = screen.getByLabelText("Client");
-    expect(select).toHaveTextContent("Acme (archived)");
+    expect(select).toHaveTextContent("Ferris (archived)");
     fireEvent.keyDown(select, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Acme (archived)" })).toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "Ferris (archived)" })).toHaveAttribute("data-disabled");
     fireEvent.keyDown(document, { key: "Escape" });
 
     await user.clear(screen.getByLabelText("Name"));
@@ -197,7 +197,7 @@ describe("ProjectForm", () => {
   it("rejects a stale edit instead of overwriting a concurrently changed project", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#2d75da" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
     const project = requireCreated(
       useStore.getState().addProject({
         name: "Launch",
@@ -220,7 +220,7 @@ describe("ProjectForm", () => {
   it("keeps the form open when the project vanished during editing", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#2d75da" }));
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
     const project = requireCreated(
       useStore.getState().addProject({
         name: "Launch",

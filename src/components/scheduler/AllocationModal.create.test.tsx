@@ -64,8 +64,8 @@ describe("AllocationModal create", () => {
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
       "Internal",
       "No specific project",
-      "Acme / Lightning",
-      "Acme / Other",
+      "Ferris / Lightning",
+      "Ferris / Other",
       "Zeta / Alpha",
     ]);
     fireEvent.click(screen.getByRole("option", { name: "Internal" }));
@@ -125,7 +125,7 @@ describe("AllocationModal create", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     const activity = screen.getByRole("combobox", { name: "Activity" });
     fireEvent.keyDown(activity, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Wireframes / Lightning (1)" })).toBeInTheDocument();
@@ -145,7 +145,7 @@ describe("AllocationModal create", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -164,7 +164,7 @@ describe("AllocationModal create", () => {
   it.each([
     ["Internal", "Operations", undefined],
     ["No specific project", "Planning", undefined],
-    ["Acme / Lightning", "Planning", "p1"],
+    ["Ferris / Lightning", "Planning", "p1"],
   ] as const)("derives create attribution for the %s scope", async (scope, activityName, expectedProjectId) => {
     useStore.getState().addActivity({ name: "Operations", kind: "internal" });
     useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
@@ -182,7 +182,7 @@ describe("AllocationModal create", () => {
 
     await chooseOption(user, "Project", scope);
     await chooseOption(user, "Activity", activityName);
-    if (scope === "Acme / Lightning") {
+    if (scope === "Ferris / Lightning") {
       expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(scope);
     }
     if (expectedProjectId) expect(lastAdvisoryProposal()).toHaveProperty("projectId", expectedProjectId);
@@ -211,7 +211,7 @@ describe("AllocationModal create", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await chooseOption(user, "Hours / day", option);
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -232,7 +232,7 @@ describe("AllocationModal create", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
     // Clearing a date must NOT produce a NaN-geometry allocation.
@@ -276,12 +276,12 @@ describe("AllocationModal create", () => {
     );
 
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
-    expect(projectSelect).toHaveTextContent("Acme / Lightning");
+    expect(projectSelect).toHaveTextContent("Ferris / Lightning");
     // Invalid scopes remain visible so the lock is explicit, but cannot be selected.
     fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Internal" })).toHaveAttribute("data-disabled");
     expect(screen.getByRole("option", { name: "No specific project" })).toHaveAttribute("data-disabled");
-    expect(screen.queryByRole("option", { name: "Acme / Other" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Ferris / Other" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
     const activitySelect = screen.getByRole("combobox", { name: "Activity" });
@@ -329,10 +329,10 @@ describe("AllocationModal create", () => {
     fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Internal" })).not.toHaveAttribute("data-disabled");
     expect(screen.getByRole("option", { name: "No specific project" })).not.toHaveAttribute("data-disabled");
-    expect(screen.getByRole("option", { name: "Acme / Lightning" })).not.toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "Ferris / Lightning" })).not.toHaveAttribute("data-disabled");
     await user.keyboard("{Escape}");
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Planning");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -384,7 +384,7 @@ describe("AllocationModal advisory work bounds", () => {
         onClose={onClose}
       />,
     );
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     capacityAdvisoryMock.mockClear();
 
@@ -429,7 +429,7 @@ describe("AllocationModal advisory work bounds", () => {
         onClose={onClose}
       />,
     );
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
     fireEvent.change(screen.getByLabelText("End"), {
@@ -466,7 +466,7 @@ describe("AllocationModal advisory work bounds", () => {
     );
 
     expect(screen.queryByRole("checkbox", { name: "Ignore working days" })).not.toBeInTheDocument();
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 

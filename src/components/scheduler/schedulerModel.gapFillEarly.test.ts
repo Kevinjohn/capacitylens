@@ -168,7 +168,7 @@ function registerMovedSchedulerTests20104() {
       "a1 bar",
     );
     expect(a1.project).toBe("P1");
-    expect(a1.client).toBe("Acme");
+    expect(a1.client).toBe("Ferris");
   });
 }
 

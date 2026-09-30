@@ -41,7 +41,7 @@ const account = (id: string) => ({
 const client = (id: string, accountId: string, extra: Record<string, unknown> = {}) => ({
   id,
   accountId,
-  name: "Acme",
+  name: "Ferris",
   color: "#3b82f6",
   ...meta(),
   ...extra,

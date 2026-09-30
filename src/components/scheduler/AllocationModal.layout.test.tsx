@@ -84,7 +84,7 @@ describe("AllocationModal compact layout", () => {
     ]);
     expectInAllocationControlColumn(screen.getByRole("textbox", { name: "New activity name" }));
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await chooseOption(user, "Repeat", "Weekly");
     expectLabelControl(screen.getByLabelText("Repeat until"));

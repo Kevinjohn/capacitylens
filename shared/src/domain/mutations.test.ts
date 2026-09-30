@@ -72,7 +72,7 @@ const account = (id: ID, name = "Co"): Account => ({
   createdAt: TS,
   updatedAt: TS,
 });
-const client = (id: ID, accountId: ID, name = "Acme"): Client => ({
+const client = (id: ID, accountId: ID, name = "Ferris"): Client => ({
   ...meta(id, accountId),
   name,
   color: "#3b82f6",
@@ -1410,7 +1410,7 @@ const registerRemapAndValidateImportPart7 = () => {
 
     expect(imported).toBe(1);
     expect(skipped).toBe(2);
-    expect(data.clients.some((candidate) => !candidate.builtin && candidate.name === "Acme")).toBe(true);
+    expect(data.clients.some((candidate) => !candidate.builtin && candidate.name === "Ferris")).toBe(true);
   });
 
   it("fails loudly when a direct caller bypasses parsing with a non-array table", () => {
@@ -1632,7 +1632,7 @@ const registerRemapAndValidateImportPart12 = () => {
           color: "#9c3ace",
           builtin: true,
         },
-        { ...client("src-c", "src"), name: "Acme" },
+        { ...client("src-c", "src"), name: "Ferris" },
       ],
       projects: [project("src-p", "src", "src-c")],
     };
@@ -1683,7 +1683,7 @@ const registerRemapAndValidateImportPart13 = () => {
     const collide: AppData = {
       ...emptyAppData(),
       disciplines: [{ ...meta("X", "src"), name: "Design", sortOrder: 0 }],
-      clients: [{ ...client("X", "src"), name: "Acme" }],
+      clients: [{ ...client("X", "src"), name: "Ferris" }],
       projects: [project("src-p", "src", "X")],
     };
     const { data } = remapAndValidateImport(base(), A1, collide, TS);

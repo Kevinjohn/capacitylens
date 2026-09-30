@@ -75,7 +75,7 @@ function registerBasicPointerTests() {
 function registerRejectedReassignmentTest() {
   it("leaves assignee, dates and hours unchanged when a diagonal reassign is rejected", () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p1 = requireCreated(st.addProject({ name: "P1", clientId: c.id, color: "#2" }));
     const p2 = requireCreated(st.addProject({ name: "P2", clientId: c.id, color: "#3" }));
     const t1 = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p1.id }));
@@ -136,7 +136,7 @@ function registerRejectedReassignmentTest() {
 function registerValidReassignmentTest() {
   it("reassigns to another row (and highlights it mid-drag) when dropped on a valid lane", () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const r1 = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
@@ -223,7 +223,7 @@ function verifyWorkingDayRejection({
 }: (typeof workingDayRejectionCases)[number]) {
   const st = useStore.getState();
   st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: accountWorkingDays });
-  const client = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+  const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
   const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
   const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
   const source = requireCreated(
@@ -293,7 +293,7 @@ function registerIgnoredWorkingDayTest() {
   it("allows that literal vertical drop when the allocation ignores working days", () => {
     const st = useStore.getState();
     st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
-    const client = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
     const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
     const source = requireCreated(
@@ -379,7 +379,7 @@ function registerDragPreviewTests() {
 
   it("assigns a shared lane-boundary drop to the following lane", () => {
     const st = useStore.getState();
-    const client = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
     const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
     const source = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
@@ -432,7 +432,7 @@ function registerExternalReassignmentTest() {
   it("keeps an External block at zero hours when it is reassigned to a person", () => {
     const st = useStore.getState();
     st.updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: "blocks" });
-    const client = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
     const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
     const external = requireCreated(
@@ -496,7 +496,7 @@ function registerGeometryRefreshTests() {
       const cancelFrame = vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
       try {
         const st = useStore.getState();
-        const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+        const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
         const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
         const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
         const r1 = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));

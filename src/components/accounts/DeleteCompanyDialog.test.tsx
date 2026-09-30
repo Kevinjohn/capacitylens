@@ -38,7 +38,7 @@ it("keeps the owning dialog mounted while deletion is in flight", () => {
 });
 
 it("keeps Delete focusable but aria-disabled until the typed name matches, then confirms", () => {
-  const account = makeAccount({ name: "Acme Co" });
+  const account = makeAccount({ name: "Ferris Co" });
   const onConfirm = vi.fn();
   render(<DeleteCompanyDialog account={account} onConfirm={onConfirm} onCancel={() => {}} />);
 
@@ -54,7 +54,7 @@ it("keeps Delete focusable but aria-disabled until the typed name matches, then 
   fireEvent.change(input, { target: { value: "wrong" } });
   expect(deleteBtn).toHaveAttribute("aria-disabled", "true");
 
-  fireEvent.change(input, { target: { value: "Acme Co" } });
+  fireEvent.change(input, { target: { value: "Ferris Co" } });
   expect(deleteBtn).not.toHaveAttribute("aria-disabled");
 
   fireEvent.click(deleteBtn);
@@ -72,12 +72,12 @@ it("matches the displayed name across stored whitespace and Unicode composition"
 });
 
 it("lets Escape abort even after typing in the confirm field (no unsaved-changes refusal)", () => {
-  const account = makeAccount({ name: "Acme Co" });
+  const account = makeAccount({ name: "Ferris Co" });
   const onCancel = vi.fn();
   render(<DeleteCompanyDialog account={account} onConfirm={() => {}} onCancel={onCancel} />);
 
   const input = screen.getByLabelText(/Type/i);
-  fireEvent.change(input, { target: { value: "Acme" } }); // partial — would trip the dirty guard
+  fireEvent.change(input, { target: { value: "Ferris" } }); // partial — would trip the dirty guard
   fireEvent.keyDown(document, { key: "Escape" });
 
   expect(onCancel).toHaveBeenCalledOnce();
@@ -85,7 +85,7 @@ it("lets Escape abort even after typing in the confirm field (no unsaved-changes
 });
 
 it("autofocuses the type-to-confirm field, not a leading button", () => {
-  const account = makeAccount({ name: "Acme Co" });
+  const account = makeAccount({ name: "Ferris Co" });
   render(<DeleteCompanyDialog account={account} onConfirm={() => {}} onCancel={() => {}} />);
   expect(document.activeElement).toBe(screen.getByLabelText(/Type/i));
 });
@@ -96,7 +96,7 @@ it("autofocuses the type-to-confirm field, not a leading button", () => {
 const seedLocalData = () => {
   useStore.getState().replaceAll(makeAppData());
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-  useStore.getState().addClient({ name: "Acme Corp", color: "#111" });
+  useStore.getState().addClient({ name: "Ferris Corp", color: "#111" });
 };
 
 it("DEMO build: exports the local scoped slice without any fetch", async () => {
@@ -113,7 +113,7 @@ it("DEMO build: exports the local scoped slice without any fetch", async () => {
   const call = vi.mocked(downloadTextFile).mock.calls[0];
   if (!call) throw new Error("Expected export download");
   const [, content] = call;
-  expect(content).toContain("Acme Corp");
+  expect(content).toContain("Ferris Corp");
 });
 
 it("DEMO build: refuses an all-empty export with a loud inline warning (no file saved)", async () => {

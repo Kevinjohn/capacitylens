@@ -15,7 +15,7 @@ const ok = (body: unknown): Response => ({ ok: true, status: 200, json: async ()
 
 describe("fetchInactiveSlice", () => {
   it("requests the includeInactive read for the account, with credentials, and migrates the body", async () => {
-    const body = { ...emptyAppData(), accounts: [{ id: "a 1", name: "Acme" }] };
+    const body = { ...emptyAppData(), accounts: [{ id: "a 1", name: "Ferris" }] };
     const fetchMock = vi.fn(async () => ok(body));
     vi.stubGlobal("fetch", fetchMock);
 
