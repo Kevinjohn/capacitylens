@@ -202,7 +202,7 @@ export default defineConfig({
               // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
               // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
               // cross-origin exception that the shipped app never has.
-              env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT) },
+              env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT), VITE_CAPACITYLENS_API: "" },
             },
             {
               // SMALLSASS_ACCOUNT_MODE=password-only + a dev-only secret live in the pnpm script; the DB file is
@@ -222,7 +222,7 @@ export default defineConfig({
               url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
               reuseExistingServer: false,
               timeout: 120_000,
-              env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT) },
+              env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT), VITE_CAPACITYLENS_API: "" },
             },
           ],
 });

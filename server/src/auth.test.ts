@@ -582,7 +582,7 @@ const registerStartupMigrationPlanningTest = () => {
     ensureAuthControlTables(db, PASSWORD_ENV);
     await runAuthMigrations(auth);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
-    await expect(planAuthSchemaMigrations(auth)).resolves.toEqual({ pending: false, tables: [] });
+    await expect(planAuthSchemaMigrations(auth)).resolves.toEqual({ pending: false, tables: [], problems: [] });
     db.close();
   });
 };
@@ -598,6 +598,45 @@ describe("startup configuration before database migration", () => {
   registerStartupDiscoverySuccessTest();
   registerStartupDiscoveryFailureTest();
   registerStartupMigrationPlanningTest();
+});
+
+describe("auth schema check at startup", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("starts a fresh database without the library's pre-migration schema error", async () => {
+    const logged: string[] = [];
+    for (const level of ["error", "warn"] as const) {
+      vi.spyOn(console, level).mockImplementation((...parts: unknown[]) => void logged.push(parts.join(" ")));
+    }
+    const db = openDb(":memory:");
+    const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV, { deferDatabaseSetup: true });
+    const passwordAuth = assertPresent(auth, "password auth");
+    // A library endpoint awaits any pending startup schema check, so an enabled check would reject here.
+    await expect(passwordAuth.api.getSession({ headers: new Headers() })).resolves.toBeNull();
+    initializeOpenDb(db, ":memory:");
+    ensureAuthControlTables(db, PASSWORD_ENV);
+    await runAuthMigrations(passwordAuth);
+
+    expect(logged.filter((line) => /ERROR|schema mismatch|npx auth migrate/.test(line))).toEqual([]);
+  });
+
+  it("refuses to start when an auth table has a required column the library never writes", async () => {
+    const db = openDb(":memory:");
+    const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
+    const passwordAuth = assertPresent(auth, "password auth");
+    await runAuthMigrations(passwordAuth);
+    // SQLite cannot add a NOT NULL column without a default, so rebuild the table with one.
+    db.exec("ALTER TABLE verification RENAME TO verification_old");
+    db.exec(
+      "CREATE TABLE verification (id TEXT PRIMARY KEY, identifier TEXT NOT NULL, value TEXT NOT NULL, " +
+        "expiresAt DATE NOT NULL, createdAt DATE NOT NULL, updatedAt DATE NOT NULL, tenant TEXT NOT NULL)",
+    );
+    db.exec("DROP TABLE verification_old");
+
+    await expect(runAuthMigrations(passwordAuth)).rejects.toThrow(
+      /did not converge; Column "tenant" on table "verification" is required/,
+    );
+  });
 });
 
 describe("first-owner database-hook races", () => {

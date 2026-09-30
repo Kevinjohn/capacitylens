@@ -317,8 +317,10 @@ Use this lightweight workflow for user-facing changes:
 - Before running Node or pnpm commands, activate the version selected by `.nvmrc` in that
   worktree and verify `node --version`; do not use the machine default. Include this requirement
   in delegated briefs and reapply it when switching shells or execution tools.
-- Under Node 22, server tests fail with `db.setAuthorizer is not a function`. Restricted
-  environments may also produce EPERM errors; use the `.nvmrc` version for valid gate evidence.
+- Server scripts stop on Node below 24 and name the fix. Direct invocations skip that check, such
+  as `pnpm --filter capacitylens-server exec vitest` and root `test:account-conformance`; under an
+  older Node they fail with `db.setAuthorizer is not a function`. Restricted environments may also
+  produce EPERM errors; use the `.nvmrc` version for valid gate evidence.
 - Treat failures seen only in unsupported runtimes or restricted filesystems as
   environment-specific until they are reproduced in the supported validation environment.
 
@@ -332,10 +334,9 @@ validation failures.
   `server/src/db.migrate.test.ts` (checksums of released migrations must never change).
 - Within a migration, create SQLite triggers only after every table and column they reference
   exists; trigger creation order relative to DDL matters.
-- After editing `messages/en.json`, run `pnpm run paraglide:compile` (the `test`/`build` scripts do
-  this automatically, as do `lint` and `typecheck`, but a direct `vitest`, `tsc` or
-  `pnpm --filter @capacitylens/shared type-check` invocation does not) or type-checking will fail
-  on stale generated messages.
+- After editing `messages/en.json`, run `pnpm run paraglide:compile` before a direct `tsc`
+  invocation, or type-checking will fail on stale generated messages. The `test`, `build`, `lint`
+  and `typecheck` scripts compile them first, and Vitest compiles them through the Vite plugin.
 - Merging `origin/main` into a feature branch across a release boundary can silently move that
   branch's `[Unreleased]` changelog entry into the newly dated section. The release moved the
   heading above the entry, so Git auto-resolves it without a conflict and the result stays valid
@@ -410,3 +411,5 @@ validation failures.
   use `[skip ci]` on the preceding functional change.
 - For a minor-version release, ask whether GitHub CI should run only if the user has not already
   specified. For a major-version release, run the applicable full GitHub CI and wait for success.
+- Tagging and publishing a merged release follow `docs-src/reference/development.md` → "Publish a
+  release".
