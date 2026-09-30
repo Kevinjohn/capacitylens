@@ -28,7 +28,7 @@ export let cacheGeneration = 0;
 const listeners = new Set<() => void>();
 const preferenceListeners = new Set<() => void>();
 export const recentSliceWrites = new WeakMap<IDBFactory, Map<string, { signature: string; writtenAt: number }>>();
-export const pendingWrites = new Map<string, Promise<void>>();
+export const pendingWrites = new Map<string, Promise<"stored" | "discarded">>();
 
 function buildSliceSignature(data: AppData): string {
   // Server revisions are the persistence change marker. This signature is much smaller to build

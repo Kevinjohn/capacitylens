@@ -18,14 +18,15 @@ import { isRecord } from "@capacitylens/shared/lib/isRecord";
 /** Keep same-key writes in acceptance order even when key lookup or encryption settles out of
  * order. Different cache records remain independent, and a rejected write does not poison the
  * queue for a later live value. */
-async function put<T>(record: CachedRecord<T>): Promise<void> {
+async function put<T>(record: CachedRecord<T>): Promise<"stored" | "discarded"> {
   const generation = readCacheWriteFailureGeneration();
   const previous = pendingWrites.get(record.key) ?? Promise.resolve();
   const current = previous.catch(() => undefined).then(() => writeEncryptedRecord(record));
   pendingWrites.set(record.key, current);
   try {
-    await current;
-    recordOfflineCacheWriteSuccess(record.key, generation);
+    const outcome = await current;
+    if (outcome === "stored") recordOfflineCacheWriteSuccess(record.key, generation);
+    return outcome;
   } catch (error) {
     recordOfflineCacheWriteFailure(record.key, generation);
     throw error;
@@ -177,7 +178,8 @@ export function createCachedRecord<T, A extends unknown[] = []>(
       const savedAt = Date.now();
       const written = gate?.(key, value, savedAt);
       if (written?.kind === "skipped") return written;
-      await put({ key, savedAt, value });
+      const outcome = await put({ key, savedAt, value });
+      if (outcome === "discarded") return { kind: "skipped", reason: "discarded" };
       written?.complete();
       return { kind: "written" };
     },

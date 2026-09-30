@@ -123,7 +123,7 @@ export function buildAssociatedData(key: string, savedAt: number): Uint8Array<Ar
   return new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v1`);
 }
 
-export async function writeEncryptedRecord<T>(record: CachedRecord<T>): Promise<void> {
+export async function writeEncryptedRecord<T>(record: CachedRecord<T>): Promise<"stored" | "discarded"> {
   const writeBoundary: WriteBoundary = {
     generation: cacheGeneration,
     token: readStoredWriteBoundaryToken(),
@@ -153,18 +153,22 @@ export async function writeEncryptedRecord<T>(record: CachedRecord<T>): Promise<
       ),
       ciphertext,
     };
-    if (writeBoundary.generation !== cacheGeneration) return;
+    if (writeBoundary.generation !== cacheGeneration) return "discarded";
     const age = Date.now() - encrypted.savedAt;
-    if (!Number.isFinite(age) || age < 0 || age > MAX_AGE_MS) return;
+    if (!Number.isFinite(age) || age < 0 || age > MAX_AGE_MS) return "discarded";
     // Read the durable cross-tab boundary and write the record in one transaction. If cleanup's
     // transaction wins, this sees its new token and refuses the stale write. If this transaction
     // wins, cleanup necessarily runs after it and deletes the record.
     const tx = db.transaction([KEY_STORE_NAME, STORE_NAME], "readwrite");
     const boundaryRequest = tx.objectStore(KEY_STORE_NAME).get(WRITE_BOUNDARY_ID);
+    const outcome = { stored: false };
     boundaryRequest.onsuccess = () => {
       const value = boundaryRequest.result as { id?: unknown; token?: unknown } | undefined;
       const durableToken = value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string" ? value.token : null;
-      if (durableToken === writeBoundary.token) tx.objectStore(STORE_NAME).put(encrypted);
+      if (durableToken === writeBoundary.token) {
+        tx.objectStore(STORE_NAME).put(encrypted);
+        outcome.stored = true;
+      }
     };
     // The boundary read must reject the write even when the transaction itself still settles.
     const boundaryFailure = new Promise<never>((_, reject) => {
@@ -175,6 +179,7 @@ export async function writeEncryptedRecord<T>(record: CachedRecord<T>): Promise<
       awaitTx(tx, "The offline cache could not be updated.", "The offline cache update was aborted."),
       boundaryFailure,
     ]);
+    return outcome.stored ? "stored" : "discarded";
   } finally {
     db.close();
   }
