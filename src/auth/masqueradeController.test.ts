@@ -109,6 +109,22 @@ describe("MasqueradeController", () => {
 });
 
 describe("MasqueradeController transitions", () => {
+  it("cancels a pending member-view start when switching companies before flush completes", async () => {
+    const flush = deferred<FlushPendingWritesResult>();
+    const { controller, dependencies, resume } = harness({ flush: vi.fn(() => flush.promise) });
+
+    const starting = controller.start(state.accountId, state.targetUserId);
+    await expect(controller.transitionAccount("a-loft")).resolves.toBe(true);
+    flush.resolve({ kind: "clean" });
+
+    await expect(starting).resolves.toBe(false);
+    expect(dependencies.api.start).not.toHaveBeenCalled();
+    expect(dependencies.reproject).not.toHaveBeenCalled();
+    expect(dependencies.suspend).not.toHaveBeenCalled();
+    expect(resume).not.toHaveBeenCalled();
+    expect(useStore.getState().masquerade).toEqual({ kind: "inactive" });
+  });
+
   it("allows only one start to cross a pending flush", async () => {
     const flush = deferred<FlushPendingWritesResult>();
     const { controller, dependencies } = harness({ flush: vi.fn(() => flush.promise) });

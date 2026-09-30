@@ -17,6 +17,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Switching companies while a member view is waiting to save pending changes now cancels that
+  start before it can load the previous company's view (#1370).
 - Dev tooling now reserves explicitly selected port lanes, reports missing `lsof`, and stops with
   instructions instead of terminating a process that occupies a lane (#1316, #1317, #1322).
   `pnpm run lanes` lists what holds each lane, and `--stop-orphans` stops leftover servers.
