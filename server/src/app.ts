@@ -14,6 +14,7 @@ import { installRootHooks } from "./routes/appRootHooks";
 import { installSessionResolution } from "./routes/appSessionResolution";
 import { createAuthorization } from "./routes/appAuthorization";
 import { registerApiRoutes } from "./routes/appRouteTree";
+import { registerStaticWeb } from "./routes/staticWeb";
 export { MAX_BATCH_OPS } from "./routes/batchRoutes";
 export { MAX_RATE_LIMIT, parseRateLimit } from "./rateLimit";
 export { resolveErrorStatus, resolveRequestClientIp } from "./routes/appErrors";
@@ -150,6 +151,9 @@ export interface AppOptions {
   /** Test seam for deterministically pausing import preparation around concurrent writes. The
    * production default always uses the worker-thread implementation. */
   importWorker?: typeof runImportWorker;
+  /** Directory holding the built web app. When given, the server also serves it (assets, SPA
+   * fallback and the web security headers, mirroring the packaged nginx edge). Omitted = API only. */
+  webDir?: string;
 }
 
 export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
@@ -177,5 +181,7 @@ export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
   });
   const authorization = createAuthorization({ app, runtime, config, options, rootHelpers });
   registerApiRoutes({ app, db, runtime, config, options, rootHelpers, sessionResolution, authorization });
+  // Registered last so every API route wins over the web app's catch-all.
+  if (options.webDir) registerStaticWeb(app, { webDir: options.webDir });
   return app;
 }
