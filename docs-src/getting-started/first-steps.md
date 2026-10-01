@@ -22,6 +22,10 @@ asks for confirmation. Dismissing hides
 the guidance for everyone in that company. Editors can view and toggle the checklist; Viewers do
 not see it.
 
+To see a working schedule before entering your own data, an Owner or Admin can choose **Settings,
+Example data, Add example data**. It adds two people, a client, a project and a few bookings, and
+is offered only while the company has no people, clients, projects or allocations.
+
 ![Getting started progress at 0/5 with the five setup milestones on Schedule](../screenshots/flows/getting_started_five_steps.png)
 
 CapacityLens setup is shared between three people. The technical installer makes the

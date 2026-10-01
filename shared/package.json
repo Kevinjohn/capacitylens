@@ -21,6 +21,7 @@
     "./account/types": "./src/account/types.ts",
     "./account/validation": "./src/account/validation.ts",
     "./brand": "./src/brand.ts",
+    "./data/exampleCompany": "./src/data/exampleCompany.ts",
     "./data/fixtures": "./src/data/fixtures.ts",
     "./data/internalClient": "./src/data/internalClient.ts",
     "./data/migrate": "./src/data/migrate.ts",

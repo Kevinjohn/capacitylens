@@ -19,6 +19,11 @@ requiring you to add sample people or work first.
 Follow [Create your company](/owner/create-your-company). Confirm the fixed week start
 and timezone choices with your team before saving them.
 
+On a first company the form also offers **Start with example data**, ticked by default. It adds
+two people, a client, a project and a few bookings across this week and next, so you can see a
+working schedule at once. They are ordinary records: delete them like any others. Untick the box
+to start with an empty company.
+
 ## 2. Prepare the schedule
 
 Skip this stage when another person will be the Admin. If you will administer the company

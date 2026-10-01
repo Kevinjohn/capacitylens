@@ -1,6 +1,6 @@
 # US-NAV-14 — Company picker gives one clear next step (empty and populated states)
 
-**Area:** Navigation & shell · **Persona:** New owner or invited teammate · **Linked automated coverage:** `src/components/accounts/AccountPicker.test.tsx` (empty-state copy, permission branch, visible membership roles, multi-company copy and no onboarding colour choice), `src/components/AppShell.test.tsx` (single-company reload gate boundaries), `e2e/onboarding.spec.ts` (create flow), `e2e/onboarding.db.spec.ts` (server permission/cap enforcement), `e2e/navigation.db.spec.ts` (real reload, route preservation and explicit switch)
+**Area:** Navigation & shell · **Persona:** New owner or invited teammate · **Linked automated coverage:** `src/components/accounts/AccountPicker.test.tsx` (empty-state copy, permission branch, visible membership roles, multi-company copy and no onboarding colour choice), `src/components/AppShell.test.tsx` (single-company reload gate boundaries), `src/components/accounts/AccountPicker.onboarding.test.tsx` (example-data checkbox), `src/components/settings/SettingsDataSection.test.tsx` (Settings example-data action), `server/src/routes/exampleDataRoutes.test.ts` (role and empty-company enforcement), `e2e/onboarding.spec.ts` (create flow), `e2e/onboarding.db.spec.ts` (server permission/cap enforcement), `e2e/navigation.db.spec.ts` (real reload, route preservation and explicit switch)
 
 ## Goal
 
@@ -47,6 +47,16 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 9. If the selected company cannot be loaded, confirm its recovery screen hides the previous
    company's data and offers **Retry** or **Choose another company**. See [Settings](../../docs-src/guide/settings.md#your-personal-account).
 
+**Example data (server-backed deploys):**
+
+10. On the create form for a first company, confirm **Start with example data** is ticked. Create
+    the company and confirm the schedule opens with two people, a project and bookings across this
+    week and next. Tick or untick the box and confirm a later company's form starts unticked.
+11. In an empty company, open **Settings, Example data** as an Owner or Admin and choose **Add
+    example data**; the same set appears and the row disappears. Confirm the row is absent once the
+    company has any person, client, project or allocation, and for an Editor or Viewer. See
+    [Set up your company](../../docs-src/getting-started/set-up-your-company.md).
+
 ## Acceptance criteria
 
 - ✅ The empty, create-allowed state exposes **Set up your company** as its accessible page name and
@@ -79,5 +89,10 @@ colour is automatic, so onboarding does not create an unnecessary design task.
   navigating away from the requested route.
 - ✅ First entry, explicit switching, multiple companies, no companies, unavailable membership and
   invite handoff continue through their existing safe picker/handoff boundaries.
+- ✅ Example data is optional and added as ordinary rows (two people, a client, a project, one phase,
+  bookings across this week and next, one time-off entry). Only an Owner or Admin can add it, only to
+  a company with no people, clients, projects or allocations; the server enforces both, and a
+  second attempt is refused. If adding fails after the company was created, the error is shown and
+  the company stays usable with the Settings action still available.
 - ✅ A failed company load shows recovery instead of another company's data; Retry keeps the
   selection, while Choose another company returns to the picker.

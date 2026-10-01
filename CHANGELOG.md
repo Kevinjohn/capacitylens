@@ -9,6 +9,11 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- A new company can start with example data: a **Start with example data** box on the create-company
+  form (ticked for a first company), or **Settings, Example data** while the company is empty. It adds
+  two people, a client, a project and a few bookings across this week and next, as ordinary rows. An
+  Owner or Admin can add it, and the server refuses a company that already has people, clients,
+  projects or allocations (#1388).
 - Each release publishes a runnable server archive, `capacitylens-X.Y.Z.tar.gz`, with a `.sha256`
   checksum. It holds the built web app, the server and its runtime dependencies, an environment
   example with three lines to fill in, a systemd unit, nginx and Caddy site files and an

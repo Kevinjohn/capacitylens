@@ -12,7 +12,7 @@ import { useDemoAuthActive } from "../../lib/fakeAuth";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import type { AccountSummary } from "../../store/useStore";
 import { useStore } from "../../store/useStore";
-import { AddButton, Avatar, DeleteButton, SegmentedControl, TextField } from "../common/ui";
+import { AddButton, Avatar, CheckboxField, DeleteButton, SegmentedControl, TextField } from "../common/ui";
 import type { Option, SegmentedOption } from "../common/ui";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
@@ -23,7 +23,7 @@ import { Item, ItemGroup } from "../ui/item";
 import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
 import { TimeZoneField } from "./TimeZoneField";
 import { AccountPickerHeader } from "./AccountPickerHeader";
-import { useCreateAccountForm } from "./useCreateAccountForm";
+import { useCreateAccountForm, type ExampleDataChoice } from "./useCreateAccountForm";
 import { useDeleteAccount } from "./useDeleteAccount";
 
 interface AccountItemsProps {
@@ -132,6 +132,7 @@ interface CreateAccountPanelProps {
   language: string;
   weekStartsOn: 0 | 1;
   timezone: string;
+  exampleData: ExampleDataChoice | null;
   error: string | null;
   errorField: string | null;
   errorId: string;
@@ -155,6 +156,7 @@ interface CreateAccountFormState {
   setWeekStartsOn: (weekStartsOn: 0 | 1) => void;
   timezone: string;
   setTimezone: (timezone: string) => void;
+  exampleData: ExampleDataChoice | null;
   error: string | null;
   errorField: string | null;
   errorId: string;
@@ -175,6 +177,7 @@ function buildCreateAccountPanelProps(
     language: form.language,
     weekStartsOn: form.weekStartsOn,
     timezone: form.timezone,
+    exampleData: form.exampleData,
     error: form.error,
     errorField: form.errorField,
     errorId: form.errorId,
@@ -263,6 +266,13 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
             />
             <AccountLanguageDisplay value={input.language} />
           </fieldset>
+          {input.exampleData && (
+            <CheckboxField
+              label={m.picker_example_data()}
+              checked={input.exampleData.checked}
+              onChange={input.exampleData.onChange}
+            />
+          )}
           <FieldError id={input.errorId}>{input.error}</FieldError>
         </CardContent>
         <CardFooter className="flex-col gap-2 sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto">
