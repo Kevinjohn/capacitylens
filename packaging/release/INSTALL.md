@@ -42,7 +42,8 @@ file in the archive names the one you have.
 3. **Environment:** paste the lines of `capacitylens.env.example` into the site's environment
    editor, fill in the three empty lines and set
    `CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db`.
-4. **Background process (daemon):** directory `/home/forge/capacity.example.com/current`, command:
+4. **Background process (daemon):** user: the site's user from step 2, directory
+   `/home/forge/capacity.example.com/current`, command:
 
    ```bash
    node --env-file=../.env server/dist/index.mjs
