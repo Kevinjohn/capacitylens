@@ -5,8 +5,8 @@ import {
   applyCapacityMode,
   formatCapacityAdvisory,
   listTimeOffApplyingTo,
-} from "../../lib/capacity";
-import { buildRepeatingAllocationAdvisory } from "../../lib/repeatingAllocations";
+} from "@/lib/capacity";
+import { buildRepeatingAllocationAdvisory } from "@/lib/repeatingAllocations";
 
 import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
 import { buildRepeatProjection } from "./buildRepeatProjection";

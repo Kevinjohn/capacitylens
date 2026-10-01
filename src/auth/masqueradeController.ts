@@ -9,9 +9,9 @@ import {
   switchAndAwaitHydration,
   type FlushPendingWritesResult,
   type RefreshOutcome,
-} from "../data/persist";
-import { setMasqueradeEndedHandler } from "../data/requestTimeout";
-import { useStore } from "../store/useStore";
+} from "@/data/persist";
+import { setMasqueradeEndedHandler } from "@/data/requestTimeout";
+import { useStore } from "@/store/useStore";
 import { masqueradeApi } from "./masqueradeApi";
 import { reprojectAccess } from "./reprojectAccess";
 

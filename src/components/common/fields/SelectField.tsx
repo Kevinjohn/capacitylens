@@ -1,5 +1,5 @@
 import { Fragment, useId } from "react";
-import { Field } from "../../ui/field";
+import { Field } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -9,8 +9,8 @@ import {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from "../../ui/select";
-import { useMarkFormDirty } from "../formDirty";
+} from "@/components/ui/select";
+import { useMarkFormDirty } from "@/components/common/formDirty";
 import { RequiredFieldLabel } from "./fieldLayout";
 import type { Option } from "./fieldTypes";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";

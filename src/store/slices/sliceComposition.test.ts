@@ -7,8 +7,8 @@ import { createLifecycleSlice } from "./lifecycleSlice";
 import { createResourceSlice } from "./resourceSlice";
 import { createRuntimeSlice } from "./runtimeSlice";
 import { createSchedulerSlice } from "./schedulerSlice";
-import { createStoreInternals } from "../storeInternal";
-import { buildEmptyFilters, useStore } from "../useStore";
+import { createStoreInternals } from "@/store/storeInternal";
+import { buildEmptyFilters, useStore } from "@/store/useStore";
 
 describe("store slice composition", () => {
   it("owns every store key exactly once", () => {

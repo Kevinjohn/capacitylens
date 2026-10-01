@@ -1,13 +1,13 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { StrictMode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ResourceForm } from "./ResourceForm";
-import { useStore } from "../../store/useStore";
-import { requireValue, resetStoreWithAccount } from "../../test/fixtures";
-import * as persistence from "../../data/persist";
-import { BatchConflictError, BatchTooLargeError, BatchValidationError } from "../../data/sync/batchErrors";
+import { useStore } from "@/store/useStore";
+import { requireValue, resetStoreWithAccount } from "@/test/fixtures";
+import * as persistence from "@/data/persist";
+import { BatchConflictError, BatchTooLargeError, BatchValidationError } from "@/data/sync/batchErrors";
 
 beforeEach(() => resetStoreWithAccount());
 

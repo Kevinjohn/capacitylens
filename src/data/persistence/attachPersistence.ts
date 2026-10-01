@@ -1,9 +1,9 @@
 import type { FlushPendingWritesResult } from "./facades";
 import type { StoreApi } from "zustand";
-import type { StoreState } from "../../store/useStore";
-import type { PersistenceAdapter } from "../PersistenceAdapter";
+import type { StoreState } from "@/store/useStore";
+import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
 import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
-import { resetPersistenceDiagnostics } from "../persistenceDiagnostics";
+import { resetPersistenceDiagnostics } from "@/data/persistenceDiagnostics";
 import { persistenceCoordinator } from "./coordinator";
 import { createAttachmentState, type AttachmentState } from "./attachmentState";
 import { createWriteQueue, type WriteQueue } from "./writeQueue";

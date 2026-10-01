@@ -1,6 +1,6 @@
-import { foldForSearch } from "../../lib/fuzzy";
-import { resolveResourceDisplayName } from "../../lib/metadata";
-import { hasLensFilter, type Filters } from "../../store/useStore";
+import { foldForSearch } from "@/lib/fuzzy";
+import { resolveResourceDisplayName } from "@/lib/metadata";
+import { hasLensFilter, type Filters } from "@/store/useStore";
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
 import { isExternalResource, type Allocation, type AppData, type Resource } from "@capacitylens/shared/types/entities";
 import type { SchedulerModelOptions } from "./schedulerModelTypes";

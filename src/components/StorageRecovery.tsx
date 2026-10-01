@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { APP_NAME } from "@capacitylens/shared/brand";
-import { clearCapacitylensLocalStorage, readCapacitylensLocalStorage } from "../data/clearLocalStorage";
-import { clearAllOfflineData } from "../data/offlineCache";
-import { downloadTextFile } from "../lib/download";
+import { clearCapacitylensLocalStorage, readCapacitylensLocalStorage } from "@/data/clearLocalStorage";
+import { clearAllOfflineData } from "@/data/offlineCache";
+import { downloadTextFile } from "@/lib/download";
 import { m } from "@/i18n";
 import {
   AlertDialog,

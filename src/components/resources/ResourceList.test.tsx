@@ -1,10 +1,10 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { ResourceList } from "./ResourceList";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import {
   DEFAULT_ACCOUNT_ID,
   WORKDAYS,
@@ -12,8 +12,8 @@ import {
   requireValue,
   setExternalEnabled,
   setPlaceholdersEnabled,
-} from "../../test/fixtures";
-import { PermissionContext } from "../../auth/permissionContext";
+} from "@/test/fixtures";
+import { PermissionContext } from "@/auth/permissionContext";
 
 beforeEach(() => {
   resetStoreWithAccount();

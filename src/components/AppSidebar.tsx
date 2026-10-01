@@ -1,15 +1,15 @@
 import { EyeIcon, MoonIcon, SunIcon } from "lucide-react";
 import { matchPath, NavLink, useLocation } from "react-router-dom";
-import { useAuth } from "../auth/authContext";
-import { usePermissionStatus, useRole } from "../auth/permissionContext";
-import { useOfflineState } from "../data/useOfflineState";
-import { resolveAccessLabel } from "../lib/accessCopy";
-import { resolveAccessExperience } from "../lib/resolveAccessExperience";
-import { FAKE_USER } from "../lib/fakeAuth";
-import demoAvatarUrl from "../assets/avatar-demo.svg";
-import { DEFAULT_COLORS } from "../lib/palette";
+import { useAuth } from "@/auth/authContext";
+import { usePermissionStatus, useRole } from "@/auth/permissionContext";
+import { useOfflineState } from "@/data/useOfflineState";
+import { resolveAccessLabel } from "@/lib/accessCopy";
+import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
+import { FAKE_USER } from "@/lib/fakeAuth";
+import demoAvatarUrl from "@/assets/avatar-demo.svg";
+import { DEFAULT_COLORS } from "@/lib/palette";
 import { Avatar } from "./common/ui";
-import { ACCOUNT_LINK, type NavigationLinkDefinition } from "../lib/navLinks";
+import { ACCOUNT_LINK, type NavigationLinkDefinition } from "@/lib/navLinks";
 import { Badge } from "./ui/badge";
 import {
   Sidebar,
@@ -29,8 +29,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { m } from "@/i18n";
 import { SCHEDULER_DENSITY } from "./scheduler/layout";
-import { useStore } from "../store/useStore";
-import { resolveTheme, subscribeToSystemScheme } from "../lib/theme";
+import { useStore } from "@/store/useStore";
+import { resolveTheme, subscribeToSystemScheme } from "@/lib/theme";
 import { useSyncExternalStore } from "react";
 import type React from "react";
 import { APP_NAME } from "@capacitylens/shared/brand";

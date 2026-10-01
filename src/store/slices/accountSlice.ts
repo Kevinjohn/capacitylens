@@ -6,9 +6,9 @@ import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, ID } from "@capacitylens/shared/types/entities";
-import { buildClearedSession, resetSchedulerView, stamp, type StoreInternals } from "../storeInternal";
+import { buildClearedSession, resetSchedulerView, stamp, type StoreInternals } from "@/store/storeInternal";
 import { readCurrentWeekAnchor } from "./schedulerSlice";
-import type { Draft, Patch, StoreState } from "../types";
+import type { Draft, Patch, StoreState } from "@/store/types";
 
 type AccountSlice = Pick<
   StoreState,

@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { ErrorBoundary, ErrorFallback, RouteError } from "./ErrorBoundary";
 
 const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
-vi.mock("../../lib/reloadPage", () => reloadMock);
+vi.mock("@/lib/reloadPage", () => reloadMock);
 
 function Boom(): never {
   throw new Error("boom");

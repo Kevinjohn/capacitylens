@@ -4,9 +4,9 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { InviteAccept } from "./InviteAccept";
-import { AuthContext, type AuthContextValue } from "../../auth/authContext";
-import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
+import { AuthContext, type AuthContextValue } from "@/auth/authContext";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { EXTERNAL_NAVIGATION_TIMEOUT_MS } from "./externalSignIn";
@@ -28,7 +28,7 @@ const apiConfigMock = vi.hoisted(() => ({
   isServerConfigured: vi.fn(() => true),
 }));
 
-vi.mock("../../auth/authClient", () => ({
+vi.mock("@/auth/authClient", () => ({
   authClient: {
     signIn: {
       email: authClientMock.signInEmail,
@@ -37,18 +37,18 @@ vi.mock("../../auth/authClient", () => ({
   },
 }));
 
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: apiConfigMock.isServerConfigured,
 }));
 
-vi.mock("../../lib/joinedAccountHandoff", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../lib/joinedAccountHandoff")>()),
+vi.mock("@/lib/joinedAccountHandoff", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/joinedAccountHandoff")>()),
   replaceWithJoinedAccount: handoffMock.replaceWithJoinedAccount,
   replaceWithAccountPicker: handoffMock.replaceWithAccountPicker,
 }));
 
-vi.mock("../../lib/reloadPage", () => reloadMock);
+vi.mock("@/lib/reloadPage", () => reloadMock);
 
 beforeEach(() => {
   window.history.replaceState({}, "", "/");

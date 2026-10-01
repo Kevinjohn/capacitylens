@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { m } from "@/i18n";
-import { ListPage } from "../common/ui";
-import { ImportExport } from "../ImportExport";
+import { ListPage } from "@/components/common/ui";
+import { ImportExport } from "@/components/ImportExport";
 import { ArchivedSection } from "./ArchivedSection";
 import { SettingsAccountOptions, SettingsBuildDetails } from "./SettingsAccountSections";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";

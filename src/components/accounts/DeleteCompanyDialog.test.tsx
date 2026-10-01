@@ -1,13 +1,13 @@
 import { it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
-import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
+import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { downloadTextFile } from "../../lib/download";
+import { downloadTextFile } from "@/lib/download";
 
 // The export must be observable (not actually save files in jsdom) — mock the one download seam.
-vi.mock("../../lib/download", () => ({ downloadTextFile: vi.fn() }));
+vi.mock("@/lib/download", () => ({ downloadTextFile: vi.fn() }));
 
 // Friction on the one irreversible action: Delete stays aria-disabled but focusable until the exact
 // company name is typed, so its type-to-confirm explanation remains reachable to assistive tech.

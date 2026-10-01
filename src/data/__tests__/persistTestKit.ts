@@ -2,9 +2,9 @@
 // Extracted from the former single-file persist.test.ts; bodies unchanged.
 
 import { expect, vi } from "vitest";
-import { attachPersistence, switchAndAwaitHydration } from "../persist";
-import type { PersistenceAdapter } from "../PersistenceAdapter";
-import { useStore } from "../../store/useStore";
+import { attachPersistence, switchAndAwaitHydration } from "@/data/persist";
+import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 

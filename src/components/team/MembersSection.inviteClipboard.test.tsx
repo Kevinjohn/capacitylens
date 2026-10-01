@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { resetStoreWithAccount, jsonResponse } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
-import { setOfflineReadState } from "../../data/offlineCache";
+import { resetStoreWithAccount, jsonResponse } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
+import { setOfflineReadState } from "@/data/offlineCache";
 import { m } from "@/i18n";
 import { mockApi, renderSection } from "./MembersSection.testSupport";
 
-vi.mock("../../data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
+vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
 
 beforeEach(() => {
   resetStoreWithAccount();

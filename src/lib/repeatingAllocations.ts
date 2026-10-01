@@ -15,7 +15,7 @@ import type {
   SchedulingMode,
   TimeOff,
 } from "@capacitylens/shared/types/entities";
-import type { Draft } from "../store/useStore";
+import type { Draft } from "@/store/useStore";
 import {
   addCapacityLoad,
   bucketCapacityLoad,

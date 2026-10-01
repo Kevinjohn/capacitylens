@@ -3,8 +3,8 @@ import { m } from "@/i18n";
 import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
-import { Button } from "../components/ui/button";
-import { FieldError, FieldGroup } from "../components/ui/field";
+import { Button } from "@/components/ui/button";
+import { FieldError, FieldGroup } from "@/components/ui/field";
 import { LoginField } from "./LoginField";
 
 type LoginIds = {

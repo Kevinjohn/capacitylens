@@ -8,7 +8,7 @@ import type {
   Resource,
   SchedulingMode,
 } from "@capacitylens/shared/types/entities";
-import type { RepeatSelection } from "../../lib/repeatingAllocations";
+import type { RepeatSelection } from "@/lib/repeatingAllocations";
 import type { AllocationModalProps } from "./allocationModalTypes";
 
 /** Current form values consumed by pure projections and the command factory. */

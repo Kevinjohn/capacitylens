@@ -1,12 +1,12 @@
 import { useEffect } from "react";
-import { isServerConfigured } from "../data/apiConfig";
-import { useStore } from "../store/useStore";
-import type { AccountSummary } from "../store/useStore";
+import { isServerConfigured } from "@/data/apiConfig";
+import { useStore } from "@/store/useStore";
+import type { AccountSummary } from "@/store/useStore";
 import { isAccountRole } from "@capacitylens/shared/account/types";
-import { accountClient } from "../account/accountClient";
-import { cacheAccountSummaries, readCachedAccountSummaries, setOfflineReadState } from "../data/offlineCache";
-import { isTransportFailure } from "../data/requestTimeout";
-import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
+import { accountClient } from "@/account/accountClient";
+import { cacheAccountSummaries, readCachedAccountSummaries, setOfflineReadState } from "@/data/offlineCache";
+import { isTransportFailure } from "@/data/requestTimeout";
+import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
 import { m } from "@/i18n";
 
 // The AccountPicker's data source populates `store.accountSummaries` — the

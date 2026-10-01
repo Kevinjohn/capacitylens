@@ -6,10 +6,10 @@ import {
   createDisplayNameComparator,
   createEngagementFavouriteDisplayNameComparator,
   createFavouriteDisplayNameComparator,
-} from "../../lib/displayOrder";
-import { resolveResourceDisplayName } from "../../lib/metadata";
-import { buildDisciplineGroups, hasSupplementaryResources } from "../../store/selectors";
-import { buildDayCapacity } from "../../lib/capacity";
+} from "@/lib/displayOrder";
+import { resolveResourceDisplayName } from "@/lib/metadata";
+import { buildDisciplineGroups, hasSupplementaryResources } from "@/store/selectors";
+import { buildDayCapacity } from "@/lib/capacity";
 import type { CapacityOverviewPeriod } from "./capacityOverviewDates";
 import { buildCapacityOverviewPeriods } from "./capacityOverviewDates";
 import type {

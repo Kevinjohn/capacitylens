@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { useStore } from "../../store/useStore";
-import { useFieldError } from "../../hooks/useFieldError";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { validatePresetColor, parseName } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/isStaleEdit";
+import { useStore } from "@/store/useStore";
+import { useFieldError } from "@/hooks/useFieldError";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { validatePresetColor, parseName } from "@/lib/validation";
+import { isStaleEdit } from "@/lib/isStaleEdit";
 import { m } from "@/i18n";
-import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
-import { PrivateNameFields } from "../common/PrivateNameFields";
-import { usePrivateNameFields } from "../common/usePrivateNameFields";
-import { FieldError } from "../ui/field";
-import { DEFAULT_COLORS } from "../../lib/palette";
+import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
+import { PrivateNameFields } from "@/components/common/PrivateNameFields";
+import { usePrivateNameFields } from "@/components/common/usePrivateNameFields";
+import { FieldError } from "@/components/ui/field";
+import { DEFAULT_COLORS } from "@/lib/palette";
 import type { Client } from "@capacitylens/shared/types/entities";
 
 function ClientFormFields({

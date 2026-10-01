@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { makeAppData, makeAccount, makeResource, DEFAULT_ACCOUNT_ID, WORKDAYS } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
+import { makeAppData, makeAccount, makeResource, DEFAULT_ACCOUNT_ID, WORKDAYS } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
 import { hasEffectiveDaysFor } from "./gestureWorkingWeeks";
 
 const ACCOUNT = makeAccount({ id: DEFAULT_ACCOUNT_ID });

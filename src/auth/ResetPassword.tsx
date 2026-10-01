@@ -1,16 +1,16 @@
 import { useEffect, useId, useState } from "react";
 import type { FormEvent } from "react";
 import { useParams } from "react-router-dom";
-import { API_BASE, isServerConfigured } from "../data/apiConfig";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Field, FieldError, FieldGroup, FieldLabel } from "../components/ui/field";
-import { Card, CardContent } from "../components/ui/card";
+import { API_BASE, isServerConfigured } from "@/data/apiConfig";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent } from "@/components/ui/card";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import { resolveResetPasswordFailureMessage } from "./resetPasswordFailure";
 import { m } from "@/i18n";
-import { createRequestSignal } from "../data/requestTimeout";
+import { createRequestSignal } from "@/data/requestTimeout";
 
 // Password-reset page for /reset-password/:token. The token arrives out-of-band — an
 // Owner/Admin shared it from Team & access, or optional SMTP delivered a self-service reset.

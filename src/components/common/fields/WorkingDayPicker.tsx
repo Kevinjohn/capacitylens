@@ -1,10 +1,10 @@
 import { useId } from "react";
-import { FieldLegend, FieldSet } from "../../ui/field";
-import { Label } from "../../ui/label";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
 import { m } from "@/i18n";
 import type { Weekday } from "@capacitylens/shared/types/entities";
-import { resolveWeekdayLabel } from "../../../lib/weekdays";
-import { useMarkFormDirty } from "../formDirty";
+import { resolveWeekdayLabel } from "@/lib/weekdays";
+import { useMarkFormDirty } from "@/components/common/formDirty";
 import type { WorkingDayOption } from "./fieldTypes";
 
 // Picker order: Monday-first, Sunday last. Labels resolve through Paraglide at render so they

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
-import { hasActiveFilters, useStore } from "../../store/useStore";
-import { useActiveScopedData } from "../../store/useScopedData";
+import { hasActiveFilters, useStore } from "@/store/useStore";
+import { useActiveScopedData } from "@/store/useScopedData";
 import { carriesHourlyLoad, emptyAppData } from "@capacitylens/shared/types/entities";
 import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from "./layout";
 import { buildSchedulerModel, applyVisibleUtilization } from "./schedulerModel";
@@ -15,10 +15,10 @@ import {
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
-} from "../../store/selectors";
+} from "@/store/selectors";
 import { defaultAccountWorkingDays, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
-import { UTILIZATION_WINDOW_DAYS } from "../../lib/schedulerConfig";
+import { UTILIZATION_WINDOW_DAYS } from "@/lib/schedulerConfig";
 
 type GridPreferences = ReturnType<typeof useSchedulerGridPreferences>;
 type GridViewport = Pick<

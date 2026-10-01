@@ -3,14 +3,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
-import { useStore } from "../store/useStore";
+import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
 import { AppShell } from "./AppShell";
-import { AuthContext, type AuthContextValue } from "../auth/authContext";
-import { buildProductOrientationKey } from "../lib/productOrientation";
+import { AuthContext, type AuthContextValue } from "@/auth/authContext";
+import { buildProductOrientationKey } from "@/lib/productOrientation";
 
 const serverFlag = vi.hoisted(() => ({ on: false }));
-vi.mock("../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isDemoMode: () => !serverFlag.on,
   isServerConfigured: () => serverFlag.on,

@@ -1,15 +1,15 @@
 import { useState } from "react";
 import type { Resource, ResourceKind } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { useEntityListState } from "../../hooks/useEntityListState";
-import { useLifecycleActions } from "../../hooks/useLifecycleActions";
-import { resolveResourceDisplayName } from "../../lib/metadata";
-import { ConfirmDialog, ListPage } from "../common/ui";
-import { ExternalForm } from "../external/ExternalForm";
+import { useEntityListState } from "@/hooks/useEntityListState";
+import { useLifecycleActions } from "@/hooks/useLifecycleActions";
+import { resolveResourceDisplayName } from "@/lib/metadata";
+import { ConfirmDialog, ListPage } from "@/components/common/ui";
+import { ExternalForm } from "@/components/external/ExternalForm";
 import { ResourceForm } from "./ResourceForm";
 import { ResourceListContent } from "./ResourceListContent";
 import { useResourceListModel } from "./useResourceListModel";
-import { ArchivedEntitySection } from "../common/ArchivedEntitySection";
+import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
 
 export function ResourceList() {
   const model = useResourceListModel();

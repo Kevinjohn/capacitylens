@@ -8,7 +8,7 @@ import {
   SCHEDULER_DENSITY,
   SCHEDULER_LANE_LAYOUT,
 } from "./layout";
-import { resolveRowHeightForLanes } from "../../lib/lanePacking";
+import { resolveRowHeightForLanes } from "@/lib/lanePacking";
 
 // laneLayout is the LaneLayout projection of LAYOUT handed to lanePacking (packLanes / laneTop /
 // rowHeightForLanes) — schedulerModel.ts wires it through unmodified. Pin its shape directly so a

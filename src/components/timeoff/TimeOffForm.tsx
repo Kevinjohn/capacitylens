@@ -1,18 +1,26 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { useStore } from "../../store/useStore";
-import { hasPlaceholdersEnabled, resolveTimeZone } from "../../store/selectors";
-import { useActiveScopedData } from "../../store/useScopedData";
-import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
+import { useStore } from "@/store/useStore";
+import { hasPlaceholdersEnabled, resolveTimeZone } from "@/store/selectors";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
 import { todayISO } from "@capacitylens/shared/lib/dateMath";
 import { MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
-import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
-import { FieldError } from "../ui/field";
-import { buildTimeOffTypeOptions, resolveResourceDisplayName } from "../../lib/metadata";
+import {
+  DateField,
+  FormActions,
+  Modal,
+  RequiredLegend,
+  SelectField,
+  TextField,
+  type Option,
+} from "@/components/common/ui";
+import { FieldError } from "@/components/ui/field";
+import { buildTimeOffTypeOptions, resolveResourceDisplayName } from "@/lib/metadata";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
 import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
-import { useRole } from "../../auth/permissionContext";
+import { useRole } from "@/auth/permissionContext";
 import { useTimeOffRepeat } from "./useTimeOffRepeat";
 import { TimeOffRepeatFields } from "./TimeOffRepeatFields";
 import { saveTimeOff } from "./timeOffFormSubmission";

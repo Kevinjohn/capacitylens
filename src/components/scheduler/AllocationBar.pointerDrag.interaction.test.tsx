@@ -1,11 +1,11 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent, act } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
-import { PermissionContext } from "../../auth/permissionContext";
-import { useStore } from "../../store/useStore";
+import { PermissionContext } from "@/auth/permissionContext";
+import { useStore } from "@/store/useStore";
 import { type Allocation, type Weekday } from "@capacitylens/shared/types/entities";
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from "../../test/fixtures";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from "@/test/fixtures";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
 
 import {

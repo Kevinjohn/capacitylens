@@ -1,12 +1,20 @@
 import { useMemo } from "react";
-import { useStore } from "../../store/useStore";
-import { hasDisciplinesEnabled } from "../../store/selectors";
-import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
-import { useFieldError } from "../../hooks/useFieldError";
+import { useStore } from "@/store/useStore";
+import { hasDisciplinesEnabled } from "@/store/selectors";
+import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
+import { useFieldError } from "@/hooks/useFieldError";
 import { m } from "@/i18n";
-import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
-import { FieldError, FieldGroup } from "../ui/field";
-import { buildResourceEngagementOptions } from "../../lib/metadata";
+import {
+  FormActions,
+  Modal,
+  RequiredLegend,
+  SegmentedField,
+  SelectField,
+  TextField,
+  type Option,
+} from "@/components/common/ui";
+import { FieldError, FieldGroup } from "@/components/ui/field";
+import { buildResourceEngagementOptions } from "@/lib/metadata";
 import { useResourceFormState, type ResourceFormState } from "./useResourceFormState";
 import { useResourceSubmit, type ResourceSubmitDraft } from "./useResourceSubmit";
 import { ResourceAvailabilityFields } from "./ResourceAvailabilityFields";

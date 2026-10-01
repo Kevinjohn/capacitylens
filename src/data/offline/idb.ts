@@ -1,4 +1,4 @@
-import { API_BASE } from "../apiConfig";
+import { API_BASE } from "@/data/apiConfig";
 import { DB_NAME, STORE_NAME, KEY_STORE_NAME, MAX_AGE_MS } from "./constants";
 
 export function readOriginKey(): string {

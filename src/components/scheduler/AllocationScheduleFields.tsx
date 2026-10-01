@@ -9,11 +9,11 @@ import {
   SelectField,
   TextField,
   type Option,
-} from "../common/ui";
-import { Alert, AlertDescription } from "../ui/alert";
-import { FieldError } from "../ui/field";
-import { buildAllocationStatusOptions } from "../../lib/metadata";
-import { formatShortDateEndpoint } from "../../lib/dateDisplay";
+} from "@/components/common/ui";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FieldError } from "@/components/ui/field";
+import { buildAllocationStatusOptions } from "@/lib/metadata";
+import { formatShortDateEndpoint } from "@/lib/dateDisplay";
 import { AllocationControlColumn, AllocationSpanRow, DateRangeFields } from "./AllocationModalFieldLayout";
 import type { AllocationModalState } from "./useAllocationModalState";
 import { roundToHundredths } from "@/lib/roundToHundredths";

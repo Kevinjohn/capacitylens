@@ -1,15 +1,15 @@
 import { readIdentityProvider, linkIdentityProvider } from "./identityProviderClient";
 import { joiningPolicyClient } from "./joiningPolicyClient";
-import { apiFetchReauth } from "../auth/apiFetchReauth";
-import { API_BASE } from "../data/apiConfig";
-import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
+import { apiFetchReauth } from "@/auth/apiFetchReauth";
+import { API_BASE } from "@/data/apiConfig";
+import { apiFetch, API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
 import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
 import type { EndMasqueradePayload, StartMasqueradePayload } from "@capacitylens/shared/domain/masquerade";
 import { buildPayloadOperationKey } from "./commandOutcome";
 import type { CreateInvitationBody, CreateWorkspaceBody, InvitationSignupBody } from "./accountRequestTypes";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
-import type { ReauthAction } from "../auth/reauthCoordinator";
+import type { ReauthAction } from "@/auth/reauthCoordinator";
 import {
   clearMemberResourceLink,
   dismissMemberResourceLinkException,

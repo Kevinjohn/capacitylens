@@ -2,11 +2,11 @@ import { Fragment } from "react";
 import { Plus, Users } from "lucide-react";
 import type { Resource } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { AddButton, ColorSwatch, DeleteButton, EditButton, EmptyState, SectionHelp } from "../common/ui";
-import { Separator } from "../ui/separator";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { externalExplainer } from "../../lib/externalCopy";
-import { NEUTRAL_COLOR } from "../../lib/palette";
+import { AddButton, ColorSwatch, DeleteButton, EditButton, EmptyState, SectionHelp } from "@/components/common/ui";
+import { Separator } from "@/components/ui/separator";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
+import { externalExplainer } from "@/lib/externalCopy";
+import { NEUTRAL_COLOR } from "@/lib/palette";
 import { FavouriteButton } from "./FavouriteButton";
 
 export interface ExternalResourceSectionProps {

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MasqueradeState, MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
-import { resetStoreWithAccount } from "../test/fixtures";
-import { useStore } from "../store/useStore";
-import type { FlushPendingWritesResult } from "../data/persist";
+import { resetStoreWithAccount } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
+import type { FlushPendingWritesResult } from "@/data/persist";
 import { MasqueradeController, type MasqueradeControllerDependencies } from "./masqueradeController";
 
 const state: MasqueradeState = {

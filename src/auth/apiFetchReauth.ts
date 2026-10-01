@@ -1,5 +1,5 @@
-import { apiFetch, API_REQUEST_TIMEOUT_MS } from "../data/requestTimeout";
-import { readApiErrorCode } from "../lib/readApiError";
+import { apiFetch, API_REQUEST_TIMEOUT_MS } from "@/data/requestTimeout";
+import { readApiErrorCode } from "@/lib/readApiError";
 import { readReauthResolution, requestReauth, type ReauthAction } from "./reauthCoordinator";
 import { m } from "@/i18n";
 

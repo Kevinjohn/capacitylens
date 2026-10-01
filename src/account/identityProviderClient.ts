@@ -1,7 +1,7 @@
-import { apiFetchReauth } from "../auth/apiFetchReauth";
-import { API_BASE } from "../data/apiConfig";
-import { apiFetch } from "../data/requestTimeout";
-import type { ReauthAction } from "../auth/reauthCoordinator";
+import { apiFetchReauth } from "@/auth/apiFetchReauth";
+import { API_BASE } from "@/data/apiConfig";
+import { apiFetch } from "@/data/requestTimeout";
+import type { ReauthAction } from "@/auth/reauthCoordinator";
 
 export function readIdentityProvider(providerId?: string): Promise<Response> {
   const query = providerId ? `?providerId=${encodeURIComponent(providerId)}` : "";

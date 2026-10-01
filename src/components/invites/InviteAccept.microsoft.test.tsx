@@ -3,14 +3,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { InviteAccept } from "./InviteAccept";
-import { AuthContext, type AuthContextValue } from "../../auth/authContext";
+import { AuthContext, type AuthContextValue } from "@/auth/authContext";
 
 const authClientMock = vi.hoisted(() => ({ signInSocial: vi.fn(async () => ({ error: null })) }));
-vi.mock("../../auth/authClient", () => ({
+vi.mock("@/auth/authClient", () => ({
   authClient: { signIn: { social: authClientMock.signInSocial } },
 }));
-vi.mock("../../data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
-vi.mock("../../lib/reloadPage", () => ({ reloadPage: vi.fn() }));
+vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
+vi.mock("@/lib/reloadPage", () => ({ reloadPage: vi.fn() }));
 
 beforeEach(() => {
   vi.clearAllMocks();

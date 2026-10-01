@@ -1,13 +1,21 @@
 import { useMemo, useState } from "react";
-import { useStore } from "../../store/useStore";
-import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
-import { useFieldError } from "../../hooks/useFieldError";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { parseName } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/isStaleEdit";
+import { useStore } from "@/store/useStore";
+import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
+import { useFieldError } from "@/hooks/useFieldError";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { parseName } from "@/lib/validation";
+import { isStaleEdit } from "@/lib/isStaleEdit";
 import { m } from "@/i18n";
-import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
-import { FieldError } from "../ui/field";
+import {
+  FormActions,
+  Modal,
+  RequiredLegend,
+  SegmentedField,
+  SelectField,
+  TextField,
+  type Option,
+} from "@/components/common/ui";
+import { FieldError } from "@/components/ui/field";
 import type { Activity, ActivityKind, Client, Project } from "@capacitylens/shared/types/entities";
 import { ACTIVITY_KIND_ORDER } from "./activityKinds";
 

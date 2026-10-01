@@ -7,7 +7,7 @@ import {
 } from "./ServerSyncAdapter";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, Discipline, TimeOff } from "@capacitylens/shared/types/entities";
-import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
+import { AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
 import {
   TS1,
   client,

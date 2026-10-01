@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from 
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsView } from "./SettingsView";
-import { AuthContext } from "../../auth/authContext";
-import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
-import { PermissionContext } from "../../auth/permissionContext";
-import { resolveDateStyle } from "../../store/selectors";
+import { AuthContext } from "@/auth/authContext";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { PermissionContext } from "@/auth/permissionContext";
+import { resolveDateStyle } from "@/store/selectors";
 
 const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
-vi.mock("../../lib/reloadPage", () => reloadMock);
+vi.mock("@/lib/reloadPage", () => reloadMock);
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
 
@@ -23,8 +23,8 @@ const offlineMocks = vi.hoisted(() => ({
   preferenceListeners: new Set<() => void>(),
 }));
 
-vi.mock("../../data/offlineCache", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../data/offlineCache")>()),
+vi.mock("@/data/offlineCache", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/data/offlineCache")>()),
   isOfflineReadEnabled: () => offlineMocks.enabled,
   subscribeOfflinePreference: (listener: () => void) => {
     offlineMocks.preferenceListeners.add(listener);

@@ -1,15 +1,15 @@
 import { m } from "@/i18n";
-import { formatInstant } from "../../lib/dateDisplay";
-import { useStore } from "../../store/useStore";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Button } from "../ui/button";
-import { FieldError } from "../ui/field";
+import { formatInstant } from "@/lib/dateDisplay";
+import { useStore } from "@/store/useStore";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/field";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { CopyableLinkBlock, InviteMemberPanel } from "./InviteMemberPanel";
 import { MemberConfirmations } from "./MemberConfirmations";
 import { MemberRow } from "./MemberRow";
 import { useMembersOrchestration } from "./useMembersOrchestration";
-import type { TeamMember } from "../../account/teamAccessClient";
+import type { TeamMember } from "@/account/teamAccessClient";
 
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
 // Owner/Admin list members in a compact managed-row table (name / email / optional sign-in confirmation), change a member's role through the

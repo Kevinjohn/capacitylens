@@ -1,9 +1,9 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { m } from "@/i18n";
-import { ZOOM_LEVELS, type WeeksZoom } from "../../lib/schedulerConfig";
+import { ZOOM_LEVELS, type WeeksZoom } from "@/lib/schedulerConfig";
 import { JumpToDateInput } from "./JumpToDateInput";
-import { Button } from "../ui/button";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /**
  * The jump-to-date picker is deliberately not rendered: reaching a far-off date is rare enough that

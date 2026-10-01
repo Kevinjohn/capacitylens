@@ -7,7 +7,7 @@ import {
   resolveExternalSignInErrorMessage,
   hasExternalSignInError,
 } from "./externalSignInError";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";
 
 // Lazy so Better Auth's client (pulled in by ReauthDialog) never enters the main bundle — the same

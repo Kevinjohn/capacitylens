@@ -1,8 +1,8 @@
 import { render as rtlRender, screen, fireEvent, type RenderOptions } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { TooltipProvider } from "../../ui/tooltip";
-import { buildColumnGeometry } from "../columnGeometry";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { buildColumnGeometry } from "@/components/scheduler/columnGeometry";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import {
@@ -13,7 +13,7 @@ import {
   makeClient,
   makeProject,
   makeResource,
-} from "../../../test/fixtures";
+} from "@/test/fixtures";
 
 // Shared setup shared by ≥3 scheduler test files. Centralises the provider-less-TooltipRoot render
 // wrapper, the standard June column geometry, the combobox-option chooser used by every modal/toolbar

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { isServerConfigured } from "../data/apiConfig";
-import { useStore } from "../store/useStore";
+import { isServerConfigured } from "@/data/apiConfig";
+import { useStore } from "@/store/useStore";
 import { useAuth } from "./authContext";
 import { PermissionContext } from "./permissionContext";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { useOfflineState } from "../data/useOfflineState";
-import { readOfflineStateEpisode } from "../data/offlineCache";
+import { useOfflineState } from "@/data/useOfflineState";
+import { readOfflineStateEpisode } from "@/data/offlineCache";
 import { refreshAccountSummaries } from "./useAccountSummaries";
 import { masqueradeApi } from "./masqueradeApi";
 import { adoptMasqueradeStatus } from "./accountTransition";

@@ -1,9 +1,9 @@
 import { m } from "@/i18n";
-import { buildLabels, buildLabelOptions } from "../../lib/metadata";
-import { SegmentedControl, SwitchField } from "../common/ui";
+import { buildLabels, buildLabelOptions } from "@/lib/metadata";
+import { SegmentedControl, SwitchField } from "@/components/common/ui";
 import { SettingsSection } from "./SettingsSection";
 
-import type { StoreState } from "../../store/useStore";
+import type { StoreState } from "@/store/useStore";
 import { BAR_LABEL_MESSAGES, THEME_MESSAGES, UTILIZATION_MESSAGES } from "./settingsLabels";
 export function SettingsAppearanceSection({
   barLabelPrefs: barLabelPreferences,

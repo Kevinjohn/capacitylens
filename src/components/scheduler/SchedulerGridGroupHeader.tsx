@@ -1,9 +1,9 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { m } from "@/i18n";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
 import { LAYOUT, buildSchedulerDensity } from "./layout";
 import type { GroupModel } from "./schedulerModel";
-import type { SchedulerUI, StoreState } from "../../store/useStore";
+import type { SchedulerUI, StoreState } from "@/store/useStore";
 import type { ColumnGeometry } from "./columnGeometry";
 import { buildAverageUtilizationLabel } from "./schedulerGridModal";
 

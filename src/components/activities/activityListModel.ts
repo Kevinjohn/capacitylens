@@ -1,5 +1,5 @@
 import type { Activity, Client, Project } from "@capacitylens/shared/types/entities";
-import { compareDisplayNames } from "../../lib/displayOrder";
+import { compareDisplayNames } from "@/lib/displayOrder";
 import { ACTIVITY_KIND_ORDER } from "./activityKinds";
 
 type NamedEntity = { name: string } & ({ id: string } | { key: string });

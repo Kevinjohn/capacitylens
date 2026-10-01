@@ -1,11 +1,11 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, expectTypeOf, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { ActivityList } from "./ActivityList";
-import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } from "../../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } from "@/test/fixtures";
 import { MemoryRouter } from "react-router-dom";
 
 beforeEach(() => resetStoreWithAccount());

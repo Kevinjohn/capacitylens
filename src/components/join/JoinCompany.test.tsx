@@ -2,19 +2,19 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { AuthContext, type AuthContextValue } from "../../auth/authContext";
+import { AuthContext, type AuthContextValue } from "@/auth/authContext";
 import { JoinCompany } from "./JoinCompany";
 
 const authClientMock = vi.hoisted(() => ({ signInEmail: vi.fn(), verifyTotp: vi.fn(), verifyBackupCode: vi.fn() }));
 const handoffMock = vi.hoisted(() => ({ replaceWithJoinedAccount: vi.fn() }));
-vi.mock("../../auth/authClient", () => ({
+vi.mock("@/auth/authClient", () => ({
   authClient: {
     signIn: { email: authClientMock.signInEmail },
     twoFactor: { verifyTotp: authClientMock.verifyTotp, verifyBackupCode: authClientMock.verifyBackupCode },
   },
 }));
-vi.mock("../../data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
-vi.mock("../../lib/joinedAccountHandoff", () => ({ replaceWithJoinedAccount: handoffMock.replaceWithJoinedAccount }));
+vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
+vi.mock("@/lib/joinedAccountHandoff", () => ({ replaceWithJoinedAccount: handoffMock.replaceWithJoinedAccount }));
 
 const auth: AuthContextValue = {
   authMode: "password-only",

@@ -1,10 +1,10 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { PermissionContext } from "../../auth/permissionContext";
-import { resetStoreWithAccount, WORKDAYS } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
+import { PermissionContext } from "@/auth/permissionContext";
+import { resetStoreWithAccount, WORKDAYS } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
 import { TimeOffForm } from "./TimeOffForm";
 
 const resourceDraft = {

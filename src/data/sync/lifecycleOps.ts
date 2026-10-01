@@ -1,8 +1,8 @@
 import { isLifecycleEntityKey, LIFECYCLE_ENTITY_KEYS } from "@capacitylens/shared/domain/lifecycle";
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
-import { noteAuditWarning } from "../../lib/auditWarning";
-import { API_REQUEST_TIMEOUT_MS } from "../requestTimeout";
-import { type Op } from "../syncOps";
+import { noteAuditWarning } from "@/lib/auditWarning";
+import { API_REQUEST_TIMEOUT_MS } from "@/data/requestTimeout";
+import { type Op } from "@/data/syncOps";
 import { LifecycleRestoreError } from "./batchErrors";
 import {
   MAX_DIAGNOSTIC_BODY_LENGTH,

@@ -6,7 +6,7 @@ import {
   isCreationStartBlocked,
 } from "./creationAvailability";
 import type { Closure, Resource } from "@capacitylens/shared/types/entities";
-import { makeResource, makeTimeOff } from "../../test/fixtures";
+import { makeResource, makeTimeOff } from "@/test/fixtures";
 
 const person = makeResource({ name: "Bruce Wayne" });
 

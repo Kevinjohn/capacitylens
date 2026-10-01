@@ -10,7 +10,7 @@ const apiConfigMock = vi.hoisted(() => ({
   isServerConfigured: vi.fn(() => true),
 }));
 
-vi.mock("../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: apiConfigMock.isServerConfigured,
 }));

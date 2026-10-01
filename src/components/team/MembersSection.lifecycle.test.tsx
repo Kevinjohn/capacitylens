@@ -1,15 +1,15 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
-import { refreshActiveAccountSlice } from "../../data/persist";
-import { setOfflineReadState } from "../../data/offlineCache";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
+import { refreshActiveAccountSlice } from "@/data/persist";
+import { setOfflineReadState } from "@/data/offlineCache";
 import { m } from "@/i18n";
-import { teamAccessClient } from "../../account/teamAccessClient";
-import * as resourceAvatars from "../../account/useResourceAvatars";
+import { teamAccessClient } from "@/account/teamAccessClient";
+import * as resourceAvatars from "@/account/useResourceAvatars";
 import {
   chooseMemberAction,
   waitForMemberRow,
@@ -29,7 +29,7 @@ const accountTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
 
-vi.mock("../../auth/accountTransition", () => ({
+vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
@@ -40,12 +40,12 @@ vi.mock("../../auth/accountTransition", () => ({
 
 // Make the section "enabled": a configured server. The real module reads import.meta.env, which the
 // test env leaves unset; mocking it is the clean way to flip server mode on.
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: () => true,
 }));
 
-vi.mock("../../data/persist", () => ({
+vi.mock("@/data/persist", () => ({
   refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
   flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
   suspendServerWrites: vi.fn(() => vi.fn()),

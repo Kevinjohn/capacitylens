@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useStore } from "../../store/useStore";
-import { useFieldError } from "../../hooks/useFieldError";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { parseText } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/isStaleEdit";
+import { useStore } from "@/store/useStore";
+import { useFieldError } from "@/hooks/useFieldError";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { parseText } from "@/lib/validation";
+import { isStaleEdit } from "@/lib/isStaleEdit";
 import { m } from "@/i18n";
-import { FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
-import { FieldError } from "../ui/field";
-import { NEUTRAL_COLOR } from "../../lib/palette";
+import { FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
+import { FieldError } from "@/components/ui/field";
+import { NEUTRAL_COLOR } from "@/lib/palette";
 import { externalCapacityDefaults } from "@capacitylens/shared/types/entities";
 import type { Resource } from "@capacitylens/shared/types/entities";
 

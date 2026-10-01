@@ -2,7 +2,7 @@
 // palette instead of hex literals scattered across forms.
 
 // One definition lives in the shared core (used by the bar-colour fallback AND external identity);
-// re-export it here so app-side imports keep their `../lib/palette` path and the two can't drift.
+// re-export it here so app-side imports keep their `@/lib/palette` path and the two can't drift.
 export { NEUTRAL_COLOR } from "@capacitylens/shared/lib/color";
 import { PRESET_COLORS } from "@capacitylens/shared/lib/color";
 import { m } from "@/i18n";

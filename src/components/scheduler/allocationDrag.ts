@@ -1,5 +1,5 @@
-import { applyGesture, type DateRange, type DragMode, type GestureOptions } from "../../lib/gestureMath";
-import { resolveScheduledHoursOnDay } from "../../lib/capacity";
+import { applyGesture, type DateRange, type DragMode, type GestureOptions } from "@/lib/gestureMath";
+import { resolveScheduledHoursOnDay } from "@/lib/capacity";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { spanDays } from "@capacitylens/shared/lib/schedulingDays";
 import { FULL_DAY_HOURS, isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
