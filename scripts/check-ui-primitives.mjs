@@ -25,7 +25,7 @@ const sourceOwnedPrimitives = {
   "src/components/ui/sidebar.tsx": "b81b8ffa4f7b1e094caf31b2f4a591690b610cbd83ef8f10c20045698e9d9524",
   "src/components/ui/toggle.tsx": "ee5a287b35aa18fda4c9e961b0876bf3223896993fdf3d8f177803ea1b9a8631",
   "src/components/ui/toggle-group.tsx": "09df43aa58939b643480cad180aa0d3aa3b798c1104e52cc9bef7ca51c1d4df0",
-  "src/components/ui/tooltip.tsx": "a5a77880e74dc41311c396e7125c3088289b2f6753c40b60a48b60a4a7c30139",
+  "src/components/ui/tooltip.tsx": "0d6c390975f39666a5c4eaff607d1dd0b83997fc683bb5290feab92d270ba9c9",
 };
 
 const changed = [];
