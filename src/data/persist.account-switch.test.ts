@@ -83,10 +83,12 @@ async function attachFailedSwitchWithParkedEdit() {
   const saveAll = vi.fn().mockResolvedValue(undefined);
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
-  useStore.getState().setAccountSummaries([
-    { id: "a1", name: "Alpha", role: "owner" },
-    { id: "b1", name: "Beta", role: "owner" },
-  ]);
+  useStore.getState().setAccountSummaries({
+    list: [
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+    ],
+  });
   const detach = attachPersistence({
     store: useStore,
     adapter: { loadAll, saveAll },
@@ -155,10 +157,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const saveAll = vi.fn().mockRejectedValueOnce(new Error("A save failed")).mockResolvedValue(undefined);
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll },
@@ -195,10 +199,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
         .mockRejectedValueOnce(new Error("B unavailable"));
       useStore.getState().replaceAll(emptyAppData());
       useStore.getState().setActiveAccount(null);
-      useStore.getState().setAccountSummaries([
-        { id: "a1", name: "Alpha", role: "owner" },
-        { id: "b1", name: "Beta", role: "owner" },
-      ]);
+      useStore.getState().setAccountSummaries({
+        list: [
+          { id: "a1", name: "Alpha", role: "owner" },
+          { id: "b1", name: "Beta", role: "owner" },
+        ],
+      });
       const detach = attachPersistence({
         store: useStore,
         adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
@@ -229,10 +235,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
         .mockRejectedValueOnce(new Error("B unavailable"));
       useStore.getState().replaceAll(emptyAppData());
       useStore.getState().setActiveAccount(null);
-      useStore.getState().setAccountSummaries([
-        { id: "a1", name: "Alpha", role: "owner" },
-        { id: "b1", name: "Beta", role: "owner" },
-      ]);
+      useStore.getState().setAccountSummaries({
+        list: [
+          { id: "a1", name: "Alpha", role: "owner" },
+          { id: "b1", name: "Beta", role: "owner" },
+        ],
+      });
       const detach = attachPersistence({
         store: useStore,
         adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
@@ -270,10 +278,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       const saveAll = vi.fn().mockResolvedValue(undefined);
       useStore.getState().replaceAll(emptyAppData());
       useStore.getState().setActiveAccount(null);
-      useStore.getState().setAccountSummaries([
-        { id: "a1", name: "Alpha", role: "owner" },
-        { id: "b1", name: "Beta", role: "owner" },
-      ]);
+      useStore.getState().setAccountSummaries({
+        list: [
+          { id: "a1", name: "Alpha", role: "owner" },
+          { id: "b1", name: "Beta", role: "owner" },
+        ],
+      });
       const detach = attachPersistence({
         store: useStore,
         adapter: { loadAll, saveAll },
@@ -313,10 +323,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const saveAll = vi.fn().mockResolvedValue(undefined);
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll },
@@ -353,10 +365,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const saveAll = vi.fn().mockRejectedValueOnce(new Error("A save failed")).mockResolvedValue(undefined);
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll },
@@ -390,11 +404,13 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     });
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-      { id: "c1", name: "Gamma", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+        { id: "c1", name: "Gamma", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
@@ -449,11 +465,13 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const saveAll = vi.fn().mockResolvedValue(undefined);
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-      { id: "c1", name: "Gamma", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+        { id: "c1", name: "Gamma", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll },
@@ -494,7 +512,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     };
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
     const detach = attachPersistence({
       store: useStore,
       adapter: adapter,
@@ -523,7 +541,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const load = new Promise<AppData>(() => undefined);
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll: vi.fn(async () => load), saveAll: vi.fn(async () => {}) },
@@ -559,7 +577,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     // Server-mode attach with an empty store (the pre-pick state in auth-on).
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
     const detach = attachPersistence({
       store: useStore,
       adapter: adapter,
@@ -591,7 +609,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
       useStore.getState().replaceAll(emptyAppData());
       useStore.getState().setActiveAccount(null);
-      useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+      useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
       detach = attachPersistence({
         store: useStore,
         adapter: adapter,
@@ -626,10 +644,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: adapter,
@@ -690,10 +710,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
       useStore.getState().replaceAll(emptyAppData());
       useStore.getState().setActiveAccount(null);
-      useStore.getState().setAccountSummaries([
-        { id: "a1", name: "Alpha", role: "owner" },
-        { id: "b1", name: "Beta", role: "owner" },
-      ]);
+      useStore.getState().setAccountSummaries({
+        list: [
+          { id: "a1", name: "Alpha", role: "owner" },
+          { id: "b1", name: "Beta", role: "owner" },
+        ],
+      });
       detach = attachPersistence({
         store: useStore,
         adapter: adapter,

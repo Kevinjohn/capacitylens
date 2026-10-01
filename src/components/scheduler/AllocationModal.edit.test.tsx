@@ -549,7 +549,7 @@ describe("AllocationModal edit", () => {
     );
     // Turn placeholders OFF — they're hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) placeholder.
-    setPlaceholdersEnabled(false);
+    setPlaceholdersEnabled({ on: false });
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     const assignee = screen.getByRole("combobox", { name: "Assignee" });
@@ -588,7 +588,7 @@ describe("AllocationModal edit", () => {
     );
     // External pref OFF (its default) — hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) external.
-    setExternalEnabled(false);
+    setExternalEnabled({ on: false });
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     const assignee = screen.getByRole("combobox", { name: "Assignee" });

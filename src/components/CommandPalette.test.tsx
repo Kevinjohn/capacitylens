@@ -255,8 +255,8 @@ describe("CommandPalette", () => {
 
   it("includes enabled optional resources and labels an external jump target", () => {
     addOptionalResources();
-    setPlaceholdersEnabled(true);
-    setExternalEnabled(true);
+    setPlaceholdersEnabled({ on: true });
+    setExternalEnabled({ on: true });
     renderPalette();
     const input = screen.getByTestId("command-palette-input");
 

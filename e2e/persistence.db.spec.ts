@@ -11,7 +11,7 @@ import { resetServer, serverState, requireStateRows } from "./serverTestState";
 
 function registerBeforeEachHooks() {
   test.beforeEach(async ({ request }) => {
-    await resetServer(request, true); // wipe + re-seed before each test
+    await resetServer({ request: request, withSeed: true }); // wipe + re-seed before each test
   });
 }
 

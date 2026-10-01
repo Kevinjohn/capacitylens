@@ -63,7 +63,7 @@ export function requestReauth(action: ReauthAction | null = null): Promise<Reaut
   const promise = new Promise<ReauthResult>((resolvePromise) => {
     resolve = resolvePromise;
   });
-  const timeout = setTimeout(() => completeReauth(false), REAUTH_REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => completeReauth({ reauthenticated: false }), REAUTH_REQUEST_TIMEOUT_MS);
   pending = { promise, resolve, timeout, action };
   emit();
   return promise;
@@ -71,7 +71,8 @@ export function requestReauth(action: ReauthAction | null = null): Promise<Reaut
 
 /** Fulfil the pending re-auth request. `true` maps to an `authenticated` result (callers retry);
  * `false` maps to `cancelled` (callers surface the original error). No-op when nothing is pending. */
-export function completeReauth(reauthenticated: boolean): void {
+type CompleteReauthOptions = { reauthenticated: boolean };
+export function completeReauth({ reauthenticated }: CompleteReauthOptions): void {
   const current = pending;
   if (!current) return;
   pending = null;

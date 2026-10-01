@@ -8,7 +8,7 @@ import { createCompany } from "./browserTestSupport";
 
 test.describe("database-backed onboarding lock (P1.14)", () => {
   test.beforeEach(async ({ request }) => {
-    await resetServer(request, true); // wipe + re-seed so a known account exists
+    await resetServer({ request: request, withSeed: true }); // wipe + re-seed so a known account exists
   });
 
   test("direct PATCHes of changeable frozen fields are rejected and unsupported language is a no-op", async ({
@@ -63,7 +63,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
 // missing button is UX only.
 test.describe("single-company-per-instance policy (client-side affordance + server backstop)", () => {
   test.beforeEach(async ({ request }) => {
-    await resetServer(request, true); // wipe + re-seed: TWO companies, exempt from the create-time cap
+    await resetServer({ request: request, withSeed: true }); // wipe + re-seed: TWO companies, exempt from the create-time cap
   });
 
   test("the account picker lists both seeded companies but hides the New company button", async ({ page }) => {
@@ -113,7 +113,7 @@ test.describe("single-company-per-instance policy (client-side affordance + serv
 // that already shows the example people and their bookings in the current week.
 test.describe("first company with example data", () => {
   test.beforeEach(async ({ request }) => {
-    await resetServer(request, false); // wipe without re-seeding: no companies at all
+    await resetServer({ request: request, withSeed: false }); // wipe without re-seeding: no companies at all
   });
 
   test("creating the first company with Start with example data ticked opens a populated schedule", async ({

@@ -178,7 +178,10 @@ function buildModalState(
   });
   // In create mode the assignee is already chosen (the user clicked the + next to
   // their row), so we drop the Assignee select and name them in the title instead.
-  const createName = resolveCreateName(context.create !== undefined, context.seed.initialResource);
+  const createName = resolveCreateName({
+    isCreate: context.create !== undefined,
+    resource: context.seed.initialResource,
+  });
   const repeatLastStart = repeatProjection?.startDates.at(-1);
   return {
     shell: { editing: context.editing, createName, onClose: context.onClose, submit, clear: context.fieldError.clear },
@@ -351,7 +354,11 @@ function useAllocationAdvisory(input: Parameters<typeof buildAllocationAdvisory>
   );
 }
 
-function resolveCreateName(isCreate: boolean, resource: Parameters<typeof resolveResourceDisplayName>[0] | undefined) {
+type ResolveCreateNameOptions = {
+  isCreate: boolean;
+  resource: Parameters<typeof resolveResourceDisplayName>[0] | undefined;
+};
+function resolveCreateName({ isCreate, resource }: ResolveCreateNameOptions) {
   if (!isCreate) return undefined;
   return resource ? resolveResourceDisplayName(resource) : m.form_allocation_advisory_resource_name();
 }

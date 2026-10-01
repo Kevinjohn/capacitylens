@@ -55,11 +55,11 @@ vi.mock("../../data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -418,7 +418,7 @@ function registerAdminProjectionTests(members: RawMember[]): void {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", mockApi(members));
     vi.mocked(refreshActiveAccountSlice).mockImplementationOnce(async () => {
-      setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
+      setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
       return { kind: "reloaded" };
     });
     renderSection();

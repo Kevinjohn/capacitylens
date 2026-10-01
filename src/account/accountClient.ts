@@ -59,6 +59,7 @@ export {
 } from "./accountCommands";
 export { hasUnknownAccountCommandOutcome, readUnknownAccountCommandOutcome } from "./commandOutcome";
 
+type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
 export const accountClient = {
   me(signal?: AbortSignal): Promise<Response> {
     return apiFetch(`${API_BASE}/api/auth/me`, { credentials: "include", ...(signal ? { signal } : {}) });
@@ -151,7 +152,7 @@ export const accountClient = {
   clearMemberResourceLink,
   dismissMemberResourceLinkException,
 
-  setMemberSignInTracking(workspaceId: string, enabled: boolean): Promise<Response> {
+  setMemberSignInTracking({ workspaceId, enabled }: SetMemberSignInTrackingOptions): Promise<Response> {
     return apiFetchReauth(
       `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/member-sign-in-tracking`,
       {

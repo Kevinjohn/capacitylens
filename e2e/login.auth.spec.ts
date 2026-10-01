@@ -77,10 +77,18 @@ function registerSigningRevealsAppSigningOutTest() {
     const { email, cookie } = await signUpUser(`login-${Date.now()}@capacitylens.dev`);
     await bootstrapOrg(request, cookie, ORG_NAME);
 
+    const unscopedStateReads: string[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (url.pathname === "/api/state" && !url.searchParams.has("accountId")) unscopedStateReads.push(url.href);
+    });
+
     await page.goto("/");
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
+    expect(unscopedStateReads).toEqual([]);
 
     // The boot flow resumes: the picker lists ONLY this login's memberships (P1.13) → pick our org →
     // the active account hydrates its slice via GET /api/state?accountId= → app.

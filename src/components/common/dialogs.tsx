@@ -176,16 +176,16 @@ function useModalController({
     // React can surface one native edit through both input and change capture before the controlled
     // value re-renders. Flip the live guard immediately so one edit publishes one dirty transition.
     dirtyRef.current = true;
-    setDirtyFormSource(dirtySource, true);
+    setDirtyFormSource({ source: dirtySource, dirty: true });
     if (controlledDirty === undefined) setLocalDirty(true);
     onDirtyChange?.(true);
   }, [controlledDirty, dirtySource, guardDirty, onDirtyChange, onEdit, setDirtyFormSource]);
   // Publish this Modal's contribution so global beforeunload/shortcut guards aggregate every open
   // owner. Cleanup releases only this token; a clean overlapping Modal cannot clear another form.
   useEffect(() => {
-    setDirtyFormSource(dirtySource, guardDirty && dirty);
+    setDirtyFormSource({ source: dirtySource, dirty: guardDirty && dirty });
   }, [dirty, dirtySource, guardDirty, setDirtyFormSource]);
-  useEffect(() => () => setDirtyFormSource(dirtySource, false), [dirtySource, setDirtyFormSource]);
+  useEffect(() => () => setDirtyFormSource({ source: dirtySource, dirty: false }), [dirtySource, setDirtyFormSource]);
   useEffect(() => () => restoreFocus(invoker), [invoker]);
 
   const requestClose = () => {

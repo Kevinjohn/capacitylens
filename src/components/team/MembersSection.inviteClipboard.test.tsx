@@ -11,10 +11,10 @@ vi.mock("../../data/apiConfig", () => ({ API_BASE: "http://api.test", isServerCo
 
 beforeEach(() => {
   resetStoreWithAccount();
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 afterEach(() => {
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });

@@ -192,12 +192,12 @@ function createCrudResourceMutationTests(): void {
     const { app, db } = freshApp();
     await scaffold(app);
 
-    const favouriteResponse = await patchResourceFavourite(app, true);
+    const favouriteResponse = await patchResourceFavourite({ app: app, isFavourite: true });
     const favourite = favouriteResponse.isFavourite;
     expect(favourite).toBe(true);
     expect(getRow(db, "resources", "r1")?.isFavourite).toBe(true);
 
-    const unfavouriteResponse = await patchResourceFavourite(app, false);
+    const unfavouriteResponse = await patchResourceFavourite({ app: app, isFavourite: false });
     const unfavourite = unfavouriteResponse.isFavourite;
     expect(unfavourite).toBe(false);
     expect(getRow(db, "resources", "r1")?.isFavourite).toBe(false);

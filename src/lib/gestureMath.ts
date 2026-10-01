@@ -157,7 +157,8 @@ function applyResize({ mode, range, deltaDays, weekendAwareDays }: ApplyResizeIn
 /** The week a gesture must respect, or `null` when it may treat every calendar day alike: a full or
  *  empty working week, or an allocation that opted out. Returning the array rather than a boolean is
  *  what lets every branch below drop the `options!.workingDays!` assertions. */
-function resolveWeekendAwareWeek(days: Weekday[] | undefined, ignoreWeekends: boolean | undefined): Weekday[] | null {
+type ResolveWeekendAwareWeekOptions = { days: Weekday[] | undefined; ignoreWeekends: boolean | undefined };
+function resolveWeekendAwareWeek({ days, ignoreWeekends }: ResolveWeekendAwareWeekOptions): Weekday[] | null {
   return isWeekendAware(days, ignoreWeekends) ? (days ?? null) : null;
 }
 
@@ -187,7 +188,10 @@ export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureIn
   // Resolve weekend-awareness ONCE for the whole gesture. A resize only ever sees one week; a move
   // sees two, and absent a source week it stays on one resource, so both of its ends are the same
   // calendar and every existing caller keeps its behaviour untouched.
-  const weekendAwareDays = resolveWeekendAwareWeek(options?.workingDays, options?.ignoreWeekends);
+  const weekendAwareDays = resolveWeekendAwareWeek({
+    days: options?.workingDays,
+    ignoreWeekends: options?.ignoreWeekends,
+  });
   switch (mode) {
     case "move":
       return applyMove({
@@ -195,7 +199,10 @@ export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureIn
         deltaDays,
         sourceSpan: resolveMoveSpan(range, options),
         placesIntoAnotherWeek: !isSameWeek(
-          resolveWeekendAwareWeek(options?.sourceWorkingDays ?? options?.workingDays, options?.ignoreWeekends),
+          resolveWeekendAwareWeek({
+            days: options?.sourceWorkingDays ?? options?.workingDays,
+            ignoreWeekends: options?.ignoreWeekends,
+          }),
           weekendAwareDays,
         ),
         targetDays: weekendAwareDays,

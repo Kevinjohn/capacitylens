@@ -134,8 +134,8 @@ export function useServerImport() {
 
   useEffect(() => {
     if (!busy) return;
-    setDirtyFormSource(dirtySource, true);
-    return () => setDirtyFormSource(dirtySource, false);
+    setDirtyFormSource({ source: dirtySource, dirty: true });
+    return () => setDirtyFormSource({ source: dirtySource, dirty: false });
   }, [busy, dirtySource, setDirtyFormSource]);
 
   const confirm = async (incoming: AppData): Promise<void> => {

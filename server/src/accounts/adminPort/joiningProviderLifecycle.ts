@@ -12,7 +12,7 @@ import {
 /** The browser can inspect or cancel its current named-provider join without a session. */
 export function createJoiningProviderLifecycle(input: { db: Db; applicationId: string; secureCookies: boolean }) {
   const { db, applicationId, secureCookies } = input;
-  const names = joiningCookieNames(applicationId, secureCookies);
+  const names = joiningCookieNames({ applicationId: applicationId, secure: secureCookies });
   function fromHeaders(headers: Headers) {
     const nonce = readJoiningCookie(headers, names.intent);
     const browser = readJoiningCookie(headers, names.browser);

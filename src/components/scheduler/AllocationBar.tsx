@@ -23,7 +23,8 @@ function resolveKeyboardMode(event: React.KeyboardEvent): "move" | "resize-start
   return "move";
 }
 
-function resolveBarCursor(canEdit: boolean, dragging: boolean) {
+type ResolveBarCursorOptions = { canEdit: boolean; dragging: boolean };
+function resolveBarCursor({ canEdit, dragging }: ResolveBarCursorOptions) {
   if (!canEdit) return "default";
   return dragging ? "grabbing" : "grab";
 }
@@ -200,7 +201,7 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
       background={background}
       ink={ink}
       canEdit={canEdit}
-      cursor={resolveBarCursor(canEdit, gesture.dragging)}
+      cursor={resolveBarCursor({ canEdit: canEdit, dragging: gesture.dragging })}
       dragging={gesture.dragging}
       hideHours={hideHours}
       insetLeft={insetLeft}

@@ -67,7 +67,8 @@ function readSchedulingSettings(data: ReturnType<(typeof useStore)["getState"]>[
   };
 }
 
-function useDiagnosticsController(serverMode: boolean) {
+type UseDiagnosticsControllerOptions = { serverMode: boolean };
+function useDiagnosticsController({ serverMode }: UseDiagnosticsControllerOptions) {
   const [diagnostics, setDiagnostics] = useState<DiagnosticsReport>(() =>
     readDiagnostics(null, serverMode ? undefined : new Date().toISOString()),
   );
@@ -118,7 +119,7 @@ export function useSettingsViewController() {
   const offlineEnabled = useOfflineReadEnabled();
   const offlineState = useOfflineState();
   const serverMode = isServerConfigured();
-  const { diagnostics, diagnosticsCopyState, copyDiagnostics } = useDiagnosticsController(serverMode);
+  const { diagnostics, diagnosticsCopyState, copyDiagnostics } = useDiagnosticsController({ serverMode: serverMode });
   const scheduling = readSchedulingSettings(data, activeAccountId);
   const localData = useLocalDataActions({
     offlineEnabled,

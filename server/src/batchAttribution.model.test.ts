@@ -65,7 +65,8 @@ const activityRow = (kind: ActivityKind) => ({
   ...META,
 });
 
-const allocationRow = (attributed: boolean): ModelAllocation => ({
+type AllocationRowOptions = { attributed: boolean };
+const allocationRow = ({ attributed }: AllocationRowOptions): ModelAllocation => ({
   id: ALLOCATION_ID,
   accountId: ACCOUNT_ID,
   resourceId: "r1",
@@ -79,7 +80,7 @@ const allocationRow = (attributed: boolean): ModelAllocation => ({
 });
 
 const INITIAL_ACTIVITY = activityRow("repeatable");
-const INITIAL_ALLOCATION = allocationRow(true);
+const INITIAL_ALLOCATION = allocationRow({ attributed: true });
 
 const ALPHABET: readonly ModelOperation[] = [
   { label: "kind→project", type: "kind", kind: "project" },
@@ -135,7 +136,7 @@ function interpret(sequence: readonly ModelOperation[]): { accepted: boolean; st
     if (operation.attributed && state.activity.kind !== "repeatable") {
       return { accepted: false, state: initial };
     }
-    const submitted = allocationRow(operation.attributed);
+    const submitted = allocationRow({ attributed: operation.attributed });
     state.allocation = {
       ...submitted,
       createdAt: state.allocation?.createdAt ?? nextRevision(),
@@ -174,7 +175,7 @@ const requestOperation = (operation: ModelOperation) => {
       method: "PUT",
       table: "allocations",
       id: ALLOCATION_ID,
-      row: allocationRow(operation.attributed),
+      row: allocationRow({ attributed: operation.attributed }),
     };
   }
   return { method: "DELETE", table: "allocations", id: ALLOCATION_ID, accountId: ACCOUNT_ID };

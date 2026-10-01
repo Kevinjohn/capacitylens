@@ -109,7 +109,8 @@ function readRuntimeInitialState() {
   };
 }
 
-function applyDirtyFormSource(state: StoreState, source: symbol, dirty: boolean) {
+type ApplyDirtyFormSourceOptions = { state: StoreState; source: symbol; dirty: boolean };
+function applyDirtyFormSource({ state, source, dirty }: ApplyDirtyFormSourceOptions) {
   const dirtyFormSources = new Set(state.dirtyFormSources);
   if (dirty) dirtyFormSources.add(source);
   else dirtyFormSources.delete(source);
@@ -135,8 +136,10 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
       })),
     // Retain the boolean API as one owned source. Component publishers use setDirtyFormSource so
     // clearing one contribution can never erase another still-dirty owner.
-    setDirtyForm: (value) => set((state) => applyDirtyFormSource(state, legacyDirtyFormSource, value)),
-    setDirtyFormSource: (source, dirty) => set((state) => applyDirtyFormSource(state, source, dirty)),
+    setDirtyForm: (value) =>
+      set((state) => applyDirtyFormSource({ state: state, source: legacyDirtyFormSource, dirty: value })),
+    setDirtyFormSource: ({ source, dirty }) =>
+      set((state) => applyDirtyFormSource({ state: state, source: source, dirty: dirty })),
     setDraggingAllocation: (id) => set({ draggingAllocationId: id }),
     setTheme: (preference) => {
       writeStoredTheme(preference);
@@ -145,13 +148,13 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     },
     // The two pref MAPS stay written out: a shared factory over them needs a double cast to keep
     // the mapped key/value pair typed, which costs more clarity than the four lines it saves.
-    setUtilizationPref: (key, value) =>
+    setUtilizationPref: ({ key, value }) =>
       set((state) => {
         const next = { ...state.utilizationPrefs, [key]: value };
         writeStoredUtilizationPrefs(next);
         return { utilizationPrefs: next };
       }),
-    setBarLabelPref: (key, value) =>
+    setBarLabelPref: ({ key, value }) =>
       set((state) => {
         const next = { ...state.barLabelPrefs, [key]: value };
         writeStoredBarLabelPrefs(next);

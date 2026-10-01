@@ -120,7 +120,8 @@ async function recoverUnknownSignup({ email, password }: SignupCredentials): Pro
   }
 }
 
-function resolveSignupFailureMessage(error: unknown, unknownFailure: boolean): string {
+type ResolveSignupFailureMessageOptions = { error: unknown; unknownFailure: boolean };
+function resolveSignupFailureMessage({ error, unknownFailure }: ResolveSignupFailureMessageOptions): string {
   if (unknownFailure) return m.invite_signup_unknown();
   if (error instanceof Error) return error.message;
   return m.invite_err_generic();
@@ -167,7 +168,7 @@ export function createInviteSignupActions({
       if (unknownFailure && (await recoverUnknownSignup(credentials))) return;
       setState({
         kind: "auth",
-        message: resolveSignupFailureMessage(error, unknownFailure),
+        message: resolveSignupFailureMessage({ error: error, unknownFailure: unknownFailure }),
       });
       setBusy(false);
       signupInFlight.current = false;
