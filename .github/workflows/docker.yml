@@ -23,10 +23,6 @@ jobs:
       # in this smoke. The production guard requires explicit consent for this trusted CI-only setup.
       CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
       SMALLSASS_ACCOUNT_MODE: "off"
-      # CI's ephemeral runner disk is encrypted by the hosted platform and stdout is retained in a
-      # separate Actions log. Production requires operators to make both assurances explicitly.
-      CAPACITYLENS_STORAGE_ENCRYPTED: "1"
-      CAPACITYLENS_SECURITY_LOG_FORWARDING: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -244,8 +240,6 @@ jobs:
       SMALLSASS_ACCOUNT_PUBLIC_URL: https://capacity.example.test
       SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off"
       CAPACITYLENS_CORS_ORIGIN: https://client.example.test
-      CAPACITYLENS_STORAGE_ENCRYPTED: "1"
-      CAPACITYLENS_SECURITY_LOG_FORWARDING: "1"
       CAPACITYLENS_HTTPS: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

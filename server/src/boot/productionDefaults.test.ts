@@ -39,12 +39,10 @@ describe("applyProductionDefaults", () => {
     expect(parseBackupConfig(environment)?.dir).toBe("/srv/capacitylens/data/backups");
   });
 
-  it("boots the minimal environment with one MFA warning and one unattested-hardening line", () => {
+  it("boots the minimal environment with only the plain-HTTP internal hop warning", () => {
     const { refusals, warnings } = evaluateProductionPosture(resolveAccountEnvironment(defaulted()).env);
     expect(refusals).toEqual([]);
-    expect(warnings).toHaveLength(2);
-    expect(warnings.filter((warning) => warning.includes("SMALLSASS_ACCOUNT_REQUIRE_MFA"))).toHaveLength(1);
-    expect(warnings.filter((warning) => warning.startsWith("Unattested hardening"))).toHaveLength(1);
+    expect(warnings).toEqual([expect.stringContaining("CAPACITYLENS_INTERNAL_TLS_CERT")]);
   });
 
   it("changes nothing outside production", () => {

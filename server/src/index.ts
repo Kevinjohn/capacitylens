@@ -105,7 +105,6 @@ const log = process.env.CAPACITYLENS_LOG === "1";
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === "1";
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT);
 const webDir = tryOrRefuse(() => resolveWebDir(process.env.CAPACITYLENS_WEB_DIR));
-const requireMfa = accountEnv.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1";
 const internalTls: ReturnType<typeof loadInternalTls> = tryOrRefuse(() =>
   loadInternalTls({ environment: process.env }),
 );
@@ -313,7 +312,6 @@ startServerRuntime({
             publicUrl: new URL(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL),
           },
         }),
-    requireMfa,
     allowOpenSignup: accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1",
     ...(webDir === undefined ? {} : { webDir }),
   },

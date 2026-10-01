@@ -837,7 +837,7 @@ server archive and its checksum, generates its SBOM, creates GitHub build attest
 the artifacts plus the recognized
 `.intoto.jsonl` provenance bundle to the GitHub Release. It is manually runnable with an existing
 release tag for deliberate rebuilds and backfills. The blocking ZAP scan boots the hardened posture
-— password authentication, required MFA, scheduled backups and operator attestations, with
+— password authentication and scheduled backups, with
 credentials minted and masked per run — so a finding there is a regression in the
 recommended configuration. A second, non-blocking job scans the explicit no-login posture
 (sign-in mode `off`) weekly and uploads its report as an artifact. Reviewed secret-scan fixtures are

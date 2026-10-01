@@ -205,11 +205,11 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   Removed configuration names (generic OIDC settings, `hosted-oidc-only`, pre-`SMALLSASS_ACCOUNT_*`
   account names) are simply unknown: no alias, refusal or migration code remains for them.
   Deterministic checks are not evidence of live-provider validation.
-- Production password mode lets operators require TOTP MFA and defaults to breached-password
-  screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory. The
-  fresh-session gate applies only to: transferring company ownership, resetting another member's
-  password, revoking another member's sessions, deleting a company, import/purge, and SSO identity
-  link/repair. Other administrative actions need only the actor's role and MFA policy. Data export
+- Production password mode defaults to breached-password screening; fixed twelve-hour sessions and
+  fresh administrative actions remain mandatory. The fresh-session gate applies only to:
+  transferring company ownership, resetting another member's password, revoking another member's
+  sessions, deleting a company, import/purge, and SSO identity link/repair. Other administrative
+  actions need only the actor's role. Data export
   is served under the `read` action, which the freshness check short-circuits; it is not gated.
 - New external principals require verified email plus an unused pre-authorised invitation. The
   first named-provider identity uses `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. Explicit

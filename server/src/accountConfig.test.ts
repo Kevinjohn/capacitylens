@@ -33,7 +33,6 @@ describe("hosted provider-only profile", () => {
     [{ SMALLSASS_ACCOUNT_MODE: "password-only" }, /hosted password accounts are prohibited/i],
     [{ SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1" }, /forbids open signup/i],
     [{ SMALLSASS_ACCOUNT_SETUP_TOKEN: "setup" }, /password-account configuration/i],
-    [{ SMALLSASS_ACCOUNT_REQUIRE_MFA: "1" }, /password-account configuration/i],
     [{ CAPACITYLENS_CREATE_ADMIN_ADMIN: "1" }, /password-account configuration/i],
     [{ SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "partial" }, /forbids GitHub/i],
     [{ SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "partial" }, /forbids GitHub/i],

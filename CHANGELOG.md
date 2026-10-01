@@ -30,6 +30,12 @@ new features and **patch** versions carry fixes.
   profile. Docker Compose stops forwarding them (#1407).
 - `CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED` is gone; use `CAPACITYLENS_TRUST_PROXY_HEADERS` (#1407).
 - `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` is gone: stale writes are always rejected (#1407).
+- Password MFA is hidden: `SMALLSASS_ACCOUNT_REQUIRE_MFA` is no longer read, the enrolment screen no
+  longer appears, and Account no longer shows MFA status. Its startup warning is gone (#1407).
+- `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED`, `CAPACITYLENS_STORAGE_ENCRYPTED` and
+  `CAPACITYLENS_SECURITY_LOG_FORWARDING` and their startup warnings are gone. Requiring multi-factor
+  sign-in at the provider, encrypting storage and forwarding logs remain operator tasks described in
+  the guides. A missing internal TLS identity still warns, now on its own line (#1407).
 
 ### Fixed
 

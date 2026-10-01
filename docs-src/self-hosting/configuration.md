@@ -60,11 +60,10 @@ After the first owner account and company have been created, remove
 signup already closes as soon as the first identity exists, but removing the secret invalidates the
 handoff material instead of leaving it available to operators or future processes.
 
-## Passwords and multi-factor sign-in
+## Password checks
 
-| Variable                                  | What it does                                                                                                                                    |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SMALLSASS_ACCOUNT_REQUIRE_MFA`           | Set `1` to require every password-mode teammate to enroll multi-factor sign-in before they can see company data.                                |
+| Variable | What it does |
+| --- | --- |
 | `SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK` | On by default: new passwords are checked against known breaches. Set `off` only for an isolated deployment that accepts the production warning. |
 
 ## Company login
@@ -87,7 +86,6 @@ external-provider settings at startup. Remove those settings before selecting th
 | `SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID` | Required organisation tenant GUID. `common`, `organizations`, personal-account tenants and a missing value are refused. |
 | `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS` | Comma-separated company email addresses allowed to create the first named-provider identity. Later new identities require an unused invitation addressed to them. |
 | `SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID` / `SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET` | Optional credentials for the existing experimental GitHub sign-in in mixed mode. |
-| `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED` | Operator attestation that the company provider requires multi-factor sign-in. Set it only after checking the upstream policy. |
 
 Register `https://your-capacitylens-address/api/auth/callback/google` for Google and
 `https://your-capacitylens-address/api/auth/callback/microsoft` for Microsoft, using your actual
@@ -201,12 +199,10 @@ or admin.
 | `CAPACITYLENS_HEALTH_DEEP`             | Set `1` to make `/api/health` run a readiness query and report audit, backup and certificate status. On by default in production. |
 | `CAPACITYLENS_RATE_LIMIT`              | Requests per minute per IP across rate-limited routes. Accepts integers 1–1,000,000. Production defaults to 300 when unset and refuses zero or invalid values. `/api/health` is exempt.                          |
 | `CAPACITYLENS_AUDIT_STDOUT`            | Set `1` to also write each audit record to stdout as JSON, for a container log collector. On by default in production.                |
-| `CAPACITYLENS_STORAGE_ENCRYPTED`       | Set `1` only after you have verified that the database, audit log and backup storage are encrypted at rest. This is an operator attestation; it does not encrypt storage itself. |
-| `CAPACITYLENS_SECURITY_LOG_FORWARDING` | An attestation that you're forwarding audit and security events to a separate collector. Doesn't create the collector itself.      |
 
-In production, an unset `CAPACITYLENS_STORAGE_ENCRYPTED`, `CAPACITYLENS_SECURITY_LOG_FORWARDING` or
-internal TLS identity is reported as one startup warning that names each missing control. It does not
-block startup.
+In production, a missing internal TLS identity is reported as a startup warning. It does not block
+startup. Encrypting the storage and forwarding audit and security events to a separate collector
+are your responsibility; CapacityLens has no setting for either.
 
 Sign-in, sign-up and password changes have a stricter built-in limit of three attempts per
 10 seconds per client, and reset and verification emails of three per minute. It is fixed and

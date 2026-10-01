@@ -81,8 +81,8 @@ or a Linux host. Docker is [another way to install](docs-src/self-hosting/instal
 
 ## Sign-in, in short
 
-Password sign-in is the stable self-hosted default, with breached-password screening, optional
-required TOTP MFA and user-controlled session revocation. Google Workspace and Microsoft Entra ID
+Password sign-in is the stable self-hosted default, with breached-password screening and
+user-controlled session revocation. Google Workspace and Microsoft Entra ID
 are the supported company sign-in providers; GitHub remains experimental in mixed mode. Optional offline access keeps a
 read-only snapshot for up to seven days — it never queues or syncs edits, and SQLite stays the
 source of truth.

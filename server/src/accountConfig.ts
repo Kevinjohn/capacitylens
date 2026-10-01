@@ -21,9 +21,7 @@ const CANONICAL_ACCOUNT_NAMES: readonly string[] = [
   "SMALLSASS_ACCOUNT_PUBLIC_URL",
   "SMALLSASS_ACCOUNT_SETUP_TOKEN",
   "SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP",
-  "SMALLSASS_ACCOUNT_REQUIRE_MFA",
   "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK",
-  "SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED",
   "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID",
   "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET",
   "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID",
@@ -119,11 +117,7 @@ function hasConfiguredKey(environment: AccountEnvironment, keys: readonly string
 }
 
 function assertHostedPasswordConfigurationAbsent(environment: AccountEnvironment, source: AccountEnvironment): void {
-  const passwordKeys = [
-    "SMALLSASS_ACCOUNT_SETUP_TOKEN",
-    "SMALLSASS_ACCOUNT_REQUIRE_MFA",
-    "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK",
-  ];
+  const passwordKeys = ["SMALLSASS_ACCOUNT_SETUP_TOKEN", "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK"];
   if (
     hasConfiguredKey(environment, passwordKeys) ||
     source.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD ||

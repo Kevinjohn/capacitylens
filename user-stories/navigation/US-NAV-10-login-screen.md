@@ -60,8 +60,7 @@ self-registration closes automatically and only the Sign in form below is reacha
 - First-owner setup retains its field order and provider bootstrap flow. First connection may
   require an emailed Microsoft proof in the initiating browser; ordinary returning sign-in reuses
   the established identity without repeated mailbox verification.
-- MFA challenges continue to hide provider actions, and provider errors and pending/disabled states
-  remain visible and accessible.
+- Provider errors and pending/disabled states remain visible and accessible.
 - A successful sign-in resumes the normal company flow: the picker lists the user's memberships;
   when none are available, the documented first-company or invitation path is shown instead.
 - Account shows the signed-in identity and personal security controls only while signed in on an

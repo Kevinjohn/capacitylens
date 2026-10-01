@@ -40,14 +40,10 @@ interface ProductionEnvironment {
   CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION?: string;
   CAPACITYLENS_CREATE_ADMIN_ADMIN?: string;
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD?: string;
-  SMALLSASS_ACCOUNT_REQUIRE_MFA?: string;
-  SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED?: string;
   SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK?: string;
   CAPACITYLENS_RATE_LIMIT?: string;
   CAPACITYLENS_AUDIT?: string;
   CAPACITYLENS_AUDIT_STDOUT?: string;
-  CAPACITYLENS_STORAGE_ENCRYPTED?: string;
-  CAPACITYLENS_SECURITY_LOG_FORWARDING?: string;
   CAPACITYLENS_INTERNAL_TLS_CERT?: string;
   CAPACITYLENS_INTERNAL_TLS_KEY?: string;
 }
@@ -79,16 +75,6 @@ function inspectAuthenticationHardening(
   mode: ReturnType<typeof parseAuthMode> | null,
   warnings: string[],
 ): void {
-  if (mode && allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA !== "1") {
-    warnings.push(
-      "SMALLSASS_ACCOUNT_REQUIRE_MFA is not 1, so password users are not required to enroll TOTP MFA. MFA is optional for self-hosting but strongly recommended for internet-facing deployments.",
-    );
-  }
-  if (mode === "sso-only" && environment.SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED !== "1") {
-    warnings.push(
-      "SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED is not 1, so CapacityLens has no operator assurance that the configured identity provider requires MFA. This is optional for self-hosting but strongly recommended.",
-    );
-  }
   if (mode && allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK === "off") {
     warnings.push(
       "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.",
@@ -113,17 +99,10 @@ function inspectOperationalHardening(
       "CAPACITYLENS_AUDIT_STDOUT is not 1, so mutation audit records remain only in the local audit file and are unavailable to a process-log collector.",
     );
   }
-  // Three operator attestations share one line: none is checkable by the server, none blocks boot.
-  const unattested: string[] = [];
-  if (environment.CAPACITYLENS_STORAGE_ENCRYPTED !== "1")
-    unattested.push("CAPACITYLENS_STORAGE_ENCRYPTED (encrypted-at-rest storage)");
-  if (environment.CAPACITYLENS_SECURITY_LOG_FORWARDING !== "1")
-    unattested.push("CAPACITYLENS_SECURITY_LOG_FORWARDING (logs forwarded to a separate monitoring system)");
-  if (!environment.CAPACITYLENS_INTERNAL_TLS_CERT?.trim() && !environment.CAPACITYLENS_INTERNAL_TLS_KEY?.trim())
-    unattested.push("CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY (TLS on the API hop)");
-  if (unattested.length > 0) {
+  // A partial identity is left to the strict loader, which refuses it; only a fully absent one warns.
+  if (!environment.CAPACITYLENS_INTERNAL_TLS_CERT?.trim() && !environment.CAPACITYLENS_INTERNAL_TLS_KEY?.trim()) {
     warnings.push(
-      `Unattested hardening: ${unattested.join("; ")}. Startup continues for simple self-hosting; protect the host and storage appropriately, and use a trusted same-host loopback reverse proxy if the API serves plain HTTP.`,
+      "CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY are unset, so the API serves plain HTTP. Startup continues; use a trusted same-host loopback reverse proxy in front of it.",
     );
   }
 }
@@ -148,9 +127,9 @@ function inspectOperationalHardening(
  *   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1'`, in which case it is DOWNGRADED to a warning
  *   (the open posture is then run on purpose, but still surfaced). The escape never silences the
  *   concern — it only changes its severity.
- * - **Warning — optional hardening absent:** MFA, breached-password screening and audit streaming
- *   each warn; the encrypted-storage, log-forwarding and internal-TLS attestations share one line.
- *   A small self-hosted installation can deliberately operate without external infrastructure.
+ * - **Warning — optional hardening absent:** disabled breached-password screening, absent audit
+ *   streaming and an absent internal TLS identity each warn. A small self-hosted installation can
+ *   deliberately operate without external infrastructure.
  * - **Warning — open signup on:** `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
  *   registration, which should normally stay closed/invite-only in production.
  * - **Refusal — bootstrap password:** the headless bootstrap flags are development-only because
