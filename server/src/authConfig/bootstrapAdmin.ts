@@ -246,7 +246,7 @@ async function createBootstrapAdminResult(
   const { auth, db, log, mode } = input;
   if (!allowsPasswordSignIn(mode) || !auth) {
     throw new AuthConfigError(
-      `--create-owner-admin-admin (CAPACITYLENS_CREATE_ADMIN_ADMIN=1) creates an email+password credential, which is meaningless when SMALLSASS_ACCOUNT_MODE is '${mode}'. Set SMALLSASS_ACCOUNT_MODE=password-only or password-and-sso, or drop the flag.`,
+      `--create-owner-admin-admin (CAPACITYLENS_CREATE_ADMIN_ADMIN=1) creates an email+password credential, which is meaningless when CAPACITYLENS_MODE is '${mode}'. Set CAPACITYLENS_MODE=password-only or password-and-sso, or drop the flag.`,
     );
   }
   if (countUsers(db) > 0) {

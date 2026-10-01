@@ -27,6 +27,14 @@ This is the short, present-tense record of decisions that constrain future work.
   versioned device preference scoped to the signed-in person and company (with stable demo, local
   and no-company scopes), never company data or export data. A copy change may bump the version to
   show materially changed guidance again.
+- A new setting needs a user who cannot proceed without it. Prefer deriving a value from what the
+  operator or company already told us.
+- Intentional friction against task tracking: inline **Add activity** and the **Task** field stay
+  opt-in company settings, off by default. Early users treated activities as a task list; one
+  company reached about 300 activities and scheduled hour by hour instead of blocking days on a
+  project. CapacityLens is a week-granularity capacity view, and the friction is deliberate.
+- CapacityLens is a single product. The earlier sibling-product framing is retired; there is one
+  product, one repository and one set of releases.
 - The global sidebar shortcut (⌘B / Ctrl+B) yields while text entry or IME composition owns the
   keyboard and while any modal is open; those contexts keep both the chord and page layout stable.
 
@@ -184,7 +192,7 @@ This is the short, present-tense record of decisions that constrain future work.
   option; ownership moves only through an explicit atomic transfer to an existing member, with the
   former Owner becoming Admin.
 - Sole-Owner credential recovery (2026-08-05) is an operator CLI (`reset:owner-password`), not a
-  product feature. Family invariant. It drives the ordinary reset ceremony against a stopped
+  product feature. It drives the ordinary reset ceremony against a stopped
   server, enforced by an exclusive SQLite lock, and refuses unless the target is the sole active
   Owner — the one state no in-product actor can recover. In-app policy is unchanged: Admins still
   cannot administer an Owner, and a credential reset never moves ownership. Origin: Delivery Diary
@@ -207,14 +215,14 @@ This is the short, present-tense record of decisions that constrain future work.
   `AccountAdminPort` and an orchestration-only `AccountFlows` coordinator. It permanently shares the
   product process, SQLite file and checksummed product migration ledger unless a separately approved
   future trigger changes topology.
-- Each installation owns its local principals, sessions and memberships. Siblings share
-  implementation/conformance, never account records. Federated correlation uses the exact provider
+- Each installation owns its local principals, sessions and memberships and never shares account
+  records with another installation. Federated correlation uses the exact provider
   and provider-owned stable identifier, never email; local deprovisioning cannot delete an upstream
   provider identity.
 - Email/password and named Google/Microsoft company providers are implemented for self-hosting.
   GitHub retains its experimental mixed-mode behavior. Generic OIDC support and the
-  `hosted-oidc-only` profile are retired. Their settings and profile are rejected at startup
-  before storage or bootstrap writes; the server never falls back to password or sign-in-off mode.
+  `hosted-oidc-only` profile were removed; their names are now unknown configuration, so
+  `hosted-oidc-only` is an invalid profile like any other unrecognised value.
   Deterministic and library evidence never substitutes for live-provider checks.
 - Named profiles are `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` and
   `hosted-sso-only`. Hosted SSO requires `mode=sso-only`, complete Google and/or tenant-specific
@@ -230,7 +238,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - External-identity admission and explicit linking are distinct. Creating a new local principal
   requires verified control of an email plus a live pre-authorised invitation (or the first-principal
   bootstrap allow-list). Named Google/Microsoft bootstrap uses
-  `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. An already-admitted principal may explicitly attach
+  `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`. An already-admitted principal may explicitly attach
   a company provider without a second invitation, through their own fresh session and matching
   verified email. Named-provider linking also requires the local address to be verified.
 - Microsoft uses the configured work/school tenant and provider-owned `oid`, not `sub`. When native
@@ -257,16 +265,16 @@ This is the short, present-tense record of decisions that constrain future work.
 - The earlier generic-OIDC email-claim policy below is historical and superseded. Current named
   Google/Microsoft admission and linking use their provider-specific verified-email evidence and
   the explicit Microsoft mailbox-proof flow described above; identities are never merged by email.
-- Every configured federated provider is treated as satisfying CapacityLens's local required-MFA
-  gate. CapacityLens cannot infer upstream MFA from a provider link, so operator enforcement and
-  testing at the IdP is required; this responsibility also applies to experimental named providers
-  used in mixed mode.
-- Secure-cookie behavior follows the public `SMALLSASS_ACCOUNT_PUBLIC_URL`, including behind a TLS
-  proxy. Legacy account environment names were removed before beta with no migration window;
-  startup refuses each non-empty retired name and identifies its `SMALLSASS_ACCOUNT_*` replacement.
-- Password mode defaults to breached-password screening; required TOTP MFA is an operator opt-in.
-  Sessions have a fixed twelve-hour lifetime; privileged actions require a session no older than
-  fifteen minutes regardless of MFA policy. The client answers the freshness refusal with an
+- CapacityLens cannot infer an upstream multi-factor policy from a provider link, so operator
+  enforcement and testing at the IdP is required; this responsibility also applies to experimental
+  named providers used in mixed mode.
+- Secure-cookie behavior follows the public `CAPACITYLENS_PUBLIC_URL`, including behind a TLS
+  proxy. Legacy account environment names were removed before beta with no migration window; they
+  are now unknown and ignored like any other unrecognised variable.
+- Password mode defaults to breached-password screening. Password sign-in offers no
+  authenticator-code step to enable or require (2026-10-01); the underlying code stays dormant
+  pending a separate investigation. Sessions have a fixed twelve-hour lifetime; privileged actions
+  require a session no older than fifteen minutes. The client answers the freshness refusal with an
   in-place "confirm it's you" re-authentication dialog that mints a fresh session and retries,
   never a full sign-out that discards working state.
 - Administrative session freshness (the fifteen-minute step-up gate) applies only to ownership
@@ -274,7 +282,7 @@ This is the short, present-tense record of decisions that constrain future work.
   company, import/purge and SSO identity link/repair (2026-09-11). Every other administrative read
   or action — invite create, invite revoke, role change, status change, member removal, the
   sign-in-tracking toggle, masquerade start and internal-client adoption — needs only the actor's
-  role and MFA policy, not a fresh session. Ownership transfer's own confirmation ceremony is
+  role, not a fresh session. Ownership transfer's own confirmation ceremony is
   tracked separately as issue #780 and is unchanged by this decision.
 - Cross-site writes are gated by Fetch Metadata and Origin, with two deliberate exemptions: an
   Origin on the credentialed CORS allow-list always passes (the allow-list is the operator's
@@ -289,11 +297,8 @@ This is the short, present-tense record of decisions that constrain future work.
   or junk mode — as opposed to a well-formed older-server response) additionally renders a
   degraded-configuration notice above the form so an SSO-only instance behind a broken proxy is
   diagnosable rather than a silent password-retry loop. In server mode, tenant persistence starts
-  only after this auth check returns an admitted non-MFA-blocked status; login, setup and mandatory
-  enrollment walls never issue speculative company-data requests or publish persistence errors.
-- Required MFA enrollment outranks both public invitation and password-reset entries while the
-  identity remains signed in. The enrollment wall states why: invitations cannot be accepted until
-  policy is satisfied, while signing out returns a reset link to its deliberate session-free flow.
+  only after this auth check returns an admitted status; login and setup walls never issue
+  speculative company-data requests or publish persistence errors.
 - When a database upgrade finds an account with active members but no active Owner, the repair
   migration promotes the member with the highest role tier, tie-broken by earliest membership. A
   viewer is promoted only when the account holds nothing but viewers, and every promotion emits a
@@ -319,7 +324,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - Production posture validation uses the exact same parsers as the runtime features it attests
   (e.g. the rate limiter), so a value the runtime would silently ignore refuses startup instead.
 - Encrypted persistent storage and logically separate security-log forwarding are recommended
-  deployment hardening. Their operator attestations produce warnings rather than blocking startup.
+  deployment hardening that operators provide; CapacityLens has no setting or warning for them.
 - The packaged production proxy/API hop uses a private per-install CA and verified TLS 1.2/1.3.
   Bare-metal deployments may instead use HTTP only across a same-host loopback proxy hop.
 - CSP violations enter the bounded, data-minimised security stream. Socket, scrypt and HIBP work

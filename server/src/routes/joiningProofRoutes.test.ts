@@ -31,8 +31,8 @@ async function fixture(options: { mail?: boolean; passwordAllowed?: boolean } = 
       authMode: configured.mode,
       auth: configured.auth,
       joiningProof: {
-        secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
-        publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
+        secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
+        publicUrl: new URL(PASSWORD_ENV.CAPACITYLENS_PUBLIC_URL),
       },
     }),
   );
@@ -43,8 +43,8 @@ async function fixture(options: { mail?: boolean; passwordAllowed?: boolean } = 
         authMode: "sso-only",
         auth: configured.auth,
         joiningProof: {
-          secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
-          publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
+          secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
+          publicUrl: new URL(PASSWORD_ENV.CAPACITYLENS_PUBLIC_URL),
         },
       }),
     );
@@ -171,7 +171,7 @@ describe("existing password identity company joining", () => {
   });
 });
 
-const secret = PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET;
+const secret = PASSWORD_ENV.CAPACITYLENS_SECRET;
 const sendPath = "/api/accounts/a-studio/join/verify-email";
 
 async function confirm(app: ReturnType<typeof createApp>, cookie: string, token: string) {

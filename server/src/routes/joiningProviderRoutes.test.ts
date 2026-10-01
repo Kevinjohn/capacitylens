@@ -12,7 +12,7 @@ import {
 import { PASSWORD_ENV, readCookies, registerServerFixtureCleanup, signUp } from "../testHelpers";
 
 const fixtures = registerServerFixtureCleanup();
-const origin = PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL;
+const origin = PASSWORD_ENV.CAPACITYLENS_PUBLIC_URL;
 
 function mockGoogle(profile: { sub: string; email: string; name: string; email_verified: boolean }) {
   const claims = {
@@ -69,16 +69,16 @@ async function fixture() {
   const provider = createJoiningProviderCallbacks({
     db,
     applicationId: "capacitylens",
-    secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
+    secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
     secureCookies: false,
   });
   const environment = {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
-    SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client",
-    SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-secret",
+    CAPACITYLENS_MODE: "password-and-sso",
+    CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+    CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+    CAPACITYLENS_GITHUB_CLIENT_ID: "github-client",
+    CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-secret",
   };
   const { auth } = createAuthFromEnvironment(db, environment, {
     joiningProviderCallbacks: provider,
@@ -112,7 +112,7 @@ async function fixture() {
       multiAccount: true,
       allowOpenSignup: true,
       joiningProof: {
-        secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
+        secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
         publicUrl: new URL(origin),
       },
     }),

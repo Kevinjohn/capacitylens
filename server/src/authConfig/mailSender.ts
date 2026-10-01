@@ -79,11 +79,11 @@ export function resolveMailDeliveryCause(cause: unknown): { code: string; respon
 
 /** Validate the existing SMTP settings and create a sender; invalid settings refuse startup. */
 export function createMailSender(environment: Record<string, string | undefined>): MailSender {
-  const host = environment.SMALLSASS_ACCOUNT_MAIL_HOST?.trim();
-  const from = environment.SMALLSASS_ACCOUNT_MAIL_FROM?.trim();
-  const user = environment.SMALLSASS_ACCOUNT_MAIL_USER?.trim();
-  const password = environment.SMALLSASS_ACCOUNT_MAIL_PASSWORD;
-  const port = Number(environment.SMALLSASS_ACCOUNT_MAIL_PORT);
+  const host = environment.CAPACITYLENS_MAIL_HOST?.trim();
+  const from = environment.CAPACITYLENS_MAIL_FROM?.trim();
+  const user = environment.CAPACITYLENS_MAIL_USER?.trim();
+  const password = environment.CAPACITYLENS_MAIL_PASSWORD;
+  const port = Number(environment.CAPACITYLENS_MAIL_PORT);
   if (
     !host ||
     !from ||
@@ -94,9 +94,7 @@ export function createMailSender(environment: Record<string, string | undefined>
     port < 1 ||
     port > 65535
   ) {
-    throw new Error(
-      "Email delivery requires complete SMALLSASS_ACCOUNT_MAIL_HOST, PORT, USER, PASSWORD and FROM settings.",
-    );
+    throw new Error("Email delivery requires complete CAPACITYLENS_MAIL_HOST, PORT, USER, PASSWORD and FROM settings.");
   }
   const transport = nodemailer.createTransport({
     host,

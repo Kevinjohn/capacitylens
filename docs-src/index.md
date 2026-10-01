@@ -43,4 +43,5 @@ settings](/admin/).
 <span id="get-more-help"></span>
 
 CapacityLens is open source under AGPL-3.0. Learn how to get support, report a problem,
-or contribute a change in [Open source and contributing](/open-source).
+or contribute a change in [Open source and contributing](/open-source). To see what
+CapacityLens deliberately leaves out, read the [philosophy](/reference/philosophy).

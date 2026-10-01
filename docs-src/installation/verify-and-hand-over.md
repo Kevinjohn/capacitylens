@@ -72,7 +72,7 @@ Send the intended Owner the CapacityLens address, the correct sign-in route and 
 setup guide](/owner/). Transfer the one-time setup token privately in password-capable mode; for
 company login, pre-authorise the Owner's exact verified email.
 
-After the Owner confirms they can sign in, remove `SMALLSASS_ACCOUNT_SETUP_TOKEN` from the
+After the Owner confirms they can sign in, remove `CAPACITYLENS_SETUP_TOKEN` from the
 runtime environment when it was used, restart the API and confirm health again.
 
 Name the ongoing operator. Give them the [Self-hosted operations guide](/operations/) and

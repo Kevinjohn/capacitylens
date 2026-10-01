@@ -51,10 +51,7 @@ export function createMicrosoftProof(input: Input) {
   const mail = createMicrosoftProofMailer(input.mail ?? createMailSender(environment), publicUrl);
   const cookieAttributes = `Path=/; HttpOnly; SameSite=Lax; Max-Age=900${publicUrl.protocol === "https:" ? "; Secure" : ""}`;
   const bootstrapEmails = new Set(
-    (environment.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS ?? "")
-      .split(",")
-      .map(normalizeAccountEmail)
-      .filter(Boolean),
+    (environment.CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS ?? "").split(",").map(normalizeAccountEmail).filter(Boolean),
   );
   const authorization = createMicrosoftProofAuthorization({ db, bootstrapEmails, getSession: input.getSession });
 

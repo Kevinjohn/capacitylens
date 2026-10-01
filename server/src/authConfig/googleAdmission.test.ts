@@ -47,10 +47,10 @@ async function configured(mode: "password-and-sso" | "sso-only" = "sso-only") {
     db,
     {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: mode,
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
-      SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: ownerEmail,
+      CAPACITYLENS_MODE: mode,
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS: ownerEmail,
     },
     {
       externalIdentityAdmission: (candidate) =>

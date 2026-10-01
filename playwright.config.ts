@@ -8,7 +8,7 @@ import { ports, testShare } from "./scripts/ports.mjs";
 //   db-backed   — the SQLite server (lane db API, reset enabled, temp DB) + a second Vite
 //                 dev server (lane db web) whose same-origin /api proxy targets that server
 //                 through the entity-level ServerSyncAdapter. *.db.spec.ts run here.
-//   auth-backed — a third server (lane auth API) booted with SMALLSASS_ACCOUNT_MODE=password-only (fresh
+//   auth-backed — a third server (lane auth API) booted with CAPACITYLENS_MODE=password-only (fresh
 //                 DB per run) + a Vite dev server (lane auth web) proxying to it — the ONLY place the
 //                 flag-gated login screen exists (US-NAV-10). *.auth.spec.ts run here.
 // Lane-derived (scripts/ports.mjs). Lane 0 is the historical 5173/5273/5373/8787/8887, so a single
@@ -205,7 +205,7 @@ export default defineConfig({
               env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT), VITE_CAPACITYLENS_API: "" },
             },
             {
-              // SMALLSASS_ACCOUNT_MODE=password-only + a dev-only secret live in the pnpm script; the DB file is
+              // CAPACITYLENS_MODE=password-only + a dev-only secret live in the pnpm script; the DB file is
               // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
               // already-running auth API — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
               // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the

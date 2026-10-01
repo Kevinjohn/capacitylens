@@ -18,7 +18,7 @@ takes its own pre-migration snapshot automatically. See
 
 ## Upgrading to 0.71.0-alpha.1
 
-Before deploying this release, update `SMALLSASS_ACCOUNT_MODE` on every installation. The old
+Before deploying this release, update `CAPACITYLENS_MODE` on every installation. The old
 `password` and `sso` values now stop startup with a migration error. Choose the replacement by
 the sign-in methods people actually use:
 
@@ -39,37 +39,6 @@ Deploy the application and matching environment change together, then verify sig
 intended method. If rolling back to the previous application version, restore its old `password`
 or `sso` value at the same time. Existing database migrations and provider links are unchanged.
 
-## Upgrading to 0.70.1-alpha.1
-
-This release removes the older account environment names. Rename them in the environment
-file before restarting: the previous release accepts the new names, while this release
-refuses every configured removed name and prints its replacement.
-
-| Removed name | Replacement |
-| --- | --- |
-| `CAPACITYLENS_AUTH` | `SMALLSASS_ACCOUNT_MODE` |
-| `BETTER_AUTH_SECRET` | `SMALLSASS_ACCOUNT_SECRET` |
-| `BETTER_AUTH_URL` | `SMALLSASS_ACCOUNT_PUBLIC_URL` |
-| `CAPACITYLENS_SETUP_TOKEN` | `SMALLSASS_ACCOUNT_SETUP_TOKEN` |
-| `CAPACITYLENS_ALLOW_OPEN_SIGNUP` | `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP` |
-| `CAPACITYLENS_REQUIRE_MFA` | `SMALLSASS_ACCOUNT_REQUIRE_MFA` |
-| `CAPACITYLENS_PASSWORD_BREACH_CHECK` | `SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK` |
-| `CAPACITYLENS_SSO_MFA_ENFORCED` | `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED` |
-| `CAPACITYLENS_GOOGLE_CLIENT_ID`, `CAPACITYLENS_GOOGLE_CLIENT_SECRET` | `SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID`, `SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET` |
-| `CAPACITYLENS_MICROSOFT_CLIENT_ID`, `CAPACITYLENS_MICROSOFT_CLIENT_SECRET`, `CAPACITYLENS_MICROSOFT_TENANT_ID` | `SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID`, `SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET`, `SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID` |
-| `CAPACITYLENS_GITHUB_CLIENT_ID`, `CAPACITYLENS_GITHUB_CLIENT_SECRET` | `SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID`, `SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET` |
-
-Check the environment file from the directory where the service reads it:
-
-```bash
-grep -Eo '^[[:space:]]*(export[[:space:]]+)?(CAPACITYLENS_AUTH|BETTER_AUTH_(SECRET|URL)|CAPACITYLENS_(SETUP_TOKEN|ALLOW_OPEN_SIGNUP|REQUIRE_MFA|PASSWORD_BREACH_CHECK|SSO_MFA_ENFORCED|GOOGLE_(CLIENT_ID|CLIENT_SECRET)|MICROSOFT_(CLIENT_ID|CLIENT_SECRET|TENANT_ID)|GITHUB_(CLIENT_ID|CLIENT_SECRET)))[[:space:]]*=' .env
-```
-
-Rename every reported key without changing its value, restart, verify health and sign in.
-Empty grep output means the inspected file contains none of the removed names. Don't keep
-both spellings. To roll back, redeploy the previous release; it accepts the replacement
-names too.
-
 ## Better Auth 1.7.5 authentication changes
 
 This release upgrades Better Auth from 1.6.30 to 1.7.5. The upgrade keeps the
@@ -79,9 +48,9 @@ underlying OAuth route and provider integration.
 Google and Microsoft use the current callback paths `/api/auth/callback/google` and
 `/api/auth/callback/microsoft`. Register the one you configure as described in
 [Set up Google or Microsoft sign-in](/company-login/set-up-company-login). Older generic OIDC
-settings and `hosted-oidc-only` are retired; remove those settings and profile instead of mapping
-them to a replacement key. The server reports retired settings before any storage or bootstrap
-write. There is no identity-conversion step.
+settings and `hosted-oidc-only` were removed; delete those settings and profile instead of mapping
+them to a replacement key. The server no longer recognises them, and `hosted-oidc-only` is an
+invalid profile. There is no identity-conversion step.
 
 The 1.7.0–1.7.2 releases temporarily required an `issuer` column in Better Auth's
 `account` table. Better Auth 1.7.3 removed that requirement. A direct upgrade from the

@@ -15,7 +15,7 @@ for disposable tests.
 
 - App data is account-scoped and authorized from session membership.
 - Auth, membership, invite and verification tables are server control data, not part of `AppData`.
-- Writes are sanitised and validated, optimistic concurrency is on by default, and batch/import
+- Writes are sanitised and validated, optimistic concurrency is always on, and batch/import
   operations are transactional.
 - Audit records contain actor/entity/field names but not values.
 - `/api/health` is public and rate-limit exempt so ordinary API traffic cannot starve the uptime
@@ -34,7 +34,7 @@ The authoritative environment register is `.env.example`. See the
 
 ## Authentication
 
-`SMALLSASS_ACCOUNT_MODE=off|password-only|sso-only|password-and-sso`. Named Google and Microsoft
+`CAPACITYLENS_MODE=off|password-only|sso-only|password-and-sso`. Named Google and Microsoft
 providers are supported; GitHub remains experimental. `password-and-sso` requires at least one
 configured provider, while `sso-only` requires Google or tenant-specific Microsoft. External
 identities need verified email and an invitation, with an explicit bootstrap email allow-list for

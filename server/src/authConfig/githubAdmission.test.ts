@@ -39,10 +39,10 @@ async function configured() {
     db,
     {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-      SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client",
-      SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-secret",
-      SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: ownerEmail,
+      CAPACITYLENS_MODE: "password-and-sso",
+      CAPACITYLENS_GITHUB_CLIENT_ID: "github-client",
+      CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-secret",
+      CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS: ownerEmail,
     },
     {
       externalIdentityAdmission: (candidate) =>

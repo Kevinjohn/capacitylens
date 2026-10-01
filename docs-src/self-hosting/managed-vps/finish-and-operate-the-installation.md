@@ -37,7 +37,7 @@ Keep the temporary platform domain enabled until the final-domain verification b
 Change this environment value to the final origin:
 
 ```dotenv
-SMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com
+CAPACITYLENS_PUBLIC_URL=https://capacity.example.com
 ```
 
 Use only the origin: scheme and hostname, with no path or trailing slash.
@@ -69,13 +69,13 @@ errors before handover.
 Send the intended Owner three things through a private channel:
 
 - the final CapacityLens address;
-- the one-time `SMALLSASS_ACCOUNT_SETUP_TOKEN`; and
+- the one-time `CAPACITYLENS_SETUP_TOKEN`; and
 - the [Owner setup guide](/owner/).
 
 The Owner creates their own credentials and company. Do not enter the token or create the Owner on
 their behalf. Do not enable demo seeding on this production installation.
 
-After the Owner confirms they can sign in, remove `SMALLSASS_ACCOUNT_SETUP_TOKEN` from the
+After the Owner confirms they can sign in, remove `CAPACITYLENS_SETUP_TOKEN` from the
 environment and restart the API. Confirm health again, then destroy the transferred copy unless
 your recovery policy requires a protected record; it cannot create a second first Owner.
 
@@ -107,7 +107,7 @@ https://capacity.example.com/api/auth/callback/google
 ```
 
 For Microsoft, use `https://capacity.example.com/api/auth/callback/microsoft`.
-The origin must match `SMALLSASS_ACCOUNT_PUBLIC_URL` character for character. Configure
+The origin must match `CAPACITYLENS_PUBLIC_URL` character for character. Configure
 the Google web client or Microsoft tenant-specific app as described in the setup guide.
 If you want to require company sign-in, read [Require company sign-in](/company-login/move-to-single-sign-on).
 

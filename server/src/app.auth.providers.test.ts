@@ -12,7 +12,7 @@ import {
 } from "./controlTables";
 import { microsoftCallbackCapture } from "./authConfig/captureContexts";
 
-// P3.1/P3.2/P3.5 (flag SMALLSASS_ACCOUNT_MODE → opts.authMode/auth). The load-bearing assertion set:
+// P3.1/P3.2/P3.5 (flag CAPACITYLENS_MODE → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
 // by running unchanged — these tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
@@ -24,21 +24,21 @@ function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>[
 }
 
 const MICROSOFT_ENV = {
-  SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "ms-id",
-  SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "ms-secret",
-  SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
-  SMALLSASS_ACCOUNT_MAIL_HOST: "mail.example.test",
-  SMALLSASS_ACCOUNT_MAIL_PORT: "587",
-  SMALLSASS_ACCOUNT_MAIL_USER: "mailer",
-  SMALLSASS_ACCOUNT_MAIL_PASSWORD: "test-mail-password",
-  SMALLSASS_ACCOUNT_MAIL_FROM: "identity@example.test",
+  CAPACITYLENS_MICROSOFT_CLIENT_ID: "ms-id",
+  CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "ms-secret",
+  CAPACITYLENS_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
+  CAPACITYLENS_MAIL_HOST: "mail.example.test",
+  CAPACITYLENS_MAIL_PORT: "587",
+  CAPACITYLENS_MAIL_USER: "mailer",
+  CAPACITYLENS_MAIL_PASSWORD: "test-mail-password",
+  CAPACITYLENS_MAIL_FROM: "identity@example.test",
 };
 
 const NAMED_SSO_ENV = {
   ...PASSWORD_ENV,
-  SMALLSASS_ACCOUNT_MODE: "sso-only",
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+  CAPACITYLENS_MODE: "sso-only",
+  CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+  CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
@@ -101,7 +101,7 @@ function registerSsoClosedRouteTests(): void {
 }
 
 it("publishes Microsoft first-owner setup in provider-required mode", async () => {
-  const app = await appWithAuth({ ...PASSWORD_ENV, ...MICROSOFT_ENV, SMALLSASS_ACCOUNT_MODE: "sso-only" });
+  const app = await appWithAuth({ ...PASSWORD_ENV, ...MICROSOFT_ENV, CAPACITYLENS_MODE: "sso-only" });
   try {
     const response = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(response.statusCode).toBe(401);
@@ -116,7 +116,7 @@ it("publishes Microsoft first-owner setup in provider-required mode", async () =
 });
 
 // SSO mode retains named company-provider sign-in and closes password routes.
-describe("SMALLSASS_ACCOUNT_MODE sso", () => {
+describe("CAPACITYLENS_MODE sso", () => {
   registerSsoClosedRouteTests();
 
   it("issues a stateful Google authorization redirect", async () => {
@@ -152,12 +152,12 @@ describe("SMALLSASS_ACCOUNT_MODE sso", () => {
 describe("social providers (P1.7)", () => {
   const SOCIAL_ENV = {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-id",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+    CAPACITYLENS_MODE: "password-and-sso",
+    CAPACITYLENS_GOOGLE_CLIENT_ID: "google-id",
+    CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     ...MICROSOFT_ENV,
-    SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "gh-id",
-    SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "gh-secret",
+    CAPACITYLENS_GITHUB_CLIENT_ID: "gh-id",
+    CAPACITYLENS_GITHUB_CLIENT_SECRET: "gh-secret",
   };
 
   it("inits all three (Google/Microsoft/GitHub) from env without throwing", () => {
@@ -176,14 +176,14 @@ describe("social providers (P1.7)", () => {
     expect(social.microsoft).toMatchObject({
       clientId: "ms-id",
       clientSecret: "ms-secret",
-      tenantId: SOCIAL_ENV.SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID,
+      tenantId: SOCIAL_ENV.CAPACITYLENS_MICROSOFT_TENANT_ID,
     });
   });
 
   it("honours an explicit Microsoft tenant id", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), {
       ...SOCIAL_ENV,
-      SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "abcdef01-2345-6789-abcd-ef0123456789",
+      CAPACITYLENS_MICROSOFT_TENANT_ID: "abcdef01-2345-6789-abcd-ef0123456789",
     });
     expect(parseConfiguredAuth(auth).options.socialProviders?.microsoft).toMatchObject({
       tenantId: "abcdef01-2345-6789-abcd-ef0123456789",
@@ -214,8 +214,8 @@ describe("social providers (P1.7)", () => {
       id: "different-profile-id",
       sub: "different-pairwise-subject",
       oid: "microsoft-subject",
-      iss: `https://login.microsoftonline.com/${SOCIAL_ENV.SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID}/v2.0`,
-      tid: SOCIAL_ENV.SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID,
+      iss: `https://login.microsoftonline.com/${SOCIAL_ENV.CAPACITYLENS_MICROSOFT_TENANT_ID}/v2.0`,
+      tid: SOCIAL_ENV.CAPACITYLENS_MICROSOFT_TENANT_ID,
       aud: "ms-id",
       exp: Math.floor(Date.now() / 1000) + 300,
     };
@@ -244,8 +244,8 @@ describe("social providers (P1.7)", () => {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
-        SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-        SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "gh-id-only",
+        CAPACITYLENS_MODE: "password-and-sso",
+        CAPACITYLENS_GITHUB_CLIENT_ID: "gh-id-only",
       }),
     ).toThrow(/must both be set/i);
   });
@@ -262,7 +262,7 @@ describe("social providers (P1.7)", () => {
     const db = openDb(":memory:");
     const { mode, auth } = createAuthFromEnvironment(
       db,
-      { ...SOCIAL_ENV, SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1" },
+      { ...SOCIAL_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1" },
       { externalIdentityAdmission: async () => true },
     );
     const configured = parseConfiguredAuth(auth);
@@ -410,4 +410,4 @@ describe("social providers (P1.7)", () => {
 // P1.7 + first-run setup — open email self-registration is closed by default. The single
 // bootstrap exception is an empty user table plus the operator's setup token; the gate is enforced
 // live per request, so it closes on the very next request after the first identity. The explicit
-// SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 escape still re-opens registration unconditionally.
+// CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 escape still re-opens registration unconditionally.

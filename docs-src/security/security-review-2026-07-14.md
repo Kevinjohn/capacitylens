@@ -141,9 +141,9 @@ data sensitivity or user population changes.
 - Better Auth/provider protocol code, import/migration, cryptography, backup/restore, service worker,
   shell/process execution in development scripts and release workflows are “risky/dangerous” areas:
   require focused tests and security review when changed.
-- Rotate `SMALLSASS_ACCOUNT_SECRET` and provider credentials after suspected exposure, staff/access change
+- Rotate `CAPACITYLENS_SECRET` and provider credentials after suspected exposure, staff/access change
   or provider requirement, and at the operator's documented interval. Rotation of
-  `SMALLSASS_ACCOUNT_SECRET` invalidates sessions. TLS/storage/backup keys follow the platform key policy.
+  `CAPACITYLENS_SECRET` invalidates sessions. TLS/storage/backup keys follow the platform key policy.
 - Review this report, threat model, inventories, action/image pins and ASVS release at least annually
   and after a material auth, tenancy, deployment or data-classification change.
 
@@ -191,3 +191,13 @@ Two corrections to the DAST posture described above, made after the first public
   default posture is scanned by a separate non-blocking weekly job whose report is published as an
   artifact. Findings there document the default's accepted residual surface rather than failing
   the build.
+
+## Addendum — 2026-10-01
+
+- CL-06's control moved to operator documentation. `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED` and its
+  startup warning were removed; [company login](/company-login/) tells operators to require
+  multi-factor sign-in at the identity provider. The `CAPACITYLENS_STORAGE_ENCRYPTED` and
+  `CAPACITYLENS_SECURITY_LOG_FORWARDING` attestations behind CL-08 and CL-09 were removed the same
+  way; storage encryption and log forwarding remain operator controls described in the
+  self-hosting guides. Required password MFA is no longer configurable or shown in the interface;
+  its server code remains, and the blocking DAST baseline no longer enables it or the attestations.

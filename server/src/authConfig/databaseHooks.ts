@@ -16,7 +16,6 @@ interface HookOptions {
   configuredFederatedIssuers: Map<string, string>;
   permittedCompanyProviderIds: ReadonlySet<string>;
   allowOpenSignup: boolean;
-  requirePasswordMfa: boolean;
   externalIdentityAdmission?: (candidate: {
     email?: string;
     emailVerified?: boolean;
@@ -150,9 +149,7 @@ function buildSessionAfter(options: HookOptions): SessionAfter {
       providerId,
     });
     const enrolledMfa = readEnrolledMfa(options, principalId);
-    const awaitsMfa =
-      assurance === "password" &&
-      (options.requirePasswordMfa || enrolledMfa === true || enrolledMfa === 1 || enrolledMfa === "1");
+    const awaitsMfa = assurance === "password" && (enrolledMfa === true || enrolledMfa === 1 || enrolledMfa === "1");
     if (!awaitsMfa) confirmTrackedMemberSignIn(options.db, principalId);
   };
 }
@@ -179,7 +176,6 @@ export function buildDatabaseHooks({
   configuredFederatedIssuers,
   permittedCompanyProviderIds,
   allowOpenSignup,
-  requirePasswordMfa,
   externalIdentityAdmission,
   onFederatedSession,
   providerIdFromExternalContext,
@@ -194,7 +190,6 @@ export function buildDatabaseHooks({
     configuredFederatedIssuers,
     permittedCompanyProviderIds,
     allowOpenSignup,
-    requirePasswordMfa,
     ...(externalIdentityAdmission === undefined ? {} : { externalIdentityAdmission }),
     ...(onFederatedSession === undefined ? {} : { onFederatedSession }),
     providerIdFromExternalContext,

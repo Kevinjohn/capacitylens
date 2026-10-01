@@ -11,12 +11,12 @@ import { MICROSOFT_PROOF_V46_SQL } from "./db/migrations/microsoftProofV46";
 import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 
 const env = {
-  SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-mixed",
-  SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-  SMALLSASS_ACCOUNT_SECRET: "cutover-repair-secret-0123456789abcdef",
-  SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+  CAPACITYLENS_DEPLOYMENT_PROFILE: "self-hosted-mixed",
+  CAPACITYLENS_MODE: "password-and-sso",
+  CAPACITYLENS_SECRET: "cutover-repair-secret-0123456789abcdef",
+  CAPACITYLENS_PUBLIC_URL: "http://localhost:8787",
+  CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+  CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
 const timestamp = "2026-08-07T00:00:00.000Z";
