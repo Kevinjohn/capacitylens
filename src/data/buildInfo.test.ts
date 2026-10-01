@@ -278,6 +278,16 @@ describe("diagnostics client facts", () => {
     expect(text).toContain("Viewport: Unknown");
   });
 
+  it("drops a printable user agent that carries a URL or an email address", async () => {
+    const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
+    for (const userAgent of ["Mozilla/5.0 (+https://crawler.example/bot)", "Mozilla/5.0 bruce@wayne.example"]) {
+      const text = formatDiagnostics(
+        readDiagnostics(null, undefined, { ...client, browser: { ...client.browser, userAgent } }),
+      );
+      expect(text).toContain("User agent: Unknown");
+    }
+  });
+
   it("reads the browser facts in their expected shape", async () => {
     const { readBrowserDiagnostics } = await freshBuildInfo();
     const browser = readBrowserDiagnostics();

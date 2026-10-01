@@ -150,7 +150,8 @@ function readMatching(value: string, pattern: RegExp): string {
 /** Keep each browser fact to its expected shape, so a report never carries free text it did not ask for. */
 function readBrowserProjection(browser: BrowserDiagnostics): BrowserDiagnostics {
   return {
-    userAgent: readMatching(browser.userAgent, /^[\x20-\x7e]{1,512}$/),
+    // A user agent may carry a crawler URL or contact address; such a string is dropped whole.
+    userAgent: readMatching(browser.userAgent, /^(?!.*(?::\/\/|@))[\x20-\x7e]{1,512}$/),
     viewport: readMatching(browser.viewport, /^\d{1,5}×\d{1,5}$/),
     timeZone: readMatching(browser.timeZone, /^[A-Za-z0-9_+\-/]{1,64}$/),
     language: readMatching(browser.language, /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/),
