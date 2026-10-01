@@ -25,7 +25,7 @@ import { resolveAccountEnvironment } from "./accountConfig";
 import type { BoundApplication } from "@capacitylens/shared/account/types";
 import { canAdmitLocalExternalIdentity } from "./accounts/externalIdentityAdmission";
 import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPort";
-import { resolveLegacyProxyTrustWarning, canTrustProxyHeaders } from "./proxyTrust";
+import { canTrustProxyHeaders } from "./proxyTrust";
 import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
 import { createSqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
@@ -95,7 +95,6 @@ const port = parsePort(process.env.PORT);
 const host = process.env.CAPACITYLENS_HOST ?? "127.0.0.1";
 const allowReset = process.env.CAPACITYLENS_ALLOW_RESET === "1";
 const corsOrigin = process.env.CAPACITYLENS_CORS_ORIGIN ?? DEFAULT_CORS;
-const optimisticConcurrency = process.env.CAPACITYLENS_OPTIMISTIC_CONCURRENCY !== "0";
 // Single-company cap (see AppOptions.multiAccount) — off by default, so a fresh real deploy starts
 // capped to the first company it creates until the operator deliberately opts in to more.
 const multiAccount = process.env.CAPACITYLENS_MULTI_ACCOUNT === "1";
@@ -117,8 +116,6 @@ const bootstrapAdmin =
   process.env.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1" || process.argv.includes("--create-owner-admin-admin");
 // A directly exposed listener trusts no forwarded identity or scheme unless explicitly configured.
 const trustProxyHeaders = canTrustProxyHeaders(process.env, host);
-const proxyTrustWarning = resolveLegacyProxyTrustWarning(process.env);
-if (proxyTrustWarning) console.warn(`capacitylens-server: configuration warning — ${proxyTrustWarning}`);
 const backupConfig: ReturnType<typeof parseBackupConfig> = tryOrRefuse(() =>
   parseBackupConfig(process.env, (message) => console.warn(message)),
 );
@@ -299,7 +296,6 @@ startServerRuntime({
       : {}),
     allowReset,
     corsOrigin,
-    optimisticConcurrency,
     multiAccount,
     https,
     log,

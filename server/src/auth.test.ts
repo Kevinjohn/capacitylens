@@ -483,17 +483,6 @@ const registerStartupConfigurationRefusalTests = () => {
     }
   });
 
-  it.each([
-    "SMALLSASS_ACCOUNT_OIDC_CLIENT_ID",
-    "SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL",
-    "SMALLSASS_ACCOUNT_OIDC_SCOPES",
-  ])("refuses retired generic setting %s before creating storage", (key) => {
-    const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
-    expect(() => createAuthFromEnvironment(db, { ...PASSWORD_ENV, [key]: "retired" })).toThrow(`${key} was removed`);
-    expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
-    db.close();
-  });
-
   it("refuses public URLs that are not a bare origin", () => {
     for (const publicUrl of [
       "https://user:pass@capacity.example",

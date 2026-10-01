@@ -16,81 +16,6 @@ const HOSTED = {
   ...GOOGLE,
 };
 
-const retiredGenericKeys = [
-  "SMALLSASS_ACCOUNT_OIDC_CLIENT_ID",
-  "SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET",
-  "SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL",
-  "SMALLSASS_ACCOUNT_OIDC_ISSUER",
-  "SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL",
-  "SMALLSASS_ACCOUNT_OIDC_TOKEN_URL",
-  "SMALLSASS_ACCOUNT_OIDC_SCOPES",
-  "SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID",
-  "SMALLSASS_ACCOUNT_OIDC_LABEL",
-  "SMALLSASS_ACCOUNT_OIDC_BRAND",
-  "SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS",
-] as const;
-
-it.each(retiredGenericKeys)("rejects configured retired %s even when another provider is valid", (key) => {
-  for (const value of [" ", "configured"]) {
-    expect(() => resolveAccountEnvironment({ ...HOSTED, [key]: value })).toThrow(`${key} was removed`);
-  }
-  expect(() => resolveAccountEnvironment({ ...HOSTED, [key]: "" })).not.toThrow();
-});
-
-it("rejects retired hosted profile before choosing a fallback", () => {
-  expect(() =>
-    resolveAccountEnvironment({ ...GOOGLE, SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "hosted-oidc-only" }),
-  ).toThrow("hosted-oidc-only deployment profile was removed");
-});
-
-it.each(["CAPACITYLENS_SSO_CLIENT_ID", "CAPACITYLENS_SSO_ISSUER", "CAPACITYLENS_SSO_BOOTSTRAP_EMAILS"])(
-  "rejects %s without recommending a removed key",
-  (key) => {
-    for (const value of [" ", "configured"]) {
-      expect(() => resolveAccountEnvironment({ [key]: value })).toThrow(
-        /configure Google or tenant-specific Microsoft/,
-      );
-    }
-    expect(() => resolveAccountEnvironment({ [key]: "" })).not.toThrow();
-  },
-);
-
-// Written out independently of the production map so that dropping a name there fails here.
-const retiredAccountNames = [
-  ["CAPACITYLENS_AUTH", "SMALLSASS_ACCOUNT_MODE"],
-  ["BETTER_AUTH_SECRET", "SMALLSASS_ACCOUNT_SECRET"],
-  ["BETTER_AUTH_URL", "SMALLSASS_ACCOUNT_PUBLIC_URL"],
-  ["CAPACITYLENS_SETUP_TOKEN", "SMALLSASS_ACCOUNT_SETUP_TOKEN"],
-  ["CAPACITYLENS_ALLOW_OPEN_SIGNUP", "SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP"],
-  ["CAPACITYLENS_REQUIRE_MFA", "SMALLSASS_ACCOUNT_REQUIRE_MFA"],
-  ["CAPACITYLENS_PASSWORD_BREACH_CHECK", "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK"],
-  ["CAPACITYLENS_SSO_MFA_ENFORCED", "SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED"],
-  ["CAPACITYLENS_GOOGLE_CLIENT_ID", "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID"],
-  ["CAPACITYLENS_GOOGLE_CLIENT_SECRET", "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET"],
-  ["CAPACITYLENS_MICROSOFT_CLIENT_ID", "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID"],
-  ["CAPACITYLENS_MICROSOFT_CLIENT_SECRET", "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET"],
-  ["CAPACITYLENS_MICROSOFT_TENANT_ID", "SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID"],
-  ["CAPACITYLENS_GITHUB_CLIENT_ID", "SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID"],
-  ["CAPACITYLENS_GITHUB_CLIENT_SECRET", "SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET"],
-] as const;
-
-describe("retired account environment names", () => {
-  it.each(retiredAccountNames)("refuses %s and names %s", (retired, canonical) => {
-    expect(() => resolveAccountEnvironment({ [retired]: "configured" })).toThrow(
-      `${retired} was removed; use ${canonical}.`,
-    );
-  });
-
-  it.each(retiredAccountNames)("refuses a whitespace-only %s", (retired, canonical) => {
-    expect(() => resolveAccountEnvironment({ [retired]: "  " })).toThrow(`${retired} was removed; use ${canonical}.`);
-  });
-
-  it.each(retiredAccountNames)("accepts and drops an empty %s placeholder", (retired) => {
-    const resolved = resolveAccountEnvironment({ [retired]: "" });
-    expect(resolved.env).not.toHaveProperty(retired);
-  });
-});
-
 describe("hosted provider-only profile", () => {
   it("accepts Google, tenant-specific Microsoft, or both", () => {
     for (const providers of [GOOGLE, MICROSOFT, { ...GOOGLE, ...MICROSOFT }]) {
@@ -138,6 +63,17 @@ it("normalizes supported settings and preserves secrets", () => {
   expect(result.env.SMALLSASS_ACCOUNT_SECRET).toBe(secret);
   expect(result.env.SMALLSASS_ACCOUNT_PUBLIC_URL).toBe("https://capacity.example.test");
   expect(resolveAccountEnvironment(result.env).env).toBe(result.env);
+});
+
+it("trims provider and mail settings and drops whitespace-only ones", () => {
+  const result = resolveAccountEnvironment({
+    SMALLSASS_ACCOUNT_MAIL_FROM: " signin@example.test ",
+    SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "   ",
+    SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: " owner@example.test ",
+  });
+  expect(result.env.SMALLSASS_ACCOUNT_MAIL_FROM).toBe("signin@example.test");
+  expect(result.env).not.toHaveProperty("SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID");
+  expect(result.env.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS).toBe("owner@example.test");
 });
 
 it("rejects whitespace-only mode", () => {

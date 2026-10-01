@@ -20,13 +20,7 @@ function untouchedDatabaseFailure(environment: Record<string, string>): void {
   }
 }
 
-describe("retired generic identity configuration", () => {
-  it("refuses old generic settings before creating storage even with a valid company provider", () => {
-    untouchedDatabaseFailure({ ...base, SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "retired" });
-    untouchedDatabaseFailure({ ...base, CAPACITYLENS_SSO_ISSUER: "https://old.example" });
-    untouchedDatabaseFailure({ ...base, SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "hosted-oidc-only" });
-  });
-
+describe("company provider configuration", () => {
   it("validates Microsoft independently when Google is complete", () => {
     untouchedDatabaseFailure({ ...base, SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "partial" });
     untouchedDatabaseFailure({

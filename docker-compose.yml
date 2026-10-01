@@ -72,8 +72,9 @@ services:
       # Deliberately use `-`, not `:-`: unset selects /backups, while an explicitly empty value
       # disables scheduled backups as documented in docs-src/self-hosting/backups-and-restore.md.
       CAPACITYLENS_BACKUP_DIR: ${CAPACITYLENS_BACKUP_DIR-/backups}
-      # Same-origin via the nginx proxy -> CORS stays fail-closed. Override only
-      # if you expose the API on a different origin.
+      # Same-origin via the nginx proxy -> CORS stays fail-closed. The explicit empty
+      # value also stops production defaulting it to the public URL's origin.
+      # Override only if you expose the API on a different origin.
       CAPACITYLENS_CORS_ORIGIN: ${CAPACITYLENS_CORS_ORIGIN:-}
       CAPACITYLENS_LOG: ${CAPACITYLENS_LOG:-1}
       CAPACITYLENS_HEALTH_DEEP: ${CAPACITYLENS_HEALTH_DEEP:-1}
@@ -81,14 +82,8 @@ services:
       SMALLSASS_ACCOUNT_REQUIRE_MFA: ${SMALLSASS_ACCOUNT_REQUIRE_MFA:-}
       SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED: ${SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED:-}
       SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: ${SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK:-}
-      # Retired names are passed through so startup refuses stale non-empty settings and names
-      # their replacements. Empty placeholders are ignored; these are not compatibility aliases.
-      CAPACITYLENS_REQUIRE_MFA: ${CAPACITYLENS_REQUIRE_MFA:-}
-      CAPACITYLENS_SSO_MFA_ENFORCED: ${CAPACITYLENS_SSO_MFA_ENFORCED:-}
-      CAPACITYLENS_PASSWORD_BREACH_CHECK: ${CAPACITYLENS_PASSWORD_BREACH_CHECK:-}
       CAPACITYLENS_STORAGE_ENCRYPTED: ${CAPACITYLENS_STORAGE_ENCRYPTED:-}
       CAPACITYLENS_SECURITY_LOG_FORWARDING: ${CAPACITYLENS_SECURITY_LOG_FORWARDING:-}
-      CAPACITYLENS_OPTIMISTIC_CONCURRENCY: ${CAPACITYLENS_OPTIMISTIC_CONCURRENCY:-1}
       CAPACITYLENS_HTTPS: ${CAPACITYLENS_HTTPS:-}
       CAPACITYLENS_INTERNAL_TLS_CERT: /run/capacitylens-internal-tls/api.crt
       CAPACITYLENS_INTERNAL_TLS_KEY: /run/capacitylens-internal-tls/api.key
@@ -119,9 +114,6 @@ services:
       SMALLSASS_ACCOUNT_MAIL_FROM: ${SMALLSASS_ACCOUNT_MAIL_FROM:-}
       SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: ${SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID:-}
       SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: ${SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET:-}
-      # Retired names are passed through only so that startup can refuse a stale .env value and
-      # name its replacement; an empty placeholder is ignored.
-      CAPACITYLENS_AUTH: ${CAPACITYLENS_AUTH:-}
       # The api image bakes NODE_ENV=production, and the production safety
       # interlock (server/src/productionGuard.ts) refuses to boot with auth OFF
       # unless you explicitly consent to an open instance. For the trusted-local
@@ -134,48 +126,12 @@ services:
       # real instance starts EMPTY at the create-your-company screen.
       CAPACITYLENS_MULTI_ACCOUNT: ${CAPACITYLENS_MULTI_ACCOUNT:-}
       CAPACITYLENS_SEED_DEMO: ${CAPACITYLENS_SEED_DEMO:-}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
-      CAPACITYLENS_SETUP_TOKEN: ${CAPACITYLENS_SETUP_TOKEN:-}
       CAPACITYLENS_BOOTSTRAP_TOKEN: ${CAPACITYLENS_BOOTSTRAP_TOKEN:-}
-      CAPACITYLENS_ALLOW_OPEN_SIGNUP: ${CAPACITYLENS_ALLOW_OPEN_SIGNUP:-}
       CAPACITYLENS_CREATE_ADMIN_ADMIN: ${CAPACITYLENS_CREATE_ADMIN_ADMIN:-}
       CAPACITYLENS_AUDIT: ${CAPACITYLENS_AUDIT:-}
       CAPACITYLENS_AUDIT_FILE: ${CAPACITYLENS_AUDIT_FILE:-/data/capacitylens-audit.jsonl}
       CAPACITYLENS_AUDIT_MAX_MB: ${CAPACITYLENS_AUDIT_MAX_MB:-}
       CAPACITYLENS_AUDIT_STDOUT: ${CAPACITYLENS_AUDIT_STDOUT:-1}
-      CAPACITYLENS_GOOGLE_CLIENT_ID: ${CAPACITYLENS_GOOGLE_CLIENT_ID:-}
-      CAPACITYLENS_GOOGLE_CLIENT_SECRET: ${CAPACITYLENS_GOOGLE_CLIENT_SECRET:-}
-      CAPACITYLENS_MICROSOFT_CLIENT_ID: ${CAPACITYLENS_MICROSOFT_CLIENT_ID:-}
-      CAPACITYLENS_MICROSOFT_CLIENT_SECRET: ${CAPACITYLENS_MICROSOFT_CLIENT_SECRET:-}
-      CAPACITYLENS_MICROSOFT_TENANT_ID: ${CAPACITYLENS_MICROSOFT_TENANT_ID:-}
-      CAPACITYLENS_GITHUB_CLIENT_ID: ${CAPACITYLENS_GITHUB_CLIENT_ID:-}
-      CAPACITYLENS_GITHUB_CLIENT_SECRET: ${CAPACITYLENS_GITHUB_CLIENT_SECRET:-}
-      # The retired generic OIDC settings must reach startup validation too. Send only a
-      # presence marker: old client secrets stay out of the rendered container environment.
-      # `:+` maps unset/empty to an ignored placeholder and any non-empty value to "configured".
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: ${SMALLSASS_ACCOUNT_OIDC_CLIENT_ID:+configured}
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: ${SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET:+configured}
-      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: ${SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL:+configured}
-      SMALLSASS_ACCOUNT_OIDC_ISSUER: ${SMALLSASS_ACCOUNT_OIDC_ISSUER:+configured}
-      SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL: ${SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL:+configured}
-      SMALLSASS_ACCOUNT_OIDC_TOKEN_URL: ${SMALLSASS_ACCOUNT_OIDC_TOKEN_URL:+configured}
-      SMALLSASS_ACCOUNT_OIDC_SCOPES: ${SMALLSASS_ACCOUNT_OIDC_SCOPES:+configured}
-      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: ${SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID:+configured}
-      SMALLSASS_ACCOUNT_OIDC_LABEL: ${SMALLSASS_ACCOUNT_OIDC_LABEL:+configured}
-      SMALLSASS_ACCOUNT_OIDC_BRAND: ${SMALLSASS_ACCOUNT_OIDC_BRAND:+configured}
-      SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS: ${SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS:+configured}
-      CAPACITYLENS_SSO_CLIENT_ID: ${CAPACITYLENS_SSO_CLIENT_ID:+configured}
-      CAPACITYLENS_SSO_CLIENT_SECRET: ${CAPACITYLENS_SSO_CLIENT_SECRET:+configured}
-      CAPACITYLENS_SSO_DISCOVERY_URL: ${CAPACITYLENS_SSO_DISCOVERY_URL:+configured}
-      CAPACITYLENS_SSO_ISSUER: ${CAPACITYLENS_SSO_ISSUER:+configured}
-      CAPACITYLENS_SSO_AUTHORIZATION_URL: ${CAPACITYLENS_SSO_AUTHORIZATION_URL:+configured}
-      CAPACITYLENS_SSO_TOKEN_URL: ${CAPACITYLENS_SSO_TOKEN_URL:+configured}
-      CAPACITYLENS_SSO_SCOPES: ${CAPACITYLENS_SSO_SCOPES:+configured}
-      CAPACITYLENS_SSO_PROVIDER_ID: ${CAPACITYLENS_SSO_PROVIDER_ID:+configured}
-      CAPACITYLENS_SSO_LABEL: ${CAPACITYLENS_SSO_LABEL:+configured}
-      CAPACITYLENS_SSO_BRAND: ${CAPACITYLENS_SSO_BRAND:+configured}
-      CAPACITYLENS_SSO_BOOTSTRAP_EMAILS: ${CAPACITYLENS_SSO_BOOTSTRAP_EMAILS:+configured}
     volumes:
       - capacitylens-db:/data
       - capacitylens-backups:/backups

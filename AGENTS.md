@@ -202,7 +202,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 - Password authentication and named Google/Microsoft company providers are implemented. GitHub
   remains experimental in mixed mode. `hosted-sso-only` requires mode `sso-only` and complete Google
   and/or tenant-specific Microsoft configuration; it forbids password, GitHub and open signup.
-  Retired generic OIDC settings and the `hosted-oidc-only` profile fail startup before writes.
+  Removed configuration names (generic OIDC settings, `hosted-oidc-only`, pre-`SMALLSASS_ACCOUNT_*`
+  account names) are simply unknown: no alias, refusal or migration code remains for them.
   Deterministic checks are not evidence of live-provider validation.
 - Production password mode lets operators require TOTP MFA and defaults to breached-password
   screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory. The

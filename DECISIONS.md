@@ -213,8 +213,8 @@ This is the short, present-tense record of decisions that constrain future work.
   provider identity.
 - Email/password and named Google/Microsoft company providers are implemented for self-hosting.
   GitHub retains its experimental mixed-mode behavior. Generic OIDC support and the
-  `hosted-oidc-only` profile are retired. Their settings and profile are rejected at startup
-  before storage or bootstrap writes; the server never falls back to password or sign-in-off mode.
+  `hosted-oidc-only` profile were removed; their names are now unknown configuration, so
+  `hosted-oidc-only` is an invalid profile like any other unrecognised value.
   Deterministic and library evidence never substitutes for live-provider checks.
 - Named profiles are `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` and
   `hosted-sso-only`. Hosted SSO requires `mode=sso-only`, complete Google and/or tenant-specific
@@ -262,8 +262,8 @@ This is the short, present-tense record of decisions that constrain future work.
   testing at the IdP is required; this responsibility also applies to experimental named providers
   used in mixed mode.
 - Secure-cookie behavior follows the public `SMALLSASS_ACCOUNT_PUBLIC_URL`, including behind a TLS
-  proxy. Legacy account environment names were removed before beta with no migration window;
-  startup refuses each non-empty retired name and identifies its `SMALLSASS_ACCOUNT_*` replacement.
+  proxy. Legacy account environment names were removed before beta with no migration window; they
+  are now unknown and ignored like any other unrecognised variable.
 - Password mode defaults to breached-password screening; required TOTP MFA is an operator opt-in.
   Sessions have a fixed twelve-hour lifetime; privileged actions require a session no older than
   fifteen minutes regardless of MFA policy. The client answers the freshness refusal with an
