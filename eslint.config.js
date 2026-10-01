@@ -28,6 +28,15 @@ const sharedTestFiles = [
 ];
 const appTestFiles = ["src/**/*.{test,spec}.{ts,tsx}", "src/**/__tests__/**/*.{ts,tsx}"];
 
+/** Bans parent-relative app imports, except the exact repository-file specifiers listed. */
+function parentImportPattern(allowedSpecifiers) {
+  const allowed = allowedSpecifiers.map((specifier) => specifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return {
+    regex: allowed.length ? `^(?!(?:${allowed.join("|")})$)\\.\\./` : "^\\.\\./",
+    message: "Import from another folder with `@/…`; use `./` only within the importing file's folder.",
+  };
+}
+
 const gitIgnoredPaths = readFileSync(new URL(".gitignore", import.meta.url), "utf8")
   .split(/\r?\n/)
   .map((line) => line.trim())
@@ -187,6 +196,53 @@ export default defineConfig([
     rules: {
       "no-restricted-globals": ["error", { globals: forbiddenSharedGlobals, checkGlobalObject: true }],
       "no-restricted-imports": ["error", { paths: builtinModules, patterns: ["node:*"] }],
+    },
+  },
+
+  // App imports that leave the importing file's folder use `@/…`; `./` stays within a folder.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: { "no-restricted-imports": ["error", { patterns: [parentImportPattern([])] }] },
+  },
+  // `@/` maps only to src/, so it cannot name a repository file outside it. These files read one,
+  // and each such specifier is allowed by exact text.
+  {
+    files: [
+      "src/data/buildInfo.ts",
+      "src/build/staticSpaRouteDocuments.test.ts",
+      "src/bundleBudgetGate.test.ts",
+      "src/csp.test.ts",
+      "src/fileCoverageGate.test.ts",
+      "src/playwrightServerScope.test.ts",
+      "src/pnpmSpawn.test.ts",
+      "src/router.test.tsx",
+      "src/serve-dist.test.ts",
+      "src/test/generateDocumentationComponentId.test.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            parentImportPattern([
+              "../../package.json",
+              "../../vite.config",
+              "../../docs-src/.vitepress/generateDocumentationComponentId.mts",
+              "../nginx.conf?raw",
+              "../nginx.client.conf.template?raw",
+              "../nginx-security-headers.conf?raw",
+              "../scripts/bundleBudget.mjs",
+              "../scripts/check-file-coverage.mjs",
+              "../scripts/playwrightRunMode.mjs",
+              "../scripts/playwrightServerScope",
+              "../scripts/pnpmSpawn.mjs",
+              "../scripts/render-client-nginx.mjs",
+              "../scripts/serve-dist.mjs",
+              "../scripts/staticSpaRoutes.mjs",
+            ]),
+          ],
+        },
+      ],
     },
   },
 
