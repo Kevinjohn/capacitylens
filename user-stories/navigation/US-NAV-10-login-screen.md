@@ -30,7 +30,7 @@ setup value authorises first-owner setup but does not create a company. Success 
 company**. A company-login installation uses its configured provider and bootstrap-listed verified
 email instead of this password form. Once any user exists,
 self-registration closes automatically and only the Sign in form below is reachable. See
-[Configuration](/self-hosting/configuration#sign-in-mode) for the secure token handoff and removal.
+[Configuration](../../docs-src/self-hosting/configuration.md#sign-in-mode) for the secure token handoff and removal.
 
 1. Open the app URL. Instead of the company picker, a **Sign in** screen appears.
 2. Enter a wrong password → an inline error appears; you stay on the screen.
