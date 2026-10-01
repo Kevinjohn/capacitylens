@@ -1,8 +1,8 @@
 ---
 title: Install without Docker
-description: Install CapacityLens directly on a Linux host with Node 24, pnpm and nginx — no Docker required.
+description: Install CapacityLens on a Linux host from the release archive in five steps, with systemd and Caddy, and no Docker or build tools.
 prev:
-  text: Choose how to install
+  text: Install CapacityLens
   link: /getting-started/install
 next:
   text: Configure the service
@@ -11,227 +11,196 @@ next:
 
 # Install without Docker
 
-This installs CapacityLens straight onto a Linux host: Node 24 runs the API as a
-systemd service, and nginx serves the built app and proxies `/api/` to it. No Docker
-installation is needed. Budget 20–30 minutes on a host that already has Node and nginx
-installed.
+This installs CapacityLens on a Linux host you manage yourself, from the release archive. It
+takes the five steps from [Install CapacityLens](/getting-started/install), with one command
+for each. Each `sudo` line does what a managed host does when you create a site: a user, a
+folder, a service and a proxy. The target is ten minutes on a host that already has Node 24
+and a hostname pointing at it.
 
 ## Prerequisites
 
-- A Linux host with systemd and nginx installed (Debian/Ubuntu: `apt install nginx`).
-- git, and a way to install the exact Node version the repo pins in `.nvmrc` (Node 24).
-  A version manager like [nvm](https://github.com/nvm-sh/nvm) is the easiest way to
-  match it.
-- Corepack, which ships with Node 24, to get the pinned pnpm version automatically.
+- A Linux host with systemd. The archive is tested on Ubuntu x86-64; other Linux distributions
+  and macOS are expected to work but are not tested.
+- Node 24 on the system path. Install it system-wide first, from NodeSource or the official
+  tarball into `/usr/local`. If you use nvm, copy its binary once:
+  `sudo install -D -m 0755 "$(command -v node)" /usr/local/bin/node`.
+- A hostname that points at the host.
+- [Caddy](https://caddyserver.com/docs/install) or nginx, for HTTPS.
 - Read [Before you start](/self-hosting/) if you haven't already.
 
-## Steps
+The commands name release 0.73.0-alpha.1, the first to carry the archive. For a newer release,
+use its version instead; the `VERSION` file in the archive names the one you have.
 
-1. Create `/opt/capacitylens` for your own account, clone the repository into it, check out
-   the release you're deploying and select Node 24:
+## The five steps
 
-   ```bash
-   sudo install -d -o "$(id -un)" -g "$(id -gn)" -m 0755 /opt/capacitylens
-   git clone https://github.com/Kevinjohn/capacitylens.git /opt/capacitylens
-   cd /opt/capacitylens
-   git checkout vX.Y.Z
-   nvm install
-   nvm use
-   node --version
-   corepack enable
-   ```
-
-   Replace `vX.Y.Z` with the release tag you're deploying. The newest is on the
-   [releases page](https://github.com/Kevinjohn/capacitylens/releases/latest). Don't deploy
-   `main`: it carries changes that haven't been released yet.
-
-   The service and nginx configuration below use these `/opt/capacitylens` paths. Your account
-   owns the clone and builds it. The `capacitylens` service user needs to read the clone,
-   and nginx needs to reach `dist/` inside it. Git leaves the files readable by every account,
-   so this works as written. If you clone somewhere else, every directory above the clone must
-   let other accounts through; a clone under a `0750` home directory fails at start.
-
-   nvm reads `.nvmrc` from the repository, so run it after changing into the cloned
-   directory. The reported version must be `v24.x`; the server refuses to start with
-   an older version.
-
-2. Install dependencies and copy the example environment file:
+1. Download and unpack, then link `current` to the release:
 
    ```bash
-   pnpm install --frozen-lockfile
-   cp .env.example .env
-   chmod 600 .env
+   curl -LO https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capacitylens-0.73.0-alpha.1.tar.gz
+   sudo mkdir -p /opt/capacitylens && sudo tar -xzf capacitylens-0.73.0-alpha.1.tar.gz -C /opt/capacitylens && sudo ln -sfn /opt/capacitylens/capacitylens-0.73.0-alpha.1 /opt/capacitylens/current
    ```
 
-   `.env` will hold the session-signing secret and the setup token, so only your account may
-   read it. systemd reads the file as root before it starts the service, so the service user
-   doesn't need access.
+   To check the download first, see [Verify the download](#verify-the-download).
 
-3. Generate two secrets:
-
-   ```bash
-   openssl rand -base64 48
-   ```
-
-   Run it twice and set at least these values in `.env` — the same ones the Docker
-   install uses, plus the bare-metal-only path and host settings:
-
-   ```dotenv
-   SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password
-   SMALLSASS_ACCOUNT_MODE=password-only
-   SMALLSASS_ACCOUNT_SECRET=<first generated value>
-   SMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com
-   SMALLSASS_ACCOUNT_SETUP_TOKEN=<second generated value>
-   CAPACITYLENS_RATE_LIMIT=300
-   CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db
-   CAPACITYLENS_AUDIT_FILE=/var/lib/capacitylens/capacitylens-audit.jsonl
-   CAPACITYLENS_BACKUP_DIR=/var/lib/capacitylens/backups
-   CAPACITYLENS_HOST=127.0.0.1
-   PORT=8787
-   ```
-
-   Unlike Docker Compose, nothing loads `.env` for you automatically here — the systemd
-   unit in step 5 reads it directly with `EnvironmentFile`. See
-   [Configure the service](/installation/configure-the-service) for what every variable does.
-   Set `CAPACITYLENS_STORAGE_ENCRYPTED=1` only after verifying that `/var/lib/capacitylens`
-   and the backup destination use encrypted storage at rest; the setting is an attestation,
-   not an encryption mechanism.
-
-   Create a dedicated system user and a data directory it owns:
+2. Create a user and a folder for its data. The database file appears there on first start:
 
    ```bash
    sudo useradd --system --home /var/lib/capacitylens --shell /usr/sbin/nologin capacitylens
-   sudo install -d -o capacitylens -g capacitylens /var/lib/capacitylens /var/lib/capacitylens/backups
+   sudo install -d -o capacitylens -g capacitylens -m 0700 /var/lib/capacitylens
    ```
 
-   Copy the selected Node binary to a root-owned path that the service user can run:
+3. Configure. Copy the environment example to `/etc/capacitylens.env`, readable only by root, and
+   open it:
 
    ```bash
-   sudo install -D -m 0755 "$(command -v node)" /opt/capacitylens/bin/node
-   sudo -u capacitylens /opt/capacitylens/bin/node --version
+   sudo sh -c 'umask 077 && cp -n /opt/capacitylens/current/capacitylens.env.example /etc/capacitylens.env' && sudo nano /etc/capacitylens.env
    ```
 
-4. Build the web app and the server:
+   Fill in the three empty lines: the address people will open, and two different values pasted
+   from `openssl rand -base64 48`. The first is `SMALLSASS_ACCOUNT_SECRET`; the second is
+   `SMALLSASS_ACCOUNT_SETUP_TOKEN`. Everything else has a default, including
+   `CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db`. The server refuses to start while a
+   required line is empty, and names it. [Configure the service](/installation/configure-the-service)
+   lists every other setting.
+
+   systemd reads the file as root before it starts the service, so the service user needs no
+   access to it. [Write the file in one command](#write-the-environment-file-in-one-command) if you
+   prefer.
+
+4. Start it as a systemd service:
 
    ```bash
-   pnpm run build
-   pnpm --filter capacitylens-server run build:runtime
+   sudo cp /opt/capacitylens/current/capacitylens.service /etc/systemd/system/ && sudo systemctl enable --now capacitylens
    ```
 
-   The first command builds the single-page app into `dist/` at the repo root — this is
-   what nginx serves in step 6. The second bundles the API into
-   `server/dist/index.mjs`, the same build Docker's image runs.
+   Then put HTTPS in front of it, as described in [HTTPS](#https).
 
-5. Install a systemd unit so the API starts on boot and restarts if it exits. Create
-   `/etc/systemd/system/capacitylens.service`. Its paths match the clone from step 1 and the
-   runtime installed in step 3:
+5. Open the address and create your company. The page asks for the setup token: it is the
+   `SMALLSASS_ACCOUNT_SETUP_TOKEN` line in `/etc/capacitylens.env`.
 
-   ```ini
-   [Unit]
-   Description=CapacityLens API
-   After=network.target
+## Check that it is healthy
 
-   [Service]
-   Type=simple
-   User=capacitylens
-   Group=capacitylens
-   WorkingDirectory=/opt/capacitylens/server
-   EnvironmentFile=/opt/capacitylens/.env
-   Environment=NODE_ENV=production
-   ExecStart=/opt/capacitylens/bin/node dist/index.mjs
-   Restart=on-failure
-   RestartSec=5
+Check the server on the host:
 
-   [Install]
-   WantedBy=multi-user.target
-   ```
+```bash
+curl -fsS http://127.0.0.1:8787/api/health
+```
 
-   Then start it:
+Expect `"ok":true`, `"db":true`, `"audit":"ok"` and a `backup` whose `status` is `"ok"`. It reads
+`"pending"` for a moment after the first start; check again after a minute. A `503`, a degraded
+field or a restart loop needs fixing before you hand over: follow the log with
+`journalctl -u capacitylens -f`. [Monitoring and health checks](/self-hosting/monitoring) explains
+each field.
 
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now capacitylens
-   sudo systemctl status capacitylens
-   ```
+## HTTPS
 
-   Expect `active (running)` with no restart loop. Follow the logs with
-   `journalctl -u capacitylens -f` and wait for `capacitylens-server listening on ...`.
-   Check health in step 7 as well: the listening line alone does not verify backup or
-   audit health. To confirm it's
-   running the copied binary, `sudo readlink /proc/$(systemctl show -p MainPID --value
-   capacitylens)/exe` should print `/opt/capacitylens/bin/node`.
+Put a TLS-terminating reverse proxy in front of the server. Caddy is the shortest route: it
+obtains and renews the certificate itself.
 
-6. Obtain a certificate for the final hostname using your distribution's supported ACME
-   client, then configure nginx to serve the built app over HTTPS and proxy `/api/` to
-   the API. Create `/etc/nginx/sites-available/capacitylens`, pointing `root` at the
-   `dist/` directory from step 4:
+Add this block from `Caddyfile.example` in the archive to `/etc/caddy/Caddyfile`, with your own
+hostname:
 
-   ```nginx
-   server {
-       listen 443 ssl;
-       listen [::]:443 ssl;
-       server_name capacity.example.com;
+```text
+capacity.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8787
+}
+```
 
-       ssl_certificate /etc/letsencrypt/live/capacity.example.com/fullchain.pem;
-       ssl_certificate_key /etc/letsencrypt/live/capacity.example.com/privkey.pem;
+Then reload Caddy:
 
-       root /opt/capacitylens/dist;
-       index index.html;
+```bash
+sudo systemctl reload caddy
+```
 
-       location /api/ {
-           proxy_pass http://127.0.0.1:8787;
-           proxy_http_version 1.1;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $remote_addr;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
+nginx is the alternative. The archive's `capacitylens.nginx.conf` is a complete site file:
+it terminates TLS, serves the web app and proxies `/api/` to the server, and keeps invitation,
+sign-in and password-reset links out of the access log. Get a certificate first with your
+distribution's ACME client, for example certbot. Then copy the file, replace the hostname and the
+certificate paths in it, and enable it:
 
-       location / {
-           try_files $uri $uri/ /index.html;
-       }
-   }
+```bash
+sudo cp /opt/capacitylens/current/capacitylens.nginx.conf /etc/nginx/sites-available/capacitylens
+```
 
-   server {
-       listen 80;
-       listen [::]:80;
-       server_name capacity.example.com;
-       return 301 https://$host$request_uri;
-   }
-   ```
+```bash
+sudo ln -s /etc/nginx/sites-available/capacitylens /etc/nginx/sites-enabled/
+```
 
-   Enable it and reload nginx:
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
 
-   ```bash
-   sudo ln -s /etc/nginx/sites-available/capacitylens /etc/nginx/sites-enabled/
-   sudo nginx -t && sudo systemctl reload nginx
-   ```
+The server sends HSTS itself when the address in `SMALLSASS_ACCOUNT_PUBLIC_URL` is `https`.
+[TLS and networking](/self-hosting/tls-and-networking) covers the proxy requirements.
 
-   After the certificate and redirect work, add `CAPACITYLENS_HTTPS=1` to `.env` and
-   restart the service. The API remains on loopback HTTP; nginx terminates public TLS and
-   overwrites the forwarded headers. See [Secure the connection](/installation/secure-the-connection)
-   for the same-origin boundary and certificate renewal requirements.
+Open the public address and check it through the proxy too:
 
-7. Check the API locally and through the public HTTPS origin:
+```bash
+curl -fsS https://capacity.example.com/api/health
+```
 
-   ```bash
-   curl -fsS http://127.0.0.1:8787/api/health
-   ```
+## Hand over the setup token
 
-   ```bash
-   curl -fsS https://capacity.example.com/api/health
-   ```
+Give the intended Owner the address and the `SMALLSASS_ACCOUNT_SETUP_TOKEN` value through a
+private channel. They enter it once, on the first-owner screen. Do not create the Owner for them.
 
-   Both responses should start `{"ok":true,...}`. Open the public HTTPS origin and confirm
-   that a nested app route refreshes without an nginx `404`. Complete the [verify and hand
-   over](/installation/verify-and-hand-over) procedure before giving the address or setup
-   details to the first Owner.
+After the Owner has signed in, delete the `SMALLSASS_ACCOUNT_SETUP_TOKEN` line from
+`/etc/capacitylens.env` and restart the service:
 
-To install a newer release later, follow the native steps in [Upgrades](/self-hosting/upgrades).
+```bash
+sudo systemctl restart capacitylens
+```
+
+First-owner setup is open only while the database holds no users and a token is set. Erasing the
+sole identity later reopens it, so set a new token only when you mean to create a new first
+Owner. [Verify and hand over](/installation/verify-and-hand-over) finishes the job.
+
+## Customise the service
+
+`capacitylens.service` assumes `/opt/capacitylens/current`, the `capacitylens` user and `node` on
+the system path. To change any of them, edit the copy in `/etc/systemd/system/` and run
+`sudo systemctl daemon-reload`.
+
+- Keep these lines. The service sets production mode on the process itself, and gives requests
+  time to drain before it exits:
+
+  ```ini
+  [Service]
+  User=capacitylens
+  WorkingDirectory=/opt/capacitylens/current/server
+  EnvironmentFile=/etc/capacitylens.env
+  Environment=NODE_ENV=production
+  TimeoutStopSec=30
+  ```
+
+## Optional
+
+### Verify the download
+
+Check the archive against its checksum before you unpack it:
+
+```bash
+curl -LO https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capacitylens-0.73.0-alpha.1.tar.gz.sha256
+```
+
+```bash
+sha256sum -c capacitylens-0.73.0-alpha.1.tar.gz.sha256
+```
+
+### Write the environment file in one command
+
+This replaces step 3 with fresh secrets. It refuses to overwrite an existing file, so running it
+again cannot replace keys. Change the address first:
+
+```bash
+sudo sh -c 'set -C; umask 077; secret="$(openssl rand -base64 48)" && token="$(openssl rand -base64 48)" && printf "NODE_ENV=production\nSMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com\nSMALLSASS_ACCOUNT_SECRET=%s\nSMALLSASS_ACCOUNT_SETUP_TOKEN=%s\nCAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db\n" "$secret" "$token" > /etc/capacitylens.env'
+```
 
 ## What's next
 
-- [Secure the connection](/installation/secure-the-connection) to put a real certificate in
-  front of this host — required before anyone outside your network reaches it.
+- [Upgrades](/self-hosting/upgrades) to install a newer release.
+- [Secure the connection](/installation/secure-the-connection) for the proxy requirements before
+  anyone outside your network reaches this host.
 - [Backups and restore](/self-hosting/backups-and-restore) to protect the database this
   install just created.

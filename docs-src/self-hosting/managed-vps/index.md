@@ -1,112 +1,163 @@
 ---
 title: Deploy on a managed VPS platform
-description: Follow a complete production deployment path for Forge, Ploi, RunCloud and similar platforms that manage nginx and background processes for you.
+description: Install CapacityLens on Forge, Ploi, RunCloud and similar platforms in five steps, using only the platform's own screens.
 ---
 
 # Deploy on a managed VPS platform
 
-This guide takes you from an empty site on a managed Linux server to a production
-CapacityLens installation with manual releases, persistent data, backups and health checks.
-It is for platforms such as Laravel Forge, Ploi and RunCloud that manage nginx and a process
-supervisor while your application runs directly on the host. Allow about ninety minutes in total
-when the server, source-control connection and domain are ready. Each page below carries its own
-estimate, and they add up to roughly that.
+This installs CapacityLens on a server that a platform such as Laravel Forge, Ploi or RunCloud
+manages for you. It takes the five steps from [Install CapacityLens](/getting-started/install),
+in the platform's own labels, and needs no terminal. The target is ten minutes on a site that
+already exists.
 
-Laravel Forge is the worked example. Other platforms use different labels, but the same
-parts are required.
+Laravel Forge is the worked example. Other platforms use different labels for the same five
+things.
 
-If you have never used a platform like this, read it in order and do not skip a page. Each page
-assumes only the result of the page before it, and every command is written out in full.
+## Before you start
 
-## What you will build
+- A site on the server: create an **Other** or **Custom application** site, never a PHP framework
+  template, with the platform's website isolation switched on. Its HTTPS certificate and hostname
+  come from the platform.
+- Node 24 on the server. The platform's server settings show the installed version.
+- Nothing to build: the archive holds the built app, the server and the pieces it needs.
 
-One CapacityLens installation consists of:
+`/home/forge/capacity.example.com` below stands for your site's folder; use yours. The commands
+name release 0.73.0-alpha.1, the first to carry the archive. For a newer release, use its
+version instead.
 
-- static web files from `production/dist/`, served by the platform's nginx site;
-- one Node API process from `production/server/dist/index.mjs`, listening only on a loopback port;
-- one [SQLite database](/reference/glossary), audit log and backup directory outside every
-  release directory;
-- one exact public origin, with nginx sending `/api/` to the API process; and
-- one manually promoted source branch, so a push to the public project cannot deploy itself.
+## The five steps
 
-The web app and API share a public origin. Do not create a separate public API domain.
+1. **Deploy script:** download, unpack and switch the `current` link to the release.
 
-```text
-Browser
-  |
-  | HTTPS
-  v
-Platform nginx
-  |-- /api/* ----> 127.0.0.1:8788 ----> CapacityLens API
-  |
-  `-- /* --------> current/production/dist --------> CapacityLens web app
+   ```bash
+   cd /home/forge/capacity.example.com
+   curl -fsSLO https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capacitylens-0.73.0-alpha.1.tar.gz
+   tar -xzf capacitylens-0.73.0-alpha.1.tar.gz && ln -sfn capacitylens-0.73.0-alpha.1 current
+   ```
 
-CapacityLens API
-  |-- database --> /home/<site-user>/data/capacitylens.db
-  |-- audit -----> /home/<site-user>/data/capacitylens-audit.jsonl
-  `-- backups ---> /home/<site-user>/backups/
-```
+   Run the deploy once. To upgrade later, run it with the new version, then restart the
+   background process from step 4 so it runs the new release.
 
-::: warning One API process per database
-Exactly one API process may use a CapacityLens database. A managed platform's
-"zero-downtime" deployment must not overlap the old and new API processes. The deployment
-guide deliberately includes a short stop while it switches releases.
+2. **Data folder:** `/home/forge/capacitylens-data`, outside the release so upgrades keep it.
+   Create it once from the platform's file manager or its command box:
+   `mkdir -p /home/forge/capacitylens-data`.
+
+3. **Environment:** paste these five lines into the site's environment editor. Fill in the
+   address and two different values, each pasted from `openssl rand -base64 48`; the second is
+   the one-time setup token for your Owner.
+
+   ```dotenv
+   NODE_ENV=production
+   SMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com
+   SMALLSASS_ACCOUNT_SECRET=
+   SMALLSASS_ACCOUNT_SETUP_TOKEN=
+   CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db
+   ```
+
+   Store the setup token in a password manager before you save. The server refuses to start
+   while the address, the secret or the token is empty, and names the one that is missing.
+
+4. **Background process (daemon) and nginx:** create one background process with the directory
+   `/home/forge/capacity.example.com/current` and this command:
+
+   ```bash
+   node --env-file=../.env server/dist/index.mjs
+   ```
+
+   Then, in the site's nginx file, send every request to the server. It serves the web app
+   itself:
+
+   ```nginx
+   client_max_body_size 6m;
+   location / {
+       proxy_pass http://127.0.0.1:8787;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $remote_addr;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_read_timeout 130s;
+   }
+   # These request lines carry single-use invitation, sign-in and password-reset secrets.
+   location ~ ^/api/invites/[^/]+/(accept|signup|preview)$ {
+       access_log off;
+       proxy_pass http://127.0.0.1:8787;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $remote_addr;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_read_timeout 130s;
+   }
+   location ~ ^/api/auth/(callback|oauth2/callback)/ {
+       access_log off;
+       proxy_pass http://127.0.0.1:8787;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $remote_addr;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_read_timeout 130s;
+   }
+   location ~ ^/(invite|reset-password)/ {
+       access_log off;
+       proxy_pass http://127.0.0.1:8787;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $remote_addr;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_read_timeout 130s;
+   }
+   ```
+
+   The first location is the whole proxy. Keep the three `access_log off` locations too: without
+   them, the host's access log records links that anyone reading it could use to accept an
+   invitation or reset a password.
+
+5. **Open the address** and create your company with the setup token from step 3. The
+   [Owner guide](/owner/) takes over from there.
+
+::: warning One process per database
+Exactly one CapacityLens process may use a database. If the platform offers a zero-downtime
+deploy that starts the new release beside the old one, switch it off for this site. Restart
+the background process after the deploy script instead.
 :::
 
-## Prerequisites
+## After the first start
 
-- A Linux server managed by a platform that can configure nginx and a supervised background
-  process.
-- Node 24 or newer, Corepack and git on that server.
-- A source-control account the platform can read.
-- A domain or a temporary HTTPS domain supplied by the platform.
-- A unique loopback port for this installation.
-- Access to create DNS records and TLS certificates before the final domain cutover.
+Check that the server is healthy from the platform's command box, or from any machine:
 
-For a small installation, start with at least 2 GB of RAM. A single shared vCPU is reasonable
-for a lightly used instance. Several installations can share a server when each has a separate
-site user, loopback port, database, backup directory, secrets and domain. Separate servers give
-stronger resource and operational isolation.
+```bash
+curl -fsS https://capacity.example.com/api/health
+```
 
-## Follow the guide
+Expect `"ok":true`, `"db":true`, `"audit":"ok"` and a `backup` whose `status` is `"ok"`. It reads
+`"pending"` for a moment after the first start.
 
-Complete these pages in order:
+Then work through these pages:
 
-1. [Choose the release source](/self-hosting/managed-vps/choose-the-release-source) — pin releases and prevent
-   automatic deployment from the public project.
-2. [Create and build the site](/self-hosting/managed-vps/create-and-build-the-site) — map CapacityLens onto the
-   platform's site and release-directory settings.
-3. [Configure the API and nginx](/self-hosting/managed-vps/configure-the-api-and-nginx) — add secrets, persistent
-   paths, the background process and the same-origin proxy.
-4. [Deploy and upgrade safely](/self-hosting/managed-vps/deploy-and-upgrade-safely) — stop, activate and start one
-   API version at a time, with backups and rollback points.
-5. [Finish and operate the installation](/self-hosting/managed-vps/finish-and-operate-the-installation) — claim the
-   [Owner](/reference/glossary), move to the final domain, add
+- [Verify and hand over](/installation/verify-and-hand-over) gives the Owner the setup token,
+  then removes it from the environment once they have signed in.
+- [Upgrades](/self-hosting/upgrades) and
+  [Backups and restore](/self-hosting/backups-and-restore) are the routine for a running site.
+- [Configure the service](/installation/configure-the-service) lists every setting, including
+  company login.
+
+## Long-form pages
+
+These pages build CapacityLens from a tagged source checkout, which the archive makes
+unnecessary. They remain as the long-form reference for a platform that must build, for a
+release that predates the archive, and for the operating routine on a shared server:
+
+1. [Choose the release source](/self-hosting/managed-vps/choose-the-release-source) — pin
+   releases and prevent automatic deployment from the public project.
+2. [Create and build the site](/self-hosting/managed-vps/create-and-build-the-site) — map
+   CapacityLens onto the platform's site and release-directory settings.
+3. [Configure the API and nginx](/self-hosting/managed-vps/configure-the-api-and-nginx) — add
+   secrets, persistent paths, the background process and the same-origin proxy.
+4. [Deploy and upgrade safely](/self-hosting/managed-vps/deploy-and-upgrade-safely) — stop,
+   activate and start one API version at a time, with backups and rollback points.
+5. [Finish and operate the installation](/self-hosting/managed-vps/finish-and-operate-the-installation)
+   — hand over to the [Owner](/reference/glossary), move to the final domain, add
    [company login](/reference/glossary) and monitor the instance.
 
-Do not skip the verification section at the end of each page. Each result is the prerequisite
-for the next page.
+## Worksheet
 
-## Translate the platform labels
-
-| CapacityLens requirement | Laravel Forge label | Common equivalent |
-| --- | --- | --- |
-| Static site plus Node API | **Other** site | Custom application |
-| Repository checkout | Repository and branch | Git source |
-| Stable active-release path | `current` symlink | Current release |
-| Static web root | Web directory `/production/dist` | Public directory |
-| Long-running API | Background process | Supervisor service or worker |
-| Runtime settings | Environment | Environment variables or secrets |
-| Manual release | **Deploy** with push-to-deploy off | Manual deployment |
-| Public readiness probe | Deployment health check | Post-deploy or uptime check |
-
-Do not select a PHP framework template. CapacityLens is a Node application even when the
-platform was originally designed around PHP hosting.
-
-## Write down your values first
-
-Replace every placeholder in the later pages from this private worksheet. Do not store secret
-values in the worksheet.
+The long-form pages use these values. Replace every placeholder in them from this private
+worksheet. Do not store secret values in it.
 
 | Value | Example | Your value |
 | --- | --- | --- |
@@ -124,7 +175,3 @@ values in the worksheet.
 
 Keep the session-signing secret, one-time setup token and any company-login credentials in the
 platform's secret store or a password manager, not in this worksheet.
-
-## What's next
-
-Start with [Choose the release source](/self-hosting/managed-vps/choose-the-release-source).

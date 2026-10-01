@@ -5,6 +5,10 @@ description: Configure the site, release directories, Node toolchain and product
 
 # Create and build the managed site
 
+This page belongs to the long-form route, which builds CapacityLens from a source checkout.
+To install from the release archive with nothing to build, follow the
+[five steps](/self-hosting/managed-vps/) instead.
+
 This page creates the managed site and produces both CapacityLens build outputs without starting
 the API yet. It uses a release-local Corepack shim so every build uses the pnpm version pinned by
 CapacityLens. Allow about fifteen minutes for the first dependency install and build.

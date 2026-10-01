@@ -104,7 +104,7 @@ const installationSidebar = [
     text: "Technical installation",
     items: [
       { text: "Start here", link: "/installation/" },
-      { text: "Choose how to install", link: "/getting-started/install" },
+      { text: "Install CapacityLens", link: "/getting-started/install" },
       { text: "Install with Docker", link: "/self-hosting/install-with-docker" },
       { text: "Install without Docker", link: "/self-hosting/install-without-docker" },
       {

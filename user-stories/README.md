@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-131 stories across 16 areas. The **Automated coverage** column names the spec file(s) whose
+132 stories across 17 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -238,3 +238,9 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Persist across reload                           | `e2e/crud.spec.ts`                                 |
 | [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Seed on first run, no re-seed after clear       | `e2e/data.spec.ts` + `e2e/crud.spec.ts`            |
 | [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Export, import and upgrade private names safely | server authz + import unit tests; v6→v7 manual gap |
+
+## Installation — `installation/`
+
+| Story                                                     | Title                               | Automated coverage                                                                    |
+| --------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------- |
+| [US-INS-01](installation/US-INS-01-install-one-agency.md) | Install CapacityLens for one agency | gate `release-package-smoke` + `server/src/routes/staticWeb.test.ts`; manual per host |
