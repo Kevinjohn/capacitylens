@@ -41,7 +41,8 @@ than being a personal display preference.
 When disciplines are turned off, the same people move into **Studio** and
 **Supplementary** bands. **External / 3rd party** stays last. If disciplines are on but a
 person has not been assigned to one yet, that person also falls back to their Studio or
-Supplementary band after the discipline groups.
+Supplementary band after the discipline groups. A team with no active Supplementary people gets a
+single **Unassigned** band instead of the Studio band.
 
 ![The Schedule grouped into Studio, Supplementary and External / 3rd party bands after disciplines have been turned off](../screenshots/flows/schedule_engagement_groups.jpg)
 

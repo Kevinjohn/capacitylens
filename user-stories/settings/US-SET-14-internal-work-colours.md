@@ -2,38 +2,31 @@
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/internal-colours.spec.ts`
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Projects and allocations](../../docs-src/guide/projects-and-allocations.md)
 
 ## Goal
 
-Keep internal activities and Internal-owned projects neutral grey by default, with an explicit
-company setting that can restore their saved palette colours.
+Keep internal activities and Internal-owned projects neutral grey, so internal work never competes
+visually with client work.
 
 ## Why
 
 Internal work should read as background agency work rather than compete visually with client work.
-Some teams still use colour to distinguish internal projects, so the palette choice remains
-available without making every team configure it.
+A fixed rule is simpler than a company setting nobody needs to configure.
 
 ## How (end-to-end)
 
-1. Open **Settings**. In **Scheduling features → Internal work colours**, confirm **Neutral grey** is selected.
+1. Open **Settings** and confirm there is no colour option for internal work.
 2. Open **Projects**, add `Quarterly planning`, and choose **Internal** as its Client.
 3. Confirm the existing **Colour** picker disappears and save the project.
-4. Confirm the project swatch is grey.
-5. Return to **Settings** and choose **Colour palette**.
-6. Return to **Projects**. Confirm the project's saved palette colour is restored and its edit form
-   shows the **Colour** picker again.
+4. Confirm the project swatch is grey and its edit form shows no **Colour** picker.
 
 ## Acceptance criteria
 
-- ✅ The per-account `internalColourMode` setting offers only `grey` and `palette`; absent defaults
-  to `grey`, and the value syncs and persists. Settings JSON exports omit company settings;
-  importing scheduling records preserves the destination company's choice.
-- ✅ Neutral grey mode renders `internal` activity bars and Internal-owned project bars/swatches neutral
-  grey. Unattributed All-projects activities remain distinct and keep their existing colours;
-  attributed ones use their effective project's colour.
-- ✅ The project form hides the picker only while its selected client is Internal and the setting is
-  Neutral grey. The project colour remains stored and valid.
-- ✅ Palette mode reveals the same picker and restores the saved project colour immediately.
-- ✅ Viewers can see the selected setting but cannot change it.
+- ✅ `internal` activity bars and Internal-owned project bars/swatches are always neutral grey.
+  Unattributed All-projects activities remain distinct and keep their existing colours; attributed
+  ones use their effective project's colour.
+- ✅ The project form hides the picker while its selected client is Internal. Any stored project
+  colour remains valid and is not cleared.
+- ✅ Internal projects and activities are always shown and searchable; Settings has no switch to
+  hide them.

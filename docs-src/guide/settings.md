@@ -10,8 +10,8 @@ scrollable page. Four groups are always present:
 
 | Group | Scope and access |
 | --- | --- |
-| Company setup | Allocation units, working days, date format, disciplines, engagement grouping and Overview access. Editors and above can change planning settings; only Owners and Admins manage Overview access. |
-| Scheduling features | Company-wide visibility and behaviour options. Editors and above can change them. |
+| Company setup | Allocation units, working days, date format and Overview access. Editors and above can change planning settings; only Owners and Admins manage Overview access. |
+| Scheduling features | One **Company features** section of company-wide switches. Editors and above can change them. |
 | My display | Preferences saved in this browser. Everyone can adjust them without changing a teammate's display. |
 | Data and support | Device data, company data, read-only company details and support information. Each row states its scope; available actions depend on your access. |
 
@@ -87,18 +87,6 @@ viewer-local rule. Existing date-and-time displays, including invite acceptance 
 last-updated, keep their time. CapacityLens never takes the date by cutting it from the stored UTC
 timestamp.
 
-### Disciplines
-
-**Use disciplines** groups people by [discipline](/reference/glossary), such as Design or Development,
-across the app. It is off for a newly created company. Create discipline names and colours on the
-standalone **Disciplines** page in the main navigation. See [People and placeholders](/guide/people-and-placeholders).
-
-### Group people by engagement
-
-Choose whether Resources separates Studio and Supplementary people. On the schedule, those bands
-hold people outside a discipline and become the main groups when disciplines are off. This is on
-by default; favourites stay first inside each engagement group. See [People and placeholders](/guide/people-and-placeholders).
-
 ### Overview access
 
 Overview is limited to Owners and Admins by default. An Owner or Admin can choose
@@ -108,39 +96,31 @@ access**. The setting controls both the sidebar link and direct access to the pa
 
 ## Scheduling features
 
-These company-wide options control which scheduling features are available. Editors and above
-can change them.
+The **Company features** section holds every company-wide switch, in this order: **Use
+disciplines**, **Show placeholders**, **Show external resources**, **Inline activity creation** and
+**Show task field in schedule**. Editors and above can change them. A new company starts with every
+switch off. Turning a switch off hides that feature without deleting any data, and it returns when
+you turn the switch back on.
+
+Internal projects and activities are always shown and always use neutral grey bars, so there is no
+setting for them.
 
 <!-- Compatibility anchor for existing links to resourcing options. -->
 <span id="additional-resourcing-options"></span>
 
+### Disciplines
+
+**Use disciplines** groups people by [discipline](/reference/glossary), such as Design or Development,
+across the app. Create discipline names and colours on the standalone **Disciplines** page in the
+main navigation. See [People and placeholders](/guide/people-and-placeholders).
+
 ### Placeholders and external resources
 
-**Placeholders and external resources** are company settings with two independent switches. A
+**Show placeholders** and **Show external resources** are independent switches. A
 **Placeholder** is an unfilled role or tentative person you can use to plan future capacity
 before someone is assigned. An **External resource** is a third party — such as a partner agency,
 freelancer, supplier or subcontractor — that represents work leaving your team and carries no
-capacity. Each option is off by default, and turning one off hides its existing data without
-deleting it.
-
-### Internal work colours
-
-Choose whether internal work uses **Neutral grey** bars (the default) or **Colour palette**, which
-shows its saved palette colours.
-
-### Internal work visibility
-
-Two switches under **Internal work**, both on by default, control whether internal and
-non-billable work shows up on the schedule at all:
-
-- **Show internal projects**
-- **Show internal activities**
-
-Turning either off hides the matching bars from the schedule — useful if some of your
-team only wants to see client work. It doesn't change capacity: hidden internal work
-still counts toward a person's [utilisation](/reference/glossary), so someone who's
-fully booked with internal work still shows as fully booked. Nothing is deleted, and the
-bars come back the moment you turn the switch back on.
+capacity.
 
 ### Inline activity creation
 
@@ -149,8 +129,7 @@ reuse consistent names. The allocation form still lets everyone pick an existing
 [activity](/reference/glossary).
 
 To let people create an activity without leaving an allocation, turn on **Inline
-activity creation** under **Activity creation**. This workspace setting is off by
-default. Turning it on adds the inline **Add activity** controls for everyone who can
+activity creation**. This workspace setting is off by default. Turning it on adds the inline **Add activity** controls for everyone who can
 edit allocations; turning it off again hides only those controls and does not remove
 activities or allocations.
 
@@ -168,16 +147,10 @@ teammate's display.
 
 ### Schedule on this device
 
-The three switches under **My display → Schedule on this device** change how the grid is drawn in this browser. They
-are device preferences, not company data, so they do not change a teammate's schedule or
-travel with an export:
-
-- **Minimise weekends** narrows Saturday and Sunday so the working week gets more room.
-  Weekend work still appears in those columns.
-- **Snap to week start** returns the left edge to the company's first day of the week
-  after free horizontal scrolling settles.
-- **Compact view** reduces the vertical spacing so more people fit on screen. It changes
-  no allocations or capacity.
+**Minimise weekends** under **My display → Schedule on this device** narrows Saturday and Sunday in
+this browser so the working week gets more room. Weekend work still appears in those columns. It is
+a device preference, not company data, so it does not change a teammate's schedule or travel with
+an export.
 
 ![The My display group with Schedule on this device, allocation labels, utilisation figures and appearance preferences](../screenshots/flows/settings_schedule_device.png)
 
@@ -241,7 +214,7 @@ are not part of this file.
 
 ### Company details {#calendar}
 
-This read-only summary shows the company name, week start, time zone and language.
+This read-only summary shows the company name, week start and time zone.
 
 The company's week start and time zone apply to the whole team. Week start controls the
 order of days and where each week begins. Time zone is selected during company creation from a
@@ -255,9 +228,8 @@ company-wide values, but nobody can change them there.
 ### Build details
 
 The **Build details** row provides support context without exposing company data. A stamped
-deployment shows its build revision and, when configured, a **Send feedback** link. Server mode
-also includes the collapsed **Persistence diagnostics** disclosure with process-local save and
-reload counters. These counters reset when a new persistence lifecycle starts.
+deployment shows its build revision and, when configured, a **Send feedback** link. A build with
+neither omits the row.
 
 ### Diagnostics
 

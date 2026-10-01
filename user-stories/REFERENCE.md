@@ -337,11 +337,11 @@ success for the rebase never hides the independent loss.
   - _Barry Allen_ — Front End (freelance), Development, **freelancer**, 8h, **Mon–Wed only**.
   - _Senior Designer_ — a **placeholder** (no name), Design, **bound to Project Watchtower**. Shown
     as the literal name **"Placeholder"** with a **"?"** avatar. **Hidden by default** — placeholders
-    are behind the per-account **Show placeholders** pref (Settings → Placeholders and external resources, default **off**);
+    are behind the per-account **Show placeholders** pref (Settings → Company features, default **off**);
     enable it to see this row in the schedule, the Resources list, and the assignee picker.
   - _Kord Industries_ — an **external / 3rd party** (`r-ext-northstar`): a company, no discipline/
     capacity, booked on Visual Design (Project Watchtower) as a span only. **Hidden by default** —
-    externals are behind the per-account **Show external resources** pref (Settings → Placeholders and external resources,
+    externals are behind the per-account **Show external resources** pref (Settings → Company features,
     default **off**); enable it to see this row in the schedule's bottom band, the **External** section
     of the Resources tab, and the assignee picker.
 - **Clients:** Queen Consolidated, LexCorp. (**Internal** is the built-in, one per account — it is **HIDDEN
@@ -711,26 +711,24 @@ stored dates never move, but capacity, utilisation and conflicts are recalculate
 non-working days no longer counts unless the allocation has Ignore working days enabled. Time off
 remains a separate mechanism and a visible conflict rather than a calendar rule.
 
-**Schedule display (snap to week start).** The same Settings → My display → **Schedule on this device** section has a second
-switch **Snap to week start** (`role="switch"`, accessible name `Snap to week start`), **on** by
-default — sibling to _Minimise weekends_. It's also a **device-global** display pref (own
-`localStorage` key `capacitylens/snapToWeekStart`, NOT on the account and NOT in export). On → after a
-**free horizontal scroll** settles, the grid **floors** its left edge back to the current week's
-first day (the account `weekStartsOn`, default Monday) — a stray nudge that would park the view on
-a Tue/Wed settles back to that week's Monday. It floors (never forward): forward weeks are reached
-via Prev/Next. Off → free scrolling is unconstrained and a nudge sticks on the mid-week day. This
-governs **free scroll only** — the always-on **navigation** snap (Weeks visible / Prev-Next / Today,
-see _Scheduler toolbar_ above) re-anchors to the week start regardless of this switch.
+**Schedule display (week snap).** After a **free horizontal scroll** settles, the grid **floors** its
+left edge back to the current week's first day (the account `weekStartsOn`, default Monday) — a stray
+nudge that would park the view on a Tue/Wed settles back to that week's Monday. It floors (never
+forward): forward weeks are reached via Prev/Next. This is always on and has no Settings control.
+Browser tests can disable it by storing `off` under the test-only `localStorage` key
+`capacitylens/snapToWeekStart` before the app loads, so a mid-week scroll position holds. The
+separate always-on **navigation** snap (Weeks visible / Prev-Next / Today, see _Scheduler toolbar_
+above) re-anchors to the week start on every deliberate navigation.
 
 **Company details (per-account, FROZEN after creation — P1.14).** In **Data and support**,
-this compact, read-only four-row table appears before Diagnostics:
-**Company name**, **Week starts on**,
-**Time zone** (including its numeric UTC offset) and **Language** (`data-testid="settings-language"`,
-**English**). It replaces the editable Company card and the disabled Calendar controls. These values
+this compact, read-only three-row table appears before Diagnostics:
+**Company name**, **Week starts on** and
+**Time zone** (including its numeric UTC offset). Language is not shown while English is the only
+option. It replaces the editable Company card and the disabled Calendar controls. These values
 are captured ONCE in the company-create form (see _Launching the app_ above), and the help modal
 explains that they cannot be changed here. The server continues to reject a direct change to
 `language`, `weekStartsOn` or `timezone` with **409**. Ordinary company-wide planning and display
-settings — scheduling mode, disciplines, colour mode and feature-visibility switches — deliberately
+settings — scheduling mode, disciplines and feature-visibility switches — deliberately
 use the normal Editor-and-up write tier. Identity, membership, privacy, lifecycle, import and company-erasure
 operations retain their stricter Admin/Owner gates. (English-only until Paraglide; the value persists
 as `'en'` on the Account.)
@@ -749,8 +747,13 @@ dialogs rather than depending on hidden help copy.
 > server-vs-local clear-storage / "Signed in as …" / status-suffixed error toasts) is deferred to the
 > later toasts/errors i18n area; its visible text is likewise unchanged.
 
-**Placeholders and external resources (per-account, default OFF).** Settings → **Placeholders and external resources**
-contains two independently configurable switches: **Show placeholders** and **Show external resources**.
+**Company features (per-account).** Settings → **Scheduling features** holds one **Company features**
+section with five independent switches, in order: **Use disciplines**, **Show placeholders**, **Show
+external resources**, **Inline activity creation** and **Show task field in schedule**. Its help
+action (`About Company features`) explains each one. A new company starts with every switch off.
+
+**Placeholders and external resources (per-account, default OFF).** The **Show placeholders** and
+**Show external resources** switches in **Company features** are independently configurable.
 A placeholder is an unfilled role or tentative person used to plan future capacity before someone
 is assigned. An External resource is a third party such as a partner agency, freelancer, supplier or
 subcontractor; it represents work leaving the team and carries no capacity. Both switches are off
@@ -809,40 +812,37 @@ If the optional allocation Task field from #720 is available and populated under
 visibility rule, this vertical view shows it above Notes; this drawer does not create that field or
 setting. See [US-ALL-10](allocation/US-ALL-10-task-field.md).
 
-**Internal work colours (per-account, default neutral grey).** Settings → **Internal work colours** has a
-two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):
-**Neutral grey** (the default) or **Colour palette**. It is stored as `internalColourMode` on the
-Account (absent = `grey`, syncs but is omitted from the scoped planning-data export). In **Neutral grey** mode, allocation bars for `internal`
-activities and for projects owned by the built-in **Internal** client use the neutral grey, and an
-Internal-owned project's saved colour is overridden by grey in the Projects list. The project
-form hides its existing **Colour** swatch picker whenever the selected client is Internal; the
-saved palette colour is retained rather than cleared. Switching to **Colour palette** restores
-those saved project colours and reveals the picker. Unattributed All-projects allocations retain
-their resource-derived colours in both modes; attributed ones use their effective project's colour.
+**Internal work colours (always neutral grey).** Allocation bars for `internal` activities and for
+projects owned by the built-in **Internal** client always use the neutral grey, and an
+Internal-owned project's saved colour is overridden by grey in the Projects list. Settings has no
+colour mode for internal work. The project form hides its **Colour** swatch picker whenever the
+selected client is Internal; any saved palette colour is retained rather than cleared. Internal
+projects and activities are always available and shown, including in the command palette.
+Unattributed All-projects allocations retain their resource-derived colours; attributed ones use
+their effective project's colour.
 
-**Disciplines (account-level).** Settings → **Disciplines** has a single switch **Use disciplines**.
+**Disciplines (account-level).** Settings → **Company features** has the switch **Use disciplines**.
 It is off for a newly created company. Turning it off hides disciplines across the whole app — the **Disciplines** nav
 link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline** field in the
 resource form, the **Filter by discipline** control, the discipline part of each Resources-list
 row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle. The
 resource form also hides its **Discipline** field when the company has no disciplines to choose from.
 schedule then groups capacity-tracked resources by **Studio** and **Supplementary** engagement
-(or one **Unassigned** band when engagement grouping is off), followed by External / 3rd party.
+(or one **Unassigned** band when nobody is Supplementary), followed by External / 3rd party.
 It's stored on the account
 (`disciplinesEnabled`, syncs but is omitted from the scoped planning-data export), so it applies to everyone on that company; the discipline
 data itself is kept and reappears if switched back on. Both seed companies leave it on.
 
-**Group people by engagement (account-level).** Settings → **Group people by engagement** has a single switch
-**Group resources by engagement**, on by default. When on, Resources renders people in separate
-**Studio** and **Supplementary** sections; each section puts favourites first and then sorts by
-display name. On the schedule, assigned resources stay in canonical discipline order and unassigned
-resources follow in separate **Studio** then **Supplementary** bands. With disciplines off, those
-engagement bands become the primary schedule grouping. Empty bands never render and External /
-3rd party remains last. When the switch is off, Resources returns to one People list and the
-schedule uses one **Unassigned** fallback band for resources outside a discipline. Placeholders
-remain after people inside the applicable band. The preference is
-stored on the account (`groupResourcesByEngagement`, absent = on), so every member of the company
-sees the same grouping.
+**Engagement grouping (derived, no setting).** People are grouped by engagement only while the
+company has at least one active, capacity-tracked **Supplementary** person (archived people and
+External / 3rd parties do not count). Then Resources renders people in separate **Studio** and
+**Supplementary** sections; each section puts favourites first and then sorts by display name. On
+the schedule, assigned resources stay in canonical discipline order and unassigned resources follow
+in separate **Studio** then **Supplementary** bands. With disciplines off, those engagement bands
+become the primary schedule grouping. Empty bands never render and External / 3rd party remains
+last. A Studio-only company sees one People list in Resources and one **Unassigned** fallback band on
+the schedule for resources outside a discipline. Placeholders remain after people inside the
+applicable band. Settings has no control for it.
 
 **Example data (Settings → Example data).** Shown to an Owner or Admin
 (`data-testid="settings-example-data"`) only on a server-backed deploy, and only while the company has
@@ -876,14 +876,8 @@ mode). When the build also sets `VITE_CAPACITYLENS_FEEDBACK_MAILTO`, a **Send fe
 (`data-testid="send-feedback"`) sits beside the stamp — a `mailto:` whose subject carries
 the build stamp, so reports arrive pinned to a build. The build value must be one valid email
 address; invalid build configuration is rejected, and the address is safely encoded into the URI.
-The default dev/local build leaves both variables unset; the row still exposes server-mode persistence
-diagnostics, while a demo build with no stamp or feedback leaves the row absent.
-
-**Persistence diagnostics (Settings → Data and support → Build details, server mode).** A collapsed **Persistence diagnostics**
-disclosure (`data-testid="persistence-diagnostics"`) reports process-local, privacy-safe counts for
-failed saves, armed retries, completed reconciliations, superseded reloads, rebased edits and
-discarded edits, plus whether writes are currently suspended. It contains counts and state only—no
-company, person, project or note values—and resets when a fresh persistence lifecycle attaches.
+The default dev/local build leaves both variables unset, so the row is absent. Settings no longer
+shows persistence diagnostics.
 
 **Diagnostics (Settings).** At the bottom of Settings, a **Diagnostics** card offers
 **Copy diagnostics** (`data-testid="copy-diagnostics"`). The card shows a **Snapshot observed** ISO
@@ -1452,9 +1446,7 @@ Retry succeeds or another company is chosen),
 `getting-started-progress` (the company-wide 0–5 bar), `getting-started` (the toggleable checklist
 card), `getting-started-tour` (its **Show me around** button — runs the driver.js orientation tour),
 `getting-started-dismiss` (the Owner/Admin **Dismiss** button; saves company-wide dismissal),
-`create-language` (company-create form's read-only Language row — **English**), `settings-language`
-(Settings → the Company details read-only Language cell — **English**; both
-frozen, P1.14),
+`create-language` (company-create form's read-only Language row — **English**; frozen, P1.14),
 `new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —
 whenever `GET /api/auth/me` reports `canCreateAccount: false`: the single-company cap is reached,
 or under auth-on the caller lacks owner/admin standing on any account),
@@ -1471,7 +1463,7 @@ carries a **Restore <name>** + **Delete <name>** button), `archived-section` (Se
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
 deploy that also renders the company block, which needs two or more accessible companies; absent for
 any non-viewer role and wherever the company block is hidden),
-`persistence-diagnostics` (Settings → Build details disclosure; server mode), `copy-diagnostics` (Settings diagnostics copy action; server and demo modes), `settings-build-details` (Settings → Data and support → Build details row), `build-stamp` (Settings → Build details; only rendered when the build sets
+`copy-diagnostics` (Settings diagnostics copy action; server and demo modes), `settings-build-details` (Settings → Data and support → Build details row), `build-stamp` (Settings → Build details; only rendered when the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings → Build details mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,
@@ -1539,12 +1531,11 @@ multiple).
   resource grouping while sorting Studio before Supplementary within each discipline, favourites
   first and alphabetical inside each engagement partition, followed by placeholders. Unassigned
   resources follow the assigned discipline bands as separate Studio and Supplementary bands; those
-  engagement bands become the complete capacity grouping when disciplines are off. Turning
-  engagement grouping off replaces the fallback engagement bands with one **Unassigned** band while
-  retaining favourites-first alphabetical order. Favourite external parties similarly lead the
-  final External band. Favourites and
-  the grouping preference are company data shared by every account member, not per-user view
-  preferences.
+  engagement bands become the complete capacity grouping when disciplines are off. A company with
+  no active Supplementary person gets one **Unassigned** band instead, while retaining
+  favourites-first alphabetical order. Favourite external parties similarly lead the
+  final External band. Favourites are company data shared by every account member, not per-user
+  view preferences.
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
   **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write
   that would create a _second_ Internal, so the one-per-account rule holds on every path). It is a behind-the-scenes data anchor, so it

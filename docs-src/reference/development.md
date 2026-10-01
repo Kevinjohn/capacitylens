@@ -1113,12 +1113,11 @@ releases.
 
 ## Persistence diagnostics
 
-Server-mode Settings exposes process-local persistence counters for failed saves, retries,
+The server-mode client keeps process-local persistence counters for failed saves, retries,
 reconciliations, superseded reloads, rebases and discarded edits, plus the current
-write-suspension state. The counters intentionally contain no tenant values and reset
-whenever a fresh persistence lifecycle attaches. Use them with the build stamp when
-reproducing save or reload failures — they're diagnostic breadcrumbs, not durable
-telemetry or an operator health endpoint.
+write-suspension state (`usePersistenceDiagnostics`). The counters intentionally contain no tenant
+values and reset whenever a fresh persistence lifecycle attaches. Settings no longer displays
+them. They're diagnostic breadcrumbs, not durable telemetry or an operator health endpoint.
 
 ## Test data and generated files
 
