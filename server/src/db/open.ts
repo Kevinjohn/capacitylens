@@ -60,7 +60,8 @@ export function openDbConnection(path: string): Db {
   return db;
 }
 
-function assertQuickCheckBeforeMigration(db: Db, fresh: boolean): void {
+type AssertQuickCheckBeforeMigrationOptions = { db: Db; fresh: boolean };
+function assertQuickCheckBeforeMigration({ db, fresh }: AssertQuickCheckBeforeMigrationOptions): void {
   if (fresh) return;
   const quickCheck = db.prepare("PRAGMA quick_check").all() as Array<{
     quick_check?: string;
@@ -209,7 +210,7 @@ function restrictDatabaseFilePermissions(path: string): void {
 export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationHooks = {}): DatabaseMigrationPlan {
   const plan = planDatabaseMigrations(db);
   restrictIdentifiedDatabasePermissions(db);
-  assertQuickCheckBeforeMigration(db, plan.fresh);
+  assertQuickCheckBeforeMigration({ db: db, fresh: plan.fresh });
   configureDatabaseForMigration(db, path);
   initializeWithForeignKeysDisabled(db, () => initializeSchema(db, plan, hooks));
   assertForeignKeyIntegrity(db);

@@ -98,24 +98,31 @@ export function resolveSliceRewrite(key: string, data: AppData, now: number): Sl
  * Publish which boundary established the current offline claim. Identity/account-list refreshes
  * cannot clear a tenant-slice claim; only a successful tenant reload or cleanup has that authority.
  */
-export function setOfflineReadState(
-  owner: OfflineReadOwner,
-  readOnly: boolean,
-  lastUpdated: number | null = null,
-): void {
-  if (!maySetOfflineReadState(owner, readOnly) || isCurrentOfflineReadState(owner, readOnly, lastUpdated)) return;
+type SetOfflineReadStateOptions = {
+  owner: OfflineReadOwner;
+  readOnly: boolean;
+  lastUpdated?: number | null | undefined;
+};
+export function setOfflineReadState({ owner, readOnly, lastUpdated = null }: SetOfflineReadStateOptions): void {
+  if (
+    !maySetOfflineReadState({ owner: owner, readOnly: readOnly }) ||
+    isCurrentOfflineReadState({ owner: owner, readOnly: readOnly, lastUpdated: lastUpdated })
+  )
+    return;
   if (readOnly && !state.readOnly) offlineEpisode += 1;
   offlineReadOwner = readOnly ? owner : null;
   state = { ...state, readOnly, lastUpdated };
   for (const listener of listeners) listener();
 }
 
-function maySetOfflineReadState(owner: OfflineReadOwner, readOnly: boolean): boolean {
+type MaySetOfflineReadStateOptions = { owner: OfflineReadOwner; readOnly: boolean };
+function maySetOfflineReadState({ owner, readOnly }: MaySetOfflineReadStateOptions): boolean {
   if (offlineReadOwner !== "tenant" || owner === "tenant") return true;
   return !readOnly && owner === "cleanup";
 }
 
-function isCurrentOfflineReadState(owner: OfflineReadOwner, readOnly: boolean, lastUpdated: number | null): boolean {
+type IsCurrentOfflineReadStateOptions = { owner: OfflineReadOwner; readOnly: boolean; lastUpdated: number | null };
+function isCurrentOfflineReadState({ owner, readOnly, lastUpdated }: IsCurrentOfflineReadStateOptions): boolean {
   return state.readOnly === readOnly && state.lastUpdated === lastUpdated && (!readOnly || offlineReadOwner === owner);
 }
 
@@ -157,7 +164,7 @@ function publishCacheWriteFailures(): void {
 export function resetOfflineState(): void {
   scope = null;
   clearOfflineCacheWriteFailures();
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
 }
 
 /** Current offline episode tag; reactive consumers read it after their offline-state subscription. */

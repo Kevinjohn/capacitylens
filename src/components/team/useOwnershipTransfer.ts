@@ -104,11 +104,8 @@ async function readCeremony(accountId: string): Promise<CeremonyRead> {
  *   has just moved, so the old projection would offer controls at a revision the server will now
  *   refuse, and "I do not know" is the honest answer.
  */
-function mergeCeremonyRead(
-  previous: OwnershipTransferReadState,
-  next: CeremonyRead,
-  keepStale = true,
-): OwnershipTransferReadState {
+type MergeCeremonyReadOptions = { previous: OwnershipTransferReadState; next: CeremonyRead; keepStale?: boolean };
+function mergeCeremonyRead({ previous, next, keepStale = true }: MergeCeremonyReadOptions): OwnershipTransferReadState {
   return {
     ...previous,
     projection: next.projection ?? (keepStale ? previous.projection : null),
@@ -164,7 +161,7 @@ function useCeremonyRead({ accountId, beginRead, apply, forgetOutcome }: Ceremon
     if (!accountId) return;
     void (async () => {
       const next = await readCeremony(accountId);
-      if (isLatest()) apply((previous) => mergeCeremonyRead(previous, next));
+      if (isLatest()) apply((previous) => mergeCeremonyRead({ previous: previous, next: next }));
     })();
   }, [accountId, beginRead, apply, forgetOutcome]);
 }
@@ -242,6 +239,11 @@ interface TransferCommandInput {
   refreshAuth: () => Promise<void>;
 }
 
+type RunTransferCommandOptions = {
+  perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>;
+  mayChangeCallerAccess?: boolean;
+};
+
 function useTransferCommand({
   accountId,
   beginRead,
@@ -252,10 +254,7 @@ function useTransferCommand({
 }: TransferCommandInput) {
   const issuedCommand = useRef(0);
   return useCallback(
-    async (
-      perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>,
-      mayChangeCallerAccess = false,
-    ): Promise<void> => {
+    async ({ perform, mayChangeCallerAccess = false }: RunTransferCommandOptions): Promise<void> => {
       if (!accountId) return;
       const commandId = ++issuedCommand.current;
       const ownsCommand = () => issuedCommand.current === commandId && currentAccount.current === accountId;
@@ -276,7 +275,7 @@ function useTransferCommand({
       if (!isLatest() || !ownsCommand()) return;
       setLastTerminal(answer.terminal);
       apply((previous) => ({
-        ...mergeCeremonyRead(previous, next, false),
+        ...mergeCeremonyRead({ previous: previous, next: next, keepStale: false }),
         busy: false,
         error: answer.failure ?? next.error,
       }));
@@ -303,7 +302,8 @@ export function useOwnershipTransfer(
     if (!accountId) return;
     const isLatest = beginRead();
     const next = await readCeremony(accountId);
-    if (isLatest() && currentAccount.current === accountId) setState((previous) => mergeCeremonyRead(previous, next));
+    if (isLatest() && currentAccount.current === accountId)
+      setState((previous) => mergeCeremonyRead({ previous: previous, next: next }));
   }, [accountId, beginRead]);
 
   // Completion can change the caller's role, including when its response is uncertain.
@@ -319,31 +319,32 @@ export function useOwnershipTransfer(
   const nominate = useCallback(
     async (targetPrincipalId: string): Promise<void> => {
       const live = state.projection?.live ?? null;
-      await run(() =>
-        teamAccessClient.initiateOwnershipTransfer({
-          workspaceId: accountId ?? "",
-          targetPrincipalId,
-          // Naming the predecessor is what makes replacement atomic: if it moved since this card
-          // read it, the server refuses rather than replacing something else.
-          ...(live ? { replaces: { requestId: live.id, revision: live.revision } } : {}),
-        }),
-      );
+      await run({
+        perform: () =>
+          teamAccessClient.initiateOwnershipTransfer({
+            workspaceId: accountId ?? "",
+            targetPrincipalId,
+            // Naming the predecessor is what makes replacement atomic: if it moved since this card
+            // read it, the server refuses rather than replacing something else.
+            ...(live ? { replaces: { requestId: live.id, revision: live.revision } } : {}),
+          }),
+      });
     },
     [accountId, run, state.projection],
   );
 
   const command = useCallback(
     async ({ requestId, step, expectedRevision }: CommandInput): Promise<void> => {
-      await run(
-        () =>
+      await run({
+        perform: () =>
           teamAccessClient.commandOwnershipTransfer({
             workspaceId: accountId ?? "",
             requestId,
             step,
             expectedRevision,
           }),
-        step === "complete",
-      );
+        mayChangeCallerAccess: step === "complete",
+      });
     },
     [accountId, run],
   );

@@ -304,11 +304,16 @@ async function testRetainedMember(): Promise<void> {
   expect(verificationExists(db, "link-multi-account")).toBe(true);
 }
 
-async function testIdentityRetention(
-  status: "inactive" | "active",
-  otherAccountId: "a2" | "missing-account",
-  shouldRetainIdentity: boolean,
-): Promise<void> {
+type TestIdentityRetentionOptions = {
+  status: "inactive" | "active";
+  otherAccountId: "a2" | "missing-account";
+  shouldRetainIdentity: boolean;
+};
+async function testIdentityRetention({
+  status,
+  otherAccountId,
+  shouldRetainIdentity,
+}: TestIdentityRetentionOptions): Promise<void> {
   const { app, db } = await appWithAuth();
   insertAll(db, { ...emptyAppData(), accounts: [account("a1"), account("a2")] } as unknown as AppData);
   const member = await signUp(app, `${status}-${otherAccountId}@capacitylens.dev`);
@@ -510,9 +515,12 @@ describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", (
   it("M owns a1 AND is a member of a2: deleting a1 drops M's a1 membership but NEVER erases M", testRetainedMember);
 
   it.each([
-    ["inactive", "a2", true],
-    ["active", "missing-account", false],
-  ] as const)("handles identity retention for a remaining %s membership row in %s", testIdentityRetention);
+    { status: "inactive", otherAccountId: "a2", shouldRetainIdentity: true },
+    { status: "active", otherAccountId: "missing-account", shouldRetainIdentity: false },
+  ] as const)(
+    "handles identity retention for a remaining $status membership row in $otherAccountId",
+    testIdentityRetention,
+  );
 });
 
 describe("P2.6b erasure — (d) account_members + invites for the deleted account are gone (direct count)", () => {

@@ -113,6 +113,7 @@ export function parseAuthProviders(value: unknown): AuthProviderInfo[] {
  *  absent or not a boolean — covers an older server that predates these fields as well as a
  *  malformed response. See `AuthContextValue.canCreateAccount` (authContext.ts) for why "unknown"
  *  means "allowed": the server 403 is the authoritative enforcer, this only gates a UI affordance. */
-export function resolveBooleanField(value: unknown, fallback: boolean): boolean {
+type ResolveBooleanFieldOptions = { value: unknown; fallback: boolean };
+export function resolveBooleanField({ value, fallback }: ResolveBooleanFieldOptions): boolean {
   return typeof value === "boolean" ? value : fallback;
 }

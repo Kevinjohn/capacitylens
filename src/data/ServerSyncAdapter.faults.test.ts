@@ -38,14 +38,14 @@ function registerStateFaultTests(): void {
     const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
     const staleLoad = adapter.loadAll();
     await expect(adapter.loadAll()).resolves.toMatchObject({ clients: [{ id: "fresh" }] });
-    setOfflineReadState("tenant", true, 123);
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: 123 });
     required(resolveFirst)(new Response(null, { status: 400 }));
     await expect(staleLoad).resolves.toEqual(emptyAppData());
     expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: true, lastUpdated: 123 });
 
     await adapter.saveAll(fresh);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
-    setOfflineReadState("cleanup", false);
+    setOfflineReadState({ owner: "cleanup", readOnly: false });
   });
 
   it("warns when background offline-cache refresh fails without failing hydration", async () => {

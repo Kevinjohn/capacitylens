@@ -112,13 +112,16 @@ function createInternalClientMutationRejectionTests(): void {
 function createInternalClientSingletonAcceptanceTests(): void {
   it("accepts the canonical same-batch duplicate of a freshly generated Internal client", async () => {
     const auditEntries: AuditEntry[] = [];
-    const { app } = freshApp(true, {
-      audit: {
-        append: (entry) => {
-          auditEntries.push(entry);
-          return true;
+    const { app } = freshApp({
+      allowReset: true,
+      extra: {
+        audit: {
+          append: (entry) => {
+            auditEntries.push(entry);
+            return true;
+          },
+          degraded: false,
         },
-        degraded: false,
       },
     });
     const res = await batch(app, [
@@ -146,12 +149,14 @@ function createInternalClientSingletonAcceptanceTests(): void {
       },
     ]);
   });
+}
 
+function registerPerAccountBuiltinTest(): void {
   it("creates one protected builtin in each account", async () => {
     // multiAccount: true — this test deliberately creates a SECOND company on one instance, which
     // the default single-company cap would otherwise 403 (see app.singleCompanyCap.test.ts for the
     // cap's own coverage); this test is about per-account builtin scoping, not the cap.
-    const { app } = freshApp(true, { multiAccount: true });
+    const { app } = freshApp({ allowReset: true, extra: { multiAccount: true } });
     await post(app, "accounts", account("a1"));
     await post(app, "accounts", account("a2"));
     expect(
@@ -179,12 +184,16 @@ describe("built-in Internal client is a per-account singleton on direct writes",
   createInternalClientCreationRejectionTests();
   createInternalClientMutationRejectionTests();
   createInternalClientSingletonAcceptanceTests();
+  registerPerAccountBuiltinTest();
 });
 
 async function testBoundedImportSaturation(): Promise<void> {
-  const { app } = freshApp(true, {
-    importWorker: async () => {
-      throw new WorkQueueFullError("Import preparation is temporarily at capacity. Retry shortly.");
+  const { app } = freshApp({
+    allowReset: true,
+    extra: {
+      importWorker: async () => {
+        throw new WorkQueueFullError("Import preparation is temporarily at capacity. Retry shortly.");
+      },
     },
   });
   await post(app, "accounts", account("a1"));
@@ -225,7 +234,7 @@ function exportFile(accountId: string) {
 }
 
 async function testImportTimeOffAndClosures(): Promise<void> {
-  const { app } = freshApp(true, { multiAccount: true });
+  const { app } = freshApp({ allowReset: true, extra: { multiAccount: true } });
   await post(app, "accounts", account("a1"));
   await post(app, "accounts", account("a2"));
   const missingResource = timeOff({
@@ -305,12 +314,15 @@ async function testStaleImportConflict(): Promise<void> {
     auditedActions.push(record.action);
     return true;
   });
-  const { app } = freshApp(true, {
-    audit: { append: appendAudit, degraded: false },
-    importWorker: async (request) => {
-      workerStarted.resolve();
-      await releaseWorker.promise;
-      return runImportWorker(request);
+  const { app } = freshApp({
+    allowReset: true,
+    extra: {
+      audit: { append: appendAudit, degraded: false },
+      importWorker: async (request) => {
+        workerStarted.resolve();
+        await releaseWorker.promise;
+        return runImportWorker(request);
+      },
     },
   });
   await post(app, "accounts", account("a1"));
@@ -342,12 +354,15 @@ async function testStaleImportConflict(): Promise<void> {
 async function testCrossAccountImportConcurrency(): Promise<void> {
   const workerStarted = deferred();
   const releaseWorker = deferred();
-  const { app } = freshApp(true, {
-    multiAccount: true,
-    importWorker: async (request) => {
-      workerStarted.resolve();
-      await releaseWorker.promise;
-      return runImportWorker(request);
+  const { app } = freshApp({
+    allowReset: true,
+    extra: {
+      multiAccount: true,
+      importWorker: async (request) => {
+        workerStarted.resolve();
+        await releaseWorker.promise;
+        return runImportWorker(request);
+      },
     },
   });
   await post(app, "accounts", account("a1"));

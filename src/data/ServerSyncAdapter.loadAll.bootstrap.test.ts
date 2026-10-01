@@ -9,13 +9,13 @@ function registerBootstrapLoadTests(): void {
     const fetchImpl = vi.fn(async () => new Response("not json", { status: 400 })) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
 
-    setOfflineReadState("tenant", true);
+    setOfflineReadState({ owner: "tenant", readOnly: true });
     try {
       await expect(adapter.loadAll()).resolves.toEqual(emptyAppData());
       expect(fetchImpl).toHaveBeenCalledTimes(1);
       expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: false });
     } finally {
-      setOfflineReadState("cleanup", false);
+      setOfflineReadState({ owner: "cleanup", readOnly: false });
     }
   });
 }

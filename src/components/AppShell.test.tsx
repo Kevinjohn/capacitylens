@@ -43,10 +43,11 @@ beforeEach(() => {
   useStore.getState().setMasquerade({ kind: "inactive" });
   // Most shell tests exercise the post-hydration UI; the dedicated handoff test overrides this.
   useStore.getState().setHydrated(true);
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 
-function renderAppShell(initialEntries: string[] = ["/"], includeLocationProbe = false) {
+type RenderAppShellOptions = { initialEntries?: string[]; includeLocationProbe?: boolean };
+function renderAppShell({ initialEntries = ["/"], includeLocationProbe = false }: RenderAppShellOptions = {}) {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
       <AppShell />
@@ -80,7 +81,7 @@ it("shows a fail-closed banner while a member view is starting", () => {
     pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
   });
 
-  renderAppShell();
+  renderAppShell({});
 
   const banner = screen.getByTestId("masquerade-banner");
   expect(banner).toHaveTextContent("Starting member view…");
@@ -102,7 +103,7 @@ it("offers projection recovery after the server has prepared a starting member v
     },
   });
 
-  renderAppShell();
+  renderAppShell({});
 
   const banner = screen.getByTestId("masquerade-banner");
   expect(within(banner).getByRole("button", { name: "Retry" })).toBeInTheDocument();
@@ -110,7 +111,7 @@ it("offers projection recovery after the server has prepared a starting member v
 });
 
 it("consumes a joined-account query only once and preserves later route queries", async () => {
-  renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`], true);
+  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`], includeLocationProbe: true });
 
   await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent(/^\/$/));
   fireEvent.click(screen.getByTestId("location-probe"));
@@ -118,7 +119,10 @@ it("consumes a joined-account query only once and preserves later route queries"
 });
 
 it("removes only the joined-account handoff from the entry query", async () => {
-  renderAppShell([`/?tab=security&joinedAccount=${DEFAULT_ACCOUNT_ID}&view=archived#members`], true);
+  renderAppShell({
+    initialEntries: [`/?tab=security&joinedAccount=${DEFAULT_ACCOUNT_ID}&view=archived#members`],
+    includeLocationProbe: true,
+  });
 
   await waitFor(() =>
     expect(screen.getByTestId("location-probe")).toHaveTextContent("/?tab=security&view=archived#members"),
@@ -129,7 +133,7 @@ it("waits for initial hydration before consuming a joined-account handoff", asyn
   useStore.getState().setActiveAccount(null);
   useStore.getState().setHydrated(false);
 
-  renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`]);
+  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`] });
 
   await waitFor(() =>
     expect(useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID)).toBe(true),
@@ -147,7 +151,7 @@ it("does not reactivate a consumed joined-account handoff after a later account-
   useStore.getState().setAccountSummaries(accounts.map(({ id, name }) => ({ id, name, role: "owner" })));
   useStore.getState().setActiveAccount(otherAccountId);
 
-  renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`]);
+  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`] });
   act(() => useStore.getState().setHydrated(true));
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
 
@@ -163,7 +167,7 @@ it("does not apply a late joined-account handoff after an explicit company choic
   const lateAccountId = "acct-late";
   useStore.getState().setActiveAccount(null);
 
-  renderAppShell([`/?joinedAccount=${lateAccountId}`]);
+  renderAppShell({ initialEntries: [`/?joinedAccount=${lateAccountId}`] });
   await waitFor(() =>
     expect(useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID)).toBe(true),
   );
@@ -185,7 +189,7 @@ it("keeps the company picker on first entry even when exactly one company is ava
   mockNavigationType("navigate");
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell(["/clients"], true);
+  renderAppShell({ initialEntries: ["/clients"], includeLocationProbe: true });
 
   expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
@@ -197,7 +201,7 @@ it("keeps the company picker after a successful sign-in reload", async () => {
   markCompanyPickerForNextReload();
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell(["/clients"]);
+  renderAppShell({ initialEntries: ["/clients"] });
 
   expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
@@ -208,7 +212,7 @@ it("reopens the sole valid company on reload without changing the requested rout
   mockNavigationType("reload");
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell(["/clients?view=archived#client-list"], true);
+  renderAppShell({ initialEntries: ["/clients?view=archived#client-list"], includeLocationProbe: true });
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
   expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients?view=archived#client-list");
@@ -225,7 +229,7 @@ it("keeps the picker on a multi-company reload", async () => {
     accountSummaries: accounts.map(({ id, name }) => ({ id, name, role: "owner" as const })),
   });
 
-  renderAppShell();
+  renderAppShell({});
 
   expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
@@ -241,7 +245,7 @@ it("keeps the picker when one valid company came from an incomplete directory", 
     accountSummariesComplete: false,
   });
 
-  renderAppShell();
+  renderAppShell({});
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
   expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
@@ -254,7 +258,7 @@ it("keeps the picker when the browser cannot classify the navigation", async () 
   });
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell();
+  renderAppShell({});
 
   expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
@@ -266,7 +270,7 @@ it("keeps the picker when the browser cannot classify the navigation", async () 
 
 it("keeps an explicit Switch company action on the picker after a reload", async () => {
   mockNavigationType("reload");
-  renderAppShell();
+  renderAppShell({});
   expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
@@ -287,7 +291,7 @@ it("does not mistake an unavailable sole membership for a valid reload destinati
     ],
   });
 
-  renderAppShell();
+  renderAppShell({});
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
   expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
@@ -297,7 +301,7 @@ it("lets an invite handoff keep ownership of a reload instead of auto-opening an
   mockNavigationType("reload");
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell(["/clients?joinedAccount=not-yet-authorized"]);
+  renderAppShell({ initialEntries: ["/clients?joinedAccount=not-yet-authorized"] });
 
   expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
@@ -307,7 +311,7 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
   mockNavigationType("reload");
   const summary = { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" as const };
   useStore.setState({ activeAccountId: null, previousAccountId: null, accountSummaries: [summary] });
-  renderAppShell();
+  renderAppShell({});
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
 
   act(() => {
@@ -328,7 +332,7 @@ it("guards navigation while a persistence write is still unacknowledged", () => 
     adapter: { loadAll: async () => emptyAppData(), saveAll: async () => {} },
     debounceMs: 300,
   });
-  const { unmount } = renderAppShell();
+  const { unmount } = renderAppShell({});
   act(() => {
     useStore.getState().addClient({ name: "Unsaved client", color: "#111111" });
   });
@@ -344,7 +348,7 @@ it("guards navigation while a persistence write is still unacknowledged", () => 
 
 function registerSkipLinkLayerTest(): void {
   it("places the focused skip link on its dedicated accessibility layer", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByRole("link", { name: "Skip to content" })).toHaveClass("focus:z-(--z-index-skip-link)");
   });
@@ -352,13 +356,13 @@ function registerSkipLinkLayerTest(): void {
 
 function registerTrailingSlashTitleTest(): void {
   it("keeps a descriptive title on an accepted trailing-slash route", async () => {
-    renderAppShell(["/resources/"]);
+    renderAppShell({ initialEntries: ["/resources/"] });
 
     await waitFor(() => expect(document.title).toBe("Resources · CapacityLens"));
   });
 
   it("keeps Account active on its accepted trailing-slash route", () => {
-    renderAppShell(["/account/"]);
+    renderAppShell({ initialEntries: ["/account/"] });
 
     expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
   });
@@ -371,7 +375,7 @@ function registerLocaleChangeNavigationTest(): void {
       () => (secondLocale ? "Ressources" : "Resources") as ReturnType<typeof m.nav_resources>,
     );
 
-    renderAppShell(["/resources"]);
+    renderAppShell({ initialEntries: ["/resources"] });
     await waitFor(() => expect(screen.getByRole("link", { name: "Resources" })).toBeInTheDocument());
     expect(document.title).toBe("Resources · CapacityLens");
 
@@ -390,7 +394,7 @@ function registerLoadingAccountLocaleTest(): void {
     const currentAccount = makeAccount({ language: "en" });
     const destinationAccount = makeAccount({ id: "acct-other", name: "Other Co" });
     useStore.getState().replaceAll(makeAppData({ accounts: [currentAccount] }));
-    renderAppShell();
+    renderAppShell({});
     await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith("en"));
     i18nMocks.syncLocaleFromAccount.mockClear();
 
@@ -411,8 +415,8 @@ function registerLoadingAccountLocaleTest(): void {
 
 function registerOfflineSnapshotLabelTest(): void {
   it("labels a cached snapshot as Offline and view only instead of Demo access", () => {
-    setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
-    renderAppShell();
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
+    renderAppShell({});
 
     expect(screen.getByTestId("active-role")).toHaveTextContent("Offline · View only");
     expect(screen.getByTestId("active-role")).not.toHaveTextContent("Demo access");
@@ -422,7 +426,7 @@ function registerOfflineSnapshotLabelTest(): void {
 
 function registerExpectedNavigationLinksTest(): void {
   it("renders all expected nav links", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Resources" })).toBeInTheDocument();
@@ -439,14 +443,14 @@ function registerExpectedNavigationLinksTest(): void {
 
 function registerAccountNavigationStateTest(): void {
   it("marks the personal Account destination active and gives it a descriptive page title", async () => {
-    renderAppShell(["/account"]);
+    renderAppShell({ initialEntries: ["/account"] });
     expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
     await waitFor(() => expect(document.title).toBe("Account · CapacityLens"));
   });
 
   it("keeps the personal Account route available before a company is selected", () => {
     useStore.setState({ activeAccountId: null, accountSummaries: [] });
-    renderAppShell(["/account"]);
+    renderAppShell({ initialEntries: ["/account"] });
 
     expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
@@ -531,14 +535,14 @@ function registerAccountSwitchRouteTest(): void {
 
 function registerNavigationBrandNameTest(): void {
   it("renders the CapacityLens brand name in the nav", () => {
-    renderAppShell();
+    renderAppShell({});
     expect(screen.getByText("CapacityLens")).toBeInTheDocument();
   });
 }
 
 function registerImportExportAbsenceTest(): void {
   it("does NOT render the import/export tools in the sidebar", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.queryByTestId("settings-data-tools")).not.toBeInTheDocument();
     expect(screen.queryByTestId("export-data")).not.toBeInTheDocument();
@@ -548,7 +552,7 @@ function registerImportExportAbsenceTest(): void {
 
 function registerSidebarSignOutTest(): void {
   it("keeps the avatar-led Account row as the only sidebar session control", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByText("Test Co")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Switch company" })).toBeInTheDocument();
@@ -562,7 +566,7 @@ function registerSidebarSignOutTest(): void {
 
 function registerPinnedNavigationOrderTest(): void {
   it("pins Team & access and Settings, in that order, after every other destination", () => {
-    renderAppShell();
+    renderAppShell({});
 
     // Scoped to the nav landmark so the skip-to-content link above the sidebar stays out of it.
     const order = within(screen.getByRole("navigation"))
@@ -585,7 +589,7 @@ function registerPinnedNavigationOrderTest(): void {
 
 function registerNavigationRoutesTest(): void {
   it("nav links point to correct routes", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("href", "/overview");
     expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/");
@@ -602,7 +606,7 @@ function registerNavigationRoutesTest(): void {
 
 function registerDefaultSidebarStateTest(): void {
   it("defaults open (jsdom has no matchMedia → large-screen default): links + collapse toggle", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
     const toggle = within(screen.getByTestId("app-sidebar")).getByRole("button", { name: "Collapse menu" });
@@ -614,7 +618,7 @@ function registerMobileSidebarTriggerTest(): void {
   it("reports the mobile sheet state and next action from the top-bar trigger", () => {
     stubMatchMedia(() => true);
     sessionStorage.setItem("capacitylens/rotateHintDismissed", "1");
-    renderAppShell();
+    renderAppShell({});
 
     const trigger = within(screen.getByRole("main")).getByRole("button", { name: "Expand menu" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -628,7 +632,7 @@ function registerMobileSidebarTriggerTest(): void {
 
 function registerPersistedSidebarCollapseTest(): void {
   it("collapsing keeps the navigation links usable and persists the choice", () => {
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       within(screen.getByTestId("app-sidebar")).getByRole("button", { name: "Collapse menu" }).click();
@@ -648,7 +652,7 @@ function registerPersistedSidebarCollapseTest(): void {
 
 function registerCollapsedNavigationLinksTest(): void {
   it("collapsed destinations remain real links instead of reopening the menu", () => {
-    renderAppShell();
+    renderAppShell({});
     act(() => {
       useStore.getState().setSidebarOpen(false);
     });
@@ -661,7 +665,7 @@ function registerCollapsedNavigationLinksTest(): void {
 
 function registerNavigationLinkIconsTest(): void {
   it("nav links carry icons without changing their accessible names", () => {
-    renderAppShell();
+    renderAppShell({});
     const link = screen.getByRole("link", { name: "Projects" });
     expect(link.querySelector("svg")).not.toBeNull();
     expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
@@ -670,7 +674,7 @@ function registerNavigationLinkIconsTest(): void {
 
 function registerSidebarKeyboardShortcutTest(): void {
   it("toggles with Cmd/Ctrl+B and prevents the browser shortcut outside guarded contexts", () => {
-    renderAppShell();
+    renderAppShell({});
     const event = new KeyboardEvent("keydown", { key: "b", metaKey: true, bubbles: true, cancelable: true });
 
     act(() => {
@@ -689,7 +693,7 @@ function registerEditableControlShortcutTest(): void {
     ["select", "select"],
     ["editable content", "div"],
   ] as const)("leaves Cmd/Ctrl+B to %s", (_label, tagName) => {
-    renderAppShell();
+    renderAppShell({});
     const target = document.createElement(tagName);
     if (tagName === "div") target.setAttribute("contenteditable", "true");
     document.body.append(target);
@@ -710,7 +714,7 @@ function registerEditableControlShortcutTest(): void {
 
 function registerComposingShortcutTest(): void {
   it("ignores Cmd/Ctrl+B during IME composition", () => {
-    renderAppShell();
+    renderAppShell({});
     const event = new KeyboardEvent("keydown", {
       key: "b",
       metaKey: true,
@@ -730,7 +734,7 @@ function registerComposingShortcutTest(): void {
 
 function registerModalShortcutTest(): void {
   it("ignores Cmd/Ctrl+B while a modal is open", () => {
-    renderAppShell();
+    renderAppShell({});
     const modal = document.createElement("div");
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
@@ -754,7 +758,7 @@ function registerModalShortcutTest(): void {
 function registerDirtyFormPaletteGuardTest(): void {
   it("Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette", async () => {
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       useStore.getState().setDirtyForm(true);
@@ -776,7 +780,7 @@ function registerDirtyFormPaletteGuardTest(): void {
 function registerCleanFormPaletteShortcutTest(): void {
   it("Ctrl+K with dirtyForm=false opens the palette", () => {
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       useStore.getState().setDirtyForm(false);
@@ -791,7 +795,7 @@ function registerCleanFormPaletteShortcutTest(): void {
 
 function registerModalPaletteShortcutTest(): void {
   it("leaves Cmd/Ctrl+K to an existing modal", () => {
-    renderAppShell();
+    renderAppShell({});
     const modal = document.createElement("div");
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
@@ -812,7 +816,7 @@ function registerModalPaletteShortcutTest(): void {
 
 function registerComposingPaletteShortcutTest(): void {
   it("ignores Cmd/Ctrl+K during IME composition", () => {
-    renderAppShell();
+    renderAppShell({});
     const event = new KeyboardEvent("keydown", { key: "k", metaKey: true, isComposing: true, cancelable: true });
     act(() => {
       window.dispatchEvent(event);
@@ -824,7 +828,7 @@ function registerComposingPaletteShortcutTest(): void {
 
 function registerRepeatedPaletteShortcutTest(): void {
   it("keeps the palette open when the Ctrl+K keydown repeats", () => {
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
@@ -837,7 +841,7 @@ function registerRepeatedPaletteShortcutTest(): void {
 
 function registerPaletteToggleShortcutTest(): void {
   it("closes the open palette with a second Ctrl+K", () => {
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
@@ -853,7 +857,7 @@ function registerPaletteToggleShortcutTest(): void {
 
 function registerLaterModalPaletteShortcutTest(): void {
   it("leaves Ctrl+K to a later modal even while the palette is open", () => {
-    renderAppShell();
+    renderAppShell({});
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
     });
@@ -879,7 +883,7 @@ function registerLaterModalPaletteShortcutTest(): void {
 
 function registerInfoNoticeDismissalTest(): void {
   it("renders a Sonner toast for an info store notice and clears it on dismiss", async () => {
-    renderAppShell();
+    renderAppShell({});
     expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument();
 
     act(() => {
@@ -910,7 +914,7 @@ function registerPersistentErrorNoticeTest(): void {
     // async tests in this file keep their real-timer behaviour.
     vi.useFakeTimers();
     try {
-      renderAppShell();
+      renderAppShell({});
 
       // BASELINE — an INFO notice MUST auto-dismiss once the 4000ms window elapses. Prove the
       // window actually closes (so the error assertion below isn't vacuously true).
@@ -967,7 +971,7 @@ function registerPersistentWarningNoticeTest(): void {
     // since the edit SUCCEEDED. Same fake-timer technique as the info-vs-error test above.
     vi.useFakeTimers();
     try {
-      renderAppShell();
+      renderAppShell({});
 
       act(() => {
         useStore.getState().setNotice("Work volume was capped at 24h/day.", "warning");
@@ -1014,7 +1018,7 @@ function registerNoticeReplacementRaceTest(): void {
     // 4000ms auto-dismiss window, so B never auto-closes — we isolate the swap race, not the timer.
     vi.useFakeTimers();
     try {
-      renderAppShell();
+      renderAppShell({});
 
       // A mounts first (its bridge effect runs, Sonner portals toast A) — the swap must dismiss a
       // *real* live toast for the race to exist at all.
@@ -1097,13 +1101,13 @@ describe("AppShell hydration gate", () => {
   beforeEach(() => useStore.getState().setHydrated(false));
 
   it('shows "Loading…" when the store is not hydrated', () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByText("Loading…")).toBeInTheDocument();
   });
 
   it("does not render the outlet area when not hydrated", () => {
-    renderAppShell();
+    renderAppShell({});
 
     // The loading placeholder should be shown, not the outlet content area
     expect(screen.getByText("Loading…")).toBeInTheDocument();
@@ -1111,7 +1115,7 @@ describe("AppShell hydration gate", () => {
   });
 
   it('hides "Loading…" and renders outlet area after setHydrated(true)', () => {
-    renderAppShell();
+    renderAppShell({});
 
     // Initially shows loading
     expect(screen.getByText("Loading…")).toBeInTheDocument();
@@ -1128,7 +1132,7 @@ describe("AppShell hydration gate", () => {
   it("renders outlet area immediately when hydrated is already true", () => {
     useStore.getState().setHydrated(true);
 
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
   });
@@ -1137,7 +1141,7 @@ describe("AppShell hydration gate", () => {
 describe("AppShell undo/redo keyboard", () => {
   it("⌘Z undoes a data change, but is IGNORED while a form is dirty", () => {
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
     // A change so there's something to undo.
     act(() => {
       useStore.getState().addClient({ name: "Undoable", color: "#111111" });
@@ -1166,7 +1170,7 @@ describe("AppShell undo/redo keyboard", () => {
 
   it("ignores undo and redo while a clean modal has focus on a non-text control", () => {
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
     act(() => {
       useStore.getState().addClient({ name: "Undoable", color: "#111111" });
     });
@@ -1233,7 +1237,7 @@ describe("AppShell fake sign-in gate (cosmetic demo)", () => {
   it("shows the demo sign-in (not the picker/shell) when not signed in", () => {
     useStore.getState().setFakeSignedIn(false);
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByRole("heading", { name: "Choose an account" })).toBeInTheDocument();
     // Both downstream gates are walled off behind the demo sign-in.
@@ -1245,7 +1249,7 @@ describe("AppShell fake sign-in gate (cosmetic demo)", () => {
     useStore.getState().setFakeSignedIn(false);
     useStore.getState().setActiveAccount(null);
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       screen.getByTestId("fake-sign-in").click();

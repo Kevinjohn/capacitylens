@@ -74,11 +74,16 @@ function createConfiguredAuditSink(input: ServerRuntimeInput) {
     : auditFileSink;
 }
 
-function formatApplicationStartupFailure(
-  error: unknown,
-  startingBackups: boolean,
-  backupConfig: BackupConfig | null,
-): string {
+type FormatApplicationStartupFailureOptions = {
+  error: unknown;
+  startingBackups: boolean;
+  backupConfig: BackupConfig | null;
+};
+function formatApplicationStartupFailure({
+  error,
+  startingBackups,
+  backupConfig,
+}: FormatApplicationStartupFailureOptions): string {
   if (startingBackups && backupConfig) return formatBackupStartupFailure(backupConfig.dir, error);
   return error instanceof Error ? error.message : String(error);
 }
@@ -126,7 +131,13 @@ function createServerApplication(input: ServerRuntimeInput): {
   } catch (error) {
     closeDbSafely(input.db);
     input.startupSignals.dispose();
-    refuseToStart(formatApplicationStartupFailure(error, startingBackups, input.backupConfig));
+    refuseToStart(
+      formatApplicationStartupFailure({
+        error: error,
+        startingBackups: startingBackups,
+        backupConfig: input.backupConfig,
+      }),
+    );
   }
 }
 

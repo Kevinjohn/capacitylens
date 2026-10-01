@@ -41,7 +41,7 @@ describe("loadAll repair write", () => {
 
     // A newer load starts and falls back to a cached slice, which is read-only.
     state.loadGen += 1;
-    setOfflineReadState("tenant", true, 123);
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: 123 });
 
     releaseRepair();
     await olderLoad;

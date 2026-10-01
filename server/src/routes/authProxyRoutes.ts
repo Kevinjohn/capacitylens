@@ -198,11 +198,12 @@ async function canAuthenticatedUserCreateAccount({
   });
 }
 
-async function readAuthenticatedIdentity(
-  dependencies: IdentityRouteDependencies,
-  session: ApplicationSession,
-  capAllows: boolean,
-) {
+type ReadAuthenticatedIdentityOptions = {
+  dependencies: IdentityRouteDependencies;
+  session: ApplicationSession;
+  capAllows: boolean;
+};
+async function readAuthenticatedIdentity({ dependencies, session, capAllows }: ReadAuthenticatedIdentityOptions) {
   const { auth, authMode, multiAccount, requireMfa } = dependencies;
   const user = dependencies.sessionUserFromApplicationSession(session);
   const canCreateAccount = await canAuthenticatedUserCreateAccount({
@@ -252,7 +253,11 @@ async function sendIdentity(req: FastifyRequest, reply: FastifyReply, dependenci
     return reply.code(503).send({ authMode, error: "Sign-in is temporarily unavailable." });
   }
   try {
-    return await readAuthenticatedIdentity(dependencies, resolution.session, capAllows);
+    return await readAuthenticatedIdentity({
+      dependencies: dependencies,
+      session: resolution.session,
+      capAllows: capAllows,
+    });
   } catch (error) {
     // Backend failure is distinct from an absent session and must retain its 503 surface.
     req.log.error(error);

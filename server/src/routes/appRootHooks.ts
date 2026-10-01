@@ -121,7 +121,8 @@ function installCspReportParser(app: FastifyInstance): void {
   );
 }
 
-function createSecurityEvent(app: FastifyInstance, options: AppOptions, logOn: boolean) {
+type CreateSecurityEventOptions = { app: FastifyInstance; options: AppOptions; logOn: boolean };
+function createSecurityEvent({ app, options, logOn }: CreateSecurityEventOptions) {
   return (event: Record<string, unknown>): void => {
     try {
       const safeEvent = typeof event.path === "string" ? { ...event, path: redactSecretUrl(event.path) } : event;
@@ -196,7 +197,7 @@ export function installRootHooks({ app, db, runtime, config, options }: InstallR
   const { auditDrainer, repliesWithAuditDrain } = runtime;
   const { logOn, rateLimitMax } = config;
   app.addHook("onClose", () => auditDrainer.stop());
-  const securityEvent = createSecurityEvent(app, options, logOn);
+  const securityEvent = createSecurityEvent({ app: app, options: options, logOn: logOn });
   installConnectionHooks(app, options, securityEvent);
   installAuthTransactionGate(app, db);
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.

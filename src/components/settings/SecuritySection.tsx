@@ -14,7 +14,7 @@ import { useProviderConnection } from "./useProviderConnection";
 type Controller = ReturnType<typeof useSecurityController>;
 
 function ProviderConnection({ provider, controller }: { provider: AuthProviderInfo; controller: Controller }) {
-  const connection = useProviderConnection(provider, controller.busy, controller.setBusy);
+  const connection = useProviderConnection({ provider: provider, busy: controller.busy, setBusy: controller.setBusy });
   return (
     <div className="flex flex-col gap-2" data-testid="sso-connection">
       <div className="flex flex-wrap items-center justify-between gap-2">

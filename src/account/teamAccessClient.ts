@@ -293,6 +293,7 @@ function parseJoiningPolicy(value: unknown): JoiningPolicySettings | null {
 
 /** Typed account-administration boundary. Raw Response handling and untrusted payload codecs stay
  * here; the Team & access controller consumes semantic outcomes only. */
+type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
 export const teamAccessClient = {
   ...ownershipTransferAccess,
 
@@ -300,8 +301,11 @@ export const teamAccessClient = {
     return readResult(await accountClient.listMembers(workspaceId), parseMembers);
   },
 
-  async setMemberSignInTracking(workspaceId: string, enabled: boolean): Promise<TeamAccessResult<boolean>> {
-    return readResult(await accountClient.setMemberSignInTracking(workspaceId, enabled), (body) =>
+  async setMemberSignInTracking({
+    workspaceId,
+    enabled,
+  }: SetMemberSignInTrackingOptions): Promise<TeamAccessResult<boolean>> {
+    return readResult(await accountClient.setMemberSignInTracking({ workspaceId, enabled }), (body) =>
       isRecord(body) && typeof body.enabled === "boolean" ? body.enabled : null,
     );
   },

@@ -22,7 +22,8 @@ function makeRow(id: string, utilization: number, kind: RowModel["resource"]["ki
   };
 }
 
-function renderGroup(rows: RowModel[], external = false) {
+type RenderGroupOptions = { rows: RowModel[]; external?: boolean };
+function renderGroup({ rows, external = false }: RenderGroupOptions) {
   const group: GroupModel = { key: "design", title: "Design", external, rows };
   render(
     <SchedulerGridGroupHeader
@@ -39,16 +40,16 @@ function renderGroup(rows: RowModel[], external = false) {
 }
 
 it("averages only capacity-tracked rows, as the headline does", () => {
-  const header = renderGroup([makeRow("r1", 0.8), makeRow("r2", 0.8), makeRow("r3", 0, "external")]);
+  const header = renderGroup({ rows: [makeRow("r1", 0.8), makeRow("r2", 0.8), makeRow("r3", 0, "external")] });
   expect(header).toHaveTextContent(m.scheduler_group_avg_utilisation({ percent: "80" }));
 });
 
 it("shows no average when no capacity-tracked row remains", () => {
-  const header = renderGroup([makeRow("r3", 0, "external")]);
+  const header = renderGroup({ rows: [makeRow("r3", 0, "external")] });
   expect(header).not.toHaveTextContent(/avg utilisation/);
 });
 
 it("shows no average for the external band", () => {
-  const header = renderGroup([makeRow("r3", 0, "external")], true);
+  const header = renderGroup({ rows: [makeRow("r3", 0, "external")], external: true });
   expect(header).not.toHaveTextContent(/avg utilisation/);
 });

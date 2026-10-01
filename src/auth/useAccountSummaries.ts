@@ -48,7 +48,7 @@ async function readCachedAccountSummaryFallback(acceptEffects: () => boolean): P
     if (acceptEffects() && useStore.getState().activeAccountId === null) {
       // This snapshot proves only that the company DIRECTORY is cached. While a company is open,
       // its slice may still be live, so the directory must not replace the slice loader's status.
-      setOfflineReadState("accounts", true, cached.savedAt);
+      setOfflineReadState({ owner: "accounts", readOnly: true, lastUpdated: cached.savedAt });
     }
     return cached.value;
   } catch (error) {
@@ -97,7 +97,7 @@ type ApplyLiveAccountSummaryEffectsOptions = {
 function applyLiveAccountSummaryEffects(options: ApplyLiveAccountSummaryEffectsOptions): void {
   const { valid, complete, acceptEffects, onCompleteness } = options;
   if (acceptEffects()) {
-    if (useStore.getState().activeAccountId === null) setOfflineReadState("accounts", false);
+    if (useStore.getState().activeAccountId === null) setOfflineReadState({ owner: "accounts", readOnly: false });
     if (complete) {
       void cacheAccountSummaries(valid).catch((error) =>
         console.warn("fetchAccountSummaries: the offline account list could not be updated", error),
@@ -113,11 +113,16 @@ function applyAccountSummaryParseEffects(outcome: AccountSummaryParseOutcome, ac
   }
 }
 
-async function readAccountSummaryFailureFallback(
-  error: unknown,
-  allowCachedFallback: boolean,
-  acceptEffects: () => boolean,
-): Promise<AccountSummary[] | null> {
+type ReadAccountSummaryFailureFallbackOptions = {
+  error: unknown;
+  allowCachedFallback: boolean;
+  acceptEffects: () => boolean;
+};
+async function readAccountSummaryFailureFallback({
+  error,
+  allowCachedFallback,
+  acceptEffects,
+}: ReadAccountSummaryFailureFallbackOptions): Promise<AccountSummary[] | null> {
   console.warn(
     "fetchAccountSummaries: /api/accounts read failed; reporting null (callers keep their existing list)",
     error,
@@ -174,7 +179,11 @@ export async function fetchAccountSummaries(requestOptions?: {
     // Fail-soft by contract (see @returns): a transport error/abort is reported as null, never a
     // throw — the callers treat a failed list read as "keep what you have", not an error surface of
     // its own. Breadcrumb per DEFENSIVE-CODING.md §5: handled-but-logged, never totally silent.
-    return readAccountSummaryFailureFallback(e, allowCachedFallback, acceptEffects);
+    return readAccountSummaryFailureFallback({
+      error: e,
+      allowCachedFallback: allowCachedFallback,
+      acceptEffects: acceptEffects,
+    });
   }
 }
 

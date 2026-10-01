@@ -305,7 +305,8 @@ function mayNominate(controller: OwnershipTransferController, principalId: strin
  * the entry point visible — a nominee whose read failed must not be shown the same blank page as a nominee
  * who has no request at all.
  */
-function hasSomethingToSay(controller: OwnershipTransferController, nominatable: boolean): boolean {
+type HasSomethingToSayOptions = { controller: OwnershipTransferController; nominatable: boolean };
+function hasSomethingToSay({ controller, nominatable }: HasSomethingToSayOptions): boolean {
   if (controller.loading) return false;
   if (nominatable || controller.error !== null || controller.lastTerminal !== null) return true;
   return Boolean(controller.projection?.live ?? controller.projection?.latestOutcome);
@@ -318,7 +319,7 @@ export function OwnershipTransferCard() {
   const controller = useOwnershipTransfer(activeAccountId, refreshAuth);
   const principalId = user?.id ?? null;
   const nominatable = mayNominate(controller, principalId);
-  if (!hasSomethingToSay(controller, nominatable)) return null;
+  if (!hasSomethingToSay({ controller: controller, nominatable: nominatable })) return null;
 
   return (
     <section data-testid="ownership-transfer-card" className="flex flex-wrap items-start justify-between gap-3">

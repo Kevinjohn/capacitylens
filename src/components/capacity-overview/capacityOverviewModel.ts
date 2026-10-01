@@ -129,7 +129,8 @@ function calculatePeriod({
   };
 }
 
-function fallbackGroups(resources: Resource[], groupResourcesByEngagement: boolean): GroupSeed[] {
+type FallbackGroupsOptions = { resources: Resource[]; groupResourcesByEngagement: boolean };
+function fallbackGroups({ resources, groupResourcesByEngagement }: FallbackGroupsOptions): GroupSeed[] {
   if (!resources.length) return [];
   if (!groupResourcesByEngagement) return [{ key: "unassigned", title: "Unassigned", resources }];
   return (
@@ -148,7 +149,8 @@ function fallbackGroups(resources: Resource[], groupResourcesByEngagement: boole
   ).filter((group) => group.resources.length > 0);
 }
 
-function createResourceComparator(groupResourcesByEngagement: boolean) {
+type CreateResourceComparatorOptions = { groupResourcesByEngagement: boolean };
+function createResourceComparator({ groupResourcesByEngagement }: CreateResourceComparatorOptions) {
   const byDisplayName = createDisplayNameComparator<Resource>(resolveResourceDisplayName);
   const byFavouriteDisplayName = createFavouriteDisplayNameComparator<Resource>(resolveResourceDisplayName);
   const byEngagementFavouriteDisplayName =
@@ -175,7 +177,7 @@ function buildGroupSeeds({
   if (!disciplinesEnabled) {
     let peopleGroups: GroupSeed[] = [];
     if (groupResourcesByEngagement) {
-      peopleGroups = fallbackGroups(people, true);
+      peopleGroups = fallbackGroups({ resources: people, groupResourcesByEngagement: true });
     } else if (people.length) {
       peopleGroups = [{ key: "overall", title: "Overall", resources: people }];
     }
@@ -199,7 +201,7 @@ function buildGroupSeeds({
         resources,
       });
     } else {
-      groups.push(...fallbackGroups(resources, groupResourcesByEngagement));
+      groups.push(...fallbackGroups({ resources: resources, groupResourcesByEngagement: groupResourcesByEngagement }));
     }
   }
   return [
@@ -208,7 +210,8 @@ function buildGroupSeeds({
   ];
 }
 
-function isEligibleResource(resource: Resource, placeholdersEnabled: boolean): boolean {
+type IsEligibleResourceOptions = { resource: Resource; placeholdersEnabled: boolean };
+function isEligibleResource({ resource, placeholdersEnabled }: IsEligibleResourceOptions): boolean {
   if (!isCapacityTracked(resource) || isExternalResource(resource)) return false;
   if (resource.archivedAt !== undefined || resource.deletedAt !== undefined) return false;
   if (isPlaceholderResource(resource)) return placeholdersEnabled;
@@ -259,7 +262,7 @@ function buildRows({
   accountWorkingDays: Weekday[];
   groupResourcesByEngagement: boolean;
 }): CapacityOverviewGroup[] {
-  const compareResources = createResourceComparator(groupResourcesByEngagement);
+  const compareResources = createResourceComparator({ groupResourcesByEngagement: groupResourcesByEngagement });
   return seeds.map((seed) => {
     const rows = seed.resources
       .slice()
@@ -281,7 +284,8 @@ function buildRows({
   });
 }
 
-function applyAvailabilityFilter(groups: CapacityOverviewGroup[], hasAvailability: boolean): CapacityOverviewGroup[] {
+type ApplyAvailabilityFilterOptions = { groups: CapacityOverviewGroup[]; hasAvailability: boolean };
+function applyAvailabilityFilter({ groups, hasAvailability }: ApplyAvailabilityFilterOptions): CapacityOverviewGroup[] {
   if (!hasAvailability) return groups;
   return groups
     .map((group) => ({
@@ -320,7 +324,7 @@ export function buildCapacityOverviewModel({
 
   const eligible = new Set(
     data.resources
-      .filter((resource) => isEligibleResource(resource, placeholdersEnabled))
+      .filter((resource) => isEligibleResource({ resource: resource, placeholdersEnabled: placeholdersEnabled }))
       .map((resource) => resource.id),
   );
   const indexes = buildIndexes({ data, eligible, includeTentative, timeOff });
@@ -332,5 +336,9 @@ export function buildCapacityOverviewModel({
     accountWorkingDays,
     groupResourcesByEngagement,
   });
-  return { measured: true, periods, groups: applyAvailabilityFilter(groups, hasAvailability) };
+  return {
+    measured: true,
+    periods,
+    groups: applyAvailabilityFilter({ groups: groups, hasAvailability: hasAvailability }),
+  };
 }

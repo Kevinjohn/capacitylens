@@ -287,7 +287,8 @@ type OutstandingInvitesProps = Pick<
   "invites" | "renderedAt" | "busy" | "revokeInvite" | "invitationPeople"
 >;
 
-function resolveInvitationStatus(invitation: TeamInvitation, expired: boolean): string {
+type ResolveInvitationStatusOptions = { invitation: TeamInvitation; expired: boolean };
+function resolveInvitationStatus({ invitation, expired }: ResolveInvitationStatusOptions): string {
   if (invitation.usedAt) return m.settings_invite_suffix_used();
   if (expired) return m.settings_invite_suffix_expired();
   // Invite validity spans several days, so keep this compact row date-only while rendering the
@@ -343,7 +344,7 @@ function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, invitatio
                       {invitation.preauthEmail ?? m.settings_invite_table_link()}
                     </span>
                     <span className="block">
-                      {resolveInvitationStatus(invitation, expired).replace(/^\s*·\s*/, "")}
+                      {resolveInvitationStatus({ invitation: invitation, expired: expired }).replace(/^\s*·\s*/, "")}
                     </span>
                   </td>
                   <td className="py-2 px-4 text-xs text-muted-foreground">

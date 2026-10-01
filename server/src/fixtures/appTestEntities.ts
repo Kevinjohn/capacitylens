@@ -26,7 +26,8 @@ export function deferred() {
   return { promise, resolve };
 }
 
-export function freshApp(allowReset = true, extra: Partial<AppOptions> = {}) {
+type FreshAppOptions = { allowReset?: boolean; extra?: Partial<AppOptions> };
+export function freshApp({ allowReset = true, extra = {} }: FreshAppOptions = {}) {
   const db = openDb(":memory:");
   return {
     app: createApp(db, { allowReset, optimisticConcurrency: false, ...extra }),

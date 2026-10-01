@@ -39,7 +39,8 @@ function mockGoogle(profile: { sub: string; email: string; name: string; email_v
   );
 }
 
-function mockGithub(email: string, verified: boolean) {
+type MockGithubOptions = { email: string; verified: boolean };
+function mockGithub({ email, verified }: MockGithubOptions) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: Request | string | URL) => {
@@ -254,7 +255,7 @@ it("admits GitHub alongside Google in mixed mode only from its selected verified
   expect(started.statusCode, started.body).toBe(200);
   const state = new URL(started.json<{ url: string }>().url).searchParams.get("state");
   if (!state) throw new Error("Expected native provider state.");
-  mockGithub("diana@studio.example", true);
+  mockGithub({ email: "diana@studio.example", verified: true });
   const callback = await app.inject({
     url: `/api/auth/callback/github?code=controlled-code&state=${encodeURIComponent(state)}`,
     headers: { cookie: readCookies(started) },
@@ -285,7 +286,7 @@ it("does not create a GitHub joining identity from an unverified selected addres
   });
   const state = new URL(started.json<{ url: string }>().url).searchParams.get("state");
   if (!state) throw new Error("Expected native provider state.");
-  mockGithub("diana@studio.example", false);
+  mockGithub({ email: "diana@studio.example", verified: false });
   await app.inject({
     url: `/api/auth/callback/github?code=controlled-code&state=${encodeURIComponent(state)}`,
     headers: { cookie: readCookies(started) },

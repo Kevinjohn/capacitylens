@@ -72,8 +72,9 @@ describe("resourcesByDiscipline", () => {
   });
 });
 
+type AccountsOptions = { disciplinesEnabled?: boolean | undefined };
 describe("disciplinesEnabledFor", () => {
-  const accounts = (disciplinesEnabled?: boolean) => ({
+  const accounts = ({ disciplinesEnabled }: AccountsOptions) => ({
     ...emptyAppData(),
     accounts: [
       {
@@ -88,16 +89,16 @@ describe("disciplinesEnabledFor", () => {
   });
 
   it("defaults to true when the field is absent", () => {
-    expect(hasDisciplinesEnabled(accounts(undefined), "a1")).toBe(true);
+    expect(hasDisciplinesEnabled(accounts({ disciplinesEnabled: undefined }), "a1")).toBe(true);
   });
 
   it("defaults to true when no account matches", () => {
-    expect(hasDisciplinesEnabled(accounts(false), "missing")).toBe(true);
+    expect(hasDisciplinesEnabled(accounts({ disciplinesEnabled: false }), "missing")).toBe(true);
   });
 
   it("returns the explicit account value", () => {
-    expect(hasDisciplinesEnabled(accounts(false), "a1")).toBe(false);
-    expect(hasDisciplinesEnabled(accounts(true), "a1")).toBe(true);
+    expect(hasDisciplinesEnabled(accounts({ disciplinesEnabled: false }), "a1")).toBe(false);
+    expect(hasDisciplinesEnabled(accounts({ disciplinesEnabled: true }), "a1")).toBe(true);
   });
 });
 

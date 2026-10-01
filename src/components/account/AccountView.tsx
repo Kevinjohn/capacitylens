@@ -13,7 +13,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { SecuritySection } from "../settings/SecuritySection";
 import { SettingsSection } from "../settings/SettingsSection";
 
-function resolveIdentity(auth: ReturnType<typeof useAuth>, demo: boolean) {
+type ResolveIdentityOptions = { auth: ReturnType<typeof useAuth>; demo: boolean };
+function resolveIdentity({ auth, demo }: ResolveIdentityOptions) {
   const identity = demo ? FAKE_USER : auth.user;
   return {
     name: identity?.name ?? identity?.email ?? m.account_local_identity(),
@@ -44,7 +45,7 @@ export function AccountView() {
   const auth = useAuth();
   const demo = useDemoAuthActive();
   const signOutDemo = useStore((state) => state.signOutDemo);
-  const { name, email, imageUrl } = resolveIdentity(auth, demo);
+  const { name, email, imageUrl } = resolveIdentity({ auth: auth, demo: demo });
   const [passwordOpen, setPasswordOpen] = useState(false);
 
   return (

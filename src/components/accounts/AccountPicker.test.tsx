@@ -28,7 +28,8 @@ vi.mock("../../auth/accountTransition", () => ({
 }));
 
 /** Render with the single-company capability and the real context's remaining off-mode defaults. */
-function withCanCreateAccount(canCreateAccount: boolean, ui: ReactNode) {
+type WithCanCreateAccountOptions = { canCreateAccount: boolean; ui: ReactNode };
+function withCanCreateAccount({ canCreateAccount, ui }: WithCanCreateAccountOptions) {
   return render(
     <AuthContext.Provider
       value={{
@@ -853,7 +854,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
 describe("AccountPicker — single-company-per-instance policy (canCreateAccount)", () => {
   it('hides the "New company" button when the auth context reports the cap is reached', () => {
     seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
-    withCanCreateAccount(false, <AccountPicker />);
+    withCanCreateAccount({ canCreateAccount: false, ui: <AccountPicker /> });
     expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "New company" })).not.toBeInTheDocument();
     // The subtitle must not promise a create affordance that isn't rendered.
@@ -863,7 +864,7 @@ describe("AccountPicker — single-company-per-instance policy (canCreateAccount
 
   it('shows the "New company" button when the auth context allows another company', () => {
     seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
-    withCanCreateAccount(true, <AccountPicker />);
+    withCanCreateAccount({ canCreateAccount: true, ui: <AccountPicker /> });
     expect(screen.getByTestId("new-company-button")).toBeInTheDocument();
     expect(screen.getByText("Choose a company to plan, or create another one.")).toBeInTheDocument();
   });

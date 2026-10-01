@@ -297,7 +297,8 @@ function reconcileRevisions(receipt: BatchReceiptWire, ops: Op[]): CommittedRevi
   return compatibleRevisions;
 }
 
-function listExpectedArchives(receipt: BatchReceiptWire, ops: Op[], archiveLifecycleDeletes: boolean): Set<string> {
+type ListExpectedArchivesOptions = { receipt: BatchReceiptWire; ops: Op[]; archiveLifecycleDeletes: boolean };
+function listExpectedArchives({ receipt, ops, archiveLifecycleDeletes }: ListExpectedArchivesOptions): Set<string> {
   if (receipt.superseded === true || !archiveLifecycleDeletes) return new Set();
   return new Set(
     ops
@@ -364,7 +365,11 @@ export async function readBatchReceipt(
   if (receipt.auditWarning === true) announceAuditWarning();
   else noteAuditWarning(res);
   const compatibleRevisions = reconcileRevisions(receipt, ops);
-  const expectedArchives = listExpectedArchives(receipt, ops, options?.archiveLifecycleDeletes === true);
+  const expectedArchives = listExpectedArchives({
+    receipt: receipt,
+    ops: ops,
+    archiveLifecycleDeletes: options?.archiveLifecycleDeletes === true,
+  });
   const archivedLifecycleKeys = reconcileArchives(receipt, expectedArchives);
   return {
     revisions: compatibleRevisions,

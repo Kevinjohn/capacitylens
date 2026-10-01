@@ -72,6 +72,11 @@ function createAttachmentValues(store: StoreApi<StoreState>): AttachmentValues {
   };
 }
 
+type ResumeSuspensionOptions = {
+  external: boolean;
+  writes: OwnerBeginSuspensionInput["writes"];
+  dropParkedEdits: boolean;
+};
 class AttachmentOwner {
   private readonly values: AttachmentValues;
   private readonly store: StoreApi<StoreState>;
@@ -183,7 +188,7 @@ class AttachmentOwner {
     return (options = {}) => {
       if (this.values.disposed || resumed) return;
       resumed = true;
-      this.resumeSuspension(external, writes, options.dropParkedEdits === true);
+      this.resumeSuspension({ external: external, writes: writes, dropParkedEdits: options.dropParkedEdits === true });
     };
   }
   private beginExternalSuspension(): void {
@@ -193,11 +198,7 @@ class AttachmentOwner {
     }
     this.values.externalSuspendDepth += 1;
   }
-  private resumeSuspension(
-    external: boolean,
-    writes: OwnerBeginSuspensionInput["writes"],
-    dropParkedEdits: boolean,
-  ): void {
+  private resumeSuspension({ external, writes, dropParkedEdits }: ResumeSuspensionOptions): void {
     this.values.suspendDepth -= 1;
     if (external) this.values.externalSuspendDepth -= 1;
     if (this.values.suspendDepth > 0) return;

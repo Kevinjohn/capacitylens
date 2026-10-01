@@ -1274,7 +1274,11 @@ function registerColorFieldModalTests(BLUE: string, RED: string) {
 
 // ─── WorkingDayPicker ──────────────────────────────────────────────────────
 
-const renderWorkingDayPicker = (onChange = vi.fn(), invalid = false) =>
+type RenderWorkingDayPickerOptions = {
+  onChange?: React.ComponentProps<typeof WorkingDayPicker>["onChange"];
+  invalid?: boolean;
+};
+const renderWorkingDayPicker = ({ onChange = vi.fn(), invalid = false }: RenderWorkingDayPickerOptions = {}) =>
   render(
     <WorkingDayPicker
       label="Working days"
@@ -1293,7 +1297,7 @@ describe("WorkingDayPicker", () => {
 
 function registerWorkingDayPickerLayoutTests() {
   it("renders a full-width Monday–Sunday grid with the three choice headings written once", () => {
-    renderWorkingDayPicker();
+    renderWorkingDayPicker({});
     expect(screen.getByRole("columnheader", { name: "Weekday" })).toBeInTheDocument();
     for (const option of ["Full day", "Half day", "Not working"]) {
       expect(screen.getByRole("columnheader", { name: option })).toBeVisible();
@@ -1313,7 +1317,7 @@ function registerWorkingDayPickerLayoutTests() {
   });
 
   it("keeps long availability and weekday labels on one line for horizontal overflow", () => {
-    renderWorkingDayPicker();
+    renderWorkingDayPicker({});
     for (const header of screen.getAllByRole("columnheader").slice(1)) {
       expect(header).toHaveClass("whitespace-nowrap");
     }
@@ -1325,7 +1329,7 @@ function registerWorkingDayPickerLayoutTests() {
 
 function registerWorkingDayPickerStateTests() {
   it("selects full, half and non-working choices from the persisted subsets", () => {
-    renderWorkingDayPicker();
+    renderWorkingDayPicker({});
     const monday = screen.getByRole("row", { name: /Monday/ });
     const wednesday = screen.getByRole("row", { name: /Wednesday/ });
     const saturday = screen.getByRole("row", { name: /Saturday/ });
@@ -1337,7 +1341,7 @@ function registerWorkingDayPickerStateTests() {
   it("moves a weekday between mutually exclusive choices", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    renderWorkingDayPicker(onChange);
+    renderWorkingDayPicker({ onChange: onChange });
     await user.click(
       within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Saturday Half day" }),
     );
@@ -1345,14 +1349,14 @@ function registerWorkingDayPickerStateTests() {
   });
 
   it("does NOT set aria-invalid/aria-describedby on the fieldset when valid", () => {
-    const { container } = renderWorkingDayPicker();
+    const { container } = renderWorkingDayPicker({});
     const fieldset = getRequiredElement<HTMLFieldSetElement>(container, "fieldset");
     expect(fieldset).not.toHaveAttribute("aria-invalid");
     expect(fieldset).not.toHaveAttribute("aria-describedby");
   });
 
   it("marks the GROUP errored (aria-invalid + aria-describedby) when invalid, mirroring sibling fields (WCAG 3.3.1)", () => {
-    const { container } = renderWorkingDayPicker(vi.fn(), true);
+    const { container } = renderWorkingDayPicker({ onChange: vi.fn(), invalid: true });
     const fieldset = getRequiredElement<HTMLFieldSetElement>(container, "fieldset");
     expect(fieldset).toHaveAttribute("aria-invalid", "true");
     expect(fieldset).toHaveAttribute("aria-describedby", "err-1");

@@ -115,14 +115,14 @@ describe("offline preference storage failures", () => {
   });
 
   it("keeps a cached tenant read-only until the tenant boundary itself reloads or cleanup runs", () => {
-    setOfflineReadState("tenant", true, 123);
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: 123 });
 
-    setOfflineReadState("identity", true, 456);
-    setOfflineReadState("identity", false);
-    setOfflineReadState("accounts", false);
+    setOfflineReadState({ owner: "identity", readOnly: true, lastUpdated: 456 });
+    setOfflineReadState({ owner: "identity", readOnly: false });
+    setOfflineReadState({ owner: "accounts", readOnly: false });
     expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: true, lastUpdated: 123 });
 
-    setOfflineReadState("tenant", false);
+    setOfflineReadState({ owner: "tenant", readOnly: false });
     expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: false, lastUpdated: null });
   });
 

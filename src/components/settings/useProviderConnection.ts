@@ -65,11 +65,12 @@ function readIdentityCallbackStatus(url: URL, providerId: string, failedCallback
   return { isProviderReturn, linkFailed };
 }
 
-export function useProviderConnection(
-  provider: AuthProviderInfo | undefined,
-  busy: boolean,
-  setBusy: (busy: boolean) => void,
-) {
+type UseProviderConnectionOptions = {
+  provider: AuthProviderInfo | undefined;
+  busy: boolean;
+  setBusy: (busy: boolean) => void;
+};
+export function useProviderConnection({ provider, busy, setBusy }: UseProviderConnectionOptions) {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const generation = useRef(0);

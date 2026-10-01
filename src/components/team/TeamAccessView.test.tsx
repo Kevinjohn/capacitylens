@@ -50,11 +50,11 @@ function showCapabilities(): void {
 
 beforeEach(() => {
   buildMode.demo = false;
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 
 afterEach(() => {
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 
 describe("TeamAccessView access presentation", () => {
@@ -145,7 +145,7 @@ describe("TeamAccessView member management", () => {
     ["authenticated Owner", "owner", "password-only"],
     ["auth-off installation", null, "off"],
   ] as const)("projects cached data as Viewer-only for an %s", (_label, role, authMode) => {
-    setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
     renderView(role, authMode);
 
     const current = screen.getByTestId("current-access");
