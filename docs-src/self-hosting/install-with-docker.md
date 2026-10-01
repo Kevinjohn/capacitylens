@@ -90,8 +90,9 @@ installed, most of it waiting for the first build.
    docker compose logs -f api
    ```
 
-   Press `Ctrl-C` to stop following once the log settles — the API doesn't print a
-   single "ready" line, so a quiet log with no restart is what you're looking for.
+   Wait for `capacitylens-server listening on ...`, then press `Ctrl-C` to stop
+   following. Confirm health in the next step; the listening line alone does not
+   establish that backups or the audit sink are healthy.
 
 6. Check the app is serving and the API is healthy:
 
@@ -114,7 +115,11 @@ installed, most of it waiting for the first build.
    [Monitoring and health checks](/self-hosting/monitoring) for how to check the
    certificate it created.
 
-7. Put a TLS-terminating reverse proxy in front of port 8080, then continue to
+7. Put a TLS-terminating reverse proxy in front of port 8080, then open the public
+   HTTPS address. Enter the setup token from step 3 to create the first owner and
+   company. Once both exist, remove `SMALLSASS_ACCOUNT_SETUP_TOKEN` from `.env` and
+   run `docker compose up -d --force-recreate api` to discard the setup credential
+   from the running container. Continue to
    [verify and hand over the installation](/installation/verify-and-hand-over).
    See [Secure the connection](/installation/secure-the-connection) for the proxy and
    [Configure the service](/installation/configure-the-service#sign-in-mode) for the

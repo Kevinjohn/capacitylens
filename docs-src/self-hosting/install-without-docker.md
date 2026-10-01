@@ -155,8 +155,9 @@ installed.
    ```
 
    Expect `active (running)` with no restart loop. Follow the logs with
-   `journalctl -u capacitylens -f` — like the Docker install, there's no single "ready"
-   line, so a quiet log with no restart is what you're looking for. To confirm it's
+   `journalctl -u capacitylens -f` and wait for `capacitylens-server listening on ...`.
+   Check health in step 7 as well: the listening line alone does not verify backup or
+   audit health. To confirm it's
    running the copied binary, `sudo readlink /proc/$(systemctl show -p MainPID --value
    capacitylens)/exe` should print `/opt/capacitylens/bin/node`.
 

@@ -30,10 +30,11 @@ const retiredGenericKeys = [
   "SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS",
 ] as const;
 
-it.each(retiredGenericKeys)("rejects retired %s even when empty and another provider is valid", (key) => {
-  for (const value of ["", "configured"]) {
+it.each(retiredGenericKeys)("rejects configured retired %s even when another provider is valid", (key) => {
+  for (const value of [" ", "configured"]) {
     expect(() => resolveAccountEnvironment({ ...HOSTED, [key]: value })).toThrow(`${key} was removed`);
   }
+  expect(() => resolveAccountEnvironment({ ...HOSTED, [key]: "" })).not.toThrow();
 });
 
 it("rejects retired hosted profile before choosing a fallback", () => {
@@ -45,11 +46,12 @@ it("rejects retired hosted profile before choosing a fallback", () => {
 it.each(["CAPACITYLENS_SSO_CLIENT_ID", "CAPACITYLENS_SSO_ISSUER", "CAPACITYLENS_SSO_BOOTSTRAP_EMAILS"])(
   "rejects %s without recommending a removed key",
   (key) => {
-    for (const value of ["", "configured"]) {
+    for (const value of [" ", "configured"]) {
       expect(() => resolveAccountEnvironment({ [key]: value })).toThrow(
         /configure Google or tenant-specific Microsoft/,
       );
     }
+    expect(() => resolveAccountEnvironment({ [key]: "" })).not.toThrow();
   },
 );
 

@@ -23,10 +23,15 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    # The one-shot initializer needs only CAP_CHOWN to make the API leaf key readable by uid 1000.
-    # The CA key remains root-only; neither long-running container can read it.
+    # The one-shot initializer owns the CA key and hands the leaf key to uid 1000. On a later
+    # Compose start it must read that 0400 leaf key to validate the existing certificate set;
+    # DAC_READ_SEARCH grants read-only bypass without allowing a write through file permissions;
+    # FOWNER lets it reapply mode 0400 to that uid-1000-owned key after validation.
+    # Neither long-running container receives these capabilities or the CA key.
     cap_add:
       - CHOWN
+      - DAC_READ_SEARCH
+      - FOWNER
     tmpfs:
       - /tmp:size=8m,mode=1777
     environment:
@@ -76,8 +81,8 @@ services:
       SMALLSASS_ACCOUNT_REQUIRE_MFA: ${SMALLSASS_ACCOUNT_REQUIRE_MFA:-}
       SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED: ${SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED:-}
       SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: ${SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK:-}
-      # Compatibility aliases remain during the documented migration window. Empty values are
-      # treated as absent, so an existing .env can move one key at a time without false conflicts.
+      # Retired names are passed through so startup refuses stale non-empty settings and names
+      # their replacements. Empty placeholders are ignored; these are not compatibility aliases.
       CAPACITYLENS_REQUIRE_MFA: ${CAPACITYLENS_REQUIRE_MFA:-}
       CAPACITYLENS_SSO_MFA_ENFORCED: ${CAPACITYLENS_SSO_MFA_ENFORCED:-}
       CAPACITYLENS_PASSWORD_BREACH_CHECK: ${CAPACITYLENS_PASSWORD_BREACH_CHECK:-}
@@ -146,6 +151,31 @@ services:
       CAPACITYLENS_MICROSOFT_TENANT_ID: ${CAPACITYLENS_MICROSOFT_TENANT_ID:-}
       CAPACITYLENS_GITHUB_CLIENT_ID: ${CAPACITYLENS_GITHUB_CLIENT_ID:-}
       CAPACITYLENS_GITHUB_CLIENT_SECRET: ${CAPACITYLENS_GITHUB_CLIENT_SECRET:-}
+      # The retired generic OIDC settings must reach startup validation too. Send only a
+      # presence marker: old client secrets stay out of the rendered container environment.
+      # `:+` maps unset/empty to an ignored placeholder and any non-empty value to "configured".
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: ${SMALLSASS_ACCOUNT_OIDC_CLIENT_ID:+configured}
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: ${SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET:+configured}
+      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: ${SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL:+configured}
+      SMALLSASS_ACCOUNT_OIDC_ISSUER: ${SMALLSASS_ACCOUNT_OIDC_ISSUER:+configured}
+      SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL: ${SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL:+configured}
+      SMALLSASS_ACCOUNT_OIDC_TOKEN_URL: ${SMALLSASS_ACCOUNT_OIDC_TOKEN_URL:+configured}
+      SMALLSASS_ACCOUNT_OIDC_SCOPES: ${SMALLSASS_ACCOUNT_OIDC_SCOPES:+configured}
+      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: ${SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID:+configured}
+      SMALLSASS_ACCOUNT_OIDC_LABEL: ${SMALLSASS_ACCOUNT_OIDC_LABEL:+configured}
+      SMALLSASS_ACCOUNT_OIDC_BRAND: ${SMALLSASS_ACCOUNT_OIDC_BRAND:+configured}
+      SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS: ${SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS:+configured}
+      CAPACITYLENS_SSO_CLIENT_ID: ${CAPACITYLENS_SSO_CLIENT_ID:+configured}
+      CAPACITYLENS_SSO_CLIENT_SECRET: ${CAPACITYLENS_SSO_CLIENT_SECRET:+configured}
+      CAPACITYLENS_SSO_DISCOVERY_URL: ${CAPACITYLENS_SSO_DISCOVERY_URL:+configured}
+      CAPACITYLENS_SSO_ISSUER: ${CAPACITYLENS_SSO_ISSUER:+configured}
+      CAPACITYLENS_SSO_AUTHORIZATION_URL: ${CAPACITYLENS_SSO_AUTHORIZATION_URL:+configured}
+      CAPACITYLENS_SSO_TOKEN_URL: ${CAPACITYLENS_SSO_TOKEN_URL:+configured}
+      CAPACITYLENS_SSO_SCOPES: ${CAPACITYLENS_SSO_SCOPES:+configured}
+      CAPACITYLENS_SSO_PROVIDER_ID: ${CAPACITYLENS_SSO_PROVIDER_ID:+configured}
+      CAPACITYLENS_SSO_LABEL: ${CAPACITYLENS_SSO_LABEL:+configured}
+      CAPACITYLENS_SSO_BRAND: ${CAPACITYLENS_SSO_BRAND:+configured}
+      CAPACITYLENS_SSO_BOOTSTRAP_EMAILS: ${CAPACITYLENS_SSO_BOOTSTRAP_EMAILS:+configured}
     volumes:
       - capacitylens-db:/data
       - capacitylens-backups:/backups
