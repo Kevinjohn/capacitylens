@@ -11,6 +11,12 @@ inspect, and change the software under that licence.
 Read the [source code](https://github.com/Kevinjohn/capacitylens) and the complete
 [licence](https://github.com/Kevinjohn/capacitylens/blob/main/LICENSE).
 
+## Why it works this way
+
+Read the [philosophy](/reference/philosophy) for what CapacityLens deliberately leaves out,
+[how it is tested](/reference/how-it-is-tested) for the automated checks behind each release,
+and [how it compares](/getting-started/how-it-compares) with other tools.
+
 ## Get help
 
 Use the [support guide](https://github.com/Kevinjohn/capacitylens/blob/main/SUPPORT.md) when
