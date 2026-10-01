@@ -184,7 +184,7 @@ This is the short, present-tense record of decisions that constrain future work.
   option; ownership moves only through an explicit atomic transfer to an existing member, with the
   former Owner becoming Admin.
 - Sole-Owner credential recovery (2026-08-05) is an operator CLI (`reset:owner-password`), not a
-  product feature. Family invariant. It drives the ordinary reset ceremony against a stopped
+  product feature. It drives the ordinary reset ceremony against a stopped
   server, enforced by an exclusive SQLite lock, and refuses unless the target is the sole active
   Owner — the one state no in-product actor can recover. In-app policy is unchanged: Admins still
   cannot administer an Owner, and a credential reset never moves ownership. Origin: Delivery Diary
@@ -207,8 +207,8 @@ This is the short, present-tense record of decisions that constrain future work.
   `AccountAdminPort` and an orchestration-only `AccountFlows` coordinator. It permanently shares the
   product process, SQLite file and checksummed product migration ledger unless a separately approved
   future trigger changes topology.
-- Each installation owns its local principals, sessions and memberships. Siblings share
-  implementation/conformance, never account records. Federated correlation uses the exact provider
+- Each installation owns its local principals, sessions and memberships and never shares account
+  records with another installation. Federated correlation uses the exact provider
   and provider-owned stable identifier, never email; local deprovisioning cannot delete an upstream
   provider identity.
 - Email/password and named Google/Microsoft company providers are implemented for self-hosting.
@@ -230,7 +230,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - External-identity admission and explicit linking are distinct. Creating a new local principal
   requires verified control of an email plus a live pre-authorised invitation (or the first-principal
   bootstrap allow-list). Named Google/Microsoft bootstrap uses
-  `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. An already-admitted principal may explicitly attach
+  `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`. An already-admitted principal may explicitly attach
   a company provider without a second invitation, through their own fresh session and matching
   verified email. Named-provider linking also requires the local address to be verified.
 - Microsoft uses the configured work/school tenant and provider-owned `oid`, not `sub`. When native
@@ -260,7 +260,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - CapacityLens cannot infer an upstream multi-factor policy from a provider link, so operator
   enforcement and testing at the IdP is required; this responsibility also applies to experimental
   named providers used in mixed mode.
-- Secure-cookie behavior follows the public `SMALLSASS_ACCOUNT_PUBLIC_URL`, including behind a TLS
+- Secure-cookie behavior follows the public `CAPACITYLENS_PUBLIC_URL`, including behind a TLS
   proxy. Legacy account environment names were removed before beta with no migration window; they
   are now unknown and ignored like any other unrecognised variable.
 - Password mode defaults to breached-password screening. Password sign-in offers no

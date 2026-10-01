@@ -59,15 +59,15 @@ Copy `capacitylens.env.example` from the archive and fill in its three empty lin
 
 ```dotenv
 NODE_ENV=production
-SMALLSASS_ACCOUNT_PUBLIC_URL=
-SMALLSASS_ACCOUNT_SECRET=
-SMALLSASS_ACCOUNT_SETUP_TOKEN=
+CAPACITYLENS_PUBLIC_URL=
+CAPACITYLENS_SECRET=
+CAPACITYLENS_SETUP_TOKEN=
 CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db
 ```
 
-- `SMALLSASS_ACCOUNT_PUBLIC_URL` is the address people open, for example
+- `CAPACITYLENS_PUBLIC_URL` is the address people open, for example
   `https://capacity.example.com`.
-- `SMALLSASS_ACCOUNT_SECRET` and `SMALLSASS_ACCOUNT_SETUP_TOKEN` are two different values, each
+- `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` are two different values, each
   pasted from `openssl rand -base64 48`. You enter the setup token once, to create the Owner.
 
 The server refuses to start while any of the three is empty, and names the one that is missing.
@@ -94,7 +94,7 @@ the whole site.
 ## 5. Open the address
 
 Open the address from step 3 and create your company. The page asks for the setup token: it is
-the `SMALLSASS_ACCOUNT_SETUP_TOKEN` line from step 3. From there, the
+the `CAPACITYLENS_SETUP_TOKEN` line from step 3. From there, the
 [Owner guide](/owner/) takes over.
 
 ## Choose your host

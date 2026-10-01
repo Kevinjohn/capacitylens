@@ -18,10 +18,13 @@ new features and **patch** versions carry fixes.
 ### Changed
 
 - Under `NODE_ENV=production`, an unset `CAPACITYLENS_CORS_ORIGIN` now allows the origin of
-  `SMALLSASS_ACCOUNT_PUBLIC_URL` instead of the local development origins. An explicitly empty value
+  `CAPACITYLENS_PUBLIC_URL` instead of the local development origins. An explicitly empty value
   still allows none, and Docker Compose keeps passing it empty (#1407).
 - `.env.example` is regrouped as the operator reference: required, common, company providers, mail
   and operations. Development and test variables moved to the development guide (#1407).
+- Every `SMALLSASS_ACCOUNT_*` setting is renamed to `CAPACITYLENS_*` with the same suffix, for
+  example `SMALLSASS_ACCOUNT_SECRET` becomes `CAPACITYLENS_SECRET`. Rename these variables in your
+  `.env` before upgrading; the old names are no longer read (#1407).
 
 ### Removed
 

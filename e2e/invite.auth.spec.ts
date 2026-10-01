@@ -4,7 +4,7 @@ import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// P1.9 — invite accept, against the auth-backed project's server (SMALLSASS_ACCOUNT_MODE=password on
+// P1.9 — invite accept, against the auth-backed project's server (CAPACITYLENS_MODE=password on
 // :8887 — see playwright.config.ts). Owner A signs up, bootstraps an org (via the operator bootstrap
 // token, since the auth-e2e DB is seeded so A is not first-run), and mints an editor invite token via
 // POST /api/invites. User B then opens /invite/<token> in the browser: the safe preview loads without
@@ -147,7 +147,7 @@ function registerNewPreAuthorizedIdentitySignsTests() {
   });
 }
 
-test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
+test.describe("invite accept (CAPACITYLENS_MODE=password)", () => {
   registerSignedUserOpensValidInviteTest();
   registerNewPreAuthorizedIdentitySignsTests();
 

@@ -17,17 +17,17 @@ async function configured({ verifyEmail = true }: ConfiguredOptions = {}) {
   const db = fixtures.trackDb(openDb(":memory:"));
   const { auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-    SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-client",
-    SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
-    SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
-    SMALLSASS_ACCOUNT_MAIL_HOST: "mail.example.test",
-    SMALLSASS_ACCOUNT_MAIL_PORT: "587",
-    SMALLSASS_ACCOUNT_MAIL_USER: "mailer",
-    SMALLSASS_ACCOUNT_MAIL_PASSWORD: "mail-secret",
-    SMALLSASS_ACCOUNT_MAIL_FROM: "identity@example.test",
+    CAPACITYLENS_MODE: "password-and-sso",
+    CAPACITYLENS_MICROSOFT_CLIENT_ID: "microsoft-client",
+    CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
+    CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+    CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+    CAPACITYLENS_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
+    CAPACITYLENS_MAIL_HOST: "mail.example.test",
+    CAPACITYLENS_MAIL_PORT: "587",
+    CAPACITYLENS_MAIL_USER: "mailer",
+    CAPACITYLENS_MAIL_PASSWORD: "mail-secret",
+    CAPACITYLENS_MAIL_FROM: "identity@example.test",
   });
   if (!auth) throw new Error("Expected configured authentication.");
   await runAuthMigrations(auth);
@@ -113,18 +113,18 @@ describe("company-provider sign-in policy", () => {
     const db = fixtures.trackDb(openDb(":memory:"));
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "sso-only",
-      SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: "bruce@example.test",
-      SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-client",
-      SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
-      SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
-      SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client",
-      SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-secret",
-      SMALLSASS_ACCOUNT_MAIL_HOST: "mail.example.test",
-      SMALLSASS_ACCOUNT_MAIL_PORT: "587",
-      SMALLSASS_ACCOUNT_MAIL_USER: "mailer",
-      SMALLSASS_ACCOUNT_MAIL_PASSWORD: "mail-secret",
-      SMALLSASS_ACCOUNT_MAIL_FROM: "identity@example.test",
+      CAPACITYLENS_MODE: "sso-only",
+      CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS: "bruce@example.test",
+      CAPACITYLENS_MICROSOFT_CLIENT_ID: "microsoft-client",
+      CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
+      CAPACITYLENS_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
+      CAPACITYLENS_GITHUB_CLIENT_ID: "github-client",
+      CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-secret",
+      CAPACITYLENS_MAIL_HOST: "mail.example.test",
+      CAPACITYLENS_MAIL_PORT: "587",
+      CAPACITYLENS_MAIL_USER: "mailer",
+      CAPACITYLENS_MAIL_PASSWORD: "mail-secret",
+      CAPACITYLENS_MAIL_FROM: "identity@example.test",
     });
     if (!auth) throw new Error("Expected configured authentication.");
     await runAuthMigrations(auth);

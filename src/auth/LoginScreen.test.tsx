@@ -309,7 +309,7 @@ function registerOwnerSetupDisplayTests() {
     expect(screen.getByLabelText("Create a password")).not.toHaveAccessibleDescription("Use 15–128 characters.");
     expect(screen.getByLabelText("Owner setup token")).toHaveAttribute("placeholder", "Paste the setup token");
     expect(screen.getByLabelText("Owner setup token")).toHaveAccessibleDescription(
-      "Paste the value of SMALLSASS_ACCOUNT_SETUP_TOKEN from the .env file, on the server. Ask the person who installed it for you. You cannot proceed without it.",
+      "Paste the value of CAPACITYLENS_SETUP_TOKEN from the .env file, on the server. Ask the person who installed it for you. You cannot proceed without it.",
     );
     expect(screen.queryByText(/server has no users/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();

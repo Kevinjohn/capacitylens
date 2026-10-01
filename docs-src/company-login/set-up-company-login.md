@@ -17,7 +17,7 @@ use `/api/auth/callback/microsoft`.
 ## Before you start
 
 Write down the public CapacityLens address from
-`SMALLSASS_ACCOUNT_PUBLIC_URL`. Use the same HTTPS address that people use in
+`CAPACITYLENS_PUBLIC_URL`. Use the same HTTPS address that people use in
 their browser, without a trailing slash. For example:
 
 `https://planning.example.com`
@@ -50,8 +50,8 @@ and [OAuth client setup](https://developers.google.com/identity/gsi/web/guides/g
 Set these server values:
 
 ```dotenv
-SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID=<Google client ID>
-SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET=<Google client secret>
+CAPACITYLENS_GOOGLE_CLIENT_ID=<Google client ID>
+CAPACITYLENS_GOOGLE_CLIENT_SECRET=<Google client secret>
 ```
 
 ## Microsoft 365 / Entra ID
@@ -84,9 +84,9 @@ quickstart](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart
 Set these server values:
 
 ```dotenv
-SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID=<Application client ID>
-SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET=<client secret Value>
-SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID=<Directory tenant GUID>
+CAPACITYLENS_MICROSOFT_CLIENT_ID=<Application client ID>
+CAPACITYLENS_MICROSOFT_CLIENT_SECRET=<client secret Value>
+CAPACITYLENS_MICROSOFT_TENANT_ID=<Directory tenant GUID>
 ```
 
 Microsoft sign-in also needs outbound SMTP so CapacityLens can send a mailbox
@@ -94,11 +94,11 @@ proof when Entra does not return a verified matching email address. Set all five
 mail values before enabling the Microsoft provider:
 
 ```dotenv
-SMALLSASS_ACCOUNT_MAIL_HOST=<SMTP host>
-SMALLSASS_ACCOUNT_MAIL_PORT=587
-SMALLSASS_ACCOUNT_MAIL_USER=<SMTP username>
-SMALLSASS_ACCOUNT_MAIL_PASSWORD=<SMTP password>
-SMALLSASS_ACCOUNT_MAIL_FROM=<verified sender address>
+CAPACITYLENS_MAIL_HOST=<SMTP host>
+CAPACITYLENS_MAIL_PORT=587
+CAPACITYLENS_MAIL_USER=<SMTP username>
+CAPACITYLENS_MAIL_PASSWORD=<SMTP password>
+CAPACITYLENS_MAIL_FROM=<verified sender address>
 ```
 
 CapacityLens uses TLS for SMTP submission. Port `587` uses required STARTTLS;
@@ -145,7 +145,7 @@ that, each company decides whether a verified address may join directly or
 needs an invitation. [See the joining policies](/company-login/#invitations-and-the-first-owner).
 
 For the first Owner on a new installation, set
-`SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS` to the exact email address the
+`CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` to the exact email address the
 person will use at Google or Microsoft. This allowance only applies while there
 are no users. The first sign-in creates the first identity and closes bootstrap access.
 The person then follows **Set up your company** to create their company as Owner.
@@ -189,11 +189,11 @@ the invited person can continue.
 
 ## Choose the sign-in mode
 
-On a self-hosted installation, `SMALLSASS_ACCOUNT_MODE=password-and-sso` keeps password
+On a self-hosted installation, `CAPACITYLENS_MODE=password-and-sso` keeps password
 sign-in alongside configured providers. Google and Microsoft appear above the
 password form. GitHub remains an experimental additional option in this mode.
 
-`SMALLSASS_ACCOUNT_MODE=sso-only` requires a configured company provider and removes
+`CAPACITYLENS_MODE=sso-only` requires a configured company provider and removes
 password sign-in. GitHub cannot satisfy this requirement, including through an
 older GitHub session. Keep the Google or Microsoft credentials configured.
 Connect existing accounts and test the replacement before changing modes; see

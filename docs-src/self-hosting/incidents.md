@@ -78,7 +78,7 @@ account or session is no longer trustworthy.
    installation's actual database and backup volumes, and write the evidence to a
    separate protected destination; do not copy a host path or only the database file.
 3. Use the member/session revocation control in Team & access for a contained identity
-   incident. Rotate provider credentials and `SMALLSASS_ACCOUNT_SECRET` only when every
+   incident. Rotate provider credentials and `CAPACITYLENS_SECRET` only when every
    local session must be invalidated at once — that rotation signs everyone out.
 4. Review memberships, invitations, session-revocation and audit events.
 5. Keep access restricted until the integrity review is complete. Record the recovery
@@ -104,7 +104,7 @@ session — it doesn't promise to end the browser's session at the company login
 3. Review provider identities, memberships, outstanding invitations, the account audit
    log and provider logs. Don't correlate or merge identities by email address alone.
 4. For a broader compromise, restrict the proxy, rotate the affected provider client secret and the
-   local `SMALLSASS_ACCOUNT_SECRET`, then require everyone to sign in fresh. Coordinate
+   local `CAPACITYLENS_SECRET`, then require everyone to sign in fresh. Coordinate
    the rotation — changing the local secret signs out every session at once.
 5. Record the actual containment time against the twelve-hour/thirty-minute maximum
    above; near-immediate cross-session logout isn't implemented yet, so don't describe
@@ -152,8 +152,8 @@ session revocation — and never writes a credential directly.
    From a source checkout, or a Docker install using the throwaway container above, the
    equivalent is
    `pnpm --filter capacitylens-server reset:owner-password -- /absolute/path/to/capacitylens.db owner@example.com --confirm-server-stopped`
-   with `SMALLSASS_ACCOUNT_MODE=password-only`, `SMALLSASS_ACCOUNT_SECRET` and
-   `SMALLSASS_ACCOUNT_PUBLIC_URL` set.
+   with `CAPACITYLENS_MODE=password-only`, `CAPACITYLENS_SECRET` and
+   `CAPACITYLENS_PUBLIC_URL` set.
 
 4. The tool refuses to run for: a missing or ambiguous identity at that address; a target
    who isn't the sole active Owner of at least one company (anyone else has a normal
@@ -310,7 +310,7 @@ can assign an existing active member as Owner.
    [ownership transfer](/getting-started/roles-and-permissions#hand-the-company-to-someone-else).
 2. If the company remains ownerless, preserve the database and audit logs and stop the
    server. While the deployment remains in `self-hosted-mixed` with
-   `SMALLSASS_ACCOUNT_MODE=password-and-sso` and a company provider configured, assign an existing
+   `CAPACITYLENS_MODE=password-and-sso` and a company provider configured, assign an existing
    active member using the guarded repair command:
 
    ```bash

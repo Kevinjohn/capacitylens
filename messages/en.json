@@ -1101,7 +1101,7 @@
   "login_setup_failed": "Could not create the account.",
   "login_setup_taken": "First-owner setup for this installation is already complete — use the ordinary sign-in form below.",
   "login_setup_token": "Owner setup token",
-  "login_setup_token_help": "Paste the value of SMALLSASS_ACCOUNT_SETUP_TOKEN from the .env file, on the server. Ask the person who installed it for you. You cannot proceed without it.",
+  "login_setup_token_help": "Paste the value of CAPACITYLENS_SETUP_TOKEN from the .env file, on the server. Ask the person who installed it for you. You cannot proceed without it.",
   "login_setup_token_placeholder": "Paste the setup token",
   "login_setup_token_invalid": "Paste the setup token again without invisible characters.",
   "login_mfa_recovery_prompt": "Enter one unused recovery code.",

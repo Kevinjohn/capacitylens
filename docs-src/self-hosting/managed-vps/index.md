@@ -51,9 +51,9 @@ version instead.
 
    ```dotenv
    NODE_ENV=production
-   SMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com
-   SMALLSASS_ACCOUNT_SECRET=
-   SMALLSASS_ACCOUNT_SETUP_TOKEN=
+   CAPACITYLENS_PUBLIC_URL=https://capacity.example.com
+   CAPACITYLENS_SECRET=
+   CAPACITYLENS_SETUP_TOKEN=
    CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db
    ```
 

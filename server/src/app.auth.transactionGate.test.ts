@@ -4,7 +4,7 @@ import { openDb } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { call, PASSWORD_ENV } from "./testHelpers";
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   // Better Auth locks a verification token before opening its consume transaction; the gate must not
   // let two requests for the same token wait on each other and stall every other request.
   it("answers concurrent reset attempts for one token without stalling other requests", async () => {

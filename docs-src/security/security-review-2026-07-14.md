@@ -141,9 +141,9 @@ data sensitivity or user population changes.
 - Better Auth/provider protocol code, import/migration, cryptography, backup/restore, service worker,
   shell/process execution in development scripts and release workflows are “risky/dangerous” areas:
   require focused tests and security review when changed.
-- Rotate `SMALLSASS_ACCOUNT_SECRET` and provider credentials after suspected exposure, staff/access change
+- Rotate `CAPACITYLENS_SECRET` and provider credentials after suspected exposure, staff/access change
   or provider requirement, and at the operator's documented interval. Rotation of
-  `SMALLSASS_ACCOUNT_SECRET` invalidates sessions. TLS/storage/backup keys follow the platform key policy.
+  `CAPACITYLENS_SECRET` invalidates sessions. TLS/storage/backup keys follow the platform key policy.
 - Review this report, threat model, inventories, action/image pins and ASVS release at least annually
   and after a material auth, tenancy, deployment or data-classification change.
 

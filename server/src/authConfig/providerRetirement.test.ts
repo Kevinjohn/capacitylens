@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import { createAuthFromEnvironment } from "../auth";
 
 const base = {
-  SMALLSASS_ACCOUNT_MODE: "sso-only",
-  SMALLSASS_ACCOUNT_SECRET: "provider-retirement-secret-0123456789",
-  SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-id",
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+  CAPACITYLENS_MODE: "sso-only",
+  CAPACITYLENS_SECRET: "provider-retirement-secret-0123456789",
+  CAPACITYLENS_PUBLIC_URL: "http://localhost:8787",
+  CAPACITYLENS_GOOGLE_CLIENT_ID: "google-id",
+  CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
 function untouchedDatabaseFailure(environment: Record<string, string>): void {
@@ -22,12 +22,12 @@ function untouchedDatabaseFailure(environment: Record<string, string>): void {
 
 describe("company provider configuration", () => {
   it("validates Microsoft independently when Google is complete", () => {
-    untouchedDatabaseFailure({ ...base, SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "partial" });
+    untouchedDatabaseFailure({ ...base, CAPACITYLENS_MICROSOFT_CLIENT_ID: "partial" });
     untouchedDatabaseFailure({
       ...base,
-      SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-id",
-      SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
-      SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "common",
+      CAPACITYLENS_MICROSOFT_CLIENT_ID: "microsoft-id",
+      CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
+      CAPACITYLENS_MICROSOFT_TENANT_ID: "common",
     });
   });
 

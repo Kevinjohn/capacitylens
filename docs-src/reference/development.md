@@ -111,7 +111,7 @@ selectors) are described under [Browser upgrade rehearsal](#browser-upgrade-rehe
 
 The lab is destructive only to the fixed local file `server/.access-lab.db`, which is
 recreated on every run. Its launcher and setup boundary remove inherited
-`SMALLSASS_ACCOUNT_*`, `CAPACITYLENS_*`, `BETTER_AUTH_*` and `VITE_CAPACITYLENS_*`
+`CAPACITYLENS_*`, `BETTER_AUTH_*` and `VITE_CAPACITYLENS_*`
 configuration, then pin the API to `127.0.0.1`, password auth, the lab database and the
 local Vite origin. The setup script also refuses every path except that exact
 non-symlink repository fixture, including a same-named database in another directory.
@@ -1039,7 +1039,7 @@ definitions and use the checked-in fixture ledger when rehearsing a later schema
 
 Sign-in mode controls the authentication methods people may use. Enabled providers determine
 which SSO options are available. The access policy determines who may join the company.
-`SMALLSASS_ACCOUNT_MODE` accepts `off`, `password-only`, `sso-only` and `password-and-sso`;
+`CAPACITYLENS_MODE` accepts `off`, `password-only`, `sso-only` and `password-and-sso`;
 the old `password` and `sso` values fail startup with migration guidance. The shared
 `AccountMode` contract owns these values, while the server keeps the existing `authMode` wire
 field. Password-only ignores retained provider credentials and links; mixed mode needs at least

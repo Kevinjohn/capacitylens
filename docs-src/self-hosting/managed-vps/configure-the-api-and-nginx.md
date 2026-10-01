@@ -28,8 +28,8 @@ Run this command twice on a trusted machine or through the platform's command ru
 openssl rand -base64 48
 ```
 
-Use the first value for `SMALLSASS_ACCOUNT_SECRET`. Use the second value for
-`SMALLSASS_ACCOUNT_SETUP_TOKEN`.
+Use the first value for `CAPACITYLENS_SECRET`. Use the second value for
+`CAPACITYLENS_SETUP_TOKEN`.
 
 Store the setup token in a password manager before saving the environment. It is needed only to
 claim the first Owner account. Never commit either value or paste it into deployment logs, support
@@ -59,12 +59,12 @@ CAPACITYLENS_LOG=1
 CAPACITYLENS_HEALTH_DEEP=1
 CAPACITYLENS_RATE_LIMIT=300
 
-SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password
-SMALLSASS_ACCOUNT_MODE=password-only
-SMALLSASS_ACCOUNT_SECRET=<session-signing-secret>
-SMALLSASS_ACCOUNT_PUBLIC_URL=https://your-current-domain.example
-SMALLSASS_ACCOUNT_SETUP_TOKEN=<one-time-owner-token>
-SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=on
+CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-password
+CAPACITYLENS_MODE=password-only
+CAPACITYLENS_SECRET=<session-signing-secret>
+CAPACITYLENS_PUBLIC_URL=https://your-current-domain.example
+CAPACITYLENS_SETUP_TOKEN=<one-time-owner-token>
+CAPACITYLENS_PASSWORD_BREACH_CHECK=on
 
 VITE_CAPACITYLENS_API=
 ```
@@ -83,7 +83,7 @@ VITE_CAPACITYLENS_DEMO
 CAPACITYLENS_SEED_DEMO
 CAPACITYLENS_MULTI_ACCOUNT
 CAPACITYLENS_BOOTSTRAP_TOKEN
-SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP
+CAPACITYLENS_ALLOW_OPEN_SIGNUP
 ```
 
 Unset is different from `0` for some environment parsers. Remove the lines unless the
@@ -131,7 +131,7 @@ fail loudly. The `openssl rand -base64 48` values above are safe unquoted. Anyth
 elsewhere — a company-login client secret, for example — must be wrapped in single quotes:
 
 ```dotenv
-SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET='the value exactly as issued'
+CAPACITYLENS_GOOGLE_CLIENT_SECRET='the value exactly as issued'
 ```
 
 A single quote inside the value itself cannot be escaped between single quotes. If one appears, ask
@@ -246,7 +246,7 @@ Then open the public origin and confirm:
 - the public health check is operational.
 
 Do not claim the Owner until the public origin is HTTPS and matches
-`SMALLSASS_ACCOUNT_PUBLIC_URL` exactly.
+`CAPACITYLENS_PUBLIC_URL` exactly.
 
 ## What's next
 

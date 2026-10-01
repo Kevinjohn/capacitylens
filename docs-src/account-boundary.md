@@ -214,10 +214,11 @@ model is a release gate:
 3. Each product records the incorporated account-schema version separately from its product schema.
 4. A released product migration never calls a mutable current-schema helper from a later package.
 5. Account release notes declare required product migrations and compatible schema ranges.
-6. Released database fixtures and migration rehearsals run in every consuming sibling.
+6. Released database fixtures and migration rehearsals run in every consuming product.
 
-Package promotion may break the pre-1.0 repository-local contract after mandatory first-sibling
-review. A separate account database or service is not implied by promotion.
+Package promotion may break the pre-1.0 repository-local contract only after a mandatory review
+when that second consumer arrives. A separate account database or service is not implied by
+promotion.
 
 ## Company-provider boundary
 
@@ -254,9 +255,8 @@ unavailability through the product boundary.
 Identical behavior means identical within the same named deployment profile. Password and SSO-only
 products intentionally expose different credential ceremonies.
 
-The sibling handbook owns the implementation registry and propagation procedure. Passing an old
-conformance suite is not evidence of current security; every sibling must meet the recorded minimum
-version and attach CI evidence for each security-fix identifier.
+Passing an old conformance suite is not evidence of current security; every implementation must
+meet the recorded minimum version and attach CI evidence for each security-fix identifier.
 
 ## Known accepted limits
 

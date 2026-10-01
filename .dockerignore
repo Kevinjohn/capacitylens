@@ -22,7 +22,7 @@
 **/*.db-wal
 **/*.db-shm
 
-# Private local reference material — git-ignored design/competitor scraps and the sibling
+# Private local reference material — git-ignored design/competitor scraps and the local
 # handbook workspace. Never bake these into an image layer or builder cache.
 /_input/
 /to-my-siblings/

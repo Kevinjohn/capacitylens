@@ -20,7 +20,7 @@ register its exact callback address, and set its server credentials. Microsoft
 also requires a tenant-specific Entra registration and working SMTP settings for
 first connections that need mailbox proof.
 
-Set `SMALLSASS_ACCOUNT_MODE=password-and-sso` while both password and company sign-in
+Set `CAPACITYLENS_MODE=password-and-sso` while both password and company sign-in
 should remain available. Restart CapacityLens and check that the expected
 provider buttons appear. Complete a sign-in with an allowed account before
 asking teammates to connect.
@@ -64,7 +64,7 @@ does not admit anyone to a company.
 
 ## Require a company provider
 
-Keep `SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-mixed` while preparing
+Keep `CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed` while preparing
 the change. With Google, Microsoft, or both configured, run the read-only
 all-company check against the current database:
 
@@ -104,8 +104,8 @@ schema; it refuses ambiguous identities and unsafe targets.
 After preflight reports ready, set:
 
 ```dotenv
-SMALLSASS_ACCOUNT_MODE=sso-only
-SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-sso-only
+CAPACITYLENS_MODE=sso-only
+CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-sso-only
 ```
 
 Keep the credentials for at least one company provider configured. On restart,
@@ -121,8 +121,8 @@ If a provider becomes unavailable or a person cannot use their connected
 identity, set both values and restart the server:
 
 ```dotenv
-SMALLSASS_ACCOUNT_MODE=password-and-sso
-SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-mixed
+CAPACITYLENS_MODE=password-and-sso
+CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed
 ```
 
 This restores the password entrance for local-password accounts while leaving
