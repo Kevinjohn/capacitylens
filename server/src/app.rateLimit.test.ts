@@ -44,7 +44,7 @@ describe("CAPACITYLENS_RATE_LIMIT on", () => {
     expect((await stateReq(app)).statusCode).toBe(200);
     const third = await stateReq(app);
     expect(third.statusCode).toBe(429);
-    expect(third.json()).toEqual({ error: "Rate limit exceeded" }); // canonical API { error } shape
+    expect(third.json()).toEqual({ error: "Rate limit exceeded." }); // canonical API { error } shape
   });
 
   it("EXEMPTS /api/health from the limiter so the uptime monitor is never told 429", async () => {

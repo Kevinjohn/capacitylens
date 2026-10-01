@@ -147,7 +147,7 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
     });
 
     expect(res.statusCode).toBe(403);
-    expect(res.json()).toEqual({ error: "reset disabled" });
+    expect(res.json()).toEqual({ error: "Reset is disabled." });
     expect(db.prepare(`SELECT id FROM accounts`).all()).toEqual([{ id: "a1" }]);
   });
 

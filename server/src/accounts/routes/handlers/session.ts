@@ -1,5 +1,7 @@
 import { isAccountSessionId } from "@capacitylens/shared/account/validation";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { REPLY_ERRORS } from "../../../routes/replyErrors";
+import type { SessionRoute } from "../accountRouteDependencies";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAccountActor } from "./authenticatedPrincipal";
 
@@ -48,19 +50,15 @@ export async function listSessions(
 }
 
 export async function revokeSession(
-  req: FastifyRequest,
+  req: FastifyRequest<SessionRoute>,
   reply: FastifyReply,
   context: Pick<AccountRouteContext, "command" | "fail" | "identity">,
 ) {
   const { identity: identityPort, command: accountCommand, fail: accountFail } = context;
 
-  const params: unknown = req.params;
-  const sessionId =
-    typeof params === "object" && params !== null && "sessionId" in params && typeof params.sessionId === "string"
-      ? params.sessionId
-      : undefined;
+  const { sessionId } = req.params;
   if (!isAccountSessionId(sessionId)) {
-    return reply.code(400).send({ error: "Invalid session id." });
+    return reply.code(400).send({ error: REPLY_ERRORS.invalidSessionId });
   }
   try {
     await identityPort.revokeOwnSession({

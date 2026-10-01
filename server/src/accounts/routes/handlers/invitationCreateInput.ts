@@ -2,18 +2,17 @@ import type { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { Role } from "@capacitylens/shared/account/types";
 import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { FastifyRequest } from "fastify";
-import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
+import { REPLY_ERRORS } from "../../../routes/replyErrors";
+import type { ParseResult } from "../../../routes/routeShared";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { parseStrictIsoInstant } from "../isoInstant";
-
-type ParseResult<T, E> = { kind: "parsed"; value: T } | { kind: "invalid"; failure: E };
 
 function parsePreauthorizedEmail(
   value: unknown,
   createValidationFailure: AccountRouteContext["validationFailed"],
 ): ParseResult<string | null, AccountContractError> {
   if (value !== undefined && typeof value !== "string") {
-    return { kind: "invalid", failure: createValidationFailure("preauthEmail must be a valid email address.") };
+    return { kind: "invalid", failure: createValidationFailure(REPLY_ERRORS.preauthEmailInvalid) };
   }
   if (typeof value !== "string" || value.trim().length === 0) return { kind: "parsed", value: null };
   return { kind: "parsed", value: normalizeAccountEmail(value) };
@@ -26,7 +25,7 @@ export function parseInvitationExpiry(
   if (value === undefined) return { kind: "parsed", value: null };
   const parsed = typeof value === "string" ? parseStrictIsoInstant(value) : null;
   if (parsed === null) {
-    return { kind: "invalid", failure: createValidationFailure("expiresAt must be a valid ISO-8601 timestamp.") };
+    return { kind: "invalid", failure: createValidationFailure(REPLY_ERRORS.expiresAtInvalid) };
   }
   return { kind: "parsed", value: new Date(parsed).toISOString() };
 }
@@ -59,16 +58,16 @@ export function parseCreateInvitationAuthorizationInput({
     proposedResourceId?: unknown;
   };
   if (typeof body.accountId !== "string" || body.accountId.length === 0) {
-    return { kind: "invalid", failure: createValidationFailure("accountId must be a non-empty string.") };
+    return { kind: "invalid", failure: createValidationFailure(REPLY_ERRORS.accountIdNonEmpty) };
   }
-  if (!isKnownRole(body.role)) return { kind: "invalid", failure: createValidationFailure(INVALID_ROLE_MESSAGE) };
+  if (!isKnownRole(body.role)) return { kind: "invalid", failure: createValidationFailure(REPLY_ERRORS.invalidRole) };
 
   const emailResult = parsePreauthorizedEmail(body.preauthEmail, createValidationFailure);
   if (emailResult.kind === "invalid") return { kind: "invalid", failure: emailResult.failure };
   if (authMode === "sso-only" && emailResult.value === null) {
     return {
       kind: "invalid",
-      failure: createValidationFailure("SSO-only onboarding requires an email-preauthorized invitation."),
+      failure: createValidationFailure(REPLY_ERRORS.ssoInvitationRequiresEmail),
     };
   }
 

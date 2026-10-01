@@ -167,7 +167,7 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
     authorize: authorizeAllowed,
     // Only the ceremony read consults this: the global masquerade policy already refuses every
     // unsafe method, so the six commands need no check of their own.
-    isMasquerading: (request) => request.session !== null && masquerades.peek(request.session.id) !== undefined,
+    isMasquerading: (req) => req.session !== null && masquerades.peek(req.session.id) !== undefined,
     command: createAccountCommand,
     audit,
     fail: accountFail,

@@ -1,4 +1,5 @@
 import { NO_REPROMPT, type AuthorizeRouteInput } from "./routeShared";
+import { buildUnknownEntityMessage, FROZEN_REPLY_MESSAGES, REPLY_ERRORS } from "./replyErrors";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord } from "../audit";
@@ -37,6 +38,19 @@ export interface EntityRouteDependencies {
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;
 }
 
+interface EntityCollectionRoute {
+  Params: { entity: string };
+}
+
+interface EntityItemRoute {
+  Params: { entity: string; id: string };
+}
+
+// Repeated query keys arrive as arrays, so the declared type admits them and the handler checks.
+interface EntityDeleteRoute extends EntityItemRoute {
+  Querystring: { accountId?: string | string[] };
+}
+
 interface EntityWriteContext {
   req: FastifyRequest;
   reply: FastifyReply;
@@ -50,39 +64,31 @@ function readAuthenticatedUserId(req: FastifyRequest): string {
 }
 
 const sendUnknownEntity = (reply: FastifyReply, entity: string) =>
-  reply.code(404).send({ error: `Unknown entity: ${entity}` });
+  reply.code(404).send({ error: buildUnknownEntityMessage(entity) });
 
-function allowReplacement(
+/** Send the refusal when a replacement may not proceed; null when it may. A refusal already sent
+ * by the authorization gate is returned as the same reply. */
+function sendReplacementRefusal(
   { req, reply, entity, dependencies }: EntityWriteContext,
   body: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
-): boolean {
+): FastifyReply | null {
   const builtinCheck = resolveBuiltinWriteRejection({ verb: "replace", entity, existing, incoming: body });
-  if (builtinCheck) {
-    reply.code(builtinCheck.status).send({ error: builtinCheck.error });
-    return false;
-  }
+  if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
   if (entity === "clients" && body.builtin === true && existing?.builtin !== true) {
     const accountId = body.accountId as string;
     if (!dependencies.authorize({ req, reply, accountId, action: "manageInternalClient", options: NO_REPROMPT }))
-      return false;
+      return reply;
   }
-  if (!ownsRow(existing, body.accountId)) {
-    reply.code(404).send({ error: "Not found" });
-    return false;
-  }
-  return true;
+  if (!ownsRow(existing, body.accountId)) return reply.code(404).send({ error: FROZEN_REPLY_MESSAGES.notFound });
+  return null;
 }
 
-function readAllowedPatchTarget(
-  { req, reply, entity, dependencies }: EntityWriteContext,
-  id: string,
-): Record<string, unknown> | undefined {
+type PatchTarget = { kind: "allowed"; existing: Record<string, unknown> } | { kind: "refused"; reply: FastifyReply };
+
+function readAllowedPatchTarget({ req, reply, entity, dependencies }: EntityWriteContext, id: string): PatchTarget {
   const existing = getRow(dependencies.db, entity, id);
-  if (!existing) {
-    reply.code(404).send({ error: "Not found" });
-    return undefined;
-  }
+  if (!existing) return { kind: "refused", reply: reply.code(404).send({ error: FROZEN_REPLY_MESSAGES.notFound }) };
   if (
     isScopedTable(entity) &&
     !dependencies.authorize({
@@ -93,7 +99,7 @@ function readAllowedPatchTarget(
       options: { concealNonMembership: true },
     })
   )
-    return undefined;
+    return { kind: "refused", reply };
   const builtinCheck = resolveBuiltinWriteRejection({
     verb: "patch",
     entity,
@@ -101,10 +107,9 @@ function readAllowedPatchTarget(
     incoming: req.body as Record<string, unknown>,
   });
   if (builtinCheck) {
-    reply.code(builtinCheck.status).send({ error: builtinCheck.error });
-    return undefined;
+    return { kind: "refused", reply: reply.code(builtinCheck.status).send({ error: builtinCheck.error }) };
   }
-  return existing;
+  return { kind: "allowed", existing };
 }
 
 type ApplyWriteInput = Partial<Pick<PreparedWrite, "generatedReplacement" | "scopedState">> & {
@@ -172,8 +177,8 @@ function registerCreateRoute(app: FastifyInstance, dependencies: EntityRouteDepe
     fail: sendFail,
   } = dependencies;
 
-  app.post("/api/:entity", (req, reply) => {
-    const { entity } = req.params as { entity: string };
+  app.post<EntityCollectionRoute>("/api/:entity", (req, reply) => {
+    const { entity } = req.params;
     if (!isGenericEntity(entity)) return sendUnknownEntity(reply, entity);
     const scoped = isScopedTable(entity);
     const bodyCheck = checkEntityWriteBody({ verb: "create", entity, body: req.body, urlId: undefined, scoped });
@@ -223,7 +228,7 @@ function registerCreateRoute(app: FastifyInstance, dependencies: EntityRouteDepe
 }
 
 function replaceEntity(
-  req: FastifyRequest,
+  req: FastifyRequest<EntityItemRoute>,
   reply: FastifyReply,
   dependencies: EntityRouteDependencies,
 ): FastifyReply | undefined {
@@ -231,7 +236,7 @@ function replaceEntity(
   const fieldVisibilityFor = dependencies.fieldVisibility;
   const redactWriteEcho = dependencies.redact;
   const sendFail = dependencies.fail;
-  const { entity, id } = req.params as { entity: string; id: string };
+  const { entity, id } = req.params;
   if (!isGenericEntity(entity)) return sendUnknownEntity(reply, entity);
   const scoped = isScopedTable(entity);
   const bodyCheck = checkEntityWriteBody({ verb: "replace", entity, body: req.body, urlId: id, scoped });
@@ -240,13 +245,14 @@ function replaceEntity(
   if (scoped && !authorize({ req, reply, accountId: body.accountId as string, action: "write" })) return;
   try {
     const existing = getRow(db, entity, id) ?? undefined;
-    if (!allowReplacement({ req, reply, entity, dependencies }, body, existing)) return;
+    const refusal = sendReplacementRefusal({ req, reply, entity, dependencies }, body, existing);
+    if (refusal) return refusal;
     const visibility = fieldVisibilityFor(req, entity, body.accountId);
     if (optimisticConcurrency) {
       const staleWriteInput = { existing, row: body };
       if (isStaleWrite(staleWriteInput)) {
         return reply.code(409).send({
-          error: "The record was modified more recently on the server.",
+          error: REPLY_ERRORS.staleWrite,
           current: redactWriteEcho(entity, staleWriteInput.existing, visibility),
         });
       }
@@ -279,12 +285,12 @@ function replaceEntity(
 }
 
 function registerUpdateRoutes(app: FastifyInstance, dependencies: EntityRouteDependencies): void {
-  app.put("/api/:entity/:id", (req, reply) => replaceEntity(req, reply, dependencies));
-  app.patch("/api/:entity/:id", (req, reply) => patchEntity(req, reply, dependencies));
+  app.put<EntityItemRoute>("/api/:entity/:id", (req, reply) => replaceEntity(req, reply, dependencies));
+  app.patch<EntityItemRoute>("/api/:entity/:id", (req, reply) => patchEntity(req, reply, dependencies));
 }
 
 function patchEntity(
-  req: FastifyRequest,
+  req: FastifyRequest<EntityItemRoute>,
   reply: FastifyReply,
   dependencies: EntityRouteDependencies,
 ): FastifyReply | undefined {
@@ -292,15 +298,16 @@ function patchEntity(
   const fieldVisibilityFor = dependencies.fieldVisibility;
   const redactWriteEcho = dependencies.redact;
   const sendFail = dependencies.fail;
-  const { entity, id } = req.params as { entity: string; id: string };
+  const { entity, id } = req.params;
   if (!isGenericEntity(entity)) return sendUnknownEntity(reply, entity);
   const scoped = isScopedTable(entity);
   const bodyCheck = checkEntityWriteBody({ verb: "patch", entity, body: req.body, urlId: id, scoped });
   if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
   try {
     const context = { req, reply, entity, dependencies };
-    const existing = readAllowedPatchTarget(context, id);
-    if (!existing) return;
+    const target = readAllowedPatchTarget(context, id);
+    if (target.kind === "refused") return target.reply;
+    const { existing } = target;
     const visibility = fieldVisibilityFor(
       req,
       entity,
@@ -313,14 +320,14 @@ function patchEntity(
       options: visibility,
     });
     if (!ownsRow(existing, merged.accountId)) {
-      return reply.code(404).send({ error: "Not found" });
+      return reply.code(404).send({ error: FROZEN_REPLY_MESSAGES.notFound });
     }
     if (
       optimisticConcurrency &&
       isStaleWrite({ existing, row: req.body as Record<string, unknown>, requirePrecondition: false })
     ) {
       return reply.code(409).send({
-        error: "The record was modified more recently on the server.",
+        error: REPLY_ERRORS.staleWrite,
         current: redactWriteEcho(entity, existing, visibility),
       });
     }
@@ -345,30 +352,24 @@ function patchEntity(
 
 function registerDeleteRoute(app: FastifyInstance, dependencies: EntityRouteDependencies): void {
   const { db, authMode, authorize, commitProductAudit, fail: sendFail } = dependencies;
-  app.delete("/api/:entity/:id", (req, reply) => {
-    const { entity, id } = req.params as { entity: string; id: string };
+  app.delete<EntityDeleteRoute>("/api/:entity/:id", (req, reply) => {
+    const { entity, id } = req.params;
     if (!isGenericEntity(entity)) return sendUnknownEntity(reply, entity);
     if (isLifecycleEntity(entity)) {
-      return reply.code(400).send({
-        error: "Use the dedicated lifecycle endpoints for this entity.",
-      });
+      return reply.code(400).send({ error: REPLY_ERRORS.useLifecycleEndpoints });
     }
-    const { accountId } = req.query as { accountId?: string };
+    const { accountId } = req.query;
     try {
       if (!isScopedTable(entity)) {
-        return reply.code(403).send({
-          error: "No deletion policy is defined for this entity.",
-        });
+        return reply.code(403).send({ error: REPLY_ERRORS.noDeletionPolicy });
       }
-      if (accountId === undefined) {
-        return reply.code(400).send({
-          error: "accountId is required to delete a scoped record.",
-        });
+      if (typeof accountId !== "string") {
+        return reply.code(400).send({ error: REPLY_ERRORS.accountIdRequiredForScopedDelete });
       }
       if (!authorize({ req, reply, accountId, action: "write" })) return;
       const existing = getRow(db, entity, id) ?? undefined;
       if (!ownsRow(existing, accountId) || (!existing && authMode !== "off")) {
-        return reply.code(404).send({ error: "Not found" });
+        return reply.code(404).send({ error: FROZEN_REPLY_MESSAGES.notFound });
       }
       if (existing) {
         commitProductAudit(

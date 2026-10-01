@@ -15,6 +15,7 @@ import type { resolveAppConfig } from "./appConfig";
 import type { createAppRuntime } from "./appRuntime";
 import type { installRootHooks } from "./appRootHooks";
 import type { AppOptions } from "../app";
+import { FROZEN_REPLY_MESSAGES, REPLY_ERRORS } from "./replyErrors";
 
 export type AuthorizationResult = { kind: "allowed"; role: Role | null } | { kind: "denied" };
 export type EffectiveRoleResult = { kind: "resolved"; role: Role | null } | { kind: "ended" };
@@ -109,8 +110,8 @@ function denyMissingRole(
   securityEvent: RootHelpers["securityEvent"],
 ): AuthorizationResult {
   securityEvent({ event: "authorization", outcome: "denied", action, accountId, userId: req.user?.id });
-  if (options.concealNonMembership) reply.code(404).send({ error: "Not found" });
-  else reply.code(403).send({ error: "Forbidden." });
+  if (options.concealNonMembership) reply.code(404).send({ error: FROZEN_REPLY_MESSAGES.notFound });
+  else reply.code(403).send({ error: REPLY_ERRORS.forbidden });
   return { kind: "denied" };
 }
 
@@ -120,7 +121,7 @@ function denyInsufficientRole(
   securityEvent: RootHelpers["securityEvent"],
 ): AuthorizationResult {
   securityEvent({ event: "authorization", outcome: "denied", action, accountId, userId: req.user?.id, role });
-  reply.code(403).send({ error: "Forbidden." });
+  reply.code(403).send({ error: REPLY_ERRORS.forbidden });
   return { kind: "denied" };
 }
 
@@ -150,7 +151,7 @@ function requireFreshSession(
     ...(timestampMissing ? { reason: "missing_session_timestamp" } : {}),
   });
   reply.code(403).send({
-    error: "Sign in again before performing this security-sensitive action.",
+    error: REPLY_ERRORS.freshSignInRequired,
     code: "SESSION_NOT_FRESH",
   });
   return false;
@@ -169,7 +170,7 @@ function createAuthorize({ authMode, resolveEffectiveRole, securityEvent }: Auth
     if (authMode === "off") return { kind: "allowed", role: null };
     const resolved = resolveEffectiveRole(input.req, input.accountId);
     if (resolved.kind === "ended") {
-      input.reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
+      input.reply.code(403).send({ error: REPLY_ERRORS.masqueradeEnded, code: MASQUERADE_ERROR_CODES.ended });
       return { kind: "denied" };
     }
     const { role } = resolved;
@@ -257,7 +258,7 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
         origin: reqOrigin,
         fetchSite,
       });
-      return reply.code(403).send({ error: "Cross-site request rejected." });
+      return reply.code(403).send({ error: REPLY_ERRORS.crossSiteRequest });
     }
     if (origin) {
       reply.header("Access-Control-Allow-Origin", origin);
@@ -272,7 +273,7 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
       "Access-Control-Allow-Headers",
       "Content-Type, Idempotency-Key, x-account-command-id, x-capacitylens-bootstrap-token, x-capacitylens-setup-token, x-capacitylens-sync-session, x-capacitylens-sync-sequence",
     );
-    if (req.method === "OPTIONS") reply.code(204).send();
+    if (req.method === "OPTIONS") return reply.code(204).send();
   });
 
   return {

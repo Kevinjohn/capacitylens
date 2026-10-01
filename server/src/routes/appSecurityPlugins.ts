@@ -3,6 +3,7 @@ import helmetPlugin from "@fastify/helmet";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { resolveRequestClientIp } from "./appErrors";
 import type { AppOptions } from "../app";
+import { REPLY_ERRORS } from "./replyErrors";
 
 export function installSecurityPlugins(app: FastifyInstance, options: AppOptions, rateLimitMax: number) {
   // Baseline security headers (P0.5.3, @fastify/helmet): ON by default — these are pure
@@ -59,7 +60,7 @@ export function installSecurityPlugins(app: FastifyInstance, options: AppOptions
       // @fastify/rate-limit's default error has only a duck-typed statusCode, indistinguishable
       // from an arbitrary thrown object whose message could contain internal details.
       errorResponseBuilder: (_req, context) =>
-        Object.assign(new Error("Rate limit exceeded"), {
+        Object.assign(new Error(REPLY_ERRORS.rateLimited), {
           code: "CAPACITYLENS_RATE_LIMITED",
           statusCode: context.statusCode,
         }),

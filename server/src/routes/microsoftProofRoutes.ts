@@ -1,8 +1,10 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import type { Auth } from "../auth";
 import { MicrosoftProofError } from "../authConfig/microsoftProof";
 import { toWebHeaders } from "./appRequestAdapters";
 import { resolveRequestClientIp } from "./appErrors";
+import { REPLY_ERRORS } from "./replyErrors";
+import type { ParseResult } from "./routeShared";
 
 type StartBody = {
   purpose?: unknown;
@@ -15,20 +17,27 @@ type StartBody = {
 
 function sendError(reply: FastifyReply, error: unknown) {
   if (error instanceof MicrosoftProofError) {
-    return reply.code(error.status).send({ code: error.code, message: "Microsoft connection could not continue." });
+    return reply.code(error.status).send({ code: error.code, message: REPLY_ERRORS.microsoftConnectionFailed });
   }
   throw error;
 }
 
-// eslint-disable-next-line complexity -- Validate all five untrusted wire fields before starting OAuth.
-function parseStart(body: unknown): {
+interface StartRequest {
   purpose: "bootstrap" | "invite" | "link" | "join";
   email?: string;
   inviteToken?: string;
   accountId?: string;
   callbackURL: string;
   errorCallbackURL: string;
-} {
+}
+
+const invalidProofRequest = <T>(): ParseResult<T, MicrosoftProofError> => ({
+  kind: "invalid",
+  failure: new MicrosoftProofError("MICROSOFT_PROOF_REQUEST_INVALID", 400),
+});
+
+// eslint-disable-next-line complexity -- Validate all five untrusted wire fields before starting OAuth.
+function parseStart(body: unknown): ParseResult<StartRequest, MicrosoftProofError> {
   const value = (body ?? {}) as StartBody;
   if (
     (value.purpose !== "bootstrap" &&
@@ -41,16 +50,25 @@ function parseStart(body: unknown): {
     (value.inviteToken !== undefined && typeof value.inviteToken !== "string") ||
     (value.accountId !== undefined && typeof value.accountId !== "string")
   ) {
-    throw new MicrosoftProofError("MICROSOFT_PROOF_REQUEST_INVALID", 400);
+    return invalidProofRequest();
   }
   return {
-    purpose: value.purpose,
-    callbackURL: value.callbackURL,
-    errorCallbackURL: value.errorCallbackURL,
-    ...(typeof value.email === "string" ? { email: value.email } : {}),
-    ...(typeof value.inviteToken === "string" ? { inviteToken: value.inviteToken } : {}),
-    ...(typeof value.accountId === "string" ? { accountId: value.accountId } : {}),
+    kind: "parsed",
+    value: {
+      purpose: value.purpose,
+      callbackURL: value.callbackURL,
+      errorCallbackURL: value.errorCallbackURL,
+      ...(typeof value.email === "string" ? { email: value.email } : {}),
+      ...(typeof value.inviteToken === "string" ? { inviteToken: value.inviteToken } : {}),
+      ...(typeof value.accountId === "string" ? { accountId: value.accountId } : {}),
+    },
   };
+}
+
+function parseConfirmToken(body: unknown): ParseResult<string | undefined, MicrosoftProofError> {
+  const { token } = (body ?? {}) as { token?: unknown };
+  if (token !== undefined && typeof token !== "string") return invalidProofRequest();
+  return { kind: "parsed", value: token };
 }
 
 type RegisterMicrosoftProofRoutesOptions = { app: FastifyInstance; auth: Auth; trustProxyHeaders?: boolean };
@@ -61,42 +79,45 @@ export function registerMicrosoftProofRoutes({
 }: RegisterMicrosoftProofRoutesOptions): void {
   const proof = auth.microsoftProof;
   if (!proof) return;
-  app.post("/api/account/microsoft/start", async (req: FastifyRequest, reply) => {
+  app.post("/api/account/microsoft/start", async (req, reply) => {
+    const parsed = parseStart(req.body);
+    if (parsed.kind === "invalid") return sendError(reply, parsed.failure);
     try {
       const result = await proof.start({
-        body: parseStart(req.body),
+        body: parsed.value,
         headers: toWebHeaders(req.headers),
         sourceIp: resolveRequestClientIp({ request: req, trustProxyHeaders }),
       });
-      reply.header("set-cookie", result.setCookies);
-      return { url: result.url };
+      return reply.code(200).header("set-cookie", result.setCookies).send({ url: result.url });
     } catch (error) {
       return sendError(reply, error);
     }
   });
-  app.get("/api/account/microsoft/status", (req: FastifyRequest) => proof.status(toWebHeaders(req.headers)));
-  app.post("/api/account/microsoft/confirm", async (req: FastifyRequest, reply) => {
+  app.get("/api/account/microsoft/status", (req, reply) =>
+    reply.code(200).send(proof.status(toWebHeaders(req.headers))),
+  );
+  app.post("/api/account/microsoft/confirm", async (req, reply) => {
+    const parsed = parseConfirmToken(req.body);
+    if (parsed.kind === "invalid") return sendError(reply, parsed.failure);
     try {
-      const body = (req.body ?? {}) as { token?: unknown };
-      if (body.token !== undefined && typeof body.token !== "string")
-        throw new MicrosoftProofError("MICROSOFT_PROOF_REQUEST_INVALID", 400);
-      const result = await proof.confirm(toWebHeaders(req.headers), body.token);
-      reply.header("set-cookie", result.setCookies);
-      return { url: result.url };
+      const result = await proof.confirm(toWebHeaders(req.headers), parsed.value);
+      return reply.code(200).header("set-cookie", result.setCookies).send({ url: result.url });
     } catch (error) {
       return sendError(reply, error);
     }
   });
-  app.post("/api/account/microsoft/resend", async (req: FastifyRequest, reply) => {
+  app.post("/api/account/microsoft/resend", async (req, reply) => {
     try {
       await proof.resend(toWebHeaders(req.headers));
-      return { ok: true };
+      return reply.code(200).send({ ok: true });
     } catch (error) {
       return sendError(reply, error);
     }
   });
-  app.post("/api/account/microsoft/cancel", (req: FastifyRequest, reply) => {
-    reply.header("set-cookie", proof.cancel(toWebHeaders(req.headers)));
-    return { ok: true };
-  });
+  app.post("/api/account/microsoft/cancel", (req, reply) =>
+    reply
+      .code(200)
+      .header("set-cookie", proof.cancel(toWebHeaders(req.headers)))
+      .send({ ok: true }),
+  );
 }

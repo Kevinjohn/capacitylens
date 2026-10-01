@@ -4,8 +4,6 @@ import { createAccountLifecycleHandlers } from "./accountEntity/lifecycleHandler
 import { createAccountWriteHandlers } from "./accountEntity/writeHandlers";
 export type { AccountEntityRouteDependencies } from "./accountEntity/AccountEntityRouteDependencies";
 export {
-  ACCOUNT_CREATE_CLOSED_MESSAGE,
-  ACCOUNT_FROZEN_FIELDS_MESSAGE,
   isAccountCreateCapped,
   hasFrozenAccountFieldChanges,
   buildCanonicalAccountProductPayload,

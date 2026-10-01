@@ -31,6 +31,10 @@ new features and **patch** versions carry fixes.
   instead of 91. The detailed `guide/` pages are merged into the matching day-to-day pages,
   installation and operations pages into `self-hosting/` with one install page, and dated security
   reviews move under `security/reviews/`. Old documentation paths are not redirected (#1408).
+- Server error messages are consistent sentence-case sentences ending with a full stop, for example
+  "Internal server error." and "Rate limit exceeded.". A rejected import reply says "The import data
+  is not valid CapacityLens data." instead of echoing the parser's reason, which the server now logs
+  (#1409).
 - Settings gathers the remaining company switches (**Use disciplines**, **Show placeholders**, **Show
   external resources**, **Inline activity creation** and **Show task field in schedule**) in one
   **Company features** section (#1408).

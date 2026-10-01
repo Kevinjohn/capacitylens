@@ -8,7 +8,8 @@ import { listAppliedRequestedFieldNames, sanitizeWrite, assertValidWrite } from 
 import { checkEntityWriteBody, prepareScopedWrite, stampServerRevision, type PreparedWrite } from "../../writePipeline";
 import type { AccountEntityRouteDependencies } from "./AccountEntityRouteDependencies";
 import { sendAccountRouteFailure, enforceAccountWriteGuards } from "./guards";
-import { ACCOUNT_CREATE_CLOSED_MESSAGE, isAccountCreateCapped, buildCanonicalAccountProductPayload } from "./policy";
+import { isAccountCreateCapped, buildCanonicalAccountProductPayload } from "./policy";
+import { FROZEN_REPLY_MESSAGES, REPLY_ERRORS } from "../replyErrors";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 type AccountActor = NonNullable<FastifyRequest["accountActor"]>;
@@ -34,11 +35,8 @@ type AccountWriteDependencies = Pick<
   | "accountFail"
 >;
 
-function readRouteId(req: FastifyRequest): string {
-  if (!isRecord(req.params) || typeof req.params.id !== "string") {
-    throw new Error("Expected the account route to provide a string id.");
-  }
-  return req.params.id;
+export interface AccountItemRoute {
+  Params: { id: string };
 }
 
 function readWriteBody(body: unknown): Record<string, unknown> {
@@ -126,24 +124,29 @@ async function persistPut(input: {
   return provisioned.product;
 }
 
-function allowPut(input: AccountWriteInput, existing: Record<string, unknown> | undefined): boolean {
+/** Returns the sent refusal when the PUT may not proceed, or null when it may. A refusal already
+ * sent by the authorization gate is returned as the same reply. */
+function sendPutRefusal(input: AccountWriteInput, existing: Record<string, unknown> | undefined): FastifyReply | null {
   const { dependencies, req, reply, id } = input;
   // Authenticated account creation is closed before the OFF-mode cap is considered. Existing rows
   // skip the create-only cap and instead require write authority for their own account id.
   if (!existing && dependencies.authMode !== "off") {
-    reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
-    return false;
+    return reply.code(403).send({ error: REPLY_ERRORS.accountCreateClosed });
   }
   if (!existing && isAccountCreateCapped({ db: dependencies.db, multiAccount: dependencies.multiAccount })) {
-    reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE });
-    return false;
+    return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE });
   }
-  return !existing || dependencies.authorize({ req, reply, accountId: id, action: "write" });
+  if (existing && !dependencies.authorize({ req, reply, accountId: id, action: "write" })) return reply;
+  return null;
 }
 
-function enforcePutPreflight(input: AccountWriteInput, existing: Record<string, unknown> | undefined): boolean {
+function enforcePutPreflight(
+  input: AccountWriteInput,
+  existing: Record<string, unknown> | undefined,
+): FastifyReply | null {
   const { dependencies, reply, body } = input;
-  if (!allowPut(input, existing)) return true;
+  const refusal = sendPutRefusal(input, existing);
+  if (refusal) return refusal;
   return enforceAccountWriteGuards({
     reply,
     existing,
@@ -155,17 +158,18 @@ function enforcePutPreflight(input: AccountWriteInput, existing: Record<string, 
   });
 }
 
+/** Returns the replayed product row of a completed trusted-local command, or null. */
 async function replayPut(
   input: AccountWriteInput & {
     existing: Record<string, unknown> | undefined;
     workspaceCommand: ReturnType<AccountWriteDependencies["command"]>;
     visibility: Parameters<AccountWriteDependencies["redact"]>[2];
   },
-): Promise<boolean> {
-  const { dependencies, req, reply, id, body, existing, workspaceCommand, visibility } = input;
+): Promise<Record<string, unknown> | null> {
+  const { dependencies, req, id, body, existing, workspaceCommand, visibility } = input;
   // Only trusted-local compatibility writes can replay here. Authenticated updates never await the
   // coordinator between their authority decision and mutation, avoiding stale authorization.
-  if (dependencies.authMode !== "off" || !existing) return false;
+  if (dependencies.authMode !== "off" || !existing) return null;
   const replay = await dependencies.flows.replayWorkspaceProvisioning<Record<string, unknown>>({
     actor: requireActor(req),
     workspaceId: id,
@@ -174,34 +178,33 @@ async function replayPut(
       sanitizeWrite({ table: "accounts", row: body, existing, options: visibility }),
     ),
   });
-  if (!replay) return false;
-  reply.code(200).send(dependencies.redact("accounts", replay.product, visibility));
-  return true;
+  return replay ? replay.product : null;
 }
 
-async function applyPut(input: AccountWriteInput): Promise<FastifyReply | undefined> {
+async function applyPut(input: AccountWriteInput): Promise<FastifyReply> {
   const { dependencies, req, reply, id, body } = input;
   const { db, store, optimisticConcurrency, command, fieldVisibility, redact } = dependencies;
   // Parse the command before reading state, and attempt trusted-local replay before the stale-write
   // guard so a completed command is returned rather than rejected by a newer stored revision.
   const workspaceCommand = command(req);
   let existing = getRow(db, "accounts", id) ?? undefined;
-  if (enforcePutPreflight(input, existing)) return;
+  const preflightRefusal = enforcePutPreflight(input, existing);
+  if (preflightRefusal) return preflightRefusal;
   const visibility = fieldVisibility(req, "accounts", id);
-  if (await replayPut({ ...input, existing, workspaceCommand, visibility })) return;
+  const replayed = await replayPut({ ...input, existing, workspaceCommand, visibility });
+  if (replayed) return reply.code(200).send(redact("accounts", replayed, visibility));
   existing = getRow(db, "accounts", id) ?? undefined;
-  if (enforcePutPreflight(input, existing)) return;
-  if (
-    enforceAccountWriteGuards({
-      reply,
-      existing,
-      ownsRow: dependencies.ownsRow,
-      isStaleWrite: dependencies.isStaleWrite,
-      redact,
-      checkStale: { optimisticConcurrency, candidateRow: body, vis: visibility },
-    })
-  )
-    return;
+  const recheckRefusal = enforcePutPreflight(input, existing);
+  if (recheckRefusal) return recheckRefusal;
+  const staleRefusal = enforceAccountWriteGuards({
+    reply,
+    existing,
+    ownsRow: dependencies.ownsRow,
+    isStaleWrite: dependencies.isStaleWrite,
+    redact,
+    checkStale: { optimisticConcurrency, candidateRow: body, vis: visibility },
+  });
+  if (staleRefusal) return staleRefusal;
   const { row, scopedState } = prepareScopedWrite({
     store,
     entity: "accounts",
@@ -225,8 +228,8 @@ async function applyPut(input: AccountWriteInput): Promise<FastifyReply | undefi
   return reply.code(200).send(redact("accounts", responseRow, visibility));
 }
 
-async function put(dependencies: AccountWriteDependencies, req: FastifyRequest, reply: FastifyReply) {
-  const id = readRouteId(req);
+async function put(dependencies: AccountWriteDependencies, req: FastifyRequest<AccountItemRoute>, reply: FastifyReply) {
+  const { id } = req.params;
   const bodyCheck = checkEntityWriteBody({
     verb: "replace",
     entity: "accounts",
@@ -242,29 +245,27 @@ async function put(dependencies: AccountWriteDependencies, req: FastifyRequest, 
   }
 }
 
-function applyPatch(input: AccountWriteInput): FastifyReply | undefined {
+function applyPatch(input: AccountWriteInput): FastifyReply {
   const { dependencies, req, reply, id, body } = input;
   const { db, store, optimisticConcurrency, authorize, fieldVisibility, redact, commitProductAudit } = dependencies;
   const existing = getRow(db, "accounts", id);
-  if (!existing) return reply.code(404).send({ error: "Not found" });
-  if (!authorize({ req, reply, accountId: id, action: "write" })) return;
+  if (!existing) return reply.code(404).send({ error: FROZEN_REPLY_MESSAGES.notFound });
+  if (!authorize({ req, reply, accountId: id, action: "write" })) return reply;
   const visibility = fieldVisibility(req, "accounts", id);
   const merged = sanitizeWrite({ table: "accounts", row: { ...existing, ...body, id }, existing, options: visibility });
   // Accounts sanitization drops accountId, but ownsRow must see the caller's raw assertion so a
   // foreign ownership claim is concealed as 404 instead of being silently ignored.
-  if (
-    enforceAccountWriteGuards({
-      reply,
-      existing,
-      ownsRow: dependencies.ownsRow,
-      isStaleWrite: dependencies.isStaleWrite,
-      redact,
-      checkOwnsRow: { accountId: body.accountId ?? existing.accountId },
-      checkFrozen: { candidate: merged },
-      checkStale: { optimisticConcurrency, candidateRow: body, requirePrecondition: false, vis: visibility },
-    })
-  )
-    return;
+  const refusal = enforceAccountWriteGuards({
+    reply,
+    existing,
+    ownsRow: dependencies.ownsRow,
+    isStaleWrite: dependencies.isStaleWrite,
+    redact,
+    checkOwnsRow: { accountId: body.accountId ?? existing.accountId },
+    checkFrozen: { candidate: merged },
+    checkStale: { optimisticConcurrency, candidateRow: body, requirePrecondition: false, vis: visibility },
+  });
+  if (refusal) return refusal;
   const stamped = stampServerRevision(merged, existing);
   const lookup = store.validationLookup?.();
   const validationState = lookup === undefined ? store.readFullSlice(id) : emptyAppData();
@@ -285,8 +286,8 @@ function applyPatch(input: AccountWriteInput): FastifyReply | undefined {
   return reply.code(200).send(redact("accounts", stamped, visibility));
 }
 
-function patch(dependencies: AccountWriteDependencies, req: FastifyRequest, reply: FastifyReply) {
-  const id = readRouteId(req);
+function patch(dependencies: AccountWriteDependencies, req: FastifyRequest<AccountItemRoute>, reply: FastifyReply) {
+  const { id } = req.params;
   const bodyCheck = checkEntityWriteBody({
     verb: "patch",
     entity: "accounts",
@@ -304,7 +305,7 @@ function patch(dependencies: AccountWriteDependencies, req: FastifyRequest, repl
 
 export function createAccountWriteHandlers(dependencies: AccountWriteDependencies) {
   return {
-    put: (req: FastifyRequest, reply: FastifyReply) => put(dependencies, req, reply),
-    patch: (req: FastifyRequest, reply: FastifyReply) => patch(dependencies, req, reply),
+    put: (req: FastifyRequest<AccountItemRoute>, reply: FastifyReply) => put(dependencies, req, reply),
+    patch: (req: FastifyRequest<AccountItemRoute>, reply: FastifyReply) => patch(dependencies, req, reply),
   };
 }

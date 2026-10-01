@@ -1,3 +1,5 @@
+import { REPLY_ERRORS } from "./replyErrors";
+
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
 export const BODY_LIMIT = 5 * 1024 * 1024;
@@ -15,31 +17,13 @@ export const MAX_SERVER_CONNECTIONS = 512;
 // Only these parsing errors have messages we intentionally preserve for clients. Return canonical
 // text rather than trusting even an allow-listed error object's message to remain harmless.
 const SAFE_CLIENT_ERRORS = new Map<string, { status: number; message: string }>([
-  ["FST_ERR_CTP_BODY_TOO_LARGE", { status: 413, message: "Request body is too large" }],
-  ["FST_ERR_CTP_INVALID_MEDIA_TYPE", { status: 415, message: "Unsupported Media Type" }],
-  [
-    "FST_ERR_CTP_INVALID_CONTENT_LENGTH",
-    {
-      status: 400,
-      message: "Request body size did not match Content-Length",
-    },
-  ],
-  [
-    "FST_ERR_CTP_EMPTY_JSON_BODY",
-    {
-      status: 400,
-      message: "Body cannot be empty when content-type is set to 'application/json'",
-    },
-  ],
-  [
-    "FST_ERR_CTP_INVALID_JSON_BODY",
-    {
-      status: 400,
-      message: "Body is not valid JSON but content-type is set to 'application/json'",
-    },
-  ],
-  ["CAPACITYLENS_MALFORMED_CSP_REPORT", { status: 400, message: "Malformed CSP report" }],
-  ["CAPACITYLENS_RATE_LIMITED", { status: 429, message: "Rate limit exceeded" }],
+  ["FST_ERR_CTP_BODY_TOO_LARGE", { status: 413, message: REPLY_ERRORS.requestBodyTooLarge }],
+  ["FST_ERR_CTP_INVALID_MEDIA_TYPE", { status: 415, message: REPLY_ERRORS.unsupportedMediaType }],
+  ["FST_ERR_CTP_INVALID_CONTENT_LENGTH", { status: 400, message: REPLY_ERRORS.contentLengthMismatch }],
+  ["FST_ERR_CTP_EMPTY_JSON_BODY", { status: 400, message: REPLY_ERRORS.emptyJsonBody }],
+  ["FST_ERR_CTP_INVALID_JSON_BODY", { status: 400, message: REPLY_ERRORS.invalidJsonBody }],
+  ["CAPACITYLENS_MALFORMED_CSP_REPORT", { status: 400, message: REPLY_ERRORS.malformedCspReport }],
+  ["CAPACITYLENS_RATE_LIMITED", { status: 429, message: REPLY_ERRORS.rateLimited }],
 ]);
 
 export function resolveSafeClientError(error: unknown): { status: number; message: string } | null {

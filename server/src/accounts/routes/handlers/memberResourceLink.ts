@@ -1,6 +1,8 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
-import { NO_REPROMPT } from "../../../routes/routeShared";
+import { REPLY_ERRORS } from "../../../routes/replyErrors";
+import { NO_REPROMPT, type ParseResult } from "../../../routes/routeShared";
+import type { MemberRoute } from "../accountRouteDependencies";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAccountActor } from "./authenticatedPrincipal";
 
@@ -16,20 +18,45 @@ function linkFailure(error: unknown): never {
   throw error;
 }
 
-/** Create, retry, or change one member/person association under opaque revision CAS. */
-export async function setMemberResourceLink(req: FastifyRequest, reply: FastifyReply, context: MemberLinkContext) {
-  const { accountId, userId } = req.params as { accountId: string; userId: string };
-  if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
-    return;
-  const body = req.body as Record<string, unknown> | null;
+function parseSetLinkBody(
+  value: unknown,
+  createValidationFailure: MemberLinkContext["validationFailed"],
+): ParseResult<{ resourceId: string; expectedRevision: string | null }, AccountContractError> {
+  const body = value as Record<string, unknown> | null;
   if (
     !body ||
     typeof body.resourceId !== "string" ||
     body.resourceId.length === 0 ||
     !(body.expectedRevision === null || typeof body.expectedRevision === "string")
   ) {
-    return context.fail(reply, context.validationFailed("resourceId and expectedRevision are required."));
+    return { kind: "invalid", failure: createValidationFailure(REPLY_ERRORS.resourceLinkInputInvalid) };
   }
+  return { kind: "parsed", value: { resourceId: body.resourceId, expectedRevision: body.expectedRevision } };
+}
+
+function parseExpectedRevision(
+  value: unknown,
+  createValidationFailure: MemberLinkContext["validationFailed"],
+): ParseResult<string, AccountContractError> {
+  const body = value as Record<string, unknown> | null;
+  if (!body || typeof body.expectedRevision !== "string" || body.expectedRevision.length === 0) {
+    return { kind: "invalid", failure: createValidationFailure(REPLY_ERRORS.expectedRevisionRequired) };
+  }
+  return { kind: "parsed", value: body.expectedRevision };
+}
+
+/** Create, retry, or change one member/person association under opaque revision CAS. */
+export async function setMemberResourceLink(
+  req: FastifyRequest<MemberRoute>,
+  reply: FastifyReply,
+  context: MemberLinkContext,
+) {
+  const { accountId, userId } = req.params;
+  if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
+    return;
+  const parsed = parseSetLinkBody(req.body, context.validationFailed);
+  if (parsed.kind === "invalid") return context.fail(reply, parsed.failure);
+  const body = parsed.value;
   try {
     const actor = requireAccountActor(req);
     const link = await context.memberResources.setLink({
@@ -52,20 +79,22 @@ export async function setMemberResourceLink(req: FastifyRequest, reply: FastifyR
 }
 
 /** Remove one member/person association only when its opaque revision still matches. */
-export async function clearMemberResourceLink(req: FastifyRequest, reply: FastifyReply, context: MemberLinkContext) {
-  const { accountId, userId } = req.params as { accountId: string; userId: string };
+export async function clearMemberResourceLink(
+  req: FastifyRequest<MemberRoute>,
+  reply: FastifyReply,
+  context: MemberLinkContext,
+) {
+  const { accountId, userId } = req.params;
   if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
     return;
-  const body = req.body as Record<string, unknown> | null;
-  if (!body || typeof body.expectedRevision !== "string" || body.expectedRevision.length === 0) {
-    return context.fail(reply, context.validationFailed("expectedRevision is required."));
-  }
+  const parsed = parseExpectedRevision(req.body, context.validationFailed);
+  if (parsed.kind === "invalid") return context.fail(reply, parsed.failure);
   try {
     const actor = requireAccountActor(req);
     await context.memberResources.clearLink({
       workspaceId: accountId,
       principalId: userId,
-      expectedRevision: body.expectedRevision,
+      expectedRevision: parsed.value,
       actor,
       command: context.command(req),
     });
@@ -81,11 +110,11 @@ export async function clearMemberResourceLink(req: FastifyRequest, reply: Fastif
 
 /** Dismiss the current proposal exception without changing a live member/person link. */
 export async function dismissMemberResourceLinkException(
-  req: FastifyRequest,
+  req: FastifyRequest<MemberRoute>,
   reply: FastifyReply,
   context: MemberLinkContext,
 ) {
-  const { accountId, userId } = req.params as { accountId: string; userId: string };
+  const { accountId, userId } = req.params;
   if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
     return;
   try {

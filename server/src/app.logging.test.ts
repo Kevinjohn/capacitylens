@@ -95,7 +95,7 @@ describe("CAPACITYLENS_LOG on", () => {
     db.close(); // /api/state now throws → the 500 redaction funnel
     const res = await app.inject({ method: "GET", url: "/api/state" });
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toEqual({ error: "Internal server error" }); // body still generic
+    expect(res.json()).toEqual({ error: "Internal server error." }); // body still generic
     expect(consoleError).not.toHaveBeenCalled();
     expect(lines.join("")).toContain('"level":50'); // pino error line carries the real cause
   });
@@ -113,7 +113,7 @@ describe("server error containment", () => {
     const response = await app.inject({ method: "GET", url: "/test/unexpected-error" });
 
     expect(response.statusCode).toBe(503);
-    expect(response.json()).toEqual({ error: "Internal server error" });
+    expect(response.json()).toEqual({ error: "Internal server error." });
     expect(response.body).not.toContain("SENTINEL_PRIVATE_EXCEPTION");
     expect(events).toContainEqual(
       expect.objectContaining({

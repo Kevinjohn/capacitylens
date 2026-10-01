@@ -12,13 +12,14 @@ import { insertRow, listAccountSummaries, readState } from "../db";
 import type { LocalAccountFlows } from "../accounts/createLocalAccountFlows";
 import type { MasqueradeRegistry } from "../MasqueradeRegistry";
 import type { TenantStore } from "../tenantStore";
-import { listAcceptedFieldNames, sanitizeWrite, assertValidWrite, ValidationError } from "../validate";
+import { listAcceptedFieldNames, sanitizeWrite, assertValidWrite } from "../validate";
 import { buildReadSliceVisibility, resolveVisibilityForRole } from "../fieldPolicy";
 import { enqueueAudit } from "../auditOutbox";
 import { buildCanonicalAccountProductPayload } from "./accountEntityRoutes";
 import { ALL_FIELDS_VISIBLE, type AuthorizeRoute } from "./routeShared";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
+import { REPLY_ERRORS } from "./replyErrors";
 
 type StateAccountAdministration = AccountAdminPort & {
   roleForPrincipalInWorkspace(principalId: string, workspaceId: string): Role | null;
@@ -72,7 +73,7 @@ async function listAccounts(
   req: FastifyRequest,
   reply: FastifyReply,
   dependencies: StateRouteDependencies,
-): Promise<unknown> {
+): Promise<FastifyReply> {
   const { db, authMode, accountAdminPort, masquerades, resolveEffectiveRole } = dependencies;
   if (authMode === "off") {
     // No membership in off mode: every account is visible. Map to the same AccountSummary shape
@@ -81,7 +82,9 @@ async function listAccounts(
     // to today's no-login deploy, so the client's pure `can('owner', …)` keeps OFF fully editable
     // (and a Viewer read-only mode is reachable ONLY auth-on, where a real membership role exists).
     const accounts = listAccountSummaries(db);
-    return accounts.map((account) => ({ id: account.id, name: account.name, role: "owner" as const }));
+    return reply
+      .code(200)
+      .send(accounts.map((account) => ({ id: account.id, name: account.name, role: "owner" as const })));
   }
   const memberships = await accountAdminPort.listWorkspacesForPrincipal({
     principalId: requireAccountActor(req).principalId,
@@ -94,40 +97,52 @@ async function listAccounts(
   if (activeRecord) {
     const activeResolution = resolveEffectiveRole(req, activeRecord.accountId);
     if (activeResolution.kind === "ended") {
-      return reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
+      return reply.code(403).send({ error: REPLY_ERRORS.masqueradeEnded, code: MASQUERADE_ERROR_CODES.ended });
     }
     projectedRole = activeResolution.role;
   }
-  return memberships.map((membership) => ({
-    id: membership.workspaceId,
-    name: membership.workspaceName,
-    role: membership.workspaceId === activeRecord?.accountId ? (projectedRole ?? membership.role) : membership.role,
-  }));
+  return reply.code(200).send(
+    memberships.map((membership) => ({
+      id: membership.workspaceId,
+      name: membership.workspaceName,
+      role: membership.workspaceId === activeRecord?.accountId ? (projectedRole ?? membership.role) : membership.role,
+    })),
+  );
 }
 
-function readStateRoute(req: FastifyRequest, reply: FastifyReply, dependencies: StateRouteDependencies): unknown {
+// Repeated query keys arrive as arrays, so the declared type admits them and the handler checks.
+interface StateReadRoute {
+  Querystring: { accountId?: string | string[]; includeInactive?: string | string[] };
+}
+
+function readStateRoute(
+  req: FastifyRequest<StateReadRoute>,
+  reply: FastifyReply,
+  dependencies: StateRouteDependencies,
+): FastifyReply | undefined {
   const { db, store, authMode, authorize } = dependencies;
-  const { accountId } = req.query as { accountId?: string };
+  const { accountId, includeInactive } = req.query;
   if (accountId !== undefined) {
     if (typeof accountId !== "string" || accountId.length === 0) {
-      return reply.code(400).send({ error: "accountId must be a non-empty string." });
+      return reply.code(400).send({ error: REPLY_ERRORS.accountIdNonEmpty });
     }
     const authorization = authorize({ req, reply, accountId, action: "read" });
     if (authorization.kind === "denied") return;
     const visibility = authMode === "off" ? ALL_FIELDS_VISIBLE : resolveVisibilityForRole(authorization.role);
-    const includeInactive = (req.query as { includeInactive?: string }).includeInactive;
     if (includeInactive !== undefined && includeInactive !== "1") {
-      return reply.code(400).send({ error: "includeInactive must be the literal value 1 when present." });
+      return reply.code(400).send({ error: REPLY_ERRORS.includeInactiveInvalid });
     }
     const wantsInactive = includeInactive === "1";
     if (wantsInactive && authorize({ req, reply, accountId, action: "purge" }).kind === "denied") return;
-    return store.readSlice(accountId, {
-      ...buildReadSliceVisibility(visibility),
-      includeInactive: wantsInactive,
-    });
+    return reply.code(200).send(
+      store.readSlice(accountId, {
+        ...buildReadSliceVisibility(visibility),
+        includeInactive: wantsInactive,
+      }),
+    );
   }
-  if (authMode !== "off") return reply.code(400).send({ error: "accountId is required." });
-  return readState(db);
+  if (authMode !== "off") return reply.code(400).send({ error: REPLY_ERRORS.accountIdRequired });
+  return reply.code(200).send(readState(db));
 }
 
 function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDependencies): void {
@@ -142,7 +157,7 @@ function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDepend
   //
   // With `?accountId=`, return that account's scoped slice through TenantStore. OFF mode is
   // trusted-local; auth-on requires read authorization and cannot cross tenant boundaries.
-  app.get("/api/state", (req, reply) => {
+  app.get<StateReadRoute>("/api/state", (req, reply) => {
     // Refuse a cross-tenant read before any data leaves the DB. The authorize seam is the
     // single source of truth: OFF mode short-circuits to allow-all (trusted-local), auth-on
     // requires membership (read = any member, via can()) and 403s a non-member.
@@ -195,7 +210,7 @@ interface OrganisationProvisionInput {
   accountRow: Record<string, unknown>;
 }
 
-async function provisionOrganisation(input: OrganisationProvisionInput): Promise<unknown> {
+async function provisionOrganisation(input: OrganisationProvisionInput): Promise<FastifyReply> {
   const { req, reply, dependencies, command, bootstrapAuthorized, now, id, accountRow } = input;
   const { db, multiAccount, accountFlows, drainProductAudit } = dependencies;
   // Server timestamps are result data, not caller intent. Excluding them from the command
@@ -240,13 +255,13 @@ async function createOrganisation(
   req: FastifyRequest,
   reply: FastifyReply,
   dependencies: StateRouteDependencies,
-): Promise<unknown> {
+): Promise<FastifyReply> {
   const { authMode, auth, bootstrapToken, accountCommand, accountFail, sendFail } = dependencies;
 
   // Constrained org creation is the atomic "create a usable account" path and, with auth
   // on — the ONLY account-create path: the generic vectors (POST /api/accounts, PUT-as-create,
   // batch PUT-as-create) now refuse auth-on creates with a 403 directing here (see
-  // ACCOUNT_CREATE_CLOSED_MESSAGE; they stay open in OFF mode for the trusted-local client).
+  // REPLY_ERRORS.accountCreateClosed; they stay open in OFF mode for the trusted-local client).
   // Unlike those bare row writes, /api/orgs ALSO mints the account's built-in Internal client and
   // makes the caller its Owner, in ONE transaction.
   //
@@ -273,7 +288,7 @@ async function createOrganisation(
   // exists, absent a bootstrap token. The gate runs in auth-on AND off; in off mode (1)/(2) already
   // allow, so the token/membership branches are moot there.
   try {
-    if (!isRecord(req.body)) throw new ValidationError("Company details must be an object.");
+    if (!isRecord(req.body)) return reply.code(400).send({ error: REPLY_ERRORS.companyDetailsNotObject });
 
     // Build a VALID account row from the body (name required; colour repaired; junk schedulingMode
     // dropped) via the SAME sanitize/validate the generic account create uses — so /api/orgs can't
@@ -285,7 +300,7 @@ async function createOrganisation(
         reply,
         new AccountContractError({
           code: "FORBIDDEN",
-          message: "Sign in with the required SSO provider before creating a company.",
+          message: REPLY_ERRORS.ssoRequiredBeforeCompanyCreate,
           retryable: false,
         }),
       );

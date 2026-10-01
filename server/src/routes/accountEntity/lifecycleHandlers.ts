@@ -7,7 +7,8 @@ import { checkEntityWriteBody, prepareScopedWrite } from "../../writePipeline";
 
 import type { AccountEntityRouteDependencies } from "./AccountEntityRouteDependencies";
 import { sendAccountRouteFailure } from "./guards";
-import { ACCOUNT_CREATE_CLOSED_MESSAGE, buildCanonicalAccountProductPayload } from "./policy";
+import { buildCanonicalAccountProductPayload } from "./policy";
+import { REPLY_ERRORS } from "../replyErrors";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 type AccountLifecycleDependencies = Pick<
@@ -109,7 +110,7 @@ function createPostHandler(dependencies: AccountLifecycleDependencies) {
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
     // Authenticated creation stays on POST /api/orgs; OFF creation remains cap-bounded by the flow.
     if (dependencies.authMode !== "off") {
-      return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
+      return reply.code(403).send({ error: REPLY_ERRORS.accountCreateClosed });
     }
     try {
       return await createAccount(req, reply, dependencies);

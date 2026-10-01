@@ -14,6 +14,7 @@ import { BatchAuthorizationResponseSent, StaleWriteError } from "./batch/errors"
 import { runBatch } from "./batch/runBatch";
 import { type BatchOp, type BatchRevision } from "./batch/types";
 import { parseBatchRequest } from "./batch/validateRequest";
+import { REPLY_ERRORS } from "./replyErrors";
 export { MAX_BATCH_OPS } from "./batch/types";
 
 export interface BatchRouteDependencies {
@@ -117,7 +118,7 @@ function sendBatchError(
 ): FastifyReply | undefined {
   if (error instanceof BatchAuthorizationResponseSent) return undefined;
   if (error instanceof StaleWriteError) {
-    return reply.code(409).send({ error: error.message, current: error.current });
+    return reply.code(409).send({ error: REPLY_ERRORS.staleWrite, current: error.current });
   }
   return error instanceof AccountContractError
     ? dependencies.accountFail(reply, error)
@@ -137,9 +138,9 @@ function createBatchHandler(dependencies: BatchRouteDependencies) {
   // per-entity routes use; one request-scoped state projection is loaded inside the transaction
   // and advanced after each op, so a child validates against a parent a sibling op just upserted.
   return async (req: FastifyRequest, reply: FastifyReply) => {
-    const parsed = parseBatchRequest(req, reply);
-    if (!parsed) return;
-    const { ops, syncOrder } = parsed;
+    const parsed = parseBatchRequest(req);
+    if (parsed.kind === "invalid") return reply.code(parsed.failure.status).send({ error: parsed.failure.error });
+    const { ops, syncOrder } = parsed.value;
     if (ops.length === 0 && syncOrder === null) return sendEmptyBatch(reply);
     // Shape validation above established every source. This set bounds validation reads to the
     // account slices the request can actually touch; an ordered empty batch deliberately has no
@@ -152,7 +153,7 @@ function createBatchHandler(dependencies: BatchRouteDependencies) {
     // shape validation above, so the generic sync path can never turn a bad diff into tenant
     // destruction. An accounts
     // PUT that is an UPDATE gates 'write'; an accounts PUT that is a CREATE is refused outright
-    // when auth is on (→ POST /api/orgs, see ACCOUNT_CREATE_CLOSED_MESSAGE) and stays open ONLY
+    // when auth is on (→ POST /api/orgs, see REPLY_ERRORS.accountCreateClosed) and stays open ONLY
     // in OFF mode, where the single-company cap (accountCreateCapped) can still deny it — either
     // refusal fails the whole batch, see below. In OFF mode authorize
     // short-circuits true, so the whole loop is a no-op pass for authz; the cap check is NOT part of that no-op — it runs
@@ -165,7 +166,7 @@ function createBatchHandler(dependencies: BatchRouteDependencies) {
       ? projectBatchAccounts(db, ops)
       : { count: 0, createsFinalAccount: false };
     // Authenticated account creation is closed on this generic sync route (the loop below
-    // returns ACCOUNT_CREATE_CLOSED_MESSAGE). In trusted-local mode, project the *whole* batch
+    // returns REPLY_ERRORS.accountCreateClosed). In trusted-local mode, project the *whole* batch
     // before starting the transaction so two creates cannot both pass against the same empty DB.
     if (authMode === "off" && accountProjection.createsFinalAccount && !multiAccount && accountProjection.count > 1) {
       return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE });

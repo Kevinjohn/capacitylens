@@ -557,7 +557,8 @@ async function testRejectsMalformedImportVersion(): Promise<void> {
   });
 
   expect(res.statusCode).toBe(400);
-  expect(readErrorResponse(res).error).toMatch(/schema version must be a non-negative safe integer/i);
+  // The parse failure is the only import 400 with this fixed text; the parser's own reason is logged.
+  expect(readErrorResponse(res).error).toBe("The import data is not valid CapacityLens data.");
   expect(await state(app)).toEqual(before);
 }
 

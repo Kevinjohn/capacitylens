@@ -1,16 +1,15 @@
-import { isAccountFlowOperation } from "@capacitylens/shared/account/ports";
+import { isAccountFlowOperation, type AccountFlowOperation } from "@capacitylens/shared/account/ports";
+import type { CommandIdentity } from "@capacitylens/shared/account/types";
 import { isAccountCommandId, isAccountIdempotencyKey } from "@capacitylens/shared/account/validation";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { REPLY_ERRORS } from "../../../routes/replyErrors";
+import type { ParseResult } from "../../../routes/routeShared";
 import type { AccountRouteContext } from "../createReplyHelpers";
 
-export async function reconcile(
-  req: FastifyRequest,
-  reply: FastifyReply,
-  context: Pick<AccountRouteContext, "fail" | "flows">,
-) {
-  const { flows: accountFlows, fail: accountFail } = context;
-
-  const body = (req.body ?? {}) as {
+function parseReconcileBody(
+  value: unknown,
+): ParseResult<{ command: CommandIdentity; operation: AccountFlowOperation }, string> {
+  const body = (value ?? {}) as {
     commandId?: unknown;
     operation?: unknown;
     idempotencyKey?: unknown;
@@ -20,18 +19,28 @@ export async function reconcile(
     !isAccountIdempotencyKey(body.idempotencyKey) ||
     !isAccountFlowOperation(body.operation)
   )
-    return reply.code(400).send({
-      error: "A valid command, idempotency key, and operation are required.",
-    });
-  try {
-    const outcome = await accountFlows.reconcileCommand({
-      command: {
-        commandId: body.commandId,
-        idempotencyKey: body.idempotencyKey,
-      },
+    return { kind: "invalid", failure: REPLY_ERRORS.reconcileInputInvalid };
+  return {
+    kind: "parsed",
+    value: {
+      command: { commandId: body.commandId, idempotencyKey: body.idempotencyKey },
       operation: body.operation,
-    });
-    if (!outcome) return reply.code(404).send({ error: "Command not found." });
+    },
+  };
+}
+
+export async function reconcile(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "fail" | "flows">,
+) {
+  const { flows: accountFlows, fail: accountFail } = context;
+
+  const parsed = parseReconcileBody(req.body);
+  if (parsed.kind === "invalid") return reply.code(400).send({ error: parsed.failure });
+  try {
+    const outcome = await accountFlows.reconcileCommand(parsed.value);
+    if (!outcome) return reply.code(404).send({ error: REPLY_ERRORS.commandNotFound });
     // The public ceremony is intentionally only a status oracle. Full repair coordinates stay in
     // the operator-only database/CLI path; possession of browser reconciliation bearers must not
     // disclose workspace, principal, provisional-principal, or reset-ceremony identifiers.

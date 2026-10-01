@@ -351,7 +351,7 @@ function registerAuthOffCorruptRepairTests(): void {
       });
 
       expect(response.statusCode).toBe(500);
-      expect(response.json()).toEqual({ error: "Internal server error" });
+      expect(response.json()).toEqual({ error: "Internal server error." });
       expect(logged).toHaveBeenCalledWith(
         expect.objectContaining({
           name: "CorruptAccountCommandStateError",

@@ -17,6 +17,13 @@ export interface StaleWriteInput {
 
 export type AuthorizeBasicInput = Omit<AuthorizeRouteInput, "options">;
 
+/**
+ * The one request-parsing result shape for route handlers: the typed value, or the failure the
+ * handler replies with. Parsers never send a response themselves, so every reply is returned
+ * from the handler that owns it.
+ */
+export type ParseResult<T, E> = { kind: "parsed"; value: T } | { kind: "invalid"; failure: E };
+
 export interface AuthorizeRouteInput {
   req: FastifyRequest;
   reply: FastifyReply;

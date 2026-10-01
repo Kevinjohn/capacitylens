@@ -1,5 +1,7 @@
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { REPLY_ERRORS } from "../../../routes/replyErrors";
+import type { MemberRoute } from "../accountRouteDependencies";
 import type { AccountRouteContext } from "../createReplyHelpers";
 
 function assertAuthenticatedRequestContext(req: FastifyRequest) {
@@ -14,7 +16,11 @@ type ResetPasswordContext = Pick<
   "auditUnlessReplayed" | "authMode" | "authorize" | "command" | "fail" | "flows" | "requireMembership"
 >;
 
-export async function resetPassword(req: FastifyRequest, reply: FastifyReply, context: ResetPasswordContext) {
+export async function resetPassword(
+  req: FastifyRequest<MemberRoute>,
+  reply: FastifyReply,
+  context: ResetPasswordContext,
+) {
   const {
     authMode,
     flows: accountFlows,
@@ -25,16 +31,13 @@ export async function resetPassword(req: FastifyRequest, reply: FastifyReply, co
     requireMembership,
   } = context;
 
-  const { accountId, userId } = req.params as {
-    accountId: string;
-    userId: string;
-  };
+  const { accountId, userId } = req.params;
   if (!authorize({ req, reply, accountId, action: "manageMembers" })) return;
   if (!allowsPasswordSignIn(authMode)) {
     // 'sso': the IdP owns sign-in — resetting a local password is meaningless there. 'off':
     // trusted-local, no credential model (and no UI shows the button) — a clear 400 either way.
     return reply.code(400).send({
-      error: "Password reset links require a deployment profile with password sign-in enabled.",
+      error: REPLY_ERRORS.passwordResetUnavailable,
     });
   }
   try {
@@ -79,7 +82,7 @@ type RevokeMemberSessionsContext = Pick<
 >;
 
 export async function revokeMemberSessions(
-  req: FastifyRequest,
+  req: FastifyRequest<MemberRoute>,
   reply: FastifyReply,
   context: RevokeMemberSessionsContext,
 ) {
@@ -94,13 +97,10 @@ export async function revokeMemberSessions(
     requireMembership,
   } = context;
 
-  const { accountId, userId } = req.params as {
-    accountId: string;
-    userId: string;
-  };
+  const { accountId, userId } = req.params;
   if (!authorize({ req, reply, accountId, action: "manageMembers" })) return;
   if (authMode === "off" || !authenticationConfigured) {
-    return reply.code(400).send({ error: "Sessions require authentication." });
+    return reply.code(400).send({ error: REPLY_ERRORS.sessionsRequireAuthentication });
   }
   try {
     const command = accountCommand(req);

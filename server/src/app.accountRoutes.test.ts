@@ -45,7 +45,7 @@ describe("dedicated /api/accounts routes — route precedence", () => {
   ] as const)("preserves the unknown entity diagnostic for %s", async (method, url) => {
     const response = await call(freshApp(), { method, url });
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({ error: "Unknown entity: not-a-table" });
+    expect(response.json()).toEqual({ error: "Unknown entity: not-a-table." });
   });
 
   it("does not shadow the parametric lifecycle routes: POST /api/accounts/:id/archive stays a 404", async () => {
@@ -61,7 +61,7 @@ describe("dedicated /api/accounts routes — route precedence", () => {
       payload: { accountId: "a1" } as NonNullable<InjectOptions["payload"]>,
     });
     expect(res.statusCode).toBe(404);
-    expect(res.json<{ error: string }>().error).toBe("Unknown entity: accounts");
+    expect(res.json<{ error: string }>().error).toBe("Unknown entity: accounts.");
   });
 
   it("does not shadow the account administration routes registered under the same prefix", async () => {

@@ -140,14 +140,14 @@ function registerDiagnosticsRoute(app: FastifyInstance, dependencies: PublicRout
         },
       });
     }
-    return {
+    return reply.code(200).send({
       server: {
         connectivity: "ok",
         database: { status: databaseStatus, schemaVersion },
         persistence: "unknown" as const,
         backup,
       },
-    };
+    });
   });
 }
 
@@ -159,7 +159,7 @@ function registerMetaRoute(app: FastifyInstance, dependencies: MetaRouteDependen
   // instance-level bootstrap sentinel, not tenant data, and reveals no account, identity or row
   // count. A membership-less principal therefore receives the same single boolean needed by the
   // startup adapter without gaining access to any scoped state.
-  app.get("/api/meta", () => ({ hasData: dependencies.isInitialized() }));
+  app.get("/api/meta", (_req, reply) => reply.code(200).send({ hasData: dependencies.isInitialized() }));
 }
 
 function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDependencies): void {
@@ -179,7 +179,7 @@ function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDep
   // it adds no amplification surface: the expensive full row-codec + foreign-key integrity
   // verification runs once during openDb(), and this handler is only a cached SELECT 1.
   app.get("/api/health", { config: { rateLimit: false } }, (_req, reply) => {
-    if (!dependencies.healthStatement) return { ok: true };
+    if (!dependencies.healthStatement) return reply.code(200).send({ ok: true });
     try {
       dependencies.healthStatement.get();
       const backupHealth = dependencies.backupHealth?.();
@@ -188,7 +188,7 @@ function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDep
       // failing a write doesn't make the server unhealthy), just surface 'degraded' so an
       // operator can see it. The SHALLOW (non-deep) health stays exactly { ok: true } above —
       // the Playwright webServer probe contract — so the audit field appears ONLY in deep mode.
-      return {
+      return reply.code(200).send({
         ok: true,
         db: true,
         audit: buildAuditStatus(dependencies.auditSink, auditPending),
@@ -207,7 +207,7 @@ function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDep
               ),
             }
           : {}),
-      };
+      });
     } catch {
       // INTENTIONAL empty catch: the 503 IS the surfacing. A broken DB must make the uptime
       // monitor see 503 — not a lying { ok: true } 200, and not a thrown 500. Do NOT "fix" this

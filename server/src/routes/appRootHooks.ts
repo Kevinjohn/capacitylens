@@ -13,6 +13,7 @@ import { DEFAULT_CORS } from "./appConfig";
 import type { AppOptions } from "../app";
 import { installSecurityPlugins } from "./appSecurityPlugins";
 import { AUTH_CLIENT_IP_HEADER } from "../authConfig/sessionPolicy";
+import { REPLY_ERRORS } from "./replyErrors";
 
 interface InstallRootHooksInput {
   app: FastifyInstance;
@@ -66,8 +67,8 @@ interface InstallResponseHooksInput {
   trustProxyHeaders: boolean;
 }
 
-function isApiRequest(request: FastifyRequest): boolean {
-  return (request.url.split("?", 1)[0] ?? request.url).startsWith("/api/");
+function isApiRequest(req: FastifyRequest): boolean {
+  return (req.url.split("?", 1)[0] ?? req.url).startsWith("/api/");
 }
 
 function installResponseHooks(input: InstallResponseHooksInput): void {
@@ -112,7 +113,7 @@ function installCspReportParser(app: FastifyInstance): void {
       try {
         done(null, JSON.parse(typeof body === "string" ? body : body.toString("utf8")));
       } catch {
-        const error = new Error("Malformed CSP report") as Error & { code: string; statusCode: number };
+        const error = new Error(REPLY_ERRORS.malformedCspReport) as Error & { code: string; statusCode: number };
         error.code = "CAPACITYLENS_MALFORMED_CSP_REPORT";
         error.statusCode = 400;
         done(error, undefined);
@@ -140,16 +141,16 @@ function installConnectionHooks(
   securityEvent: (event: Record<string, unknown>) => void,
 ): void {
   // Every conversion of these headers for Better Auth carries the server's own client address.
-  app.addHook("onRequest", function stampAuthClientIp(request, _reply, done) {
-    request.headers[AUTH_CLIENT_IP_HEADER] = resolveRequestClientIp({
-      request,
+  app.addHook("onRequest", function stampAuthClientIp(req, _reply, done) {
+    req.headers[AUTH_CLIENT_IP_HEADER] = resolveRequestClientIp({
+      request: req,
       trustProxyHeaders: options.trustProxyHeaders === true,
     });
     done();
   });
-  app.addHook("onRequest", function abortOnClientDisconnect(request, reply, done) {
+  app.addHook("onRequest", function abortOnClientDisconnect(req, reply, done) {
     const controller = new AbortController();
-    request.raw.once("aborted", () => controller.abort(new Error("The request was aborted.")));
+    req.raw.once("aborted", () => controller.abort(new Error("The request was aborted.")));
     reply.raw.once("close", () => {
       if (!reply.raw.writableFinished) controller.abort(new Error("The client disconnected."));
     });
@@ -159,9 +160,9 @@ function installConnectionHooks(
         outcome: "blocked",
         queue,
         reason,
-        method: request.method,
-        path: request.url.split("?", 1)[0],
-        remoteIp: resolveRequestClientIp({ request, trustProxyHeaders: options.trustProxyHeaders === true }),
+        method: req.method,
+        path: req.url.split("?", 1)[0],
+        remoteIp: resolveRequestClientIp({ request: req, trustProxyHeaders: options.trustProxyHeaders === true }),
       }),
     );
   });
@@ -182,8 +183,8 @@ function installConnectionHooks(
  * would stall every sign-in. */
 function installAuthTransactionGate(app: FastifyInstance, db: Db): void {
   const gate = authTransactionGateFor(db);
-  app.addHook("onRequest", function holdAuthTransactionGate(request, reply, done) {
-    if (!isApiRequest(request)) {
+  app.addHook("onRequest", function holdAuthTransactionGate(req, reply, done) {
+    if (!isApiRequest(req)) {
       done();
       return;
     }
@@ -240,7 +241,7 @@ export function installRootHooks({ app, db, runtime, config, options }: InstallR
       });
       if (logOn) req.log.error(error);
       else console.error(error);
-      return reply.code(errorStatus).send({ error: "Internal server error" });
+      return reply.code(errorStatus).send({ error: REPLY_ERRORS.internalServerError });
     }
     const safe = resolveSafeClientError(error);
     if (safe) {

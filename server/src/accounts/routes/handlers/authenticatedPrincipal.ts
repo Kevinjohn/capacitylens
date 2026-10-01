@@ -1,5 +1,6 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyRequest } from "fastify";
+import { REPLY_ERRORS } from "../../../routes/replyErrors";
 
 /**
  * The "who is calling?" preamble every account route shares.
@@ -12,7 +13,7 @@ import type { FastifyRequest } from "fastify";
 export function createAuthenticationRequiredError() {
   return new AccountContractError({
     code: "AUTHENTICATION_REQUIRED",
-    message: "Sign in to continue.",
+    message: REPLY_ERRORS.signInRequired,
     retryable: false,
   });
 }
