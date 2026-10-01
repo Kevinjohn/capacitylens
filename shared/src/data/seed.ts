@@ -13,7 +13,7 @@ import { createSchedule } from "./seed/schedule";
 // over-allocated day, a limited-days freelancer, a project-bound placeholder, an
 // external partner and a block of time off). The placeholder and external rows are seeded but
 // hidden until their default-off per-account visibility settings are enabled. "Stark Industries" is a
-// small second tenant — enough to prove
+// small second tenant, enough to prove
 // switching companies swaps the whole dataset. Every scoped entity carries an
 // `accountId`; the store filters on it everywhere.
 

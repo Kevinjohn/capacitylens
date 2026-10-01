@@ -27,10 +27,10 @@ export {
 } from "./migrate/detect";
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
-// current-shape AppData, plus the IMPORT-path shape guards that decide whether a
-// blob is even CapacityLens before we let migrate() near it. This is mostly NORMALIZE-SHAPE
+// current-shape AppData, plus the import-path shape guards that decide whether a
+// blob is even CapacityLens before we let migrate() near it. This is mostly normalize-shape
 // (coerce every known table to an array via normalize()), not a general version-
-// migration engine: there is exactly ONE structural transform (v1 → v2, below). The
+// migration engine: there is exactly one structural transform (v1 → v2, below). The
 // v2 → v3 added `accountId` and needs no separate step here.
 // (main.tsx), so older keys are orphaned rather than read, and the import path stamps
 // `accountId` on every incoming row (see useStore.importData).
@@ -42,9 +42,9 @@ interface MigrationStep {
 }
 
 // The ordered step list, split where `repairBase` is captured (immediately before the only step that
-// SYNTHESISES a row). Every version marker is listed, no-op steps included: an explicit entry
+// synthesises a row). Every version marker is listed, no-op steps included: an explicit entry
 // documents that the version bump was structural metadata only, rather than an omitted migration.
-// There is deliberately no v2→v3 step — that version only added `accountId`, which needs no
+// There is deliberately no v2→v3 step. That version only added `accountId`, which needs no
 // transform here.
 const PRE_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
   { version: 2, apply: migrateV1toV2 },
@@ -76,8 +76,8 @@ const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
 // Guards against a migration step being added without bumping EXPORT_SCHEMA_VERSION to match (or
 // vice versa): the last POST_REPAIR_BASE_STEPS version is the ceiling migrate() can bring data up to.
 // This is a development-time mistake, not a runtime condition, but it must never throw merely from
-// IMPORTING this module (shared/data/migrate is on the app's entry graph, before any error boundary
-// exists — see migrate.test.ts). The mismatch is instead asserted lazily, the first time migrate()
+// importing this module (shared/data/migrate is on the app's entry graph, before any error boundary
+// exists: see migrate.test.ts). The mismatch is instead asserted lazily, the first time migrate()
 // actually runs, and covered directly by a dedicated test so CI catches it regardless of whether any
 // other test happens to call migrate().
 const lastPostRepairBaseVersion = POST_REPAIR_BASE_STEPS[POST_REPAIR_BASE_STEPS.length - 1]?.version;

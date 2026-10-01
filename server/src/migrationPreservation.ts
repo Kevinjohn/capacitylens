@@ -125,8 +125,8 @@ function approvedAddition(table: string, row: SnapshotRow, fromVersion: number):
   );
 }
 
-/** Column REMOVALS the migration chain deliberately makes. Every entry needs a version-scoped,
- * reviewed justification — an empty list means no populated column may ever disappear unexamined.
+/** Column removals the migration chain deliberately makes. Every entry needs a version-scoped,
+ * reviewed justification. An empty list means no populated column may ever disappear unexamined.
  * Renames are modelled as removal+addition and must be approved on the removal side too. */
 function approvedColumnRemoval(): boolean {
   // Intentionally empty: no populated column removal is classified yet. Future migrations that
@@ -190,7 +190,7 @@ function assertColumnsPreserved(
   const { tableName, beforeRow, afterRow, key, fromVersion, foldedInternalClients } = input;
   for (const [column, beforeValue] of Object.entries(beforeRow)) {
     if (!(column in afterRow)) {
-      // The migration DROPPED this column. A populated value silently disappearing is exactly
+      // The migration dropped this column. A populated value silently disappearing is exactly
       // the data loss this oracle exists to catch (review finding DBR-0003): refuse it unless
       // the value carried nothing or the removal is explicitly classified below.
       const hadValue = beforeValue !== null && String(beforeValue) !== "";

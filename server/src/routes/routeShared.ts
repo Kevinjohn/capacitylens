@@ -39,12 +39,12 @@ export interface AuthorizeRouteInput {
 /**
  * The `options` value every ordinary administrative action passes to `authorize`. Role and MFA
  * gating are unaffected; only the fresh-sign-in re-prompt is waived. Freshness stays mandatory by
- * default, so grepping for this constant lists every CALL SITE that opts out.
+ * default, so grepping for this constant lists every call site that opts out.
  *
  * The opt-out is per call site, not per action: the same `Action` can legitimately appear both with
  * and without this constant (`manageMembers` is opted out for role, status and removal routes, and
- * NOT opted out for credential and session administration). So the grep is an inventory to review,
- * never a rule to complete — never add this constant to a call site for consistency with another
+ * not opted out for credential and session administration). So the grep is an inventory to review,
+ * never a rule to complete, never add this constant to a call site for consistency with another
  * site sharing its action. Ownership transfer, credential and session administration, company
  * deletion, import/purge and SSO identity work must never opt out; see AGENTS.md and DECISIONS.md.
  */
@@ -54,10 +54,10 @@ export const isKnownTable = (entity: string): entity is TableName =>
   Object.prototype.hasOwnProperty.call(TABLES, entity);
 
 /**
- * The tables the GENERIC /api/:entity routes serve: every known table except `accounts`, which has
+ * The tables the generic /api/:entity routes serve: every known table except `accounts`, which has
  * its own dedicated static routes (routes/accountEntityRoutes.ts).
  *
- * Fastify matches those static paths first, so this is unreachable in practice — it is a fail-CLOSED
+ * Fastify matches those static paths first, so this is unreachable in practice. It is a fail-closed
  * backstop. `accounts` carries no accountId column, so every guard the generic handlers derive from
  * `row.accountId` (the isScopedTable authorize gate, ownsRow, the scoped DELETE owner assertion) is
  * a silent no-op for it; if a dedicated verb is ever removed, an account row must 404 loudly here
@@ -71,9 +71,9 @@ export const isGenericEntity = (entity: string): entity is keyof typeof TABLES =
 // ownership via accountId, so this must not be inferred independently from the SQLite codec.
 export const isScopedTable = isScopedEntityKey;
 
-// The ONLY three entities that carry the lifecycle tombstones (archivedAt/deletedAt, P2.1) and so can
-// run the archive/unarchive/soft-delete/purge routes (P2.5a). A guard, not a free string compare, so a
-// lifecycle handler can `entity is LifecycleEntity`-narrow before indexing AppData[entity] — and any
+// The only three entities that carry the lifecycle tombstones (archivedAt/deletedAt) and so can
+// run the archive/unarchive/soft-delete/purge routes. A guard, not a free string compare, so a
+// lifecycle handler can `entity is LifecycleEntity`-narrow before indexing AppData[entity], and any
 // other table (phases/activities/allocations/timeOff/disciplines/accounts) is a 404 on these routes.
 // Single-sourced in shared (LIFECYCLE_ENTITY_KEYS) so this route allow-list and validate.ts's
 // sanitizeWrite tombstone-pin can't drift; aliased to the local names the handlers below already use.
@@ -81,9 +81,9 @@ export const isLifecycleEntity = isLifecycleEntityKey;
 
 // Tenant-ownership predicate shared by every mutating route. A row is "owned" by
 // `accountId` when there's no existing row yet (a fresh upsert), or its stored accountId
-// matches. PUT/PATCH use it to keep accountId IMMUTABLE (409 on a change that would re-home
+// matches. PUT/PATCH use it to keep accountId immutable (409 on a change that would re-home
 // a row across the tenant boundary); DELETE uses it to scope a delete to its owner (404 on
-// a cross-account target — the server analog of the client's getOwned guard). One
+// a cross-account target, the server analog of the client's getOwned guard). One
 // predicate, so a future write path can't silently skip the check.
 export const ownsRow = (existing: { accountId?: unknown } | undefined, accountId: unknown): boolean =>
   !existing || existing.accountId === accountId;
@@ -99,7 +99,7 @@ export function isStaleWrite(input: StaleWriteInput): input is StaleWriteInput &
 
   // Conflict callers use the narrowed input.existing for successor checks and redacted echoes.
   if (existing === undefined) return false;
-  // A corrupt STORED revision must remain repairable rather than write-bricked. Incoming full-row
+  // A corrupt stored revision must remain repairable rather than write-bricked. Incoming full-row
   // writes, however, require a valid exact precondition; PATCH retains its documented omission-only
   // compatibility path while rejecting an explicitly malformed value.
   if (typeof existing.updatedAt !== "string" || !Number.isFinite(Date.parse(existing.updatedAt))) return false;
@@ -109,7 +109,7 @@ export function isStaleWrite(input: StaleWriteInput): input is StaleWriteInput &
   return Date.parse(existing.updatedAt) !== Date.parse(row.updatedAt);
 }
 
-/** Fully visible writer context (unaffected tables, auth OFF, or an owner). One frozen module-level
+/** Fully visible writer context (unaffected tables, auth off, or an owner). One frozen module-level
  * instance keeps the hot generic write paths allocation-free. */
 export const ALL_FIELDS_VISIBLE: SanitizeWriteOptions = Object.freeze({
   canSeeTimeOffNote: true,

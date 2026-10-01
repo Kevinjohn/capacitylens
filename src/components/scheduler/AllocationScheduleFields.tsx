@@ -201,10 +201,10 @@ function RepeatFields(props: RepeatProps) {
 
 function RepeatPreview(props: RepeatProps) {
   if (!props.repeatProjection || !props.repeatLastStart) return null;
-  // Both dates are read against the FIRST occurrence — the start the reader has just set, a few
-  // fields above — rather than against each other. A repeat running into a new year then dates its
+  // Both dates are read against the first occurrence (the start the reader has just set, a few
+  // fields above) rather than against each other. A repeat running into a new year then dates its
   // cutoff ("through Mon 11th Jan 2100") instead of naming a bare January day that reads as one
-  // eleven months BEFORE the booking it repeats.
+  // eleven months before the booking it repeats.
   const anchor = props.repeatProjection.startDates[0] ?? props.repeatLastStart;
   return (
     <AllocationControlColumn>

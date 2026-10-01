@@ -57,7 +57,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
 });
 
 // The account's date format, mirrored into the formatters. `subscribe` runs synchronously inside
-// `set`, BEFORE React is notified, so no render can read a style the store has already moved past —
+// `set`, before React is notified, so no render can read a style the store has already moved past,
 // which a render-time write in a component could not guarantee, and which the imperative callers
 // that format outside a render (allocation notices) would miss entirely. Seeded from the initial
 // state so the very first paint, and every test that never dispatches, both read the right style.

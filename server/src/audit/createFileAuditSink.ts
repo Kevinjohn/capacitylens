@@ -151,19 +151,19 @@ function appendRecords(context: AppendContext, records: readonly AuditEntry[]): 
  * A file-backed sink: one `\n`-terminated write per record and one `fsync` per delivered batch. The
  * newline-terminated write is partial-line-safe for this single-process, single-writer server; a
  * torn tail is truncated on recovery and its retained SQLite outbox row replays the complete line.
- * A write failure (disk full, bad path, permissions) is caught, never thrown — it latches
- * `degraded` and logs ONE redacted line.
+ * A write failure (disk full, bad path, permissions) is caught, never thrown. It latches
+ * `degraded` and logs one redacted line.
  *
  * Size-based rotation hard-bounds the two generations to 2x `maxBytes`: the entry is serialized
  * first, and the active file is renamed to `<file>.1` before the new complete line would cross the
- * cap (replacing any prior `.1` — POSIX rename atomically replaces an existing destination). A
+ * cap (replacing any prior `.1`, POSIX rename atomically replaces an existing destination). A
  * single line larger than the cap is rejected intact, leaving its outbox row queued and latching
- * degraded health; security evidence is never truncated to fit. Only ONE prior generation is kept;
+ * degraded health; security evidence is never truncated to fit. Only one prior generation is kept;
  * this is a disk-usage bound, not a retention/archival feature.
  *
  * @param file the JSONL file to append to (created on first write)
  * @param log  where the single redacted failure line goes (index.ts passes console.error)
- * @param options `maxBytes` — see FileAuditSinkOptions
+ * @param options `maxBytes`, see FileAuditSinkOptions
  */
 export function createFileAuditSink(
   file: string,

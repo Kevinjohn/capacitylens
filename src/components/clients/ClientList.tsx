@@ -15,12 +15,12 @@ import { byName } from "@/lib/displayOrder";
 import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
 
 /** Build the archive-confirm message for a client, appending the descendant-count cascade warning
- *  ("this also hides N projects and M allocations") when the client has active work beneath it — so
- *  the admin sees exactly what an archive pulls out of the schedule (counts via the pure
- *  archiveImpact, which diffs the same activeOnly projection the view uses). Uses safeArchiveImpact
- *  (not archiveImpact directly) so a client that stopped being active between dialog-open and
- *  render — someone else archived it, a sync landed, an undo fired — renders the base message
- *  instead of throwing during render. */
+ * ("this also hides N projects and M allocations") when the client has active work beneath it, so
+ * the admin sees exactly what an archive pulls out of the schedule (counts via the pure
+ * archiveImpact, which diffs the same activeOnly projection the view uses). Uses safeArchiveImpact
+ * (not archiveImpact directly) so a client that stopped being active between dialog-open and
+ * render (someone else archived it, a sync landed, an undo fired) renders the base message
+ * instead of throwing during render. */
 function buildClientArchiveMessage(data: AppData, client: Client): string {
   const name = client.isPrivate === true ? nameForQuotedContext(client.name) : client.name;
   const base = m.list_clients_archive_message({ name });
@@ -63,17 +63,17 @@ function ClientItems({ clients, onEdit, onArchive }: ClientItemsProps) {
 
 export function ClientList() {
   // The built-in Internal client is a behind-the-scenes data anchor (project-less internal/all-projects
-  // activities bucket under it; it can own real projects), NOT a user-managed client — so it is HIDDEN
-  // from this management list. It stays a REAL, persisted client everywhere it's actually used:
+  // activities bucket under it; it can own real projects), not a user-managed client, so it is hidden
+  // from this management list. It stays a real, persisted client everywhere it's actually used:
   // selectable in ProjectForm's client picker, a "Filter by client" option in the scheduler, and a
   // Clients entry in the command palette (all of which read `useActiveScopedData().clients` directly,
-  // not this view) — and a project under Internal still resolves its client label. See DECISIONS.md.
+  // not this view), and a project under Internal still resolves its client label. See DECISIONS.md.
   const scoped = useActiveScopedData();
   const clients = useMemo(
     () => scoped.clients.filter((client) => !isBuiltinClient(client)).sort(byName),
     [scoped.clients],
   );
-  // The per-row action ARCHIVES (soft-delete is reached from the inline archive section);
+  // The per-row action archives (soft-delete is reached from the inline archive section);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Client>();

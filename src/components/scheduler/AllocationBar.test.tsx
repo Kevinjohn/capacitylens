@@ -14,7 +14,7 @@ import { buildVisibleSpanInsets } from "./visibleSpanInsets";
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().clearFilters();
-  // Device-global prefs persist across tests via localStorage — reset to defaults.
+  // Device-global prefs persist across tests via localStorage, reset to defaults.
   useStore.getState().setBarLabelPref({ key: "showClient", value: true });
   useStore.getState().setBarLabelPref({ key: "showProject", value: true });
 });
@@ -71,7 +71,7 @@ describe("AllocationBar rendering", () => {
     expect(el).toHaveTextContent("8h");
   });
 
-  // #786: a bar that began before the visible window used to carry its label off-screen with it.
+  // A bar that began before the visible window used to carry its label off-screen with it.
   // The bar publishes its own geometry and the label overlay clamps to the intersection of that
   // geometry with the scroll container's viewport, so no bar needs its own scroll listener.
   it("positions the label over the bar's visible portion rather than its start", () => {
@@ -138,7 +138,7 @@ describe("AllocationBar rendering", () => {
     bar.seriesEnd = "2027-03-02";
     render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
-    // The series end is measured against the booking's START — the earliest date in the label — so
+    // The series end is measured against the booking's start, the earliest date in the label, so
     // it cannot be the one bare date among dated ones and be heard as ending before the booking
     // begins.
     expect(screen.getByTestId("allocation-bar")).toHaveAccessibleName(/28 Dec 2026 to 8 Jan 2027/i);
@@ -230,11 +230,11 @@ describe("AllocationBar accessible name (status / dates / note)", () => {
     render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const label = screen.getByTestId("allocation-bar").getAttribute("aria-label") ?? "";
-    // Humanised status (allocationStatusLabels) + 'd MMM' dates — matches the hover popover.
+    // Humanised status (allocationStatusLabels) + 'd MMM' dates, matches the hover popover.
     expect(label).toContain("Tentative");
     expect(label).toContain("1 Jun");
     expect(label).toContain("5 Jun");
-    // The raw enum + ISO must NOT leak into the accessible name.
+    // The raw enum + ISO must not leak into the accessible name.
     expect(label).not.toContain("tentative");
     expect(label).not.toContain("2026-06-01");
   });
@@ -295,7 +295,7 @@ describe("AllocationBar click interaction", () => {
     // pointerDown on the bar body (not a resize handle) with button 0
     fireEvent.pointerDown(el, { clientX: 100, button: 0 });
 
-    // pointerUp on document at the same clientX — no movement, so onClick fires
+    // pointerUp on document at the same clientX. No movement, so onClick fires
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 100, bubbles: true }));
 
     expect(onEdit).toHaveBeenCalledTimes(1);
@@ -310,7 +310,7 @@ describe("AllocationBar click interaction", () => {
 
     const el = screen.getByTestId("allocation-bar");
 
-    // button: 2 is right-click — the handler early-returns
+    // button: 2 is right-click. The handler early-returns
     fireEvent.pointerDown(el, { clientX: 100, button: 2 });
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 100, bubbles: true }));
 

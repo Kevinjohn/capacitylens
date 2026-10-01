@@ -18,8 +18,8 @@ import { PermissionContext } from "@/auth/permissionContext";
 beforeEach(() => {
   resetStoreWithAccount();
   useStore.getState().clearFilters();
-  // Placeholders are gated behind a per-account pref that defaults OFF. Most tests here exercise
-  // the placeholder management section, so enable it for the suite; the default-OFF hide behaviour
+  // Placeholders are gated behind a per-account pref that defaults off. Most tests here exercise
+  // the placeholder management section, so enable it for the suite; the default-off hide behaviour
   // has its own dedicated test below.
   setPlaceholdersEnabled({ on: true });
 });
@@ -326,7 +326,7 @@ describe("ResourceList display", () => {
     expect(rows).toHaveLength(1);
     const row = requireValue(rows[0], "resource row");
     expect(within(row).getByText("placeholder")).toBeInTheDocument();
-    // The placeholder's NAME shows as the literal "Placeholder"; its role is in the secondary text.
+    // The placeholder's name shows as the literal "Placeholder"; its role is in the secondary text.
     expect(within(row).getByText("Placeholder")).toBeInTheDocument();
     expect(within(row).getByText(/Senior Designer/)).toBeInTheDocument();
     // No "Temp" tag since it is permanent
@@ -378,7 +378,7 @@ describe("ResourceList display", () => {
       color: "#a855f7",
       projectId: project.id,
     });
-    // Turn the feature off — the placeholder data still exists, it's just hidden.
+    // Turn the feature off. The placeholder data still exists, it's just hidden.
     setPlaceholdersEnabled({ on: false });
     render(<ResourceList />);
     // The person still renders; the placeholder section/heading/row do not.
@@ -425,7 +425,7 @@ describe("ResourceList display", () => {
     expect(within(aliceRow).queryByText("placeholder")).not.toBeInTheDocument();
     expect(within(aliceRow).queryByText("Temp")).not.toBeInTheDocument();
 
-    // Bob row (freelancer): no tags either — the Temp pill is parked
+    // Bob row (freelancer): no tags either. The Temp pill is parked
     const bobRow = requireValue(
       rows.find((r) => within(r).queryByText("Bob")),
       "Bob row",
@@ -446,8 +446,8 @@ describe("ResourceList display", () => {
   });
 });
 
-// P2.5b: the per-row "Delete" affordance now ARCHIVES (the simplest coherent flow — soft-delete is
-// reached LATER from the inline archive section on an archived row). DEMO build here, so the
+// The per-row "Delete" affordance now archives (the simplest coherent flow, soft-delete is
+// reached later from the inline archive section on an archived row). Demo build here, so the
 // archive affordance dispatches the store's archiveEntity directly (no fetch, no reload): the row
 // gets `archivedAt` set (still in `data`) and vanishes from this list (which reads
 // useActiveScopedData → active-only). The button + confirm copy read "Archive". Server is the app
@@ -641,8 +641,8 @@ describe("ResourceList archive flow", () => {
 
     await user.click(screen.getByRole("button", { name: "Archive Placeholder" }));
     const dialog = screen.getByRole("alertdialog");
-    // The confirm dialog names the placeholder by its DISPLAY name ("Placeholder"), matching the
-    // row above it — not its role ("Senior Designer"), which would read inconsistently.
+    // The confirm dialog names the placeholder by its display name ("Placeholder"), matching the
+    // row above it, not its role ("Senior Designer"), which would read inconsistently.
     expect(dialog).toHaveTextContent(/Archive "Placeholder"/i);
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 

@@ -20,7 +20,7 @@ import type { Activity, ActivityKind, Client, Project } from "@capacitylens/shar
 import { ACTIVITY_KIND_ORDER } from "./activityKinds";
 
 // Resolved at render (a getter, not a module-scope const) so the labels re-resolve on a locale
-// switch rather than freezing to the import-time locale — per the i18n key convention (DECISIONS).
+// switch rather than freezing to the import-time locale, per the i18n key convention (DECISIONS).
 const buildKindOptions = (): { value: ActivityKind; label: string }[] => {
   const labels: Record<ActivityKind, string> = {
     internal: m.form_activity_kind_internal(),
@@ -149,8 +149,8 @@ function useProjectOptions(activity?: Activity) {
 }
 
 /** Add (no `activity`) or edit an activity. Pick a kind first: a `project` activity takes a project (and keeps
- *  its phase); `internal`/all-projects (`repeatable`) are project-less, so the project picker is hidden and their
- *  project/phase forced empty. `onClose` fires on save or cancel. */
+ * its phase); `internal`/all-projects (`repeatable`) are project-less, so the project picker is hidden and their
+ * project/phase forced empty. `onClose` fires on save or cancel. */
 export function ActivityForm({ activity, onClose }: { activity?: Activity; onClose: () => void }) {
   const add = useStore((state) => state.addActivity);
   const update = useStore((state) => state.updateActivity);
@@ -161,7 +161,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
   const submit = () => {
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
-    // A project-specific activity MUST have a project; internal/all-projects are project-less (projectId/phaseId
+    // A project-specific activity must have a project; internal/all-projects are project-less (projectId/phaseId
     // undefined). Surface the project requirement as a field error rather than relying on the
     // store throw, so the invalid control is marked.
     if (kind === "project" && !projectId) {
@@ -174,7 +174,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
       ...(kind === "project" && projectId ? { projectId } : {}),
       ...(kind === "project" && phaseId ? { phaseId } : {}),
     };
-    // Surface a store-side rejection as a form error rather than an uncaught React error — see the
+    // Surface a store-side rejection as a form error rather than an uncaught React error, see the
     // store CRUD contract.
     try {
       if (activity) {

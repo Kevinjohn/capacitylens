@@ -279,9 +279,9 @@ export function useMembersOrchestration(activeAccountId: string | null) {
       (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
     if (offline.readOnly || unauthorized) resetInviteDraft();
   }, [directoryState.directory, offline.readOnly, resetInviteDraft]);
-  // The server is the only authority on candidate eligibility. ORDER them the way Resources orders
+  // The server is the only authority on candidate eligibility. Order them the way Resources orders
   // its active people so the selector cannot look different from the management list, but never
-  // FILTER by the store: the Resources model refreshes on a visible poll while the directory
+  // filter by the store: the Resources model refreshes on a visible poll while the directory
   // refetches after every mutation, so intersecting the two hides a candidate the server accepts
   // and reports a live link as inactive until the poll catches up. Anything Resources has not
   // listed yet keeps the server's own order behind the rows it has.

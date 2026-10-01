@@ -16,13 +16,13 @@ function readHealthBody(response: { json: () => unknown }): HealthBody {
   return response.json() as HealthBody;
 }
 
-// P1.4 (flag CAPACITYLENS_HEALTH_DEEP → opts.healthDeep): ON makes /api/health prove the DB
-// answers a constant SELECT 1; OFF keeps today's unconditional { ok: true } — the exact body
+// The CAPACITYLENS_HEALTH_DEEP flag (opts.healthDeep): on makes /api/health prove the DB
+// answers a constant SELECT 1; off keeps today's unconditional { ok: true }, the exact body
 // Playwright's webServer probe (and anything else pinned to it) depends on.
 
 function createHealthyTest(): void {
   it("reports { ok, db: true, audit: ok } while the DB answers and the audit sink is healthy", async () => {
-    // P1.15: deep-health also surfaces the audit sink state. The factory default is a noop sink
+    // Deep-health also surfaces the audit sink state. The factory default is a noop sink
     // (never degraded), so a healthy server reports audit:'ok'.
     const app = createApp(openDb(":memory:"), { healthDeep: true });
     const res = await app.inject({ method: "GET", url: "/api/health" });
@@ -33,9 +33,9 @@ function createHealthyTest(): void {
 
 function createDegradedTest(): void {
   it("reports audit: degraded (still 200, db: true) when the audit sink has latched degraded", async () => {
-    // P3.2: a degraded audit sink is a SOFT signal — the DB still answers, so the server stays
+    // A degraded audit sink is a soft signal. The DB still answers, so the server stays
     // healthy (200, db:true); only the `audit` field flips to 'degraded' so an external uptime
-    // monitor can see the latched write failure without the server lying healthy OR going 503.
+    // monitor can see the latched write failure without the server lying healthy or going 503.
     // The fake matches the real AuditSink contract (append + the degraded latch).
     const degradedSink: AuditSink = { append: () => false, degraded: true };
     const app = createApp(openDb(":memory:"), {

@@ -65,21 +65,21 @@ interface AssertResourceExistsOptions {
 }
 
 /**
- * A resource may only BE external if it carries no disallowed dependents. The v0.8.1 rule
+ * A resource may only be external if it carries no disallowed dependents. The v0.8.1 rule
  * ("an external / 3rd-party resource has no capacity, so no loaded allocation and no time off")
  * is enforced at the allocation/time-off write boundary by assertAllocationRefs /
- * assertResourceExists — but a resource's `kind` can be flipped to external AFTER it already owns
- * those dependents, which nothing re-validates: the scheduler then HIDES the now-external capacity
+ * assertResourceExists, but a resource's `kind` can be flipped to external after it already owns
+ * those dependents, which nothing re-validates: the scheduler then hides the now-external capacity
  * and time-off, recreating the invisible-orphan state v0.8.1 closed.
  *
- * The store and server are the integrity boundary, so we REJECT the flip rather than silently
+ * The store and server are the integrity boundary, so we reject the flip rather than silently
  * zeroing hours / dropping time-off (surprising data loss as a side effect of a name/colour-style
- * edit). The owner must reassign or remove the work + time off FIRST. Symmetric with
+ * edit). The owner must reassign or remove the work + time off first. Symmetric with
  * assertAllocationRefs / assertResourceExists, which reject the inverse write. Only fires on the
  * external case (a person/placeholder write is unaffected). `mergedKind` is the kind the resource
- * WILL have after the write (`patch.kind ?? existing.kind` in the store, the merged row's kind on
- * the server); when it's not external this is a pure no-op. Import keeps RECONCILING instead
- * (remapAndValidateImport coerces the load to 0 and drops the time-off) — a bulk file is a
+ * will have after the write (`patch.kind ?? existing.kind` in the store, the merged row's kind on
+ * the server); when it's not external this is a pure no-op. Import keeps reconciling instead
+ * (remapAndValidateImport coerces the load to 0 and drops the time-off). A bulk file is a
  * different contract from an interactive edit, so don't route it here.
  */
 function assertResourceKindAllowsDependentsWithOptions({
@@ -90,7 +90,7 @@ function assertResourceKindAllowsDependentsWithOptions({
   lookup,
 }: AssertResourceKindAllowsDependentsOptions): void {
   if (!isExternalResource({ kind: mergedKind as Resource["kind"] })) return;
-  // A loaded allocation OR any time-off both vanish from the scheduler once the resource is external.
+  // A loaded allocation or any time-off both vanish from the scheduler once the resource is external.
   // hoursPerDay !== 0 mirrors assertAllocationRefs' "externals carry no load" rule (a zero-load
   // allocation is allowed on an external, so it doesn't block the flip).
   const owns = (entity: Allocation | TimeOff) =>
@@ -146,7 +146,7 @@ function assertResourceProjectAllowsDependentsWithOptions({
   existing,
   lookup,
 }: AssertResourceProjectAllowsDependentsOptions): void {
-  // The resource side short-circuits only when NEITHER kind nor projectId moved: both feed the
+  // The resource side short-circuits only when neither kind nor projectId moved: both feed the
   // placeholder rule, so either one changing can newly invalidate an allocation.
   if (existing !== undefined && merged.kind === existing.kind && merged.projectId === existing.projectId) return;
   assertAllocationPairStaysValid({
@@ -183,11 +183,11 @@ const assertResourceProjectAllowsDependents = function assertResourceProjectAllo
 Object.defineProperty(assertResourceProjectAllowsDependents, "length", { value: 6 });
 
 /** The shared body of the two mirrored "did this edit retroactively invalidate an existing
- * allocation?" guards. `edit` says which END of the allocation is being written: that end is held
- * fixed at its before/after values while the OTHER end is resolved per allocation, and
- * validateAllocationAssignment is always fed (resource, effective project id). Only NEWLY introduced
+ * allocation?" guards. `edit` says which end of the allocation is being written: that end is held
+ * fixed at its before/after values while the other end is resolved per allocation, and
+ * validateAllocationAssignment is always fed (resource, effective project id). Only newly introduced
  * invalidity is rejected, so a legacy/corrupt pair never makes an unrelated edit the repair
- * boundary. Each caller keeps its own early-return guard — the two sides deliberately differ. */
+ * boundary. Each caller keeps its own early-return guard, the two sides deliberately differ. */
 function assertAllocationPairStaysValid({
   data,
   accountId,
@@ -288,10 +288,10 @@ export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
 }
 
 /**
- * Time off references a resource in the active account, exactly as an allocation does —
+ * Time off references a resource in the active account, exactly as an allocation does,
  * and that resource must be capacity-tracked. An external / 3rd party has no capacity, so
  * time off is meaningless for it (the scheduler hides external time-off entirely): the form
- * omits externals from the picker AND rejects a crafted pick, so enforce the SAME rule here
+ * omits externals from the picker and rejects a crafted pick, so enforce the same rule here
  * so a direct store / API write can't persist an invisible orphan.
  *
  */

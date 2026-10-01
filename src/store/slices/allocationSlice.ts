@@ -58,8 +58,8 @@ export function createAllocationSlice(
             id: id,
             patch: patch,
             prepare: (merged, existing) => {
-              // Clamp FIRST (same shared clamp as creation and import) so validation sees the value
-              // that would actually be stored — a drag-resize rescale past 24h must land on 24 like
+              // Clamp first (same shared clamp as creation and import) so validation sees the value
+              // that would actually be stored. A drag-resize rescale past 24h must land on 24 like
               // every other write boundary, not reject after the fact.
               const clampedPatch: Patch<Allocation> =
                 patch.hoursPerDay !== undefined
@@ -69,8 +69,8 @@ export function createAllocationSlice(
                 ...merged,
                 ...(clampedPatch.hoursPerDay === undefined ? {} : { hoursPerDay: clampedPatch.hoursPerDay }),
               };
-              // The server re-runs assertAllocationRefs on the full merged row on EVERY write, so a
-              // note/status/date-only edit of an allocation whose resource is now EXTERNAL with a
+              // The server re-runs assertAllocationRefs on the full merged row on every write, so a
+              // note/status/date-only edit of an allocation whose resource is now external with a
               // non-zero load (legacy pre-v0.8.1 data, or after a resource kind-flip) would 400 there
               // while succeeding here. Validating `effective` rejects exactly what the server rejects;
               // a note-only patch on a valid (non-external) row still passes.

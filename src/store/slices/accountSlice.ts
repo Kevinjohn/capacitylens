@@ -205,7 +205,7 @@ export function createAccountSlice(internals: AccountSliceInternals): StateCreat
       deleteAccount: createDeleteAccountAction(context),
       setActiveAccount: createSetActiveAccountAction(context),
 
-      // Plain transient state (NOT mutate): never on the undo/redo stack or in AppData/export.
+      // Plain transient state (not mutate): never on the undo/redo stack or in AppData/export.
       beginAccountSummariesRequest: () => {
         const requestId = get().accountSummariesRequestId + 1;
         set({ accountSummariesRequestId: requestId });

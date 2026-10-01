@@ -17,7 +17,7 @@ import {
 
 function registerScopedLoadTests(): void {
   it("loadAll(accountId) GETs /api/state?accountId= and seeds the snapshot to THAT slice (zero ops on an identical save)", async () => {
-    // Per-account hydration (P1.13): the picker chose a1, so we load ONLY a1's slice.
+    // Per-account hydration: the picker chose a1, so we load only a1's slice.
     const a1Slice = scopedData("a1", { clients: [client("c1")] });
     const urls: string[] = [];
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
@@ -29,7 +29,7 @@ function registerScopedLoadTests(): void {
     const loaded = await a.loadAll("a1");
     expect(loaded.clients.map((row) => row.id).sort()).toEqual(["c1", "internal:a1"]);
     expect(urls[0]).toBe("http://x/api/state?accountId=a1"); // scoped read, not the whole tree
-    // Snapshot == the loaded a1 slice, so re-saving it emits ZERO ops.
+    // Snapshot == the loaded a1 slice, so re-saving it emits zero ops.
     const callsBefore = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
     await a.saveAll(a1Slice);
     expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsBefore);
@@ -68,9 +68,9 @@ function registerScopedLoadTests(): void {
 
 function registerCrossAccountLoadTests(): void {
   it("CROSS-ACCOUNT REGRESSION: re-seed to a2 then save a2 emits ONLY a2 ops — never deletes of a1", async () => {
-    // The #1 correctness guard (§5): after a switch, lastSynced (the diff snapshot) MUST be the NEW
+    // The primary correctness guard (§5): after a switch, lastSynced (the diff snapshot) must be the new
     // account's slice. If it stayed a1's, the first a2 save would diff a1→a2 and emit DELETEs for a1's
-    // rows + PUTs for a2's — catastrophic cross-account data loss. The switch orchestrator (persist.ts)
+    // rows + PUTs for a2's, catastrophic cross-account data loss. The switch orchestrator (persist.ts)
     // achieves this by calling loadAll(a2), which re-seeds the snapshot to a2's slice.
     const a1c = client("c1"); // accountId 'a1'
     const a2c: Client = {
@@ -92,15 +92,15 @@ function registerCrossAccountLoadTests(): void {
 
     await a.loadAll("a1"); // snapshot = a1's slice
     nextSlice = a2Slice;
-    await a.loadAll("a2"); // RE-SEED: snapshot is now a2's slice (the orchestrator's atomic re-seed)
+    await a.loadAll("a2"); // Re-seed: snapshot is now a2's slice (the orchestrator's atomic re-seed)
     (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
 
-    // Saving a2's slice now diffs a2→a2 = ZERO ops. Critically it does NOT emit a DELETE for c1 (a1).
+    // Saving a2's slice now diffs a2→a2 = zero ops. Critically it does not emit a DELETE for c1 (a1).
     await a.saveAll(a2Slice);
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls).toHaveLength(0); // no batch at all — snapshot already equals a2's slice
+    expect(calls).toHaveLength(0); // no batch at all, snapshot already equals a2's slice
 
-    // And an EDIT to a2 emits only the a2 op (a PUT c2), never a delete of c1.
+    // And an edit to a2 emits only the a2 op (a PUT c2), never a delete of c1.
     (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
     await a.saveAll(
       scopedData("a2", {
@@ -108,7 +108,7 @@ function registerCrossAccountLoadTests(): void {
       }),
     );
     const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]);
-    expect(ops.every((o) => o.id !== "c1")).toBe(true); // NEVER touches a1's row
+    expect(ops.every((o) => o.id !== "c1")).toBe(true); // Never touches a1's row
     expect(ops).toEqual([expect.objectContaining({ method: "PUT", table: "clients", id: "c2" })]);
   });
 
@@ -132,8 +132,8 @@ function registerCrossAccountLoadTests(): void {
 
 function registerRollingLoadTests(): void {
   it("scoped loadAll TOLERATES a MISSING known table (rolling deploy) and hydrates it empty", async () => {
-    // FIX 1: an older server may OMIT a table this newer client already knows. The scoped path must
-    // NOT throw "incomplete state payload" during the skew window — it hydrates the missing table
+    // Fix 1: an older server may omit a table this newer client already knows. The scoped path must
+    // not throw "incomplete state payload" during the skew window. It hydrates the missing table
     // empty, exactly like the unscoped migrate() path, while keeping cross-tenant strictness.
     const slice = omitKeys(scopedData("a1", { clients: [client("c1")] }), "disciplines"); // older server omits disciplines
     const a = new ServerSyncAdapter(
@@ -141,7 +141,7 @@ function registerRollingLoadTests(): void {
       vi.fn(async () => new Response(JSON.stringify(slice), { status: 200 })) as unknown as typeof fetch,
     );
     const loaded = await a.loadAll("a1");
-    expect(loaded.disciplines).toEqual([]); // missing table hydrated empty — no throw
+    expect(loaded.disciplines).toEqual([]); // missing table hydrated empty, no throw
     expect(loaded.clients.map((r) => r.id).sort()).toEqual(["c1", "internal:a1"]); // present rows intact
   });
 
@@ -222,8 +222,8 @@ function registerMalformedLoadTests(): void {
 
 function registerScopedValidationLoadTests(): void {
   it("scoped loadAll STILL rejects a PRESENT non-array known table", async () => {
-    // FIX 1's missing-vs-wrong-type split: a table that is PRESENT and not an array is structural
-    // damage and stays a HARD failure on the scoped path too (never coerced to []).
+    // Fix 1's missing-vs-wrong-type split: a table that is present and not an array is structural
+    // damage and stays a hard failure on the scoped path too (never coerced to []).
     const slice = {
       ...scopedData("a1", { clients: [client("c1")] }),
       resources: { bad: true },
@@ -236,7 +236,7 @@ function registerScopedValidationLoadTests(): void {
   });
 
   it("scoped loadAll rejects a CROSS-TENANT slice unchanged (missing-key tolerance does not weaken it)", async () => {
-    // FIX 1 must NOT relax cross-tenant strictness: a slice whose account belongs to a2 while we asked
+    // Fix 1 must not relax cross-tenant strictness: a slice whose account belongs to a2 while we asked
     // for a1 is still rejected as a cross-tenant/incomplete payload.
     const wrongTenant = scopedData("a2", { clients: [client("c1")] }); // asked for a1, got a2's slice
     const a = new ServerSyncAdapter(
@@ -249,7 +249,7 @@ function registerScopedValidationLoadTests(): void {
 
 function registerLoadWarningTests(): void {
   it("warns ONCE naming the missing table(s) when hydrating them empty (FIX 3)", async () => {
-    // FIX 3: a hydrated-empty missing key is DIAGNOSABLE — one console.warn per load listing every
+    // Fix 3: a hydrated-empty missing key is diagnosable, one console.warn per load listing every
     // omitted table, so a same-version proxy/server bug that drops a table is visible, not silent.
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
@@ -260,7 +260,7 @@ function registerLoadWarningTests(): void {
       );
       await a.loadAll();
       const warned = warn.mock.calls.filter((c) => String(c[0]).includes("omitted known table"));
-      expect(warned).toHaveLength(1); // ONE warn per load, not one per missing key
+      expect(warned).toHaveLength(1); // One warn per load, not one per missing key
       expect(String(warned[0]?.[0])).toContain("disciplines");
       expect(String(warned[0]?.[0])).toContain("resources");
     } finally {

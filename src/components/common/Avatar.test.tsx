@@ -2,8 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { Avatar } from "./ui";
 
-// ─── Avatar ────────────────────────────────────────────────────────────────
-
 describe("Avatar", () => {
   registerAvatarInitialTests();
   registerAvatarImageTests();
@@ -55,7 +53,7 @@ function registerAvatarInitialTests() {
 
 function registerAvatarImageTests() {
   it("keeps the initials fallback while an imageUrl is still loading", () => {
-    // jsdom never resolves the Radix image load, so the primitive stays on its fallback — the
+    // jsdom never resolves the Radix image load, so the primitive stays on its fallback, the
     // signed-in user sees initials (never an empty circle) until the photo resolves.
     const { container } = render(<Avatar name="Alice Smith" color="#111" imageUrl="https://cdn.example/a.png" />);
     expect(container.querySelector("img")).toBeNull();

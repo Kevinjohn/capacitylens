@@ -16,7 +16,7 @@ import { deferredSignal, requireCallback, recordingAdapter, a2Slice, attachActiv
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account AND makes it active, so the add* calls below
+  // Seeds a single account and makes it active, so the add* calls below
   // (which now require an active account) work.
   resetStoreWithAccount();
 });
@@ -47,7 +47,7 @@ describe("flushPendingWrites (the import seam)", () => {
     expect(await flushPendingWrites()).toEqual({ kind: "clean" }); // flushed + landed
     expect(saveAll).toHaveBeenCalledTimes(1);
 
-    // A failing write makes the seam report dirty — the import path must refuse to proceed.
+    // A failing write makes the seam report dirty. The import path must refuse to proceed.
     saveAll.mockRejectedValueOnce(new Error("server down"));
     useStore.getState().addClient({ name: "Doomed", color: "#333333" });
     await expect(flushPendingWrites()).resolves.toMatchObject({ kind: "failed", error: new Error("server down") });
@@ -61,7 +61,7 @@ describe("flushPendingWrites (the import seam)", () => {
   it('loops until QUIESCENT — an edit landing mid-flush is also flushed before "clean" is reported', async () => {
     // Writes are unsuspended during the flush's await, so an edit can arm a fresh debounce whose
     // save outlives a single round. A one-shot flush returned "clean" while that save was still
-    // on the wire — the import POST then raced it against the pre-import snapshot.
+    // on the wire, the import POST then raced it against the pre-import snapshot.
     const { adapter, releaseFirst, saveAll } = heldFirstSaveAdapter();
     const detach = await attachActiveA2({ adapter, debounceMs: 300 });
 
@@ -73,7 +73,7 @@ describe("flushPendingWrites (the import seam)", () => {
     useStore.getState().addClient({ name: "Mid-flush", color: "#333333" }); // lands during A's await
     releaseFirst();
     expect(await flush).toEqual({ kind: "clean" });
-    // The flush swept the mid-flush edit too before reporting clean — nothing left on the wire.
+    // The flush swept the mid-flush edit too before reporting clean. Nothing left on the wire.
     expect(saveAll).toHaveBeenCalledTimes(2);
     expect((saveAll.mock.calls[1]?.[0] as AppData).clients.some((c) => c.name === "Mid-flush")).toBe(true);
     detach();
@@ -105,10 +105,10 @@ describe("flushPendingWrites (the import seam)", () => {
 
 describe("suspendServerWrites (the import write-suspension seam)", () => {
   // The server-mode import suspends writes across its POST + re-hydrate: flushPendingWrites only
-  // proves cleanliness at one INSTANT, so an edit made while the POST is pending must be PARKED —
+  // proves cleanliness at one instant, so an edit made while the POST is pending must be parked,
   // sending it would either land just before the import (silently wiped) or be flushed by the
   // post-import reload against the pre-import snapshot (stale rows upserted into the imported
-  // slice — remapped ids insert cleanly, no 409 stops them).
+  // slice: remapped ids insert cleanly, no 409 stops them).
   it("parks an already armed retry until the suspension resumes", async () => {
     vi.useFakeTimers();
     try {
@@ -193,8 +193,8 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
     expect(saveAll).not.toHaveBeenCalled(); // parked, not sent
 
-    // The suspending operation FAILED before any reload (e.g. the POST was refused): the slice is
-    // unchanged, so the parked edit saves on resume — losing it would be a silent drop, no notice.
+    // The suspending operation failed before any reload (e.g. the POST was refused): the slice is
+    // unchanged, so the parked edit saves on resume, losing it would be a silent drop, no notice.
     resume();
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
     expect(saveAll).toHaveBeenCalledTimes(1);
@@ -248,7 +248,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
   it("an edit during the (a′) flush await is parked, rebased after load, and saved", async () => {
     // Pre-fix, an edit arriving while the entry flush was awaited re-armed a debounce timer at
     // depth 0; the timer fired mid-load, its save was silently eaten by the seedGen guard, and the
-    // (c) check couldn't see it — a silent loss. The suspension now covers the WHOLE sequence.
+    // (c) check couldn't see it, a silent loss. The suspension now covers the whole sequence.
     vi.useFakeTimers();
     let releaseSave: () => void = () => undefined;
     let detach: (() => void) | null = null;
@@ -271,7 +271,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
       await saveStarted.promise; // the flush is on the wire
 
       useStore.getState().addClient({ name: "During flush", color: "#333333" }); // arrives mid-flush-await
-      await vi.advanceTimersByTimeAsync(300); // a re-armed timer WOULD have fired
+      await vi.advanceTimersByTimeAsync(300); // a re-armed timer would have fired
       expect(saveAll).toHaveBeenCalledTimes(1); // parked instead
 
       requireCallback(releaseSave, "pending save release")();
@@ -289,7 +289,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
   it("a FAILED load re-schedules an edit parked during it — nothing strands unsaved until the next reload", async () => {
     // Pre-fix, a parked edit survived a loadAll throw with no timer, no retry, and
-    // failedSinceSuccess=false — the online/visible re-attempts declined it and it sat unsaved
+    // failedSinceSuccess=false: the online/visible re-attempts declined it and it sat unsaved
     // indefinitely. The finally-resume re-schedules it: slice + snapshot are unchanged, so the
     // save diffs self-vs-self and is correct.
     let release: (() => void) | null = null;
@@ -321,10 +321,10 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
   it("unload flush still keepalive-pushes an edit parked by a RELOAD suspension — WITHOUT consuming it", async () => {
     // The snapshot is still the pre-reload one until loadAll resolves, so the keepalive diff is
-    // self-vs-self and safe — declining (as the external-import guard does) would silently lose
-    // the edit on every tab close during a reload window. The edit stays PARKED besides: if the
+    // self-vs-self and safe, declining (as the external-import guard does) would silently lose
+    // the edit on every tab close during a reload window. The edit stays parked besides: if the
     // keepalive fails and the page survives (tab merely hidden), the reload's (c) check must
-    // still own its fate — consuming it here erased the only remaining record of the edit.
+    // still own its fate, consuming it here erased the only remaining record of the edit.
     let release: (() => void) | null = null;
     let hold = false;
     const slice = a2Slice();
@@ -358,7 +358,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
   });
 
   it("a failed keepalive during the pre-load window is followed by a normal rebased save", async () => {
-    // Pre-fix, the hidden-tab flush CONSUMED `pending` before dataAtLoad was snapshotted; when the
+    // Pre-fix, the hidden-tab flush consumed `pending` before dataAtLoad was snapshotted; when the
     // swallowed keepalive then failed and the page survived, every signal at (c) read clean and
     // the edit vanished with zero surface.
     let releaseLoad: (() => void) | null = null;
@@ -384,7 +384,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     const refresh = refreshActiveAccountSlice("a2");
     await vi.waitFor(() => expect(releaseLoad).toBeTypeOf("function"));
     useStore.getState().addClient({ name: "Hidden-tab edit", color: "#222222" }); // parked
-    window.dispatchEvent(new Event("pagehide")); // keepalive dispatched — and REJECTS
+    window.dispatchEvent(new Event("pagehide")); // keepalive dispatched, and rejects
 
     requireCallback(releaseLoad, "reload release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
@@ -419,9 +419,9 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     hold = true;
     const refresh = refreshActiveAccountSlice("a2"); // load held open
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
-    useStore.getState().setActiveAccount(null); // sign-out — token bump, loads nothing
+    useStore.getState().setActiveAccount(null); // sign-out: token bump, loads nothing
     // A data write lands while the superseded load is still on the wire (e.g. a mutation that was
-    // already dispatched at sign-out) — parked under the refresh's still-held suspension.
+    // already dispatched at sign-out), parked under the refresh's still-held suspension.
     useStore.getState().replaceAll({
       ...useStore.getState().data,
       clients: [

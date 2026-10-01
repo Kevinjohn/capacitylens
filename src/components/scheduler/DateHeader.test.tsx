@@ -172,7 +172,7 @@ function registerDetailedRenderingTests() {
 
 function registerMinimisedWeekendTests() {
   describe("with minimise weekends ON (narrowed weekend columns)", () => {
-    // Fri, Sat, Sun, Mon — a window straddling a full weekend.
+    // Fri, Sat, Sun, Mon, a window straddling a full weekend.
     const WEEKEND_DAYS = ["2026-06-05", "2026-06-06", "2026-06-07", "2026-06-08"];
     const renderMinimised = (dayWidth: number) =>
       render(
@@ -206,7 +206,7 @@ function registerMinimisedWeekendTests() {
     it("renders weekend cells at the narrow width and weekdays at dayWidth", () => {
       const { container } = renderMinimised(48);
       const cells = container.querySelectorAll(".flex.flex-auto > div");
-      // Fri(48), Sat(22), Sun(22), Mon(48) — widths come straight from the geometry.
+      // Fri(48), Sat(22), Sun(22), Mon(48), widths come straight from the geometry.
       expect(Array.from(cells).map((c) => (c as HTMLElement).style.width)).toEqual(["48px", "22px", "22px", "48px"]);
     });
   });
@@ -217,7 +217,7 @@ function registerDateStyleReactivityTests() {
     // The store is module-global, so hand the rest of the file back its default reading.
     afterEach(() => resetStoreWithAccount());
 
-    // Guards #820: the header's week/month groupings are memoised on `days`, and `days` does not
+    // The header's week/month groupings are memoised on `days`, and `days` does not
     // change when the company's date format does. Without `dateStyle` in the memo dependencies the
     // label below stays on the old reading until something else forces a recompute, so this test
     // fails if that dependency (or the `useDateStyle` subscription that feeds it) is removed.

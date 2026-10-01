@@ -32,7 +32,7 @@ interface SchedulerViewportOptions {
 }
 
 /** One writer for both scroll offsets: overlays clamped to the visible window read them as custom
- *  properties instead of each subscribing to the scroll event (see visibleSpanInsets). */
+ * properties instead of each subscribing to the scroll event (see visibleSpanInsets). */
 const publishScrollOffsets = (element: HTMLElement) => {
   element.style.setProperty("--sched-scroll-left", `${element.scrollLeft}px`);
   element.style.setProperty("--sched-scroll-top", `${element.scrollTop}px`);

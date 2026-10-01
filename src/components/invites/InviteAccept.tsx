@@ -2,12 +2,12 @@ import { useParams } from "react-router-dom";
 import { InviteAcceptView } from "./InviteAcceptView";
 import { useInviteAcceptController } from "./useInviteAcceptController";
 
-// Invite accept page for /invite/:token. On mount, in SERVER mode, it previews the invite.
+// Invite accept page for /invite/:token. On mount, in server mode, it previews the invite.
 // A signed-in person must then explicitly accept before the single-use POST is sent. The server is
 // the authority: a valid link binds the invited role to the signed-in caller's membership; a
 // used/expired/unknown link is refused. This page never re-implements that policy client-side.
 //
-// PRE-SESSION ONBOARDING: this route sits inside AuthProvider but outside AppShell's tenant gate.
+// Pre-session onboarding: this route sits inside AuthProvider but outside AppShell's tenant gate.
 // Password mode deliberately carves it out of the login wall so a genuinely new invitee can create
 // a credential through the token-scoped signup endpoint; an existing user can sign in here and the
 // page reloads the same token URL so they can review and explicitly accept as that identity.

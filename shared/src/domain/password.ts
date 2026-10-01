@@ -1,6 +1,6 @@
-// Password policy — the pure, environment-agnostic numbers BOTH halves of the app must agree on.
+// Password policy, the pure, environment-agnostic numbers both halves of the app must agree on.
 // A dependency-free leaf (no runtime deps, no I/O), so the server (Better Auth config) and the client
-// (the reset-page pre-check) import the SAME source and can't drift — the repo's standard no-drift
+// (the reset-page pre-check) import the same source and can't drift, the repo's standard no-drift
 // pattern (see access.ts). If these diverged, the client would accept a password the server rejects
 // and then show a length message that contradicts the real bound.
 
@@ -19,7 +19,7 @@ export const MIN_PASSWORD_LENGTH = 15;
  * The maximum password length, in Unicode code points. Same no-drift contract as
  * {@link MIN_PASSWORD_LENGTH}: consumed by the server credential boundaries and the
  * reset-password page's pre-check + PASSWORD_TOO_LONG message (src/auth/ResetPassword.tsx), so an
- * over-long passphrase gets an actionable bound instead of a generic failure — and the bound the
+ * over-long passphrase gets an actionable bound instead of a generic failure, and the bound the
  * client states is always the one the server enforces.
  *
  * 128 preserves the product's established ceiling independently of Better Auth's UTF-16-based

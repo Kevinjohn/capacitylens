@@ -2,14 +2,14 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 // The app tsconfig (`tsconfig.app.json`) carries only `vite/client` types, not `@types/node`, to keep
-// the browser bundle's type surface honest. This is the ONE src test that reads files off disk (the
+// the browser bundle's type surface honest. This is the one src test that reads files off disk (the
 // dependency-denylist scan below). The node `fs`/`path`/`process` types it needs arrive through these
-// `node:*` MODULE imports, which resolve file-scoped — they do NOT add node globals to the whole app
+// `node:*` module imports, which resolve file-scoped. They do not add node globals to the whole app
 // project the way a `/// <reference types="node" />` triple-slash directive would. So we import `cwd`
 // rather than reaching for the global `process.cwd()`.
 import { cwd } from "node:process";
 
-// P2.7 privacy posture — dependency guard against analytics/telemetry/email vendor SDKs.
+// Privacy posture, dependency guard against analytics/telemetry/email vendor SDKs.
 //
 // Product analytics, telemetry and browser-side third-party egress remain prohibited. The server
 // may send Microsoft identity verification through operator-configured SMTP, using nodemailer;
@@ -18,9 +18,9 @@ import { cwd } from "node:process";
 // Browser CSP coverage remains in server/src/app.helmet.test.ts. User-facing privacy guidance is
 // updated with the separately delivered sign-in documentation.
 //
-// Matching is EXACT package name only (no substring matching), so a legitimately-named package
+// Matching is exact package name only (no substring matching), so a legitimately-named package
 // (e.g. some hypothetical "react-analytics-table" UI helper) can't be killed by a denylist entry
-// it merely contains — we deny KNOWN-BAD names, precisely.
+// it merely contains. We deny known-bad names, precisely.
 
 // Curated deny-known-bad list of analytics/telemetry + email packages. Keep it maintainable:
 // add the egress-vendor SDKs people actually reach for, not every transitive utility.
@@ -74,7 +74,7 @@ const DENYLIST: string[] = [
 
 const DENYSET = new Set(DENYLIST);
 
-// Vitest's root config runs from the repo root, so cwd() IS the repo root; every manifest
+// Vitest's root config runs from the repo root, so cwd() is the repo root; every manifest
 // path resolves relative to it. (Verified: package.json / server|shared/package.json /
 // pnpm-lock.yaml all resolve here.)
 const REPO_ROOT = cwd();
@@ -86,8 +86,8 @@ interface Manifest {
 }
 
 /** Read one package.json, returning its combined dep keys. Throws (surface, don't swallow) if the
- *  file is missing or doesn't parse to an object — a path/parse mistake must be a loud failure, not
- *  a silently-empty (and therefore vacuously-passing) scan. */
+ * file is missing or doesn't parse to an object. A path/parse mistake must be a loud failure, not
+ * a silently-empty (and therefore vacuously-passing) scan. */
 function readManifest(relPath: string): Manifest {
   const raw = readFileSync(join(REPO_ROOT, relPath), "utf8");
   const json: unknown = JSON.parse(raw);
@@ -124,7 +124,7 @@ describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
     const manifest = manifests.find((m) => m.name === relPath);
     if (manifest === undefined) throw new Error(`Missing manifest fixture for ${relPath}`);
     for (const dep of manifest.deps) {
-      // EXACT-name match only — DENYSET.has, never substring.
+      // Exact-name match only, DENYSET.has, never substring.
       expect(DENYSET.has(dep), `${relPath} declares denylisted dependency "${dep}"`).toBe(false);
     }
   });
@@ -140,10 +140,10 @@ describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
     // 2-space-indented `name@version:` line (optionally quoted, optionally with a `(peer@ver)`
     // suffix), e.g. `  '@babel/code-frame@7.26.2':` or `  use-sync-external-store@1.4.0(react@19.2.6):`.
     // A package pulled from git/a tarball/a local path instead of the registry keys as
-    // `name@https://...`, `name@git+...`, `name@file:...`, or `name@link:...` — no digit after the
-    // `@` — so the version-digit-only pattern silently skipped those rows, letting a denylisted
-    // package slip the scan via a git fork. We extract the NAME (everything before the specifier)
-    // line-by-line rather than adding a YAML parser dependency — a heavier dep tree is exactly what
+    // `name@https://...`, `name@git+...`, `name@file:...`, or `name@link:...`, with no digit after
+    // the `@`, so the version-digit-only pattern silently skipped those rows, letting a denylisted
+    // package slip the scan via a git fork. We extract the name (everything before the specifier)
+    // line-by-line rather than adding a YAML parser dependency. A heavier dep tree is exactly what
     // this test polices.
     const keyLine = /^ {2}'?((?:@[^\s/']+\/)?[^\s@']+)@(?:\d|https?:|git\+|file:|link:)/;
     for (const line of raw.split("\n")) {
@@ -153,7 +153,7 @@ describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
     }
 
     // Non-vacuous: we must have parsed a real tree. (A lockfile format change that stops these
-    // lines matching must fail HERE, loudly — not silently scan nothing and vacuously pass.)
+    // lines matching must fail here, loudly, not silently scan nothing and vacuously pass.)
     expect(installed.size).toBeGreaterThan(100);
 
     const offenders = [...installed].filter((name) => DENYSET.has(name));

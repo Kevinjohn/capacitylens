@@ -132,7 +132,7 @@ function createAtomicRollbackTest() {
     ]);
     expect(res.statusCode).toBe(400);
     const s = await readValidatedState(app);
-    expect(s.clients).toHaveLength(0); // c3 rolled back with the bad op — nothing persisted
+    expect(s.clients).toHaveLength(0); // c3 rolled back with the bad op, nothing persisted
     expect(s.projects).toHaveLength(0);
   });
 }

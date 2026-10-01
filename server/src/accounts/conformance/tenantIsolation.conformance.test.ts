@@ -47,14 +47,14 @@ describe("control-table writes stay inside their account: transfer recovery", ()
  *
  * Written after an ownership-transfer retention sweep shipped with no `accountId` in its `WHERE`
  * clause, deleting every company's terminal rows from inside a mutation holding one company's lock.
- * Nothing in the repository observed mutation SCOPE: `tenantIntegrity.ts` guards AppData product
+ * Nothing in the repository observed mutation scope: `tenantIntegrity.ts` guards AppData product
  * tables, the schema assertions check columns and indexes, and `architecture.test.ts` decides which
- * modules may own raw control-table SQL — which is why it correctly admitted the defect.
+ * modules may own raw control-table SQL, which is why it correctly admitted the defect.
  *
- * The probe that matters is the FOREIGN one: calling a mutator for account A with account B's
+ * The probe that matters is the foreign one: calling a mutator for account A with account B's
  * identifier, and asserting nothing was written. A test that merely invokes the mutator for its own
  * account and checks the other account is untouched passes even with the tenant predicate removed,
- * because the row is already uniquely keyed by id. Member cases therefore seed the SAME `userId` in
+ * because the row is already uniquely keyed by id. Member cases therefore seed the same `userId` in
  * both accounts, so losing the account half of a composite key is observable.
  */
 
@@ -62,8 +62,8 @@ describe("control-table writes stay inside their account: transfer recovery", ()
 // first company, Stark Industries for the second.
 const WAYNE = "a-studio";
 const STARK = "a-loft";
-/** Deliberately a member of BOTH companies: the shared principal is what makes a lost `accountId`
- *  visible on every membership write. */
+/** Deliberately a member of both companies: the shared principal is what makes a lost `accountId`
+ * visible on every membership write. */
 const SHARED = "u-bruce-wayne";
 const NEWCOMER = "u-barbara-gordon";
 const NOW = "2026-09-01T09:00:00.000Z";
@@ -114,7 +114,7 @@ function request(accountId: string, overrides: Partial<OwnershipTransferRequest>
 }
 
 /** Both companies seeded identically, so any assertion about one is an assertion about a real
- *  neighbour rather than an empty table. */
+ * neighbour rather than an empty table. */
 function seedBothCompanies(db: Db): void {
   for (const accountId of [WAYNE, STARK]) {
     members.upsertMember(db, member(accountId));
@@ -168,7 +168,7 @@ function transferStates(db: Db, accountId: string): Array<{ id: string; state: s
 }
 
 /** The observation bit is not part of the mapped membership, and it is exactly what one company's
- *  privacy switch must never write into another's rows. */
+ * privacy switch must never write into another's rows. */
 function observationBits(db: Db, accountId: string): Array<{ userId: string; signInConfirmed: string | null }> {
   return db
     .prepare(`SELECT userId, signInConfirmed FROM account_members WHERE accountId = ? ORDER BY userId`)
@@ -216,7 +216,7 @@ describe("control-table writes stay inside their account: membership", () => {
     members.upsertMember(db, member(STARK, { userId: NEWCOMER, role: "editor" }));
 
     // The observation column is stamped from a correlated EXISTS over the tracking table. If that
-    // subquery lost its accountId, Stark's newcomer would be stamped 'false' — a "never signed in"
+    // subquery lost its accountId, Stark's newcomer would be stamped 'false'. A "never signed in"
     // flag on a company that never turned tracking on, written by another company's switch.
     expect(observationBits(db, WAYNE)).toContainEqual({ userId: NEWCOMER, signInConfirmed: "false" });
     expect(observationBits(db, STARK)).toEqual([
@@ -617,7 +617,7 @@ const MODULES: Record<string, Record<string, unknown>> = {
 };
 
 /** The modules whose files live in `controlTables/`. Kept separate so the directory check below can
- *  compare like with like. */
+ * compare like with like. */
 const CONTROL_TABLE_MODULES = Object.keys(MODULES).filter((name) => name !== "memberSignInTracking");
 
 const COVERED = new Set([
@@ -717,7 +717,7 @@ const EXCLUDED = new Map<string, string>([
   ["memberSignInTracking.migrateMemberSignInTrackingV26", "one-time migration over every account"],
   ["memberSignInTracking.assertMemberSignInTrackingSchemaCurrent", "schema assertion"],
   // Identity-keyed by design: one sign-in, or one deliberate access reset, is a fact about the
-  // principal in EVERY company that opted in, so these cross accounts on purpose. Their per-account
+  // principal in every company that opted in, so these cross accounts on purpose. Their per-account
   // opt-in correlation is covered in memberSignInTracking's own tests.
   ["memberSignInTracking.confirmTrackedMemberSignIn", "identity-keyed across every opted-in account"],
   ["memberSignInTracking.clearTrackedMemberSignIn", "identity-keyed across every opted-in account"],
@@ -748,7 +748,7 @@ const EXCLUDED = new Map<string, string>([
 
 describe("the isolation inventory", () => {
   it("reflects over every module in controlTables/", () => {
-    // Read from disk rather than trusting the import list: a NEW control-table module is the
+    // Read from disk rather than trusting the import list: a new control-table module is the
     // easiest way for an unscoped write to arrive unclassified.
     const onDisk = readdirSync(new URL("../../controlTables/", import.meta.url), { recursive: true })
       .map(String)
@@ -781,8 +781,8 @@ describe("the isolation inventory", () => {
   });
 
   it("backs every covered mutator with a case that still calls it", () => {
-    // The set above only CLAIMS coverage; this proves it. Without it, deleting or renaming a case
-    // leaves the inventory certifying isolation that nothing tests any more — worse than no
+    // The set above only claims coverage; this proves it. Without it, deleting or renaming a case
+    // leaves the inventory certifying isolation that nothing tests any more, worse than no
     // inventory at all, because a reader who sees the name stops looking.
     const source = readFileSync(new URL(import.meta.url), "utf8");
     const cases =

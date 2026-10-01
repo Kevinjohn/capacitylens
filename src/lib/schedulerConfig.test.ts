@@ -31,7 +31,7 @@ describe("resolveColumnFit", () => {
     expect(resolveColumnFit(1064, 1, 22)).toEqual({ dayWidth: 204, weekWidth: 1064 });
     // 2 weeks: each week is 532px; (532 - 2·22)/5 = 97.6 -> base 97 + distributed remainder.
     expect(resolveColumnFit(1064, 2, 22)).toEqual({ dayWidth: 97, weekWidth: 532 });
-    // The fit is WIDER than the uniform 7-equal-columns width (which under-fills with narrow weekends).
+    // The fit is wider than the uniform 7-equal-columns width (which under-fills with narrow weekends).
     expect(resolveColumnFit(1064, 1).dayWidth).toBe(152); // uniform: 1064/7
     expect(204).toBeGreaterThan(152);
   });
@@ -51,7 +51,7 @@ describe("resolveColumnFit", () => {
 
   it("falls back to MIN for a non-finite (NaN) available width, without propagating NaN", () => {
     // A measured DOM rect can be NaN (unmeasured/detached). Without the early `!Number.isFinite`
-    // guard, the fit calculations would propagate NaN straight through the geometry — this
+    // guard, the fit calculations would propagate NaN straight through the geometry, this
     // specifically exercises that guard, not the `<= 0` half.
     expect(resolveColumnFit(NaN, 4)).toEqual({ dayWidth: MIN_DAY_WIDTH, weekWidth: MIN_DAY_WIDTH * 7 });
     expect(Number.isFinite(resolveColumnFit(NaN, 4).dayWidth)).toBe(true);

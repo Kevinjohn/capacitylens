@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { isResetForbidden } from "./bootGuard";
 
-// P1.6: the destructive test-only reset route must be impossible in production. The
+// The destructive test-only reset route must be impossible in production. The
 // entrypoint refuses to boot on this predicate; everything else is unaffected.
 
 describe("resetForbidden", () => {

@@ -17,7 +17,7 @@ function registerTargetCalendarTest() {
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    // Source works EVERY day (not weekend-aware); target works Mon–Fri (weekend-aware).
+    // Source works every day (not weekend-aware); target works Mon–Fri (weekend-aware).
     const src = requireCreated(
       st.addResource({
         kind: "person",
@@ -78,7 +78,7 @@ function registerTargetCalendarTest() {
 
     const moved = getStoredAllocation(a.id);
     expect(moved.resourceId).toBe(dst.id);
-    // The raw +1 shift lands on Sat 06-06. Under the TARGET's Mon–Fri week both the leading edge
+    // The raw +1 shift lands on Sat 06-06. Under the target's Mon–Fri week both the leading edge
     // and this one-working-day span snap to Mon 06-08 (the source's seven-day week would keep Sat).
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-08", "2026-06-08"]);
   });
@@ -133,12 +133,12 @@ function registerTargetCalendarTest() {
 }
 
 function registerSourceCalendarTest() {
-  // Issue #338. June 2026: 06-04 is a Thursday, 06-05 a Friday, 06-08 a Monday, 06-09 a Tuesday.
-  const midWeek = [2, 3, 4] as const; // Tue/Wed/Thu — works neither Friday nor Monday
+  // June 2026: 06-04 is a Thursday, 06-05 a Friday, 06-08 a Monday, 06-09 a Tuesday.
+  const midWeek = [2, 3, 4] as const; // Tue/Wed/Thu: works neither Friday nor Monday
   const monToFri = [1, 2, 3, 4, 5] as const;
 
   /** The bar is drawn inset inside its column span, so its rendered width is not the raw geometry
-   *  width. Use the same geometry owner as production rather than reimplementing the formula. */
+   * width. Use the same geometry owner as production rather than reimplementing the formula. */
   const renderedWidth = (from: string, to: string) => {
     return buildAllocationBarInset(GEOM.xForDateInGeom(from), GEOM.widthForDates(from, to)).insetWidth;
   };
@@ -289,7 +289,7 @@ function registerSourceCalendarTest() {
   it("keeps following the pointer sideways while the row under it refuses the drop", () => {
     // Same refused drop as above, but dragged a week to the right as well as down. The bar must not
     // take the destination's re-placement, and it must not freeze at its old column either: it
-    // previews the range this drag would give it on its OWN row, so it tracks the pointer.
+    // previews the range this drag would give it on its own row, so it tracks the pointer.
     const st = useStore.getState();
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
@@ -434,7 +434,7 @@ function registerSourceCalendarTest() {
       st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] })),
     );
     // Thu 06-04 - Sun 06-07: two working days drawn over four calendar days, so re-deriving the
-    // range here WOULD change it. A gesture that commits nothing must not preview that change.
+    // range here would change it. A gesture that commits nothing must not preview that change.
     const a = requireCreated(
       st.addAllocation({
         resourceId: r.id,
@@ -515,12 +515,12 @@ function registerWeekendPreviewTests() {
     const bar = screen.getByTestId("allocation-bar");
 
     fireEvent.pointerDown(bar, { clientX: 10, clientY: 10, button: 0 });
-    // Move +1 day — crosses the weekend, so the commit extends the end (Fri → following Mon).
+    // Move +1 day, crosses the weekend, so the commit extends the end (Fri → following Mon).
     act(() => {
       document.dispatchEvent(new MouseEvent("pointermove", { clientX: 10 + dayWidth, clientY: 10, bubbles: true }));
     });
-    // The PREVIEW width reflects the extended 7-day span (06-02..06-08), not the raw 5-day
-    // bar — matching what the commit produces, so the bar doesn't jump on release.
+    // The preview width reflects the extended 7-day span (06-02..06-08), not the raw 5-day
+    // bar: matching what the commit produces, so the bar doesn't jump on release.
     const previewedWidth = parseFloat((bar as HTMLElement).style.width);
     expect(previewedWidth).toBeGreaterThan(6 * dayWidth - 12); // ~7 days (minus inset), not 5
   });

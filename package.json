@@ -48,6 +48,8 @@
     "policy:dependencies:test": "node --test scripts/dependencyScanner.test.mjs scripts/check-import-cycles.test.mjs",
     "policy:import-cycles": "node scripts/check-import-cycles.mjs",
     "policy:file-sizes:test": "node --test scripts/check-file-sizes.test.mjs",
+    "policy:comment-voice": "node scripts/check-comment-voice.mjs",
+    "policy:comment-voice:test": "node --test scripts/check-comment-voice.test.mjs",
     "policy:dco:test": "node --test scripts/check-dco.test.mjs",
     "policy:workflow-report:test": "node --test scripts/report-workflow-outcome.test.mjs",
     "ui:check": "node scripts/check-ui-primitives.mjs",

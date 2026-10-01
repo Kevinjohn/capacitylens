@@ -34,7 +34,7 @@ const ACTIONS = [
 ] as const satisfies readonly OwnershipTransferAction[];
 
 /** The whole state machine as a table, written from the product contract rather than derived from
- *  the implementation — a table derived from the code under test would agree with any bug in it. */
+ * the implementation, a table derived from the code under test would agree with any bug in it. */
 const EXPECTED: Record<OwnershipTransferState, Record<OwnershipTransferAction, boolean>> = {
   awaiting_target: {
     initiate: false,
@@ -113,7 +113,7 @@ describe("nextOwnershipTransferState", () => {
     expect(nextOwnershipTransferState("awaiting_owner", "cancel")).toBe("cancelled");
   });
 
-  // Withdrawal is the one edge that goes BACKWARDS, and it must not be confused with a decline:
+  // Withdrawal is the one edge that goes backwards, and it must not be confused with a decline:
   // the nominee may accept again, so the Owner's original nomination survives.
   it("returns withdrawal to awaiting_target rather than to a terminal state", () => {
     expect(nextOwnershipTransferState("awaiting_owner", "withdraw")).toBe("awaiting_target");

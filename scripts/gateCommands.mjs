@@ -11,6 +11,8 @@ const structuralChecks = [
   "policy:sonner-csp:test",
   "policy:file-sizes",
   "policy:file-sizes:test",
+  "policy:comment-voice",
+  "policy:comment-voice:test",
   "policy:import-cycles",
   "policy:dependencies:test",
   "package:managed-release:test",

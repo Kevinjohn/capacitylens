@@ -8,7 +8,7 @@ export function createErrorRedirect({
   browserAuthErrorUrl: URL;
   trustedLinkOrigins: ReadonlySet<string>;
   /** Identity storage stays owned by auth.ts: returns the stored verification values for one
-   *  identifier, or null while the verification table does not exist yet. */
+   * identifier, or null while the verification table does not exist yet. */
   readVerificationValues: (storedIdentifier: string) => readonly string[] | null;
 }): (request: Request) => URL {
   const resolveCallbackErrorUrl = (request: Request): URL => {

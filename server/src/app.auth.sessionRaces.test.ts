@@ -17,10 +17,10 @@ import { authTransactionGateFor, type GateSlot } from "./authTransactionGate";
 
 const TS = "2026-01-01T00:00:00.000Z";
 
-// P3.1/P3.2/P3.5 (flag CAPACITYLENS_MODE → opts.authMode/auth). The load-bearing assertion set:
-// OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
-// by running unchanged — these tests add the /api/auth/me surface and the absence of the
-// Better Auth routes); password gates every data route on a real session; sso issues a
+// The CAPACITYLENS_MODE flag (opts.authMode/auth). The load-bearing assertion set: off is
+// byte-for-byte today (the whole existing app.test.ts suite already enforces that by running
+// unchanged; these tests add the /api/auth/me surface and the absence of the Better Auth
+// routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
 
 async function createSessionManagementFixture() {

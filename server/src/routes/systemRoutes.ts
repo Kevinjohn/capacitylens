@@ -152,8 +152,8 @@ function registerDiagnosticsRoute(app: FastifyInstance, dependencies: PublicRout
 }
 
 function registerMetaRoute(app: FastifyInstance, dependencies: MetaRouteDependencies): void {
-  // "has this dataset ever been initialised" (persistent marker), NOT "is it currently
-  // non-empty" — so a user who deletes all their data isn't re-seeded on the next load
+  // "has this dataset ever been initialised" (persistent marker), not "is it currently
+  // non-empty": so a user who deletes all their data isn't re-seeded on the next load
   // (the bug was: an emptied dataset reported hasData:false and got the demo seed back).
   // This authenticated probe is deliberately not membership-gated: initialization is an
   // instance-level bootstrap sentinel, not tenant data, and reveals no account, identity or row
@@ -172,8 +172,8 @@ function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDep
     return reply.code(204).send();
   });
 
-  // Health is deliberately constant-work AND exempt from the rate limiter (`config.rateLimit:
-  // false`): an uptime monitor polls it continuously and must NEVER be told 429. Behind a proxy
+  // Health is deliberately constant-work and exempt from the rate limiter (`config.rateLimit:
+  // false`): an uptime monitor polls it continuously and must never be told 429. Behind a proxy
   // without forwarded-IP trust every client shares one socket-IP bucket, so a limited health
   // route would let ordinary API traffic starve the monitor's probe (and vice versa). Exempting
   // it adds no amplification surface: the expensive full row-codec + foreign-key integrity
@@ -184,10 +184,10 @@ function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDep
       dependencies.healthStatement.get();
       const backupHealth = dependencies.backupHealth?.();
       const auditPending = dependencies.auditDrainer.pendingCount();
-      // P1.15: audit-degraded is a SOFT signal — keep ok:true (the DB is fine; the audit sink
+      // Audit-degraded is a soft signal, keep ok:true (the DB is fine; the audit sink
       // failing a write doesn't make the server unhealthy), just surface 'degraded' so an
-      // operator can see it. The SHALLOW (non-deep) health stays exactly { ok: true } above —
-      // the Playwright webServer probe contract — so the audit field appears ONLY in deep mode.
+      // operator can see it. The shallow (non-deep) health stays exactly { ok: true } above,
+      // the Playwright webServer probe contract, so the audit field appears only in deep mode.
       return reply.code(200).send({
         ok: true,
         db: true,
@@ -209,8 +209,8 @@ function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDep
           : {}),
       });
     } catch {
-      // INTENTIONAL empty catch: the 503 IS the surfacing. A broken DB must make the uptime
-      // monitor see 503 — not a lying { ok: true } 200, and not a thrown 500. Do NOT "fix" this
+      // Intentional empty catch: the 503 is the surfacing. A broken DB must make the uptime
+      // monitor see 503, not a lying { ok: true } 200, and not a thrown 500. Do not "fix" this
       // by logging-and-rethrowing; the status code is the signal the monitor needs.
       return reply.code(503).send({ ok: false });
     }

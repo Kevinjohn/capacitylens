@@ -50,13 +50,13 @@ export function createSafeResponseError(action: string, status: number, rawBody:
 }
 
 /**
- * Write rows into a copy of `data`. An ABSENT id is always appended; `replaceExisting` decides what
- * a PRESENT id means, and the difference is load-bearing:
- *   - `true` (replace-or-append) makes an authoritative receipt win over whatever the snapshot held
- *     — the unarchive path, where a normal archive already advanced `lastSynced` past the row but a
+ * Write rows into a copy of `data`. An absent id is always appended; `replaceExisting` decides what
+ * a present id means, and the difference is load-bearing:
+ *   - `true` (replace-or-append) makes an authoritative receipt win over whatever the snapshot held,
+ *     the unarchive path, where a normal archive already advanced `lastSynced` past the row but a
  *     teardown archive deliberately did not, so both shapes must land on the receipt's copy;
- *   - `false` (APPEND-IF-ABSENT, NEVER OVERWRITE) re-inserts a row the snapshot is missing without
- *     ever clobbering a copy that is already there — the absence check is a defensive no-dup guard,
+ *   - `false` (append-if-absent, never overwrite) re-inserts a row the snapshot is missing without
+ *     ever clobbering a copy that is already there. The absence check is a defensive no-dup guard,
  *     not an update.
  */
 export function writeRows(

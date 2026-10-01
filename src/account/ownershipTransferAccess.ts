@@ -18,7 +18,7 @@ import { isRecord } from "@capacitylens/shared/lib/isRecord";
  */
 
 /** One request as the ceremony endpoints report it. Ids and instants only: names come from the
- *  member directory, so a stale card can never show a name the directory has since changed. */
+ * member directory, so a stale card can never show a name the directory has since changed. */
 export interface OwnershipTransferView {
   id: string;
   fromUserId: string;
@@ -40,7 +40,7 @@ export interface OwnershipTransferProjectionView {
 /**
  * What a ceremony command answered.
  *
- * `terminal` is the server's COMMITTED outcome — a deadline that had passed and was materialised —
+ * `terminal` is the server's committed outcome, a deadline that had passed and was materialised,
  * not a refusal. It arrives as a 409 carrying its own code, and it is decoded as a success here so
  * the card can explain what happened instead of showing an error the user cannot act on.
  */
@@ -49,18 +49,18 @@ export type OwnershipTransferOutcomeView =
   | { kind: "terminal"; state: OwnershipTransferState; reason: OwnershipTransferTerminalReason | null };
 
 /** The committed-terminal half on its own. The card only ever holds one of these to explain, so
- *  naming it saves every reader of that state re-proving which variant it is. */
+ * naming it saves every reader of that state re-proving which variant it is. */
 export type OwnershipTransferTerminalView = Extract<OwnershipTransferOutcomeView, { kind: "terminal" }>;
 
 /** The reason vocabulary is closed and server-authored, so an unrecognised one is decoded as "no
- *  reason" rather than rendered: the card explains outcomes it understands and stays silent
- *  otherwise, instead of printing an identifier at the user. */
+ * reason" rather than rendered: the card explains outcomes it understands and stays silent
+ * otherwise, instead of printing an identifier at the user. */
 function isOwnershipTransferTerminalReason(value: unknown): value is OwnershipTransferTerminalReason {
   return typeof value === "string" && (OWNERSHIP_TRANSFER_TERMINAL_REASONS as readonly string[]).includes(value);
 }
 
 /** The identity and lifecycle fields every request carries, checked together so the decoder below
- *  stays one readable shape rather than a wall of guards. */
+ * stays one readable shape rather than a wall of guards. */
 function hasOwnershipTransferShape(
   value: Record<string, unknown>,
 ): value is Record<string, unknown> &
@@ -115,7 +115,7 @@ function parseOwnershipTransferOutcome(body: unknown): OwnershipTransferOutcomeV
 }
 
 /** A committed terminal outcome is the one non-ok response this client reads as a success. Its code
- *  is what distinguishes it from an ordinary conflict, which stays a rejection. */
+ * is what distinguishes it from an ordinary conflict, which stays a rejection. */
 async function readCeremonyResult(response: Response): Promise<TeamAccessResult<OwnershipTransferOutcomeView>> {
   if (response.status === 409) {
     const body: unknown = await response

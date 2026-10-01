@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The stores these hooks bind are the real subjects of their own suites (offlineCache.test.ts and
-// the persistence specs); what is untested until now is the BINDING — that each hook subscribes to
+// the persistence specs); what is untested until now is the binding, that each hook subscribes to
 // the right store and re-renders when it publishes. offlineCache is stubbed so this file needs no
 // service worker, IndexedDB or localStorage: the preference store is reduced to a value plus a
 // listener set, which is all useSyncExternalStore can legitimately observe.
@@ -11,7 +11,7 @@ const preference = vi.hoisted(() => {
   const state = {
     enabled: false,
     listeners,
-    /** A frozen, stable reference — useSyncExternalStore loops on a snapshot that changes identity. */
+    /** A frozen, stable reference, useSyncExternalStore loops on a snapshot that changes identity. */
     offlineState: Object.freeze({ readOnly: false }),
     publish(next: boolean) {
       state.enabled = next;

@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useDeadlineClock } from "./useDeadlineClock";
 
 // Timer behaviour, on fake timers so "just after the deadline" is exact rather than flaky. The
-// properties worth pinning are the ones a list depends on: it wakes AFTER the boundary (never at or
+// properties worth pinning are the ones a list depends on: it wakes after the boundary (never at or
 // before it, which would re-render with the deadline still in the future), it arms nothing when
-// nothing is pending, it re-arms when a nearer deadline appears, it keeps working down a QUEUE of
+// nothing is pending, it re-arms when a nearer deadline appears, it keeps working down a queue of
 // deadlines because the caller's stale filter is run against the hook's own clock, an inline picker
 // does not churn the armed timer, and a deadline beyond setTimeout's 32-bit ceiling is clamped
 // instead of overflowing into an immediate-fire loop.
@@ -13,7 +13,7 @@ import { useDeadlineClock } from "./useDeadlineClock";
 const START = Date.UTC(2026, 6, 14, 12, 0, 0);
 const MAX_TIMEOUT_DELAY = 2_147_483_647;
 
-/** The call shape both Settings sections use: the nearest deadline STILL AHEAD of the hook's clock. */
+/** The call shape both Settings sections use: the nearest deadline still ahead of the hook's clock. */
 const nextOf =
   (...deadlines: number[]) =>
   (clock: number): number | null =>
@@ -116,8 +116,8 @@ function registerDeadlineClockRearming(): void {
     const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(first, second))));
 
     act(() => void vi.advanceTimersByTime(5_001));
-    // The first has fired, so the picker — asked with the clock it just produced — drops it as past
-    // and answers with the second; a picker asked with any OTHER clock could not have done that.
+    // The first has fired, so the picker, asked with the clock it just produced, drops it as past
+    // and answers with the second; a picker asked with any other clock could not have done that.
     expect(result.current).toBe(first + 1);
 
     act(() => void vi.advanceTimersByTime(3_999));
@@ -128,7 +128,7 @@ function registerDeadlineClockRearming(): void {
   });
 
   it("does not re-arm when only the picker's identity changes", () => {
-    // The picker is expected to be an inline arrow — a NEW function every render. The effect keys on
+    // The picker is expected to be an inline arrow, a new function every render. The effect keys on
     // the instant it returns, so re-renders that change nothing else must leave the timer alone.
     const deadline = START + 60_000;
     const { rerender } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
@@ -152,7 +152,7 @@ function registerDeadlineClockRearming(): void {
 
 function registerDeadlineClockCleanup(): void {
   it("clamps a deadline beyond setTimeout's 32-bit ceiling instead of overflowing", () => {
-    // Passed through raw, this delay overflows and fires IMMEDIATELY (then again on every re-arm).
+    // Passed through raw, this delay overflows and fires immediately (then again on every re-arm).
     const deadline = START + 3 * MAX_TIMEOUT_DELAY;
     const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
 

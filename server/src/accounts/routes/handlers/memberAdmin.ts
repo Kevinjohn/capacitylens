@@ -64,8 +64,8 @@ export async function listMembers(req: FastifyRequest<AccountRoute>, reply: Fast
 
   const { accountId } = req.params;
   if (!authorize({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT })) return;
-  // OFF mode: no real member model (req.user is DEMO_USER, membership is unread) — return empty so
-  // the shape is honest and nothing crashes. The UI is hidden in OFF, so this is belt-and-braces.
+  // Off mode: no real member model (req.user is DEMO_USER, membership is unread), return empty so
+  // the shape is honest and nothing crashes. The UI is hidden in off, so this is belt-and-braces.
   if (authMode === "off") return reply.code(200).send({ members: [], signInTrackingEnabled: false });
   try {
     const actor = requireAccountActor(req);

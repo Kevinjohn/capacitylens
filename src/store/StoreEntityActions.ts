@@ -18,16 +18,16 @@ export type CreateResult<T> = { kind: "created"; value: T } | { kind: "blocked" 
 /** The active account's entity create/update/delete and data-lifecycle actions on the store. */
 export interface StoreEntityActions {
   // --- Scoped entity CRUD (disciplines / resources / clients / projects / phases / activities /
-  // allocations / time off). CONTRACT — identical for every add*/update*/delete* below, and
+  // allocations / time off). Contract, identical for every add*/update*/delete* below, and
   // invisible in the signatures, so it lives here:
-  //  • Runs against the ACTIVE account and is undoable (⌘Z).
-  //  • THROWS an Error whose message is SAFE TO DISPLAY on a tenancy/integrity violation (a
+  //  • Runs against the active account and is undoable (⌘Z).
+  //  • throws an Error whose message is safe to display on a tenancy/integrity violation (a
   //    cross-account id, a dangling required FK, a reversed date range, an empty working-day set,
-  //    or no active account). The store is the LAST line of defence ("forms reject; store
-  //    backstops"), so these MUST throw — do not wrap them to swallow.
-  //  • Silently NO-OPS on a STALE id (update/delete of a row not owned by the active account — e.g.
+  //    or no active account). The store is the last line of defence ("forms reject; store
+  //    backstops"), so these must throw, do not wrap them to swallow.
+  //  • Silently no-ops on a stale id (update/delete of a row not owned by the active account, e.g.
   //    a drag committed after an undo removed the row). That's a benign race, not corruption.
-  //  • Callers that take USER INPUT must wrap the call in try/catch and surface e.message (see
+  //  • Callers that take user input must wrap the call in try/catch and surface e.message (see
   //    TimeOffForm / AllocationModal). A throw left uncaught surfaces only as a React error.
   /** Create a discipline in the active account. */
   addDiscipline: (input: Draft<Discipline>) => CreateResult<Discipline>;
@@ -95,30 +95,30 @@ export interface StoreEntityActions {
   /** Delete a company closure from the active account. */
   deleteClosure: (id: ID) => void;
 
-  // --- Data-lifecycle (P2.5b): the Active → Archived → Soft-deleted → Purged machine for the
-  // tombstone-carrying tables (resources / clients / projects / activities). These are the DEMO-build / OFF path —
+  // --- Data-lifecycle: the Active → Archived → Soft-deleted → Purged machine for the
+  // tombstone-carrying tables (resources / clients / projects / activities). These are the demo-build / off path,
   // they mutate the local `data` blob through the same mutate()/undo machinery as the CRUD above. In
-  // SERVER mode the UI instead calls the dedicated routes (POST /api/:entity/:id/{archive,unarchive,
-  // delete,purge}, P2.5a) directly, so the admin view only invokes these in the demo build. They COMPOSE
-  // the pure shared lifecycle helpers (shared/src/domain/lifecycle.ts) — the transition logic and the
-  // soft-delete obfuscation string are NEVER re-derived here. Archive/unarchive are undoable;
+  // server mode the UI instead calls the dedicated routes (POST /api/:entity/:id/{archive,unarchive,
+  // delete,purge}) directly, so the admin view only invokes these in the demo build. They compose
+  // the pure shared lifecycle helpers (shared/src/domain/lifecycle.ts), the transition logic and the
+  // soft-delete obfuscation string are never re-derived here. Archive/unarchive are undoable;
   // soft-delete/purge clear both history stacks so erased data cannot be recovered from memory.
   // All four are viewer-no-op and stale-id-no-op, and invalid transitions throw a display-safe Error
   // (the UI gates with the can* predicates first; the throw is the defense-in-depth backstop).
-  /** Archive an entity (active → archived). DEMO-build path; surface-not-swallow — `archive` throws
-   *  if the row isn't active. @param entity which tombstone table. @param id the row to archive. */
+  /** Archive an entity (active → archived). Demo-build path; surface-not-swallow, `archive` throws
+   * if the row isn't active. @param entity which tombstone table. @param id the row to archive. */
   archiveEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Un-archive an entity (archived → active). DEMO-build path; `unarchive` throws if the row isn't
-   *  archived. @param entity which tombstone table. @param id the row to restore. */
+  /** Un-archive an entity (archived → active). Demo-build path; `unarchive` throws if the row isn't
+   * archived. @param entity which tombstone table. @param id the row to restore. */
   unarchiveEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Soft-delete an entity (archived → deleted tombstone). DEMO-build path; `softDelete` throws unless
-   *  the row is archived first (the lifecycle requires prior archival). For a `resources` row the
-   *  tombstone's `name` is ALSO scrubbed via the shared `obfuscateResource` — the local copy retains
-   *  no original PII while it awaits purge. @param entity which tombstone table. @param id the row. */
+  /** Soft-delete an entity (archived → deleted tombstone). Demo-build path; `softDelete` throws unless
+   * the row is archived first (the lifecycle requires prior archival). For a `resources` row the
+   * tombstone's `name` is also scrubbed via the shared `obfuscateResource`, the local copy retains
+   * no original PII while it awaits purge. @param entity which tombstone table. @param id the row. */
   softDeleteEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Hard-purge a soft-deleted tombstone (physically remove + cascade its children). DEMO-build path.
-   *  Enforces the {@link PURGE_MIN_AGE_DAYS} grace window via `canPurge`: if the tombstone is too young
-   *  it does NOT mutate and surfaces an error notice instead of throwing (a refused affordance, not a
-   *  bug). @param entity which tombstone table. @param id the tombstone to purge. */
+  /** Hard-purge a soft-deleted tombstone (physically remove + cascade its children). Demo-build path.
+   * Enforces the {@link PURGE_MIN_AGE_DAYS} grace window via `canPurge`: if the tombstone is too young
+   * it does not mutate and surfaces an error notice instead of throwing (a refused affordance, not a
+   * bug). @param entity which tombstone table. @param id the tombstone to purge. */
   purgeEntity: (entity: LifecycleEntity, id: ID) => void;
 }

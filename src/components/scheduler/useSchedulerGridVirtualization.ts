@@ -39,13 +39,13 @@ function resolveTimelineBounds(days: readonly string[]) {
 
 /**
  * The week-grid scheduler: the helicopter view of who's busy/free. Two non-obvious
- * mechanisms run here — read this before touching the scroll/render path.
+ * mechanisms run here, read this before touching the scroll/render path.
  *
  * **1. Vertical virtualization.** The model (groups → rows) is flattened into one ordered
  * `items` list (group headers + the rows of expanded groups), then each item's height is
  * measured (`heights`), prefix-summed by `buildLayout`, and `resolveVirtualWindow` picks the
  * on-screen slice (`{first, last}`) for the current `scrollTop`/viewport height. Only that slice
- * is in the DOM; the vertical space of every skipped item is RESERVED by an aria-hidden spacer
+ * is in the DOM; the vertical space of every skipped item is reserved by an aria-hidden spacer
  * div sized to the gap between consecutive rendered items, so the scrollbar geometry stays
  * correct (drop the spacers and the scroll height collapses, so the thumb and every offset would
  * be wrong). `heights`/`layout` are memoised on the item set, so a scroll frame only runs the
@@ -72,8 +72,8 @@ export function useSchedulerGridVirtualization({
   // slice is in the DOM (the rest is reserved by top/bottom spacers).
   const items = useMemo(() => flattenVisibleItems(model, ui.collapsedGroups), [model, ui.collapsedGroups]);
 
-  // Heights + their prefix-sum depend only on the item set (model/collapse), NOT on
-  // scroll — memoise so a scroll frame only runs the cheap edge-scan in resolveVirtualWindow.
+  // Heights + their prefix-sum depend only on the item set (model/collapse), not on
+  // scroll: memoise so a scroll frame only runs the cheap edge-scan in resolveVirtualWindow.
   const heights = useMemo(
     () => items.map((interval) => (interval.kind === "group" ? density.groupHeaderHeight : interval.row.rowHeight)),
     [items, density],
@@ -111,7 +111,7 @@ export function useSchedulerGridVirtualization({
 
   const { first, last } = resolveVirtualWindow({ layout, heights, scrollTop, viewportHeight: timelineHeight });
   // Memoised because this scan is O(rows × bars) and the grid re-renders every frame while a drag
-  // autoscrolls — the dragged row only changes when the item set or the dragged id changes, never
+  // autoscrolls: the dragged row only changes when the item set or the dragged id changes, never
   // per scroll pixel. Same keying discipline as the neighbouring derived values above.
   const draggedItemIndex = useMemo(
     () =>

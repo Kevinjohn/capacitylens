@@ -39,7 +39,7 @@ describe("clearCapacitylensLocalStorage", () => {
   });
 
   it("removes ALL matching keys even though removal mutates the key list mid-clear", () => {
-    // Snapshotting the keys first is what makes this safe — iterating by live index would
+    // Snapshotting the keys first is what makes this safe, iterating by live index would
     // skip entries as the list re-indexes on each removeItem.
     for (let i = 0; i < 10; i++) localStorage.setItem(`${CAPACITYLENS_KEY_PREFIX}k${i}`, String(i));
     expect(clearCapacitylensLocalStorage()).toBe(10);

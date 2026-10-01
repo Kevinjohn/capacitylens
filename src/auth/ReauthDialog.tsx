@@ -128,7 +128,7 @@ async function reauthWithProvider(provider: AuthProviderInfo, state: ReauthState
   state.setPendingProvider(provider);
   try {
     const result = await dispatchExternalProviderSignIn(provider);
-    // A settled call WITHOUT an error means the provider accepted the hand-off and the browser is
+    // A settled call without an error means the provider accepted the hand-off and the browser is
     // navigating away: the dialog stays busy and announces the redirect rather than reporting a
     // failure it cannot know about. Only a returned error is a real failure, and only that path
     // becomes retryable. Same contract as LoginScreen's provider sign-in.

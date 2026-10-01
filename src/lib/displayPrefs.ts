@@ -1,5 +1,5 @@
 // Display preferences. Device-global (one set of choices per browser), stored
-// separately from account data — same rationale as the theme preference
+// separately from account data, same rationale as the theme preference
 // (see theme.ts / DECISIONS.md): these are view toggles, not tenant records.
 //
 // The store holds the reactive values; these are the pure read/write helpers it
@@ -7,11 +7,11 @@
 // everything) on first run; other prefs in this file carry their own documented
 // defaults (the sidebar is tri-state; fake-sign-in and intro-seen default off).
 //
-// ON THE SWALLOW (deliberate): every localStorage access below is wrapped and falls back to a
-// documented default. This is the ONE category where swallow-to-default is correct (see
-// DEFENSIVE-CODING.md §5) — these are device-global, NON-TENANT view toggles, so a blocked /
-// private-mode / quota / corrupt store can lose a toggle but can NEVER corrupt account data, and
-// the in-memory store still honours the choice for the session. Do NOT copy this onto a data path.
+// On the swallow (deliberate): every localStorage access below is wrapped and falls back to a
+// documented default. This is the one category where swallow-to-default is correct (see
+// DEFENSIVE-CODING.md §5). These are device-global, non-tenant view toggles, so a blocked /
+// private-mode / quota / corrupt store can lose a toggle but can never corrupt account data, and
+// the in-memory store still honours the choice for the session. Do not copy this onto a data path.
 
 // All keys below carry the shared brand prefix (defined once in shared/src/brand.ts) so clearing /
 // migrating by prefix catches every one of them.
@@ -36,26 +36,24 @@ interface WriteStoredSidebarOpenInput {
   open: boolean;
 }
 
-// ---------------------------------------------------------------------------
 // Shared storage shapes
 //
 // Two encodings serve every pref in this file: a single boolean stored as the literal string
 // 'on'/'off' under its own key (readBooleanPreference/writeBooleanPreference), and a small record of booleans
 // stored as JSON (readBooleanRecordPreference/writeBooleanRecordPreference). The sidebar pref below is deliberately
-// NEITHER — it is tri-state ('open'/'closed'/never-chosen). All four helpers share the swallow
+// neither: it is tri-state ('open'/'closed'/never-chosen). All four helpers share the swallow
 // rule from the file header: a blocked/corrupt store loses the toggle but can never touch tenant
 // data.
-// ---------------------------------------------------------------------------
 
 /** Read an on/off flag stored as 'on'/'off' under `key`; returns `fallback` when unset,
- *  unrecognised, or when storage is unavailable. */
+ * unrecognised, or when storage is unavailable. */
 function readBooleanPreference({ key, fallback }: ReadBooleanPreferenceInput): boolean {
   try {
     const raw = localStorage.getItem(key);
     if (raw === "on") return true;
     if (raw === "off") return false;
   } catch {
-    // storage blocked — fall through to the fallback
+    // storage blocked, fall through to the fallback
   }
   return fallback;
 }
@@ -65,7 +63,7 @@ function writeBooleanPreference({ key, on }: WriteBooleanPreferenceInput): void 
   try {
     localStorage.setItem(key, on ? "on" : "off");
   } catch {
-    // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
+    // best-effort write, storage blocked/full; deliberate non-tenant swallow (see file header).
   }
 }
 
@@ -79,9 +77,9 @@ function mergeBooleanRecord<T extends Record<keyof T, boolean>>(defaults: T, par
 }
 
 /** Read a JSON record of booleans under `key`, falling back to `defaults` for anything missing,
- *  non-boolean, or when storage is unavailable. Tolerant of partial/legacy stored shapes: only
- *  the fields declared in `defaults` are read, so an unknown stored key is ignored rather than
- *  widening the returned shape. Always returns a fresh object. */
+ * non-boolean, or when storage is unavailable. Tolerant of partial/legacy stored shapes: only
+ * the fields declared in `defaults` are read, so an unknown stored key is ignored rather than
+ * widening the returned shape. Always returns a fresh object. */
 function readBooleanRecordPreference<T extends Record<keyof T, boolean>>(key: string, defaults: T): T {
   try {
     const raw = localStorage.getItem(key);
@@ -90,7 +88,7 @@ function readBooleanRecordPreference<T extends Record<keyof T, boolean>>(key: st
       return mergeBooleanRecord(defaults, parsed);
     }
   } catch {
-    // storage blocked or malformed JSON — fall through to the defaults
+    // storage blocked or malformed JSON, fall through to the defaults
   }
   return { ...defaults };
 }
@@ -100,13 +98,13 @@ function writeBooleanRecordPreference<T extends Record<keyof T, boolean>>(key: s
   try {
     localStorage.setItem(key, JSON.stringify(preferences));
   } catch {
-    // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
+    // best-effort write, storage blocked/full; deliberate non-tenant swallow (see file header).
   }
 }
 
 /** Declare one on/off flag: returns its `[read, write]` pair over readBooleanPreference/writeBooleanPreference,
- *  bound to `${STORAGE_KEY_PREFIX}${key}` and the given default. Each declaration below supplies
- *  its storage key and fallback, with the preference's rationale beside it. */
+ * bound to `${STORAGE_KEY_PREFIX}${key}` and the given default. Each declaration below supplies
+ * its storage key and fallback, with the preference's rationale beside it. */
 function createBooleanPreference({
   key,
   fallback,
@@ -136,13 +134,13 @@ export const DEFAULT_UTILIZATION_PREFS: UtilizationPreferences = {
 const STORAGE_KEY = `${STORAGE_KEY_PREFIX}utilizationPrefs`;
 
 /** Read the saved preferences, falling back to the defaults for anything missing
- *  or when storage is unavailable. Tolerant of partial/legacy stored shapes. */
+ * or when storage is unavailable. Tolerant of partial/legacy stored shapes. */
 export function readStoredUtilizationPrefs(): UtilizationPreferences {
   return readBooleanRecordPreference(STORAGE_KEY, DEFAULT_UTILIZATION_PREFS);
 }
 
 /** Persist the preferences. Best-effort: if storage is unavailable the in-memory
- *  store still honours the choice for this session. */
+ * store still honours the choice for this session. */
 export function writeStoredUtilizationPrefs(preferences: UtilizationPreferences): void {
   writeBooleanRecordPreference(STORAGE_KEY, preferences);
 }
@@ -161,8 +159,8 @@ export const DEFAULT_BAR_LABEL_PREFS: BarLabelPreferences = {
 
 const BAR_LABEL_STORAGE_KEY = `${STORAGE_KEY_PREFIX}barLabelPrefs`;
 
-/** Read the saved bar-label preferences — same tolerant fallback behaviour as
- *  readStoredUtilizationPrefs. */
+/** Read the saved bar-label preferences, same tolerant fallback behaviour as
+ * readStoredUtilizationPrefs. */
 export function readStoredBarLabelPrefs(): BarLabelPreferences {
   return readBooleanRecordPreference(BAR_LABEL_STORAGE_KEY, DEFAULT_BAR_LABEL_PREFS);
 }
@@ -179,16 +177,16 @@ export function writeStoredBarLabelPrefs(preferences: BarLabelPreferences): void
 const SIDEBAR_STORAGE_KEY = `${STORAGE_KEY_PREFIX}sidebar`;
 
 /** The widest viewport still treated as a phone. Single-sourced here because two separate
- *  breakpoint consumers key off it: the sidebar's first-run default below and the
- *  `useIsMobile` hook (hooks/useIsMobile.ts). */
+ * breakpoint consumers key off it: the sidebar's first-run default below and the
+ * `useIsMobile` hook (hooks/useIsMobile.ts). */
 export const PHONE_MAX_WIDTH_PX = 767;
 
 /** Small-screen query for the sidebar's first-run default. Below Tailwind's default `lg`
- *  breakpoint (1024px) the sidebar defaults collapsed to the icon rail — narrower than that and
- *  the full-width sidebar competes too much with the schedule. Phone-landscape heights also count
- *  as small regardless of width — a landscape phone is the app's recommended orientation and
- *  still shouldn't spend 192px on a menu. This is a separate threshold from `PHONE_MAX_WIDTH_PX`
- *  (used by `useIsMobile` for the mobile sheet cutover), not the same value repeated. */
+ * breakpoint (1024px) the sidebar defaults collapsed to the icon rail, narrower than that and
+ * the full-width sidebar competes too much with the schedule. Phone-landscape heights also count
+ * as small regardless of width. A landscape phone is the app's recommended orientation and
+ * still shouldn't spend 192px on a menu. This is a separate threshold from `PHONE_MAX_WIDTH_PX`
+ * (used by `useIsMobile` for the mobile sheet cutover), not the same value repeated. */
 const SMALL_VIEWPORT_QUERY = `(max-width: 1023px), (max-height: 480px)`;
 
 /** The user's explicit sidebar choice, or null if they've never toggled it. */
@@ -198,7 +196,7 @@ export function readStoredSidebarOpen(): boolean | null {
     if (raw === "open") return true;
     if (raw === "closed") return false;
   } catch {
-    // storage blocked — fall through to "no choice"
+    // storage blocked, fall through to "no choice"
   }
   return null;
 }
@@ -208,43 +206,43 @@ export function writeStoredSidebarOpen({ open }: WriteStoredSidebarOpenInput): v
   try {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, open ? "open" : "closed");
   } catch {
-    // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
+    // best-effort write, storage blocked/full; deliberate non-tenant swallow (see file header).
   }
 }
 
 /** First-run default: open on desktop, collapsed on small screens. Guarded for
- *  non-browser environments (jsdom has no matchMedia) where it defaults open. */
+ * non-browser environments (jsdom has no matchMedia) where it defaults open. */
 export function readDefaultSidebarOpen(): boolean {
   try {
     if (typeof window.matchMedia === "function") {
       return !window.matchMedia(SMALL_VIEWPORT_QUERY).matches;
     }
   } catch {
-    // matchMedia unavailable — treat as a large screen
+    // matchMedia unavailable, treat as a large screen
   }
   return true;
 }
 
 // "Minimise weekends": shrink the Saturday/Sunday columns on the schedule to a sliver.
-// Device-global like the prefs above (own key, not account data), but DEFAULTS ON — the owner's
+// Device-global like the prefs above (own key, not account data), but defaults on, the owner's
 // stated default. A plain on/off string (like the sidebar) rather than JSON: it's a single bool.
 export const [readStoredMinimiseWeekends, writeStoredMinimiseWeekends] = createBooleanPreference({
   key: "minimiseWeekends",
   fallback: true,
 });
 
-// Week snap: after a FREE horizontal scroll settles, the schedule floors its left edge back to the
+// Week snap: after a free horizontal scroll settles, the schedule floors its left edge back to the
 // current week's first day, so a stray scroll can't leave the view on a mid-week day. Always on for
-// users, with no Settings control. The storage key remains ONLY as a test override: browser tests
+// users, with no Settings control. The storage key remains only as a test override: browser tests
 // store "off" to hold a mid-week position across the idle re-floor (see e2e/browserTestSupport.ts).
-// Governs FREE SCROLL ONLY; the navigation snap (zoom / Prev-Next / date-picker) is always on.
+// Governs free scroll only; the navigation snap (zoom / Prev-Next / date-picker) is always on.
 export const WEEK_SNAP_OVERRIDE_KEY = "snapToWeekStart";
 export const [readStoredWeekSnapOverride] = createBooleanPreference({ key: WEEK_SNAP_OVERRIDE_KEY, fallback: true });
 
-// "Fake sign-in": a COSMETIC demo gate shown before the account picker so a viewer sees a
+// "Fake sign-in": a cosmetic demo gate shown before the account picker so a viewer sees a
 // "log in first, then pick a company" flow. Device-global like the prefs above (own key,
-// on/off string, NOT account data) and DEFAULTS OFF so the demo sign-in shows on first run.
-// This is NOT real auth — the real, server-authoritative seam is `src/auth/`. The flag is
+// on/off string, not account data) and defaults off so the demo sign-in shows on first run.
+// This is not real auth. The real, server-authoritative seam is `src/auth/`. The flag is
 // flipped on by the demo sign-in screen and cleared by "Sign out". See
 // `src/components/FakeSignIn.tsx` and DECISIONS.md.
 export const [readStoredFakeSignedIn, writeStoredFakeSignedIn] = createBooleanPreference({

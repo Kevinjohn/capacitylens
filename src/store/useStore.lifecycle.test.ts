@@ -7,8 +7,8 @@ import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import type { Resource } from "@capacitylens/shared/types/entities";
 import { makeResourceDraft, requireValue, resetStoreWithAccount } from "@/test/fixtures";
 
-// Store-level coverage for the P2.5b data-lifecycle actions (the DEMO-build / OFF path): archiveEntity /
-// unarchiveEntity / softDeleteEntity / purgeEntity. They COMPOSE the pure shared lifecycle helpers and
+// Store-level coverage for the data-lifecycle actions (the demo-build / off path): archiveEntity /
+// unarchiveEntity / softDeleteEntity / purgeEntity. They compose the pure shared lifecycle helpers and
 // mutate the local `data` blob through the same mutate()/undo machinery as the CRUD actions, so these
 // specs mirror the existing store-test idiom (resetStoreWithAccount + s().data assertions).
 
@@ -24,7 +24,7 @@ beforeEach(() => {
   s().clearFilters();
 });
 
-// A correctly-typed person draft (Weekday[] working days) — the original name is the subject of the
+// A correctly-typed person draft (Weekday[] working days). The original name is the subject of the
 // soft-delete PII-scrub assertion below.
 const personDraft = makeResourceDraft({ name: "Ada Lovelace" });
 
@@ -40,13 +40,13 @@ describe("archiveEntity", () => {
     const row = requireById(s().data.resources, r.id, "archived resource");
     expect(row.archivedAt).toBeTruthy();
     expect(lifecycleStatus(row)).toBe("archived");
-    // updatedAt is re-stamped to a fresh ISO timestamp. Deterministic: assert the SHAPE (a valid ISO
-    // instant), not time progression — a same-millisecond run made the old `>=` check tautological +
+    // updatedAt is re-stamped to a fresh ISO timestamp. Deterministic: assert the shape (a valid ISO
+    // instant), not time progression, a same-millisecond run made the old `>=` check tautological +
     // a real-timer sleep made it flaky. archivedAt being set already proves the archive landed.
     expect(typeof row.updatedAt).toBe("string");
     expect(new Date(row.updatedAt).toISOString()).toBe(row.updatedAt); // round-trips → a valid ISO instant
 
-    // Present in the RAW data, ABSENT from the active-only projection (and the live active hook source).
+    // Present in the raw data, absent from the active-only projection (and the live active hook source).
     expect(s().data.resources.some((x) => x.id === r.id)).toBe(true);
     expect(activeOnly(s().data).resources.some((x) => x.id === r.id)).toBe(false);
   });
@@ -349,8 +349,8 @@ describe("purgeEntity", () => {
 });
 
 describe("built-in Internal client is protected from every lifecycle action", () => {
-  // resetStoreWithAccount seeds an account with NO clients, so mint the builtin via addAccount (the
-  // privileged path) — matching internalClient.test.ts.
+  // resetStoreWithAccount seeds an account with no clients, so mint the builtin via addAccount (the
+  // privileged path), matching internalClient.test.ts.
   const seedWithInternal = () => {
     s().replaceAll({ ...s().data, accounts: [], clients: [] });
     const a = s().addAccount({ name: "Ferris Co", color: "#6366f1" });
@@ -379,9 +379,9 @@ describe("viewer guard no-ops every lifecycle action (defense-in-depth)", () => 
 
     s().setActiveRole("viewer");
     s().unarchiveEntity("resources", r.id);
-    expect(s().data.resources[0]?.archivedAt).toBe(archivedAt); // unchanged — still archived
+    expect(s().data.resources[0]?.archivedAt).toBe(archivedAt); // unchanged: still archived
 
-    s().archiveEntity("resources", r.id); // already archived; a viewer must no-op BEFORE the throw
+    s().archiveEntity("resources", r.id); // already archived; a viewer must no-op before the throw
     expect(s().data.resources[0]?.archivedAt).toBe(archivedAt);
 
     s().softDeleteEntity("resources", r.id);

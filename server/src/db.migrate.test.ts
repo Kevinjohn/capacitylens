@@ -58,8 +58,8 @@ vi.setConfig({ testTimeout: 15_000 });
 
 // openDb only ran CREATE TABLE IF NOT EXISTS, so a file written by an older schema
 // kept its old columns/constraints forever and broke after a model change. These
-// tests synthesize such an old file BY HAND and prove openDb's migrateSchema upgrades
-// it in place. (A normal e2e/fresh run never exercises this — a new DB already has the
+// tests synthesize such an old file by hand and prove openDb's migrateSchema upgrades
+// it in place. (A normal e2e/fresh run never exercises this, a new DB already has the
 // current shape, so the migration is a no-op there and would give false confidence.)
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -139,7 +139,7 @@ const V40_MIGRATION = {
   checksum: "5523524112cbd00936ed3fff90c0e00e142472abf78122e39dbc32f3bf59e2cc",
 } as const;
 /** The two newest account-preference steps. Spread into expectations rather than listed twice, so
- *  the next account column does not push one of these enumerations past the 60-line function cap. */
+ * the next account column does not push one of these enumerations past the 60-line function cap. */
 const NEWEST_ACCOUNT_MIGRATIONS = [V39_MIGRATION, V40_MIGRATION] as const;
 const V41_MIGRATION = {
   version: 41,
@@ -526,7 +526,7 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V50_MIGRATION,
   V51_MIGRATION,
 ] as const;
-/** The same list without its v25 head — what a database rolled back to v25 still has pending. */
+/** The same list without its v25 head, what a database rolled back to v25 still has pending. */
 const V26_TO_CURRENT_MIGRATIONS = V25_TO_CURRENT_MIGRATIONS.slice(1);
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
 const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34, 42, 46] as const;
@@ -607,11 +607,11 @@ const schemaFingerprint = (db: DatabaseSync): unknown[] =>
     }>
   ).map((entry) => ({ ...entry, sql: normalizeSchemaSql(entry.sql) }));
 
-// The shape as it shipped BEFORE the Task→Activity rename (and before general tasks +
+// The shape as it shipped before the Task→Activity rename (and before general tasks +
 // scheduling modes): the table was `tasks` (projectId NOT NULL), the allocation FK was
 // `taskId`, accounts had no schedulingMode, allocations had no ignoreWeekends. Kept verbatim
-// here on purpose — this fixture IS a legacy DB, so openDb must rename it (tasks→activities,
-// taskId→activityId) AND rebuild it. Only the drifted/parent tables are created; openDb's
+// here on purpose. This fixture is a legacy DB, so openDb must rename it (tasks→activities,
+// taskId→activityId) and rebuild it. Only the drifted/parent tables are created; openDb's
 // CREATE TABLE IF NOT EXISTS fills in the rest (disciplines/phases/resources/timeOff) current.
 const OLD_SCHEMA = `
 CREATE TABLE accounts (
@@ -765,7 +765,7 @@ function dropResourceAvailabilityFields(db: DatabaseSync): void {
   );
   db.exec("ALTER TABLE accounts DROP COLUMN capacityOverviewAccess;");
   // Every fixture that winds a current database back below v38 winds past v40 on the way, so the
-  // newest account column comes off here too — the same accumulation v39 made when it landed.
+  // newest account column comes off here too, the same accumulation v39 made when it landed.
   db.exec("ALTER TABLE accounts DROP COLUMN dateStyle;");
 }
 
@@ -1246,10 +1246,10 @@ describe("schema migration of an existing on-disk DB", () => {
 
 function registerV13ColourMigrationTest(): void {
   it("v13 snaps every legacy non-preset account colour to its nearest preset exactly once, leaving preset colours untouched", () => {
-    // Before v13, sanitizeWrite('accounts') replaced ANY non-preset stored colour with one FIXED
-    // fallback hex on every write, and no migration ever repaired the rows already on disk — so a
+    // Before v13, sanitizeWrite('accounts') replaced any non-preset stored colour with one fixed
+    // fallback hex on every write, and no migration ever repaired the rows already on disk, so a
     // legacy account's colour would silently flip to that one fixed colour the next time its row
-    // was touched. This proves the v13 data repair snaps it to its NEAREST preset instead, runs
+    // was touched. This proves the v13 data repair snaps it to its nearest preset instead, runs
     // exactly once (idempotent DB migration ledger), and leaves an already-preset colour alone.
     const path = join(tmpdir(), `capacitylens-migrate-colour-${process.pid}-${Date.now()}.db`);
     const cleanup = () => {
@@ -1264,7 +1264,7 @@ function registerV13ColourMigrationTest(): void {
     cleanup();
     try {
       const db = openDb(path); // fresh DB: already at the current version (v13 is a no-op here)
-      // #7cd9e4 is not a preset — its nearest preset is #7adae3 (see shared color.test.ts for the
+      // #7cd9e4 is not a preset. Its nearest preset is #7adae3 (see shared color.test.ts for the
       // same fixture, pinned there against the full palette).
       insertRow(db, "accounts", {
         id: "a-legacy",
@@ -1273,7 +1273,7 @@ function registerV13ColourMigrationTest(): void {
         createdAt: TS,
         updatedAt: TS,
       });
-      // Already a preset colour — must round-trip byte-identical, not get re-snapped to itself
+      // Already a preset colour, must round-trip byte-identical, not get re-snapped to itself
       // via some other path that could reformat it.
       insertRow(db, "accounts", {
         id: "a-preset",
@@ -1348,10 +1348,10 @@ describe("schema migration of an existing on-disk DB", () => {
 
 describe("schema migration of an existing on-disk DB", () => {
   it("v14 revokes an outstanding reset ceremony for a non-owner active member, leaving the membership row untouched", () => {
-    // v12 revoked ceremonies for active OWNERS only, so a co-owner the v10-era raw-SQL repairs
+    // v12 revoked ceremonies for active owners only, so a co-owner the v10-era raw-SQL repairs
     // demoted to admin kept any reset link minted while they still held Owner privilege. v14 is the
     // blanket every-active-member repair (the original v11 destroyed the role history a targeted
-    // revocation would need — see migrateMemberResetCeremoniesV14). This drives it through the real
+    // revocation would need, see migrateMemberResetCeremoniesV14). This drives it through the real
     // ledger/openDb path: the admin's link is burned, the membership row itself is not modified.
     const path = join(tmpdir(), `capacitylens-migrate-v14-${process.pid}-${Date.now()}.db`);
     const cleanup = () => {
@@ -1366,9 +1366,9 @@ describe("schema migration of an existing on-disk DB", () => {
     cleanup();
     try {
       // Better Auth normally creates `verification` when password auth first runs; mirror that shape
-      // (as controlTables.test.ts does) AFTER the membership writes, so upsertMember's own
-      // privilege-change revocation cannot be what removes the token — only v14 can.
-      // Roll the ledger back to "just before v14" so the next openDb() re-runs ONLY the v14 migration.
+      // (as controlTables.test.ts does) after the membership writes, so upsertMember's own
+      // privilege-change revocation cannot be what removes the token, only v14 can.
+      // Roll the ledger back to "just before v14" so the next openDb() re-runs only the v14 migration.
       prepareV14ResetCeremonyFixture(path);
 
       const upgraded = openDb(path);
@@ -1400,7 +1400,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
 describe("schema migration of an existing on-disk DB", () => {
   it("v16 adds the account view-pref columns via the explicit ledger step, leaving existing rows untouched", () => {
-    // Drive migration 16 in ISOLATION through the real ledger/openDb path: take a current DB, simulate
+    // Drive migration 16 in isolation through the real ledger/openDb path: take a current DB, simulate
     // a pre-v16 shape (drop the three columns + roll the ledger back to 15), then reopen and prove the
     // migration re-adds them, preserves the pre-existing row, and is idempotent on a second boot.
     const path = join(tmpdir(), `capacitylens-migrate-v16-${process.pid}-${Date.now()}.db`);
@@ -1461,7 +1461,7 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present — fine */
+          /* not present, fine */
         }
       }
     };
@@ -1488,12 +1488,12 @@ describe("schema migration of an existing on-disk DB", () => {
     // Second boot of the same DB: already initialised → no re-seed.
     expect(seedIfUninitialized(db, seed())).toBe(false);
 
-    // The user deletes ALL their data (cascade empties every scoped table; _meta survives).
+    // The user deletes all their data (cascade empties every scoped table; _meta survives).
     for (const a of readState(db).accounts) deleteRow(db, "accounts", a.id);
     expect(isEmpty(readState(db))).toBe(true);
     expect(isInitialized(db)).toBe(true); // ...but still initialised
-    // The regression guard: a boot against the empty-but-initialised DB must NOT re-seed
-    // (gating on isEmpty() — the old bug — would have resurrected the demo dataset here).
+    // The regression guard: a boot against the empty-but-initialised DB must not re-seed
+    // (gating on isEmpty(), the old bug, would have resurrected the demo dataset here).
     expect(seedIfUninitialized(db, seed())).toBe(false);
     expect(isEmpty(readState(db))).toBe(true);
     db.close();
@@ -1546,8 +1546,8 @@ describe("schema migration of an existing on-disk DB", () => {
 
 describe("schema migration of an existing on-disk DB", () => {
   it("generically ADDs a missing OPTIONAL column with no hard-coded migration step", () => {
-    // An old `disciplines` table missing the optional `color` column. There is NO
-    // hard-coded rule for disciplines.color, so this proves the migration is GENERIC —
+    // An old `disciplines` table missing the optional `color` column. There is no
+    // hard-coded rule for disciplines.color, so this proves the migration is generic,
     // a future additive optional field is picked up from the spec automatically (the old
     // version-gated pass would have frozen and left the column missing).
     const path = join(tmpdir(), `capacitylens-migrate-gen-${process.pid}-${Date.now()}.db`);
@@ -1556,7 +1556,7 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present — fine */
+          /* not present, fine */
         }
       }
     };
@@ -1595,7 +1595,7 @@ describe("schema migration of an existing on-disk DB", () => {
   it("throws a clear, column-naming error when an existing DB lacks a now-REQUIRED column", () => {
     // The flip side of the generic optional-add: an old `accounts` table that predates a
     // required column (here `color`). CREATE TABLE IF NOT EXISTS won't backfill it and
-    // migrateSchema only auto-adds OPTIONAL columns — a NOT NULL addition can't be ALTER-ADDed
+    // migrateSchema only auto-adds optional columns. A NOT NULL addition can't be ALTER-ADDed
     // to existing rows, so it needs an explicit rebuild step that doesn't exist yet. Rather than
     // let that drift surface later as a cryptic "no column named color" on the first write (or
     // silently read back undefined), openDb's assertSchemaCurrent must fail fast and name it.
@@ -1605,7 +1605,7 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present — fine */
+          /* not present, fine */
         }
       }
     };
@@ -1901,9 +1901,9 @@ describe("schema migration of an existing on-disk DB", () => {
 
 describe("schema migration of an existing on-disk DB", () => {
   it("throws a nullability-mismatch error when a column is present but NULL/NOT NULL disagrees with the spec", () => {
-    // accounts.schedulingMode is OPTIONAL in the spec (nullable), but here the on-disk column
+    // accounts.schedulingMode is optional in the spec (nullable), but here the on-disk column
     // exists as NOT NULL. It's present, so migrateSchema won't touch it and the missing-column
-    // check passes — only the nullability check catches that the two sources of truth (TABLES'
+    // check passes, only the nullability check catches that the two sources of truth (TABLES'
     // optional? flag vs the migrated schema's NOT NULL) have drifted. Without it, a write that legitimately
     // omits schedulingMode would hit a confusing NOT NULL error instead.
     const path = join(tmpdir(), `capacitylens-migrate-null-${process.pid}-${Date.now()}.db`);
@@ -1912,7 +1912,7 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present — fine */
+          /* not present, fine */
         }
       }
     };
@@ -3728,8 +3728,8 @@ describe("schema migration of an existing on-disk DB", () => {
 });
 
 describe("migration ledger checksum supersession (v11 alpha-line amendment)", () => {
-  // v11's definition was amended IN PLACE ('…promote-oldest…:v1' → '…promote-highest-role-tier…:v2').
-  // Any DB upgraded by the PREVIOUS build recorded this OLD checksum in its ledger; the supersession
+  // v11's definition was amended in place ('…promote-oldest…:v1' → '…promote-highest-role-tier…:v2').
+  // Any DB upgraded by the previous build recorded this old checksum in its ledger; the supersession
   // allow-list must accept exactly this one historical value for v11, and nothing else.
   const OLD_V11_CHECKSUM = "057242fc8e358bebf0a188395e9289d2661f6a89e843bc091e718d003f013f5e";
 
@@ -3758,7 +3758,7 @@ describe("migration ledger checksum supersession (v11 alpha-line amendment)", ()
       seeded.prepare(`UPDATE ${DATABASE_MIGRATION_TABLE} SET checksum = ? WHERE version = 11`).run(OLD_V11_CHECKSUM);
       seeded.close();
 
-      // The real boot path (openDb → planDatabaseMigrations → assertMigrationHistory) must NOT throw.
+      // The real boot path (openDb → planDatabaseMigrations → assertMigrationHistory) must not throw.
       const rebooted = openDb(path);
       expect(planDatabaseMigrations(rebooted).migrations).toEqual([]);
       // Subsequent behaviour is normal: the data is intact and the DB stays writable.
@@ -3771,7 +3771,7 @@ describe("migration ledger checksum supersession (v11 alpha-line amendment)", ()
         updatedAt: TS,
       });
       expect(getRow(rebooted, "accounts", "a2")?.name).toBe("Second");
-      // The ledger row is LEFT UNTOUCHED — we accept the superseded checksum, we don't rewrite history.
+      // The ledger row is left untouched. We accept the superseded checksum, we don't rewrite history.
       expect(rebooted.prepare(`SELECT checksum FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 11`).get()).toEqual({
         checksum: OLD_V11_CHECKSUM,
       });
@@ -3790,7 +3790,7 @@ describe("migration ledger checksum supersession (v11 alpha-line amendment)", ()
 
   it("is v11-only: the same old-v11 checksum on a different version still refuses startup", () => {
     const db = openDb(":memory:");
-    // The allow-list is per-version. The v11 historical checksum on v12 is NOT allow-listed there.
+    // The allow-list is per-version. The v11 historical checksum on v12 is not allow-listed there.
     db.prepare(`UPDATE ${DATABASE_MIGRATION_TABLE} SET checksum = ? WHERE version = 12`).run(OLD_V11_CHECKSUM);
     expect(() => planDatabaseMigrations(db)).toThrow(/v12 checksum does not match/i);
     db.close();
@@ -3936,16 +3936,16 @@ describe("migration value preservation policy", () => {
 
 describe("v13 migration is self-contained (frozen palette folded into the checksum)", () => {
   it("embeds the frozen palette digest in the v13 definition string", () => {
-    // The definition folds in the joined frozen-palette hex list so the migration CHECKSUM covers the
-    // exact palette the repair snaps to — a future shared-palette edit can't silently change v13.
+    // The definition folds in the joined frozen-palette hex list so the migration checksum covers the
+    // exact palette the repair snaps to. A future shared-palette edit can't silently change v13.
     expect(V13_DEFINITION).toContain(V13_FROZEN_PRESET_COLORS.join(","));
     expect(V13_DEFINITION).toContain("#7adae3"); // spot-check a representative preset is in the digest
   });
 
   it("froze the palette byte-for-byte from the shared palette at authoring time", () => {
     // Authoring-time snapshot check: the frozen copy equalled shared PRESET_COLORS when v13 was
-    // written. If shared PRESET_COLORS is ever edited and this fails, the fix is a NEW migration with
-    // its own frozen list + checksum — NOT updating this frozen list (that would silently rewrite an
+    // written. If shared PRESET_COLORS is ever edited and this fails, the fix is a new migration with
+    // its own frozen list + checksum, not updating this frozen list (that would silently rewrite an
     // already-checksummed step). See V13_FROZEN_PRESET_COLORS in db.ts.
     expect(V13_FROZEN_PRESET_COLORS).toEqual(PRESET_COLORS);
   });

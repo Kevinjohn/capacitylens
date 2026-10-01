@@ -221,16 +221,16 @@ END`;
  * Missing columns are never silently repaired by these assertions: an entity contract change
  * requires a corresponding migration, including an explicit rebuild when constraints need it.
  *
- *  (1) COLUMN CONTRACT. A column's optional? flag (object-level, in TABLES) and its
+ *  (1) column contract. A column's optional? flag (object-level, in TABLES) and its
  *      NULL/NOT NULL in the migrated schema (DB-level) are two hand-maintained sources of truth; nothing
  *      else checks they still agree. A drift is a real bug: a column marked optional but left
  *      NOT NULL rejects a legitimately-omitted field (confusing 400), and a required column left
  *      nullable lets a NULL read back as undefined for a field the model treats as always-present.
- *      The `id` PRIMARY KEY is exempt — PRAGMA table_info reports notnull=0 for a TEXT PK
+ *      The `id` PRIMARY KEY is exempt, PRAGMA table_info reports notnull=0 for a TEXT PK
  *      (a long-standing SQLite quirk), so it would otherwise look like a false mismatch. Declared
  *      storage types and the id-only primary key are checked from the same TABLES write contract.
  *
- *  (2) WRITE-BREAKING EXTENSIONS. A nullable or defaulted extension column is forward-compatible
+ *  (2) write-breaking extensions. A nullable or defaulted extension column is forward-compatible
  *      with our explicit INSERT column list and remains allowed. An unexpected required/no-default
  *      column, CHECK/UNIQUE constraint, trigger, STRICT or WITHOUT ROWID table option can reject an
  *      otherwise valid TABLES row, so startup refuses that unknown shape before accepting traffic.

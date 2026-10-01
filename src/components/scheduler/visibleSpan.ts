@@ -22,14 +22,14 @@ export function buildRealizedVisibleSpan(start: ISODate, end: ISODate): Realized
 }
 
 /** The two phrasings of the visible span the utilisation surfaces need: `long` for the "over the
- *  visible N week(s)" titles and the screen-reader summary, `compact` for the header's own label. */
+ * visible N week(s)" titles and the screen-reader summary, `compact` for the header's own label. */
 export interface VisibleSpanLabels {
   long: string;
   compact: string;
 }
 
 /** Human labels for the visible span. Whole weeks read as weeks and anything else as days, so a
- *  clamped range never claims a week it does not cover. */
+ * clamped range never claims a week it does not cover. */
 export function buildVisibleSpanLabels(start: ISODate, end: ISODate): VisibleSpanLabels {
   const span = buildRealizedVisibleSpan(start, end);
   if (span.weekCount !== undefined) {
@@ -48,13 +48,13 @@ export function buildVisibleSpanLabels(start: ISODate, end: ISODate): VisibleSpa
   };
 }
 
-/** The window the DISPLAYED utilisation % runs over: `zoom * 7` inclusive calendar days anchored at
- *  the scroll left-edge day. The inclusive end is `+ (zoom*7 - 1)` — a 1-week view is [L, L+6], not
- *  8 days — and is CLAMPED to the last timeline day so the window never reads past `days`.
+/** The window the displayed utilisation % runs over: `zoom * 7` inclusive calendar days anchored at
+ * the scroll left-edge day. The inclusive end is `+ (zoom*7 - 1)` (a 1-week view is [L, L+6], not
+ * 8 days) and is clamped to the last timeline day so the window never reads past `days`.
  *
- *  Before the first scroll settles (`leftEdgeIndex === -1`) it anchors at `focusDate` (today by
- *  default), NOT days[0]: that is the PAST_BUFFER_DAYS origin BEHIND today, which would open the
- *  schedule on a window nobody asked about. */
+ * Before the first scroll settles (`leftEdgeIndex === -1`) it anchors at `focusDate` (today by
+ * default), not days[0]: that is the PAST_BUFFER_DAYS origin behind today, which would open the
+ * schedule on a window nobody asked about. */
 export function resolveVisibleWindow({ days, leftEdgeIndex, zoom, focusDate }: ResolveVisibleWindowInput): {
   start: ISODate;
   end: ISODate;

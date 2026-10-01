@@ -188,8 +188,8 @@ type MembershipAdministrationMethods = Pick<
 >;
 
 /** The seven ceremony stubs. Every command answers with the same committed-terminal outcome: these
- *  are conformance placeholders, and a single shape keeps the stub set from implying behaviour the
- *  flows under test do not exercise. */
+ * are conformance placeholders, and a single shape keeps the stub set from implying behaviour the
+ * flows under test do not exercise. */
 function ownershipTransferMethods(): Pick<
   MembershipAdministrationMethods,
   | "readOwnershipTransfer"

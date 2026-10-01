@@ -177,14 +177,14 @@ function createEnabledAuthContext(input: {
 
 // Retain one facade-owned error class and policy surface without a runtime cycle.
 export function createAuthFromEnvironmentFactory(dependencies: FactoryDependencies) {
-  /** Build the Better Auth instance for the parsed mode — or null in 'off' mode, where no
-   *  env beyond CAPACITYLENS_MODE itself is read. `trustedOrigins` should be the same browser
-   *  origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
-   *  the same-origin production deploy needs none.
+  /** Build the Better Auth instance for the parsed mode, or null in 'off' mode, where no
+   * env beyond CAPACITYLENS_MODE itself is read. `trustedOrigins` should be the same browser
+   * origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
+   * the same-origin production deploy needs none.
    *
-   *  Cookie security is derived from `CAPACITYLENS_PUBLIC_URL`, the browser-facing public origin. It must
-   *  never be tied to whether the Node hop itself terminates TLS: the normal nginx deployment uses
-   *  HTTPS in the browser and HTTP between nginx and Node. */
+   * Cookie security is derived from `CAPACITYLENS_PUBLIC_URL`, the browser-facing public origin. It must
+   * never be tied to whether the Node hop itself terminates TLS: the normal nginx deployment uses
+   * HTTPS in the browser and HTTP between nginx and Node. */
   return function authFromEnv(
     db: Db,
     environment: Env,

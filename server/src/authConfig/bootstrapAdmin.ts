@@ -68,8 +68,8 @@ export async function createCredentialUserWith({
   );
 }
 
-/** Create/upgrade Better Auth's tables in the shared SQLite file. Called at boot ONLY
- *  when mode ≠ off — an off-mode DB never grows auth tables (the OFF guarantee). */
+/** Create/upgrade Better Auth's tables in the shared SQLite file. Called at boot only
+ * when mode ≠ off. An off-mode DB never grows auth tables (the off guarantee). */
 export async function runAuthMigrations(auth: Auth): Promise<void> {
   const { runMigrations } = await getMigrations(auth.options);
   await runMigrations();
@@ -140,11 +140,11 @@ function isMigrationTableList(value: unknown): value is Array<{ table: string }>
   );
 }
 
-// ── First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1) ────
+// First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1).
 // The headless escape hatch for a first login: a fresh password-mode instance normally bootstraps
 // through the login screen's "Create the owner account" form (the browser path), but a scripted /
 // container deploy may want a credential ready at boot. The flag creates admin@admin.admin with a
-// operator-supplied password ONLY on an EMPTY user table. Requiring the caller to retain the
+// operator-supplied password only on an empty user table. Requiring the caller to retain the
 // credential outside this process avoids an irrecoverable secret if startup output fails.
 
 /** Stable identity for the optional bootstrap owner. Its password is supplied by the operator. */
@@ -271,8 +271,8 @@ async function createBootstrapAdminResult(
 // Bind facade-owned policy without importing the facade at runtime.
 export function createBootstrapAdminFactory(dependencies: BootstrapAdminDependencies) {
   /**
-   * Create the bootstrap owner account when — and only
-   * when — the Better Auth `user` table has ZERO rows. Called at boot from index.ts, after
+   * Create the bootstrap owner account when, and only
+   * when, the Better Auth `user` table has zero rows. Called at boot from index.ts, after
    * runAuthMigrations and before buildApp, whenever the operator passed --create-owner-admin-admin
    * (or CAPACITYLENS_CREATE_ADMIN_ADMIN=1).
    *
@@ -280,15 +280,15 @@ export function createBootstrapAdminFactory(dependencies: BootstrapAdminDependen
    * - **Empty user table → 'created'.** The account is created through {@link Auth.createCredentialUser},
    *   not the public sign-up route/auth.api.signUpEmail, and a loud framed warning naming the exact
    *   identity is printed without repeating the operator-managed password.
-   * - **Users already exist → 'skipped'.** One log line, boot continues normally — the flag is
+   * - **Users already exist → 'skipped'.** One log line, boot continues normally. The flag is
    *   idempotent by design so a deploy script can leave it set across restarts without erroring.
    * - **Auth off / sso → throws {@link AuthConfigError}.** The flag creates an email+password
-   *   credential, so it is meaningless without password mode — refusing loudly (the entrypoint
+   *   credential, so it is meaningless without password mode, refusing loudly (the entrypoint
    *   frames it via refuseToStart) beats silently ignoring an operator's explicit instruction.
    *
    * @param db    The open SQLite handle (for the zero-users check).
-   * @param mode  The parsed auth mode — must be 'password'.
-   * @param auth  The Better Auth instance — non-null exactly when mode ≠ 'off'.
+   * @param mode  The parsed auth mode, must be 'password'.
+   * @param auth  The Better Auth instance, non-null exactly when mode ≠ 'off'.
    * @param log   Line sink for the warning/skip output (console.log in production; injectable for tests).
    * @returns 'created' when the account was made, 'skipped' when users already existed.
    * @throws AuthConfigError when mode is not 'password' (boot must refuse, not limp on).

@@ -71,8 +71,8 @@ export function resolveRepeatPattern(selection: Exclude<RepeatSelection, "none">
  *
  * @throws Error when the resolved resource does not match the draft.
  * @throws RangeError when a working-span mode receives an invalid `daysOver` value, has no effective
- *   working days, or a projected range leaves the supported ISO-date domain. Record-creation callers
- *   reject an empty effective week before projection so copy is routed to the assignee/form surface.
+ * working days, or a projected range leaves the supported ISO-date domain. Record-creation callers
+ * reject an empty effective week before projection so copy is routed to the assignee/form surface.
  */
 export function buildRepeatedAllocationDrafts(
   baseDraft: Draft<Allocation>,
@@ -161,9 +161,9 @@ export function buildRepeatingAllocationAdvisory({
   if (!isCapacityTracked(resource)) {
     return { overCapacityAllocations: 0, timeOffAllocations: 0, nonEffectiveStartAllocations: 0 };
   }
-  // Bucket the existing load by day ONCE for the whole batch and add each checked draft to that
-  // SAME map, instead of handing buildCapacityAdvisory a comparison list that grows by one allocation
-  // per draft — which re-bucketed everything already seen, making a k-occurrence repeat O(k²) in
+  // Bucket the existing load by day once for the whole batch and add each checked draft to that
+  // same map, instead of handing buildCapacityAdvisory a comparison list that grows by one allocation
+  // per draft, which re-bucketed everything already seen, making a k-occurrence repeat O(k²) in
   // day-string work. Hours still land existing-load-first, then draft 0, 1, …, so every per-day sum
   // is bit-identical to the per-draft rebuild (float addition is not associative).
   const shared = createSharedLoad({ resource, existingLoad, proposedDrafts, effectiveWeek, timeOff, closures });
@@ -232,7 +232,7 @@ function createSharedLoad({
 }
 
 /** The one window every draft in the batch falls inside, or `null` when it is too wide to
- *  materialise (the ceiling `buildCapacityAdvisory` already refuses a single window at). */
+ * materialise (the ceiling `buildCapacityAdvisory` already refuses a single window at). */
 function resolveSharedLoadWindow(drafts: readonly Draft<Allocation>[]): { start: ISODate; end: ISODate } | null {
   const first = drafts[0];
   if (!first) return null;

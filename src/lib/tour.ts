@@ -1,30 +1,30 @@
-// The "Show me around" orientation tour (driver.js). A LOOSE tour by design: five spotlight
+// The "Show me around" orientation tour (driver.js). A loose tour by design: five spotlight
 // stops that say where things live (schedule grid, toolbar, People, Clients & projects,
-// Settings) — it never navigates, never opens forms, and never waits on user actions. The
+// Settings): it never navigates, never opens forms, and never waits on user actions. The
 // task-by-task onboarding lives in the GettingStarted checklist instead (state-driven, so it
 // can't get out of step with reality the way a scripted do-this-now tour would).
 //
 // Anchors: the scheduler's existing `data-testid` hooks plus the sidebar's `data-nav="<route>"`
-// attribute (carried by BOTH the open-menu links and the collapsed icon rail, so the selector
+// attribute (carried by both the open-menu links and the collapsed icon rail, so the selector
 // matches whichever variant is rendered). driver.js renders a step whose element is missing as a
 // centred popover rather than throwing, so a hidden anchor degrades gracefully.
 //
-// Copy resolves through Paraglide at CALL time (startTour builds the steps on each invocation),
-// so the active account's locale applies — same deferred-resolution rule as AppShell's LINKS.
+// Copy resolves through Paraglide at call time (startTour builds the steps on each invocation),
+// so the active account's locale applies, same deferred-resolution rule as AppShell's LINKS.
 // Popover colours are themed to the app tokens in `index.css` (see the `.driver-popover` block).
 
-// driver.css is imported in main.tsx (BEFORE index.css — the override order matters; see the
+// driver.css is imported in main.tsx (before index.css, the override order matters; see the
 // comment there), not here.
 //
-// driver.js itself (~25kB) is imported LAZILY below (inside startTour), not at module top level:
+// driver.js itself (~25kB) is imported lazily below (inside startTour), not at module top level:
 // this file is reachable from the eagerly-loaded GettingStarted card, so a static import would land
 // the whole library in the main chunk for a click-only feature nearly nobody triggers per session.
 import { m } from "@/i18n";
 import { TOUR_ANCHORS } from "./tourAnchors";
 
 /** Launch the orientation tour. Builds steps fresh (locale-correct copy) and drives from stop 1.
- *  Async so the driver.js import can be dynamic (see the file header) — callers must `void` or
- *  `await` it. */
+ * Async so the driver.js import can be dynamic (see the file header). Callers must `void` or
+ * `await` it. */
 export async function startTour(): Promise<void> {
   const { driver } = await import("driver.js");
   await new Promise<void>((resolve, reject) => {
@@ -57,7 +57,7 @@ export async function startTour(): Promise<void> {
             element: TOUR_ANCHORS[1],
             popover: { title: m.tour_toolbar_title(), description: m.tour_toolbar_desc() },
           },
-          // The three nav stops pin the popover to the RIGHT of the sidebar — auto placement drops
+          // The three nav stops pin the popover to the right of the sidebar, auto placement drops
           // it below the small link, on top of the neighbouring nav rows it's pointing at.
           {
             element: TOUR_ANCHORS[2],

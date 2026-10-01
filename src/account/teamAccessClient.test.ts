@@ -271,7 +271,7 @@ describe("teamAccessClient duplicate validation", () => {
 });
 
 describe("rejectionMessage", () => {
-  // Only a `rejected` outcome carries a sentence the SERVER wrote about the user's request. The
+  // Only a `rejected` outcome carries a sentence the server wrote about the user's request. The
   // other non-ok kinds describe the client's own uncertainty, so the caller's operation-specific
   // fallback stays the better thing to show.
   it("prefers the server's sentence on a rejection", () => {

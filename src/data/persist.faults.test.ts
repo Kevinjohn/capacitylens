@@ -16,7 +16,7 @@ import { a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account AND makes it active, so the add* calls below
+  // Seeds a single account and makes it active, so the add* calls below
   // (which now require an active account) work.
   resetStoreWithAccount();
 });

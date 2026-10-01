@@ -15,7 +15,7 @@ describe("ClientList empty state", () => {
   it("shows the enriched empty state with a CTA distinct from the top Add button", () => {
     render(<ClientList />);
     expect(screen.getByText("No clients yet.")).toBeInTheDocument();
-    // The empty-state CTA and the page's top button have DISTINCT accessible names, so
+    // The empty-state CTA and the page's top button have distinct accessible names, so
     // getByRole stays unambiguous for each (no duplicate-name collision).
     expect(screen.getByRole("button", { name: "Add client" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add your first client" })).toBeInTheDocument();
@@ -52,9 +52,9 @@ it("gives repeated client edit controls distinct contextual names", () => {
   expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
 });
 
-// P2.5b: the per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
-// the inline archive section). DEMO mode here → the store's archiveEntity: the client gets
-// `archivedAt` set (its projects/activities are RETAINED — archiving is reversible, unlike the old
+// The per-row "Delete" affordance now archives (soft-delete is reached later from
+// the inline archive section). Demo mode here → the store's archiveEntity: the client gets
+// `archivedAt` set (its projects/activities are retained, archiving is reversible, unlike the old
 // cascade-delete) and vanishes from this active-only list. Server is the app default now, so we opt
 // into demo (VITE_CAPACITYLENS_DEMO=1) for the local-mutation path; the env is read per dispatch.
 describe("ClientList archive flow", () => {
@@ -83,7 +83,7 @@ describe("ClientList archive flow", () => {
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(requireValue(useStore.getState().data.clients[0], "active client")).not.toHaveProperty("archivedAt");
 
-    // Confirm archives it (children retained — archiving is reversible, not a cascade-delete).
+    // Confirm archives it (children retained, archiving is reversible, not a cascade-delete).
     await user.click(screen.getByRole("button", { name: "Archive Ferris" }));
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
@@ -182,13 +182,13 @@ describe("ClientList archive flow", () => {
   });
 });
 
-// The built-in Internal client is a behind-the-scenes data anchor, NOT a user-managed client, so it
-// is HIDDEN from this management list (ClientList filters out isBuiltinClient). It must therefore
-// carry NO Archive affordance here — archiving it is forbidden, and the list never even shows its row.
+// The built-in Internal client is a behind-the-scenes data anchor, not a user-managed client, so it
+// is hidden from this management list (ClientList filters out isBuiltinClient). It must therefore
+// carry no Archive affordance here, archiving it is forbidden, and the list never even shows its row.
 describe("ClientList withholds the Archive affordance for the built-in Internal client", () => {
   it("renders no row and no Archive control for the Internal client (only normal clients show)", () => {
     // Mint the one builtin Internal via addAccount (the privileged path), then add a normal client so
-    // the list isn't empty — matching internalClient.test.ts / the lifecycle suite's seeding.
+    // the list isn't empty, matching internalClient.test.ts / the lifecycle suite's seeding.
     useStore.getState().replaceAll(emptyAppData());
     const a = useStore.getState().addAccount({ name: "Ferris Co", color: "#6366f1" });
     if (!a) throw new Error("Expected account");
@@ -198,7 +198,7 @@ describe("ClientList withholds the Archive affordance for the built-in Internal 
 
     render(<ClientList />);
 
-    // The normal client shows and is archivable; the Internal client shows NO row and NO Archive control.
+    // The normal client shows and is archivable; the Internal client shows no row and no Archive control.
     expect(screen.getByText("Globex")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive Globex" })).toBeInTheDocument();
     expect(screen.queryByText(internal.name)).not.toBeInTheDocument(); // 'Internal' name is filtered out

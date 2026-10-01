@@ -4,16 +4,16 @@ import { API_BASE } from "./apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "./requestTimeout";
 import { parseAccountSlice } from "./validateAccountSlice";
 
-// The ONE client-side reader of the purge-gated admin endpoint
-// `GET /api/state?accountId=…&includeInactive=1` (the P2.6 complete per-tenant read: archived +
-// soft-deleted rows retained). Shared by DeleteCompanyDialog ("Export first" — the last backup
+// The one client-side reader of the purge-gated admin endpoint
+// `GET /api/state?accountId=…&includeInactive=1` (the complete per-tenant read: archived +
+// soft-deleted rows retained). Shared by DeleteCompanyDialog ("Export first", the last backup
 // before a no-undo cascade delete) and ArchivedSection (the Settings lifecycle admin view) so the
-// two call sites can't drift on how much they trust the response — they briefly disagreed, and the
+// two call sites can't drift on how much they trust the response. They briefly disagreed, and the
 // unvalidated copy rendered a proxy error page as an empty archived list.
 
 /**
  * A non-OK response from the inactive-slice read. Carries the raw {@link status} so callers can
- * branch on it (ArchivedSection self-hides the whole section on a 403 — an expected non-admin
+ * branch on it (ArchivedSection self-hides the whole section on a 403, an expected non-admin
  * outcome, not an error to toast) and the server's friendly `{ error }` sentence when the body
  * offered one, so callers can prefer it over their own status-stamped fallback.
  */
@@ -43,20 +43,20 @@ export class InactiveSliceShapeError extends Error {
 }
 
 /**
- * Fetch the COMPLETE per-tenant slice (archived + soft-deleted retained) from the purge-gated
+ * Fetch the complete per-tenant slice (archived + soft-deleted retained) from the purge-gated
  * admin read and return it validated + migrated.
  *
- * The body is untrusted external input — never a bare `as AppData` cast. And it must be
- * structure-checked BEFORE migrate(): this endpoint returns the bare table map (no schemaVersion
+ * The body is untrusted external input, never a bare `as AppData` cast. And it must be
+ * structure-checked before migrate(): this endpoint returns the bare table map (no schemaVersion
  * wrapper), so migrate() treats it as a legacy blob, coerces any absent table to [] and
- * SYNTHESIZES the built-in Internal client for every accounts row — meaning a partial body
+ * synthesizes the built-in Internal client for every accounts row, meaning a partial body
  * (broken proxy, wrong-version server) would migrate into a nearly-empty AppData that reads as an
  * empty archived list or defeats the export's zero-record guard and gets saved as the "complete
  * last backup". Require every known table to be present as an array (KNOWN_KEYS is the
- * drift-proofed list — a new entity extends it automatically); anything less is not a complete
- * slice, so THROW ({@link InactiveSliceShapeError}) for the caller's error surface. A non-OK
+ * drift-proofed list, a new entity extends it automatically); anything less is not a complete
+ * slice, so throw ({@link InactiveSliceShapeError}) for the caller's error surface. A non-OK
  * response throws {@link InactiveSliceHttpError}. A network/parse failure rejects with the raw
- * error — the callers already route unknown failures to their surfaces.
+ * error. The callers already route unknown failures to their surfaces.
  *
  * Once structurally complete, migrate() normalizes and repairs field-level defects exactly like
  * ServerSyncAdapter.loadAll. This boundary proves table completeness, not archival semantics: a
@@ -67,7 +67,7 @@ export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): P
   const res = await apiFetch(
     `${API_BASE}/api/state?accountId=${encodeURIComponent(accountId)}&includeInactive=1`,
     { credentials: "include", ...(signal ? { signal } : {}) },
-    // The complete (archived + soft-deleted) slice is the heaviest read the app makes — the BULK
+    // The complete (archived + soft-deleted) slice is the heaviest read the app makes, the bulk
     // tier, not the interactive 15s, so a large tenant's export/backup isn't aborted mid-flight.
     API_BULK_TIMEOUT_MS,
   );

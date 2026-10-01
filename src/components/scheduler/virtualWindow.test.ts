@@ -8,7 +8,7 @@ interface ComputeWindowTestInput {
   overscanPx?: number | undefined;
 }
 
-// The one-shot composition SchedulerGrid does NOT do (it memoises the layout across scroll
+// The one-shot composition SchedulerGrid does not do (it memoises the layout across scroll
 // frames, so it holds the two calls apart). Production has no use for the pair, so it lives
 // here, where every case below wants a window straight from a heights array.
 const computeWindow = ({ heights, scrollTop, viewportHeight, overscanPx = 300 }: ComputeWindowTestInput) =>
@@ -55,7 +55,7 @@ describe("computeWindow", () => {
     expect(w.last).toBe(35);
     expect(layout.tops[w.first]).toBe(700); // 14 * 50
     // The rendered slice plus the extent reserved either side always sums back to the full
-    // scroll height (stable scrollbar) — the property the grid's spacer divs rely on, sized
+    // scroll height (stable scrollbar), the property the grid's spacer divs rely on, sized
     // from this same layout.
     const renderedHeight = heights.slice(w.first, w.last + 1).reduce((a, b) => a + b, 0);
     const above = layout.tops[w.first];
@@ -127,13 +127,13 @@ function registerWindowBoundaryTests() {
 }
 
 function registerFitAndOverflowGuardTests() {
-  // The "everything fits in view + overscan" fast path is independent of scrollTop — it answers
+  // The "everything fits in view + overscan" fast path is independent of scrollTop, it answers
   // "does the WHOLE list fit", not "what's visible from here". A huge scrollTop, fed through the
-  // (unmutated) windowing math below it, would legitimately trim rows off the front — proving the
+  // (unmutated) windowing math below it, would legitimately trim rows off the front, proving the
   // fast path is actually short-circuiting the windowing logic, not just producing the same answer.
   it("the fits-in-view fast path renders everything regardless of scrollTop (not a coincidence of scrollTop=0)", () => {
     const heights = Array.from({ length: 7 }, () => 20); // total 140
-    // viewportHeight + overscanPx = 150 >= 140 → fits, fast path — even at a huge scrollTop.
+    // viewportHeight + overscanPx = 150 >= 140 → fits, fast path, even at a huge scrollTop.
     expect(computeWindow({ heights, scrollTop: 200, viewportHeight: 50, overscanPx: 100 })).toEqual({
       first: 0,
       last: 6,
@@ -141,7 +141,7 @@ function registerFitAndOverflowGuardTests() {
   });
 
   // Boundary of the fast-path guard: total === viewportHeight + overscanPx exactly must still take
-  // the "fits" branch (<=, not <). Below, a nonzero scrollTop proves it — if the guard were a
+  // the "fits" branch (<=, not <). Below, a nonzero scrollTop proves it, if the guard were a
   // strict '<', it would fall through to windowing and (correctly, using the real overscanPx) trim
   // the first row.
   it("the fits-in-view guard includes the exact-fit boundary (<=), not just strictly-under", () => {
@@ -150,7 +150,7 @@ function registerFitAndOverflowGuardTests() {
     expect(computeWindow({ heights, scrollTop: 30, viewportHeight: 80, overscanPx: 0 })).toEqual({ first: 0, last: 3 });
   });
 
-  // The `first` scan's own bound (`first < n - 1`) must stop it at the LAST valid index — never
+  // The `first` scan's own bound (`first < n - 1`) must stop it at the last valid index, never
   // walk off the end into out-of-range (undefined) heights/tops. A very large `top` (scrollTop far
   // past the content) makes the height-check side of the loop condition stay true all the way to
   // the last row, so only the explicit bound decides where it stops.

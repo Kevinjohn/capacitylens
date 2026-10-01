@@ -140,7 +140,7 @@ function registerDragResizeCancellationScenarios(): void {
 
     const body = screen.getByTestId("body");
     fireEvent.pointerDown(body, { clientX: 100, button: 0, pointerId: 1 });
-    // Cancel BEFORE crossing the 4px threshold (e.g. the browser took the pointer to scroll).
+    // Cancel before crossing the 4px threshold (e.g. the browser took the pointer to scroll).
     document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 101, pointerId: 1, bubbles: true }));
 
     expect(onCancel).toHaveBeenCalledTimes(1); // armed gesture aborted → consumer is notified

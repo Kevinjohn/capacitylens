@@ -10,12 +10,12 @@ import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities"
 import type { AuditSink } from "./audit";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// P1.8 — constrained org-creation (POST /api/orgs). The endpoint allows iff ANY of: zero accounts
-// (first-run bootstrap), OFF mode (trusted-local), the caller is an ACTIVE owner/admin of SOME
+// Constrained org-creation (POST /api/orgs). The endpoint allows iff any of: zero accounts
+// (first-run bootstrap), off mode (trusted-local), the caller is an active owner/admin of some
 // existing account, or a matching x-capacitylens-bootstrap-token header (env, off by default);
 // otherwise 403. On success it creates the account + its built-in Internal client + an Owner
-// membership for the caller, ATOMICALLY (tx). This suite drives sign-up -> POST /api/orgs and asserts
-// the resulting status AND the three created artifacts (account row, Internal client, Owner role).
+// membership for the caller, atomically (tx). This suite drives sign-up -> POST /api/orgs and asserts
+// the resulting status and the three created artifacts (account row, Internal client, Owner role).
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
@@ -168,7 +168,7 @@ function registerAuthOnBootstrapTests(): void {
   });
 
   it("zero-account bootstrap: a signed-up user creates the first org; a now-Owner can create a second", async () => {
-    // multiAccount: true — the SECOND create below is exactly what the single-company cap denies by
+    // multiAccount: true, the second create below is exactly what the single-company cap denies by
     // default once any account exists (see the "default cap" describe block); this test is about the
     // `allowed` authz matrix (owner-of-existing may provision more), so it opts out of the cap.
     const { app, db } = await appWithAuth({ multiAccount: true });
@@ -180,7 +180,7 @@ function registerAuthOnBootstrapTests(): void {
     const id1 = readStringField(first, "id");
     assertUsableOrg(db, id1, userId); // account + Internal + Owner, atomically
 
-    // Now an Owner of an existing account, the SAME user creates a second org (owner-of-existing path),
+    // Now an Owner of an existing account, the same user creates a second org (owner-of-existing path),
     // even though accounts no longer number zero.
     const second = await createOrg(app, { name: "Second Studio" }, { cookie });
     expect(second.statusCode, second.body).toBe(201);
@@ -218,7 +218,7 @@ function registerAuthOnMembershipTests(): void {
   it("existing-account stranger DENIED: no owner/admin membership -> 403 and the account is NOT created", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db); // an account already exists
-    const { cookie } = await signUp(app, "stranger@capacitylens.dev"); // holds NO membership
+    const { cookie } = await signUp(app, "stranger@capacitylens.dev"); // holds no membership
 
     const res = await createOrg(app, { name: "Sneaky Studio" }, { cookie });
     expect(res.statusCode).toBe(403);
@@ -226,7 +226,7 @@ function registerAuthOnMembershipTests(): void {
   });
 
   it("owner of an existing account is ALLOWED to create another (and becomes its Owner)", async () => {
-    // multiAccount: true — see the zero-account-bootstrap test's note; the cap has its own describe
+    // multiAccount: true, see the zero-account-bootstrap test's note; the cap has its own describe
     // block below (this one is purely about the `allowed` authz tier).
     const { app, db } = await appWithAuth({ multiAccount: true });
     seedOne(db);
@@ -239,7 +239,7 @@ function registerAuthOnMembershipTests(): void {
   });
 
   it("admin of an existing account is ALLOWED (admin tier = manageMembers)", async () => {
-    // multiAccount: true — see the zero-account-bootstrap test's note.
+    // multiAccount: true, see the zero-account-bootstrap test's note.
     const { app, db } = await appWithAuth({ multiAccount: true });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "admin@capacitylens.dev");
@@ -293,7 +293,7 @@ function registerAuthOnRestrictionTests(): void {
     const { app, db } = await appWithAuth();
     seedOne(db);
     const { cookie, userId } = await signUp(app, "inactive@capacitylens.dev");
-    // A non-active status is NOT a member for access purposes (the account adapter is active-only).
+    // A non-active status is not a member for access purposes (the account adapter is active-only).
     upsertMember(db, { accountId: "a1", userId, role: "owner", status: "invited" as never, createdAt: TS });
 
     const res = await createOrg(app, { name: "Org D" }, { cookie });
@@ -336,8 +336,8 @@ describe("POST /api/orgs (P1.8) — bootstrap token", () => {
   const TOKEN = "a-very-long-random-bootstrap-token-value-0123456789";
 
   it("a member-less stranger with the MATCHING token may create an org once accounts exist", async () => {
-    // multiAccount: true — the token authorises WHO may create an org; it does NOT bypass the
-    // single-company cap (see the "default cap" describe block for the token-does-NOT-bypass case).
+    // multiAccount: true, the token authorises who may create an org; it does not bypass the
+    // single-company cap (see the "default cap" describe block for the token-does-not-bypass case).
     const { app, db } = await appWithAuth({ bootstrapToken: TOKEN, multiAccount: true });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "operator@capacitylens.dev");
@@ -373,12 +373,12 @@ describe("POST /api/orgs (P1.8) — bootstrap token", () => {
 describe("POST /api/orgs (P1.8) — OFF mode (trusted-local)", () => {
   it("org creation is allowed; account + Internal + Owner(demo) membership are created", async () => {
     const db = openDb(":memory:");
-    // multiAccount: true — the single-company cap applies in EVERY auth mode INCLUDING off (it's a
+    // multiAccount: true, the single-company cap applies in every auth mode including off (it's a
     // deployment-shape policy, not an authz rule; see the "default cap" describe block for the
-    // OFF-mode-does-NOT-bypass case). This test is about OFF's trusted-local authz no-op, so it
+    // off-mode-does-not-bypass case). This test is about off's trusted-local authz no-op, so it
     // opts out of the cap to keep exercising the pre-existing "an account already exists" scenario.
     const app = createApp(db, { multiAccount: true }); // authMode defaults to 'off'
-    seedOne(db); // even with an account already present, OFF mode allows (trusted-local)
+    seedOne(db); // even with an account already present, off mode allows (trusted-local)
 
     const res = await createOrg(app, { name: "Local Co" });
     expect(res.statusCode, res.body).toBe(201);
@@ -388,7 +388,7 @@ describe("POST /api/orgs (P1.8) — OFF mode (trusted-local)", () => {
 
 describe("POST /api/orgs (P1.8) — atomicity", () => {
   it("a failed insert rolls the WHOLE create back (no orphan account, client, or membership)", async () => {
-    // multiAccount: true — the "Dup Org" re-POST below is, from the cap's point of view, ANOTHER
+    // multiAccount: true, the "Dup Org" re-POST below is, from the cap's point of view, another
     // create attempt (accountCount is 1 after the first succeeds); without this the cap would 403
     // it before the intended PRIMARY KEY conflict is ever reached, testing the wrong thing.
     const { app, db } = await appWithAuth({ multiAccount: true });
@@ -400,8 +400,8 @@ describe("POST /api/orgs (P1.8) — atomicity", () => {
     const id = readStringField(ok, "id");
     const before = readState(db);
 
-    // Re-POST with the SAME explicit id: inserting the account row hits a PRIMARY KEY conflict, so the
-    // tx throws and rolls back — no second Internal client, no membership churn, account list unchanged.
+    // Re-POST with the same explicit id: inserting the account row hits a PRIMARY KEY conflict, so the
+    // tx throws and rolls back. No second Internal client, no membership churn, account list unchanged.
     const dup = await createOrg(app, { id, name: "Dup Org" }, { cookie });
     expect(dup.statusCode).toBe(400); // constraint failure -> caller-fault 400
     const after = readState(db);
@@ -411,10 +411,10 @@ describe("POST /api/orgs (P1.8) — atomicity", () => {
   });
 });
 
-// Single-company cap (AppOptions.multiAccount, default false — see app.ts's GATE 0). Every test
+// Single-company cap (AppOptions.multiAccount, default false, see app.ts's gate 0). Every test
 // above that provisions a 2nd/3rd org threads `multiAccount: true` to keep locking the `allowed`
-// authz matrix undisturbed; THIS block pins the cap itself: it denies a 2nd org create (via every
-// `allowed` path — owner, bootstrap token, OFF mode) with the actionable policy message, NOT the
+// authz matrix undisturbed; this block pins the cap itself: it denies a 2nd org create (via every
+// `allowed` path, owner, bootstrap token, off mode) with the actionable policy message, not the
 // generic 'Forbidden.', and never touches the first-run (zero-account) bootstrap.
 describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: false)", () => {
   const CAP_MESSAGE = "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
@@ -465,11 +465,11 @@ describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
   });
 });
 
-// GET /api/auth/me `canCreateAccount` must MIRROR the POST /api/orgs gate (userMayCreateAccount +
-// the cap) — the bug this pins: the flag used to come from the instance cap alone, so an auth-on
+// GET /api/auth/me `canCreateAccount` must mirror the POST /api/orgs gate (userMayCreateAccount +
+// the cap), the bug this pins: the flag used to come from the instance cap alone, so an auth-on
 // editor / membership-less user was shown a "New company" affordance whose POST always 403'd. All
-// auth-on cases run with multiAccount: true so the cap never masks the WHO tier under test; the
-// bootstrap-token arm is deliberately absent (curl-only — it never lights the flag; see
+// auth-on cases run with multiAccount: true so the cap never masks the who tier under test; the
+// bootstrap-token arm is deliberately absent (curl-only, it never lights the flag; see
 // userMayCreateAccount's doc comment).
 const getAuthState = (app: FastifyInstance, cookie?: string) =>
   call(app, { method: "GET", url: "/api/auth/me", ...(cookie ? { headers: { cookie } } : {}) });

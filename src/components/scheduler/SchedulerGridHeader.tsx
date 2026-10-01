@@ -53,7 +53,7 @@ export function SchedulerGridHeader({
                   span: visibleWeeksLabel,
                 })}
               >
-                {/* The headline % follows the VISIBLE range, so the label tracks the selected zoom
+                {/* The headline % follows the visible range, so the label tracks the selected zoom
                       span (1/2/4/6/8 weeks) rather than naming a fixed "next 2w". */}
                 {m.scheduler_total_util_label({ span: visibleSpanCompact })}
               </span>

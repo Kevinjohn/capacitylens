@@ -70,10 +70,10 @@ function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedul
 
 function useBarAriaLabel(input: AriaLabelInput) {
   const { bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel } = input;
-  // The dates in this name are formatted INSIDE the memo, so the style has to be a dependency:
+  // The dates in this name are formatted inside the memo, so the style has to be a dependency:
   // without it the name keeps its old format until something else invalidates the memo. Today that
-  // happens by accident — changing the account rebuilds `state.data`, then the view-model, then
-  // `bar` — but the accident is not the guarantee, and a bar name is what a screen-reader user
+  // happens by accident, changing the account rebuilds `state.data`, then the view-model, then
+  // `bar`: but the accident is not the guarantee, and a bar name is what a screen-reader user
   // hears while dragging.
   const dateStyle = useDateStyle();
   // The name cannot change mid-gesture, so memoise it instead of rebuilding it on every pointermove

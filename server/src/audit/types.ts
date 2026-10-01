@@ -1,26 +1,26 @@
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { ScopedEntityKey } from "@capacitylens/shared/types/entities";
 /**
- * One audit line. ALL fields are operational metadata — never tenant data.
+ * One audit line. All fields are operational metadata, never tenant data.
  *
- * `changedFields` is field NAMES ONLY (e.g. `['accountId','note','startDate']`), NEVER their
- * values. NEVER construct one of these by spreading a row/body; build `changedFields` with
- * `Object.keys(...)` so a value can't leak into the audit trail (the #1 privacy invariant).
+ * `changedFields` is field names only (e.g. `['accountId','note','startDate']`), never their
+ * values. Never construct one of these by spreading a row/body; build `changedFields` with
+ * `Object.keys(...)` so a value can't leak into the audit trail (the primary privacy invariant).
  */
 export interface AuditRecord {
   /** ISO-8601 instant the mutation committed (server runtime clock). */
   ts: string;
-  /** The acting principal's id (DEMO_USER 'demo' in OFF mode; a real session id auth-on). */
+  /** The acting principal's id (DEMO_USER 'demo' in off mode; a real session id auth-on). */
   userId: string;
   /** The tenant the mutation targeted. */
   accountId: string;
-  /** The kind of mutation. The lifecycle quartet (P2.5a) is distinct from the generic CRUD verbs:
-   *  `archive`/`unarchive` flip the `archivedAt` tombstone, `softDelete` sets `deletedAt` (and, for a
-   *  resource, scrubs the PII `name`), and `purge` is the HARD cascade row-delete of a ≥30-day-old
-   *  tombstone. They stay distinct from `delete` (the generic by-id row delete) so the audit trail
-   *  tells a reversible soft-delete apart from an irreversible purge. changedFields stay field NAMES
-   *  only (e.g. `['archivedAt']`, `['deletedAt','name','allocations.note']`) — never values (the
-   *  #1 no-PII invariant). */
+  /** The kind of mutation. The lifecycle quartet is distinct from the generic CRUD verbs:
+   * `archive`/`unarchive` flip the `archivedAt` tombstone, `softDelete` sets `deletedAt` (and, for a
+   * resource, scrubs the PII `name`), and `purge` is the hard cascade row-delete of a ≥30-day-old
+   * tombstone. They stay distinct from `delete` (the generic by-id row delete) so the audit trail
+   * tells a reversible soft-delete apart from an irreversible purge. changedFields stay field names
+   * only (e.g. `['archivedAt']`, `['deletedAt','name','allocations.note']`), never values (the
+   * no-PII invariant). */
   action:
     | "create"
     | "update"
@@ -40,9 +40,9 @@ export interface AuditRecord {
     | "memberSignInTrackingChange"
     | "memberRemove"
     | "ownershipTransfer"
-    /** A step of the ownership transfer consent ceremony that did NOT move ownership: a nomination,
-     *  the nominee's consent or its withdrawal, a decline, a cancellation. `ownershipTransfer` stays
-     *  reserved for completion, the moment the roles actually change hands. */
+    /** A step of the ownership transfer consent ceremony that did not move ownership: a nomination,
+     * the nominee's consent or its withdrawal, a decline, a cancellation. `ownershipTransfer` stays
+     * reserved for completion, the moment the roles actually change hands. */
     | "ownershipTransferRequest"
     | "inviteCreate"
     | "inviteAccept"
@@ -56,7 +56,7 @@ export interface AuditRecord {
   entity: string;
   /** The affected row id (the import record uses the accountId as its id). */
   id: string;
-  /** Field NAMES that changed — Object.keys of the wire body/row. NEVER values. */
+  /** Field names that changed, Object.keys of the wire body/row. Never values. */
   changedFields: string[];
   /** Counts only, never values: rows removed from each scoped table by an irreversible purge. */
   cascadeCounts?: Partial<Record<ScopedEntityKey, number>>;
@@ -72,10 +72,10 @@ export interface AuditDeliveryMetadata {
 export type AuditEntry = (AuditRecord | AccountAuditEvent) & AuditDeliveryMetadata;
 
 /**
- * The audit write port. `append` is SYNCHRONOUS and MUST NOT throw: a broken audit sink can never
+ * The audit write port. `append` is synchronous and must not throw: a broken audit sink can never
  * fail a request (the mutation already committed). It returns `true` on a successful write, `false`
  * on a write failure; on the first failure it sets `degraded` (a latch deep-health reads) and logs
- * ONE redacted, message-only line (never the record — that could carry the very ids we keep, and
+ * one redacted, message-only line (never the record, that could carry the very ids we keep, and
  * keeps a broken sink from spamming the log).
  */
 export interface AuditSink {
@@ -83,15 +83,15 @@ export interface AuditSink {
   append(record: AuditEntry): boolean;
   /** Write a committed batch with one durability flush when supported. */
   appendMany?(records: readonly AuditEntry[]): boolean;
-  /** Latched true once any append failed — the soft signal deep-health surfaces. */
+  /** Latched true once any append failed, the soft signal deep-health surfaces. */
   readonly degraded: boolean;
 }
 
 /** fileAuditSink's rotation knob. */
 export interface FileAuditSinkOptions {
   /** Rotate before the next complete line would exceed this size, in bytes. A single larger line
-   *  is rejected and degrades the sink. Default 64 MiB (see DEFAULT_MAX_BYTES) — an unbounded
-   *  JSONL append-forever log eventually fills the disk, which then fails SQLite writes too. */
+   * is rejected and degrades the sink. Default 64 MiB (see DEFAULT_MAX_BYTES), an unbounded
+   * JSONL append-forever log eventually fills the disk, which then fails SQLite writes too. */
   maxBytes?: number;
   /** Test seam for the one-time existing-file permission pin. */
   pinPermissions?: (file: string, mode: number) => void;

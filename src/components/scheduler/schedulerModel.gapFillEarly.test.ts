@@ -71,9 +71,9 @@ function buildBlockTimeOffRows() {
 function registerMovedSchedulerTests20101() {
   it("search is TRIMMED before matching (leading/trailing whitespace is not part of the term)", () => {
     const d = dataset();
-    // A resource whose displayName/name/role all collapse to the SAME single word, so there's no
+    // A resource whose displayName/name/role all collapse to the same single word, so there's no
     // duplicate occurrence anywhere in the searched string to coincidentally rescue an un-trimmed
-    // search — the only way 'zed ' (trailing space) matches is if it's trimmed to 'zed' first.
+    // search: the only way 'zed ' (trailing space) matches is if it's trimmed to 'zed' first.
     d.resources.push(
       makeResource({
         id: "r-zed",
@@ -237,7 +237,7 @@ function registerMovedSchedulerTests20106() {
 function registerMovedSchedulerTests20107() {
   it("positions time-off blocks with real fields (id/x/width/label/note), and marks only its OWN days unavailable", () => {
     const d = dataset();
-    // TWO time-off rows for the SAME resource, so the resourceId -> TimeOff[] map must accumulate
+    // Two time-off rows for the same resource, so the resourceId -> TimeOff[] map must accumulate
     // (push into an existing bucket) rather than each write clobbering the last one.
     d.timeOff.push(
       {
@@ -279,7 +279,7 @@ function registerMovedSchedulerTests20107() {
       model.flatMap((g) => g.rows).find((r) => r.resource.id === "r1"),
       "r1 scheduler row",
     );
-    expect(r1.timeOff).toHaveLength(2); // both accumulate — neither write drops the other
+    expect(r1.timeOff).toHaveLength(2); // both accumulate, neither write drops the other
     const t1 = requireValue(
       r1.timeOff.find((t) => t.id === "to1"),
       "to1 time-off block",

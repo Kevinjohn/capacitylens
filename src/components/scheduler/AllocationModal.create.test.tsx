@@ -20,7 +20,7 @@ const capacityAdvisoryMock = vi.hoisted(() =>
 const lastAdvisoryProposal = () => capacityAdvisoryMock.mock.calls.at(-1)?.[0]?.proposal;
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory VERDICTS the modal renders.
+// care only about the advisory verdicts the modal renders.
 vi.mock("@/lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
@@ -235,7 +235,7 @@ describe("AllocationModal create", () => {
     await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
-    // Clearing a date must NOT produce a NaN-geometry allocation.
+    // Clearing a date must not produce a NaN-geometry allocation.
     fireEvent.change(screen.getByLabelText("Start Date"), {
       target: { value: "" },
     });

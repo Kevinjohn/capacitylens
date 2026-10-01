@@ -45,8 +45,6 @@ function getRequiredElement<T extends HTMLElement>(root: ParentNode, selector: s
   return element;
 }
 
-// ─── Button ────────────────────────────────────────────────────────────────
-
 describe("Button", () => {
   registerButtonAppearanceTests();
   registerButtonFeedbackTests();
@@ -268,8 +266,6 @@ describe("Switch", () => {
   });
 });
 
-// ─── Modal ─────────────────────────────────────────────────────────────────
-
 describe("Modal", () => {
   registerModalPresentationTests();
   registerModalDismissalTests();
@@ -451,7 +447,7 @@ function registerModalControlNoOpTests() {
       </Modal>,
     );
     // A button-driven toggle fires no input/change event, but the guard must still
-    // catch it — otherwise editing working days then pressing Escape loses the change.
+    // catch it, otherwise editing working days then pressing Escape loses the change.
     fireEvent.click(screen.getByRole("button", { name: "Mon" }));
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).not.toHaveBeenCalled();
@@ -593,7 +589,7 @@ function registerModalFooterTests() {
     expect(document.activeElement).toBe(first); // focuses first control on open
 
     second.focus();
-    // Parent re-renders with a BRAND-NEW onClose (as a store mutation would cause).
+    // Parent re-renders with a brand-new onClose (as a store mutation would cause).
     rerender(
       <Modal title="Churn" onClose={() => {}}>
         {body}
@@ -606,8 +602,6 @@ function registerModalFooterTests() {
     trigger.remove();
   });
 }
-
-// ─── ConfirmDialog ─────────────────────────────────────────────────────────
 
 describe("ConfirmDialog", () => {
   it("renders title and message", () => {
@@ -659,8 +653,6 @@ describe("ConfirmDialog", () => {
   });
 });
 
-// ─── ListPage ──────────────────────────────────────────────────────────────
-
 describe("ListPage", () => {
   it("renders the page title", () => {
     render(<ListPage title="My Page" />);
@@ -702,8 +694,6 @@ describe("ListPage", () => {
   });
 });
 
-// ─── EmptyState ────────────────────────────────────────────────────────────
-
 describe("EmptyState", () => {
   it("renders children text", () => {
     render(<EmptyState>No items yet.</EmptyState>);
@@ -718,8 +708,6 @@ describe("EmptyState", () => {
     expect(ref.current?.tagName).toBe("P");
   });
 });
-
-// ─── FieldError ────────────────────────────────────────────────────────────
 
 describe("FieldError", () => {
   it("renders alert with the error message when children provided", () => {
@@ -790,8 +778,6 @@ describe("compact product fields", () => {
   });
 });
 
-// ─── TextField ─────────────────────────────────────────────────────────────
-
 describe("TextField", () => {
   it("renders with label and value", () => {
     render(<TextField label="Full name" value="Alice" onChange={vi.fn()} />);
@@ -853,8 +839,6 @@ describe("TextField", () => {
   });
 });
 
-// ─── NumberField ───────────────────────────────────────────────────────────
-
 describe("NumberField", () => {
   it("renders with label and numeric value", () => {
     render(<NumberField label="Hours" value={8} onChange={vi.fn()} />);
@@ -876,8 +860,6 @@ describe("NumberField", () => {
     );
   });
 });
-
-// ─── DateField ─────────────────────────────────────────────────────────────
 
 describe("DateField", () => {
   it("renders with label and date value", () => {
@@ -909,8 +891,6 @@ describe("DateField", () => {
     );
   });
 });
-
-// ─── SelectField ───────────────────────────────────────────────────────────
 
 const selectFieldOptions = [
   { value: "a", label: "Option A" },
@@ -1114,8 +1094,6 @@ function registerSelectFieldFallbackTests(options: typeof selectFieldOptions) {
   });
 }
 
-// ─── ColorField ────────────────────────────────────────────────────────────
-
 const colorFieldBlue = "#2d75da";
 const colorFieldRed = "#e02727";
 
@@ -1272,8 +1250,6 @@ function registerColorFieldModalTests(BLUE: string, RED: string) {
   });
 }
 
-// ─── WorkingDayPicker ──────────────────────────────────────────────────────
-
 type RenderWorkingDayPickerOptions = {
   onChange?: React.ComponentProps<typeof WorkingDayPicker>["onChange"];
   invalid?: boolean;
@@ -1362,8 +1338,6 @@ function registerWorkingDayPickerStateTests() {
     expect(fieldset).toHaveAttribute("aria-describedby", "err-1");
   });
 }
-
-// ─── ColorSwatch ───────────────────────────────────────────────────────────
 
 describe("ColorSwatch", () => {
   it("renders a span with the given background color", () => {

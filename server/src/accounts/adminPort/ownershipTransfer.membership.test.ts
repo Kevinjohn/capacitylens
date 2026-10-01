@@ -20,7 +20,7 @@ const target = { ...owner, principalId: "pepper-potts", sessionId: "session-targ
 let db: Db | null = null;
 
 /** The seeded handle. A test that reaches for the database before `seedWorkspace` is a broken test,
- *  so this throws rather than letting an assertion run against nothing. */
+ * so this throws rather than letting an assertion run against nothing. */
 function seeded(): Db {
   if (!db) throw new Error("test database is not seeded");
   return db;
@@ -58,7 +58,7 @@ function seed(auditEvents: AccountAuditEvent[] = []): ReturnType<typeof createSq
 }
 
 /** `seed()` plus a Better Auth `verification` table holding one outstanding reset link per
- *  participant, so completion's effect on both identities can be asserted in one place. */
+ * participant, so completion's effect on both identities can be asserted in one place. */
 function seedWithResetLinks(): ReturnType<typeof createSqliteAccountAdminPort> {
   const handle = openDb(":memory:");
   handle.exec("CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)");
@@ -225,7 +225,7 @@ describe("ownership transfer membership binding", () => {
 
 describe("ownership transfer membership binding: writes that change nothing", () => {
   // Otherwise any Admin could end the Owner's nomination at will, repeatedly, by writing back the
-  // role its participant already holds — a change nobody could see having happened.
+  // role its participant already holds, a change nobody could see having happened.
   it("leaves a live request alone when a membership write changes nothing", async () => {
     const auditEvents: AccountAuditEvent[] = [];
     const port = seed(auditEvents);

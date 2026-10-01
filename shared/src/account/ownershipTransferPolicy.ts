@@ -5,7 +5,7 @@ import type { Role } from "./types";
 /**
  * How long a nomination stays open, from initiation. Seven days is long enough for an
  * administrative handover across two people's working schedules, and short enough that a forgotten
- * request is not a latent elevation path. Acceptance does NOT extend it: the deadline bounds the
+ * request is not a latent elevation path. Acceptance does not extend it: the deadline bounds the
  * whole ceremony, not the wait for any one step.
  *
  * The single source for both the server's deadline arithmetic and the interface's explanation of
@@ -26,8 +26,8 @@ export const OWNERSHIP_TRANSFER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 
 /** Has a request with this deadline passed it? The bound is exclusive: a request is live for every
- *  instant strictly before `expiresAt`, so the deadline instant itself is already expired. Both
- *  values are server-generated ISO instants; a client clock never participates. */
+ * instant strictly before `expiresAt`, so the deadline instant itself is already expired. Both
+ * values are server-generated ISO instants; a client clock never participates. */
 export function isOwnershipTransferExpired(expiresAt: string, now: number): boolean {
   // Parsed by the repository's own ISO reader rather than `Date.parse`, which accepts shapes the
   // rest of the codebase rejects; `inviteIsExpired` reads its deadline the same way.
@@ -40,7 +40,7 @@ export function isOwnershipTransferExpired(expiresAt: string, now: number): bool
 
 /** The caller's current relationship to one request, re-read inside the transaction. */
 export interface OwnershipTransferActorStanding {
-  /** The caller's CURRENT active role in the company, re-read inside the transaction. */
+  /** The caller's current active role in the company, re-read inside the transaction. */
   callerRole: Role;
   /** Is the caller the Owner who proposed this request? */
   isInitiator: boolean;
@@ -52,8 +52,8 @@ export interface OwnershipTransferActorStanding {
  * May this caller perform this ceremony action?
  *
  * Role tier alone can never answer this. The nominated Admin's own consent (accept, withdraw,
- * decline) is performed at Admin tier, so a tier-only rule would let EVERY Admin consent on the
- * nominee's behalf — which is precisely the consent the ceremony exists to obtain. Participant
+ * decline) is performed at Admin tier, so a tier-only rule would let every Admin consent on the
+ * nominee's behalf, which is precisely the consent the ceremony exists to obtain. Participant
  * identity is therefore part of the predicate, not a separate courtesy check.
  *
  * The two sides are deliberately asymmetric:
@@ -87,9 +87,9 @@ export function canActOnOwnershipTransfer(
   }
 }
 
-/** May this caller see this request at all? Participants only — a transfer in progress, and who it
- *  names, is not ordinary member-management information, so other Admins and every lower role read
- *  nothing rather than a redacted something. */
+/** May this caller see this request at all? Participants only: a transfer in progress, and who it
+ * names, is not ordinary member-management information, so other Admins and every lower role read
+ * nothing rather than a redacted something. */
 export function canReadOwnershipTransfer({
   isInitiator,
   isTarget,

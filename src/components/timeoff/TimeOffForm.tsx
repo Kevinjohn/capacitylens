@@ -117,7 +117,7 @@ function buildTimeOffRepeatFields(options: {
   );
 }
 
-/** Null is OFF/demo mode, where there is no server note projection to enforce. */
+/** Null is off/demo mode, where there is no server note projection to enforce. */
 function useCanEditTimeOffNote(): boolean {
   const role = useRole();
   return role === null || canSeeTimeOffNote(role);

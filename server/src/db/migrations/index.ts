@@ -128,9 +128,9 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     "revoke-member-reset-ceremonies",
     "repair:revoke-outstanding-verification-ceremonies-for-active-members:v1",
     (db) => {
-      // v12 revoked ceremonies for active OWNERS only, so co-owners the v10-era raw-SQL repairs
-      // DEMOTED to admin kept reset links minted at Owner privilege. The blanket every-active-member
-      // scope is deliberate — see migrateMemberResetCeremoniesV14 (the original v11 destroyed the
+      // v12 revoked ceremonies for active owners only, so co-owners the v10-era raw-SQL repairs
+      // demoted to admin kept reset links minted at Owner privilege. The blanket every-active-member
+      // scope is deliberate, see migrateMemberResetCeremoniesV14 (the original v11 destroyed the
       // role history a targeted revocation would need).
       migrateMemberResetCeremoniesV14(db);
       assertSingleOwnerControlPlaneCurrent(db);

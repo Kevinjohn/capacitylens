@@ -12,7 +12,7 @@ describe("DEFAULT_COLORS", () => {
 
   it("only uses colours that are members of the swatch matrix", () => {
     // Enforces the invariant the SWATCHES comment states in prose ("deliberately includes every
-    // DEFAULT_COLORS value"): a freshly-opened form's default must HIGHLIGHT as a selected swatch,
+    // DEFAULT_COLORS value"): a freshly-opened form's default must highlight as a selected swatch,
     // which silently stops happening if either list is retuned without the other.
     for (const [entity, hex] of Object.entries(DEFAULT_COLORS)) {
       expect(isPresetColor(hex), `${entity} default ${hex} is not a preset colour`).toBe(true);

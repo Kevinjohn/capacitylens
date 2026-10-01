@@ -2,13 +2,13 @@ import { m } from "@/i18n";
 import type { CapacityAdvisory } from "./advisory";
 
 /** The surface an advisory is written for. Over/time-off counts exist on every surface; only the
- *  wording differs (a toast appends to a committed-move sentence, the form states it standalone).
- *  The `repeat` variant counts whole ALLOCATIONS and can add the non-effective-start count. */
+ * wording differs (a toast appends to a committed-move sentence, the form states it standalone).
+ * The `repeat` variant counts whole allocations and can add the non-effective-start count. */
 export type CapacityAdvisoryVariant = "toast" | "form" | "repeat";
 
-/** Pick the one/other form for a count. `one` and `other` are UNCALLED message references, invoked
- *  here at lookup time so Paraglide resolves the active locale on each render rather than freezing
- *  it at import — never call `m.*()` while building the table below. */
+/** Pick the one/other form for a count. `one` and `other` are uncalled message references, invoked
+ * here at lookup time so Paraglide resolves the active locale on each render rather than freezing
+ * it at import, never call `m.*()` while building the table below. */
 const plural =
   (one: (inputs: { count: number }) => string, other: (inputs: { count: number }) => string) =>
   (count: number): string =>
@@ -52,9 +52,9 @@ const ADVISORY_COPY: Record<
 };
 
 /** The human sentence for an advisory result, or "" when it has nothing to say. Every surface
- *  builds it the same way — over-capacity bit, then time-off bit, then the repeat-only non-effective
- *  start bit, joined and wrapped — so ORDER and the "silent when all counts are zero" rule live here.
- *  For the `repeat` variant the counts are allocations, not days (see the copy table). */
+ * builds it the same way (over-capacity bit, then time-off bit, then the repeat-only non-effective
+ * start bit, joined and wrapped) so order and the "silent when all counts are zero" rule live here.
+ * For the `repeat` variant the counts are allocations, not days (see the copy table). */
 export function formatCapacityAdvisory(result: CapacityAdvisory, variant: CapacityAdvisoryVariant): string {
   const copy = ADVISORY_COPY[variant];
   const bits: string[] = [];

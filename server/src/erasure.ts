@@ -18,7 +18,7 @@ interface CrossTenantErasureEdge {
  * it, but an operator repair, old migration or restored corrupt database can still contain a child
  * labelled for another account. Deleting the parent account would then silently delete or unbind
  * that other account's row. Built from tenantIntegrity's canonical TENANT_RELATIONSHIPS list (same
- * order as the relationships documented in tables.ts) — mirrors its crossTenantEdgeSql generator,
+ * order as the relationships documented in tables.ts), mirrors its crossTenantEdgeSql generator,
  * scoped here to the one workspace being erased instead of the whole database.
  */
 export const CROSS_TENANT_ERASURE_EDGE_SQL =

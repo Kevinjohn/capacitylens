@@ -183,7 +183,7 @@ export function assertControlTablesCurrent(db: Db): void {
   };
   const problems: string[] = [];
   for (const [table, expected] of Object.entries(expectedColumns)) {
-    // account_members was already fetched above (to decide whether signInConfirmed is expected) —
+    // account_members was already fetched above (to decide whether signInConfirmed is expected),
     // reuse it rather than re-running the identical PRAGMA a second time.
     const columns =
       table === "account_members"
@@ -304,7 +304,7 @@ export function assertSingleOwnerControlPlaneCurrent(db: Db): void {
   }
 
   // Auth-off demo datasets intentionally have no membership rows. Once an account has any active
-  // member, however, it must have exactly one active Owner — zero and co-owner states both fail.
+  // member, however, it must have exactly one active Owner, zero and co-owner states both fail.
   const invalidAccount = db
     .prepare(
       `

@@ -201,7 +201,7 @@ export function useMemberInvites() {
   const [inviteRole, setInviteRole] = useState<InvitationRole>("editor");
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");
   const [invitationResourceId, setInvitationResourceId] = useState("");
-  // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
+  // The freshly-minted link, shown once after a successful create (the token is write-once). Keep
   // its non-secret invite id so an authoritative list refresh can clear a now-dead link.
   const [mintedLink, setMintedLink] = useState<MintedInviteLink | null>(null);
   const reconcileMintedInvite = useCallback((nextInvites: TeamInvitation[]) => {

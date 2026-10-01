@@ -678,6 +678,9 @@ The checker also prints an unenforced `approximately N lines` diagnostic for lon
 top-level functions. These approximate lengths help identify functions to review;
 they do not affect whether the check passes.
 
+Both gates run `pnpm run policy:comment-voice`, which applies the comment rules in
+`DEFENSIVE-CODING.md` to comments under `src`, `shared` and `server/src`.
+
 Both gates also run `pnpm run policy:import-cycles` to reject runtime import cycles.
 Explicit `import type` and `export type` clauses are excluded. Inline `type` bindings
 follow each package's `verbatimModuleSyntax` setting: an empty import or re-export can

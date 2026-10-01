@@ -12,12 +12,12 @@ import { DEFAULT_COLORS } from "@/lib/palette";
 import type { Discipline } from "@capacitylens/shared/types/entities";
 
 /** Add (no `discipline`) or edit a discipline: name + colour. `sortOrder` is auto-assigned (one past
- *  the current max, not the count — see below). `onClose` fires on save or cancel. */
+ * the current max, not the count, see below). `onClose` fires on save or cancel. */
 export function DisciplineForm({ discipline, onClose }: { discipline?: Discipline; onClose: () => void }) {
   const add = useStore((state) => state.addDiscipline);
   const update = useStore((state) => state.updateDiscipline);
   // sortOrder is assigned automatically (no longer user-editable): a new discipline
-  // lands one past the current maximum — not the count, which would collide with an
+  // lands one past the current maximum, not the count, which would collide with an
   // existing order after a deletion and fall back to the name tiebreak out of place.
   // An existing discipline keeps whatever order it already had.
   const disciplines = useActiveScopedData().disciplines;
@@ -31,7 +31,7 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     if (!validatePresetColor(color, fail)) return;
-    // Surface a store-side rejection as a form error rather than an uncaught React error — see the
+    // Surface a store-side rejection as a form error rather than an uncaught React error, see the
     // store CRUD contract.
     try {
       if (discipline) {

@@ -26,7 +26,7 @@ const capacityAdvisoryMock = vi.hoisted(() =>
 );
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory VERDICTS the modal renders.
+// care only about the advisory verdicts the modal renders.
 vi.mock("@/lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
@@ -206,7 +206,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
   );
 
   it("keeps the original monthly numeric day while preserving a multi-day span", async () => {
-    // A seven-day company and person make the Saturday day-31 anchor an effective start — the
+    // A seven-day company and person make the Saturday day-31 anchor an effective start, the
     // creation gate has no override (no ignored-creation escape hatch), so the numeric-day
     // preservation under test needs a calendar that genuinely allows the anchor.
     useStore.getState().updateAccount(ACC, { workingDays: [0, 1, 2, 3, 4, 5, 6] });
@@ -437,7 +437,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
 
     await user.clear(repeatUntil);
     await user.type(repeatUntil, "2100-01-11");
-    // Undated, this reads "through Mon 11th Jan. Last start: Mon 11th Jan." — a forward repeat that
+    // Undated, this reads "through Mon 11th Jan. Last start: Mon 11th Jan.", a forward repeat that
     // appears to end eleven months before it starts.
     expect(
       await screen.findByText("Creates 4 linked allocations through Mon 11th Jan 2100. Last start: Mon 11th Jan 2100."),

@@ -16,10 +16,10 @@ import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
 import { call, PASSWORD_ENV, cookiesOf } from "./testHelpers/passwordAuth";
 import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
-// P3.1/P3.2/P3.5 (flag CAPACITYLENS_MODE → opts.authMode/auth). The load-bearing assertion set:
-// OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
-// by running unchanged — these tests add the /api/auth/me surface and the absence of the
-// Better Auth routes); password gates every data route on a real session; sso issues a
+// The CAPACITYLENS_MODE flag (opts.authMode/auth). The load-bearing assertion set: off is
+// byte-for-byte today (the whole existing app.test.ts suite already enforces that by running
+// unchanged; these tests add the /api/auth/me surface and the absence of the Better Auth
+// routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -120,12 +120,12 @@ function registerAuthOffSurfaceTests(): void {
       multiAccount: false,
       canCreateAccount: true,
     });
-    // P1.7a: off is trusted-local, so the demo principal is verified with a clearly-local email.
+    // Off is trusted-local, so the demo principal is verified with a clearly-local email.
     expect(parseAuthUserResponse(me)).toMatchObject({
       email: "demo@capacitylens.local",
       emailVerified: true,
     });
-    // A cookie-less write succeeds — no request that succeeds today may fail in off mode.
+    // A cookie-less write succeeds. No request that succeeds today may fail in off mode.
     const write = await call(app, {
       method: "POST",
       url: "/api/accounts",
@@ -363,7 +363,7 @@ describe("authentication request authority", () => {
   });
 });
 
-// P1.7a — the narrowing boundary. normalizeSessionUser reads emailVerified from the full Better
+// The narrowing boundary. normalizeSessionUser reads emailVerified from the full Better
 // Auth user and defaults it to false, so a provider that omits verification can never present as
 // verified. (getSession in authFromEnv wraps this; here we pin the pure mapping directly.)
 describe("normalizeSessionUser (P1.7a)", () => {
@@ -754,7 +754,7 @@ function registerAuthModeRefusalTests(): void {
 function registerCredentialAndDiscoveryConfigurationTests(): void {
   it("password mode with an exactly-32-char secret passes the length gate", () => {
     const db = openDb(":memory:");
-    // PASSWORD_ENV has a valid URL; a 32-char secret must NOT trip the length check.
+    // PASSWORD_ENV has a valid URL; a 32-char secret must not trip the length check.
     expect(() =>
       createAuthFromEnvironment(db, {
         ...PASSWORD_ENV,

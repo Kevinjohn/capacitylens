@@ -187,7 +187,7 @@ describe("ownership transfer access", () => {
   // Locks in the current (post-fix) behavior on purpose: the released retry handle means an
   // identical retry after a terminal 409 mints a fresh command and is answered with a generic
   // conflict, not a replay of the earlier terminal receipt. This is a known, accepted trade-off of
-  // releasing the handle (see the review discussion on #908), not a guarantee to improve here.
+  // releasing the handle, not a guarantee to improve here.
   it("mints a fresh command and receives a generic conflict on retry after a row command's terminal outcome", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000141")

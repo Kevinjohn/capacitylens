@@ -193,7 +193,7 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
     accountFlows,
     memberResources,
   } = accountRuntime;
-  // Deep mode prepares the trivial read ONCE, here in the synchronous factory body while
+  // Deep mode prepares the trivial read once, here in the synchronous factory body while
   // the DB is known-open; a later closed/corrupt/locked DB makes get() throw at request
   // time, which is exactly the signal the uptime monitor needs (a bare { ok: true } from
   // a server whose DB is broken is a lie).

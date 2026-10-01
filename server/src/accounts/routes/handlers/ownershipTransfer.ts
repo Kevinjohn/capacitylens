@@ -19,8 +19,8 @@ import { requireAuthenticatedPrincipal } from "./authenticatedPrincipal";
  * is answered by the port inside its transaction, where the membership facts are still true.
  */
 
-/** The wire projection of one request. Ids and instants only — display identity is resolved from
- *  the member directory, so the ceremony never becomes a second store of personal data. */
+/** The wire projection of one request. Ids and instants only, display identity is resolved from
+ * the member directory, so the ceremony never becomes a second store of personal data. */
 function toWire(request: OwnershipTransferRequest) {
   return {
     id: request.id,
@@ -39,8 +39,8 @@ function toWire(request: OwnershipTransferRequest) {
 /**
  * A committed business-terminal outcome answered as a conflict.
  *
- * It is NOT an error: the expiry it reports was written and committed. The caller's command did not
- * apply, so 409 is the honest status — but the body names the terminal state and reason so an
+ * It is not an error: the expiry it reports was written and committed. The caller's command did not
+ * apply, so 409 is the honest status, but the body names the terminal state and reason so an
  * interface can explain what happened rather than merely refusing.
  */
 function sendTerminal(reply: FastifyReply, outcome: Extract<OwnershipTransferOutcome, { kind: "terminal" }>) {
@@ -56,7 +56,7 @@ function sendTerminal(reply: FastifyReply, outcome: Extract<OwnershipTransferOut
  * Send the refusal for a ceremony read while masquerading; null when the read may proceed.
  *
  * The global masquerade policy already refuses every unsafe method, which covers the six commands.
- * It deliberately does not cover GET — so this read, which names who is being handed the company,
+ * It deliberately does not cover GET, so this read, which names who is being handed the company,
  * refuses here. Concealment, not redaction: a masquerading session is not the participant whose
  * ceremony this is.
  */
@@ -78,7 +78,7 @@ export async function readOwnershipTransfer(
   const { accountId } = req.params;
   if (!authorize({ req, reply, accountId, action: "actOnOwnershipTransfer", options: { requireFreshSession: false } }))
     return;
-  // OFF mode has no owner model at all, so an honest empty projection beats a crash or a claim.
+  // Off mode has no owner model at all, so an honest empty projection beats a crash or a claim.
   if (authMode === "off") return reply.code(200).send({ live: null, latestOutcome: null });
   const masqueradeRefusal = sendMasqueradeRefusal(req, reply, context);
   if (masqueradeRefusal) return masqueradeRefusal;
@@ -194,7 +194,7 @@ interface RowCommandInput {
 }
 
 /** Completion is the moment ownership actually moves, so it keeps the standing `ownershipTransfer`
- *  audit action; every other step records the ceremony action instead. */
+ * audit action; every other step records the ceremony action instead. */
 function auditActionFor(action: RowCommand): "ownershipTransfer" | "ownershipTransferRequest" {
   return action === "complete" ? "ownershipTransfer" : "ownershipTransferRequest";
 }

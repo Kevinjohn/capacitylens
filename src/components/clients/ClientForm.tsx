@@ -74,7 +74,7 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
     const privacy = privateNameFields.parsePrivacyPatch();
     if (!privacy) return;
     if (!validatePresetColor(color, fail)) return;
-    // The store throws (with a display-safe message) on a tenancy/integrity rejection — surface it
+    // The store throws (with a display-safe message) on a tenancy/integrity rejection, surface it
     // as a form error rather than letting it escape as an uncaught React error. (See the store CRUD
     // contract.) Today the form's own validation precedes it, but the SQLite server seam adds real
     // failure modes, and a caught-and-shown message is the standard.

@@ -13,16 +13,16 @@ interface BootstrapOptions {
   /** Used only on a genuine first run (nothing ever persisted). */
   seedIfEmpty?: AppData;
   /** Called when a persistence write fails (e.g. storage quota exceeded, or the
-   *  server is unreachable). */
+   * server is unreachable). */
   onError?: (error: unknown) => void;
-  /** Called after a persistence write succeeds — lets the caller clear a prior
-   *  error state once saving recovers (e.g. the server comes back). */
+  /** Called after a persistence write succeeds, lets the caller clear a prior
+   * error state once saving recovers (e.g. the server comes back). */
   onSuccess?: () => void;
-  /** True when a backend is in use — server mode (the default; false only in the demo build,
-   *  VITE_CAPACITYLENS_DEMO=1). Enables the per-account switch
-   *  orchestrator (P1.13): a tenant pick hydrates that account's slice via `loadAll(accountId)` and
-   *  re-seeds the diff snapshot atomically. The demo build (false) leaves the orchestrator inert — `data`
-   *  already holds all accounts, so a switch is a pure view change. */
+  /** True when a backend is in use, server mode (the default; false only in the demo build,
+   * VITE_CAPACITYLENS_DEMO=1). Enables the per-account switch
+   * orchestrator: a tenant pick hydrates that account's slice via `loadAll(accountId)` and
+   * re-seeds the diff snapshot atomically. The demo build (false) leaves the orchestrator inert, `data`
+   * already holds all accounts, so a switch is a pure view change. */
   serverMode?: boolean;
 }
 
@@ -68,8 +68,8 @@ export async function bootstrap(
         ? await adapter.loadAll(undefined, { skipRemoteRead: true })
         : await adapter.loadAll();
   } catch (error) {
-    // Stored data couldn't be loaded. Render an empty dataset, but DELIBERATELY
-    // attach NO persistence and run NO seed-save — the next mutation must not
+    // Stored data couldn't be loaded. Render an empty dataset, but deliberately
+    // attach no persistence and run no seed-save. The next mutation must not
     // overwrite recoverable data. Route to the recovery UI that fits the failure:
     //   - 'unavailable' (a remote/server load failed): a retry screen. Clearing
     //     local storage would do nothing for a server-backed app that's merely down.
@@ -77,10 +77,10 @@ export async function bootstrap(
     //     StorageRecovery reset/import/export screen.
     return recordLoadFailure(store, error);
   }
-  // Seed only when nothing was ever stored — never resurrect data the user cleared.
-  // hasExisting (e.g. the server's /api/meta) decides ONLY whether to seed. If it throws
-  // AFTER a successful load, don't discard the loaded data or skip attaching persistence
-  // (which would brick saving and show a misleading banner) — fall back to inferring
+  // Seed only when nothing was ever stored, never resurrect data the user cleared.
+  // hasExisting (e.g. the server's /api/meta) decides only whether to seed. If it throws
+  // after a successful load, don't discard the loaded data or skip attaching persistence
+  // (which would brick saving and show a misleading banner), fall back to inferring
   // existence from the loaded data itself, so we still skip seeding when there's data.
   const existed = await resolveExisting(adapter, loaded);
   const seed = options.seedIfEmpty;
@@ -90,7 +90,7 @@ export async function bootstrap(
   store.getState().replaceAll(initial);
   store.getState().setHydrated(true);
   // Guard the first-run seed write: a failure here (quota / private mode) must
-  // surface via onError AND must NOT stop persistence from being attached —
+  // surface via onError and must not stop persistence from being attached,
   // otherwise the session would silently never save and never show the banner.
   if (seedNeeded) await saveInitialSeed(adapter, initial, options.onError);
 

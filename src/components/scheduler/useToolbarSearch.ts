@@ -14,13 +14,13 @@ export function useToolbarSearch({ filters, activeAccountId, setFilters, clearFi
   // Keep the input snappy locally; push to filters after a short pause.
   const [searchInput, setSearchInput] = useState(filters.search);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  // Adopt external resets/replacements by reconciling during render — the React-recommended
-  // alternative to a sync effect. Keyed on the filters OBJECT (identity), NOT the search
-  // value: a palette project/client selection REPLACES filters with a fresh object whose
-  // search is '' — if the box held a not-yet-debounced term, the search VALUE is '' on both
+  // Adopt external resets/replacements by reconciling during render, the React-recommended
+  // alternative to a sync effect. Keyed on the filters object (identity), not the search
+  // value: a palette project/client selection replaces filters with a fresh object whose
+  // search is '', if the box held a not-yet-debounced term, the search value is '' on both
   // sides of that write, so a value key misses it and leaves stale text in the box. Our own
   // debounce write also makes a new object, but re-syncs to the value it just pushed
-  // (a visual no-op). Track the TENANT too, so a half-typed term resets when the company
+  // (a visual no-op). Track the tenant too, so a half-typed term resets when the company
   // changes (the whole filters object can be reset on both sides of a switch).
   const [seen, setSeen] = useState({ filters, account: activeAccountId });
   if (filters !== seen.filters || activeAccountId !== seen.account) {
@@ -32,13 +32,13 @@ export function useToolbarSearch({ filters, activeAccountId, setFilters, clearFi
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = null;
   };
-  // Cancel any in-flight debounce when the filters object changes EXTERNALLY (Clear, a
-  // palette replacement, account switch) — not just on unmount. Keyed on the OBJECT for
+  // Cancel any in-flight debounce when the filters object changes externally (Clear, a
+  // palette replacement, account switch), not just on unmount. Keyed on the object for
   // the same reason as the reconcile above: the palette race had filters.search unchanged
   // ('' → ''), so a value key left the timer alive to resurrect the stale term over the
   // palette's replacement ~180ms later. The cleanup runs before the next render's effect,
   // so an external write cancels the pending setFilters({search:'old'}) in time. (When our
-  // own debounce is what changed filters, the timer has already fired — cancelling is a
+  // own debounce is what changed filters, the timer has already fired, cancelling is a
   // harmless no-op.)
   useEffect(() => cancelSearchTimer, [filters, activeAccountId]);
   const changeSearch = (value: string) => {
@@ -46,10 +46,10 @@ export function useToolbarSearch({ filters, activeAccountId, setFilters, clearFi
     cancelSearchTimer();
     // The filters object the user was typing against. The effect-cleanup cancel above is
     // not enough on its own: effects flush after paint, and an external replacement (the
-    // palette) triggers the expensive scheduler-model rebuild — under load the timer can
-    // fire BEFORE the cleanup runs and resurrect the stale term over the replacement. So
-    // the write also guards at FIRE time: if filters moved underneath the pending term,
-    // it's stale — drop it.
+    // palette) triggers the expensive scheduler-model rebuild, under load the timer can
+    // fire before the cleanup runs and resurrect the stale term over the replacement. So
+    // the write also guards at fire time: if filters moved underneath the pending term,
+    // it's stale, drop it.
     const armedOn = useStore.getState().ui.filters;
     searchTimer.current = setTimeout(() => {
       if (useStore.getState().ui.filters !== armedOn) return;
@@ -60,7 +60,7 @@ export function useToolbarSearch({ filters, activeAccountId, setFilters, clearFi
     cancelSearchTimer();
     setFilters({ ...patch, search: searchInput });
   };
-  // Clear must also kill any in-flight debounce + reset the local box — otherwise an
+  // Clear must also kill any in-flight debounce + reset the local box, otherwise an
   // orphaned timer re-applies a just-cleared term (and the render reconcile can't catch
   // it when filters.search was already '').
   const clearSearch = () => {

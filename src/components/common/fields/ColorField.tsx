@@ -133,7 +133,7 @@ function SwatchButton({ hex, index, value, selectedIndex, markDirty, onChange, o
 
 // A swatch picker, not a hex/RGB tool: a trigger showing the current colour opens a
 // 13×4 grid of preset swatches (see SWATCHES). Picking one is the only way to set the
-// value, so the stored colour is always a valid hex — no text/hex entry.
+// value, so the stored colour is always a valid hex. No text/hex entry.
 export function ColorField({ label, value, onChange, invalid, describedById, layout = "stacked" }: ColorFieldProps) {
   const markDirty = useMarkFormDirty();
   const [open, setOpen] = useState(false);

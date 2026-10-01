@@ -12,10 +12,10 @@ import {
 } from "./controlTables";
 import { microsoftCallbackCapture } from "./authConfig/captureContexts";
 
-// P3.1/P3.2/P3.5 (flag CAPACITYLENS_MODE → opts.authMode/auth). The load-bearing assertion set:
-// OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
-// by running unchanged — these tests add the /api/auth/me surface and the absence of the
-// Better Auth routes); password gates every data route on a real session; sso issues a
+// The CAPACITYLENS_MODE flag (opts.authMode/auth). The load-bearing assertion set: off is
+// byte-for-byte today (the whole existing app.test.ts suite already enforces that by running
+// unchanged; these tests add the /api/auth/me surface and the absence of the Better Auth
+// routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
 
 const MICROSOFT_ENV = {
@@ -131,7 +131,7 @@ describe("CAPACITYLENS_MODE sso", () => {
   });
 });
 
-// P1.7 — native social providers wired from env. Assert against the resolved betterAuth
+// Native social providers wired from env. Assert against the resolved betterAuth
 // options (auth.options is the exact object we passed; see better-auth createBetterAuth),
 // which is the robust introspection point in Better Auth 1.7.5.
 // Keep the provider configuration and its real callback acceptance sequence together so the
@@ -395,7 +395,7 @@ describe("social providers (P1.7)", () => {
   });
 });
 
-// P1.7 + first-run setup — open email self-registration is closed by default. The single
+// Provider setup and first run: open email self-registration is closed by default. The single
 // bootstrap exception is an empty user table plus the operator's setup token; the gate is enforced
 // live per request, so it closes on the very next request after the first identity. The explicit
 // CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 escape still re-opens registration unconditionally.

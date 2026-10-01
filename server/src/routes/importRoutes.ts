@@ -224,29 +224,29 @@ function resetState(req: FastifyRequest, reply: FastifyReply, dependencies: Impo
 }
 
 export function registerImportRoutes(app: FastifyInstance, dependencies: ImportRouteDependencies): void {
-  // Bulk import into one account, reusing the SAME remap+validate+sanitize the store
+  // Bulk import into one account, reusing the same remap+validate+sanitize the store
   // runs (shared/domain/mutations.remapAndValidateImport). Body: { accountId, data }.
   // `data` may be a raw export ({schemaVersion,data} or bare AppData); parseData
   // applies the shape guard + MAX_IMPORT_RECORDS cap + migration.
   //
-  // EXEMPT from the single-company cap: replaceAccountSlice only ever rewrites SCOPED tables
-  // (accountId-carrying), never `accounts` itself — an import can only replace an EXISTING
+  // Exempt from the single-company cap: replaceAccountSlice only ever rewrites scoped tables
+  // (accountId-carrying), never `accounts` itself. An import can only replace an existing
   // account's data, never insert a new top-level accounts row. So there is no create vector here
   // for accountCreateCapped to gate.
   app.post("/api/import", (req, reply) => {
-    // Import first requires 'purge', NOT 'write' (editor), because:
-    //   (1) it is DESTRUCTIVE slice replacement — replaceAccountSlice deletes the account's
+    // Import first requires 'purge', not 'write' (editor), because:
+    //   (1) it is destructive slice replacement, replaceAccountSlice deletes the account's
     //       entire scoped slice and re-inserts the import, the same hard-delete semantics the
     //       purge tier exists for (cf. the accounts-DELETE vectors); and
-    //   (2) it BYPASSES field-level write pins — every id is remapped, so sanitizeWrite's
-    //       existing-row pins (e.g. the P1.6 timeOff note pin) can never match a stored row.
+    //   (2) it bypasses field-level write pins. Every id is remapped, so sanitizeWrite's
+    //       existing-row pins (e.g. the timeOff note pin) can never match a stored row.
     //       At 'write' tier a note-blind editor could erase every owner-confidential timeOff
     //       note (their own exports are note-redacted) or fabricate notes wholesale.
-    // It is then narrowed to OWNER in auth-on mode: admins receive private clients/projects with
+    // It is then narrowed to owner in auth-on mode: admins receive private clients/projects with
     // quoted cover names and no raw codeName. Their own valid export therefore cannot safely be
-    // used as a replacement — it would turn the cover name into the persisted real name and repair
-    // the missing code name to "Confidential", destroying the owner-only identity. OFF mode keeps
-    // the open behaviour (demo/e2e parity — authorize no-ops there).
+    // used as a replacement. It would turn the cover name into the persisted real name and repair
+    // the missing code name to "Confidential", destroying the owner-only identity. Off mode keeps
+    // the open behaviour (demo/e2e parity, authorize no-ops there).
     // remapAndValidateImport drops/repairs dangling refs before SQLite. The handler retains
     // defence-in-depth so any residual constraint failure is classified by fail rather than lost.
     return importState(req, reply, dependencies);
@@ -256,10 +256,10 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
   // clean. An authenticated browser identity has tenant-scoped memberships, never installation-
   // wide erasure authority, so auth-on modes refuse this route even when allowReset was set.
   //
-  // EXEMPT from the single-company cap: this is the raw insertAll test-only path (itself
-  // production-forbidden — see bootGuard/resetForbidden, and allowReset just below), not an
+  // Exempt from the single-company cap: this is the raw insertAll test-only path (itself
+  // production-forbidden: see bootGuard/resetForbidden, and allowReset just below), not an
   // HTTP create vector the cap is meant to police. It's how e2e fixtures reach a known
-  // multi-company state (the demo seed ships TWO companies) without threading multiAccount
+  // multi-company state (the demo seed ships two companies) without threading multiAccount
   // through every spec.
   app.post("/api/test/reset", (req, reply) => resetState(req, reply, dependencies));
 }

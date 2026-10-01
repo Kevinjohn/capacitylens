@@ -1,13 +1,13 @@
 import { type DomainErrorCode } from "@capacitylens/shared/domain/errors";
 
 /**
- * Thrown when POST /api/batch answers **409** — the server's optimistic-concurrency conflict
+ * Thrown when POST /api/batch answers **409**, the server's optimistic-concurrency conflict
  * signal (a stale `updatedAt`; ordered browser batches enforce this even when generic optimistic
  * concurrency is explicitly disabled; body `{ error, current }`, see the server's StaleWriteError
- * arm). A TYPED error, not the generic batch failure, because the
+ * arm). A typed error, not the generic batch failure, because the
  * persist layer must treat it differently: retrying the same stale diff is deterministic futility
- * (the server will 409 it forever), so persist.ts resolves a conflict by RELOADING the active
- * slice (server wins — the documented interim policy until a conflict UI exists).
+ * (the server will 409 it forever), so persist.ts resolves a conflict by reloading the active
+ * slice (server wins, the documented interim policy until a conflict UI exists).
  */
 export abstract class BatchReconciliationError extends Error {}
 
@@ -63,10 +63,10 @@ export class LifecycleRestoreError extends BatchReconciliationError {
 /**
  * Thrown when a single logical diff exceeds {@link MAX_BATCH_OPS}. The atomic design refuses to
  * split it into separately-committed prefixes (that would reintroduce the reparent-before-delete
- * FK-order race the single transaction exists to prevent), so this is a TERMINAL, non-retryable
- * condition — re-sending the identical over-limit diff throws forever, unlike a transient network
- * failure. A TYPED error (not the generic batch failure) so persist.ts can special-case it: surface
- * the banner plus a clear sticky notice and STOP the exponential-backoff retry loop. The desired
+ * FK-order race the single transaction exists to prevent), so this is a terminal, non-retryable
+ * condition, re-sending the identical over-limit diff throws forever, unlike a transient network
+ * failure. A typed error (not the generic batch failure) so persist.ts can special-case it: surface
+ * the banner plus a clear sticky notice and stop the exponential-backoff retry loop. The desired
  * state stays in memory until a later, smaller diff lands or the page is closed.
  */
 export class BatchTooLargeError extends Error {

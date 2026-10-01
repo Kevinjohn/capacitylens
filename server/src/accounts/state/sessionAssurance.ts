@@ -55,7 +55,7 @@ export function recordSessionAssurance({
 // Explicit columns only (assurance, providerId): node:sqlite freezes a prepared statement's column
 // set at prepare time, so caching is safe here precisely because this SELECT never uses `*`. Cached
 // per-Db via the module-local cachedStatement (this read runs on every authenticated request via
-// verifyApplicationSession); the RESULT is never cached, only the prepared statement.
+// verifyApplicationSession); the result is never cached, only the prepared statement.
 const sessionAuthenticationStatement = createCachedStatement(
   `SELECT assurance, providerId FROM account_session_assurance WHERE sessionId = ?`,
 );

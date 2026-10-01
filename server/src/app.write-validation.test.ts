@@ -348,7 +348,7 @@ function createExternalResourceConversionAcceptanceTests(): void {
   it("rejects flipping a resource to external even without disallowed dependents", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    // A zero-load allocation is already valid for an external, so it must NOT block the flip.
+    // A zero-load allocation is already valid for an external, so it must not block the flip.
     await post(
       app,
       "allocations",

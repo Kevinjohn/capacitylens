@@ -47,7 +47,7 @@ export function openDbConnection(path: string): Db {
       timeout: 5000,
     });
   } catch (e) {
-    // Boot SHOULD crash on an unopenable DB — but frame the raw node:sqlite error with the path so
+    // Boot should crash on an unopenable DB, but frame the raw node:sqlite error with the path so
     // an operator sees "could not open <CAPACITYLENS_DB>" instead of a bare stack. Rethrow (don't swallow).
     throw new Error(`Could not open the SQLite database at "${path}": ${e instanceof Error ? e.message : String(e)}`, {
       cause: e,
@@ -98,7 +98,7 @@ function applyMigration(db: Db, pendingVersion: number, hooks: DatabaseMigration
     () => {
       // Planning is deliberately read-only and happens before BEGIN IMMEDIATE so startup can take a
       // rollback snapshot first. Another same-version process may therefore finish this step while
-      // this handle waits for SQLite's writer lock. Re-read only AFTER acquiring that lock and
+      // this handle waits for SQLite's writer lock. Re-read only after acquiring that lock and
       // validate the winner's immutable ledger before treating its commit as our clean no-op.
       const currentVersion = pragmaNumber(db, "user_version");
       if (currentVersion >= migration.version) {
@@ -174,7 +174,7 @@ function initializeWithForeignKeysDisabled(db: Db, initialize: () => void): void
   const initialization = attempt(initialize);
   // This handle may be retained by migration tooling after a surfaced failure. Never leave its
   // connection-scoped integrity enforcement disabled merely because initialization did not finish.
-  // A cleanup PRAGMA failure on a broken connection must never MASK the original init failure.
+  // A cleanup PRAGMA failure on a broken connection must never mask the original init failure.
   const cleanup = attempt(() => db.exec("PRAGMA foreign_keys = ON;"));
   if (initialization.kind === "failure") throw initialization.error;
   if (cleanup.kind === "failure") {
@@ -218,7 +218,7 @@ export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationH
   // initializeOpenDb is the only schema-change boundary (migrations + ALTERs happen only here).
   // node:sqlite Statement objects freeze their column set at prepare time, so any statement cached
   // while migrations were still running (e.g. migration 8's loadState call, prepared while the
-  // schema was still at v8) must be discarded here — otherwise it keeps returning its stale,
+  // schema was still at v8) must be discarded here, otherwise it keeps returning its stale,
   // pre-ALTER column list forever. Dropping the handle's cache before returning guarantees every
   // statement callers see cached afterward is prepared against the final, fully-migrated schema.
   statementCaches.delete(db);

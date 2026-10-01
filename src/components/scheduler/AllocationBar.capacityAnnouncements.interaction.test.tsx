@@ -45,8 +45,8 @@ function seedConflictPair() {
 function registerCapacityAnnouncementTests() {
   it('announces the over-capacity outcome when a nudge flips a day to over, and "no conflicts" when it resolves', () => {
     // Pin the visible window to early June, independent of "today". The announced over-count is
-    // clamped to `visibleRange(ui)`, and the store's DEFAULT window derives from today (once, at
-    // init) — so with fixed June allocations this assertion would rot as today drifts past them
+    // clamped to `visibleRange(ui)`, and the store's default window derives from today (once, at
+    // init): so with fixed June allocations this assertion would rot as today drifts past them
     // unless the window is anchored here (mirrors the sibling Window-alignment test below).
     useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 14 } })); // [2026-06-01 .. 2026-06-14]
     const b = seedConflictPair();
@@ -62,8 +62,8 @@ function registerCapacityAnnouncementTests() {
     const over = getSrAnnouncement();
     expect(over.text).toBe("Ty now over capacity on 1 day.");
 
-    // ArrowLeft: back to 06-01..06-02, overlap gone → announce no conflicts (and a NEW seq so an
-    // identical message would still re-announce — the seq must strictly rise).
+    // ArrowLeft: back to 06-01..06-02, overlap gone → announce no conflicts (and a new seq so an
+    // identical message would still re-announce. The seq must strictly rise).
     rerender(<AllocationBar bar={barFor(moved)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowLeft" });
     moved = getStoredAllocation(b.id);
@@ -85,10 +85,10 @@ function registerCapacityAnnouncementTests() {
 }
 
 function registerVisibleWindowAnnouncementTest() {
-  // Window-alignment (the major review finding): the spoken count must equal the RENDERED per-row
-  // sr-only summary, which counts over-days only WITHIN the visible timeline window
-  // (`dayStates.filter(d => d.over)`, built across `visibleRange(ui)`). So an over-day OUTSIDE that
-  // window — scrolled out of view — must NOT be counted by the announcement. Here the conflict pair
+  // Window-alignment (the major review finding): the spoken count must equal the rendered per-row
+  // sr-only summary, which counts over-days only within the visible timeline window
+  // (`dayStates.filter(d => d.over)`, built across `visibleRange(ui)`). So an over-day outside that
+  // window: scrolled out of view, must not be counted by the announcement. Here the conflict pair
   // sits in September while the visible window is pinned to early June; the recomputed over-day at
   // 09-02 is off-window, so the announcement must read "no conflicts" (it would say "1 day" if it
   // re-scanned the resource's full span instead of clamping to the window).
@@ -101,7 +101,7 @@ function registerVisibleWindowAnnouncementTest() {
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     // A fixed on Wed 2026-09-02; B starts Tue 09-01 (no overlap). ArrowRight slides B onto 09-02 →
-    // a REAL over-day (16h vs 8h), but 09-02 is far OUTSIDE the [06-01..06-14] visible window.
+    // a real over-day (16h vs 8h), but 09-02 is far outside the [06-01..06-14] visible window.
     st.addAllocation({
       resourceId: r.id,
       activityId: t.id,
@@ -127,10 +127,10 @@ function registerVisibleWindowAnnouncementTest() {
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
     const moved = getStoredAllocation(b.id);
     expect([moved.startDate, moved.endDate]).toEqual(["2026-09-02", "2026-09-02"]); // the conflict really happened…
-    // …but it's off-window, so the announcement counts ZERO over-days — matching the rendered row.
+    // …but it's off-window, so the announcement counts zero over-days, matching the rendered row.
     expect(getSrAnnouncement().text).toBe("Ty: no capacity conflicts.");
 
-    // Sanity: widen the window to include September and the SAME edit now speaks the over-day,
+    // Sanity: widen the window to include September and the same edit now speaks the over-day,
     // proving the divergence was purely the window clamp (the over-marker signal is unchanged).
     useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 120 } })); // now covers 09-02
     rerender(<AllocationBar bar={barFor(moved)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);

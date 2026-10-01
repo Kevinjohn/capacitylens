@@ -7,7 +7,7 @@ import { AuthContext, type AuthContextValue } from "@/auth/authContext";
 vi.mock("@/data/apiConfig", () => ({ isDemoMode: () => true }));
 
 // useDemoAuthActive is a thin predicate over the auth context: true only when authMode is
-// 'off' AND the explicit demo build is active. Cover both auth branches via a Provider so the mutant
+// 'off' and the explicit demo build is active. Cover both auth branches via a Provider so the mutant
 // `return true` (unconditional) is caught by the 'password' case below.
 
 const withAuthMode = (authMode: AuthContextValue["authMode"]) => {

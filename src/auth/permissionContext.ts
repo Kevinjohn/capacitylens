@@ -7,18 +7,18 @@ import { useStore } from "@/store/useStore";
 // dialogs, the scheduler, the toolbar) don't import the provider machinery. It mirrors the split in
 // authContext.ts / AuthProvider.tsx.
 //
-// THE NULL-DEFAULT IS THE OFF/DEMO REGRESSION GUARD. A `null` role resolves to PERMITTED everywhere
+// The null default is the off/demo regression guard. A `null` role resolves to permitted everywhere
 // (useCan → true for every action, and so useCanEdit → true). That covers every path where there is
 // no real membership role to enforce:
-//   - OFF mode (the default, shipped deploy — must be byte-identical to today's no-login app);
-//   - the demo build (VITE_CAPACITYLENS_DEMO=1 — no server, no roles);
+//   - off mode (the default, shipped deploy, must be byte-identical to today's no-login app);
+//   - the demo build (VITE_CAPACITYLENS_DEMO=1, no server, no roles);
 //   - no provider at all (unit tests / isolated renders).
 // PermissionProvider never exposes null in an authenticated server account: pending, failed, missing,
 // and malformed role lookups all project viewer so the UI cannot optimistically diverge.
 
-/** The resolved permission state for the ACTIVE account. `role: null` means "no role to enforce"
- *  (OFF / demo / no-provider) and resolves to fully editable — see the module
- *  header. A concrete {@link Role} (auth-on + server) is fed into the pure `can` matrix. */
+/** The resolved permission state for the active account. `role: null` means "no role to enforce"
+ * (off / demo / no-provider) and resolves to fully editable, see the module
+ * header. A concrete {@link Role} (auth-on + server) is fed into the pure `can` matrix. */
 export interface PermissionContextValue {
   role: Role | null;
   /** Resolution state is separate from the fail-closed role projection. During a pending or failed
@@ -30,10 +30,10 @@ export interface PermissionContextValue {
 export const PermissionContext = createContext<PermissionContextValue>({ role: null, status: "not-applicable" });
 
 /**
- * The caller's resolved {@link Role} for the ACTIVE account, or `null`.
+ * The caller's resolved {@link Role} for the active account, or `null`.
  *
- * `null` is the deliberate default (OFF / demo / no provider — see the module
- * header): it is NOT "no access", it is "no role to enforce", and {@link useCanEdit} treats it as
+ * `null` is the deliberate default (off / demo / no provider, see the module
+ * header): it is not "no access", it is "no role to enforce", and {@link useCanEdit} treats it as
  * editable. A concrete role is only ever present in an auth-on, server-backed deploy.
  *
  * @returns the active account's role, or `null` when there is no membership role to enforce.
@@ -54,15 +54,15 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue["statu
  *
  * The single client affordance gate for every capability, not just editing: a surface asks
  * for the one {@link Action} it is gating (`'write'`, `'purge'`, `'manageMembers'`, …) instead of
- * re-deriving a role test inline. It is single-sourced from the pure {@link can} matrix, the SAME
+ * re-deriving a role test inline. It is single-sourced from the pure {@link can} matrix, the same
  * authority the server's route guard uses, so client and server can't drift.
  *
- * `role === null` → `true` for ANY action: the OFF/demo/no-provider regression guard (see the module
- * header). A null role is not "no access", it is "no role to enforce" — the shipped no-login deploy
+ * `role === null` → `true` for any action: the off/demo/no-provider regression guard (see the module
+ * header). A null role is not "no access", it is "no role to enforce", the shipped no-login deploy
  * and the demo build must stay byte-identical to the app before permissions existed, and they reach
  * every affordance through this rule. PermissionProvider never exposes null in an authenticated
  * server account (pending / failed / missing / malformed lookups all project viewer), so the
- * fail-OPEN default here is only ever reached where there is genuinely nothing to enforce.
+ * fail-open default here is only ever reached where there is genuinely nothing to enforce.
  *
  * Otherwise it is exactly `can(role, action)`. The server 403 remains the true backstop; this is UX
  * + defense-in-depth.
@@ -78,12 +78,12 @@ export function useCan(action: Action): boolean {
 }
 
 /**
- * May the current user EDIT (create / update / delete) the active account's scheduling data or
+ * May the current user edit (create / update / delete) the active account's scheduling data or
  * ordinary planning/display configuration?
  *
- * The named shorthand for the commonest gate — the affordance hubs (ListPage / EmptyState / Edit /
+ * The named shorthand for the commonest gate, the affordance hubs (ListPage / EmptyState / Edit /
  * Delete, the scheduler draw/drag/resize, the toolbar draw-toggle + undo/redo, and Settings account
- * controls) call THIS to decide whether to render an edit affordance. Exactly {@link useCan}`('write')`,
+ * controls) call this to decide whether to render an edit affordance. Exactly {@link useCan}`('write')`,
  * including its null-role rule: `true` for owner/admin/editor, `false` only for a resolved viewer.
  *
  * @returns `true` when edit affordances should be shown; `false` only for a resolved `viewer`.

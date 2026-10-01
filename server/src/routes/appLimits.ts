@@ -4,9 +4,9 @@ import { REPLY_ERRORS } from "./replyErrors";
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
 export const BODY_LIMIT = 5 * 1024 * 1024;
 
-// Fastify defaults BOTH to 0 (disabled). The documented deploy fronts this server with Nginx,
-// which buffers/queues the client connection — 30s is generous headroom for that hop, and it's
-// the guard that protects the documented DIRECT-EXPOSURE mode (no reverse proxy) from a
+// Fastify defaults both to 0 (disabled). The documented deploy fronts this server with Nginx,
+// which buffers/queues the client connection, 30s is generous headroom for that hop, and it's
+// the guard that protects the documented direct-exposure mode (no reverse proxy) from a
 // slowloris-style slow-body/slow-read socket exhaustion attack that an unbounded timeout permits.
 export const REQUEST_TIMEOUT_MS = 30_000;
 

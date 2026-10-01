@@ -22,9 +22,9 @@ export interface DragResizePreviewInput {
 
 export interface UseDragResizeArgs {
   /** Maps a document clientX to a snapped day index (the ColumnGeometry inverse, applied
-   *  against the live lane rect — supplied by the lane). The day delta is the difference of
-   *  the two endpoints' indices, so each end snaps to a column independently — correct even
-   *  when the pointer crosses narrowed weekend columns of unequal width. */
+   * against the live lane rect, supplied by the lane). The day delta is the difference of
+   * the two endpoints' indices, so each end snaps to a column independently, correct even
+   * when the pointer crosses narrowed weekend columns of unequal width. */
   indexAtClientX: (clientX: number) => number;
   onPreview: (input: DragResizePreviewInput) => void;
   onCommit: (mode: DragMode, deltaDays: number, pointer: Pointer) => void;
@@ -76,11 +76,11 @@ function createPointerHandlers(
   detach: () => void,
 ): Pick<GestureHandlers, "onMove" | "onUp"> {
   const { argsRef, mode, startX, startY, pointerId, threshold } = state;
-  // NOTE: the day delta is `indexAtClientX(here) - indexAtClientX(start)`. The
-  // divide-by-zero / out-of-range guarding lives in the PURE ColumnGeometry.indexAt (it's
-  // total and never returns NaN). This hook intentionally stays guard-free — do NOT wrap
+  // Note: the day delta is `indexAtClientX(here) - indexAtClientX(start)`. The
+  // divide-by-zero / out-of-range guarding lives in the pure ColumnGeometry.indexAt (it's
+  // total and never returns NaN). This hook intentionally stays guard-free, do not wrap
   // these pure calls in try/catch (the guard belongs in the geometry layer). The 4px
-  // arm-vs-click test below stays a RAW pixel test, independent of the day snapping.
+  // arm-vs-click test below stays a raw pixel test, independent of the day snapping.
   const onMove = (event: PointerEvent) => {
     if (isOtherPointer(event, pointerId)) return;
     const dx = event.clientX - startX;
@@ -120,8 +120,8 @@ function createGestureHandlers(state: GestureState): GestureHandlers {
     if (captureTarget.hasPointerCapture(pointerId)) captureTarget.releasePointerCapture(pointerId);
     teardownRef.current = null;
   };
-  // THE abandon path, shared by all three ways a gesture can end without committing (pointer
-  // cancel, lost capture, Escape). Notify even on a SUB-THRESHOLD abandon: the gesture was armed
+  // The abandon path, shared by all three ways a gesture can end without committing (pointer
+  // cancel, lost capture, Escape). Notify even on a sub-threshold abandon: the gesture was armed
   // at pointerdown, so the consumer may have started a side effect (e.g. a document scroll
   // watcher) whose only teardown signal on these paths is onCancel. Skipping it orphans that
   // listener for every twitch-then-browser-scroll, accumulating across gestures.
@@ -160,21 +160,21 @@ export function useDragResize(args: UseDragResizeArgs) {
   const teardownRef = useRef<(() => void) | null>(null);
   useEffect(() => () => teardownRef.current?.(), []);
 
-  // Returns true when the gesture was ARMED (listeners attached), false when the
+  // Returns true when the gesture was armed (listeners attached), false when the
   // pointerdown was ignored (non-left button or re-entrant). The caller uses this to
-  // avoid starting side effects (e.g. a scroll watcher) for a gesture that never runs
-  // — those have no onCommit/onCancel/onClick to tear them back down.
+  // avoid starting side effects (e.g. a scroll watcher) for a gesture that never runs,
+  // those have no onCommit/onCancel/onClick to tear them back down.
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLElement>): boolean => {
     if (e.button !== 0) return false;
     e.stopPropagation(); // don't let the lane start a draw-to-create gesture
     // Ignore a re-entrant pointerdown (a second finger / pen) while a gesture is
-    // already live — otherwise its document listeners would leak and a single
+    // already live, otherwise its document listeners would leak and a single
     // pointerup could commit twice.
     if (teardownRef.current) return false;
 
     const mode = resolveDragMode(e.target);
     const captureTarget = e.currentTarget;
-    const pointerId = e.pointerId; // only react to THIS pointer's move/up/cancel
+    const pointerId = e.pointerId; // only react to this pointer's move/up/cancel
     const handlers = createGestureHandlers({
       argsRef,
       teardownRef,

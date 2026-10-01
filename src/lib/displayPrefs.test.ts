@@ -40,7 +40,7 @@ describe("sidebar preference", () => {
   });
 
   it("defaults open when matchMedia is unavailable (non-browser environment)", () => {
-    // jsdom has no matchMedia — the guard must fall back to a large-screen default
+    // jsdom has no matchMedia. The guard must fall back to a large-screen default
     // rather than throwing.
     expect(readDefaultSidebarOpen()).toBe(true);
   });
@@ -95,7 +95,7 @@ describe("week-snap test override", () => {
   });
 
   it("swallows a blocked read to the default (on)", () => {
-    // Private mode / quota / a sandboxed iframe can make getItem THROW (not just return null). The
+    // Private mode / quota / a sandboxed iframe can make getItem throw (not just return null). The
     // read must degrade to the default rather than crash boot (DEFENSIVE-CODING.md §5).
     const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new DOMException("blocked", "SecurityError");
@@ -263,7 +263,7 @@ describe("bar-label display preferences", () => {
 
 describe("sidebar default (viewport-derived)", () => {
   afterEach(() => {
-    // @ts-expect-error jsdom has no matchMedia by default — restore that absence
+    // @ts-expect-error jsdom has no matchMedia by default, restore that absence
     delete window.matchMedia;
   });
 

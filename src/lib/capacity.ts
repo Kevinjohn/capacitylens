@@ -47,7 +47,7 @@ export interface DayCapacity {
 }
 
 /** Allocated vs. available hours for one resource-day, with the `over` flag (allocated > available).
- *  @remarks Assumes finite, non-negative hours (see the top-of-file precondition). */
+ * @remarks Assumes finite, non-negative hours (see the top-of-file precondition). */
 export function buildDayCapacity({
   resource,
   date,
@@ -56,7 +56,7 @@ export function buildDayCapacity({
   effectiveWeek,
   closures,
 }: BuildDayCapacityInput): DayCapacity {
-  // ONE parseISO for the whole resource-day: the availability and load halves each need the
+  // One parseISO for the whole resource-day: the availability and load halves each need the
   // weekday (twice over, for the working-week and half-day tests), and this runs per resource ×
   // per visible day on every model rebuild.
   const weekday = weekdayOf(date);
@@ -84,10 +84,10 @@ export function buildDayCapacity({
 }
 
 /** Whole-window capacity, one entry per calendar day, derived straight from the inputs.
- *  The render path does NOT come through here: buildSchedulerModel walks the SAME window for every
- *  resource, so it builds the day array once, buckets each resource's allocations and time off by
- *  covered date (`bucketByCoveredDate`), and memoises `buildDayCapacity` per date. This stays the
- *  straight-line definition those optimisations are checked against. */
+ * The render path does not come through here: buildSchedulerModel walks the same window for every
+ * resource, so it builds the day array once, buckets each resource's allocations and time off by
+ * covered date (`bucketByCoveredDate`), and memoises `buildDayCapacity` per date. This stays the
+ * straight-line definition those optimisations are checked against. */
 export function buildCapacityWindow({
   resource,
   allocations,
@@ -114,7 +114,7 @@ export function resolveUtilizationFromCapacity(days: Iterable<DayCapacity>): num
   let allocated = 0;
   let available = 0;
   for (const day of days) {
-    if (day.available === 0) continue; // not a working day — neither side counts
+    if (day.available === 0) continue; // not a working day. Neither side counts
     allocated += day.allocated;
     available += day.available;
   }
@@ -122,11 +122,11 @@ export function resolveUtilizationFromCapacity(days: Iterable<DayCapacity>): num
 }
 
 /** Allocated / available over the window, counted over working days only.
- *  Returns 0 when there is no availability. Non-working days (weekends / time off)
- *  are skipped entirely — counting their allocated hours against zero availability
- *  would push a normal allocation that merely spans a weekend past 100%.
- *  Like `buildCapacityWindow`, this is the straight-line definition; the render path reaches the same
- *  number through `resolveUtilizationFromCapacity` over its memoised per-date capacity. */
+ * Returns 0 when there is no availability. Non-working days (weekends / time off)
+ * are skipped entirely, counting their allocated hours against zero availability
+ * would push a normal allocation that merely spans a weekend past 100%.
+ * Like `buildCapacityWindow`, this is the straight-line definition; the render path reaches the same
+ * number through `resolveUtilizationFromCapacity` over its memoised per-date capacity. */
 export function resolveUtilization({
   resource,
   allocations,

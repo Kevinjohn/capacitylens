@@ -5,9 +5,9 @@ import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fas
 // password env, the typed inject wrapper, the two Set-Cookie readers and the sign-up flow.
 // The auth-backed app itself is built by fixtures/appWithAuth.ts.
 
-/** Password-auth env for `authFromEnv`. Open signup is CLOSED by default (P1.7 disableSignUp); these
- *  fixtures create users via sign-up/email, so it is re-opened here until the invite flow is the only
- *  path. A suite that asserts the default-closed posture builds its own env WITHOUT this flag. */
+/** Password-auth env for `authFromEnv`. Open signup is closed by default (disableSignUp); these
+ * fixtures create users via sign-up/email, so it is re-opened here until the invite flow is the only
+ * path. A suite that asserts the default-closed posture builds its own env without this flag. */
 export const PASSWORD_ENV = {
   CAPACITYLENS_MODE: "password-only",
   CAPACITYLENS_SECRET: "unit-test-secret-0123456789abcdef-0123",
@@ -27,8 +27,8 @@ export function headerValues(value: string | string[] | undefined): string[] {
 }
 
 /** Report every Set-Cookie pair the server sent, in order, as one request Cookie header. Unlike
- *  readCookies this keeps duplicates and cleared cookies: app.auth.bootstrap.test.ts asserts that a
- *  rejected sign-up set no session cookie at all, so a cleared cookie must remain visible there. */
+ * readCookies this keeps duplicates and cleared cookies: app.auth.bootstrap.test.ts asserts that a
+ * rejected sign-up set no session cookie at all, so a cleared cookie must remain visible there. */
 export function cookiesOf(res: LightMyRequestResponse): string {
   return headerValues(res.headers["set-cookie"])
     .map((cookie) => String(cookie).split(";")[0])
@@ -36,7 +36,7 @@ export function cookiesOf(res: LightMyRequestResponse): string {
 }
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header, as a browser cookie
- *  jar would: the last value per name wins and expired cookies are dropped. */
+ * jar would: the last value per name wins and expired cookies are dropped. */
 export function readCookies(res: LightMyRequestResponse): string {
   const raw = res.headers["set-cookie"];
   let list: readonly string[] = [];

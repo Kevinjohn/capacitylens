@@ -30,9 +30,9 @@ vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-// MembersSection is the Team & access management UI. It renders ONLY in auth-on + server mode and
+// MembersSection is the Team & access management UI. It renders only in auth-on + server mode and
 // self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
-// true) and fetch, and assert the OWNER-ONLY affordances are hidden for an admin (no owner option, no
+// true) and fetch, and assert the owner-only affordances are hidden for an admin (no owner option, no
 // controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
 
 // Make the section "enabled": a configured server. The real module reads import.meta.env, which the
@@ -197,7 +197,7 @@ function registerAdminMemberControlTests(members: RawMember[]): void {
     expect(within(ownerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
     expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
 
-    // The editor row, by contrast, IS manageable by the admin.
+    // The editor row, by contrast, is manageable by the admin.
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
     expect(within(editorRow).getByTestId("member-edit")).toBeInTheDocument();
     await chooseMemberAction(userEvent.setup(), editorRow, "member-remove");
@@ -360,7 +360,7 @@ function registerAdminRoleChangeTests(members: RawMember[]): void {
     ).toBeInTheDocument();
     fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
-    // The summary explains the consequence, and choosing a role is still only a DRAFT.
+    // The summary explains the consequence, and choosing a role is still only a draft.
     expect(within(dialog).getByTestId("member-role-summary")).toHaveTextContent(/Read-only schedule access/);
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/members/theeditor"), expect.anything());
 

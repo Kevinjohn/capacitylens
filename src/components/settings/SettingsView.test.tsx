@@ -441,7 +441,7 @@ describe("SettingsView — Schedule (minimise weekends)", () => {
 
 describe("SettingsView — account toggle wiring", () => {
   // Third tuple entry = the documented absent-field default (store/selectors.ts). Pinned as a
-  // LITERAL per row: re-deriving it from the key would only restate the component's own rule and
+  // literal per row: re-deriving it from the key would only restate the component's own rule and
   // would keep agreeing with it if that rule ever changed.
   it.each([
     ["Use disciplines", "disciplinesEnabled", true],
@@ -528,7 +528,7 @@ describe("SettingsView — switch target size (WCAG 2.5.8 AA, ≥24px)", () => {
   });
 });
 
-// The action reboots through lib/reloadPage — the one boundary over `location.reload()` — so the
+// The action reboots through lib/reloadPage, the one boundary over `location.reload()`, so the
 // spy is a module mock rather than a replacement window.location (jsdom's reload is
 // non-configurable). reloadPage.test.ts covers that the boundary really does reload.
 const reload = reloadMock.reloadPage;
@@ -590,7 +590,7 @@ it("Confirm clears every capacitylens/ key and reloads", async () => {
   await openDeviceData(user);
 
   await user.click(screen.getByTestId("clear-local-storage"));
-  // Scope to the alert dialog — the section button and confirm action share the label.
+  // Scope to the alert dialog, the section button and confirm action share the label.
   await user.click(
     within(screen.getByRole("alertdialog")).getByRole("button", {
       name: "Clear device data",

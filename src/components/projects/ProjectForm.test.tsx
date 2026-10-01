@@ -158,7 +158,7 @@ describe("ProjectForm", () => {
     expect(useStore.getState().data.projects[0]?.color).toBe("#da2d92");
   });
 
-  // Editing a project whose client is ARCHIVED (hidden from the active-only picker): the current
+  // Editing a project whose client is archived (hidden from the active-only picker): the current
   // client must appear as a disabled-but-selected option so an unrelated edit (rename) can save
   // the unchanged clientId instead of being blocked by the picker or the store's ref check.
   it("renames a project under an archived client without forcing a reassignment", async () => {

@@ -284,7 +284,7 @@ describe("CapacityOverviewTable content", () => {
     renderTable();
 
     // Without a real resource behind it, the trigger's title degrades to the generic
-    // "View Placeholder's schedule" instead of naming the role — the case a defaulted-to-empty
+    // "View Placeholder's schedule" instead of naming the role, the case a defaulted-to-empty
     // `data` prop was silently masking.
     const trigger = screen.getByRole("button", { name: "View Placeholder — Designer's schedule" });
     expect(trigger).toHaveAttribute("data-testid", "person-schedule-trigger");

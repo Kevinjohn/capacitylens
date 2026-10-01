@@ -153,10 +153,10 @@ async function loadDirectory(load: DirectoryLoad): Promise<void> {
 
 function useDirectoryRead({ enabled, activeAccountId, offlineReadOnly, fail, onInvitesLoaded }: TeamDirectoryOptions) {
   const [directory, setDirectory] = useState<DirectoryState>({ kind: "loading", accountId: null });
-  // The ONE fact the load effect needs about the directory it is replacing: which account (if any)
-  // already has an AUTHORIZED members list on screen, so a later 403 for that same account reads as
+  // The one fact the load effect needs about the directory it is replacing: which account (if any)
+  // already has an authorized members list on screen, so a later 403 for that same account reads as
   // "your access changed" rather than silently hiding a section the caller was just using. Held in a
-  // ref — a dependency on the directory itself would re-run the load on every list update.
+  // ref: a dependency on the directory itself would re-run the load on every list update.
   const authorizedAccountRef = useRef<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const requestGeneration = useRef(0);
@@ -192,10 +192,10 @@ function useDirectoryRead({ enabled, activeAccountId, offlineReadOnly, fail, onI
 /**
  * Re-read the invitations alone, authoritatively.
  *
- * For the writes that can only have changed the INVITE list (creating one, revoking one): the
+ * For the writes that can only have changed the invite list (creating one, revoking one): the
  * members read is a separate authorization, and re-running it would re-ask "may I still see this
  * section?" for a write that cannot have answered that question differently. Guarded exactly as
- * the main effect's invitations leg is — a response is applied only while both this read and the
+ * the main effect's invitations leg is. A response is applied only while both this read and the
  * members load that authorized it are still the current ones, and only onto the account it was
  * asked for, so a switch or a full reload that overtakes it discards it instead of resurrecting a
  * previous company's invites.

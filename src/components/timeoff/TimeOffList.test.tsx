@@ -45,7 +45,7 @@ beforeEach(() => {
   resetStoreWithAccount();
   useStore.getState().clearFilters();
   // The placeholder-hiding behaviour is the system under test in some cases; default the device
-  // pref ON here so the pre-existing tests are unaffected, and flip it OFF in the dedicated tests.
+  // pref on here so the pre-existing tests are unaffected, and flip it off in the dedicated tests.
   setPlaceholdersEnabled({ on: true });
 });
 
@@ -219,7 +219,7 @@ it("states the year in an action name when the time off crosses one", () => {
   });
   render(<TimeOffList />);
 
-  // Without the years this reads "from Mon 28th Dec to Fri 8th Jan" — a range running backwards
+  // Without the years this reads "from Mon 28th Dec to Fri 8th Jan", a range running backwards
   // through the year rather than the twelve days it is.
   expect(
     screen.getByRole("button", { name: "Edit Alice time off from Mon 28th Dec 2026 to Fri 8th Jan 2027" }),
@@ -310,7 +310,7 @@ it("HIDES a placeholder time-off entry when placeholders are OFF (data stays int
     .getState()
     .addTimeOff({ resourceId: ph.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" });
 
-  // Turn placeholders OFF — the entry must disappear from the rendered list…
+  // Turn placeholders off. The entry must disappear from the rendered list…
   setPlaceholdersEnabled({ on: false });
   render(<TimeOffList />);
   expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();

@@ -121,8 +121,8 @@ export function createMemberCredentialMutations({
   setResetLink,
   bumpReadiness,
 }: ResetPasswordDependencies) {
-  // Mint a single-use password-reset link for `member` (P1.18). Password mode only (the button is
-  // hidden otherwise; the server 400s regardless). No email is ever sent — the admin copies the
+  // Mint a single-use password-reset link for `member`. Password mode only (the button is
+  // hidden otherwise; the server 400s regardless). No email is ever sent, the admin copies the
   // link out of the write-once block below and hands it over directly. `member` is not `m` (i18n).
   const resetPassword = createResetPassword({
     withMemberAction,

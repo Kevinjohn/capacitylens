@@ -31,7 +31,7 @@ interface InitiateOwnershipTransferInput {
   workspaceId: string;
   targetPrincipalId: string;
   /** The live request this nomination replaces, at the revision it was read at. Omitted when the
-   *  caller believes there is none; the server refuses either belief if it is wrong. */
+   * caller believes there is none; the server refuses either belief if it is wrong. */
   replaces?: { requestId: string; revision: string } | undefined;
   command?: BrowserAccountCommand | undefined;
 }
@@ -282,7 +282,7 @@ export const accountClient = {
    *
    * `cancel` is the DELETE; the other four are POSTs to their own sub-path. The revision travels in
    * the body for all five, including the DELETE, because it is the compare half of the transition,
-   * not an identifier — and it is part of the command payload the server hashes, so a retry naming
+   * not an identifier, and it is part of the command payload the server hashes, so a retry naming
    * a different revision is refused rather than replayed.
    */
   commandOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<Response> {

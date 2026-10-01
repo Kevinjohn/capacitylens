@@ -63,7 +63,7 @@ const ALLOCATIONS: AppData["allocations"] = [
     hoursPerDay: 8,
     status: "confirmed",
   },
-  // External partner studio booked on Queen Consolidated's visual design — a span only, no hours (hoursPerDay 0).
+  // External partner studio booked on Queen Consolidated's visual design, a span only, no hours (hoursPerDay 0).
   {
     id: "a-ext-1",
     accountId: STUDIO,
@@ -89,7 +89,7 @@ const ALLOCATIONS: AppData["allocations"] = [
     hoursPerDay: 6,
     status: "confirmed",
   },
-  // An all-projects activity ("Design") booked across a project boundary — demonstrates the
+  // An all-projects activity ("Design") booked across a project boundary, demonstrates the
   // schedule's activity lens ("all design work", regardless of project/client).
   {
     id: "a-alex-design",

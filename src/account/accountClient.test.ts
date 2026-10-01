@@ -137,7 +137,7 @@ function registerAuditWarningTests(): void {
     // accountClient.me used to call raw `fetch` directly, bypassing apiFetch's audit-degradation
     // header check entirely (the regression this test pins). Simulate apiFetch's real header-check
     // behavior (mirrors requestTimeout.ts's apiFetch, covered directly in requestTimeout.test.ts) so
-    // this test proves accountClient.me's OWN wiring reaches apiFetch rather than a bespoke fetch.
+    // this test proves accountClient.me's own wiring reaches apiFetch rather than a bespoke fetch.
     const warning = vi.fn();
     globalThis.addEventListener(AUDIT_WARNING_EVENT, warning);
     mocks.apiFetch.mockImplementation(async () => {

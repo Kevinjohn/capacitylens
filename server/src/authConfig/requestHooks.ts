@@ -138,7 +138,7 @@ function createBeforeRequestHook(options: RequestHookOptions) {
         },
       };
     }
-    // The EXACT refusal Better Auth's own disableSignUp emits (sign-up.mjs, 1.6.23), so the client
+    // The exact refusal Better Auth's own disableSignUp emits (sign-up.mjs, 1.6.23), so the client
     // and tests see one unchanged error shape regardless of which gate closed the door.
     throw APIError.from("BAD_REQUEST", {
       message: "Email and password sign up is not enabled",
@@ -178,7 +178,7 @@ export function buildRequestHooks(options: RequestHookOptions): Pick<BetterAuthO
         }
       },
     },
-    // The LIVE sign-up gate (see the SECURE DEFAULT comment above): allowed when the operator
+    // The live sign-up gate (see the secure default comment above): allowed when the operator
     // opted in, or for the empty-table owner bootstrap when the request proves knowledge of the
     // configured setup secret. countUsers(db) is consulted per request so the bootstrap route
     // closes immediately after the first identity is created.

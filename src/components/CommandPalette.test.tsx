@@ -401,7 +401,7 @@ describe("CommandPalette", () => {
     const options = screen.getAllByTestId("command-palette-option");
     if (!options[0] || !options[1]) throw new Error("Expected command palette options");
     // Hover the second option. cmdk activates on its native onPointerMove (not mouseEnter), so the
-    // interaction fires pointerMove — the assertion (hovering a row makes it the active option) is
+    // interaction fires pointerMove. The assertion (hovering a row makes it the active option) is
     // unchanged.
     fireEvent.pointerMove(options[1]);
 
@@ -439,7 +439,7 @@ describe("CommandPalette", () => {
     if (!tylerOption) throw new Error("Expected Bruce Wayne command palette option");
     expect(tylerOption).toBeTruthy();
 
-    // Click it — should call jumpToResource (store action). cmdk's onSelect fires on click (and
+    // Click it, should call jumpToResource (store action). cmdk's onSelect fires on click (and
     // Enter), so the pointer pick is a click; the assertion (selecting the row runs its action) holds.
     act(() => {
       fireEvent.click(tylerOption);
@@ -559,7 +559,7 @@ describe("CommandPalette", () => {
       fireEvent.click(projectOption);
     });
 
-    // Filters must deep-equal { ...emptyFilters(), projectId } — no stale fields survive
+    // Filters must deep-equal { ...emptyFilters(), projectId }, no stale fields survive
     const filters = useStore.getState().ui.filters;
     if (!projectId) throw new Error("Expected Project Alpha id");
     expect(filters).toEqual({ ...buildEmptyFilters(), projectId });
@@ -602,7 +602,7 @@ describe("CommandPalette", () => {
       fireEvent.click(clientOption);
     });
 
-    // Filters must deep-equal { ...emptyFilters(), clientId } — no stale fields survive
+    // Filters must deep-equal { ...emptyFilters(), clientId }, no stale fields survive
     const filters = useStore.getState().ui.filters;
     if (!clientId) throw new Error("Expected Client Zeta id");
     expect(filters).toEqual({ ...buildEmptyFilters(), clientId });

@@ -7,7 +7,7 @@ import { newId } from "@capacitylens/shared/lib/id";
 import { REPLY_ERRORS } from "./replyErrors";
 
 /** Node's IncomingHttpHeaders → web Headers, for Better Auth's web-standard API
- *  (getSession reads the cookie; the mounted handler gets the full set). */
+ * (getSession reads the cookie; the mounted handler gets the full set). */
 export function toWebHeaders(raw: FastifyRequest["headers"]): Headers {
   const headers = new Headers();
   for (const [key, value] of Object.entries(raw)) {

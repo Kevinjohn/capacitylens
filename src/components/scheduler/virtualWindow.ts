@@ -9,10 +9,10 @@ interface ResolveVirtualWindowInput {
 // Pure vertical-windowing math for the scheduler grid. Given the ordered heights of
 // every renderable item (group headers + resource rows), the scroll offset and the
 // viewport height, it returns which slice to render. Kept pure (no DOM) so it's
-// deterministic and unit-testable at any scale — the windowing path can't be exercised
+// deterministic and unit-testable at any scale. The windowing path can't be exercised
 // in jsdom (clientHeight is 0 there), so the test validates this directly.
 //
-// The off-screen scroll extent is RESERVED by spacer divs the grid sizes from `RowLayout`
+// The off-screen scroll extent is reserved by spacer divs the grid sizes from `RowLayout`
 // (tops/total) rather than from a pad returned here: the grid can render one extra disjoint
 // item (the pinned drag source), so it needs the gap either side of every rendered item, not
 // just the two outer ones.
@@ -22,9 +22,9 @@ export interface VirtualWindow {
   last: number; // last item index to render (inclusive); -1 when empty
 }
 
-/** Cumulative offsets (prefix sums) of every item + the total. Depends ONLY on
- *  heights, so callers memoise it on `heights` and rebuild it only when the row set
- *  changes — not on every scroll frame. */
+/** Cumulative offsets (prefix sums) of every item + the total. Depends only on
+ * heights, so callers memoise it on `heights` and rebuild it only when the row set
+ * changes, not on every scroll frame. */
 export interface RowLayout {
   tops: number[];
   total: number;
@@ -48,7 +48,7 @@ export function buildLayout(heights: number[]): RowLayout {
 }
 
 /** The per-scroll-frame work: given a precomputed layout, find the visible slice.
- *  Binary-searches both edges — no O(n) prefix-sum rebuild or row scan. */
+ * Binary-searches both edges. No O(n) prefix-sum rebuild or row scan. */
 export function resolveVirtualWindow({
   layout,
   heights,

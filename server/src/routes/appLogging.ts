@@ -1,11 +1,11 @@
 import type { FastifyRequest } from "fastify";
 import type { AppOptions } from "../app";
 
-// P0.5.5: NEVER let a secret reach the logs. pino strips these exact paths from every record
-// when logging is on; remove:true DELETES the key (so the value is gone entirely, not printed as
-// "[Redacted]"). DEFENSE-IN-DEPTH: Fastify's default req/res serializers don't log headers at all
+// Never let a secret reach the logs. pino strips these exact paths from every record
+// when logging is on; remove:true deletes the key (so the value is gone entirely, not printed as
+// "[Redacted]"). Defense-in-depth: Fastify's default req/res serializers don't log headers at all
 // (req → method/url/hostname/remoteAddress; res → statusCode/responseTime), so today nothing here
-// would emit these — but the moment a custom serializer logs headers, or someone logs a raw req/res,
+// would emit these, but the moment a custom serializer logs headers, or someone logs a raw req/res,
 // this is the backstop that keeps Authorization / Cookie / Set-Cookie out of stdout. If such a
 // serializer is ever added, extend this list to cover any new path it surfaces.
 const LOG_REDACT_PATHS = ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'];
@@ -34,7 +34,7 @@ export const redactSecretUrl = (url: unknown): string | undefined => {
 };
 
 /** Build the exact structured logger policy consumed by Fastify.
- *  Exported so tests can pin redaction before req/res serializers discard header objects. */
+ * Exported so tests can pin redaction before req/res serializers discard header objects. */
 export function createRequestLoggerOptions(stream?: AppOptions["logStream"]) {
   return {
     ...(stream ? { stream } : {}),

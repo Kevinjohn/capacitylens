@@ -16,11 +16,11 @@ export function announceAuditWarning(): void {
  * The one place the header name and its "true" spelling live, shared by apiFetch and the sync
  * adapter's dedicated routes (which bypass apiFetch and would otherwise drop the header silently).
  *
- * `defer` picks the DISPATCH TIMING, which is not cosmetic:
+ * `defer` picks the dispatch timing, which is not cosmetic:
  *   - `true` (apiFetch's direct user actions) waits a macrotask so the action's own success notice
  *     has already run; otherwise that notice immediately overwrites the more important persistent
  *     audit warning in the single-notice store.
- *   - the default announces SYNCHRONOUSLY, as the background sync paths always have: they raise no
+ *   - the default announces synchronously, as the background sync paths always have: they raise no
  *     competing success notice, and the caller usually throws or returns straight after.
  */
 export function noteAuditWarning(

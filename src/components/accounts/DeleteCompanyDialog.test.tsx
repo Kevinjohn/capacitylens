@@ -6,7 +6,7 @@ import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { downloadTextFile } from "@/lib/download";
 
-// The export must be observable (not actually save files in jsdom) — mock the one download seam.
+// The export must be observable (not actually save files in jsdom), mock the one download seam.
 vi.mock("@/lib/download", () => ({ downloadTextFile: vi.fn() }));
 
 // Friction on the one irreversible action: Delete stays aria-disabled but focusable until the exact
@@ -77,7 +77,7 @@ it("lets Escape abort even after typing in the confirm field (no unsaved-changes
   render(<DeleteCompanyDialog account={account} onConfirm={() => {}} onCancel={onCancel} />);
 
   const input = screen.getByLabelText(/Type/i);
-  fireEvent.change(input, { target: { value: "Ferris" } }); // partial — would trip the dirty guard
+  fireEvent.change(input, { target: { value: "Ferris" } }); // partial: would trip the dirty guard
   fireEvent.keyDown(document, { key: "Escape" });
 
   expect(onCancel).toHaveBeenCalledOnce();
@@ -90,7 +90,7 @@ it("autofocuses the type-to-confirm field, not a leading button", () => {
   expect(document.activeElement).toBe(screen.getByLabelText(/Type/i));
 });
 
-// "Export first" is the LAST backup before a no-undo cascade delete, so it must be complete
+// "Export first" is the last backup before a no-undo cascade delete, so it must be complete
 // (server mode fetches the full ?includeInactive=1 slice) and must never silently save an empty
 // file or pretend a failed fetch produced a backup.
 const seedLocalData = () => {
@@ -118,7 +118,7 @@ it("DEMO build: exports the local scoped slice without any fetch", async () => {
 
 it("DEMO build: refuses an all-empty export with a loud inline warning (no file saved)", async () => {
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
-  // Account exists but carries ZERO scoped records — e.g. the slice never loaded.
+  // Account exists but carries zero scoped records, e.g. the slice never loaded.
   useStore.getState().replaceAll(makeAppData());
   render(<DeleteCompanyDialog account={makeAccount()} onConfirm={() => {}} onCancel={() => {}} />);
 
@@ -130,8 +130,8 @@ it("DEMO build: refuses an all-empty export with a loud inline warning (no file 
 });
 
 it("SERVER mode: exports the fetched COMPLETE (?includeInactive=1) slice, not the store", async () => {
-  // Server mode is the no-stub default. The store holds NOTHING for this company; the fetched
-  // slice carries an archived client — both must still land in the export.
+  // Server mode is the no-stub default. The store holds nothing for this company; the fetched
+  // slice carries an archived client. Both must still land in the export.
   const slice = makeAppData({
     clients: [
       {
@@ -175,7 +175,7 @@ it("SERVER mode: a failed fetch surfaces inline and saves NO file (backup blocks
   expect(downloadTextFile).not.toHaveBeenCalled();
 });
 
-// The fetched body is untrusted input, and it must be refused BEFORE migrate(): migrate()
+// The fetched body is untrusted input, and it must be refused before migrate(): migrate()
 // treats the wrapperless server body as a legacy blob and synthesizes the built-in Internal
 // client from a bare accounts row, so a malformed body would otherwise defeat the zero-record
 // guard. The structural gate (every known table present as an array) refuses it instead.
@@ -194,10 +194,10 @@ it("SERVER mode: a malformed body is refused by the structural gate (no file sav
   expect(downloadTextFile).not.toHaveBeenCalled();
 });
 
-// The nastier variant: a 200 body carrying ONLY a matching accounts row (broken proxy /
+// The nastier variant: a 200 body carrying only a matching accounts row (broken proxy /
 // wrong-version server). migrate() would synthesize the Internal client from that row
 // (total ≥ 1, zero-record guard defeated) and save a nearly-empty file as the "complete
-// last backup" — the structural gate must refuse it because the scoped tables are absent.
+// last backup", the structural gate must refuse it because the scoped tables are absent.
 it("SERVER mode: a partial body (accounts row only) is refused as incomplete (no file saved)", async () => {
   const fetchSpy = vi.fn().mockResolvedValue({
     ok: true,
@@ -213,9 +213,9 @@ it("SERVER mode: a partial body (accounts row only) is refused as incomplete (no
   expect(downloadTextFile).not.toHaveBeenCalled();
 });
 
-// Export is optional, but a delete must not RACE a pending export attempt (the cascade
+// Export is optional, but a delete must not race a pending export attempt (the cascade
 // would erase the very slice being backed up). Both buttons disarm while the fetch is in
-// flight; once it settles — even on failure — Delete re-arms (users may hold their own backup).
+// flight; once it settles, even on failure, Delete re-arms (users may hold their own backup).
 it("disables Delete and Export while an export attempt is in flight, re-arms after it settles", async () => {
   let resolveFetch!: (v: unknown) => void;
   const fetchSpy = vi.fn().mockReturnValue(
@@ -237,7 +237,7 @@ it("disables Delete and Export while an export attempt is in flight, re-arms aft
   await waitFor(() => expect(deleteBtn.disabled).toBe(true));
   expect(exportBtn.disabled).toBe(true);
 
-  resolveFetch({ ok: false, status: 503, json: async () => ({}) }); // the attempt FAILS — export stays optional
+  resolveFetch({ ok: false, status: 503, json: async () => ({}) }); // the attempt fails, export stays optional
   await screen.findByRole("alert");
   expect(deleteBtn.disabled).toBe(false);
   expect(exportBtn.disabled).toBe(false);

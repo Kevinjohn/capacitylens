@@ -53,7 +53,7 @@ export function buildCommandRequestInit(
 export function buildJsonCommandRequestInit(
   // DELETE carries a body for exactly one caller: the ceremony cancellation, whose expected
   // revision is the compare half of a transition rather than an identifier, so it belongs in the
-  // payload the server hashes — not in the path.
+  // payload the server hashes, not in the path.
   method: "POST" | "PATCH" | "DELETE",
   body: unknown,
   command?: BrowserAccountCommand,

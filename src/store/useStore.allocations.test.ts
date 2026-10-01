@@ -350,7 +350,7 @@ describe("updateAllocation clamp ordering", () => {
     state().updateAllocation(allocation.id, { hoursPerDay: 99 });
 
     expect(state().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
-      hoursPerDay: 24, // clamped into [0,24] like creation and import — not rejected
+      hoursPerDay: 24, // clamped into [0,24] like creation and import, not rejected
     });
     expect(state().notice).toBeNull();
   });

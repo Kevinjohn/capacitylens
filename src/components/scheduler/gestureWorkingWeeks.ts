@@ -10,7 +10,7 @@ import { isAllocationMoveStartBlocked, resolveEffectiveWorkingDays } from "./cre
 // them about two resources at once.
 
 /** One live read of the resource a gesture is asking about, with the company working days its
- *  pattern is narrowed by. `resource` is undefined when it is gone — deleted mid-drag. */
+ * pattern is narrowed by. `resource` is undefined when it is gone, deleted mid-drag. */
 function readResource(resourceId: ID) {
   const state = useStore.getState();
   return {
@@ -20,7 +20,7 @@ function readResource(resourceId: ID) {
 }
 
 /** The working weekdays that actually govern `resourceId`: their own pattern narrowed by the
- *  company's. `undefined` when the resource is gone (deleted mid-drag). */
+ * company's. `undefined` when the resource is gone (deleted mid-drag). */
 export function readWorkingDays(resourceId: ID) {
   const { resource, accountWorkingDays } = readResource(resourceId);
   return resource ? resolveEffectiveWorkingDays(resource, accountWorkingDays) : undefined;
@@ -33,7 +33,7 @@ interface EffectiveDaysQuery {
 }
 
 /** Does this allocation have any day it could occupy on `resourceId`? False only for a collapsed
- *  working week, which a weekend-aware gesture cannot place anything into. */
+ * working week, which a weekend-aware gesture cannot place anything into. */
 export function hasEffectiveDaysFor({ resourceId, ignoreWeekends }: EffectiveDaysQuery) {
   const { resource, accountWorkingDays } = readResource(resourceId);
   if (!resource) return true;
@@ -60,8 +60,8 @@ interface PreviewDropQuery {
 }
 
 /** Would a drop starting on `date` be refused because `resourceId` does not work that day? The one
- *  answer the live drag preview and the commit both ask, so the bar cannot draw a placement the
- *  release is about to reject. An absent resource is not blocked — its own gate rejects it. */
+ * answer the live drag preview and the commit both ask, so the bar cannot draw a placement the
+ * release is about to reject. An absent resource is not blocked, its own gate rejects it. */
 export function isDropStartBlocked({ resourceId, date, ignoreWeekends }: DropStartQuery) {
   const { resource, accountWorkingDays } = readResource(resourceId);
   if (!resource) return false;
@@ -84,8 +84,8 @@ export function isPreviewDropBlocked({ workingDays, result, isReassignment, igno
 }
 
 /** `readWorkingDays` memoised for the span of one gesture, keyed by resource. A working-week edit
- *  cannot land mid-drag, so one read per lane the pointer touches is exact; the caller clears the
- *  map at gesture start and teardown, and commits and keyboard nudges always read live data. */
+ * cannot land mid-drag, so one read per lane the pointer touches is exact; the caller clears the
+ * map at gesture start and teardown, and commits and keyboard nudges always read live data. */
 export function resolveMemoisedWorkingDays(memo: Map<ID, Weekday[] | undefined>, resourceId: ID) {
   if (memo.has(resourceId)) return memo.get(resourceId);
   const workingDays = readWorkingDays(resourceId);

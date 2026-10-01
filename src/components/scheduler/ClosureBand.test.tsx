@@ -30,13 +30,13 @@ describe("ClosureBand", () => {
     expect(band.style.width).toBe(`${GEOM.widthForDates("2026-06-05", "2026-06-08")}px`);
     expect(screen.getAllByTestId("scheduler-closure-band")).toHaveLength(1);
     // Styling hook for the time-off draw-mode highlight (see src/index.css
-    // `[data-draw-mode="timeoff"] .scheduler-closure-band`, #787). The band itself is mode-agnostic;
+    // `[data-draw-mode="timeoff"] .scheduler-closure-band`). The band itself is mode-agnostic;
     // the ancestor grid publishes `data-draw-mode`, so this class is the only thing a later,
     // closure-specific style needs to key off.
     expect(band).toHaveClass("scheduler-closure-band");
   });
 
-  // #788: with many people the band is taller than the screen and with a long closure it is wider,
+  // With many people the band is taller than the screen and with a long closure it is wider,
   // so a label pinned to the band's own top-left disappears as soon as the schedule is scrolled.
   it("keeps the closure name centred in whatever part of the band is on screen", () => {
     const width = GEOM.widthForDates("2026-06-05", "2026-06-08");
@@ -59,7 +59,7 @@ describe("ClosureBand", () => {
     expect(band.style.getPropertyValue("--band-height")).toBe("180px");
 
     // The name rides on a sibling layer, not inside the band: `z-0` on the band is a stacking
-    // context, so a nested name would be buried by the group headers the band sits under (#766).
+    // context, so a nested name would be buried by the group headers the band sits under.
     const labelLayer = screen.getByTestId("scheduler-closure-label-layer");
     expect(band.contains(labelLayer)).toBe(false);
     expect(labelLayer.parentElement).toBe(band.parentElement);
@@ -71,7 +71,7 @@ describe("ClosureBand", () => {
     // Readable on the hatch: the standard foreground, not the muted grey it used to carry.
     expect(labelLayer).toHaveClass("text-foreground");
     expect(labelLayer).not.toHaveClass("text-muted-foreground");
-    // Styling hook for #787's time-off ink, which no longer reaches the name by inheritance.
+    // Styling hook for the time-off ink, which no longer reaches the name by inheritance.
     expect(labelLayer).toHaveClass("scheduler-closure-label-layer");
 
     const horizontal = buildVisibleSpanInsets("x", "var(--band-left)", "var(--band-width)");
@@ -85,7 +85,7 @@ describe("ClosureBand", () => {
   });
 
   it("keeps the vertical label on a band too narrow to read across", () => {
-    // A single day zoomed out below the 44px threshold — the case the sideways label exists for.
+    // A single day zoomed out below the 44px threshold, the case the sideways label exists for.
     const narrow = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 20, {
       minimiseWeekends: false,
       weekendWidth: 12,

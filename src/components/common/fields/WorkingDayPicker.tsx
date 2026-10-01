@@ -123,7 +123,7 @@ export function WorkingDayPicker({
   workingDays: Weekday[];
   halfDays: Weekday[];
   onChange: (workingDays: Weekday[], halfDays: Weekday[]) => void;
-  // Mirror the sibling fields (TextField/SelectField/NumberField): mark the GROUP errored so the
+  // Mirror the sibling fields (TextField/SelectField/NumberField): mark the group errored so the
   // required-error (no day selected) re-announces when a SR navigates to the fieldset (WCAG 3.3.1).
   invalid?: boolean;
   describedById?: string;

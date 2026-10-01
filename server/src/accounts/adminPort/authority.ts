@@ -91,10 +91,10 @@ interface AssertInvitationAuthorityInput {
 }
 
 /** createInvitation's replay guard and its execute path both open with this same authority check.
- *  assertAccountAuthority already asserts the workspace exists as its own first statement, so
- *  neither closure needs a trailing assertWorkspaceExists of its own. `requireFresh` defaults to
- *  true here as it does in assertAdministrativeAssurance: a caller opts an ordinary administrative
- *  action out of the re-prompt explicitly, and role and MFA checks are unaffected either way. */
+ * assertAccountAuthority already asserts the workspace exists as its own first statement, so
+ * neither closure needs a trailing assertWorkspaceExists of its own. `requireFresh` defaults to
+ * true here as it does in assertAdministrativeAssurance: a caller opts an ordinary administrative
+ * action out of the re-prompt explicitly, and role and MFA checks are unaffected either way. */
 export function assertInvitationAuthority({
   db,
   actor,
@@ -132,19 +132,19 @@ export function readActorRolesByWorkspaceId(
 }
 
 /**
- * The same map for a TARGET of identity administration, counting memberships of every lifecycle
- * status. Deliberately NOT `roleMap`, and the asymmetry is the point in both directions:
+ * The same map for a target of identity administration, counting memberships of every lifecycle
+ * status. Deliberately not `roleMap`, and the asymmetry is the point in both directions:
  *
- * - An actor's authority must come only from ACTIVE memberships — a disabled admin administers
- *   nobody — so actors keep using `roleMap`.
- * - A target's non-active memberships must still COUNT. Dropping them made an empty map, which
+ * - An actor's authority must come only from active memberships, a disabled admin administers
+ *   nobody, so actors keep using `roleMap`.
+ * - A target's non-active memberships must still count. Dropping them made an empty map, which
  *   `authorityDecisions` reads as `target-not-member` and denies: disabling a member was therefore
  *   the act that destroyed the administrator's ability to revoke that member's live sessions or
- *   reset their password — exactly backwards for the compromised-account case that motivates
+ *   reset their password, exactly backwards for the compromised-account case that motivates
  *   disabling someone in the first place.
  *
  * Widening here cannot weaken the standing rule. `canAdministerIdentityAcrossWorkspaces` demands
- * the actor out-rank the target in EVERY workspace the target appears in, so adding workspaces to
+ * the actor out-rank the target in every workspace the target appears in, so adding workspaces to
  * the target's map can only hold the actor to a stricter test, never a laxer one.
  */
 export function readTargetRolesByWorkspaceId(
@@ -309,8 +309,8 @@ function assertIdentityRepairAuthority({
   assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
   assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
   // Status-agnostic: this asks "is there a membership here to repair?", not "may this login act?".
-  // An active-only probe would 404 the compromised-account case that identity repair exists for —
-  // an admin disables the account FIRST and then kills its sessions / rotates its password, and
+  // An active-only probe would 404 the compromised-account case that identity repair exists for,
+  // an admin disables the account first and then kills its sessions / rotates its password, and
   // an active-only read here reports the person they just disabled as a non-member. The
   // authority question is answered below by evaluateAuthority, which still ranks roles.
   if (!getMembershipRow(db, workspaceId, targetPrincipalId)) {

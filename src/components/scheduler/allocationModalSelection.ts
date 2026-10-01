@@ -13,9 +13,9 @@ import { FULL_DAY_HOURS, isExternalResource } from "@capacitylens/shared/types/e
 
 import type { EffectiveAllocationInput } from "./allocationModalTypes";
 /** Snap a seeded days-of-work value to 6 decimals: enough to erase float round-trip
- *  noise (e.g. 8 × 3/7 × 7/8 = 2.9999…) WITHOUT distorting a legitimate fraction
- *  (½ → 0.5, ⅛-day → 1.875). Keeping the seed exact means re-deriving hours on a
- *  no-op save returns the original value rather than drifting it. */
+ * noise (e.g. 8 × 3/7 × 7/8 = 2.9999…) without distorting a legitimate fraction
+ * (½ → 0.5, ⅛-day → 1.875). Keeping the seed exact means re-deriving hours on a
+ * no-op save returns the original value rather than drifting it. */
 export const roundDays = (dayCount: number) => Math.round(dayCount * 1e6) / 1e6;
 export const INTERNAL_PROJECT_SELECTION = "__allocation_internal__";
 export const ANY_PROJECT_SELECTION = "__allocation_any_project__";
@@ -141,7 +141,7 @@ export function buildEffectiveAllocationValues({
     // Working-span math is impossible with no effective days, so the typed range is literal and
     // "Days over" is frozen at its seed (its field is disabled below). Every seed derives
     // daysOfWork and daysOver from the same span, so this recomputation is the identity on the
-    // stored volume — the field freeze is what stops a manual change from silently diluting it.
+    // stored volume, the field freeze is what stops a manual change from silently diluting it.
     return buildUnavailableWeekValues({
       input: { resource, effectiveWeek, mode, startDate, endDate, hoursPerDay, daysOver, daysOfWork, ignoreWeekends },
       external: external,

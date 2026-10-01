@@ -11,7 +11,7 @@ import { useStore } from "@/store/useStore";
 
 // A minimal DOM harness: useSchedulerViewport owns a ref, not a rendered element, so the hook
 // must be driven through a real scrollable node (renderHook alone never attaches one). Mirrors
-// SchedulerGrid.test.tsx's "Feature 2" wiring tests — same clientWidth stub + synchronous rAF —
+// SchedulerGrid.test.tsx's "Feature 2" wiring tests, same clientWidth stub + synchronous rAF,
 // but stripped to just the viewport hook, no grid chrome.
 function Harness({
   minimiseWeekends = false,
@@ -81,7 +81,7 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
     });
 
     // Without rounding, indexAt's strict floor would resolve boundary - 0.4 to index 1
-    // (2026-06-02) — the previous column. Rounded first, it lands on the boundary column.
+    // (2026-06-02): the previous column. Rounded first, it lands on the boundary column.
     expect(screen.getByTestId("left-edge-idx").textContent).toBe("2");
     expect(screen.getByTestId("visible-start").textContent).toBe("2026-06-03");
     expect(grid.style.getPropertyValue("--sched-scroll-left")).toBe(`${boundary - 0.4}px`);
@@ -102,7 +102,7 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
   });
 
   it("the drag-end resync effect (a third unrounded indexAt call site) resolves the same sub-pixel scrollLeft correctly", () => {
-    // Drives the `!dragging` effect (leftEdgeIdx resync when a drag ends) rather than onScroll —
+    // Drives the `!dragging` effect (leftEdgeIdx resync when a drag ends) rather than onScroll,
     // it reads scrollRef.current.scrollLeft directly through the same geom.indexAt call.
     useStore.setState({ draggingAllocationId: "a1" });
     render(<Harness />);

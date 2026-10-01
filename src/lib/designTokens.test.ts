@@ -1,6 +1,6 @@
-// APP-SIDE design-token guard. The colour MATH (resolveBarColor / readableTextColor /
+// App-side design-token guard. The colour math (resolveBarColor / readableTextColor /
 // contrastRatio / resolveAccessibleBarColors) is canonical in shared and unit-tested there
-// (shared/src/lib/color.test.ts) — this file does not re-test it. What lives here is the app's own
+// (shared/src/lib/color.test.ts): this file does not re-test it. What lives here is the app's own
 // presentation layer: the `--c-*` tokens in src/index.css and the DEFAULT_COLORS palette, measured
 // through the shared `contrastRatio` so a token edit that drops below WCAG AA fails the gate.
 import { describe, it, expect } from "vitest";
@@ -333,28 +333,28 @@ describe("danger-soft button hover contrast", () => {
   });
 });
 
-// AllocationBar focus indicator — the dual-tone ring (WCAG 1.4.11, Non-text Contrast ≥3:1). The two
+// AllocationBar focus indicator, the dual-tone ring (WCAG 1.4.11, Non-text Contrast ≥3:1). The two
 // ring colours below mirror --c-focus-ink / --c-focus-halo in src/index.css (jsdom can't resolve CSS
-// vars, so pin them here and FAIL the gate if the CSS changes without updating these). The ring is a
-// near-BLACK edge + a near-WHITE edge straddling the bar's outer border, BOTH adjacent to whatever is
-// behind the bar. The conformance claim: against EVERY adjacency, in BOTH themes, AT LEAST ONE of the
-// two edges clears 3:1 — so the indicator never disappears, including on the over-capacity cell red.
+// vars, so pin them here and fail the gate if the CSS changes without updating these). The ring is a
+// near-black edge + a near-white edge straddling the bar's outer border, both adjacent to whatever is
+// behind the bar. The conformance claim: against every adjacency, in both themes, at least one of the
+// two edges clears 3:1, so the indicator never disappears, including on the over-capacity cell red.
 //
-// This guard FAILS the prior single-halo approach: that used ONE light edge (white in light / near-
-// white #e7eaf0 in dark). On the LIGHT over-cell rose (#fb9ea1) white reads only ~2.0:1, so a
+// This guard fails the prior single-halo approach: that used one light edge (white in light / near-
+// white #e7eaf0 in dark). On the light over-cell rose (#fb9ea1) white reads only ~2.0:1, so a
 // single-light-edge max would be <3 and this assertion would fail; the dark edge (#1c2230) rescues it
-// at ~7.95:1. (The brand blue outline, kept as an identity layer, is NOT counted here.)
+// at ~7.95:1. (The brand blue outline, kept as an identity layer, is not counted here.)
 describe("AllocationBar focus ring (dual-tone, WCAG 1.4.11 non-text ≥3:1)", () => {
-  const RING_INK = "#1c2230"; // --c-focus-ink (near-black edge — wins on pale grounds)
-  const RING_HALO = "#ffffff"; // --c-focus-halo (near-white edge — wins on dark grounds)
+  const RING_INK = "#1c2230"; // --c-focus-ink (near-black edge, wins on pale grounds)
+  const RING_HALO = "#ffffff"; // --c-focus-halo (near-white edge, wins on dark grounds)
 
-  // Backgrounds the focus ring can sit adjacent to, in BOTH themes. The over-cell + weekend hexes are
+  // Backgrounds the focus ring can sit adjacent to, in both themes. The over-cell + weekend hexes are
   // the sRGB resolution of the index.css `color-mix(in oklab, …)` tokens (verified to the rgb values
   // the token comments cite), pinned here because jsdom can't resolve color-mix.
   const ADJACENCIES: Record<string, string> = {
     // --c-danger-cell: light = color-mix(in oklab, #e11d48 50%, white); dark = color-mix(#fb7185 60%, #0e1016)
-    "over-cell (light)": "#fb9ea1", // ≈ rgb(251,158,161) — pale rose: white reads ~2:1, the DARK edge wins
-    "over-cell (dark)": "#934956", //  ≈ rgb(147,73,86)  — deep red:  the LIGHT edge wins
+    "over-cell (light)": "#fb9ea1", // ≈ rgb(251,158,161), pale rose: white reads ~2:1, the dark edge wins
+    "over-cell (dark)": "#934956", //  ≈ rgb(147,73,86), deep red:  the light edge wins
     "canvas (light) --c-base": "#f4f5f8",
     "canvas (dark) --c-base": "#0e1016",
     "surface (light) --c-surface": "#ffffff",

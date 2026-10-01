@@ -4,7 +4,7 @@ import { useStore } from "./useStore";
 import { makeAccount, makeAppData, WORKDAYS } from "@/test/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
-// The store is the strict per-account WRITE boundary: an update/delete must own
+// The store is the strict per-account write boundary: an update/delete must own
 // the target row, and every foreign key on an add/update must point inside the
 // active account. Reads are scoped elsewhere (useScopedData); these tests pin the
 // write side, which forms can't reach but a direct call could.
@@ -188,22 +188,22 @@ function registerAccountOwnershipTests(): void {
 function registerEntityOwnershipTests(): void {
   it("refuses to archive a row owned by another account (cross-account lifecycle throw, no cascade)", () => {
     // The removal path is now the lifecycle machine (archive → soft-delete → purge), not an immediate
-    // hard-delete. A lifecycle action targeting a row OWNED BY ANOTHER ACCOUNT is a tenancy violation:
-    // getOwned THROWS a display-safe message (a cross-account id, unlike a stale/non-existent one).
+    // hard-delete. A lifecycle action targeting a row owned by another account is a tenancy violation:
+    // getOwned throws a display-safe message (a cross-account id, unlike a stale/non-existent one).
     // The foreign row stays untouched (still active) and nothing cascades.
     expect(() => s().archiveEntity("projects", "pB")).toThrow(/does not belong to the active company/i);
     const proj = assertDefined(
       s().data.projects.find((p) => p.id === "pB"),
       "project pB",
     );
-    expect(proj.archivedAt).toBeUndefined(); // unchanged — not archived across the tenant boundary
+    expect(proj.archivedAt).toBeUndefined(); // unchanged: not archived across the tenant boundary
     expect(s().data.activities.find((t) => t.id === "tB")).toBeDefined();
   });
 
   it("treats a stale / non-existent id as a silent no-op (does not throw)", () => {
     // A drag committed after an undo, or a double Delete keypress, can target an id
-    // that no longer exists. That must NOT throw (it fires from window listeners
-    // outside React's error boundary) — only a cross-account hit is a violation.
+    // that no longer exists. That must not throw (it fires from window listeners
+    // outside React's error boundary), only a cross-account hit is a violation.
     expect(s().updateAllocation("gone", { status: "tentative" })).toBe(false);
     expect(() => s().deleteAllocation("gone")).not.toThrow();
     expect(() => s().updateClient("gone", { name: "x" })).not.toThrow();

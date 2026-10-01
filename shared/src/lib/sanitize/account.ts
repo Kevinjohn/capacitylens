@@ -3,15 +3,15 @@ import { CAPACITY_OVERVIEW_ACCESS_VALUES, DATE_STYLES, SCHEDULING_MODES } from "
 import type { Account } from "../../types/entities";
 
 /**
- * Every optional BOOLEAN preference on an account. Each is dropped rather than persisted when a
- * hand-edited value isn't a real boolean, so its ABSENCE reads back as the documented default on
- * the client — which differs per field and is what `Account` documents:
- *   disciplinesEnabled            absent = true  (disciplines shown)
- *   placeholdersEnabled           absent = false (placeholders hidden out of the box)
- *   externalEnabled               absent = false (external resources hidden out of the box)
- *   inlineActivityCreateEnabled   absent = false (inline "Add activity" hidden)
- *   showTaskFieldInSchedule       absent = false (allocation task hidden)
- * Dropping junk — rather than coercing it — is what keeps a `false`-defaulting flag from turning on
+ * Every optional boolean preference on an account. Each is dropped rather than persisted when a
+ * hand-edited value isn't a real boolean, so its absence reads back as the documented default on
+ * the client, which differs per field and is what `Account` documents:
+ * disciplinesEnabled            absent = true  (disciplines shown)
+ * placeholdersEnabled           absent = false (placeholders hidden out of the box)
+ * externalEnabled               absent = false (external resources hidden out of the box)
+ * inlineActivityCreateEnabled   absent = false (inline "Add activity" hidden)
+ * showTaskFieldInSchedule       absent = false (allocation task hidden)
+ * Dropping junk, rather than coercing it, is what keeps a `false`-defaulting flag from turning on
  * because someone typed "no" into the file.
  */
 const ACCOUNT_BOOLEAN_FIELDS = [
@@ -35,10 +35,10 @@ void accountBooleanFieldsAreComplete;
 
 /**
  * Optional account fields constrained to a fixed value set. Anything outside it is dropped:
- *   schedulingMode: absence reads as 'hourly', the original behaviour.
- *   language: English-only until P1.5.1 (Paraglide); absence reads as 'en'.
- *   capacityOverviewAccess: absence reads as owner/admin-only access.
- *   dateStyle: absence reads as 'day-month', the historical format.
+ * schedulingMode: absence reads as 'hourly', the original behaviour.
+ * language: English-only for now; absence reads as 'en'.
+ * capacityOverviewAccess: absence reads as owner/admin-only access.
+ * dateStyle: absence reads as 'day-month', the historical format.
  */
 /** Every Account property whose type is a finite string union, plus `language`, which is
  * intentionally typed as `string` until additional locales are supported. The mapped type makes
@@ -61,11 +61,11 @@ const ACCOUNT_ENUM_FIELDS: { readonly [K in AccountEnumField]: readonly unknown[
 };
 
 /** Sanitize the optional calendar fields of an account record in place.
- *  Called by the server write path; the import path doesn't re-import accounts. Retired account
- *  preferences are not listed above: the server's write-column whitelist drops them before this runs.
- *  `storedWeekStartsOn` is the row's persisted week start, used to repair an empty or malformed
- *  workingDays value when the payload itself omits the (immutable, restored-later) field — without
- *  it a Sunday-start account's repair would silently produce the Monday-start default. */
+ * Called by the server write path; the import path doesn't re-import accounts. Retired account
+ * preferences are not listed above: the server's write-column whitelist drops them before this runs.
+ * `storedWeekStartsOn` is the row's persisted week start, used to repair an empty or malformed
+ * workingDays value when the payload itself omits the (immutable, restored-later) field, without
+ * it a Sunday-start account's repair would silently produce the Monday-start default. */
 export function sanitizeAccount(record: Record<string, unknown>, storedWeekStartsOn?: 0 | 1): Record<string, unknown> {
   sanitizeTimezone(record);
   const repairWeekStartsOn = sanitizeWeekStartsOn(record, storedWeekStartsOn);

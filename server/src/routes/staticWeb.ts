@@ -59,7 +59,7 @@ export function registerStaticWeb(app: FastifyInstance, { webDir }: StaticWebOpt
   // Encapsulated so sendFile and the routes below exist only for the web app.
   void app.register(async (web) => {
     const root = path.resolve(webDir);
-    // serve:false — the plugin only contributes reply.sendFile; routing is explicit below so the
+    // serve:false: the plugin only contributes reply.sendFile; routing is explicit below so the
     // /api fall-through, cache policy and 404 headers all match the nginx edge.
     // setHeaders runs only when a file is actually sent (200/304), which is the only time the
     // immutable policy may apply: a miss must never be cached for a year (nginx's add_header without
@@ -83,7 +83,7 @@ export function registerStaticWeb(app: FastifyInstance, { webDir }: StaticWebOpt
       return inheritedErrorHandler.call(web, error, req, reply);
     });
 
-    // config.rateLimit:false — page loads and assets must never consume the API's request budget.
+    // config.rateLimit:false: page loads and assets must never consume the API's request budget.
     const config = { rateLimit: false } as const;
 
     web.get<{ Params: { "*": string } }>(ASSETS_ROUTE, { config }, async (req, reply) => {

@@ -102,10 +102,10 @@ const port = parsePort(process.env.PORT);
 const host = process.env.CAPACITYLENS_HOST ?? "127.0.0.1";
 const allowReset = process.env.CAPACITYLENS_ALLOW_RESET === "1";
 const corsOrigin = process.env.CAPACITYLENS_CORS_ORIGIN ?? DEFAULT_CORS;
-// Single-company cap (see AppOptions.multiAccount) — off by default, so a fresh real deploy starts
+// Single-company cap (see AppOptions.multiAccount), off by default, so a fresh real deploy starts
 // capped to the first company it creates until the operator deliberately opts in to more.
 const multiAccount = process.env.CAPACITYLENS_MULTI_ACCOUNT === "1";
-// HSTS only — emitted when CAPACITYLENS_HTTPS=1, or (unless "0") when the public URL is https,
+// HSTS only, emitted when CAPACITYLENS_HTTPS=1, or (unless "0") when the public URL is https,
 // since HSTS over plain HTTP is harmful. The other helmet baseline headers are on regardless.
 const https = resolveHttps(accountEnv);
 const log = process.env.CAPACITYLENS_LOG === "1";
@@ -252,10 +252,10 @@ try {
       assertCompanyProviderCutoverReady({ providerIds: companyProviders, identity, administration });
     });
   }
-  // First-run owner bootstrap — AFTER the auth tables exist, BEFORE the app serves a request. In
+  // First-run owner bootstrap, after the auth tables exist, before the app serves a request. In
   // off/sso mode createBootstrapAdmin throws AuthConfigError (the flag is meaningless there),
   // which this catch frames as a legible refusal; with users already present it logs one
-  // "skipped" line and boot continues (deliberately NOT an error — see its TSDoc).
+  // "skipped" line and boot continues (deliberately not an error, see its TSDoc).
   if (bootstrapAdmin) await createBootstrapAdmin(db, authMode, auth);
   if (process.env.CAPACITYLENS_SEED_DEMO === "1") seedIfUninitialized(db, seedForCurrentWeek());
   stopStartupIfRequested({ startupSignals, openDb: db });

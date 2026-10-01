@@ -225,7 +225,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
   // Failed authoritative reconciliation blocks another POST until reload reconstructs this hook.
   const [createUnresolved, setCreateUnresolved] = useState(false);
   const [name, setName] = useState("");
-  // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
+  // The three frozen-after-creation fields, captured here with concrete defaults.
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON);
   const [timezone, setTimezone] = useState<string>(() => resolveBrowserTimeZone());
   const exampleData = useExampleDataChoice();

@@ -7,7 +7,7 @@ export interface TenantRelationship {
 }
 
 /** Every product relationship whose child and parent must carry the same accountId. Shared with
- *  erasure.ts, which builds its account-scoped edge check from this same canonical list. */
+ * erasure.ts, which builds its account-scoped edge check from this same canonical list. */
 export const TENANT_RELATIONSHIPS_V19: readonly TenantRelationship[] = [
   { childTable: "resources", parentColumn: "disciplineId", parentTable: "disciplines" },
   { childTable: "projects", parentColumn: "clientId", parentTable: "clients" },

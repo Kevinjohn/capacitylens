@@ -109,22 +109,22 @@ export interface OwnershipTransferCommandInput {
 /** Persistence port for company memberships, invitations, ownership transfers and administration. */
 export interface AccountAdminPort extends JoiningPolicyAdminPort {
   listWorkspacesForPrincipal(input: { principalId: PrincipalId }): Promise<readonly WorkspaceMembershipSummary[]>;
-  /** Active membership by default — this is the read request authorization goes through, so a
-   *  disabled or archived row must look like no membership at all. `includeInactive` answers the
-   *  different question "does this relationship exist?" and is for identity administration only:
-   *  an admin disables a compromised account BEFORE rotating its password and killing its
-   *  sessions, so those routes must still find the member they just suspended. */
+  /** Active membership by default. This is the read request authorization goes through, so a
+   * disabled or archived row must look like no membership at all. `includeInactive` answers the
+   * different question "does this relationship exist?" and is for identity administration only:
+   * an admin disables a compromised account before rotating its password and killing its
+   * sessions, so those routes must still find the member they just suspended. */
   getMembership(input: {
     principalId: PrincipalId;
     workspaceId: WorkspaceId;
     includeInactive?: boolean;
   }): Promise<Membership | null>;
   /** Active memberships by default. `includeInactive` additionally returns disabled and archived
-   *  rows and exists for ONE caller — the administrative member directory, which must show an
-   *  administrator the state they applied so they can reverse it. `requireFresh` defaults to true
-   *  for administrative callers; the member-directory projection may set it false after the HTTP
-   *  authorization seam has established the caller's current role. Never widen an authorization
-   *  read with it: a non-active membership confers nothing. */
+   * rows and exists for one caller: the administrative member directory, which must show an
+   * administrator the state they applied so they can reverse it. `requireFresh` defaults to true
+   * for administrative callers; the member-directory projection may set it false after the HTTP
+   * authorization seam has established the caller's current role. Never widen an authorization
+   * read with it: a non-active membership confers nothing. */
   listMemberships(input: {
     actor: ActorContext;
     workspaceId: WorkspaceId;
@@ -132,8 +132,8 @@ export interface AccountAdminPort extends JoiningPolicyAdminPort {
     requireFresh?: boolean;
   }): Promise<readonly Membership[]>;
   /** Outstanding invite metadata is readable after role authorization without fresh assurance; the
-   *  default remains fresh for direct administrative callers. Invite bearer secrets are never
-   *  returned by this method. */
+   * default remains fresh for direct administrative callers. Invite bearer secrets are never
+   * returned by this method. */
   listInvitations(input: {
     actor: ActorContext;
     workspaceId: WorkspaceId;
@@ -187,7 +187,7 @@ export interface AccountAdminPort extends JoiningPolicyAdminPort {
     command: CommandIdentity;
   }): Promise<Membership>;
   /** Disable, archive or restore a membership. The role and join date are preserved; only the
-   *  authority to enter the workspace changes. Owner memberships and the actor's own are refused. */
+   * authority to enter the workspace changes. Owner memberships and the actor's own are refused. */
   changeMemberStatus(input: {
     actor: ActorContext;
     workspaceId: WorkspaceId;

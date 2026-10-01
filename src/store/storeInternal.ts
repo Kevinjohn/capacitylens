@@ -39,11 +39,11 @@ function createMutationActions(set: StoreApi<StoreState>["setState"]) {
   // Every data mutation goes through mutate(): it snapshots the previous data
   // onto the undo stack and clears the redo stack.
   //
-  // DO NOT wrap mutate(), its producers, undo/redo, the assert* helpers, or importData in a
-  // try/catch to "be safe". Their integrity throws are the store's whole point — the last line that
+  // Do not wrap mutate(), its producers, undo/redo, the assert* helpers, or importData in a
+  // try/catch to "be safe". Their integrity throws are the store's whole point, the last line that
   // stops bad multi-tenant data being persisted. Swallowing here would convert a loud, fixable
-  // rejection into SILENT data corruption (the explicit anti-goal; see DEFENSIVE-CODING.md §4). If
-  // a producer throws, `set` never runs, so state is left untouched — a clean, atomic failure.
+  // rejection into silent data corruption (the explicit anti-goal; see DEFENSIVE-CODING.md §4). If
+  // a producer throws, `set` never runs, so state is left untouched, a clean, atomic failure.
   const mutate = (producer: (data: AppData) => AppData) =>
     set((state) => ({
       data: producer(state.data),
@@ -227,7 +227,7 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
   // come from the shared core (entities.ts) so the store write boundary and the import
-  // sanitiser apply the IDENTICAL clamp — no per-path drift.
+  // sanitiser apply the identical clamp. No per-path drift.
 
   return {
     mutate,

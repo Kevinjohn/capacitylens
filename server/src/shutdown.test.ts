@@ -6,8 +6,8 @@ import {
   shutDownAfterListenFailure,
 } from "./shutdown";
 
-// P1.2: the shutdown path must drain Fastify BEFORE closing the DB (a request still
-// in flight after db.close() would die mid-transaction — the exact bug this fixes),
+// The shutdown path must drain Fastify before closing the DB (a request still
+// in flight after db.close() would die mid-transaction, the exact bug this fixes),
 // and a second signal must force-exit rather than wait on a stuck drain.
 
 describe("createShutdownHandler", () => {

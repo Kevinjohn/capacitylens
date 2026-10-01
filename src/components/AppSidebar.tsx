@@ -70,7 +70,7 @@ export function AppSidebar({
   // properties on the sidebar root rather than threaded as props: the nav is assembled from several
   // groups (the primary destinations, the pinned admin group, the account footer), and the rules
   // below key off the shadcn primitives' own `data-slot` hooks, so every menu inside the sidebar
-  // picks the rhythm up without each one having to read the store. Only GAPS and PADDING move — item
+  // picks the rhythm up without each one having to read the store. Only gaps and padding move, item
   // height is untouched, so the collapsed icon rail (which pins each button square) is unaffected.
   // See src/index.css.
   const density = SCHEDULER_DENSITY;
@@ -135,8 +135,8 @@ function SidebarNavigation({
 }) {
   return (
     <SidebarContent>
-      {/* ONE <nav> landmark around both groups. The admin group is a separate visual block (issues
-          #169/#172) but the same navigation region, so screen-reader users still hear a single
+      {/* One <nav> landmark around both groups. The admin group is a separate visual block
+          but the same navigation region, so screen-reader users still hear a single
           "Navigation" landmark rather than two competing ones. `mt-auto` pushes it to the bottom of
           the scroll area whenever the primary list is shorter than the viewport. */}
       <nav className="flex flex-1 flex-col">
@@ -206,8 +206,8 @@ function SidebarAccountFooter({
 }
 
 /** One menu of nav destinations. Shared by the primary list and the pinned admin group so both
- *  render identical markup — same active matching, same `data-nav` tour anchor, same collapsed-rail
- *  tooltip — and can never drift apart. */
+ * render identical markup (same active matching, same `data-nav` tour anchor, same collapsed-rail
+ * tooltip) and can never drift apart. */
 function NavMenu({
   links,
   onNavigate,
@@ -241,9 +241,9 @@ function NavMenu({
 }
 
 /** Fast light/dark access beside the persistent administration destinations. Settings retains the
- *  full three-way preference, including Match system; this button deliberately makes an explicit
- *  light or dark choice rather than cycling through the three-way setting. Its label, icon and
- *  target follow the scheme actually displayed, so Match system resolves through the OS. */
+ * full three-way preference, including Match system; this button deliberately makes an explicit
+ * light or dark choice rather than cycling through the three-way setting. Its label, icon and
+ * target follow the scheme actually displayed, so Match system resolves through the OS. */
 function ThemeToggleMenuItem() {
   const theme = useStore((state) => state.theme);
   const setTheme = useStore((state) => state.setTheme);

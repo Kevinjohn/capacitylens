@@ -51,7 +51,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   const input = parseCreateInvitationAuthorizationInput({ req, authMode, isKnownRole, createValidationFailure });
   if (input.kind === "invalid") return accountFail(reply, input.failure);
   const { value } = input;
-  // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
+  // Gate before any write: admin+ of this account may create invites; a non-member/under-tier is 403.
   if (!authorize({ req, reply, accountId: value.accountId, action: "manageInvites", options: NO_REPROMPT })) return;
   if (value.proposedResourceId === "")
     return accountFail(reply, createValidationFailure(REPLY_ERRORS.proposedResourceIdInvalid));
@@ -84,8 +84,8 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
         changedFields: ["role", "preauthEmail", "expiresAt", "proposedResourceId"],
       },
     });
-    // Echo back what the caller needs to build the link — NOT createdAt/usedAt. preauthEmail is
-    // echoed (the admin set it; convenient confirmation of the NORMALIZED value), and only to this
+    // Echo back what the caller needs to build the link, not createdAt/usedAt. preauthEmail is
+    // echoed (the admin set it; convenient confirmation of the normalized value), and only to this
     // already-authorised admin. Later privileged invitation-list reads also expose it, but no
     // public preview or bearer-token read does.
     return reply.code(201).send({
