@@ -111,7 +111,7 @@ export function reportOwnerlessPromotionsV11(promotions: readonly OwnerlessPromo
  * older viewer, an editor only when no admin exists, and a viewer only when the account holds nothing
  * but viewers. Auth-off datasets with no membership rows remain untouched.
  *
- * Policy (documented call, DECISIONS.md 2026-07-17, entry by the orchestrator; flagged revisitable):
+ * Policy (DECISIONS.md, "Authentication and security", the active-Owner repair entry; revisitable):
  * promoting by tier, rather than the earlier "oldest member regardless of role" rule, stops a
  * routine upgrade silently escalating a viewer to full Owner authority (private client/project names,
  * purge, destructive imports, member management, ownership transfer) whenever a more-privileged member

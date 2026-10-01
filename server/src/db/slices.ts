@@ -72,11 +72,11 @@ export function listAccountSummaries(db: Db): Array<{ id: string; name: string }
  *
  * @param db         The open SQLite handle.
  * @param accountId  The account whose slice to read.
- * @param opts.includeTimeOffNote  required. `true` keeps each time-off `note`; `false` strips it
+ * @param opts.includeTimeOffNote  Required. `true` keeps each time-off `note`; `false` strips it
  * (owner/admin-only field, redacted before it leaves the server).
- * @param opts.includePrivateNames required. `true` keeps real private names; `false` substitutes
+ * @param opts.includePrivateNames Required. `true` keeps real private names; `false` substitutes
  * quoted code names and strips the raw codeName field.
- * @param opts.includeInactive  required. `false` drops archived/soft-deleted resources/clients/projects
+ * @param opts.includeInactive  Required. `false` drops archived/soft-deleted resources/clients/projects
  * (the normal app read); `true` returns every row.
  * @returns A serialization-only projected slice containing only `accountId`'s data. Its brand is
  * intentionally incompatible with {@link replaceAccountSlice}.
@@ -137,7 +137,7 @@ function readSliceFromSnapshot(
   const accountsSpec = resolveTable("accounts");
   cache.accountByIdSelect ??= db.prepare(`SELECT * FROM accounts WHERE id = ?`);
   data["accounts"] = cache.accountByIdSelect.all(accountId).map((r) => fromRow(accountsSpec, r));
-  // Every scoped table: where accountId = ?, never an unpredicated read (the no-cross-tenant invariant).
+  // Every scoped table: WHERE accountId = ?, never an unpredicated read (the no-cross-tenant invariant).
   for (const table of SCOPED_ORDER) {
     const spec = resolveTable(table);
     const statement = createCachedTableStatement({

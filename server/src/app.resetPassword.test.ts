@@ -12,7 +12,7 @@ import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities"
 // Admin-issued password-reset links. This suite drives the whole loop end-to-end against a
 // real (in-memory) Better Auth instance: mint (the admin-gated route) → redeem (Better Auth's public
 // /api/auth/reset-password) → sign in with the new password. Plus the authz matrix (same
-// who-may-touch-whom shape as member removal: admin must never reset an owner, takeover path), the
+// who-may-touch-whom shape as member removal: admin must never reset an owner, a takeover path), the
 // single-use guarantee, session revocation on reset, and the mode gates (sso/off → 400, no crash).
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -243,8 +243,8 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
   it("mode gates: 'sso' → 400 (IdP owns credentials); 'off' → 400 (no credential model); neither crashes", async () => {
     const sso = await appWith(SSO_ENV);
     seedAccount(sso.db, "a1");
-    // No password sign-up exists in sso mode, so drive the route sessionless-permission-free is
-    // impossible: but the mode gate sits after authorize, which needs a session. Instead assert at
+    // No password sign-up exists in sso mode, so driving the route sessionless-permission-free is
+    // impossible, and the mode gate sits after authorize, which needs a session. Instead assert at
     // the off app (allow-all authorize) that the mode gate answers 400, and for sso assert the
     // sessionless 401 still holds (the route exists; nothing crashed at registration).
     expect((await mint({ app: sso.app, accountId: "a1", userId: "nobody" })).statusCode).toBe(401);

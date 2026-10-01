@@ -144,7 +144,7 @@ function snapToFrozenPresetV13(value: string | null): string {
 function hexToRgbV13(hex: string): [number, number, number] | null {
   const c = hex.replace("#", "");
   if (c.length !== 6) return null; // reject short and overlong hex (the latter mis-slices)
-  // Historical/FROZEN: parseInt accepts a valid prefix in each chunk. Do not tighten this shipped
+  // Historical and frozen: parseInt accepts a valid prefix in each chunk. Do not tighten this shipped
   // parser in place; future frozen parsers must validate the complete /^#[0-9a-f]{6}$/i shape first.
   const r = parseInt(c.slice(0, 2), 16);
   const g = parseInt(c.slice(2, 4), 16);

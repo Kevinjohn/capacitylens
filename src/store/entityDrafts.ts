@@ -39,6 +39,6 @@ export type ScopedPatch<K extends ScopedEntityKey> = {
 // The entity tables that carry the lifecycle tombstones (`archivedAt`/`deletedAt`) and so
 // can travel the Active → Archived → Soft-deleted → Purged machine (`shared/src/domain/lifecycle.ts`).
 // Mirrors the server's lifecycle-route entity union so the local store actions below and the server's
-// dedicated routes operate over the identical set, phases/allocations/timeOff/disciplines/
+// dedicated routes operate over the identical set. Phases/allocations/timeOff/disciplines/
 // accounts have no tombstone and are deliberately excluded.
 export type LifecycleEntity = "resources" | "clients" | "projects" | "activities";

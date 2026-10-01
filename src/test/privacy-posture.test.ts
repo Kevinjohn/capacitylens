@@ -140,8 +140,8 @@ describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
     // 2-space-indented `name@version:` line (optionally quoted, optionally with a `(peer@ver)`
     // suffix), e.g. `  '@babel/code-frame@7.26.2':` or `  use-sync-external-store@1.4.0(react@19.2.6):`.
     // A package pulled from git/a tarball/a local path instead of the registry keys as
-    // `name@https://...`, `name@git+...`, `name@file:...`, or `name@link:...`. No digit after the
-    // `@`: so the version-digit-only pattern silently skipped those rows, letting a denylisted
+    // `name@https://...`, `name@git+...`, `name@file:...`, or `name@link:...`, with no digit after
+    // the `@`, so the version-digit-only pattern silently skipped those rows, letting a denylisted
     // package slip the scan via a git fork. We extract the name (everything before the specifier)
     // line-by-line rather than adding a YAML parser dependency. A heavier dep tree is exactly what
     // this test polices.

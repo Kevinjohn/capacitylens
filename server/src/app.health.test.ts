@@ -16,7 +16,7 @@ function readHealthBody(response: { json: () => unknown }): HealthBody {
   return response.json() as HealthBody;
 }
 
-// CAPACITYLENS_HEALTH_DEEP (opts.healthDeep): on makes /api/health prove the DB
+// The CAPACITYLENS_HEALTH_DEEP flag (opts.healthDeep): on makes /api/health prove the DB
 // answers a constant SELECT 1; off keeps today's unconditional { ok: true }, the exact body
 // Playwright's webServer probe (and anything else pinned to it) depends on.
 

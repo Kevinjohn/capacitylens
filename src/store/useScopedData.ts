@@ -82,7 +82,7 @@ export function useActiveScopedData(): AppData {
  * Server mode note: in server mode the per-account read narrows to active rows only (`activeOnly`
  * runs server-side in `readSlice`), so the store's `data` holds no archived/deleted rows. The admin
  * view (ArchivedSection) instead fetches them directly with `?includeInactive=1`; this hook is the
- * demo-build/OFF source only.
+ * demo-build/off source only.
  * Returns {@link useScopedData} unchanged. The distinct name makes the admin view's intent explicit.
  *
  * @returns The active account's raw {@link AppData} slice including archived and soft-deleted rows.

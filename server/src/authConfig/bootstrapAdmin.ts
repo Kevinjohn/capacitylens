@@ -140,7 +140,7 @@ function isMigrationTableList(value: unknown): value is Array<{ table: string }>
   );
 }
 
-// ── First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1).
+// First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1).
 // The headless escape hatch for a first login: a fresh password-mode instance normally bootstraps
 // through the login screen's "Create the owner account" form (the browser path), but a scripted /
 // container deploy may want a credential ready at boot. The flag creates admin@admin.admin with a

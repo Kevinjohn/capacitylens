@@ -22,8 +22,7 @@ export { createRequestLoggerOptions } from "./routes/appLogging";
 export { MAX_SERVER_CONNECTIONS } from "./routes/appLimits";
 
 // The identity requireUser attaches to every gated request. Session/identity
-// plumbing only, accountId stays client-asserted (ownsRow is still the tenant guard);
-// this is the seam Stage C will later use to derive accountId server-side.
+// plumbing only; accountId stays client-asserted, and ownsRow is still the tenant guard.
 declare module "fastify" {
   interface FastifyRequest {
     user: SessionUser | null;
@@ -110,8 +109,8 @@ export interface AppOptions {
   optimisticConcurrency?: boolean;
   /** CAPACITYLENS_MULTI_ACCOUNT=1: allow more than one company (`accounts` row) to exist on this
    * instance. Default false: CapacityLens is deliberately single-company-per-instance (see
-   * CLAUDE.md's product positioning), once the `accounts` table holds ≥1 row, every vector that
-   * would CREATE a new one (POST /api/accounts, a PUT/batch-PUT whose id has no existing row,
+   * AGENTS.md's product boundary); once the `accounts` table holds ≥1 row, every vector that
+   * would create a new one (POST /api/accounts, a PUT/batch-PUT whose id has no existing row,
    * POST /api/orgs) is refused with a 403 naming this flag (see accountCreateCapped /
    * SINGLE_COMPANY_CAP_MESSAGE), regardless of authMode, even 'off', which is otherwise
    * trusted-local allow-all: this is a deployment-shape policy, not an authz rule, so it gets no

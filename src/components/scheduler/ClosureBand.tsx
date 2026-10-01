@@ -89,9 +89,9 @@ export function ClosureBand({
       />
       {/* The name rides on its own layer rather than inside the band. The band's shading has to
           stay beneath the group-header rows, and `z-0` makes it a stacking context, so a
-          name nested in it would be buried by every group header it scrolled behind. The very
-          "closure is unnamed" symptom. A sibling layer can outrank those rows while
-          the shading underneath stays beneath those rows. */}
+          name nested in it would be buried by every group header it scrolled behind, leaving the
+          closure looking unnamed. A sibling layer can outrank those rows while the shading
+          underneath stays beneath them. */}
       <div
         data-testid="scheduler-closure-label-layer"
         data-closure-id={closure.id}

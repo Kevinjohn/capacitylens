@@ -42,7 +42,7 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
   };
 
   // Defense-in-depth viewer guard. It is inert unless the active role is exactly 'viewer':
-  // every other value (null (off/local/not-fetched), 'owner', 'admin', 'editor') permits, so the
+  // every other value (null for off, local or not-fetched; 'owner'; 'admin'; 'editor') permits, so the
   // default deploy is byte-identical to today (fully editable). When the role is 'viewer', a scoped
   // mutation no-ops (the caller returns early) and surfaces a notice, so an ungated affordance or an
   // optimistic local write the server would 403 can't desync local state. This is UX/defense-in-depth,

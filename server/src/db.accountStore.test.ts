@@ -645,7 +645,7 @@ function createLifecycleProjectionReadTests(): void {
 
   it("the rows remain in the DB (retained) — the WHOLE-tree loadState still sees every row", () => {
     const db = seedLifecycleMix();
-    // The projection narrows the read only; nothing is deleted. loadState (export/OFF whole read) keeps all.
+    // The projection narrows the read only; nothing is deleted. loadState (export/off whole read) keeps all.
     const all = readState(db);
     expect(all.resources.filter((r) => r.accountId === "a1").length).toBe(2);
     expect(all.clients.filter((c) => c.accountId === "a1").length).toBe(2);

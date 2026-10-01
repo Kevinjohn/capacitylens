@@ -47,7 +47,7 @@ export interface DayCapacity {
 }
 
 /** Allocated vs. available hours for one resource-day, with the `over` flag (allocated > available).
- *  @remarks Assumes finite, non-negative hours (see the top-of-file precondition). */
+ * @remarks Assumes finite, non-negative hours (see the top-of-file precondition). */
 export function buildDayCapacity({
   resource,
   date,

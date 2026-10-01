@@ -26,7 +26,7 @@ export interface ColumnGeometry {
   readonly weekdays: number[];
   /** True at/above `DAY_COLUMN_MIN_WIDTH`: the zoom is fine enough for per-day columns (the header
    * renders day cells rather than week blocks, and the lanes paint their per-day decorations).
-   * The single answer to that question, header, lanes and `minimiseActive` all read it here, so
+   * The single answer to that question: header, lanes and `minimiseActive` all read it here, so
    * they cannot flip a zoom step apart. */
   readonly perDayColumns: boolean;
   /** True at/above `WEEKDAY_LABEL_MIN_WIDTH`: the columns have room for the weekday letters
@@ -42,13 +42,13 @@ export interface ColumnGeometry {
   /** Px width spanning columns [startIdx, endIdx] inclusive (≥ 0; 0 when reversed). */
   spanWidth(startIndex: number, endIndex: number): number;
   /** Inverse of {@link x}: a lane-relative pointer x → day index, clamped to [0, n-1].
-   * The exact inverse at boundaries, a click at offsets[i] → i, at offsets[i]-ε → i-1. */
+   * The exact inverse at boundaries: a click at offsets[i] → i, at offsets[i]-ε → i-1. */
   indexAt(px: number): number;
   /** {@link indexAt} for a container's `scrollLeft`: it rounds first. Every scroll-position read
-   * must go through this rather than `indexAt` directly, see resolveWeekStartSnapTarget.ts's "SUB-PIXEL ROUNDING"
-   * note for the full rationale (a HiDPI browser can store scrollLeft a fraction below an integer
-   * column boundary, and indexAt's strict floor would resolve that to the previous (under
-   * minimised weekends, much narrower) column). */
+   * must go through this rather than `indexAt` directly; see resolveWeekStartSnapTarget.ts's
+   * "Sub-pixel rounding" note for the full rationale. A HiDPI browser can store scrollLeft a
+   * fraction below an integer column boundary, and indexAt's strict floor would resolve that to the
+   * previous column, which under minimised weekends is much narrower. */
   indexAtScroll(scrollLeft: number): number;
   /** Left edge px of a date. Extrapolates at full width outside the window (a bar starting
    * before day 0 still overflows off-screen-left exactly as it did under the uniform grid),

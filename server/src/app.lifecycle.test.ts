@@ -1530,7 +1530,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
   // clear an existing one via an unrelated edit (which would silently resurrect an archived/soft-deleted
   // row: there is no un-delete route anywhere), and (2) validateWrite refuses to convert the built-in
   // Internal client back to a regular one. Off mode is used (authorize is a no-op there), so these prove
-  // the sanitize/VALIDATE layer itself, independent of the auth gate.
+  // the sanitize/validate layer itself, independent of the auth gate.
 
   it("PATCH cannot set deletedAt/archivedAt on a resource (stripped; row stays active)", async () => {
     const { app } = offAppWith({

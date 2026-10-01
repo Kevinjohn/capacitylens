@@ -14,10 +14,10 @@ import { hasColumn, isNotNull, tableExists } from "./introspection";
  * Idempotent + introspection-gated: it acts only when the legacy shape is present (`tasks` table
  * exists and `activities` does not / `allocations.taskId` exists and `activityId` does not), so a
  * fresh, current, or already-migrated DB falls straight through with no transaction. Runs with
- * foreign keys off (openDb enables them afterwards) so renaming a referenced table is safe.
+ * foreign keys OFF (openDb enables them afterwards) so renaming a referenced table is safe.
  *
  * Must run before the baseline DDL (SCHEMA_V8_SQL in the v8 baseline migration), otherwise the
- * if-not-EXISTS create of `activities` wins the race and the rename's guard (`activities` absent)
+ * IF-NOT-EXISTS create of `activities` wins the race and the rename's guard (`activities` absent)
  * never fires, abandoning the legacy rows.
  */
 export function renameLegacyActivityTables(db: Db): void {
@@ -47,9 +47,9 @@ export function renameLegacyActivityTables(db: Db): void {
  * through with no transaction. It is also generic. Every additive optional column in the
  * current spec is added automatically, so a new optional field never silently drifts
  * between the client schema and the server DB (the old version-gated pass froze after the
- * first migration and would skip later additions). SQLite can't ALTER-add a NOT NULL
+ * first migration and would skip later additions). SQLite can't ALTER-ADD a NOT NULL
  * column to existing rows, so a required addition still needs an explicit step (like the
- * activities rebuild below). Runs with foreign keys off (openDb enables them afterwards) so the
+ * activities rebuild below). Runs with foreign keys OFF (openDb enables them afterwards) so the
  * activities rebuild's drop/rename is safe.
  */
 function migrateSchemaVersion(
@@ -68,15 +68,15 @@ function migrateSchemaVersion(
   }
   // activities needs a rebuild when an old-shape constraint is still present: projectId was once
   // NOT NULL (before general, no-project activities), and `kind` is a required column added in v4
-  // that SQLite can't ALTER-add as NOT NULL to a table with rows. Either condition → rebuild
+  // that SQLite can't ALTER-ADD as NOT NULL to a table with rows. Either condition → rebuild
   // to the current shape (nullable projectId, kind backfilled from projectId presence).
   const activitiesHadKind = hasColumn(db, "activities", "kind");
   const needsActivitiesRebuild = isNotNull(db, "activities", "projectId") || !activitiesHadKind;
   if (additions.length === 0 && !needsActivitiesRebuild) return; // already current, nothing to do
 
   tx(db, () => {
-    // Optional columns are nullable TEXT (json columns are TEXT too), so a plain add
-    // column is safe: existing rows get NULL, which fromRow omits on read.
+    // Optional columns are nullable TEXT (json columns are TEXT too), so a plain ADD
+    // COLUMN is safe: existing rows get NULL, which fromRow omits on read.
     for (const [table, name] of additions) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} TEXT`);
     // SQLite can't relax a NOT NULL in place, so rebuild activities when the old constraint
     // is still there. Skipped entirely on a current-shape DB.

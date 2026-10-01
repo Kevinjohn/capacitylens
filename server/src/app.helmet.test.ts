@@ -4,10 +4,10 @@ import { createApp } from "./app";
 import { openDb } from "./db";
 
 // Baseline security headers from @fastify/helmet: an API-only server returns JSON,
-// so a strict CSP is safe. These headers are pure hardening and on by default, nosniff,
+// so a strict CSP is safe. These headers are pure hardening and on by default: nosniff,
 // a CSP carrying frame-ancestors 'none' + connect-src 'self', a no-referrer Referrer-Policy,
 // and X-Frame-Options: DENY for legacy browsers. HSTS is the one header gated off by default
-// (opts.https / CAPACITYLENS_HTTPS=1) because it is only valid over real HTTPS, this server
+// (opts.https / CAPACITYLENS_HTTPS=1) because it is only valid over real HTTPS; this server
 // typically runs HTTP behind a TLS-terminating proxy, where HSTS would be harmful.
 
 const health = (app: FastifyInstance) => app.inject({ method: "GET", url: "/api/health" });

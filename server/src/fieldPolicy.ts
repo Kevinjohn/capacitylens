@@ -11,13 +11,13 @@ import type { Client, Project } from "@capacitylens/shared/types/entities";
 //   2. Pin on write. A redaction-blind writer's round-trip has no key for the field the server
 //      redacted from them; without a pin, upsertRow would store NULL and silently erase data the
 //      writer never saw (sanitizeWrite → pinGatedFields).
-//   3. Include/EXCLUDE on export, the per-account read decides the
+//   3. Include or exclude on export. The per-account read decides the
 //      readSlice `include*` flags from the caller's role (visibilityForRole).
 //
 // This catalogue supplies every path with the same table, field, and role predicates. A gated field
 // is defined once and used for redaction, write pinning, and export visibility.
 
-/** Caller-context options for {@link sanitizeWrite} and the read echo, facts about the writer/READER
+/** Caller-context options for {@link sanitizeWrite} and the read echo: facts about the writer/reader
  * the row body alone cannot carry, so field-level gating runs at the single write funnel (not as
  * per-route hacks). Owns the type here because the field-policy map is its single source of truth. */
 export interface SanitizeWriteOptions {

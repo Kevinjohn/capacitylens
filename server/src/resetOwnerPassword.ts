@@ -193,7 +193,7 @@ export function acquireExclusiveDatabaseLock(db: Db): void {
   db.exec("PRAGMA locking_mode = EXCLUSIVE;");
   try {
     // BEGIN EXCLUSIVE forces lock acquisition now; the COMMIT keeps it because locking_mode is
-    // exclusive (locks persist until the connection closes), leaving autocommit free for the
+    // EXCLUSIVE (locks persist until the connection closes), leaving autocommit free for the
     // ceremony's own writes.
     db.exec("BEGIN EXCLUSIVE");
     db.exec("COMMIT");

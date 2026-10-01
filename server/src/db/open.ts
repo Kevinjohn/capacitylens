@@ -80,7 +80,7 @@ function configureDatabaseForMigration(db: Db, path: string): void {
     throw new Error(`SQLite journal mode is ${journalMode || "unknown"}; expected WAL.`);
   }
   // A successful write acknowledgement must not inherit a runtime-dependent SQLite default.
-  // Full asks SQLite to sync the WAL at every commit; the assertion makes a driver/build that
+  // FULL asks SQLite to sync the WAL at every commit; the assertion makes a driver/build that
   // cannot establish that policy a startup failure instead of silently weakening durability.
   db.exec("PRAGMA synchronous = FULL;");
   const synchronous = Number((db.prepare("PRAGMA synchronous").get() as { synchronous?: number }).synchronous);

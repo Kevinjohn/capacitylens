@@ -41,7 +41,7 @@ void projectedKeysAreComplete;
  * references are retained rather than treated as invented lifecycle evidence, so integrity damage
  * stays visible through the app's safe fallback labels and can be diagnosed.
  *
- * Invariant: view/READ projection only. Use this only where the goal is "what the normal app shows":
+ * Invariant: view/read projection only. Use this only where the goal is "what the normal app shows":
  * the scheduler/list/picker/palette views and the per-account read. Never on an integrity, mutation,
  * cascade, import, migrate or export path. Those must see every row (a backup retains archived/
  * soft-deleted rows; cascade/integrity reason over the full set). Hiding rows from those paths would

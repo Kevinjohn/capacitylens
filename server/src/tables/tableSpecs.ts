@@ -15,7 +15,7 @@ export interface ColumnSpec {
 
 /** An ordered column specification for a table exposed through the generic entity API. */
 export interface TableSpec {
-  /** AppData key === rest path segment (e.g. 'timeOff' → /api/timeOff). */
+  /** AppData key === REST path segment (e.g. 'timeOff' → /api/timeOff). */
   key: string;
   columns: ColumnSpec[];
 }

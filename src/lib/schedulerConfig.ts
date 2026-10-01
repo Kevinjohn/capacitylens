@@ -47,7 +47,7 @@ export const PAST_BUFFER_DAYS = 28;
  * over the currently visible span (the zoom toggle's `zoom * 7` days at the scroll left edge) so
  * "63% utilisation" answers "over the weeks I'm looking at". A third signal, the per-day
  * over-marker, still flags every over-allocated day across the whole timeline. Three distinct
- * over/utilisation signals, kept apart (CLAUDE.md / DECISIONS.md).
+ * over/utilisation signals, kept apart (AGENTS.md / DECISIONS.md).
  */
 export const UTILIZATION_WINDOW_DAYS = 14;
 

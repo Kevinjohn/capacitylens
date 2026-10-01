@@ -9,7 +9,7 @@ const WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS = 3;
 
 /** Shared single-company-cap gate for provisionWorkspace's tx callback and
  * provisionWorkspaceInExistingTransaction: evaluate provisioning authority in the current
- * transaction and throw the same forbidden shape on refusal. Split from the Owner-membership
+ * transaction and throw the same FORBIDDEN shape on refusal. Split from the Owner-membership
  * provisioning call (unlike this check, that write's position relative to product-data creation is
  * externally observable, audit/outbox row ordering, so provisionWorkspace's tx callback keeps its
  * original decision -> provisionProductData() -> provisionOwnerMembershipInTx interleaving instead

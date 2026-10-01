@@ -41,7 +41,7 @@ export function makeLocalTwoAccounts() {
   };
 }
 
-// ── Shared server-mode refresh helpers.
+// Shared server-mode refresh helpers.
 // Used by the refresh-on-focus, refreshActiveAccountSlice, and batch-conflict suites (hoisted so the
 // three don't carry verbatim copies).
 

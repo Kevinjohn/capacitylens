@@ -222,7 +222,7 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
   // add CORS headers for explicitly trusted origins. Requests without Origin/Sec-Fetch-Site are
   // retained for CLI/server clients; modern browsers supply at least one signal for a cross-site
   // unsafe request. This hook must live on the root instance, not in the routes child
-  // below: there are no options routes, so a preflight takes the not-found path, and
+  // below: there are no OPTIONS routes, so a preflight takes the not-found path, and
   // only root-level hooks run there. A child-scoped hook would leave preflights as
   // bare 404s without CORS headers, silently blocking every cross-origin write.
   app.addHook("onRequest", async function enforceOriginPolicy(req: FastifyRequest, reply: FastifyReply) {

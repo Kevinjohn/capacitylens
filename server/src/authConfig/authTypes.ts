@@ -87,7 +87,7 @@ export interface Auth {
    * to that transaction. Resolves once Better Auth's async init context ($context) is ready;
    * nothing else should call it. Every other caller goes through the narrow api surface above.
    *
-   *  @throws when hashing or any transaction participant fails; SQLite rolls every credential and
+   * @throws when hashing or any transaction participant fails; SQLite rolls every credential and
    * correlation write back before the failure escapes.
    */
   createCredentialUser: (input: CreateCredentialUserInput) => Promise<{ id: string }>;
@@ -116,8 +116,7 @@ export interface Auth {
   reconcileFederatedLinks?: () => void;
 }
 
-/** The identity attached to every request in 'off' mode. The seam Stage C will later
- * replace with the session user to derive accountId server-side. Off is trusted-local, so
+/** The identity attached to every request in 'off' mode. Off is trusted-local, so
  * the synthetic principal is treated as verified (`emailVerified: true`) and given a clearly
  * non-routable `.local` demo email so nothing mistakes it for a real verified identity. */
 export const DEMO_USER: SessionUser = {

@@ -575,7 +575,7 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
   createStaleSessionRevocationTest();
 });
 
-// ── Step-up freshness gate: fail closed on a missing session timestamp.
+// Step-up freshness gate: fail closed on a missing session timestamp.
 //
 // The real Better Auth path always stamps sessionCreatedAt (auth.api.getSession derives it from the
 // session row), so a verified session without it can only come from a nonstandard adapter or a

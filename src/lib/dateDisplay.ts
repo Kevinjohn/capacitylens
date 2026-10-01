@@ -6,7 +6,7 @@ import { DATE_STYLES, DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@
 // Human-readable date presentation for at-a-glance lists (e.g. the Time-off list), where a
 // reader wants "which days, how long", not a machine date. Pure display formatting only; the
 // scheduler's geometry still works in integer day-indices (shared/lib/dateMath), never these
-// strings. `date` arguments are validated `ISODate`s by the time they reach a render, an invalid
+// strings. `date` arguments are validated `ISODate`s by the time they reach a render; an invalid
 // one makes date-fns `format` throw a RangeError, which we deliberately let surface as the
 // upstream-validation bug it is (see dateMath's module precondition) rather than wrap-and-swallow.
 //
@@ -321,11 +321,11 @@ export function formatDayCount(start: ISODate, end: ISODate): string {
   return dayCount === 1 ? m.list_timeoff_days_one({ count: dayCount }) : m.list_timeoff_days_other({ count: dayCount });
 }
 
-// The two above render calendar days (an `ISODate`, no clock, no zone). The two below render an
-// instant (a server timestamp (an invite's expiry, a session's creation)) on the viewer's own
-// wall clock. `formatInstant` accepts the string wire values and numeric epoch values used by local
-// read-only snapshots; `formatInstantDate` remains string-input because it serves server invite
-// dates. That conversion is the whole point: the alternative these replaced was a `.slice(0, 10)`
+// Instants: the two above render calendar days (an `ISODate`, no clock, no zone). The two below
+// render an instant, a server timestamp such as an invite's expiry or a session's creation, on the
+// viewer's own wall clock. `formatInstant` accepts the string wire values and numeric epoch values
+// used by local read-only snapshots; `formatInstantDate` remains string-input because it serves
+// server invite dates. That conversion is the whole point: the alternative these replaced was a `.slice(0, 10)`
 // of the raw UTC string, which misreads by up to a day either side of midnight for anyone outside
 // UTC.
 //

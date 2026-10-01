@@ -287,7 +287,7 @@ export function ImportExport() {
   // (see permissionContext.ts); the server 403 remains the authoritative backstop either way.
   const canImport = !serverMode || role === null || canSeePrivateNames(role);
   // A parsed-but-not-yet-applied import, awaiting the user's confirmation. Import
-  // is a full replace, so we never apply it silently, confirm first, and the
+  // is a full replace, so we never apply it silently: confirm first, and the
   // apply goes through the undoable history path so ⌘Z restores the old data.
   const {
     pending: pendingImport,

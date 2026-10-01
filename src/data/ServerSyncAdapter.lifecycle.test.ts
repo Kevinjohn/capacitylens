@@ -353,7 +353,7 @@ function registerLifecycleMissingRouteTests(): void {
 
 function registerLifecycleUnloadTests(): void {
   it("awaits a pending lifecycle-delete keepalive receipt without poisoning the batch", async () => {
-    // The final teardown state is one ordered transaction: an archive operation cannot be overtaken
+    // The final teardown state is one ordered transaction: an ARCHIVE operation cannot be overtaken
     // by an older creation, and ordinary sibling edits commit atomically with it.
     const { calls, fetchImpl } = recordingFetch();
     const a = new ServerSyncAdapter("http://x", fetchImpl);

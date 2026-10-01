@@ -4,7 +4,7 @@ import { JumpToDateInput } from "./JumpToDateInput";
 import { useStore } from "@/store/useStore";
 import { resetStoreWithAccount } from "@/test/fixtures";
 
-// Decision: the toolbar no longer renders this picker (see SHOW_JUMP_TO_DATE in
+// The toolbar no longer renders this picker (see SHOW_JUMP_TO_DATE in
 // ToolbarDateNavigation.tsx), so its behaviour is covered here rather than through the toolbar.
 
 beforeEach(() => {

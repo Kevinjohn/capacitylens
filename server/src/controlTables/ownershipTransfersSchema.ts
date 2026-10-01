@@ -182,7 +182,7 @@ function normalizeSql(sql: string): string {
  * checksum (`defineMigration` hashes version, name and definition only) so its home is free.
  *
  * Assert while the migration transaction still owns both the DDL and the ledger write, so a
- * malformed pre-existing if-not-EXISTS object rolls the step back rather than leaving the live
+ * malformed pre-existing IF-NOT-EXISTS object rolls the step back rather than leaving the live
  * slot unguarded. A control-plane table, so no AppData schema moves and EXPORT_SCHEMA_VERSION
  * stays put. */
 export function runOwnershipTransfersV41(db: Db): void {

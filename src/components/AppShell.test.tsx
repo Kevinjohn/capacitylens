@@ -968,8 +968,8 @@ function registerPersistentErrorNoticeTest(): void {
 function registerPersistentWarningNoticeTest(): void {
   it("keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)", async () => {
     // The 'warning' tone (e.g. the clamped-hours/data-truncation advisory) must inherit the
-    // persistent (duration: Infinity) treatment like an error, a fixed 4s timer on the sole signal
-    // of a silent truncation fails WCAG 2.2.1, but must not carry the danger `.toast-error` accent,
+    // persistent (duration: Infinity) treatment like an error (a fixed 4s timer on the sole signal
+    // of a silent truncation fails WCAG 2.2.1) but must not carry the danger `.toast-error` accent,
     // since the edit succeeded. Same fake-timer technique as the info-vs-error test above.
     vi.useFakeTimers();
     try {
