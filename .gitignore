@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 /production/
+/release/
 *.local
 # Install secrets (session-signing secret, setup token); only the template is tracked
 .env

@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
 import { DEFAULT_CORS, parseRateLimit } from "./app";
@@ -34,6 +37,7 @@ import {
 
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort } from "./boot/refusals";
 import { startServerRuntime } from "./boot/serverRuntime";
+import { applyProductionDefaults, resolveHttps } from "./boot/productionDefaults";
 
 export { parseAuditMaxMb } from "./boot/refusals";
 
@@ -41,6 +45,27 @@ const ACCOUNT_APPLICATION: BoundApplication = DEFAULT_ACCOUNT_APPLICATION;
 function resolveOptionalEnvironmentValue(value: string | undefined): string | undefined {
   if (!value) return undefined;
   return value;
+}
+
+// The built web app served beside the API. Explicitly empty disables it; an explicit directory must
+// hold index.html, because a mistyped path must refuse rather than quietly run API-only. Unset: serve
+// the release archive's own dist/ (server/dist/index.mjs -> ../../dist) only when the packager's
+// marker proves this is a generated release, so a source checkout never serves a stale local build.
+function resolveWebDir(configured: string | undefined): string | undefined {
+  if (configured === "") return undefined;
+  if (configured !== undefined) {
+    const directory = resolve(configured);
+    if (!existsSync(join(directory, "index.html"))) {
+      throw new Error(
+        `CAPACITYLENS_WEB_DIR=${configured} has no index.html. Point it at the built web app or unset it.`,
+      );
+    }
+    return directory;
+  }
+  const releaseRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const bundledWebDir = join(releaseRoot, "dist");
+  const isGeneratedRelease = existsSync(join(releaseRoot, ".capacitylens-generated-release"));
+  return isGeneratedRelease && existsSync(join(bundledWebDir, "index.html")) ? bundledWebDir : undefined;
 }
 
 // Secrets, SQLite/WAL files, audit logs, and backups created by this process must never inherit a
@@ -58,6 +83,8 @@ if (isResetForbidden(process.env)) {
   process.exit(1);
 }
 
+// Production defaults must land before any parser or the posture guard reads the environment.
+applyProductionDefaults(process.env);
 const accountResolution = tryOrRefuse(() => resolveAccountEnvironment(process.env));
 const accountEnv: Record<string, string | undefined> = accountResolution.env;
 
@@ -72,12 +99,13 @@ const optimisticConcurrency = process.env.CAPACITYLENS_OPTIMISTIC_CONCURRENCY !=
 // Single-company cap (see AppOptions.multiAccount) — off by default, so a fresh real deploy starts
 // capped to the first company it creates until the operator deliberately opts in to more.
 const multiAccount = process.env.CAPACITYLENS_MULTI_ACCOUNT === "1";
-// HSTS only — gated OFF by default (HSTS over plain HTTP is harmful; this server usually
-// runs HTTP behind a TLS proxy). The other helmet baseline headers are on regardless.
-const https = process.env.CAPACITYLENS_HTTPS === "1";
+// HSTS only — emitted when CAPACITYLENS_HTTPS=1, or (unless "0") when the public URL is https,
+// since HSTS over plain HTTP is harmful. The other helmet baseline headers are on regardless.
+const https = resolveHttps(accountEnv);
 const log = process.env.CAPACITYLENS_LOG === "1";
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === "1";
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT);
+const webDir = tryOrRefuse(() => resolveWebDir(process.env.CAPACITYLENS_WEB_DIR));
 const requireMfa = accountEnv.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1";
 const internalTls: ReturnType<typeof loadInternalTls> = tryOrRefuse(() =>
   loadInternalTls({ environment: process.env }),
@@ -291,6 +319,7 @@ startServerRuntime({
         }),
     requireMfa,
     allowOpenSignup: accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1",
+    ...(webDir === undefined ? {} : { webDir }),
   },
   backupConfig,
   db,

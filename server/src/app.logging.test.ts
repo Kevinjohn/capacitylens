@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createApp, createRequestLoggerOptions } from "./app";
 import { openDb } from "./db";
@@ -246,6 +249,33 @@ describe("CAPACITYLENS_LOG URL redaction", () => {
   it("strips query and fragment when URL parsing falls back", () => {
     const secret = "SENTINEL_MALFORMED_URL";
     expect(redactSecretUrl(`http://[::1?query=${secret}#fragment`)).toBe("http://[::1");
+  });
+
+  it.each([
+    ["/invite/SENTINEL_TOKEN", "/invite/[redacted]"],
+    ["/reset-password/SENTINEL_TOKEN?next=/x#frag", "/reset-password/[redacted]"],
+    ["/invite/SENTINEL_TOKEN/extra", "/invite/[redacted]"],
+    ["/invite", "/invite"],
+    ["/reset-password", "/reset-password"],
+  ])("masks the bearer token in web-app path %s", (url, expected) => {
+    expect(redactSecretUrl(url)).toBe(expected);
+  });
+
+  it.each(["invite", "reset-password"])("keeps the /%s token out of served access logs", async (route) => {
+    const webDir = mkdtempSync(path.join(tmpdir(), "capacitylens-log-web-"));
+    try {
+      writeFileSync(path.join(webDir, "index.html"), "<!doctype html>");
+      const { lines, stream } = createLogCapture();
+      const app = createApp(openDb(":memory:"), { log: true, logStream: stream, webDir });
+      const token = "SENTINEL_WEB_TOKEN";
+      const res = await app.inject({ method: "GET", url: `/${route}/${token}` });
+      expect(res.statusCode).toBe(200);
+      const out = lines.join("");
+      expect(out).toContain(`"url":"/${route}/[redacted]"`);
+      expect(out).not.toContain(token);
+    } finally {
+      rmSync(webDir, { recursive: true, force: true });
+    }
   });
 
   it("preserves ordinary URL paths", async () => {

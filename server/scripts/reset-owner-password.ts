@@ -1,3 +1,4 @@
+import { applyProductionDefaults } from "../src/boot/productionDefaults";
 import { resetOwnerPassword } from "../src/resetOwnerPassword";
 
 // This is a narrowly scoped operator recovery tool, not an alternate application startup path. All
@@ -13,9 +14,12 @@ if (
   (confirmFlag !== undefined && confirmFlag !== "--confirm-server-stopped") ||
   extra.length > 0
 ) {
-  console.error("Usage: tsx scripts/reset-owner-password.ts <database> <email> --confirm-server-stopped");
+  console.error("Usage: reset-owner-password <database> <email> --confirm-server-stopped");
   process.exitCode = 2;
 } else {
+  // Read the server's own environment file the way the server does: under NODE_ENV=production an
+  // unset sign-in mode means password-only, so the five-line release environment works unchanged.
+  applyProductionDefaults(process.env);
   const result = await resetOwnerPassword({
     databasePath,
     email,

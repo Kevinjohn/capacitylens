@@ -284,6 +284,23 @@ shell. The service worker lives at `public/offline-worker.js`.
 `src/data/ServerSyncAdapter.diff.test.ts` and
 `e2e/clear-local-storage.spec.ts` when cleanup or browser storage boundaries change.
 
+#### Installation package {#task-installation-package}
+
+**Start:** `scripts/package-managed-release.mjs` builds `production/` (web app, deployed server and
+the operator files from `packaging/release/`) and, with `--archive`, the release archive and its
+checksum under `release/`.
+
+**Follow through:** `packaging/release/` holds the environment example, systemd unit, nginx and
+Caddy site files and `INSTALL.md` exactly as operators receive them. `server/src/index.ts` decides
+whether the server serves the web app (`CAPACITYLENS_WEB_DIR` or the release marker) and
+`server/src/routes/staticWeb.ts` serves it. `server/package.json` → `build:runtime` bundles the
+server and the owner-password recovery tool. `.github/workflows/release-provenance.yml` publishes
+the archive and `.github/workflows/gate.yml` → `release-package-smoke` runs it.
+
+**Tests:** Start with `pnpm run package:managed-release:test` and
+`server/src/routes/staticWeb.test.ts`; the gate's `release-package-smoke` job is the end-to-end
+check, and its steps can be run locally against an extracted archive.
+
 Maintain an entry when its starting point or ownership changes. A task brief should link to the
 relevant entry and name the exact implementation and test paths it needs, rather than copy this
 whole section. For work not mapped here, use targeted source, caller and import searches. Import and
@@ -798,14 +815,15 @@ CodeQL runs on pull requests targeting `main`, on `main` itself and on its weekl
 Its commit-specific concurrency key preserves analysis for each revision even when changes arrive
 quickly. OpenSSF Scorecard runs on `main` and weekly. The security workflow performs full-history secret scanning, dependency review,
 source SBOM generation, container vulnerability scanning and two OWASP ZAP
-baselines. A separate release-only workflow packages each published tag, generates its SBOM,
-creates GitHub build attestations and attaches the artifacts plus the recognized
+baselines. A separate release-only workflow packages each published tag, including the runnable
+server archive and its checksum, generates its SBOM, creates GitHub build attestations and attaches
+the artifacts plus the recognized
 `.intoto.jsonl` provenance bundle to the GitHub Release. It is manually runnable with an existing
 release tag for deliberate rebuilds and backfills. The blocking ZAP scan boots the hardened posture
 — password authentication, required MFA, scheduled backups and operator attestations, with
 credentials minted and masked per run — so a finding there is a regression in the
-recommended configuration. A second, non-blocking job scans the out-of-the-box default
-posture weekly and uploads its report as an artifact. Reviewed secret-scan fixtures are
+recommended configuration. A second, non-blocking job scans the explicit no-login posture
+(sign-in mode `off`) weekly and uploads its report as an artifact. Reviewed secret-scan fixtures are
 allowlisted by value in `.gitleaks.toml`, which `pnpm run security:gitleaks-config` checks
 on every gate run. Because a scheduled or `main` run has no reviewer watching it, a
 failure there — or a cancellation that leaves the run with nothing to read — opens or
@@ -818,6 +836,12 @@ scope and residual controls.
 request. The `Lint and type-check` status is required before merge; no approving review is required
 while the project has one active maintainer. The heavier post-merge workflows still report complete
 suite results on `main`.
+
+The gate's `release-package-smoke` job builds the release archive on every `main` push, unpacks it,
+fills in the three empty lines of its `capacitylens.env.example`, and starts the server with Node's
+`--env-file`. It requires deep health with the database, audit and backup all good, the web app at
+`/` with its Content-Security-Policy header, no generated secret in the captured output, and the
+bundled owner-password recovery tool reaching its identity lookup.
 
 The coverage badge needs a Codecov project and a repository secret named `CODECOV_TOKEN`;
 uploads are deliberately skipped until that secret exists. Uploads are best-effort because
@@ -837,8 +861,8 @@ The version pull request described in `AGENTS.md` → "Version and CI policy" en
 Publishing is a separate maintainer task. Nothing in `.github/` or `scripts/` creates tags or
 releases.
 
-1. Find the merged release commit and build the managed-release package from it once. No workflow
-   runs the packager, and its tests use fixtures:
+1. Find the merged release commit and build the release package from it once, as the
+   `release-provenance` workflow will after publication:
 
    ```bash
    git fetch origin main --tags
@@ -848,10 +872,13 @@ releases.
    pnpm run build
    pnpm --filter capacitylens-server run build:runtime
    pnpm run package:managed-release
-   test -f production/dist/index.html
-   test -f production/server/dist/index.mjs
-   test -f production/server/dist/importWorker.mjs
+   pnpm run package:release-archive
+   (cd release && sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256)
    ```
+
+   The packager refuses to finish without the web app, the server bundles and the operator files,
+   and the archive step refuses environment files, databases, backups, audit logs and symlinks
+   that leave the release.
 
 2. Tag that commit and push the tag. Earlier releases use lightweight tags on the release merge
    commit:
@@ -881,7 +908,7 @@ releases.
 
    Add `--prerelease` if you decided on one.
 
-5. Confirm that `release-provenance` ran for the tag and attached its three files. Publishing also
+5. Confirm that `release-provenance` ran for the tag and attached its five files. Publishing also
    triggers the `pages` workflow.
 
    ```bash
@@ -889,9 +916,28 @@ releases.
    gh release view vX.Y.Z --json assets --jq '.assets[].name'
    ```
 
-   Expect `capacitylens-web.tar.gz`, `capacitylens.spdx.json` and
-   `capacitylens-release.intoto.jsonl`. If the run failed, rerun it for the existing tag:
-   `gh workflow run release-provenance.yml -f tag=vX.Y.Z`.
+   Expect `capacitylens-web.tar.gz`, `capacitylens.spdx.json`, `capacitylens-X.Y.Z.tar.gz`,
+   `capacitylens-X.Y.Z.tar.gz.sha256` and `capacitylens-release.intoto.jsonl`. If the run failed,
+   rerun it for the existing tag: `gh workflow run release-provenance.yml -f tag=vX.Y.Z`.
+
+   Then verify the published archive itself, not the local candidate. Download it into an empty
+   folder outside the checkout, check its checksum and attestation, and unpack it:
+
+   ```bash
+   gh release download vX.Y.Z --repo Kevinjohn/capacitylens --pattern 'capacitylens-X.Y.Z.tar.gz*'
+   sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
+   gh attestation verify capacitylens-X.Y.Z.tar.gz --repo Kevinjohn/capacitylens
+   tar -xzf capacitylens-X.Y.Z.tar.gz
+   ```
+
+   Repeat the steps of the gate's `release-package-smoke` job against that folder: copy
+   `capacitylens.env.example`, fill in its three empty lines with a loopback address and two
+   `openssl rand -base64 48` values, set `CAPACITYLENS_DB` to a writable path, and start
+   `node --env-file=<file> dist/index.mjs` from its `server/` folder. Expect deep health with
+   `"db":true`, `"audit":"ok"` and a backup `status` of `"ok"`, HTML at `/` with a
+   `Content-Security-Policy` header, and, after stopping the server,
+   `node --env-file=<file> dist/reset-owner-password.mjs <database> nobody@example.com --confirm-server-stopped`
+   failing with `No identity matches that address.`
 
 ## Database migrations
 

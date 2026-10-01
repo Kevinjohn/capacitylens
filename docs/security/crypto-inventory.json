@@ -162,6 +162,14 @@
       "purpose": "OpenSSL generation of ephemeral authentication secrets and bootstrap tokens for isolated CI security checks"
     },
     {
+      "path": ".github/workflows/gate.yml",
+      "purpose": "OpenSSL generation of ephemeral authentication secrets and setup tokens, and a throwaway self-signed certificate, for the release package smoke check"
+    },
+    {
+      "path": "scripts/package-managed-release.mjs",
+      "purpose": "SHA-256 checksum of the release archive for download verification"
+    },
+    {
       "path": "docker-compose.yml",
       "purpose": "Internal TLS certificate, key and CA path wiring between the API and reverse proxy containers"
     },

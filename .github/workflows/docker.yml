@@ -22,6 +22,7 @@ jobs:
       # NODE_ENV=production is baked into the api image (Dockerfile), and auth is OFF by default
       # in this smoke. The production guard requires explicit consent for this trusted CI-only setup.
       CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
+      SMALLSASS_ACCOUNT_MODE: "off"
       # CI's ephemeral runner disk is encrypted by the hosted platform and stdout is retained in a
       # separate Actions log. Production requires operators to make both assurances explicitly.
       CAPACITYLENS_STORAGE_ENCRYPTED: "1"
