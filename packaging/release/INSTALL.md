@@ -13,7 +13,8 @@ differs between hosts.
 
 You need Node 24 on the system path and a hostname pointing at the host. The archive is tested on
 Ubuntu x86-64; other Linux distributions and macOS are expected to work but are not tested.
-Replace `X.Y.Z` below with the release version (the `VERSION` file in the archive names it).
+The commands below name release X.Y.Z. For a newer release, use its version instead; the `VERSION`
+file in the archive names the one you have.
 
 ## Managed host (Forge and similar), no terminal
 
@@ -26,6 +27,9 @@ Replace `X.Y.Z` below with the release version (the `VERSION` file in the archiv
    curl -fsSLO https://github.com/Kevinjohn/capacitylens/releases/download/vX.Y.Z/capacitylens-X.Y.Z.tar.gz
    tar -xzf capacitylens-X.Y.Z.tar.gz && ln -sfn capacitylens-X.Y.Z current
    ```
+
+   To upgrade, run the deploy script with the new version, then restart the background process
+   from step 4 so it runs the new release.
 
 2. **Data folder:** `/home/forge/capacitylens-data`, outside the release so upgrades keep it.
    Create it once from the host's file manager or its command box: `mkdir -p /home/forge/capacitylens-data`.
@@ -77,7 +81,7 @@ sudo cp /opt/capacitylens/current/capacitylens.service /etc/systemd/system/ && s
 # 5. Open the address. The setup token is the SETUP_TOKEN line in /etc/capacitylens.env
 ```
 
-For HTTPS, Caddy is the shortest route: add the three-line block from `Caddyfile.example` to
+For HTTPS, Caddy is the shortest route: add the four-line block from `Caddyfile.example` to
 `/etc/caddy/Caddyfile` with your hostname, then `sudo systemctl reload caddy`. Caddy obtains the
 certificate itself. For nginx, use `capacitylens.nginx.conf`; its first lines say how.
 

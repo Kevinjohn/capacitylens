@@ -27,8 +27,9 @@ new features and **patch** versions carry fixes.
   audit records on stdout and hourly backups in `backups/` beside the database file. Explicit
   values still win, and sign-in mode `off` still needs `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1`
   (#1383).
-- HSTS is host-only, without `includeSubDomains`, and is on automatically when the public URL is
-  `https`. `CAPACITYLENS_HTTPS=0` turns it off (#1383).
+- The server's HSTS header, and the one in the archive's nginx site file, is host-only, without
+  `includeSubDomains`. The server sends it automatically when the public URL is `https`;
+  `CAPACITYLENS_HTTPS=0` turns it off. The Docker Compose nginx is unchanged (#1383).
 
 ### Fixed
 
