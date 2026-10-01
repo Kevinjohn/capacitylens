@@ -303,7 +303,7 @@ describe("error status mapping (statusFor)", () => {
     });
 
     it("maps a real FOREIGN KEY violation to 400", () => {
-      const db = openDb(":memory:"); // openDb turns foreign_keys on
+      const db = openDb(":memory:"); // openDb turns foreign_keys ON
       const e = grab(() =>
         db.exec(
           `INSERT INTO clients (id, accountId, name, color, createdAt, updatedAt) VALUES ('c', 'no-such-account', 'Ferris', '#fff', 't', 't')`,

@@ -3,7 +3,7 @@ import { ValidationError } from "../validate";
 import { REPLY_ERRORS } from "./replyErrors";
 
 // SQLite extended constraint codes that describe caller-supplied row data. Deliberately exclude
-// trigger (1811), function (1043), VTAB (2323), COMMIT_HOOK (531) and other internal constraint
+// TRIGGER (1811), FUNCTION (1043), VTAB (2323), COMMIT_HOOK (531) and other internal constraint
 // sources: those are server/storage failures and must remain logged 500s.
 const SQLITE_CALLER_DATA_CONSTRAINT_CODES = new Set([
   275, // SQLITE_CONSTRAINT_CHECK

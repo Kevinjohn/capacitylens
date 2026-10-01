@@ -918,7 +918,7 @@ function registerFailedSnapshotCleanupTest(): void {
       now: tickingClock(),
     });
     // Let the start-up shot finish cleanly (snapshotNow queues behind it), then break the DB:
-    // backup()/VACUUM into on a closed handle is a realistic mid-write fault.
+    // backup()/VACUUM INTO on a closed handle is a realistic mid-write fault.
     await backups.snapshotNow();
     db.close();
     await expect(backups.snapshotNow()).rejects.toThrow();

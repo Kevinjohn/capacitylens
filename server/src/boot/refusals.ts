@@ -32,7 +32,7 @@ export function closeDbSafely(candidate: Db | undefined): void {
   }
 }
 
-// Fail-closed port parse (mirrors parseRateLimit): a typo like port=abc or an out-of-range value
+// Fail-closed PORT parse (mirrors parseRateLimit): a typo like PORT=abc or an out-of-range value
 // must not silently fall through to a confusing app.listen error, reject it up front with a clear
 // message. Unset → the 8787 default.
 export function parsePort(raw: string | undefined): number {

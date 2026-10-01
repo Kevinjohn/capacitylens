@@ -9,7 +9,7 @@ import { IMMUTABLE_ACCOUNT_FIELDS } from "../../validate";
 // import keeps working unchanged.
 export { SINGLE_COMPANY_CAP_MESSAGE };
 
-/** SELECT count(*) from accounts, the cap's sole precondition. Same query POST /api/orgs used
+/** SELECT COUNT(*) FROM accounts, the cap's sole precondition. Same query POST /api/orgs used
  * before the cap existed; kept as one function so every enforcement point reads the identical
  * number (never re-derived ad hoc at each call site). */
 export function countAccounts(db: Db): number {
@@ -42,7 +42,7 @@ export function buildCanonicalAccountProductPayload(row: Record<string, unknown>
 /**
  * True when a sanitised accounts write would change an already-set frozen field, the
  * violation signal the PUT/PATCH/batch handlers all turn into a 409, the batch path throws an
- * AccountContractError with code conflict, which the sync client maps through
+ * AccountContractError with code CONFLICT, which the sync client maps through
  * statusForAccountFailure to the same 409 (its authoritative-reload trigger), not a 400.
  *
  * Reports a violation only when `existing` has a stored value and the sanitised incoming value

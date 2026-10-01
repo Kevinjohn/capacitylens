@@ -1,7 +1,7 @@
 import { APP_DATA_WRITE_ORDER, type AppData, type Entity } from "@capacitylens/shared/types/entities";
 
 // The pure diff/apply core of server sync, extracted from ServerSyncAdapter so the
-// snapshot-to-rest-ops logic can be read and tested in isolation from the network
+// snapshot-to-REST-ops logic can be read and tested in isolation from the network
 // adapter. No I/O here, just two pure functions over AppData snapshots.
 
 // Parent-before-child: every create/update must follow its foreign-key targets.

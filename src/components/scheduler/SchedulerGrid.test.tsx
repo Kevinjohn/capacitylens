@@ -168,7 +168,7 @@ describe("SchedulerGrid", () => {
 describe("SchedulerGrid", () => {
   it("folds the per-row utilisation % into the sr-only summary (WCAG 1.3.1)", () => {
     renderGrid();
-    // The utilisation % is otherwise only a `title` on a non-interactive span (at may not expose it);
+    // The utilisation % is otherwise only a `title` on a non-interactive span (AT may not expose it);
     // the sr-only summary must carry it, using the "Utilisation" term and the visible-window phrasing.
     expect(screen.getByText(/% utilisation over the visible/)).toBeInTheDocument();
   });

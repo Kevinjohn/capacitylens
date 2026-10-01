@@ -156,7 +156,7 @@ function throwLifecycleError(error: unknown): void {
 }
 
 // A PersistenceAdapter that keeps the same whole-tree contract the store already
-// speaks (loadAll / saveAll) but talks to the entity-level rest API:
+// speaks (loadAll / saveAll) but talks to the entity-level REST API:
 //   - loadAll(): GET /api/state for off mode and unverified identity; live-authenticated bootstrap
 //     seeds an empty snapshot without an unscoped request
 //   - saveAll(next): diff next against the last-synced snapshot and POST the ordered
@@ -251,7 +251,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       );
     }
     const { batchOps, lifecycleDeletes } = splitLifecycleDeletes(ops);
-    // Teardown must carry one complete successor state. Lifecycle disappearances become archive
+    // Teardown must carry one complete successor state. Lifecycle disappearances become ARCHIVE
     // operations inside the same ordered transaction as ordinary writes, so the successor can
     // safely fence an older in-flight creation even if the network delivers it first.
     const orderedOps = [...batchOps, ...lifecycleDeletes];

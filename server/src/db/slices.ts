@@ -137,7 +137,7 @@ function readSliceFromSnapshot(
   const accountsSpec = resolveTable("accounts");
   cache.accountByIdSelect ??= db.prepare(`SELECT * FROM accounts WHERE id = ?`);
   data["accounts"] = cache.accountByIdSelect.all(accountId).map((r) => fromRow(accountsSpec, r));
-  // Every scoped table: where accountId = ?, never an unpredicated read (the no-cross-tenant invariant).
+  // Every scoped table: WHERE accountId = ?, never an unpredicated read (the no-cross-tenant invariant).
   for (const table of SCOPED_ORDER) {
     const spec = resolveTable(table);
     const statement = createCachedTableStatement({

@@ -5,7 +5,7 @@ export { startBackups } from "./backup/scheduler";
 // module is never started, touches no filesystem, owns no timer). A small server feature
 // rather than a host cron because WAL mode means a raw `cp` can catch a torn state,
 // node:sqlite's backup() takes a consistent online snapshot instead (fallback:
-// VACUUM into, same guarantee). New filenames carry UTC stamps; retention also recognises legacy
+// VACUUM INTO, same guarantee). New filenames carry UTC stamps; retention also recognises legacy
 // local-time names and orders those by publication mtime. The shutdown path (index.ts) awaits
 // stop(), which clears the timer and waits for
 // any in-flight snapshot, so a drain can't close the DB under a running backup.

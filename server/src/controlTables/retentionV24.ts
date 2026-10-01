@@ -144,9 +144,9 @@ export function ensureControlTables(db: Db): void {
   migrateMemberSignInTrackingV26(db);
   // Additive column for an already-created dev DB (the `id` column
   // arrived after the `invites` table). A DB that already has the older table won't get `id` from the
-  // if-not-EXISTS CREATE above (node:sqlite never re-runs CREATE on an existing table), so add it
+  // IF-NOT-EXISTS CREATE above (node:sqlite never re-runs CREATE on an existing table), so add it
   // here: guarded by a column-exists check, mirroring schema.ts's additive ALTER idiom. SQLite
-  // can't ALTER-add a NOT NULL column to existing rows, so it lands nullable; createInvite always
+  // can't ALTER-ADD a NOT NULL column to existing rows, so it lands nullable; createInvite always
   // writes a non-null id, and the rebuilt DDL above makes it NOT NULL for every fresh DB.
   // Fetch the invites column set once (rather than one PRAGMA per column checked below), both
   // `legacyPlaintextInvites` and the `id`-presence check below read the same live shape.

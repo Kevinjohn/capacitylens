@@ -150,7 +150,7 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       "ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;",
     ].join("\n"),
     (db) => {
-      // Idempotent per-column add (mirrors migration 9's add-internal-colour-mode guard): a
+      // Idempotent per-column ADD (mirrors migration 9's add-internal-colour-mode guard): a
       // pre-ledger dev database may already carry a subset from the generic optional-column repair,
       // so add only the columns that are actually missing. Absent columns read back as undefined and
       // default to true (shown/enabled) on the client.
@@ -202,7 +202,7 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   defineMigration(25, "secure-federated-identity-linking", FEDERATED_IDENTITY_V25_DEFINITION, (db) => {
     migrateFederatedIdentityV25(db);
     // Validate while the migration transaction still owns both DDL and ledger writes. A malformed
-    // pre-existing if-not-EXISTS object must roll the entire version step back to v24.
+    // pre-existing IF-NOT-EXISTS object must roll the entire version step back to v24.
     assertFederatedIdentitySchemaCurrent(db);
   }),
   defineMigration(26, "add-member-sign-in-confirmation", MEMBER_SIGN_IN_TRACKING_V26_DEFINITION, (db) => {

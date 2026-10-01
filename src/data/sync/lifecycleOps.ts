@@ -143,7 +143,7 @@ export async function unarchiveLifecycleRow(state: SyncState, op: Op): Promise<E
 // (POST /api/batch 400-rejects a lifecycle DELETE op, to keep the retained-tombstone data-lifecycle
 // from being bypassed).
 //
-// Policy: archive-only from the sync layer (deliberately not soft-delete): a lifecycle DELETE that
+// Policy: ARCHIVE-only from the sync layer (deliberately not soft-delete): a lifecycle DELETE that
 // originates from ordinary syncing (e.g. undo of a just-synced create) parks the row as archived on
 // the server. Archive is action 'write', allowed to every role that can create the row (editor+) and
 // never freshness-gated, so background sync, which has no re-auth/step-up UI, can always complete it.
@@ -183,7 +183,7 @@ export async function archiveLifecycleRow(
   // it: the raw text (createSafeResponseError attaches it as the diagnostic cause) and its best-effort
   // JSON envelope. Read and parse each exactly once, here, before branching on status.
   //
-  // The parse is deliberately allowed to fail without surfacing: an unreadable conflict body cannot
+  // The parse is deliberately allowed to fail without surfacing: an unreadable CONFLICT body cannot
   // prove convergence and is surfaced by the throw below; and since a proxy or missing route can
   // also return 404, only the API's exact row-absence envelope proves the lifecycle intent has
   // converged: anything else likewise falls through to a throw.

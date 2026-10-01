@@ -36,7 +36,7 @@ export function utf8ByteLength(value: string): number {
 // symbols (So, covers flag emoji / regional indicators, keycaps and dingbats that aren't
 // Extended_Pictographic, plus ™ © ® ° and the like), enclosing marks (Me, the combining
 // enclosing keycap U+20E3 that turns "1"/"#"/"*" into keycap emoji; no legitimate name
-// char is enclosing), the variation selectors (U+FE00–FE0F incl. emoji vs-16 U+FE0F, and
+// char is enclosing), the VARIATION SELECTORS (U+FE00–FE0F incl. emoji VS-16 U+FE0F, and
 // the supplement U+E0100–E01EF) that force emoji presentation, control chars (Cc), format
 // / zero-width chars (Cf, ZWJ, RTL overrides, …), lone surrogates (Cs), private-use (Co)
 // and unassigned (Cn) code points. Cn is deliberately conservative: a code point is refused until

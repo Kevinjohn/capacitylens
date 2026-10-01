@@ -100,7 +100,7 @@ function createCorsCredentialAndRequestGateTests() {
 
   it("answers a write preflight with 204 + CORS headers (no OPTIONS route exists)", async () => {
     // Regression guard: every cross-origin write (JSON POST/PUT/PATCH/DELETE) is
-    // preflighted by the browser, and options matches no route. The 204 comes from the
+    // preflighted by the browser, and OPTIONS matches no route. The 204 comes from the
     // root-level onRequest hook on the not-found path. When the hook briefly moved into
     // the routes child plugin, preflights became bare 404s without CORS headers and the
     // db-backed e2e app could no longer save anything.

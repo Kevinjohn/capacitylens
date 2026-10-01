@@ -170,7 +170,7 @@ describe("ResourceLane allocation rendering", () => {
     // A 30px block drops the visible uppercase label (<=44px), but the sr-only span must still name it.
     renderLane({ timeOff: [{ id: "to1", x: 0, width: 30, label: "Holiday" }] });
     const block = screen.getByTestId("timeoff-block");
-    // The specific label survives in an sr-only span (not just dropped to at).
+    // The specific label survives in an sr-only span (not just dropped to AT).
     expect(block).toHaveTextContent("Holiday");
     expect(block.querySelector(".sr-only")?.textContent).toBe("Holiday");
     // The dead pointer-events-none `title` is gone. It was unreachable, so it conveyed nothing.

@@ -60,7 +60,7 @@ export interface PurgeLifecycleResult {
   removedCounts: Partial<Record<ScopedEntityKey, number>>;
 }
 
-// One UNION ALL query in place of one SELECT count(*) per SCOPED_KEYS table: same predicate per
+// One UNION ALL query in place of one SELECT COUNT(*) per SCOPED_KEYS table: same predicate per
 // branch, same admin-only before/after-purge counts, same Record<ScopedEntityKey, number> shape.
 const SCOPED_ROW_COUNTS_SQL = SCOPED_KEYS.map(
   (table) => `SELECT '${table}' AS tableName, COUNT(*) AS count FROM ${table} WHERE accountId = ?`,
@@ -246,7 +246,7 @@ export function createSqliteTenantStore(
   removeResourceLink: (accountId: string, resourceId: string) => void = () => undefined,
 ): TenantStore {
   // Single query + fromRow, replacing an id-only SELECT followed by one getRow point lookup per
-  // id (N+1). Same where predicate as before, so it hits the same idx_allocations_{field} index and
+  // id (N+1). Same WHERE predicate as before, so it hits the same idx_allocations_{field} index and
   // returns rows in the same order the old id-loop preserved, verified empirically, since neither
   // form carries an ORDER BY of its own.
   const listRelatedAllocations = (field: "resourceId" | "activityId", accountId: string, id: string): Allocation[] =>
