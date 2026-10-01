@@ -5,7 +5,7 @@ import {
   type AuthProviderInfo,
   type AuthUser,
 } from "./authContext";
-import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
+import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
 
 export type AuthStatusResult =
   | { kind: "checking" }

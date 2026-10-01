@@ -1,8 +1,8 @@
 import { useContext, useId, useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { SectionHelp } from "../common/ui";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { SectionHelp } from "@/components/common/ui";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SettingsGroupContext } from "./settingsGroupContext";
 import { SettingsRow } from "./SettingsRow";
 

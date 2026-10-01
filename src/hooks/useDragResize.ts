@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { type DragMode } from "../lib/gestureMath";
+import { type DragMode } from "@/lib/gestureMath";
 
 // Thin DOM wrapper over the pure gestureMath. Mode comes from a `data-handle` on
 // the pressed element (resize grips) or defaults to 'move'. During the gesture it

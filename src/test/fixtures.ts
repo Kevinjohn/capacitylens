@@ -11,10 +11,10 @@ import type {
   TimeOff,
   Weekday,
 } from "@capacitylens/shared/types/entities";
-import type { Draft } from "../store/useStore";
-import { useStore } from "../store/useStore";
+import type { Draft } from "@/store/useStore";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type { BarLayout } from "../components/scheduler/schedulerModel";
+import type { BarLayout } from "@/components/scheduler/schedulerModel";
 
 // Shared test fixtures. Centralises the Mon–Fri working-week and resource-draft
 // factory, plus the multi-tenancy helpers: a default account, a `makeAccount`

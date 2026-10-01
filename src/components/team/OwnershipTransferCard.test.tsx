@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { m } from "@/i18n";
-import { AuthContext, type AuthContextValue } from "../../auth/authContext";
+import { AuthContext, type AuthContextValue } from "@/auth/authContext";
 import type {
   OwnershipTransferOutcomeView,
   OwnershipTransferProjectionView,
   OwnershipTransferView,
   TeamMember,
-} from "../../account/teamAccessClient";
-import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
+} from "@/account/teamAccessClient";
+import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
 import { OwnershipTransferCard } from "./OwnershipTransferCard";
 
 /**
@@ -26,8 +26,8 @@ const client = vi.hoisted(() => ({
 }));
 const reproject = vi.hoisted(() => vi.fn(async () => true));
 
-vi.mock("../../account/teamAccessClient", () => ({ teamAccessClient: client }));
-vi.mock("../../auth/reprojectAccess", () => ({ reprojectAccess: reproject }));
+vi.mock("@/account/teamAccessClient", () => ({ teamAccessClient: client }));
+vi.mock("@/auth/reprojectAccess", () => ({ reprojectAccess: reproject }));
 
 function member(userId: string, role: TeamMember["role"], name: string): TeamMember {
   return {

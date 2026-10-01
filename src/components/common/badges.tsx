@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
-import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // CapacityLens colour and avatar compositions.
 

@@ -15,8 +15,8 @@ import {
   placeholderCapacityDefaults,
 } from "@capacitylens/shared/types/entities";
 import type { Closure, ID, Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { stamp, type StoreInternals } from "../storeInternal";
-import type { Draft, Patch, StoreState } from "../types";
+import { stamp, type StoreInternals } from "@/store/storeInternal";
+import type { Draft, Patch, StoreState } from "@/store/types";
 
 type ResourceSlice = Pick<
   StoreState,

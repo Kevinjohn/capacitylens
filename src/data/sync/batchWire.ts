@@ -2,10 +2,10 @@ import { isDomainErrorCode } from "@capacitylens/shared/domain/errors";
 import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { announceAuditWarning, noteAuditWarning } from "../../lib/auditWarning";
-import { extractApiErrorMessage } from "../../lib/readApiError";
-import { API_BULK_TIMEOUT_MS, isTransportFailure, readMasqueradeErrorCode } from "../requestTimeout";
-import { type Op } from "../syncOps";
+import { announceAuditWarning, noteAuditWarning } from "@/lib/auditWarning";
+import { extractApiErrorMessage } from "@/lib/readApiError";
+import { API_BULK_TIMEOUT_MS, isTransportFailure, readMasqueradeErrorCode } from "@/data/requestTimeout";
+import { type Op } from "@/data/syncOps";
 import {
   BatchCommitUncertainError,
   BatchConflictError,

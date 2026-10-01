@@ -16,11 +16,11 @@ import {
   type OwnershipTransferProjectionView,
   type TeamAccessResult,
   type TeamMember,
-} from "../../account/teamAccessClient";
-import { resolveRejectionMessage } from "../../account/accessResult";
-import type { OwnershipTransferStep } from "../../account/accountClient";
-import { reprojectAccess } from "../../auth/reprojectAccess";
-import { useStore } from "../../store/useStore";
+} from "@/account/teamAccessClient";
+import { resolveRejectionMessage } from "@/account/accessResult";
+import type { OwnershipTransferStep } from "@/account/accountClient";
+import { reprojectAccess } from "@/auth/reprojectAccess";
+import { useStore } from "@/store/useStore";
 
 /**
  * The ownership transfer ceremony as one screen's worth of state.

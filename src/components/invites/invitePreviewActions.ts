@@ -1,10 +1,10 @@
 import type { Dispatch, SetStateAction, RefObject } from "react";
 import type { InviteAcceptState, InvitePreview } from "./InviteAcceptView";
 import { m } from "@/i18n";
-import type { AuthUser } from "../../auth/authContext";
-import { accountClient } from "../../account/accountClient";
-import { isServerConfigured } from "../../data/apiConfig";
-import { readApiError } from "../../lib/readApiError";
+import type { AuthUser } from "@/auth/authContext";
+import { accountClient } from "@/account/accountClient";
+import { isServerConfigured } from "@/data/apiConfig";
+import { readApiError } from "@/lib/readApiError";
 import { resolveMessageForStatus, parsePreview } from "./inviteResponses";
 
 interface Dependencies {

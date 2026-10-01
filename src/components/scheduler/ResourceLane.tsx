@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Plus } from "lucide-react";
 import type { ID, ISODate } from "@capacitylens/shared/types/entities";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import { AllocationBar } from "./AllocationBar";
 import type { ColumnGeometry } from "./columnGeometry";
 import { LAYOUT } from "./layout";

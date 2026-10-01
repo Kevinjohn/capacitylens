@@ -10,8 +10,8 @@ import {
 import { assertActivityProjectAllowsDependents, assertScopedRefs } from "@capacitylens/shared/domain/mutations";
 import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNames";
 import type { Activity, Client, Discipline, ID, Phase, Project } from "@capacitylens/shared/types/entities";
-import { readNextDataRevision, stamp, touchAfter, type StoreInternals } from "../storeInternal";
-import type { Draft, Patch, StoreState } from "../types";
+import { readNextDataRevision, stamp, touchAfter, type StoreInternals } from "@/store/storeInternal";
+import type { Draft, Patch, StoreState } from "@/store/types";
 
 type CatalogSlice = Pick<
   StoreState,

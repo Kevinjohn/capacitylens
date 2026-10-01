@@ -3,7 +3,7 @@ import { useAuth } from "@/auth/authContext";
 import { isServerConfigured } from "@/data/apiConfig";
 import { formatDiagnostics, readBrowserDiagnostics, readDiagnostics } from "@/data/buildInfo";
 import { usePersistenceDiagnostics } from "@/data/useOfflineState";
-import { accountClient } from "../../account/accountClient";
+import { accountClient } from "@/account/accountClient";
 
 type ServerObservation = { response: unknown; observedAt: string | undefined };
 

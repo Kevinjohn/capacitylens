@@ -7,11 +7,11 @@ import { DEFAULT_COLORS } from "@/lib/palette";
 import { useStore } from "@/store/useStore";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
-import { Avatar, ListPage } from "../common/ui";
-import { Button } from "../ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { SecuritySection } from "../settings/SecuritySection";
-import { SettingsSection } from "../settings/SettingsSection";
+import { Avatar, ListPage } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { SecuritySection } from "@/components/settings/SecuritySection";
+import { SettingsSection } from "@/components/settings/SettingsSection";
 
 type ResolveIdentityOptions = { auth: ReturnType<typeof useAuth>; demo: boolean };
 function resolveIdentity({ auth, demo }: ResolveIdentityOptions) {

@@ -427,10 +427,13 @@ consistently for each boundary:
 
 - Across workspace packages, use the declared `@capacitylens/shared/...` export. Never
   reach into another package with `../../shared/src/...` in production code.
-- In the browser app, use `@/...` across feature directories and relative paths within
-  one feature. For example, scheduler `activityOptions.ts` imports `@/lib/displayOrder`;
+- In the browser app, use `@/...` for any import that leaves the importing file's folder
+  and `./...` only for modules in that folder or below it; `../` is rejected by lint. For
+  example, scheduler `activityOptions.ts` imports `@/lib/displayOrder`;
   `useSchedulerGridVirtualization.ts` imports `./virtualWindow`. Shared UI primitives and
-  `@/i18n` are explicit app-wide capabilities.
+  `@/i18n` are explicit app-wide capabilities. The few tests that read repository files
+  outside `src/` (`package.json`, `scripts/`, nginx templates) keep their relative paths and
+  are allowed by name in `eslint.config.js`.
 - In server and shared code, use relative paths within the package; those packages have
   no source-root alias. Keep cross-feature imports directed toward the owner below.
 - Use `import type` for declarations used only as types. In a mixed import, split the

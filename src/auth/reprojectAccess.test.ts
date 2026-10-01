@@ -6,11 +6,11 @@ const { invalidateMemberships, refreshAccountSummaries, refreshActiveAccountSlic
   refreshActiveAccountSlice: vi.fn(),
 }));
 
-vi.mock("../store/useStore", () => ({
+vi.mock("@/store/useStore", () => ({
   useStore: { getState: () => ({ invalidateMemberships }) },
 }));
 vi.mock("./useAccountSummaries", () => ({ refreshAccountSummaries }));
-vi.mock("../data/persist", () => ({ refreshActiveAccountSlice }));
+vi.mock("@/data/persist", () => ({ refreshActiveAccountSlice }));
 
 import { reprojectAccess } from "./reprojectAccess";
 

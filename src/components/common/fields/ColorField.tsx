@@ -1,17 +1,11 @@
 import { useState, type KeyboardEvent } from "react";
-import {
-  SWATCHES,
-  SWATCH_COLUMNS,
-  resolveSwatchLabel,
-  resolveColorName,
-  resolveSwatchIndex,
-} from "../../../lib/palette";
-import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
-import { Field, FieldLabel } from "../../ui/field";
-import { Button } from "../../ui/button";
+import { SWATCHES, SWATCH_COLUMNS, resolveSwatchLabel, resolveColorName, resolveSwatchIndex } from "@/lib/palette";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { m } from "@/i18n";
-import { useMarkFormDirty } from "../formDirty";
+import { useMarkFormDirty } from "@/components/common/formDirty";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
 

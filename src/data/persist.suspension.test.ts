@@ -6,10 +6,10 @@ import {
   ReloadDiscardedEditError,
   suspendServerWrites,
 } from "./persist";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { resetStoreWithAccount, requireValue } from "../test/fixtures";
+import { resetStoreWithAccount, requireValue } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { deferredSignal, requireCallback, recordingAdapter, a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";

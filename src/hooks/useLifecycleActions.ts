@@ -1,16 +1,16 @@
 import { useCallback, useMemo, useRef } from "react";
 import { newId } from "@capacitylens/shared/lib/id";
-import { API_BASE, isServerConfigured } from "../data/apiConfig";
-import { persistenceAdapter } from "../data/storageAdapter";
-import { refreshActiveAccountSlice } from "../data/persist";
-import { useStore, type LifecycleEntity } from "../store/useStore";
-import { resolveErrorMessage } from "../lib/errorMessage";
-import { readApiError } from "../lib/readApiError";
+import { API_BASE, isServerConfigured } from "@/data/apiConfig";
+import { persistenceAdapter } from "@/data/storageAdapter";
+import { refreshActiveAccountSlice } from "@/data/persist";
+import { useStore, type LifecycleEntity } from "@/store/useStore";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { readApiError } from "@/lib/readApiError";
 import { m } from "@/i18n";
-import { apiFetchReauth } from "../auth/apiFetchReauth";
-import { API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
-import { notifyInactiveDataChanged } from "../data/inactiveDataEvents";
-import type { ReauthAction } from "../auth/reauthCoordinator";
+import { apiFetchReauth } from "@/auth/apiFetchReauth";
+import { API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
+import { notifyInactiveDataChanged } from "@/data/inactiveDataEvents";
+import type { ReauthAction } from "@/auth/reauthCoordinator";
 
 // The dispatch seam for the Active → Archived → Soft-deleted → Purged lifecycle is shared by
 // management lists, inline archive sections, and Settings. It owns the server/local branch and

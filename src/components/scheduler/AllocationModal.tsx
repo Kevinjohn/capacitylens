@@ -1,5 +1,5 @@
 import { m } from "@/i18n";
-import { Modal } from "../common/ui";
+import { Modal } from "@/components/common/ui";
 import { AllocationFooter } from "./AllocationFooter";
 import { AllocationScheduleFields } from "./AllocationScheduleFields";
 import { AllocationTargetFields } from "./AllocationTargetFields";

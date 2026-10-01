@@ -1,5 +1,5 @@
-import { useStore } from "../store/useStore";
-import { resolveErrorMessage } from "../lib/errorMessage";
+import { useStore } from "@/store/useStore";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 
 /**
  * Shared delete-with-notice handler for a list page's ConfirmDialog `onConfirm`. Three list pages

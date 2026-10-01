@@ -1,8 +1,8 @@
 import { effectiveWorkingWeek, lacksEffectiveWorkingDays } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import type { ID, ISODate, Weekday } from "@capacitylens/shared/types/entities";
-import { listAccountWorkingDays } from "../../store/selectors";
-import { useStore } from "../../store/useStore";
+import { listAccountWorkingDays } from "@/store/selectors";
+import { useStore } from "@/store/useStore";
 import { isAllocationMoveStartBlocked, resolveEffectiveWorkingDays } from "./creationAvailability";
 
 // The live store reads a drag gesture needs about a resource's working week, kept together and away

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
 import type { AppData, Client } from "@capacitylens/shared/types/entities";
 import { cacheAccountSlice, readCachedAccountSlice } from "./offlineCache";
-import { makeResource } from "../test/fixtures";
+import { makeResource } from "@/test/fixtures";
 import {
   TS1,
   TS2,

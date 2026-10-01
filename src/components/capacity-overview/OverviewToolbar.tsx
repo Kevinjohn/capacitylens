@@ -1,5 +1,5 @@
 import { m } from "@/i18n";
-import { SegmentedControl, TogglePill } from "../common/ui";
+import { SegmentedControl, TogglePill } from "@/components/common/ui";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
 import { resolveHorizonWeekCount } from "./capacityOverviewDates";
 import type { CapacityOverviewHorizon } from "./capacityOverviewDates";

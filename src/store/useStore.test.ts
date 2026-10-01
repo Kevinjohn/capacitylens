@@ -1,4 +1,4 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { hasActiveFilters, useStore } from "./useStore";
 import {
@@ -8,13 +8,13 @@ import {
   makeResourceDraft,
   requireValue,
   WORKDAYS,
-} from "../test/fixtures";
+} from "@/test/fixtures";
 import { addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { readActiveDateStyle, formatDayMonth } from "../lib/dateDisplay";
+import { readActiveDateStyle, formatDayMonth } from "@/lib/dateDisplay";
 import { resolveDateStyle } from "./selectors";
 import { serializeData } from "@capacitylens/shared/data/transfer";
-import { PAST_BUFFER_DAYS } from "../lib/schedulerConfig";
-import { diffOps } from "../data/syncOps";
+import { PAST_BUFFER_DAYS } from "@/lib/schedulerConfig";
+import { diffOps } from "@/data/syncOps";
 
 const s = () => useStore.getState();
 beforeEach(() => resetStoreWithAccount());

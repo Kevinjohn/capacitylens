@@ -1,8 +1,8 @@
 import type { StoreApi } from "zustand";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import type { StoreState } from "../../store/useStore";
-import { incrementPersistenceDiagnostic, setPersistenceSuspended } from "../persistenceDiagnostics";
-import { BatchReconciliationError } from "../ServerSyncAdapter";
+import type { StoreState } from "@/store/useStore";
+import { incrementPersistenceDiagnostic, setPersistenceSuspended } from "@/data/persistenceDiagnostics";
+import { BatchReconciliationError } from "@/data/ServerSyncAdapter";
 import { ReloadDiscardedEditError, type RefreshOutcome } from "./facades";
 
 interface OwnerBeginSuspensionInput {

@@ -1,8 +1,8 @@
 import { m } from "@/i18n";
-import { Button } from "../ui/button";
-import { ConfirmDialog } from "../common/dialogs";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/common/dialogs";
 import { RepeatedAllocationDeleteDialog } from "./RepeatedAllocationDeleteDialog";
-import { buildUndoShortcut } from "../../lib/keyboardShortcuts";
+import { buildUndoShortcut } from "@/lib/keyboardShortcuts";
 import type { AllocationModalState } from "./useAllocationModalState";
 
 type AllocationFooterProps = AllocationModalState["footer"];

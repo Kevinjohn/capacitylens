@@ -2,15 +2,15 @@ import type { PropsWithChildren } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Activity, Resource } from "@capacitylens/shared/types/entities";
-import { AuthContext, type AccountMode } from "../../auth/authContext";
-import { PermissionContext, type PermissionContextValue } from "../../auth/permissionContext";
-import { useStore } from "../../store/useStore";
-import { makeAccount, makeActivity, makeAllocation, makeAppData, makeResource, makeTimeOff } from "../../test/fixtures";
+import { AuthContext, type AccountMode } from "@/auth/authContext";
+import { PermissionContext, type PermissionContextValue } from "@/auth/permissionContext";
+import { useStore } from "@/store/useStore";
+import { makeAccount, makeActivity, makeAllocation, makeAppData, makeResource, makeTimeOff } from "@/test/fixtures";
 import { usePersonSchedule } from "./usePersonSchedule";
 
 const calendarToday = vi.hoisted(() => ({ today: "2026-09-10", timeZone: "" }));
 
-vi.mock("../scheduler/useCalendarToday", () => ({
+vi.mock("@/components/scheduler/useCalendarToday", () => ({
   useCalendarToday: (timeZone: string) => {
     calendarToday.timeZone = timeZone;
     return calendarToday.today;

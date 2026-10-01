@@ -1,5 +1,5 @@
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
-import { readApiError } from "../lib/readApiError";
+import { readApiError } from "@/lib/readApiError";
 import { API_BASE } from "./apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "./requestTimeout";
 import { parseAccountSlice } from "./validateAccountSlice";

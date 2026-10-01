@@ -1,10 +1,10 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent, act } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
 import { buildAllocationBarInset } from "./layout";
-import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount, makeResourceDraft } from "../../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount, makeResourceDraft } from "@/test/fixtures";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
 
 import { barFor, getStoredAllocation, rect, seedAllocation } from "./__tests__/allocationBarInteractionTestKit";

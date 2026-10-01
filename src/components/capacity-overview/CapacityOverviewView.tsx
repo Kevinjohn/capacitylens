@@ -9,7 +9,7 @@ import {
   resolveWeekStart,
 } from "@/store/selectors";
 import { useStore } from "@/store/useStore";
-import { useCalendarToday } from "../scheduler/useCalendarToday";
+import { useCalendarToday } from "@/components/scheduler/useCalendarToday";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
 import type { CapacityOverviewHorizon } from "./capacityOverviewDates";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";

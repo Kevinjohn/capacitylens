@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ID } from "@capacitylens/shared/types/entities";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 
 export type ScheduleAllocationFocus = (allocationId: ID, accountId: ID | null) => void;
 

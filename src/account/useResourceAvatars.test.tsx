@@ -2,12 +2,12 @@ import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { accountClient } from "./accountClient";
 import { invalidateResourceAvatars, useResourceAvatars } from "./useResourceAvatars";
-import { setOfflineReadState } from "../data/offlineCache";
-import { AuthContext } from "../auth/authContext";
-import { useStore } from "../store/useStore";
+import { setOfflineReadState } from "@/data/offlineCache";
+import { AuthContext } from "@/auth/authContext";
+import { useStore } from "@/store/useStore";
 
 vi.mock("./accountClient", () => ({ accountClient: { listResourceAvatars: vi.fn() } }));
-vi.mock("../data/apiConfig", () => ({ isServerConfigured: () => true }));
+vi.mock("@/data/apiConfig", () => ({ isServerConfigured: () => true }));
 
 function response(avatars: unknown[]): Response {
   return new Response(JSON.stringify({ avatars }), { status: 200, headers: { "Content-Type": "application/json" } });

@@ -3,17 +3,17 @@ import { matchPath, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m, syncLocaleFromAccount } from "@/i18n";
-import { useAccountSummaries } from "../auth/useAccountSummaries";
-import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
-import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from "../lib/joinedAccountHandoff";
-import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "../lib/navLinks";
-import { hasOpenModal, isTextEntryShortcutOwner } from "../lib/shortcutGuards";
-import { hasUnsavedPersistenceWrites } from "../data/persist";
-import { useStore } from "../store/useStore";
-import { useAuth } from "../auth/authContext";
-import { useDemoAuthActive } from "../lib/fakeAuth";
-import { consumeCompanyPickerForReload } from "../lib/companyPickerEntry";
-import { transitionAccount } from "../auth/accountTransition";
+import { useAccountSummaries } from "@/auth/useAccountSummaries";
+import { AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
+import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from "@/lib/joinedAccountHandoff";
+import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "@/lib/navLinks";
+import { hasOpenModal, isTextEntryShortcutOwner } from "@/lib/shortcutGuards";
+import { hasUnsavedPersistenceWrites } from "@/data/persist";
+import { useStore } from "@/store/useStore";
+import { useAuth } from "@/auth/authContext";
+import { useDemoAuthActive } from "@/lib/fakeAuth";
+import { consumeCompanyPickerForReload } from "@/lib/companyPickerEntry";
+import { transitionAccount } from "@/auth/accountTransition";
 
 function readReloadNavigationState(): boolean {
   try {

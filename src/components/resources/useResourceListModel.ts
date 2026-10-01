@@ -1,19 +1,19 @@
 import { useMemo } from "react";
 import { isExternalResource, type Resource } from "@capacitylens/shared/types/entities";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
   hasResourceEngagementGrouping,
   hasPlaceholdersEnabled,
-} from "../../store/selectors";
-import { useActiveScopedData } from "../../store/useScopedData";
-import { resolveResourceDisplayName } from "../../lib/metadata";
+} from "@/store/selectors";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { resolveResourceDisplayName } from "@/lib/metadata";
 import {
   createDisplayNameComparator,
   createEngagementFavouriteDisplayNameComparator,
   createFavouriteDisplayNameComparator,
-} from "../../lib/displayOrder";
+} from "@/lib/displayOrder";
 
 const byFavouriteDisplayName = createFavouriteDisplayNameComparator<Resource>(resolveResourceDisplayName);
 const byEngagementFavouriteDisplayName =

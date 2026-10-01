@@ -1,18 +1,18 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { StrictMode, useState } from "react";
-import { AuthContext, type AuthContextValue } from "../../auth/authContext";
+import { AuthContext, type AuthContextValue } from "@/auth/authContext";
 import { m } from "@/i18n";
 import { SecuritySection } from "./SecuritySection";
-import { completeReauth, isReauthPending } from "../../auth/reauthCoordinator";
+import { completeReauth, isReauthPending } from "@/auth/reauthCoordinator";
 
 const changePassword = vi.fn();
 const readIdentityProvider = vi.fn();
-vi.mock("../../auth/authClient", () => ({
+vi.mock("@/auth/authClient", () => ({
   authClient: { changePassword: (...args: unknown[]) => changePassword(...args) },
 }));
-vi.mock("../../account/accountClient", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../account/accountClient")>();
+vi.mock("@/account/accountClient", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/account/accountClient")>();
   return {
     ...original,
     accountClient: {

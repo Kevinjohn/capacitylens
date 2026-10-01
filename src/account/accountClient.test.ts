@@ -10,13 +10,13 @@ const mocks = vi.hoisted(() => ({
   requestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
 
-vi.mock("../data/apiConfig", () => ({ API_BASE: "https://app.example" }));
-vi.mock("../data/requestTimeout", () => ({
+vi.mock("@/data/apiConfig", () => ({ API_BASE: "https://app.example" }));
+vi.mock("@/data/requestTimeout", () => ({
   apiFetch: mocks.apiFetch,
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: mocks.requestSignal,
 }));
-vi.mock("../auth/apiFetchReauth", () => ({
+vi.mock("@/auth/apiFetchReauth", () => ({
   apiFetchReauth: mocks.apiFetchReauth,
 }));
 
@@ -28,7 +28,7 @@ import {
   clearStoredAccountCommands,
   createBrowserAccountCommand,
 } from "./accountClient";
-import { announceAuditWarning, AUDIT_WARNING_EVENT } from "../lib/auditWarning";
+import { announceAuditWarning, AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
 
 const command = { commandId: "command-1", idempotencyKey: "key-1" };
 

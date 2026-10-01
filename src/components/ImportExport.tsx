@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { useStore } from "../store/useStore";
-import { useScopedData } from "../store/useScopedData";
+import { useStore } from "@/store/useStore";
+import { useScopedData } from "@/store/useScopedData";
 import { parseData, serializeData } from "@capacitylens/shared/data/transfer";
-import { downloadTextFile } from "../lib/download";
-import { resolveErrorMessage } from "../lib/errorMessage";
-import { isServerConfigured } from "../data/apiConfig";
-import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "../data/fetchInactiveSlice";
-import { useRole } from "../auth/permissionContext";
+import { downloadTextFile } from "@/lib/download";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { isServerConfigured } from "@/data/apiConfig";
+import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "@/data/fetchInactiveSlice";
+import { useRole } from "@/auth/permissionContext";
 import { can, canSeePrivateNames } from "@capacitylens/shared/domain/access";
 import { ConfirmDialog, Modal } from "./common/ui";
 import { m } from "@/i18n";
-import { buildUndoShortcut } from "../lib/keyboardShortcuts";
+import { buildUndoShortcut } from "@/lib/keyboardShortcuts";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { Button } from "./ui/button";
-import { reloadPage } from "../lib/reloadPage";
+import { reloadPage } from "@/lib/reloadPage";
 import { useServerImport } from "./import-export/useServerImport";
 
 // Refuse files past this size before reading them into memory (self-DoS guard).

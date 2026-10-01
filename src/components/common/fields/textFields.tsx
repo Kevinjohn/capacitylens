@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
-import { Input } from "../../ui/input";
-import { Field, FieldContent, FieldDescription } from "../../ui/field";
+import { Input } from "@/components/ui/input";
+import { Field, FieldContent, FieldDescription } from "@/components/ui/field";
 import { RequiredFieldLabel } from "./fieldLayout";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";

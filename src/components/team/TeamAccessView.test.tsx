@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { PermissionContext } from "../../auth/permissionContext";
-import { AuthContext, type AuthContextValue } from "../../auth/authContext";
+import { PermissionContext } from "@/auth/permissionContext";
+import { AuthContext, type AuthContextValue } from "@/auth/authContext";
 import { TeamAccessView } from "./TeamAccessView";
-import { setOfflineReadState } from "../../data/offlineCache";
+import { setOfflineReadState } from "@/data/offlineCache";
 
 const buildMode = vi.hoisted(() => ({ demo: false }));
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   isServerConfigured: () => true,
   isDemoMode: () => buildMode.demo,
   API_BASE: "http://api.test",

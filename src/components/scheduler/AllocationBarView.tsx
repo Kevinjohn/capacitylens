@@ -7,9 +7,9 @@ import type {
 } from "react";
 import { Repeat2 } from "lucide-react";
 import { m } from "@/i18n";
-import { formatDayMonthEndpoint, formatDayMonthRange } from "../../lib/dateDisplay";
-import { resolveAllocationStatusAnnotation } from "../../lib/metadata";
-import { TooltipContent, TooltipRoot, TooltipTrigger } from "../ui/tooltip";
+import { formatDayMonthEndpoint, formatDayMonthRange } from "@/lib/dateDisplay";
+import { resolveAllocationStatusAnnotation } from "@/lib/metadata";
+import { TooltipContent, TooltipRoot, TooltipTrigger } from "@/components/ui/tooltip";
 import { LAYOUT } from "./layout";
 import type { BarLayout } from "./schedulerModel";
 import { buildVisibleSpanInsets } from "./visibleSpanInsets";

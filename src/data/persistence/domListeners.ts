@@ -1,5 +1,5 @@
 import type { StoreApi } from "zustand";
-import type { StoreState } from "../../store/useStore";
+import type { StoreState } from "@/store/useStore";
 import type { AttachmentState } from "./attachmentState";
 import type { WriteQueue } from "./writeQueue";
 import type { RefreshController } from "./refreshController";

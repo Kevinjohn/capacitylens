@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { attachPersistence, refreshActiveAccountSlice } from "./persist";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
-import { resetStoreWithAccount } from "../test/fixtures";
+import { resetStoreWithAccount } from "@/test/fixtures";
 import {
   requireCallback,
   makeLocalTwoAccounts,

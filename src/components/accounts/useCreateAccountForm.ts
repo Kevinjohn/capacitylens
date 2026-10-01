@@ -1,23 +1,23 @@
 import { m } from "@/i18n";
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { accountClient, hasUnknownAccountCommandOutcome } from "../../account/accountClient";
-import { transitionAccount } from "../../auth/accountTransition";
-import { useAuth } from "../../auth/authContext";
-import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
-import { isServerConfigured } from "../../data/apiConfig";
-import { useFieldError } from "../../hooks/useFieldError";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { DEFAULT_COLORS } from "../../lib/palette";
-import { readApiError } from "../../lib/readApiError";
+import { accountClient, hasUnknownAccountCommandOutcome } from "@/account/accountClient";
+import { transitionAccount } from "@/auth/accountTransition";
+import { useAuth } from "@/auth/authContext";
+import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
+import { isServerConfigured } from "@/data/apiConfig";
+import { useFieldError } from "@/hooks/useFieldError";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { DEFAULT_COLORS } from "@/lib/palette";
+import { readApiError } from "@/lib/readApiError";
 import {
   LIKELY_TIME_ZONES,
   listSupportedTimeZones,
   resolveBrowserTimeZone,
   resolveTimeZoneOptionLabel,
-} from "../../lib/timezones";
-import { parseName } from "../../lib/validation";
-import { useStore } from "../../store/useStore";
-import type { StoreState } from "../../store/types";
+} from "@/lib/timezones";
+import { parseName } from "@/lib/validation";
+import { useStore } from "@/store/useStore";
+import type { StoreState } from "@/store/types";
 
 import {
   DEFAULT_LANGUAGE,

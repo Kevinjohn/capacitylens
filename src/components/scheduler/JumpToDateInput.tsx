@@ -1,6 +1,6 @@
 import { m } from "@/i18n";
-import { useStore } from "../../store/useStore";
-import { Input } from "../ui/input";
+import { useStore } from "@/store/useStore";
+import { Input } from "@/components/ui/input";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 
 /**

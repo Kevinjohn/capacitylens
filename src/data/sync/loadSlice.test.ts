@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { makeAccount } from "../../test/fixtures";
-import { readOfflineStateSnapshot, resetOfflineState, scope, setOfflineReadState } from "../offline/state";
-import { cacheAuthSnapshot, cacheAccountSlice, setOfflineReadEnabled } from "../offlineCache";
+import { makeAccount } from "@/test/fixtures";
+import { readOfflineStateSnapshot, resetOfflineState, scope, setOfflineReadState } from "@/data/offline/state";
+import { cacheAuthSnapshot, cacheAccountSlice, setOfflineReadEnabled } from "@/data/offlineCache";
 import { hydrateFromOfflineCache, loadAll } from "./loadSlice";
 import { SyncState } from "./SyncState";
 

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { memo } from "react";
 import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAllocation } from "../../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, makeAllocation } from "@/test/fixtures";
 import { schedulerDataset } from "./__tests__/schedulerTestKit";
 
 // The point of this whole suite: toggling the Time-off draw mode must re-render ONLY each lane's

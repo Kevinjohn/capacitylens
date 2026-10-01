@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { makeActivity } from "../../test/fixtures";
+import { makeActivity } from "@/test/fixtures";
 import { ToolbarActivityFilter } from "./ToolbarActivityFilter";
 
 const admin = makeActivity({ id: "act-admin", name: "Admin", kind: "internal" });

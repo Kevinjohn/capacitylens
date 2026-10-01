@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { TeamInvitation, TeamMember } from "../../account/teamAccessClient";
+import type { TeamInvitation, TeamMember } from "@/account/teamAccessClient";
 import { buildMemberDirectoryPresentation, sortInvitationsForPresentation } from "./buildMemberDirectoryPresentation";
 
 function member({

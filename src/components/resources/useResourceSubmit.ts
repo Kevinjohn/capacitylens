@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { flushPendingWrites } from "../../data/persist";
-import { BatchReconciliationError, BatchValidationError } from "../../data/sync/batchErrors";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { isStaleEdit } from "../../lib/isStaleEdit";
-import { DEFAULT_COLORS } from "../../lib/palette";
-import { parseText, validateWorkingDays } from "../../lib/validation";
-import type { StoreState } from "../../store/types";
+import { flushPendingWrites } from "@/data/persist";
+import { BatchReconciliationError, BatchValidationError } from "@/data/sync/batchErrors";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { isStaleEdit } from "@/lib/isStaleEdit";
+import { DEFAULT_COLORS } from "@/lib/palette";
+import { parseText, validateWorkingDays } from "@/lib/validation";
+import type { StoreState } from "@/store/types";
 import { m } from "@/i18n";
 import {
   FULL_DAY_HOURS,

@@ -1,15 +1,15 @@
 import { useMemo, useState, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
   resolveCapacityOverviewAccess,
-} from "../store/selectors";
-import { usePermissionStatus, useRole } from "../auth/permissionContext";
-import { resolveCapacityOverviewAccessDecision } from "../auth/capacityOverviewAccess";
-import { useActiveScopedData } from "../store/useScopedData";
+} from "@/store/selectors";
+import { usePermissionStatus, useRole } from "@/auth/permissionContext";
+import { resolveCapacityOverviewAccessDecision } from "@/auth/capacityOverviewAccess";
+import { useActiveScopedData } from "@/store/useScopedData";
 import { m } from "@/i18n";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "./ui/command";
 import { cn } from "@/lib/cn";

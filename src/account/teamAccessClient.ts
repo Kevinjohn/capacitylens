@@ -3,7 +3,7 @@ import { isAccountRole, isJoiningPolicy, isMembershipStatus } from "@capacitylen
 import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { accountClient } from "./accountClient";
-import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
+import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
 import { isNullableString, isTimestamp, readCommandResult, readResult, type TeamAccessResult } from "./accessResult";
 import { ownershipTransferAccess } from "./ownershipTransferAccess";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";

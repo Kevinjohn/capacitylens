@@ -1,14 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { parseApprovedDomain } from "@capacitylens/shared/account/approvedDomains";
-import { companyJoinClient } from "../../account/companyJoinClient";
-import { authClient } from "../../auth/authClient";
-import { useAuth, type AuthProviderInfo } from "../../auth/authContext";
-import { isServerConfigured } from "../../data/apiConfig";
-import { readApiError } from "../../lib/readApiError";
-import { replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
+import { companyJoinClient } from "@/account/companyJoinClient";
+import { authClient } from "@/auth/authClient";
+import { useAuth, type AuthProviderInfo } from "@/auth/authContext";
+import { isServerConfigured } from "@/data/apiConfig";
+import { readApiError } from "@/lib/readApiError";
+import { replaceWithJoinedAccount } from "@/lib/joinedAccountHandoff";
 import { m } from "@/i18n";
-import { runExternalSignIn } from "../invites/externalSignIn";
+import { runExternalSignIn } from "@/components/invites/externalSignIn";
 import { readMetadata, readStatus, resolveJoinStatus } from "./joinStatus";
 import type { Metadata } from "./joinStatus";
 

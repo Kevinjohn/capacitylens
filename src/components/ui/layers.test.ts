@@ -5,7 +5,7 @@ import popoverSource from "./popover.tsx?raw";
 import selectSource from "./select.tsx?raw";
 import sheetSource from "./sheet.tsx?raw";
 import tooltipSource from "./tooltip.tsx?raw";
-import css from "../../index.css?raw";
+import css from "@/index.css?raw";
 
 const sources: Record<string, string> = {
   "alert-dialog": alertDialogSource,

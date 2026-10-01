@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyAppData, type Activity } from "@capacitylens/shared/types/entities";
-import { makeActivity, makeAllocation, makeClient, makeProject, makeResource, makeTimeOff } from "../../test/fixtures";
+import { makeActivity, makeAllocation, makeClient, makeProject, makeResource, makeTimeOff } from "@/test/fixtures";
 import { buildPersonSchedule } from "./personScheduleModel";
 
 const resource = makeResource({ id: "r1", accountId: "a1", name: "Diana Prince", color: "#123456" });

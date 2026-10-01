@@ -7,11 +7,11 @@ import {
   readCachedAccountSlice,
   readCachedAuthSnapshot,
   setOfflineReadState,
-} from "../offlineCache";
-import { LoadError } from "../PersistenceAdapter";
-import { API_BULK_TIMEOUT_MS } from "../requestTimeout";
-import { diffOps } from "../syncOps";
-import { parseAccountSliceWithRepairBase } from "../validateAccountSlice";
+} from "@/data/offlineCache";
+import { LoadError } from "@/data/PersistenceAdapter";
+import { API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
+import { diffOps } from "@/data/syncOps";
+import { parseAccountSliceWithRepairBase } from "@/data/validateAccountSlice";
 import { listReferencedMissingTables } from "./fkGraph";
 import { seedSnapshot } from "./snapshot";
 import type { SyncState } from "./SyncState";

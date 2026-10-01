@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useStore, type StoreState } from "../../store/useStore";
+import { useStore, type StoreState } from "@/store/useStore";
 
 interface UseToolbarSearchInput {
   filters: StoreState["ui"]["filters"];

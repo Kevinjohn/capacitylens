@@ -7,10 +7,10 @@ import {
   canRemoveMember,
   type Role,
 } from "@capacitylens/shared/domain/access";
-import type { TeamMember } from "../../account/teamAccessClient";
-import { resolveRoleLabel } from "../../lib/accessCopy";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
+import type { TeamMember } from "@/account/teamAccessClient";
+import { resolveRoleLabel } from "@/lib/accessCopy";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Eye, Pencil } from "lucide-react";
 import type { MemberRoleEdit } from "./MemberConfirmations";
 import { resolveMemberLabel, type MemberConfirmationAction } from "./memberConfirmationCopy";

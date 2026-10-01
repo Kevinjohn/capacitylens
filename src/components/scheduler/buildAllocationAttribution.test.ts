@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
 import type { Activity } from "@capacitylens/shared/types/entities";
-import { makeActivity, makeAllocation, makeClient, makeProject } from "../../test/fixtures";
+import { makeActivity, makeAllocation, makeClient, makeProject } from "@/test/fixtures";
 import { buildAllocationAttribution } from "./buildAllocationAttribution";
 
 function withoutProjectId(activity: Activity): Activity {

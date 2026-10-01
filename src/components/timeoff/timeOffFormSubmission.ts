@@ -5,11 +5,11 @@ import { maximumTimeOffRepeatUntilDate, RepeatingDateError } from "@capacitylens
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate, Resource, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
 import { readActiveDateLocale, m } from "@/i18n";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { isStaleEdit } from "../../lib/isStaleEdit";
-import { buildRepeatedTimeOffDrafts } from "../../lib/repeatingTimeOff";
-import { parseText } from "../../lib/validation";
-import { useStore, type Draft } from "../../store/useStore";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { isStaleEdit } from "@/lib/isStaleEdit";
+import { buildRepeatedTimeOffDrafts } from "@/lib/repeatingTimeOff";
+import { parseText } from "@/lib/validation";
+import { useStore, type Draft } from "@/store/useStore";
 import type { TimeOffRepeatChoice } from "./useTimeOffRepeat";
 
 type Fail = (field: string | null, message: string) => void;

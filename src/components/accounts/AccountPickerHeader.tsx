@@ -1,8 +1,8 @@
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
-import { FAKE_USER } from "../../lib/fakeAuth";
-import type { AccountSummary } from "../../store/useStore";
-import { Button } from "../ui/button";
+import { FAKE_USER } from "@/lib/fakeAuth";
+import type { AccountSummary } from "@/store/useStore";
+import { Button } from "@/components/ui/button";
 
 interface PickerHeadingProps {
   accountCount: number;

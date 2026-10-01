@@ -1,16 +1,16 @@
 import { useId, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { Modal } from "../components/common/ui";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Field, FieldError, FieldLabel } from "../components/ui/field";
+import { Modal } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { authClient } from "./authClient";
 import { m } from "@/i18n";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
 import { completeReauth } from "./reauthCoordinator";
 import type { ReauthAction } from "./reauthCoordinator";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
-import { ExternalProviderButton } from "../components/common/ExternalProviderButton";
+import { ExternalProviderButton } from "@/components/common/ExternalProviderButton";
 
 interface ReauthDialogProps {
   authMode: "password-only" | "sso-only" | "password-and-sso";

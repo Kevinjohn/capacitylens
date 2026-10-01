@@ -8,9 +8,9 @@ import {
 import { buildColumnGeometry } from "./columnGeometry";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import type { DateRange } from "../../lib/gestureMath";
+import type { DateRange } from "@/lib/gestureMath";
 import type { Resource, Weekday } from "@capacitylens/shared/types/entities";
-import { makeResource } from "../../test/fixtures";
+import { makeResource } from "@/test/fixtures";
 
 interface ReconcileReassignedHoursTestInput {
   current: number;

@@ -1,5 +1,5 @@
-import { useAuth } from "../auth/authContext";
-import { isDemoMode } from "../data/apiConfig";
+import { useAuth } from "@/auth/authContext";
+import { isDemoMode } from "@/data/apiConfig";
 
 // COSMETIC demo identity for the fake sign-in screen (`src/components/FakeSignIn.tsx`)
 // and the "Signed in as …" line on the account picker. This is NOT real authentication —

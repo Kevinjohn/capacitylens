@@ -1,10 +1,10 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DisciplineList } from "./DisciplineList";
-import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount } from "../../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount } from "@/test/fixtures";
 
 beforeEach(() => {
   resetStoreWithAccount();

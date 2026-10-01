@@ -2,14 +2,14 @@ import { useState } from "react";
 import { todayISO } from "@capacitylens/shared/lib/dateMath";
 import type { Closure } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { isStaleEdit } from "../../lib/isStaleEdit";
-import { parseText } from "../../lib/validation";
-import { resolveTimeZone } from "../../store/selectors";
-import { useStore } from "../../store/useStore";
-import { DateField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
-import { FieldError } from "../ui/field";
+import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { isStaleEdit } from "@/lib/isStaleEdit";
+import { parseText } from "@/lib/validation";
+import { resolveTimeZone } from "@/store/selectors";
+import { useStore } from "@/store/useStore";
+import { DateField, FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
+import { FieldError } from "@/components/ui/field";
 
 type ClosureFormFieldsProps = {
   name: string;

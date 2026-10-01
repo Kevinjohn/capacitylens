@@ -2,15 +2,15 @@ import { afterEach, describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, act, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "./AppShell";
-import { useStore } from "../store/useStore";
-import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
-import { stubMatchMedia } from "../test/stubMatchMedia";
-import { attachPersistence } from "../data/persist";
+import { useStore } from "@/store/useStore";
+import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { stubMatchMedia } from "@/test/stubMatchMedia";
+import { attachPersistence } from "@/data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { setOfflineReadState } from "../data/offlineCache";
-import { markCompanyPickerForNextReload } from "../lib/companyPickerEntry";
+import { setOfflineReadState } from "@/data/offlineCache";
+import { markCompanyPickerForNextReload } from "@/lib/companyPickerEntry";
 import { m } from "@/i18n";
-import * as accountTransition from "../auth/accountTransition";
+import * as accountTransition from "@/auth/accountTransition";
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 vi.mock("@/i18n", async (importOriginal) => ({
@@ -18,7 +18,7 @@ vi.mock("@/i18n", async (importOriginal) => ({
   syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
 }));
 
-vi.mock("../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isDemoMode: () => true,
   isServerConfigured: () => false,

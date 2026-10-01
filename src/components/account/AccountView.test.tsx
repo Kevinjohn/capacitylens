@@ -7,7 +7,7 @@ vi.mock("@/lib/fakeAuth", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/fakeAuth")>();
   return { ...original, useDemoAuthActive: () => demoMode.active };
 });
-vi.mock("../settings/SecuritySection", () => ({
+vi.mock("@/components/settings/SecuritySection", () => ({
   SecuritySection: ({ passwordOpen }: { passwordOpen: boolean }) => (
     <section>{passwordOpen ? "Password dialog open" : "Personal security"}</section>
   ),

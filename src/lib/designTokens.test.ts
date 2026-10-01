@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { contrastRatio, resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
 import { DEFAULT_COLORS, SWATCHES } from "./palette";
-import indexCss from "../index.css?raw";
+import indexCss from "@/index.css?raw";
 
 type Theme = "light" | "dark";
 

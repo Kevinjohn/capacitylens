@@ -7,7 +7,7 @@ import { daysOfWorkFor, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulin
 import type { AllocationStatus, ISODate, Resource, SchedulingMode } from "@capacitylens/shared/types/entities";
 import { carriesHourlyLoad, FULL_DAY_HOURS } from "@capacitylens/shared/types/entities";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { RepeatSelection } from "../../lib/repeatingAllocations";
+import type { RepeatSelection } from "@/lib/repeatingAllocations";
 
 import type { AllocationModalSeed } from "./buildAllocationModalSeed";
 import { buildEffectiveAllocationValues, roundDays, hasWorkingSpan } from "./allocationModalSelection";

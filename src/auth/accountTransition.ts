@@ -1,6 +1,6 @@
 import type { ClientMasqueradeEndReason, MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
-import { isServerConfigured } from "../data/apiConfig";
-import { useStore } from "../store/useStore";
+import { isServerConfigured } from "@/data/apiConfig";
+import { useStore } from "@/store/useStore";
 
 async function loadMasqueradeController() {
   const { masqueradeController } = await import("./masqueradeController");

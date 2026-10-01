@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildEmptyFilters } from "../../store/useStore";
-import { makeAllocation, makeResource, requireValue } from "../../test/fixtures";
+import { buildEmptyFilters } from "@/store/useStore";
+import { makeAllocation, makeResource, requireValue } from "@/test/fixtures";
 import { buildSchedulerModel } from "./schedulerModel";
 import { allBars, build, dataset, days, end, geom, start } from "./schedulerModel.testSupport";
 

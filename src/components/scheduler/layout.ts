@@ -1,4 +1,4 @@
-import type { LaneLayout } from "../../lib/lanePacking";
+import type { LaneLayout } from "@/lib/lanePacking";
 
 // Fixed pixel geometry for the scheduler. dayWidth is dynamic (zoom) and lives in
 // the store; everything here is constant.

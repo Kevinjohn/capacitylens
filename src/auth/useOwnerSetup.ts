@@ -3,7 +3,7 @@ import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/acco
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { parseText } from "../lib/validation";
+import { parseText } from "@/lib/validation";
 import { authClient } from "./authClient";
 
 function parseOwnerInput({

@@ -1,8 +1,8 @@
 import { m } from "@/i18n";
-import { formatUtilizationPercent } from "../../lib/formatUtilizationPercent";
+import { formatUtilizationPercent } from "@/lib/formatUtilizationPercent";
 import { isCapacityTracked } from "@capacitylens/shared/types/entities";
 import type { RowModel } from "./schedulerModel";
-import type { DrawMode } from "../../store/useStore";
+import type { DrawMode } from "@/store/useStore";
 
 /** What the row's screen-reader summary needs beyond the row itself: the two view prefs and the
  *  label for the window the utilisation % was measured over. */

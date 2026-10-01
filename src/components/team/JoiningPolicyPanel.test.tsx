@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { teamAccessClient } from "../../account/teamAccessClient";
+import { teamAccessClient } from "@/account/teamAccessClient";
 import { JoiningPolicyPanel } from "./JoiningPolicyPanel";
 
 afterEach(() => vi.restoreAllMocks());

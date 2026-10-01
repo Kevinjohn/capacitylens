@@ -1,6 +1,6 @@
 import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
-import { type Op } from "../syncOps";
+import { type Op } from "@/data/syncOps";
 
 export interface CommittedRevision {
   table: Op["table"];

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { canSeePrivateNames } from "@capacitylens/shared/domain/access";
 import { normalizeCodeName } from "@capacitylens/shared/domain/privateNames";
-import { useRole } from "../../auth/permissionContext";
-import type { FieldError as FormFieldError } from "../../hooks/useFieldError";
-import { parseName } from "../../lib/validation";
+import { useRole } from "@/auth/permissionContext";
+import type { FieldError as FormFieldError } from "@/hooks/useFieldError";
+import { parseName } from "@/lib/validation";
 
 interface PrivateNameSource {
   isPrivate?: boolean;

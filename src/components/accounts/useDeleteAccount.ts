@@ -1,13 +1,13 @@
 import { m } from "@/i18n";
 import { useState } from "react";
-import { accountClient, hasUnknownAccountCommandOutcome } from "../../account/accountClient";
-import { useAuth } from "../../auth/authContext";
-import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
-import { isServerConfigured } from "../../data/apiConfig";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { readApiError } from "../../lib/readApiError";
-import type { AccountSummary } from "../../store/useStore";
-import { useStore } from "../../store/useStore";
+import { accountClient, hasUnknownAccountCommandOutcome } from "@/account/accountClient";
+import { useAuth } from "@/auth/authContext";
+import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
+import { isServerConfigured } from "@/data/apiConfig";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { readApiError } from "@/lib/readApiError";
+import type { AccountSummary } from "@/store/useStore";
+import { useStore } from "@/store/useStore";
 
 export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<typeof useAuth>["refreshAuth"] }) {
   const deleteAccount = useStore((state) => state.deleteAccount);

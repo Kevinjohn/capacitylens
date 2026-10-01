@@ -2,10 +2,10 @@ import { useEffect, useMemo } from "react";
 import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
 import { addDaysISO, startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
 import type { Account, AppData, ID, ISODate, Resource } from "@capacitylens/shared/types/entities";
-import { useAuth } from "../../auth/authContext";
-import { usePermissionStatus, useRole } from "../../auth/permissionContext";
-import { m } from "../../i18n";
-import { resolveResourceDisplayName } from "../../lib/metadata";
+import { useAuth } from "@/auth/authContext";
+import { usePermissionStatus, useRole } from "@/auth/permissionContext";
+import { m } from "@/i18n";
+import { resolveResourceDisplayName } from "@/lib/metadata";
 import {
   hasExternalResourcesEnabled,
   hasVisibleTaskFieldInSchedule,
@@ -13,13 +13,13 @@ import {
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
-} from "../../store/selectors";
-import { useActiveScopedData } from "../../store/useScopedData";
-import { useStore } from "../../store/useStore";
+} from "@/store/selectors";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { useStore } from "@/store/useStore";
 import { buildPersonSchedule } from "./personScheduleModel";
 import type { PersonScheduleResult } from "./personScheduleTypes";
-import { reportInvalidScheduleDateRangeOnce } from "../scheduler/schedulerModelIndexing";
-import { useCalendarToday } from "../scheduler/useCalendarToday";
+import { reportInvalidScheduleDateRangeOnce } from "@/components/scheduler/schedulerModelIndexing";
+import { useCalendarToday } from "@/components/scheduler/useCalendarToday";
 
 export interface UsePersonScheduleInput {
   accountId: ID | null;

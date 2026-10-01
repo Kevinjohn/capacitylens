@@ -1,4 +1,4 @@
-import { FieldLabel } from "../../ui/field";
+import { FieldLabel } from "@/components/ui/field";
 import { m } from "@/i18n";
 
 export function RequiredFieldLabel({

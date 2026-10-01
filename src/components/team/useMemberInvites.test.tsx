@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { teamAccessClient } from "../../account/teamAccessClient";
+import { teamAccessClient } from "@/account/teamAccessClient";
 import { useMemberInvites } from "./useMemberInvites";
 
 describe("useMemberInvites schedule-person proposal", () => {
