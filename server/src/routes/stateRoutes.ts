@@ -11,7 +11,7 @@ import type { Db } from "../db";
 import { insertRow, listAccountSummaries, readState } from "../db";
 import type { LocalAccountFlows } from "../accounts/createLocalAccountFlows";
 import type { MasqueradeRegistry } from "../MasqueradeRegistry";
-import type { TenantStore } from "../tenantStore";
+import type { AccountStore } from "../accountStore";
 import { listAcceptedFieldNames, sanitizeWrite, assertValidWrite } from "../validate";
 import { buildReadSliceVisibility, resolveVisibilityForRole } from "../fieldPolicy";
 import { enqueueAudit } from "../auditOutbox";
@@ -43,7 +43,7 @@ function resolveWorkspaceId(body: unknown, commandId: string): string {
 export interface StateRouteDependencies {
   section: "read" | "org";
   db: Db;
-  store: TenantStore;
+  store: AccountStore;
   authMode: AccountMode;
   auth: Auth | null;
   multiAccount: boolean;
@@ -155,7 +155,7 @@ function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDepend
   // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only writes are entity-level;
   // reads stay whole-tree so hydration is one round-trip.
   //
-  // With `?accountId=`, return that account's scoped slice through TenantStore. Off mode is
+  // With `?accountId=`, return that account's scoped slice through AccountStore. Off mode is
   // trusted-local; auth-on requires read authorization and cannot cross tenant boundaries.
   app.get<StateReadRoute>("/api/state", (req, reply) => {
     // Refuse a cross-tenant read before any data leaves the DB. The authorize seam is the

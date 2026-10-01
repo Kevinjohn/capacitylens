@@ -12,7 +12,7 @@ import {
   type LifecycleEntityKey,
 } from "@capacitylens/shared/domain/lifecycle";
 import type { AuditRecord } from "../audit";
-import type { LifecycleRow, TenantStore } from "../tenantStore";
+import type { LifecycleRow, AccountStore } from "../accountStore";
 import { createServerRevision } from "../revision";
 import type { Resource } from "@capacitylens/shared/types/entities";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
@@ -43,7 +43,7 @@ class LifecycleResponseError extends Error {
 }
 
 interface LifecycleRouteDependencies {
-  store: TenantStore;
+  store: AccountStore;
   authorize: (input: AuthorizeBasicInput) => boolean;
   commit: (reply: FastifyReply, record: AuditRecord, mutation: () => void) => void;
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;

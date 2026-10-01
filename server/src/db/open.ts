@@ -21,9 +21,9 @@ import { assertMemberSignInTrackingSchemaCurrent } from "../accounts/memberSignI
 import { assertAccountBoundaryStateCurrent } from "../accounts/state";
 import { assertAuditOutboxCurrent } from "../auditOutbox";
 import { assertSyncOrderingCurrent } from "../syncOrdering";
-import { assertTenantRelationshipIntegrityCurrent } from "../tenantIntegrity";
+import { assertAccountRelationshipIntegrityCurrent } from "../accountIntegrity";
 import { assertBootstrapClaimCurrent } from "../bootstrapClaim";
-import { assertTenantEntityIndexesCurrent } from "../tenantIndexes";
+import { assertAccountEntityIndexesCurrent } from "../accountIndexes";
 import { statementCaches } from "./statementCache";
 
 type AttemptResult = { kind: "success" } | { kind: "failure"; error: unknown };
@@ -157,9 +157,9 @@ function initializeSchema(db: Db, plan: DatabaseMigrationPlan, hooks: DatabaseMi
   assertAuditOutboxCurrent(db);
   assertOwnershipTransfersCurrent(db);
   assertSyncOrderingCurrent(db);
-  assertTenantRelationshipIntegrityCurrent(db);
+  assertAccountRelationshipIntegrityCurrent(db);
   assertBootstrapClaimCurrent(db);
-  assertTenantEntityIndexesCurrent(db);
+  assertAccountEntityIndexesCurrent(db);
   assertMigrationHistory(db, DB_SCHEMA_VERSION);
   if (pragmaNumber(db, "user_version") !== DB_SCHEMA_VERSION) {
     throw new Error(`Database migration did not reach expected version ${DB_SCHEMA_VERSION}.`);

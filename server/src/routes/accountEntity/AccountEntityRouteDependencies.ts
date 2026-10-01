@@ -7,11 +7,11 @@ import type { AuditRecord } from "../../audit";
 import type { AccountMode } from "../../auth";
 import { type Db } from "../../db";
 import type { SanitizeWriteOptions } from "../../fieldPolicy";
-import type { TenantStore } from "../../tenantStore";
+import type { AccountStore } from "../../accountStore";
 
 export interface AccountEntityRouteDependencies {
   db: Db;
-  store: TenantStore;
+  store: AccountStore;
   authMode: AccountMode;
   multiAccount: boolean;
   /** Already resolved from AppOptions (`opts.optimisticConcurrency !== false`). */

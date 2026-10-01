@@ -7,7 +7,7 @@ import { type Db } from "../../db";
 import { type SanitizeWriteOptions } from "../../fieldPolicy";
 import { type SyncOrder } from "../../syncOrdering";
 import type { TableName } from "../../tables";
-import type { TenantStore } from "../../tenantStore";
+import type { AccountStore } from "../../accountStore";
 
 import type { BatchRouteDependencies } from "../batchRoutes";
 
@@ -64,7 +64,7 @@ export interface ApplyBatchOperationParameters {
   op: BatchOp;
   req: FastifyRequest;
   db: Db;
-  store: TenantStore;
+  store: AccountStore;
   state: AppData;
   projection: BatchStateProjection;
   mintedInternalIds: Set<string>;

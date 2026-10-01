@@ -47,7 +47,7 @@ describe("control-table writes stay inside their account: transfer recovery", ()
  *
  * Written after an ownership-transfer retention sweep shipped with no `accountId` in its `WHERE`
  * clause, deleting every company's terminal rows from inside a mutation holding one company's lock.
- * Nothing in the repository observed mutation scope: `tenantIntegrity.ts` guards AppData product
+ * Nothing in the repository observed mutation scope: `accountIntegrity.ts` guards AppData product
  * tables, the schema assertions check columns and indexes, and `architecture.test.ts` decides which
  * modules may own raw control-table SQL, which is why it correctly admitted the defect.
  *

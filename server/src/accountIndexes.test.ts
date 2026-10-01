@@ -3,14 +3,14 @@ import { initializeOpenDb, openDb } from "./db";
 import {
   ALLOCATION_PROJECT_INDEX_V35,
   FOREIGN_KEY_CHILD_INDEXES_V23,
-  TENANT_ENTITY_ACCOUNT_INDEXES_V21,
-  assertTenantEntityIndexesCurrent,
-} from "./tenantIndexes";
+  ACCOUNT_ENTITY_INDEXES_V21,
+  assertAccountEntityIndexesCurrent,
+} from "./accountIndexes";
 
 describe("tenant entity account indexes", () => {
   it("uses an accountId index for every scoped SELECT and DELETE", () => {
     const db = openDb(":memory:");
-    for (const { table, index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) {
+    for (const { table, index } of ACCOUNT_ENTITY_INDEXES_V21) {
       for (const statement of [
         `SELECT * FROM ${table} WHERE accountId = ?`,
         `DELETE FROM ${table} WHERE accountId = ?`,
@@ -44,7 +44,7 @@ describe("tenant entity account indexes", () => {
     const db = openDb(":memory:");
     db.exec("DROP INDEX idx_allocations_projectId");
 
-    expect(() => assertTenantEntityIndexesCurrent(db)).toThrow(/idx_allocations_projectId/);
+    expect(() => assertAccountEntityIndexesCurrent(db)).toThrow(/idx_allocations_projectId/);
     db.close();
   });
 
@@ -52,7 +52,7 @@ describe("tenant entity account indexes", () => {
     const db = openDb(":memory:");
     db.exec("DROP INDEX idx_allocations_accountId");
 
-    expect(() => assertTenantEntityIndexesCurrent(db)).toThrow(
+    expect(() => assertAccountEntityIndexesCurrent(db)).toThrow(
       /idx_allocations_accountId does not match allocations\(accountId\)/,
     );
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(
@@ -65,7 +65,7 @@ describe("tenant entity account indexes", () => {
     const db = openDb(":memory:");
     db.exec("DROP INDEX idx_allocations_resourceId");
 
-    expect(() => assertTenantEntityIndexesCurrent(db)).toThrow(
+    expect(() => assertAccountEntityIndexesCurrent(db)).toThrow(
       /idx_allocations_resourceId does not match allocations\(resourceId\)/,
     );
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(

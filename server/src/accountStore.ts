@@ -189,7 +189,7 @@ function purgeOwnedRow(
  * Every method is keyed by a single `accountId` and operates on only that account's data. The
  * interface records that isolation contract without pretending to abstract every database access.
  */
-export interface TenantStore {
+export interface AccountStore {
   /**
    * Read only `accountId`'s serialization projection (every AppData key present; arrays may be
    * empty). The projected brand cannot be passed to a destructive replacement. An unknown id yields an empty
@@ -229,7 +229,7 @@ export interface TenantStore {
 }
 
 /**
- * Build the shared-SQLite {@link TenantStore} used by permissioned routes.
+ * Build the shared-SQLite {@link AccountStore} used by permissioned routes.
  *
  * `readSlice` delegates to db.ts's {@link readSlice} (`WHERE accountId = ?` on all scoped tables +
  * accounts-by-id). Lifecycle methods use owned point reads, one-row upserts, bounded dependent-note
@@ -237,14 +237,14 @@ export interface TenantStore {
  * cross-tenant query.
  *
  * @param db  The open SQLite handle this store reads from / writes to.
- * @returns A {@link TenantStore} bound to `db`.
+ * @returns A {@link AccountStore} bound to `db`.
  */
 // Keep the complete scoped-storage surface visible in its factory return.
 // eslint-disable-next-line max-lines-per-function
-export function createSqliteTenantStore(
+export function createSqliteAccountStore(
   db: Db,
   removeResourceLink: (accountId: string, resourceId: string) => void = () => undefined,
-): TenantStore {
+): AccountStore {
   // Single query + fromRow, replacing an id-only SELECT followed by one getRow point lookup per
   // id (N+1). Same WHERE predicate as before, so it hits the same idx_allocations_{field} index and
   // returns rows in the same order the old id-loop preserved, verified empirically, since neither

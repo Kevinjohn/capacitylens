@@ -20,7 +20,7 @@ import {
 } from "@capacitylens/shared/types/entities";
 import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
-import type { TenantStore } from "./tenantStore";
+import type { AccountStore } from "./accountStore";
 import { seedMemberResourceLink } from "./fixtures/seedMemberResourceLink";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 import { FROZEN_REPLY_MESSAGES } from "@capacitylens/shared/api/replyMessages";
@@ -147,7 +147,7 @@ it("rolls a lifecycle transition back when response redaction fails", async () =
     accounts: [account("a1")],
     resources: [person("r1", "a1")],
   } as AppData;
-  const store: TenantStore = {
+  const store: AccountStore = {
     readSlice: () => data as ProjectedAccountSlice,
     readFullSlice: () => data as CompleteAccountSlice,
     readLifecycleRow: (accountId, entity, id) =>

@@ -13,7 +13,7 @@ import { MasqueradeRegistry, type StoredMasqueradeRecord } from "../MasqueradeRe
 import { type MasqueradeEndReason } from "@capacitylens/shared/domain/masquerade";
 import { eraseWorkspaceProductDataInTx } from "../erasure";
 import { type Db } from "../db";
-import { createSqliteTenantStore } from "../tenantStore";
+import { createSqliteAccountStore } from "../accountStore";
 import { tx } from "../txn";
 import { type AuditRecord } from "../audit";
 import { enqueueAudit } from "../auditOutbox";
@@ -203,7 +203,7 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
   // The tenant-scoping storage seam: account-keyed reads, validation projections and lifecycle
   // operations enforce the no-cross-tenant contract in one shared-SQLite implementation. Built once
   // here (factory state, like healthStmt) so the same instance backs every request.
-  const store = createSqliteTenantStore(db, memberResources.removeResourceLink);
+  const store = createSqliteAccountStore(db, memberResources.removeResourceLink);
 
   const endMasquerade = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void => {
     masquerades.end(record.sessionHandle, null, (ending) =>

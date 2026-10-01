@@ -5,7 +5,7 @@ import type { LocalAccountFlows } from "../accounts/createLocalAccountFlows";
 import type { AccountMode } from "../auth";
 import { type Db } from "../db";
 import { hasGatedFields, type SanitizeWriteOptions } from "../fieldPolicy";
-import type { TenantStore } from "../tenantStore";
+import type { AccountStore } from "../accountStore";
 import { SINGLE_COMPANY_CAP_MESSAGE } from "./accountEntityRoutes";
 import { isScopedTable } from "./routeShared";
 
@@ -19,7 +19,7 @@ export { MAX_BATCH_OPS } from "./batch/types";
 
 export interface BatchRouteDependencies {
   db: Db;
-  store: TenantStore;
+  store: AccountStore;
   authMode: AccountMode;
   multiAccount: boolean;
   optimisticConcurrency: boolean;

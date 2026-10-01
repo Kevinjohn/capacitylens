@@ -43,7 +43,7 @@ export function listAccountSummaries(db: Db): Array<{ id: string; name: string }
  * No-cross-tenant invariant: every scoped query carries `WHERE accountId = ?`, and the only global
  * table (`accounts`) is read by its id (`WHERE id = ?`). No query here omits its predicate, so this
  * function can never return a row belonging to another account, the tenant-isolation guarantee the
- * {@link TenantStore} seam rests on (see tenantStore.ts).
+ * {@link AccountStore} seam rests on (see accountStore.ts).
  *
  * Unknown accountId: not an error. An id with no matching account yields `accounts: []` plus an empty
  * array for every scoped table, degrade to "empty slice", never throw (a stale/typo'd id from a

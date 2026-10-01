@@ -2,7 +2,7 @@ import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities"
 import { type Db, deleteRow, getRow, upsertRow } from "./db";
 import { buildAcceptedWriteFields, sanitizeWrite, assertValidWrite } from "./validate";
 import type { SanitizeWriteOptions } from "./fieldPolicy";
-import type { TenantStore } from "./tenantStore";
+import type { AccountStore } from "./accountStore";
 import { createServerRevision } from "./revision";
 
 // Generic writes share this deterministic funnel: body-shape checks, built-in Internal-client
@@ -145,7 +145,7 @@ export interface PreparedWrite {
  * its re-pointed projection). Everything else validates here.
  */
 export function prepareScopedWrite(input: {
-  store: TenantStore;
+  store: AccountStore;
   entity: string;
   body: Record<string, unknown>;
   existing: Record<string, unknown> | undefined;

@@ -308,12 +308,12 @@ const EXPECTED_CROSS_TENANT_ERASURE_EDGE_SQL = `
   LIMIT 1`;
 
 describe("CROSS_TENANT_ERASURE_EDGE_SQL", () => {
-  // Pinned so a future edit to tenantIntegrity's TENANT_RELATIONSHIPS (the shared source this SQL is
+  // Pinned so a future edit to accountIntegrity's ACCOUNT_RELATIONSHIPS (the shared source this SQL is
   // now generated from) can't silently change the erasure guard's query shape. Content is provably
   // equivalent to the hand-written SQL this replaced: same relationships, same order, same per-branch
   // WHERE clause, only the repeated column aliases differ, which UNION ALL ignores past the first
   // SELECT. The it.each coverage below is the behavioural proof; this is the textual regression pin.
-  it("generates one account-scoped edge check per TENANT_RELATIONSHIPS entry, in order", () => {
+  it("generates one account-scoped edge check per ACCOUNT_RELATIONSHIPS entry, in order", () => {
     expect(CROSS_TENANT_ERASURE_EDGE_SQL).toBe(EXPECTED_CROSS_TENANT_ERASURE_EDGE_SQL);
   });
 });

@@ -1454,7 +1454,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     const batch = await batchPutAccount(app, "brandNew4", cookie);
     expect(batch.statusCode).toBe(403);
     expect(readErrorMessage(batch)).toContain("/api/orgs");
-    // /api/orgs then applies the single-company cap itself (its own gate 0), see app.orgs.test.ts.
+    // /api/orgs then applies the single-company cap itself (its own gate 0), see app.companyCreation.test.ts.
   });
 });
 

@@ -10,7 +10,7 @@ import type { AccountMode } from "../auth";
 import { insertRow, type Db } from "../db";
 import type { Row } from "../rowCodec";
 import { SCOPED_ORDER } from "../tables";
-import type { TenantStore } from "../tenantStore";
+import type { AccountStore } from "../accountStore";
 import { REPLY_ERRORS } from "./replyErrors";
 import { NO_REPROMPT, type AuthorizeRouteInput } from "./routeShared";
 
@@ -23,7 +23,7 @@ class CompanyNotEmptyError extends Error {
 
 export interface ExampleDataRouteDependencies {
   db: Db;
-  store: TenantStore;
+  store: AccountStore;
   authMode: AccountMode;
   accountAdminPort: { roleForPrincipalInWorkspace(principalId: string, workspaceId: string): Role | null };
   accountLock: KeyedOperationLock;

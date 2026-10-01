@@ -167,7 +167,7 @@ function registerAuthOnBootstrapTests(): void {
     expect(readState(db).accounts).toHaveLength(1);
   });
 
-  it("zero-account bootstrap: a signed-up user creates the first org; a now-Owner can create a second", async () => {
+  it("zero-account bootstrap: a signed-up user creates the first company; a now-Owner can create a second", async () => {
     // multiAccount: true, the second create below is exactly what the single-company cap denies by
     // default once any account exists (see the "default cap" describe block); this test is about the
     // `allowed` authz matrix (owner-of-existing may provision more), so it opts out of the cap.
@@ -189,7 +189,7 @@ function registerAuthOnBootstrapTests(): void {
 }
 
 function registerNullOrganizationBodyTest(): void {
-  it("rejects a null organization body without changing provisioning state", async () => {
+  it("rejects a null company body without changing provisioning state", async () => {
     const { app, db } = await appWithAuth();
     const { cookie } = await signUp(app, "null-org-body@capacitylens.dev");
     const before = {
@@ -300,7 +300,7 @@ function registerAuthOnRestrictionTests(): void {
     expect(res.statusCode).toBe(403);
   });
 
-  it("a session-less request is 401 (requireUser is upstream of the org gate)", async () => {
+  it("a session-less request is 401 (requireUser is upstream of the company gate)", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
     const res = await createOrg(app, { name: "No Session" });
@@ -335,7 +335,7 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
 describe("POST /api/orgs (P1.8) — bootstrap token", () => {
   const TOKEN = "a-very-long-random-bootstrap-token-value-0123456789";
 
-  it("a member-less stranger with the MATCHING token may create an org once accounts exist", async () => {
+  it("a member-less stranger with the MATCHING token may create a company once accounts exist", async () => {
     // multiAccount: true, the token authorises who may create an org; it does not bypass the
     // single-company cap (see the "default cap" describe block for the token-does-not-bypass case).
     const { app, db } = await appWithAuth({ bootstrapToken: TOKEN, multiAccount: true });
@@ -371,7 +371,7 @@ describe("POST /api/orgs (P1.8) — bootstrap token", () => {
 });
 
 describe("POST /api/orgs (P1.8) — OFF mode (trusted-local)", () => {
-  it("org creation is allowed; account + Internal + Owner(demo) membership are created", async () => {
+  it("company creation is allowed; account + Internal + Owner(demo) membership are created", async () => {
     const db = openDb(":memory:");
     // multiAccount: true, the single-company cap applies in every auth mode including off (it's a
     // deployment-shape policy, not an authz rule; see the "default cap" describe block for the
@@ -419,14 +419,14 @@ describe("POST /api/orgs (P1.8) — atomicity", () => {
 describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: false)", () => {
   const CAP_MESSAGE = "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
 
-  it("first org on a zero-account instance still succeeds (201, unchanged)", async () => {
+  it("first company on a zero-account instance still succeeds (201, unchanged)", async () => {
     const { app } = await appWithAuth(); // multiAccount defaults to false; zero accounts
     const { cookie } = await signUp(app, "first-org-cap@capacitylens.dev");
     const res = await createOrg(app, { name: "First Studio" }, { cookie });
     expect(res.statusCode, res.body).toBe(201);
   });
 
-  it("2nd org via an owner of an existing account -> 403 policy message, NOT 201", async () => {
+  it("2nd company via an owner of an existing account -> 403 policy message, NOT 201", async () => {
     const { app, db } = await appWithAuth(); // multiAccount defaults to false
     seedOne(db); // an account already exists
     const { cookie, userId } = await signUp(app, "owner-cap@capacitylens.dev");
@@ -439,7 +439,7 @@ describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
     expect(readState(db).accounts.map((a) => a.id)).toEqual(["a1"]); // nothing created
   });
 
-  it("2nd org via a MATCHING bootstrap token -> 403 policy message (the token authorises WHO, not WHETHER)", async () => {
+  it("2nd company via a MATCHING bootstrap token -> 403 policy message (the token authorises WHO, not WHETHER)", async () => {
     const TOKEN = "a-very-long-random-bootstrap-token-value-0123456789";
     const { app, db } = await appWithAuth({ bootstrapToken: TOKEN }); // multiAccount defaults to false
     seedOne(db);
@@ -452,7 +452,7 @@ describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
     expect(readState(db).accounts.map((a) => a.id)).toEqual(["a1"]);
   });
 
-  it("2nd org in OFF mode -> 403 policy message (OFF is trusted-local for authz, but the cap is NOT an authz rule)", async () => {
+  it("2nd company in OFF mode -> 403 policy message (OFF is trusted-local for authz, but the cap is NOT an authz rule)", async () => {
     const db = openDb(":memory:");
     const app = createApp(db); // authMode defaults to 'off'; multiAccount defaults to false
     seedOne(db);

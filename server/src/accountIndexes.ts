@@ -1,7 +1,7 @@
 import type { Db } from "./db";
 
 /** Immutable database-v21 index manifest. Every AppData table except accounts is tenant-scoped. */
-export const TENANT_ENTITY_ACCOUNT_INDEXES_V21 = [
+export const ACCOUNT_ENTITY_INDEXES_V21 = [
   { table: "clients", index: "idx_clients_accountId" },
   { table: "disciplines", index: "idx_disciplines_accountId" },
   { table: "projects", index: "idx_projects_accountId" },
@@ -12,13 +12,13 @@ export const TENANT_ENTITY_ACCOUNT_INDEXES_V21 = [
   { table: "timeOff", index: "idx_timeOff_accountId" },
 ] as const;
 
-export const TENANT_ENTITY_INDEXES_V21_SQL = TENANT_ENTITY_ACCOUNT_INDEXES_V21.map(
+export const ACCOUNT_ENTITY_INDEXES_V21_SQL = ACCOUNT_ENTITY_INDEXES_V21.map(
   ({ table, index }) => `CREATE INDEX IF NOT EXISTS ${index} ON ${table}(accountId);`,
 ).join("\n");
 
 /** Tenant index introduced with the first-class closure table in v34. */
-export const TENANT_ENTITY_ACCOUNT_INDEXES_V34 = [{ table: "closures", index: "idx_closures_accountId" }] as const;
-export const TENANT_ENTITY_INDEXES_V34_SQL = TENANT_ENTITY_ACCOUNT_INDEXES_V34.map(
+export const ACCOUNT_ENTITY_INDEXES_V34 = [{ table: "closures", index: "idx_closures_accountId" }] as const;
+export const ACCOUNT_ENTITY_INDEXES_V34_SQL = ACCOUNT_ENTITY_INDEXES_V34.map(
   ({ table, index }) => `CREATE INDEX IF NOT EXISTS ${index} ON ${table}(accountId);`,
 ).join("\n");
 
@@ -50,7 +50,7 @@ export const ALLOCATION_PROJECT_INDEX_V35_SQL = `CREATE INDEX IF NOT EXISTS ${AL
 
 export const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
-/** Shared shape check behind assertTenantAccountIndexesV21 and assertTenantEntityIndexesCurrent's
+/** Shared shape check behind assertAccountIndexesV21 and assertAccountEntityIndexesCurrent's
  * foreign-key loop: both verify a single non-unique, non-partial, ASC/BINARY, table-created index
  * on exactly one named column. The two call sites keep their own byte-identical error message text
  * (`message` is caller-supplied), only the PRAGMA-reading/shape-check logic is shared. */
@@ -96,8 +96,8 @@ function assertSingleColumnIndex({ db, table, index, column, message }: SingleCo
 }
 
 /** Verify the immutable v21 subset while replaying that migration. */
-export function assertTenantAccountIndexesV21(db: Db): void {
-  for (const { table, index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) {
+export function assertAccountIndexesV21(db: Db): void {
+  for (const { table, index } of ACCOUNT_ENTITY_INDEXES_V21) {
     assertSingleColumnIndex({
       db,
       table,
@@ -109,8 +109,8 @@ export function assertTenantAccountIndexesV21(db: Db): void {
 }
 
 /** Verify every current tenant-slice and foreign-key child index. */
-export function assertTenantEntityIndexesV23(db: Db): void {
-  assertTenantAccountIndexesV21(db);
+export function assertAccountEntityIndexesV23(db: Db): void {
+  assertAccountIndexesV21(db);
   for (const { table, column, index } of FOREIGN_KEY_CHILD_INDEXES_V23) {
     assertSingleColumnIndex({
       db,
@@ -123,9 +123,9 @@ export function assertTenantEntityIndexesV23(db: Db): void {
 }
 
 /** Verify the released v34 tenant-slice and foreign-key child indexes. */
-export function assertTenantEntityIndexesV34(db: Db): void {
-  assertTenantEntityIndexesV23(db);
-  for (const { table, index } of TENANT_ENTITY_ACCOUNT_INDEXES_V34) {
+export function assertAccountEntityIndexesV34(db: Db): void {
+  assertAccountEntityIndexesV23(db);
+  for (const { table, index } of ACCOUNT_ENTITY_INDEXES_V34) {
     assertSingleColumnIndex({
       db,
       table,
@@ -137,8 +137,8 @@ export function assertTenantEntityIndexesV34(db: Db): void {
 }
 
 /** Verify every current tenant-slice and foreign-key child index. */
-export function assertTenantEntityIndexesCurrent(db: Db): void {
-  assertTenantEntityIndexesV34(db);
+export function assertAccountEntityIndexesCurrent(db: Db): void {
+  assertAccountEntityIndexesV34(db);
   const { table, column, index } = ALLOCATION_PROJECT_INDEX_V35;
   assertSingleColumnIndex({
     db,
