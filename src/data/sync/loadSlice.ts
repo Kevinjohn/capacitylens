@@ -114,7 +114,7 @@ export async function loadAll(
     const empty = emptyAppData();
     if (myGen === state.loadGen) {
       seedSnapshot(state, empty, options.accountId);
-      setOfflineReadState("tenant", false);
+      setOfflineReadState({ owner: "tenant", readOnly: false });
     }
     return empty;
   }
