@@ -12,6 +12,8 @@ export type AuthStatusResult =
   | { kind: "error"; message: string }
   | {
       kind: "pass";
+      /** Identifies whether tenant access was confirmed by a live session, cached offline, or opened without auth. */
+      identitySource?: "live" | "offline" | "open";
       authMode: AccountMode;
       user: AuthUser | null;
       canCreateAccount: boolean;
@@ -46,6 +48,7 @@ export type AuthStatusResult =
 export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null): AuthStatusResult {
   return {
     kind: "pass",
+    identitySource: "open",
     authMode,
     user,
     canCreateAccount: true,

@@ -35,7 +35,7 @@ describe("loadAll repair write", () => {
         repairStarted();
         return repairWritten;
       },
-      account.id,
+      { accountId: account.id },
     );
     await repairRequested;
 

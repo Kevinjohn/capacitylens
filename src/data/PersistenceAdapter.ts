@@ -10,10 +10,11 @@ export interface AllocationRewriteRevision {
 
 // Persistence contract shared by the in-memory demo and server-backed application.
 export interface PersistenceAdapter {
-  /** Load the persisted dataset. `accountId` (server adapter only) loads only that account's
-   *  scoped slice and re-seeds the diff snapshot to it; OMITTED is the whole-tree read (OFF mode and
-   *  the pre-pick bootstrap). The in-memory demo adapter ignores the argument. */
-  loadAll(accountId?: string): Promise<AppData>;
+  /** Load persisted data. `accountId` (server adapter only) loads only that account's scoped slice
+   *  and re-seeds the diff snapshot to it; OMITTED requests the whole tree (OFF mode and a pre-pick
+   *  bootstrap without live identity). `skipRemoteRead` seeds an empty server snapshot for a
+   *  live-authenticated pre-pick bootstrap. The in-memory demo adapter ignores both arguments. */
+  loadAll(accountId?: string, options?: { skipRemoteRead?: boolean }): Promise<AppData>;
   /** Persist the whole dataset. `opts.unload` signals a page-teardown flush: an async
    *  adapter must then DISPATCH every write up-front (a sequential await-loop would only
    *  get the first request out before the event loop dies). Synchronous adapters ignore it. */

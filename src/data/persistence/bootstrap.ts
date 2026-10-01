@@ -8,6 +8,8 @@ import { attachPersistence } from "./attachPersistence";
 
 interface BootstrapOptions {
   debounceMs?: number;
+  /** Seed an empty adapter snapshot without the unscoped read, after a live authenticated /me check. */
+  initialLoad?: "empty";
   /** Used only on a genuine first run (nothing ever persisted). */
   seedIfEmpty?: AppData;
   /** Called when a persistence write fails (e.g. storage quota exceeded, or the
@@ -61,7 +63,10 @@ export async function bootstrap(
 ): Promise<() => void> {
   let loaded: AppData;
   try {
-    loaded = await adapter.loadAll();
+    loaded =
+      options.initialLoad === "empty"
+        ? await adapter.loadAll(undefined, { skipRemoteRead: true })
+        : await adapter.loadAll();
   } catch (error) {
     // Stored data couldn't be loaded. Render an empty dataset, but DELIBERATELY
     // attach NO persistence and run NO seed-save — the next mutation must not

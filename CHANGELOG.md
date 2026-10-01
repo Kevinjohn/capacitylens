@@ -15,6 +15,10 @@ new features and **patch** versions carry fixes.
   Owner or Admin can add it, and the server refuses a company that already has people, clients,
   projects or allocations (#1388).
 
+### Fixed
+
+- Password sign-in reaches the company picker without requesting an unscoped state snapshot (#1338).
+
 ## [0.73.0-alpha.1] - 2026-10-01
 
 ### Added
