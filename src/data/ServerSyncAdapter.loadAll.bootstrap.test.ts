@@ -5,6 +5,22 @@ import { readOfflineStateSnapshot, setOfflineReadState } from "./offlineCache";
 import { batchOps, client, project, withData, account, commitReceipt } from "./ServerSyncAdapter.testSupport";
 
 function registerBootstrapLoadTests(): void {
+  it("seeds an empty adapter snapshot without making an unscoped state request", async () => {
+    const initial = withData({ clients: [client("before-skip")] });
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify(initial), { status: 200 }),
+    ) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    await adapter.loadAll();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    await expect(adapter.loadAll(undefined, { skipRemoteRead: true })).resolves.toEqual(emptyAppData());
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    await adapter.saveAll(emptyAppData());
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("treats an unscoped 400 as an empty pre-account bootstrap without parsing its body", async () => {
     const fetchImpl = vi.fn(async () => new Response("not json", { status: 400 })) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);

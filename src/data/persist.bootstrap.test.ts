@@ -93,6 +93,23 @@ describe("bootstrap", () => {
     detach();
   });
 
+  it("asks the adapter for an empty initial snapshot when skipping the initial read", async () => {
+    const loadAll = vi.fn().mockResolvedValue(emptyAppData());
+    const adapter: PersistenceAdapter = { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) };
+
+    const detach = await bootstrap(useStore, adapter, {
+      debounceMs: 0,
+      initialLoad: "empty",
+    });
+    try {
+      expect(loadAll).toHaveBeenCalledWith(undefined, { skipRemoteRead: true });
+      expect(useStore.getState().hydrated).toBe(true);
+      expect(useStore.getState().data).toEqual(emptyAppData());
+    } finally {
+      detach();
+    }
+  });
+
   it("keeps loaded data and attaches persistence when hasExisting() throws after a successful load", async () => {
     // Server mode: /api/state succeeds but /api/meta has a transient blip. The loaded data
     // must NOT be discarded and saving must NOT be bricked by the hasExisting() throw.

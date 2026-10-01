@@ -36,10 +36,11 @@ const detachTheme = watchSystemTheme(() => useStore.getState().theme);
 let persistenceStarted = false;
 let detachPersistence: (() => void) | null = null;
 let moduleDisposed = false;
-function startPersistence(): void {
+function startPersistence(identitySource: "live" | "offline" | "open"): void {
   if (persistenceStarted) return;
   persistenceStarted = true;
   void bootstrap(useStore, persistenceAdapter, {
+    ...(identitySource === "live" && isServerConfigured() ? { initialLoad: "empty" as const } : {}),
     // Auto-seed is a DEMO-BUILD-ONLY convenience (single-company-per-instance policy): the
     // in-memory build has no server to own the data, so it seeds a demo dataset on each page load.
     // A server-backed instance (the default) must NOT auto-seed — the server owns its data, and a
