@@ -12,12 +12,12 @@ export interface AccountAuditInput {
   changedFields?: readonly string[];
   /** Disambiguates two events one command emits with the SAME action and outcome.
    *
-   *  Event identity is `commandId:action:outcome`, which is unique per command for a mutation that
-   *  changes one thing. It is NOT unique when a single command legitimately acts on several rows —
-   *  erasing a company deprovisions every orphaned principal, and one membership write can
-   *  invalidate more than one ownership-transfer request. Without a key those events collide on the
-   *  outbox row id and all but one are silently dropped, which is exactly the evidence an audit
-   *  trail exists to keep. Pass the id of the thing the event is about. */
+   * Event identity is `commandId:action:outcome`, which is unique per command for a mutation that
+   * changes one thing. It is NOT unique when a single command legitimately acts on several rows —
+   * erasing a company deprovisions every orphaned principal, and one membership write can
+   * invalidate more than one ownership-transfer request. Without a key those events collide on the
+   * outbox row id and all but one are silently dropped, which is exactly the evidence an audit
+   * trail exists to keep. Pass the id of the thing the event is about. */
   eventKey?: string;
 }
 
@@ -54,7 +54,7 @@ interface CreateOperationReceiptInput {
 }
 
 /** Shared identity-port operation receipt: an embedded port (Better Auth, trusted-local) stamps
- *  this on completion rather than deriving the receipt from a persisted command record's `updatedAt`. */
+ * this on completion rather than deriving the receipt from a persisted command record's `updatedAt`. */
 export function createOperationReceipt({ commandId, changed }: CreateOperationReceiptInput): OperationReceipt {
   return { commandId, completedAt: new Date().toISOString(), ...(changed === undefined ? {} : { changed }) };
 }

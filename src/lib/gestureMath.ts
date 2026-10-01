@@ -28,7 +28,7 @@ interface ApplyMoveInput {
   /** How long the range is in the ORIGIN's units; 0 when the origin has no duration to carry. */
   sourceSpan: number;
   /** True when the two weeks differ, i.e. the move re-places the range in a calendar that did not
-   *  produce it. A same-resource move leaves this false and keeps its existing behaviour exactly. */
+   * produce it. A same-resource move leaves this false and keeps its existing behaviour exactly. */
   placesIntoAnotherWeek: boolean;
   targetDays: Weekday[] | null;
 }
@@ -52,17 +52,17 @@ export interface DateRange {
 }
 
 /** Weekend-awareness for a move gesture. When `ignoreWeekends` is false and
- *  `workingDays` doesn't cover the whole week, a move preserves the allocation's
- *  *working-day* count by extending its end across non-working days. Omit (or
- *  set `ignoreWeekends`) to get the plain calendar-shift behavior. */
+ * `workingDays` doesn't cover the whole week, a move preserves the allocation's
+ * *working-day* count by extending its end across non-working days. Omit (or
+ * set `ignoreWeekends`) to get the plain calendar-shift behavior. */
 export interface GestureOptions {
   /** The DESTINATION's working week: where the moved range is placed, and the only week a resize
-   *  ever sees. */
+   * ever sees. */
   workingDays?: Weekday[];
   /** The ORIGIN's working week, when a move crosses rows. A reassignment keeps the allocation's
-   *  duration as its own resource measured it and re-places that duration in the target's calendar,
-   *  so the two weeks answer different questions: this one sizes the range, `workingDays` positions
-   *  it. Omit for a same-resource gesture, where the two are the same week. */
+   * duration as its own resource measured it and re-places that duration in the target's calendar,
+   * so the two weeks answer different questions: this one sizes the range, `workingDays` positions
+   * it. Omit for a same-resource gesture, where the two are the same week. */
   sourceWorkingDays?: Weekday[];
   ignoreWeekends?: boolean;
 }
@@ -71,13 +71,13 @@ export interface GestureOptions {
 type Direction = 1 | -1;
 
 /** Step `date` to the nearest working day in `direction` (+1 forward, -1 backward),
- *  returning it unchanged when it's already a working day. Keeps a weekend-aware resize
- *  edge off non-working days. Bounded to a week so an empty working set can't loop (it
- *  falls through to a full week's shift, as the day-by-day scan this replaced did).
+ * returning it unchanged when it's already a working day. Keeps a weekend-aware resize
+ * edge off non-working days. Bounded to a week so an empty working set can't loop (it
+ * falls through to a full week's shift, as the day-by-day scan this replaced did).
  *
- *  Steps the WEEKDAY arithmetically and converts to a date ONCE: probing each candidate with
- *  `weekdayOf` cost a parseISO + a format per day (up to 7 round-trips), and this runs on every
- *  pointer move of a weekend-aware drag. */
+ * Steps the WEEKDAY arithmetically and converts to a date ONCE: probing each candidate with
+ * `weekdayOf` cost a parseISO + a format per day (up to 7 round-trips), and this runs on every
+ * pointer move of a weekend-aware drag. */
 function snapToWorkingDay(date: ISODate, workingDays: Weekday[], direction: Direction): ISODate {
   let weekday = weekdayOf(date);
   for (let offset = 0; offset < 7; offset++) {
@@ -93,9 +93,9 @@ function isPast(date: ISODate, limit: ISODate, direction: Direction): boolean {
 }
 
 /** The new position of ONE dragged resize edge. Both edges run through here: they were
- *  hand-mirrored copies — down to the pin-and-re-snap over-drag fix — so the next correction
- *  could easily have landed in only one of them. `weekendAwareDays` is non-null only when the
- *  gesture is weekend-aware (see `applyGesture`). */
+ * hand-mirrored copies — down to the pin-and-re-snap over-drag fix — so the next correction
+ * could easily have landed in only one of them. `weekendAwareDays` is non-null only when the
+ * gesture is weekend-aware (see `applyGesture`). */
 function resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays }: ResolveResizedEdgeInput): ISODate {
   // The opposite edge is the one an over-drag collapses onto; `toAnchor` is the direction it
   // lies in, `toOrigin` the way back to where this edge started.
@@ -155,15 +155,15 @@ function applyResize({ mode, range, deltaDays, weekendAwareDays }: ApplyResizeIn
 }
 
 /** The week a gesture must respect, or `null` when it may treat every calendar day alike: a full or
- *  empty working week, or an allocation that opted out. Returning the array rather than a boolean is
- *  what lets every branch below drop the `options!.workingDays!` assertions. */
+ * empty working week, or an allocation that opted out. Returning the array rather than a boolean is
+ * what lets every branch below drop the `options!.workingDays!` assertions. */
 type ResolveWeekendAwareWeekOptions = { days: Weekday[] | undefined; ignoreWeekends: boolean | undefined };
 function resolveWeekendAwareWeek({ days, ignoreWeekends }: ResolveWeekendAwareWeekOptions): Weekday[] | null {
   return isWeekendAware(days, ignoreWeekends) ? (days ?? null) : null;
 }
 
 /** Do two resolved weeks describe the same working days? A same-resource move reads its week twice
- *  and gets two equal-but-distinct arrays, so identity alone cannot answer this. */
+ * and gets two equal-but-distinct arrays, so identity alone cannot answer this. */
 function isSameWeek(a: Weekday[] | null, b: Weekday[] | null): boolean {
   if (a === b) return true;
   if (!a || !b || a.length !== b.length) return false;
@@ -171,8 +171,8 @@ function isSameWeek(a: Weekday[] | null, b: Weekday[] | null): boolean {
 }
 
 /** The duration a move carries away from its ORIGIN. A collapsed working week (no effective days at
- *  all) reports 0 rather than a calendar span: `resolveWeekendAwareWeek` cannot tell it apart from a full
- *  seven-day week, and treating "works no day" as "works every day" would inflate the booking. */
+ * all) reports 0 rather than a calendar span: `resolveWeekendAwareWeek` cannot tell it apart from a full
+ * seven-day week, and treating "works no day" as "works every day" would inflate the booking. */
 function resolveMoveSpan(range: DateRange, options: GestureOptions | undefined): number {
   const workingDays = options?.sourceWorkingDays ?? options?.workingDays;
   if (workingDays?.length === 0 && !options?.ignoreWeekends) return 0;

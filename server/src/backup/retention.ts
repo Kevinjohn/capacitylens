@@ -68,10 +68,10 @@ interface PruneInput {
 }
 
 /** Delete the oldest snapshots beyond `keep`; returns how many were pruned. Only files
- *  matching the snapshot pattern are touched — anything else in the dir is left alone.
- *  Never throws: prune() runs AFTER writeSnapshot() has renamed a complete snapshot into
- *  place, so a rejection here would fail (and page an operator over) a backup that actually
- *  SUCCEEDED — a false runbook alarm. Retention is retried on every snapshot anyway. */
+ * matching the snapshot pattern are touched — anything else in the dir is left alone.
+ * Never throws: prune() runs AFTER writeSnapshot() has renamed a complete snapshot into
+ * place, so a rejection here would fail (and page an operator over) a backup that actually
+ * SUCCEEDED — a false runbook alarm. Retention is retried on every snapshot anyway. */
 export function prune({ dir, keep, database, currentFile, log }: PruneInput): number {
   let files: string[];
   try {

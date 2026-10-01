@@ -1,6 +1,6 @@
 import type { DomainErrorCode } from "@capacitylens/shared/domain/errors";
 /** A caller-fault error (bad request body) — mapped to HTTP 400. Distinct from an
- *  unexpected server/db error, which must surface as 500. */
+ * unexpected server/db error, which must surface as 500. */
 export class ValidationError extends Error {
   readonly code?: DomainErrorCode;
 

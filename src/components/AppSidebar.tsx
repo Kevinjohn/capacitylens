@@ -206,8 +206,8 @@ function SidebarAccountFooter({
 }
 
 /** One menu of nav destinations. Shared by the primary list and the pinned admin group so both
- *  render identical markup — same active matching, same `data-nav` tour anchor, same collapsed-rail
- *  tooltip — and can never drift apart. */
+ * render identical markup — same active matching, same `data-nav` tour anchor, same collapsed-rail
+ * tooltip — and can never drift apart. */
 function NavMenu({
   links,
   onNavigate,
@@ -241,9 +241,9 @@ function NavMenu({
 }
 
 /** Fast light/dark access beside the persistent administration destinations. Settings retains the
- *  full three-way preference, including Match system; this button deliberately makes an explicit
- *  light or dark choice rather than cycling through the three-way setting. Its label, icon and
- *  target follow the scheme actually displayed, so Match system resolves through the OS. */
+ * full three-way preference, including Match system; this button deliberately makes an explicit
+ * light or dark choice rather than cycling through the three-way setting. Its label, icon and
+ * target follow the scheme actually displayed, so Match system resolves through the OS. */
 function ThemeToggleMenuItem() {
   const theme = useStore((state) => state.theme);
   const setTheme = useStore((state) => state.setTheme);

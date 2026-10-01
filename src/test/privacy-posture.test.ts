@@ -86,8 +86,8 @@ interface Manifest {
 }
 
 /** Read one package.json, returning its combined dep keys. Throws (surface, don't swallow) if the
- *  file is missing or doesn't parse to an object — a path/parse mistake must be a loud failure, not
- *  a silently-empty (and therefore vacuously-passing) scan. */
+ * file is missing or doesn't parse to an object — a path/parse mistake must be a loud failure, not
+ * a silently-empty (and therefore vacuously-passing) scan. */
 function readManifest(relPath: string): Manifest {
   const raw = readFileSync(join(REPO_ROOT, relPath), "utf8");
   const json: unknown = JSON.parse(raw);

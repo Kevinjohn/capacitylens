@@ -8,13 +8,13 @@ interface BuildGesturePreviewDatesInput {
   mode: DragMode;
   deltaDays: number;
   /** The lane the pointer is over: the week the previewed range is placed in, and the one the
-   *  drop gate below judges. */
+   * drop gate below judges. */
   previewDays: Weekday[] | undefined;
   /** The dragged bar's own week, passed only when the pointer is over a different lane. It sizes
-   *  the previewed range so the preview matches what the commit will write. */
+   * the previewed range so the preview matches what the commit will write. */
   sourceDays?: Weekday[] | undefined;
   /** Whether the pointer is over a different resource lane. This remains true if the source
-   *  resource disappears and its working week can no longer be resolved. */
+   * resource disappears and its working week can no longer be resolved. */
   isReassignment: boolean;
 }
 

@@ -229,7 +229,7 @@ function readOptionalEnvironmentString(value: unknown, variableName: string): st
 }
 
 /** The muted Settings footer line, e.g. `build a1b2c3d · server`, or null when the build
- *  carries no sha (render nothing — today's Settings exactly). */
+ * carries no sha (render nothing — today's Settings exactly). */
 export function readBuildStamp(): string | null {
   const revision = readBuildRevision();
   if (!revision) return null;
@@ -237,8 +237,8 @@ export function readBuildStamp(): string | null {
 }
 
 /** The Settings "Send feedback" mailto href (flag VITE_CAPACITYLENS_FEEDBACK_MAILTO), or
- *  null when the build carries no address (render nothing). The subject carries the build
- *  stamp when there is one, so tester reports arrive pinned to a build. */
+ * null when the build carries no address (render nothing). The subject carries the build
+ * stamp when there is one, so tester reports arrive pinned to a build. */
 export function readFeedbackMailto(): string | null {
   const addr = (
     readOptionalEnvironmentString(

@@ -66,7 +66,7 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
 }
 
 /** A complete person Resource — the stored counterpart of {@link makeResourceDraft}, for specs that
- *  build AppData directly instead of going through `addResource`. Override any field per test. */
+ * build AppData directly instead of going through `addResource`. Override any field per test. */
 export function makeResource(overrides: Partial<Resource> = {}): Resource {
   return {
     id: "r1",
@@ -174,8 +174,8 @@ export function makeClosure(overrides: Partial<Closure> = {}): Closure {
 }
 
 /** A positioned {@link BarLayout} — the scheduler model's per-allocation render bar. Wraps
- *  {@link makeAllocation} for its nested `allocation`; override any field (including nested
- *  `allocation` fields via a full replacement) per test. */
+ * {@link makeAllocation} for its nested `allocation`; override any field (including nested
+ * `allocation` fields via a full replacement) per test. */
 export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
   return {
     allocation: makeAllocation(),
@@ -190,7 +190,7 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
 }
 
 /** Reset the store to a clean single-account state with that account active.
- *  Use in beforeEach so `add*` (which requires an active account) works. */
+ * Use in beforeEach so `add*` (which requires an active account) works. */
 export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void {
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: accountId })] }));
   useStore.getState().setActiveAccount(accountId);
@@ -208,31 +208,31 @@ export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void 
 }
 
 /** Toggle the per-account "show placeholders" view pref in unit tests — mirrors the app's Settings
- *  toggle (updateAccount), replacing the retired device-global setter. Defaults to the active
- *  default test account. */
+ * toggle (updateAccount), replacing the retired device-global setter. Defaults to the active
+ * default test account. */
 type SetPlaceholdersEnabledOptions = { on: boolean; accountId?: ID };
 export function setPlaceholdersEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetPlaceholdersEnabledOptions): void {
   useStore.getState().updateAccount(accountId, { placeholdersEnabled: on });
 }
 
 /** Toggle the per-account "show external resources" view pref in unit tests (see
- *  setPlaceholdersEnabled). */
+ * setPlaceholdersEnabled). */
 type SetExternalEnabledOptions = { on: boolean; accountId?: ID };
 export function setExternalEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetExternalEnabledOptions): void {
   useStore.getState().updateAccount(accountId, { externalEnabled: on });
 }
 
 /** A JSON `Response` for a stubbed `fetch`/client call — the shape the API clients' body decoders
- *  expect (a real `Response`, `Content-Type: application/json`, a JSON-encoded body).
+ * expect (a real `Response`, `Content-Type: application/json`, a JSON-encoded body).
  *
- *  Call it PER INVOCATION, not once into a shared const: a `Response` body is a single-use stream, so
- *  a mock that resolves the same instance twice hands the second reader an already-consumed body. The
- *  idiom is `mock.mockImplementation(() => Promise.resolve(jsonResponse(...)))`.
+ * Call it PER INVOCATION, not once into a shared const: a `Response` body is a single-use stream, so
+ * a mock that resolves the same instance twice hands the second reader an already-consumed body. The
+ * idiom is `mock.mockImplementation(() => Promise.resolve(jsonResponse(...)))`.
  *
  *  @param body   - anything `JSON.stringify` accepts; becomes the response body verbatim.
  *  @param status - defaults to 200. Pass a 4xx/5xx to exercise a client's non-ok branch (note the
- *                  `Response` constructor rejects 204 with a body — use a bare `new Response(null,
- *                  { status: 204 })` for those). */
+ * `Response` constructor rejects 204 with a body — use a bare `new Response(null,
+ * { status: 204 })` for those). */
 export function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,

@@ -43,7 +43,7 @@ export interface ExclusiveAction {
  * `finally`, so a failure reopens the gate rather than wedging the section disabled forever.
  *
  * @returns the {@link ExclusiveAction} gate: a `busy` flag for `disabled`, `run` to start an action,
- *          and `locked()` for same-click guards.
+ * and `locked()` for same-click guards.
  */
 export function useExclusiveAction(): ExclusiveAction {
   const actionLock = useRef(false);

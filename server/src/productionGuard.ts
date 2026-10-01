@@ -144,9 +144,9 @@ function inspectOperationalHardening(
  * refusal so this evaluator remains total and index.ts emits its standard framed startup message.
  *
  * @param environment - The environment to evaluate. Only the listed keys are read; pass a plain object
- *   literal (the entrypoint passes `process.env`).
+ * literal (the entrypoint passes `process.env`).
  * @returns A {@link ProductionPostureResult} with the refusals (fatal) and warnings (soft).
- *   Both arrays are empty unless `env.NODE_ENV === 'production'`.
+ * Both arrays are empty unless `env.NODE_ENV === 'production'`.
  */
 export function evaluateProductionPosture(environment: ProductionEnvironment): ProductionPostureResult {
   const refusals: string[] = [];

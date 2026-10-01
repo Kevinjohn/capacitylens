@@ -82,8 +82,8 @@ export function validatePresetColor(value: string, fail: Fail, field = "color"):
 }
 
 /** Require at least one working day. A resource with zero working days has zero capacity
- *  every day (reads as permanently over-allocated), so the form must reject it — the
- *  import path repairs an empty set, but the form is the only path that could persist one. */
+ * every day (reads as permanently over-allocated), so the form must reject it — the
+ * import path repairs an empty set, but the form is the only path that could persist one. */
 export function validateWorkingDays(days: number[], fail: Fail, field = "workingDays"): boolean {
   // Shape (distinct in-week days) comes from the shared predicate; the non-empty rule is this
   // caller's own policy — an empty COMPANY week is legal, an empty RESOURCE week is not.

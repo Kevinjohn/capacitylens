@@ -23,8 +23,8 @@ import { m } from "@/i18n";
 import { TOUR_ANCHORS } from "./tourAnchors";
 
 /** Launch the orientation tour. Builds steps fresh (locale-correct copy) and drives from stop 1.
- *  Async so the driver.js import can be dynamic (see the file header) — callers must `void` or
- *  `await` it. */
+ * Async so the driver.js import can be dynamic (see the file header) — callers must `void` or
+ * `await` it. */
 export async function startTour(): Promise<void> {
   const { driver } = await import("driver.js");
   await new Promise<void>((resolve, reject) => {

@@ -31,7 +31,7 @@ interface InitiateOwnershipTransferInput {
   workspaceId: string;
   targetPrincipalId: string;
   /** The live request this nomination replaces, at the revision it was read at. Omitted when the
-   *  caller believes there is none; the server refuses either belief if it is wrong. */
+   * caller believes there is none; the server refuses either belief if it is wrong. */
   replaces?: { requestId: string; revision: string } | undefined;
   command?: BrowserAccountCommand | undefined;
 }

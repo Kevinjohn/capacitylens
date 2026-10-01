@@ -12,10 +12,10 @@ export function hasOverCapacity(allocated: number, available: number): boolean {
 }
 
 /** The hours/day a blocks-mode allocation contributes to capacity. Read from the ONE knob
- *  (`blockHoursPerDay`, schedulingDays.ts) rather than hardcoding its current 0, so making blocks
- *  carry load is a change to that fraction alone. A resource's own working day may be shorter than
- *  the standard one, but this projection has no account context — `FULL_DAY_HOURS` is the same
- *  reference day the fraction is documented against. */
+ * (`blockHoursPerDay`, schedulingDays.ts) rather than hardcoding its current 0, so making blocks
+ * carry load is a change to that fraction alone. A resource's own working day may be shorter than
+ * the standard one, but this projection has no account context — `FULL_DAY_HOURS` is the same
+ * reference day the fraction is documented against. */
 const BLOCK_PROJECTED_HOURS_PER_DAY = blockHoursPerDay(FULL_DAY_HOURS);
 
 interface ApplyCapacityModeInput {

@@ -22,8 +22,8 @@ export const NO_TIME_OFF: TimeOff[] = [];
 export const NO_CLOSURES: Closure[] = [];
 
 /** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`
- *  (`dates.length` when every entry is earlier). Date-only ISO strings are zero-padded, so
- *  lexicographic order IS chronological order and a plain string compare is a valid ordering. */
+ * (`dates.length` when every entry is earlier). Date-only ISO strings are zero-padded, so
+ * lexicographic order IS chronological order and a plain string compare is a valid ordering. */
 export function resolveFirstDateIndexAtOrAfter(dates: ISODate[], target: ISODate): number {
   let lowerIndex = 0;
   let upperIndex = dates.length;
@@ -37,12 +37,12 @@ export function resolveFirstDateIndexAtOrAfter(dates: ISODate[], target: ISODate
 }
 
 /** Bucket date-ranged rows (allocations, time off) onto the dates the model will actually ask about:
- *  each row is listed under every queried date its [startDate, endDate] covers. A per-day capacity
- *  lookup then passes only the handful of rows that touch that day instead of rescanning the
- *  resource's whole list, making the day loop O(dates + coverage) rather than O(dates × rows) — the
- *  same trick `buildCapacityAdvisory` documents in capacity.ts. Insertion order inside each bucket follows
- *  `rows`, so the hours capacity.ts sums are added in the SAME order as a full scan and the result is
- *  bit-for-bit identical (float addition is not associative). */
+ * each row is listed under every queried date its [startDate, endDate] covers. A per-day capacity
+ * lookup then passes only the handful of rows that touch that day instead of rescanning the
+ * resource's whole list, making the day loop O(dates + coverage) rather than O(dates × rows) — the
+ * same trick `buildCapacityAdvisory` documents in capacity.ts. Insertion order inside each bucket follows
+ * `rows`, so the hours capacity.ts sums are added in the SAME order as a full scan and the result is
+ * bit-for-bit identical (float addition is not associative). */
 export function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISODate }>(
   rows: T[],
   dates: ISODate[],
@@ -62,10 +62,10 @@ export function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISO
 }
 
 /** Index rows (allocations, time off) by the resource they belong to, so building a row is a Map
- *  lookup instead of a full-array scan per resource. `include` avoids an intermediate filtered
- *  array, while `visit` observes every source row before filtering. Insertion order inside each
- *  bucket follows `rows`, which the capacity sums below depend on (float addition is not
- *  associative). */
+ * lookup instead of a full-array scan per resource. `include` avoids an intermediate filtered
+ * array, while `visit` observes every source row before filtering. Insertion order inside each
+ * bucket follows `rows`, which the capacity sums below depend on (float addition is not
+ * associative). */
 export function groupByResourceId<T extends { resourceId: ID }>(
   rows: T[],
   options: {

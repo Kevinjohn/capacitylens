@@ -41,8 +41,8 @@ export function assertWorkspaceProvisioningAllowedInTx(
 }
 
 /** The name a directory entry sorts under: display name, else email, else the principal id — the
- *  same fallback chain the UI labels the row with, so the rendered list is visibly in order even
- *  for a member who signed up without a name. */
+ * same fallback chain the UI labels the row with, so the rendered list is visibly in order even
+ * for a member who signed up without a name. */
 export function resolveDirectorySortName(entry: MemberDirectoryEntry): string {
   const principal = entry.principal;
   const displayName = principal?.displayName?.trim();

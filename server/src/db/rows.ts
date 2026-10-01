@@ -65,8 +65,8 @@ export function clearAllocationAttributionForActivities(
 }
 
 /** Idempotent insert-or-replace by id — the write the sync adapter uses for every
- *  create/update, so replaying a batch after a partial failure can't double-insert
- *  (a re-PUT of an already-written row just overwrites it). */
+ * create/update, so replaying a batch after a partial failure can't double-insert
+ * (a re-PUT of an already-written row just overwrites it). */
 export function upsertRow(db: Db, table: string, row: Row): void {
   const spec = resolveTable(table);
   const columns = spec.columns.map((c) => c.name);
@@ -90,7 +90,7 @@ export function upsertRow(db: Db, table: string, row: Row): void {
 }
 
 /** Idempotent: deleting an absent id is a no-op (the store's cascade and the DB's
- *  ON DELETE can both target the same row; whichever loses the race must not error). */
+ * ON DELETE can both target the same row; whichever loses the race must not error). */
 export function deleteRow(db: Db, table: string, id: string): void {
   assertKnownTable(table);
   const statement = createCachedTableStatement({

@@ -152,9 +152,9 @@ export function resolveTimeZoneOffsetLabel(timeZone: string, date = new Date()):
 }
 
 /** Render an option label with both the zone's display name and its current numeric offset.
- *  'Etc/GMT' — the app default — reads as the localised "GMT" rather than its IANA identifier,
- *  which is the one piece of display copy this list needs; every other zone shows its identifier.
- *  Resolved at CALL time (never at module scope) so the label follows the active locale. */
+ * 'Etc/GMT' — the app default — reads as the localised "GMT" rather than its IANA identifier,
+ * which is the one piece of display copy this list needs; every other zone shows its identifier.
+ * Resolved at CALL time (never at module scope) so the label follows the active locale. */
 export function resolveTimeZoneOptionLabel(
   timeZone: string,
   displayName = resolveTimeZoneDisplayName(timeZone),

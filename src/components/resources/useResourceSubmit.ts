@@ -197,9 +197,9 @@ function completeResourceSubmit(input: SubmitInput, result: FlushResult, submitt
 }
 
 /** Recovery is already running for a reconciliation failure, so its raw text would contradict the
- *  retry the user is about to see. BatchValidationError is the exception: it carries the server's
- *  own explanation of a deterministic 400, which is the only account the user ever gets of why the
- *  save was refused, and resolvePersistenceErrorNotice only restates it when it carries a code. */
+ * retry the user is about to see. BatchValidationError is the exception: it carries the server's
+ * own explanation of a deterministic 400, which is the only account the user ever gets of why the
+ * save was refused, and resolvePersistenceErrorNotice only restates it when it carries a code. */
 function resolveFlushFailureMessage(error: unknown): string {
   if (error instanceof BatchValidationError) return resolveErrorMessage(error);
   return error instanceof BatchReconciliationError ? m.app_persist_error() : resolveErrorMessage(error);

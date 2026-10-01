@@ -63,7 +63,7 @@ describe("control-table writes stay inside their account: transfer recovery", ()
 const WAYNE = "a-studio";
 const STARK = "a-loft";
 /** Deliberately a member of BOTH companies: the shared principal is what makes a lost `accountId`
- *  visible on every membership write. */
+ * visible on every membership write. */
 const SHARED = "u-bruce-wayne";
 const NEWCOMER = "u-barbara-gordon";
 const NOW = "2026-09-01T09:00:00.000Z";
@@ -114,7 +114,7 @@ function request(accountId: string, overrides: Partial<OwnershipTransferRequest>
 }
 
 /** Both companies seeded identically, so any assertion about one is an assertion about a real
- *  neighbour rather than an empty table. */
+ * neighbour rather than an empty table. */
 function seedBothCompanies(db: Db): void {
   for (const accountId of [WAYNE, STARK]) {
     members.upsertMember(db, member(accountId));
@@ -168,7 +168,7 @@ function transferStates(db: Db, accountId: string): Array<{ id: string; state: s
 }
 
 /** The observation bit is not part of the mapped membership, and it is exactly what one company's
- *  privacy switch must never write into another's rows. */
+ * privacy switch must never write into another's rows. */
 function observationBits(db: Db, accountId: string): Array<{ userId: string; signInConfirmed: string | null }> {
   return db
     .prepare(`SELECT userId, signInConfirmed FROM account_members WHERE accountId = ? ORDER BY userId`)
@@ -617,7 +617,7 @@ const MODULES: Record<string, Record<string, unknown>> = {
 };
 
 /** The modules whose files live in `controlTables/`. Kept separate so the directory check below can
- *  compare like with like. */
+ * compare like with like. */
 const CONTROL_TABLE_MODULES = Object.keys(MODULES).filter((name) => name !== "memberSignInTracking");
 
 const COVERED = new Set([

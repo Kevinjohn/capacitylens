@@ -29,7 +29,7 @@ export function resolveSharedScopedData(data: AppData, accountId: string | null)
 }
 
 /** The active-only projection of an already-scoped slice, memoised on it. Exported alongside
- *  {@link resolveSharedScopedData} for the same imperative-caller reason. */
+ * {@link resolveSharedScopedData} for the same imperative-caller reason. */
 export function resolveSharedActiveData(data: AppData): AppData {
   let active = activeCache.get(data);
   if (!active) {

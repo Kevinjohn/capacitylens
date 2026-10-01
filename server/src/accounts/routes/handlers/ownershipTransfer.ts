@@ -20,7 +20,7 @@ import { requireAuthenticatedPrincipal } from "./authenticatedPrincipal";
  */
 
 /** The wire projection of one request. Ids and instants only — display identity is resolved from
- *  the member directory, so the ceremony never becomes a second store of personal data. */
+ * the member directory, so the ceremony never becomes a second store of personal data. */
 function toWire(request: OwnershipTransferRequest) {
   return {
     id: request.id,
@@ -194,7 +194,7 @@ interface RowCommandInput {
 }
 
 /** Completion is the moment ownership actually moves, so it keeps the standing `ownershipTransfer`
- *  audit action; every other step records the ceremony action instead. */
+ * audit action; every other step records the ceremony action instead. */
 function auditActionFor(action: RowCommand): "ownershipTransfer" | "ownershipTransferRequest" {
   return action === "complete" ? "ownershipTransfer" : "ownershipTransferRequest";
 }

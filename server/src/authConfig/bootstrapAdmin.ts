@@ -69,7 +69,7 @@ export async function createCredentialUserWith({
 }
 
 /** Create/upgrade Better Auth's tables in the shared SQLite file. Called at boot ONLY
- *  when mode ≠ off — an off-mode DB never grows auth tables (the OFF guarantee). */
+ * when mode ≠ off — an off-mode DB never grows auth tables (the OFF guarantee). */
 export async function runAuthMigrations(auth: Auth): Promise<void> {
   const { runMigrations } = await getMigrations(auth.options);
   await runMigrations();

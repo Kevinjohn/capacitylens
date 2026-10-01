@@ -21,12 +21,12 @@ export function toRow(spec: TableSpec, row: Row): SQLInputValue[] {
 }
 
 /** SQL row → object: JSON-decode json columns, drop NULL optionals so the result
- *  deep-equals the client's object (which omits absent optionals).
+ * deep-equals the client's object (which omits absent optionals).
  *
  *  @throws {Error} a locator-only "Corrupt JSON in <table>.<column> (id=…)" error if a json column on
- *    disk can't be parsed. The location lets an operator find the damaged row without exposing the
- *    cell contents through the error message or cause. loadState() reads every row through here, so
- *    a silent fallback to the raw string would quietly poison the in-memory AppData tree. */
+ * disk can't be parsed. The location lets an operator find the damaged row without exposing the
+ * cell contents through the error message or cause. loadState() reads every row through here, so
+ * a silent fallback to the raw string would quietly poison the in-memory AppData tree. */
 export function fromRow(spec: TableSpec, row: Row): Row {
   const decodedRow: Row = {};
   for (const c of spec.columns) {

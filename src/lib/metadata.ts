@@ -13,21 +13,21 @@ import { m } from "@/i18n";
 // select and label render.
 
 /** A `<select>`/segmented-control option. `V` carries the enum union through the derivation, so a
- *  caller binding `options={buildAllocationStatusOptions()}` gets `value: AllocationStatus` rather than a
- *  widened `string` it would have to re-assert. */
+ * caller binding `options={buildAllocationStatusOptions()}` gets `value: AllocationStatus` rather than a
+ * widened `string` it would have to re-assert. */
 export interface LabelOption<V extends string = string> {
   value: V;
   label: string;
 }
 
 /** One uncalled message reference per union member — the per-enum source list. Exported alongside
- *  {@link buildLabels} so a caller outside this file can name the shape it must build. */
+ * {@link buildLabels} so a caller outside this file can name the shape it must build. */
 export type LabelMessages<K extends string> = Record<K, () => string>;
 
 /** Resolve a whole message table to strings, in its declaration order. Exported so a surface with an
- *  enum table of its OWN (a settings section's per-option copy, say) derives its labels through the
- *  same lazy-resolution rule rather than hand-rolling a second `Object.keys` loop that a locale
- *  switch would then have to be re-audited against. */
+ * enum table of its OWN (a settings section's per-option copy, say) derives its labels through the
+ * same lazy-resolution rule rather than hand-rolling a second `Object.keys` loop that a locale
+ * switch would then have to be re-audited against. */
 export function buildLabels<K extends string>(messages: LabelMessages<K>): Record<K, string> {
   const labels = {} as Record<K, string>;
   for (const key of Object.keys(messages) as K[]) labels[key] = messages[key]();
@@ -35,8 +35,8 @@ export function buildLabels<K extends string>(messages: LabelMessages<K>): Recor
 }
 
 /** Turn a resolved label map into `<select>` options, preserving key order. Exported for the same
- *  reason as {@link buildLabels}: option lists built elsewhere keep this file's `LabelOption` shape
- *  and its value-typing, instead of a parallel `.map` that widens `value` back to `string`. */
+ * reason as {@link buildLabels}: option lists built elsewhere keep this file's `LabelOption` shape
+ * and its value-typing, instead of a parallel `.map` that widens `value` back to `string`. */
 export function buildLabelOptions<K extends string>(labels: Record<K, string>): LabelOption<K>[] {
   return (Object.entries(labels) as [K, string][]).map(([value, label]) => ({ value, label }));
 }
@@ -69,8 +69,8 @@ function resolveTrimmedValue(value: string | undefined, fallback: string): strin
 }
 
 /** Label for ONE allocation status — for the render sites that hold a single status and would
- *  otherwise build (and discard) the whole map to read one key out of it. An unrecognised runtime
- *  value from legacy or hand-edited data renders blank instead of taking down the scheduler. */
+ * otherwise build (and discard) the whole map to read one key out of it. An unrecognised runtime
+ * value from legacy or hand-edited data renders blank instead of taking down the scheduler. */
 export function resolveAllocationStatusLabel(status: AllocationStatus): string {
   return resolveMessage(allocationStatusMessages, status);
 }
@@ -96,21 +96,21 @@ export function buildTimeOffTypeLabels(): Record<TimeOffType, string> {
 }
 
 /** Primary display name for a placeholder ("slot") resource: the literal word "Placeholder"
- *  (per the product acceptance — derives from the word itself). The resource's own role/discipline
- *  is shown as SECONDARY text by the callers, so we deliberately do NOT fold the role in here or
- *  invent per-slot numbering. One source so the schedule lane, the assignee picker, the command
- *  palette and the Resources list can't drift on what a placeholder is called. The placeholder
- *  feature is gated behind the per-account `placeholdersEnabled` setting on the Account (default off). */
+ * (per the product acceptance — derives from the word itself). The resource's own role/discipline
+ * is shown as SECONDARY text by the callers, so we deliberately do NOT fold the role in here or
+ * invent per-slot numbering. One source so the schedule lane, the assignee picker, the command
+ * palette and the Resources list can't drift on what a placeholder is called. The placeholder
+ * feature is gated behind the per-account `placeholdersEnabled` setting on the Account (default off). */
 export function resolvePlaceholderDisplayName(): string {
   return m.placeholder_display_name();
 }
 
 /** The display name for ANY resource: the literal word "Placeholder" for a placeholder ("slot")
- *  resource (per `resolvePlaceholderDisplayName` above), otherwise the resource's own name (falling back
- *  to its role when unnamed). One source so every render site — the schedule lane + its add button,
- *  the assignee picker, the command palette, and the Resources list (row AND its delete confirm) —
- *  agrees on what a resource is called, and a placeholder can't read as its role in one place while
- *  reading as "Placeholder" everywhere else. No behaviour change for non-placeholders. */
+ * resource (per `resolvePlaceholderDisplayName` above), otherwise the resource's own name (falling back
+ * to its role when unnamed). One source so every render site — the schedule lane + its add button,
+ * the assignee picker, the command palette, and the Resources list (row AND its delete confirm) —
+ * agrees on what a resource is called, and a placeholder can't read as its role in one place while
+ * reading as "Placeholder" everywhere else. No behaviour change for non-placeholders. */
 export function resolveResourceDisplayName(resource: Resource): string {
   if (resource.kind === "placeholder") return resolvePlaceholderDisplayName();
   return resolveTrimmedValue(resource.name, resource.role);

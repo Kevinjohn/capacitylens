@@ -310,7 +310,7 @@ export function deleteProjectCascade(data: AppData, projectId: ID, updatedAt: st
 }
 
 /** Delete a client and everything beneath it (projects → phases → activities → allocations), unbinding
- *  surviving phases/placeholders as needed. PURE — returns a new AppData. */
+ * surviving phases/placeholders as needed. PURE — returns a new AppData. */
 export function deleteClientCascade(data: AppData, clientId: ID, updatedAt: string): AppData {
   const removedProjectIds = new Set(
     data.projects.filter((project) => project.clientId === clientId).map((project) => project.id),

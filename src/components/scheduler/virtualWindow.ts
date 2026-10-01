@@ -23,8 +23,8 @@ export interface VirtualWindow {
 }
 
 /** Cumulative offsets (prefix sums) of every item + the total. Depends ONLY on
- *  heights, so callers memoise it on `heights` and rebuild it only when the row set
- *  changes — not on every scroll frame. */
+ * heights, so callers memoise it on `heights` and rebuild it only when the row set
+ * changes — not on every scroll frame. */
 export interface RowLayout {
   tops: number[];
   total: number;
@@ -48,7 +48,7 @@ export function buildLayout(heights: number[]): RowLayout {
 }
 
 /** The per-scroll-frame work: given a precomputed layout, find the visible slice.
- *  Binary-searches both edges — no O(n) prefix-sum rebuild or row scan. */
+ * Binary-searches both edges — no O(n) prefix-sum rebuild or row scan. */
 export function resolveVirtualWindow({
   layout,
   heights,

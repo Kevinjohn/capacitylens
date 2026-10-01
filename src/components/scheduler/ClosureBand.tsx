@@ -4,8 +4,8 @@ import type { ColumnGeometry } from "./columnGeometry";
 import { buildVisibleSpanInsets } from "./visibleSpanInsets";
 
 /** The band is usually both wider and taller than the viewport, so its name is clamped to the
- *  visible portion on BOTH axes and centred there: it then stays on screen however far the
- *  schedule has been scrolled across a long closure or down a long list of people. */
+ * visible portion on BOTH axes and centred there: it then stays on screen however far the
+ * schedule has been scrolled across a long closure or down a long list of people. */
 const LABEL_INSETS_X = buildVisibleSpanInsets("x", "var(--band-left)", "var(--band-width)");
 const LABEL_INSETS_Y = buildVisibleSpanInsets("y", "0px", "var(--band-height)");
 

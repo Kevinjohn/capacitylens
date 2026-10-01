@@ -22,9 +22,9 @@ export interface DragResizePreviewInput {
 
 export interface UseDragResizeArgs {
   /** Maps a document clientX to a snapped day index (the ColumnGeometry inverse, applied
-   *  against the live lane rect — supplied by the lane). The day delta is the difference of
-   *  the two endpoints' indices, so each end snaps to a column independently — correct even
-   *  when the pointer crosses narrowed weekend columns of unequal width. */
+   * against the live lane rect — supplied by the lane). The day delta is the difference of
+   * the two endpoints' indices, so each end snaps to a column independently — correct even
+   * when the pointer crosses narrowed weekend columns of unequal width. */
   indexAtClientX: (clientX: number) => number;
   onPreview: (input: DragResizePreviewInput) => void;
   onCommit: (mode: DragMode, deltaDays: number, pointer: Pointer) => void;

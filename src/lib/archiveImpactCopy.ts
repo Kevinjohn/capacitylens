@@ -26,9 +26,9 @@ export function safeArchiveImpact(data: AppData, entity: LifecycleEntityKey, id:
 }
 
 /** Pick the one/other form for a count. `one` and `other` are UNCALLED message references, invoked
- *  here at lookup time so Paraglide resolves the active locale on each render rather than freezing
- *  it at import. English-only pluralisation (1 vs everything else) matches the message catalogue's
- *  current plural forms; a locale with more categories would need Paraglide's own plural selector. */
+ * here at lookup time so Paraglide resolves the active locale on each render rather than freezing
+ * it at import. English-only pluralisation (1 vs everything else) matches the message catalogue's
+ * current plural forms; a locale with more categories would need Paraglide's own plural selector. */
 const plural =
   (one: (inputs: { count: number }) => string, other: (inputs: { count: number }) => string) =>
   (count: number): string =>

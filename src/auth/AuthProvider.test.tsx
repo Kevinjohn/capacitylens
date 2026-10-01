@@ -48,15 +48,15 @@ async function freshProvider() {
 }
 
 /** Renders the two single-company-per-instance fields off `useAuth()` as plain text, so a test can
- *  assert on them without reaching into React internals. Takes the hook as a PROP (rather than a
- *  static import) for the module-identity reason above. */
+ * assert on them without reaching into React internals. Takes the hook as a PROP (rather than a
+ * static import) for the module-identity reason above. */
 function Probe({ useAuth }: { useAuth: () => { canCreateAccount: boolean; multiAccount: boolean } }) {
   const { canCreateAccount, multiAccount } = useAuth();
   return <div>{`canCreateAccount:${canCreateAccount} multiAccount:${multiAccount}`}</div>;
 }
 
 /** Like {@link Probe} but with a button that triggers `refreshAuth` — the fire-and-forget shape
- *  (`void`) the real call sites use, which is safe because refreshAuth is total (never rejects). */
+ * (`void`) the real call sites use, which is safe because refreshAuth is total (never rejects). */
 function RefreshProbe({
   useAuth,
 }: {
@@ -74,15 +74,15 @@ function RefreshProbe({
 }
 
 /** Renders the SESSION-shaped fields off `useAuth()` (authMode + user id) so a test can assert a
- *  live authenticated snapshot survives — or doesn't — a failing re-check. Hook-as-prop for the
- *  module-identity reason above. */
+ * live authenticated snapshot survives — or doesn't — a failing re-check. Hook-as-prop for the
+ * module-identity reason above. */
 function SessionProbe({ useAuth }: { useAuth: () => { authMode: string; user: { id: string } | null } }) {
   const { authMode, user } = useAuth();
   return <div>{`authMode:${authMode} user:${user?.id ?? "none"}`}</div>;
 }
 
 /** A promise whose resolution the test controls — used to make an EARLIER /me request resolve
- *  AFTER a later one, pinning the request-ordering guard (authRequestSeq). */
+ * AFTER a later one, pinning the request-ordering guard (authRequestSeq). */
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((r) => {

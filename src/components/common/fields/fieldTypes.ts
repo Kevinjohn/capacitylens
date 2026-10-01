@@ -12,8 +12,8 @@ export interface Option {
   /** Adds a structural, non-selectable divider immediately before this option. */
   separatorBefore?: boolean;
   /** Renders the option un-pickable while still SELECTABLE-by-value: a select whose current value
-   *  is a disabled option keeps showing it (the "(current, archived)" parent case — the unchanged
-   *  id must round-trip), but the user can't move BACK to it after choosing something else. */
+   * is a disabled option keeps showing it (the "(current, archived)" parent case — the unchanged
+   * id must round-trip), but the user can't move BACK to it after choosing something else. */
   disabled?: boolean;
 }
 

@@ -15,12 +15,12 @@ import { byName } from "@/lib/displayOrder";
 import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
 
 /** Build the archive-confirm message for a client, appending the descendant-count cascade warning
- *  ("this also hides N projects and M allocations") when the client has active work beneath it — so
- *  the admin sees exactly what an archive pulls out of the schedule (counts via the pure
- *  archiveImpact, which diffs the same activeOnly projection the view uses). Uses safeArchiveImpact
- *  (not archiveImpact directly) so a client that stopped being active between dialog-open and
- *  render — someone else archived it, a sync landed, an undo fired — renders the base message
- *  instead of throwing during render. */
+ * ("this also hides N projects and M allocations") when the client has active work beneath it — so
+ * the admin sees exactly what an archive pulls out of the schedule (counts via the pure
+ * archiveImpact, which diffs the same activeOnly projection the view uses). Uses safeArchiveImpact
+ * (not archiveImpact directly) so a client that stopped being active between dialog-open and
+ * render — someone else archived it, a sync landed, an undo fired — renders the base message
+ * instead of throwing during render. */
 function buildClientArchiveMessage(data: AppData, client: Client): string {
   const name = client.isPrivate === true ? nameForQuotedContext(client.name) : client.name;
   const base = m.list_clients_archive_message({ name });

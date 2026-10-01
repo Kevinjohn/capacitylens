@@ -31,7 +31,7 @@ export const Avatar = memo(function Avatar({
   size?: number;
   placeholder?: boolean;
   /** An already-validated account or scheduled-person avatar URL. When set, the photo renders over
-   *  the initials; the Radix primitive keeps the initials as the fallback while loading/on error. */
+   * the initials; the Radix primitive keeps the initials as the fallback while loading/on error. */
   imageUrl?: string;
 }) {
   const initials = placeholder

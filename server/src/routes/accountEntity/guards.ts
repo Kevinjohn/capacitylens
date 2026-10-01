@@ -9,7 +9,7 @@ import { FROZEN_REPLY_MESSAGES, REPLY_ERRORS } from "../replyErrors";
 type AccountRouteFailureDependencies = Pick<AccountEntityRouteDependencies, "accountFail" | "fail">;
 
 /** Both account write paths turn an AccountContractError into the account failure shape and
- *  anything else into the generic redacted failure — one funnel, as the generic routes had. */
+ * anything else into the generic redacted failure — one funnel, as the generic routes had. */
 export function sendAccountRouteFailure(
   reply: FastifyReply,
   error: unknown,

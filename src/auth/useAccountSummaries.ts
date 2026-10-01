@@ -25,10 +25,10 @@ import { m } from "@/i18n";
 // the tenant gate) so the picker has the list before a tenant is chosen.
 
 /** Coerce one UNTRUSTED `/api/accounts` array entry to an {@link AccountSummary}, or null if it's
- *  off-spec (not an object, missing id/name). A null entry is DROPPED — a malformed row must never
- *  crash the picker or smuggle a bogus account in. A valid account with an unrecognized role stays
- *  selectable under a fail-closed Viewer projection, but is explicitly tagged unavailable so the
- *  picker never presents Viewer as an authoritative membership role. */
+ * off-spec (not an object, missing id/name). A null entry is DROPPED — a malformed row must never
+ * crash the picker or smuggle a bogus account in. A valid account with an unrecognized role stays
+ * selectable under a fail-closed Viewer projection, but is explicitly tagged unavailable so the
+ * picker never presents Viewer as an authoritative membership role. */
 function parseAccountSummary(entry: unknown): AccountSummary | null {
   if (typeof entry !== "object" || entry === null) return null;
   const summaryRecord = entry as { id?: unknown; name?: unknown; role?: unknown };
@@ -138,14 +138,14 @@ async function readAccountSummaryFailureFallback({
  * `accountSummaries` there, so `setActiveAccount` would reject it without this refetch.
  *
  * @param requestOptions optional `{ signal }` threaded to the fetch — lets a caller BOUND the read (e.g.
- *             InviteAccept's `AbortSignal.timeout(5000)` best-effort activation step); an abort
- *             lands in the catch below and reports as null like any other failure.
+ * InviteAccept's `AbortSignal.timeout(5000)` best-effort activation step); an abort
+ * lands in the catch below and reports as null like any other failure.
  * @returns the validated list, or null on ANY failure (non-OK status, transport error, abort,
- *          a 200 whose body is not an array, or a NONEMPTY array in which no row survives
- *          validation) — fail-soft, matching the hook's leave-the-existing-list-alone stance;
- *          the caller decides what a null means for its flow. `[]` is reserved for a genuine
- *          empty array (a real "no accounts" answer). A mixed body keeps its valid rows; every
- *          dropped row leaves a `console.warn` breadcrumb.
+ * a 200 whose body is not an array, or a NONEMPTY array in which no row survives
+ * validation) — fail-soft, matching the hook's leave-the-existing-list-alone stance;
+ * the caller decides what a null means for its flow. `[]` is reserved for a genuine
+ * empty array (a real "no accounts" answer). A mixed body keeps its valid rows; every
+ * dropped row leaves a `console.warn` breadcrumb.
  */
 export async function fetchAccountSummaries(requestOptions?: {
   signal?: AbortSignal;

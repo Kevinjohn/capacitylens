@@ -80,7 +80,7 @@ export const OWNERSHIP_TRANSFER_LIVE_INDEX = "idx_account_ownership_transfers_li
 export const OWNERSHIP_TRANSFER_TARGET_INDEX = "idx_account_ownership_transfers_account_target";
 
 /** Reused verbatim by every statement in `ownershipTransfers.ts` so no reader has to check that two
- *  hand-written copies of "live" agree with the partial index — they are the same text. */
+ * hand-written copies of "live" agree with the partial index — they are the same text. */
 export const LIVE_STATES_PREDICATE = `state IN ('awaiting_target', 'awaiting_owner')`;
 
 export const SELECTED_COLUMNS = `id, accountId, initiatorUserId, targetUserId, state, revision,
@@ -177,14 +177,14 @@ function normalizeSql(sql: string): string {
  * a second live request — the one thing this table exists to prevent.
  */
 /** The v41 migration runner. It lives beside the frozen DDL it executes rather than inline in the
- *  ledger, because `db/migrations/index.ts` has no headroom under the 400-line ceiling and
- *  `db/migrations/definitions.ts` may not depend on a control table. The runner sits outside the
- *  checksum — `defineMigration` hashes version, name and definition only — so its home is free.
+ * ledger, because `db/migrations/index.ts` has no headroom under the 400-line ceiling and
+ * `db/migrations/definitions.ts` may not depend on a control table. The runner sits outside the
+ * checksum — `defineMigration` hashes version, name and definition only — so its home is free.
  *
- *  Assert while the migration transaction still owns both the DDL and the ledger write, so a
- *  malformed pre-existing IF-NOT-EXISTS object rolls the step back rather than leaving the live
- *  slot unguarded. A control-plane table, so no AppData schema moves and EXPORT_SCHEMA_VERSION
- *  stays put. */
+ * Assert while the migration transaction still owns both the DDL and the ledger write, so a
+ * malformed pre-existing IF-NOT-EXISTS object rolls the step back rather than leaving the live
+ * slot unguarded. A control-plane table, so no AppData schema moves and EXPORT_SCHEMA_VERSION
+ * stays put. */
 export function runOwnershipTransfersV41(db: Db): void {
   db.exec(OWNERSHIP_TRANSFER_REQUESTS_V41_SQL);
   assertOwnershipTransfersCurrent(db);

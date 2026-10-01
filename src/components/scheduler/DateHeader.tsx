@@ -17,7 +17,7 @@ interface Span {
   label: string;
   days: number;
   /** Index of the span's first day in `days` — lets the width come from `geom.spanWidth`
-   *  (so a span containing narrowed weekend columns is sized from their real widths). */
+   * (so a span containing narrowed weekend columns is sized from their real widths). */
   start: number;
 }
 

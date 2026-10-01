@@ -42,7 +42,7 @@ export function readCapacitylensLocalStorage(store: Storage = localStorage): Own
  * skip entries as the list re-indexes). Returns the number of keys removed.
  *
  * @throws if reading or removing from localStorage throws (storage unavailable) — the caller
- *   surfaces it; clearing is all-or-nothing only up to the failing key.
+ * surfaces it; clearing is all-or-nothing only up to the failing key.
  */
 export function clearCapacitylensLocalStorage(store: Storage = localStorage): number {
   const keys = listOwnedLocalStorageKeys(store);

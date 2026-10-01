@@ -17,8 +17,8 @@ import { useStore } from "@/store/useStore";
 // and malformed role lookups all project viewer so the UI cannot optimistically diverge.
 
 /** The resolved permission state for the ACTIVE account. `role: null` means "no role to enforce"
- *  (OFF / demo / no-provider) and resolves to fully editable — see the module
- *  header. A concrete {@link Role} (auth-on + server) is fed into the pure `can` matrix. */
+ * (OFF / demo / no-provider) and resolves to fully editable — see the module
+ * header. A concrete {@link Role} (auth-on + server) is fed into the pure `can` matrix. */
 export interface PermissionContextValue {
   role: Role | null;
   /** Resolution state is separate from the fail-closed role projection. During a pending or failed

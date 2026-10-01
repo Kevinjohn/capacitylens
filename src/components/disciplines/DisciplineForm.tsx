@@ -12,7 +12,7 @@ import { DEFAULT_COLORS } from "@/lib/palette";
 import type { Discipline } from "@capacitylens/shared/types/entities";
 
 /** Add (no `discipline`) or edit a discipline: name + colour. `sortOrder` is auto-assigned (one past
- *  the current max, not the count — see below). `onClose` fires on save or cancel. */
+ * the current max, not the count — see below). `onClose` fires on save or cancel. */
 export function DisciplineForm({ discipline, onClose }: { discipline?: Discipline; onClose: () => void }) {
   const add = useStore((state) => state.addDiscipline);
   const update = useStore((state) => state.updateDiscipline);

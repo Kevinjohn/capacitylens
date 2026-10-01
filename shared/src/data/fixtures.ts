@@ -149,8 +149,8 @@ export const FIXTURE_RESOURCE_PERSON: Resource = {
 };
 
 /** The external / 3rd-party kind: a company name + optional descriptor, and NO discipline or
- *  project binding (externals carry unused silent-default working hours/days). Proves `kind`
- *  round-trips through the server with the optional FK columns left NULL. */
+ * project binding (externals carry unused silent-default working hours/days). Proves `kind`
+ * round-trips through the server with the optional FK columns left NULL. */
 export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
   id: "fix-r2",
   accountId: "fix-a1",
@@ -176,8 +176,8 @@ export const FIXTURE_ACTIVITY: Activity = {
 };
 
 /** The internal & repeatable kinds: project-less by definition, so they OMIT projectId /
- *  phaseId entirely (not null — absent). Prove all three ActivityKind values round-trip through
- *  the server with the optional FK columns left NULL. */
+ * phaseId entirely (not null — absent). Prove all three ActivityKind values round-trip through
+ * the server with the optional FK columns left NULL. */
 export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
   id: "fix-t2",
   accountId: "fix-a1",

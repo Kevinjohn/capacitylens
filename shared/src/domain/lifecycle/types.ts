@@ -77,8 +77,8 @@ export function isValidTombstone(value: ISOTimestamp | null | undefined): value 
  *
  * @param entity - any object carrying the {@link LifecycleFields} (Resource/Client/Project).
  * @returns the derived state: `'deleted'` if `deletedAt` is set, else `'archived'` if `archivedAt`
- *          is valid, else `'active'`. Malformed legacy tombstones are ignored so the row derives
- *          to its nearest valid state and can be repaired by its next legal transition.
+ * is valid, else `'active'`. Malformed legacy tombstones are ignored so the row derives
+ * to its nearest valid state and can be repaired by its next legal transition.
  */
 export function lifecycleStatus(entity: LifecycleFields): LifecycleState {
   if (isValidTombstone(entity.deletedAt)) return "deleted";

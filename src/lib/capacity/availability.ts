@@ -14,7 +14,7 @@ export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate)
 }
 
 /** A saved half-day working pattern on this weekday — 4h of capacity instead of 8h. The scheduler's
- *  partial-capacity tint asks the same question, so both read this one definition. */
+ * partial-capacity tint asks the same question, so both read this one definition. */
 export function isHalfDay(resource: Resource, weekday: Weekday): boolean {
   return hasPersonalWorkingPattern(resource) && resource.halfDays.includes(weekday);
 }
@@ -108,7 +108,7 @@ interface ResolveAvailableHoursOnDayInput {
 }
 
 /** Available working hours for `resource` on `date`: 0 on a non-working weekday or time off,
- *  fixed 4h on a half day, otherwise fixed 8h. */
+ * fixed 4h on a half day, otherwise fixed 8h. */
 export function resolveAvailableHoursOnDay({
   resource,
   date,
@@ -134,14 +134,14 @@ interface ResolveAllocatedHoursOnDayInput {
 }
 
 /** Sum of allocated hours for `resource` on `date` across every overlapping allocation.
- *  A weekend-aware allocation (the default for a partial working week) does NO work on the
- *  effective week's non-working weekdays, so a bar that merely SPANS Sat/Sun contributes 0 there —
- *  matching how the same `isWeekendAware` rule governs the bar's duration and drag. An allocation
- *  that ignores the working calendars (`ignoreWeekends`) places its hours on every calendar day in
- *  `[startDate, endDate]`. A normal allocation with no effective week loads no days. Time-off days
- *  that remain effective weekdays still load, preserving the real over-capacity conflict.
+ * A weekend-aware allocation (the default for a partial working week) does NO work on the
+ * effective week's non-working weekdays, so a bar that merely SPANS Sat/Sun contributes 0 there —
+ * matching how the same `isWeekendAware` rule governs the bar's duration and drag. An allocation
+ * that ignores the working calendars (`ignoreWeekends`) places its hours on every calendar day in
+ * `[startDate, endDate]`. A normal allocation with no effective week loads no days. Time-off days
+ * that remain effective weekdays still load, preserving the real over-capacity conflict.
  *  @remarks Assumes each `hoursPerDay` is finite (see the top-of-file precondition) — a NaN would
- *    poison the sum and make every over/utilisation comparison read as "never over". */
+ * poison the sum and make every over/utilisation comparison read as "never over". */
 export function resolveAllocatedHoursOnDay({
   resource,
   date,

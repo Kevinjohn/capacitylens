@@ -236,7 +236,7 @@ function dispatchLocalLifecycle(
  * view already re-renders off the reloaded store `data`).
  *
  * @param onReloaded - optional; called once after each successful server-mode mutation completes its
- *                     reload, so a caller maintaining its own inactive-row list can re-fetch it.
+ * reload, so a caller maintaining its own inactive-row list can re-fetch it.
  */
 export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const mutationQueue = useRef<Promise<void>>(Promise.resolve());

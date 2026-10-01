@@ -33,8 +33,8 @@ export interface DaysModeOpts {
 export const MAX_SPAN_DAYS = MAX_MATERIALISED_DAYS;
 
 /** Which rule this call counts days by. Resolving the weekend-aware branch ONCE, and carrying the
- *  working-day array in the "workingDays" arm, is what lets the entry points below drop the
- *  `opts.workingDays!` non-null assertions they each used to repeat. */
+ * working-day array in the "workingDays" arm, is what lets the entry points below drop the
+ * `opts.workingDays!` non-null assertions they each used to repeat. */
 type SchedulingModeResolution = { kind: "calendar" } | { kind: "workingDays"; days: Weekday[] };
 
 function resolveSchedulingMode(options: DaysModeOpts): SchedulingModeResolution {
@@ -57,7 +57,7 @@ export function maxSpanDaysForStart(start: ISODate, options: DaysModeOpts): numb
 }
 
 /** The "days over" span of [start, end]: working days when weekend-aware, else
- *  inclusive calendar days. Always >= 1 for a non-reversed range. */
+ * inclusive calendar days. Always >= 1 for a non-reversed range. */
 export function spanDays(start: ISODate, end: ISODate, options: DaysModeOpts): number {
   const mode = resolveSchedulingMode(options);
   if (mode.kind === "workingDays") {
@@ -67,8 +67,8 @@ export function spanDays(start: ISODate, end: ISODate, options: DaysModeOpts): n
 }
 
 /** Inverse of `spanDays`: the end date such that [start, end] spans exactly
- *  `daysOver` days under the same working-day rule. Interactive callers validate a whole-number
- *  domain value first; the clamp remains a defensive boundary for imported/programmatic input. */
+ * `daysOver` days under the same working-day rule. Interactive callers validate a whole-number
+ * domain value first; the clamp remains a defensive boundary for imported/programmatic input. */
 export function endDateForSpan(start: ISODate, daysOver: number, options: DaysModeOpts): ISODate {
   // Clamp first to the product span, then to the working days that fit inside the persisted
   // calendar-span and four-digit-date boundaries.
@@ -96,13 +96,13 @@ export function daysOfWorkFor(hoursPerDay: number, daysOver: number, workingHour
 }
 
 /** Fraction of a working day a "blocks"-mode allocation consumes. Blocks are pure
- *  bookings — the span is all that matters, so load is 0 for now. Kept as a single
- *  named knob because user feedback may later make this configurable (e.g. 1 = 100%). */
+ * bookings — the span is all that matters, so load is 0 for now. Kept as a single
+ * named knob because user feedback may later make this configurable (e.g. 1 = 100%). */
 export const BLOCK_LOAD_FRACTION = 0;
 
 /** Hours/day persisted for a blocks-mode allocation: the block's load fraction of
- *  the assignee's working day. At fraction 0 this is 0h, so a block never counts
- *  toward utilisation or over-capacity. */
+ * the assignee's working day. At fraction 0 this is 0h, so a block never counts
+ * toward utilisation or over-capacity. */
 export function blockHoursPerDay(workingHoursPerDay: number): number {
   return workingHoursPerDay * BLOCK_LOAD_FRACTION;
 }

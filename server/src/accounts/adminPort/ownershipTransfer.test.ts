@@ -21,7 +21,7 @@ const observer: ActorContext = { ...owner, principalId: "barbara-gordon", sessio
 let db: Db | null = null;
 
 /** The seeded handle. A test that reaches for the database before `seedWorkspace` is a broken test,
- *  so this throws rather than letting an assertion run against nothing. */
+ * so this throws rather than letting an assertion run against nothing. */
 function seeded(): Db {
   if (!db) throw new Error("test database is not seeded");
   return db;
@@ -98,7 +98,7 @@ afterEach(() => {
 type CeremonyPort = ReturnType<typeof createPort>;
 
 /** One row command, named by its action. The five share an input shape, so a table-driven caller
- *  keeps a multi-step ceremony readable as the sequence of states it walks. */
+ * keeps a multi-step ceremony readable as the sequence of states it walks. */
 function act(
   port: CeremonyPort,
   action: "accept" | "withdraw" | "decline" | "cancel" | "complete",

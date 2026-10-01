@@ -10,10 +10,10 @@ import { useEffect, useState } from "react";
 // idle Settings tab does no periodic work at all.
 
 /** `setTimeout`'s 32-bit signed delay ceiling. A larger delay OVERFLOWS in the browser and fires
- *  IMMEDIATELY (and then repeatedly, once per re-armed render) instead of far in the future, so a
- *  distant deadline must be clamped rather than passed through. A clamped wake is not the deadline:
- *  the timer re-arms itself for the remainder (see below) rather than reporting a boundary that has
- *  not been crossed. */
+ * IMMEDIATELY (and then repeatedly, once per re-armed render) instead of far in the future, so a
+ * distant deadline must be clamped rather than passed through. A clamped wake is not the deadline:
+ * the timer re-arms itself for the remainder (see below) rather than reporting a boundary that has
+ * not been crossed. */
 const MAX_TIMEOUT_DELAY = 2_147_483_647;
 
 interface DeadlineClockInput {

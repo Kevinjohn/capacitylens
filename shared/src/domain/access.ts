@@ -255,7 +255,7 @@ export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf:
  * @param actorRolesByAccount   The acting user's role in each account they belong to.
  * @param targetRolesByAccount  The target user's role in each account they belong to.
  * @param isSelf                `true` iff the actor IS the target (a self-reset); skips the
- *                              cross-account authority check per the exemption above.
+ * cross-account authority check per the exemption above.
  * @returns `true` iff the actor may reset the target's global credential; `false` otherwise.
  */
 export function canResetMemberAcrossAccounts(

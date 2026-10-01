@@ -79,9 +79,9 @@ export class RepeatingDateError extends RangeError {
 }
 
 /** Range-guarded month length for this module's absolute-month arithmetic. The Gregorian leap rule
- *  and month table live ONCE, in integrity.ts (shared with `isValidISODate`); the guards here are
- *  this module's own contract — the month arithmetic below can compute an out-of-domain year, and
- *  these typed RangeErrors are what the callers catch to clamp instead of emitting a pseudo-date. */
+ * and month table live ONCE, in integrity.ts (shared with `isValidISODate`); the guards here are
+ * this module's own contract — the month arithmetic below can compute an out-of-domain year, and
+ * these typed RangeErrors are what the callers catch to clamp instead of emitting a pseudo-date. */
 function countDaysInMonth(year: number, month: number): number {
   if (!Number.isSafeInteger(year) || year < FIRST_SUPPORTED_YEAR || year > LAST_SUPPORTED_YEAR) {
     throw new RangeError("Date falls outside the supported four-digit ISO year range.");
@@ -123,8 +123,8 @@ export function maximumRepeatUntilDate(
 }
 
 /** Suggested cutoff for a newly enabled repeat: the end of the month two calendar months after
- *  the allocation start (August -> 31 October). Near the supported date ceiling it is clamped to
- *  the same maximum accepted by the form, so revealing the field never creates invalid state. */
+ * the allocation start (August -> 31 October). Near the supported date ceiling it is clamped to
+ * the same maximum accepted by the form, so revealing the field never creates invalid state. */
 export function defaultRepeatUntilDate(
   startDate: ISODate,
   policy: RepeatingDatePolicy = ALLOCATION_REPEAT_POLICY,

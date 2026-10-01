@@ -62,7 +62,7 @@ export function nextOwnershipTransferRevision(revision: string): string {
 }
 
 /** The company's live request, or `null`. At most one row can match — the partial unique index is
- *  what makes that a guarantee rather than a convention. */
+ * what makes that a guarantee rather than a convention. */
 const liveRequestStatement = cachedStatement(
   `SELECT ${SELECTED_COLUMNS} FROM account_ownership_transfers WHERE accountId = ? AND ${LIVE_STATES_PREDICATE}`,
 );
@@ -159,8 +159,8 @@ interface ApplyTransitionInput {
   nextState: OwnershipTransferState;
   nextRevision: string;
   /** The three mutable columns are always written explicitly, never left to carry over: `withdraw`
-   *  must CLEAR `targetAcceptedAt`, so an omitted column would silently keep a consent that was
-   *  taken back. */
+   * must CLEAR `targetAcceptedAt`, so an omitted column would silently keep a consent that was
+   * taken back. */
   targetAcceptedAt: string | null;
   terminalAt: string | null;
   terminalReason: OwnershipTransferTerminalReason | null;
@@ -184,8 +184,8 @@ const applyTransitionStatement = cachedStatement(
  * report or a race it loses quietly, and only the caller knows which command it was running.
  *
  * @throws Error if `expectedState` is terminal. Terminal rows are IMMUTABLE — they are the durable
- *   evidence a participant reads — so a caller asking to transition one is a programming fault, not
- *   a lost race, and must fail loudly rather than return an ambiguous `false`.
+ * evidence a participant reads — so a caller asking to transition one is a programming fault, not
+ * a lost race, and must fail loudly rather than return an ambiguous `false`.
  */
 export function applyTransition({
   db,
@@ -221,7 +221,7 @@ interface TerminaliseForAccountInput {
   accountId: string;
   reason: OwnershipTransferTerminalReason;
   /** The ISO instant stamped as `terminalAt` — the value written, not a clock read here, so the
-   *  whole transaction that caused the invalidation shares one instant. */
+   * whole transaction that caused the invalidation shares one instant. */
   now: string;
 }
 
@@ -270,9 +270,9 @@ export function terminaliseLiveRequestsForMember({
 }
 
 /** The two row sets an invalidation can name: one company's live requests, or the subset of them
- *  naming one principal. Each is a fixed pair of statements rather than an interpolated predicate,
- *  because this runs from the membership-write choke point and a per-call `prepare()` there is a
- *  SQL compile on the hot path. */
+ * naming one principal. Each is a fixed pair of statements rather than an interpolated predicate,
+ * because this runs from the membership-write choke point and a per-call `prepare()` there is a
+ * SQL compile on the hot path. */
 interface InvalidateScope {
   select: (db: Db) => PreparedStatement;
   update: (db: Db) => PreparedStatement;
@@ -304,8 +304,8 @@ interface InvalidateLiveInput {
 }
 
 /** The shared body of the two terminalisers. Reads the matching ids BEFORE the update so the caller
- *  learns exactly which rows it changed; both statements run inside the caller's transaction, so no
- *  row can appear or disappear between them. */
+ * learns exactly which rows it changed; both statements run inside the caller's transaction, so no
+ * row can appear or disappear between them. */
 function invalidateLive({ db, now, reason, scope, parameters }: InvalidateLiveInput): string[] {
   if (!ownershipTransfersTableExists(db)) return [];
   const rows = scope.select(db).all(...parameters) as Array<{ id: string; revision: string }>;
@@ -357,9 +357,9 @@ const sweepHistoryStatement = cachedStatement(
  * per-company policy, not a housekeeping job that rides along with whoever writes next.
  *
  * @param accountId  The company whose history is being bounded — the workspace the caller's mutation
- *   is locked and audited against.
+ * is locked and audited against.
  * @param now  The current instant in epoch milliseconds — arithmetic, not a stamp, which is why
- *   this one takes a number where the terminalisers take the ISO instant they WRITE.
+ * this one takes a number where the terminalisers take the ISO instant they WRITE.
  */
 export function sweepExpiredHistory(db: Db, accountId: string, now: number): number {
   if (!Number.isFinite(now)) {

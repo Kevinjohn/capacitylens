@@ -84,7 +84,7 @@ export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation
 }
 
 /** The status a confirmed lifecycle action writes. Kept beside buildMemberConfirmationCopy so a new action
- *  cannot be added to the union without deciding both its wording and its effect. */
+ * cannot be added to the union without deciding both its wording and its effect. */
 export const STATUS_FOR_ACTION: Readonly<Record<"disable" | "archive" | "restore", MembershipStatus>> = Object.freeze({
   disable: "disabled",
   archive: "archived",

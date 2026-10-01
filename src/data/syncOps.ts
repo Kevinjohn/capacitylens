@@ -18,11 +18,11 @@ export interface Op {
   id: string;
   row?: Entity;
   /** For a scoped-entity DELETE: the owning account (read from the pre-delete snapshot),
-   *  sent so the server can refuse a cross-account delete. Accounts are top-level and
-   *  carry none. */
+   * sent so the server can refuse a cross-account delete. Accounts are top-level and
+   * carry none. */
   accountId?: string;
   /** Stored revision of the row being deleted. Ordered browser-sync batches use it to distinguish
-   *  their own predecessor from an intervening edit before applying a successor deletion. */
+   * their own predecessor from an intervening edit before applying a successor deletion. */
   updatedAt?: string;
 }
 
@@ -103,17 +103,17 @@ function diffTable(table: TableKey, possibleBases: readonly AppData[], next: App
 }
 
 /** Compute the ordered operations that turn `prev` into `next`, applied as one
- *  transactional batch. Upserts run parent-first, then deletes run child-first. An
- *  entity is an "upsert" when it's new or its updatedAt changed (the store bumps
- *  updatedAt on every edit, so it's a reliable change marker); a "delete" when it's
- *  gone from `next`.
+ * transactional batch. Upserts run parent-first, then deletes run child-first. An
+ * entity is an "upsert" when it's new or its updatedAt changed (the store bumps
+ * updatedAt on every edit, so it's a reliable change marker); a "delete" when it's
+ * gone from `next`.
  *
- *  ORDER IS LOAD-BEARING: all upserts precede all deletes. Reparent + delete in one
- *  batch (e.g. move project P from client C1→C2, then delete C1) must apply P's new
- *  clientId BEFORE C1 is deleted — otherwise C1's `ON DELETE CASCADE` removes P (still
- *  bound to C1 in the DB) and its unmodified descendants, which carry no upsert op and
- *  would be lost. Doing upserts first lets the cascade find nothing to take.
- *  Exported for unit tests. */
+ * ORDER IS LOAD-BEARING: all upserts precede all deletes. Reparent + delete in one
+ * batch (e.g. move project P from client C1→C2, then delete C1) must apply P's new
+ * clientId BEFORE C1 is deleted — otherwise C1's `ON DELETE CASCADE` removes P (still
+ * bound to C1 in the DB) and its unmodified descendants, which carry no upsert op and
+ * would be lost. Doing upserts first lets the cascade find nothing to take.
+ * Exported for unit tests. */
 export function diffOps(previous: AppData, next: AppData): Op[] {
   return diffOpsFromPossibleBases([previous], next);
 }
@@ -139,12 +139,12 @@ export function diffOpsFromPossibleBases(possibleBases: readonly AppData[], next
 
 /** Apply a set of (already-confirmed) ops to a base snapshot, returning a NEW AppData.
  *
- *  Diff-replay utility, exported for unit tests. It is NOT wired into a partial-advance sync path:
- *  `ServerSyncAdapter.drain()` relies on BATCH ATOMICITY — a batch either fully applies or throws,
- *  so on success `lastSynced` advances to the WHOLE target (see drain), and there is no production
- *  caller that advances `lastSynced` by only-the-ops-that-landed. If a per-op partial-advance
- *  recovery is ever added, this is the building block; until then, don't assume sync recovers
- *  row-by-row from a partial flush. */
+ * Diff-replay utility, exported for unit tests. It is NOT wired into a partial-advance sync path:
+ * `ServerSyncAdapter.drain()` relies on BATCH ATOMICITY — a batch either fully applies or throws,
+ * so on success `lastSynced` advances to the WHOLE target (see drain), and there is no production
+ * caller that advances `lastSynced` by only-the-ops-that-landed. If a per-op partial-advance
+ * recovery is ever added, this is the building block; until then, don't assume sync recovers
+ * row-by-row from a partial flush. */
 export function applyOps(base: AppData, ops: Op[]): AppData {
   const next = {} as Record<TableKey, Entity[]>;
   // Same invariant as diffOps: `base` is post-migrate, so every table is an array; and `ops` are

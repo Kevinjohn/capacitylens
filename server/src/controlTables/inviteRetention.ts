@@ -13,9 +13,9 @@ import {
 } from "./retentionV24";
 
 /** One row of {@link listInvitesForAccount} — an account's outstanding-invite summary for the
- *  member-management UI. DELIBERATELY has NO `token` field: the bearer token is a write-once secret
- *  (returned to the creator at mint time and never again), so a read path must never carry it. The
- *  non-secret {@link Invite.id} is what list/revoke key on. */
+ * member-management UI. DELIBERATELY has NO `token` field: the bearer token is a write-once secret
+ * (returned to the creator at mint time and never again), so a read path must never carry it. The
+ * non-secret {@link Invite.id} is what list/revoke key on. */
 export interface InviteSummary {
   id: string;
   accountId: string;

@@ -138,7 +138,7 @@ function registerSourceCalendarTest() {
   const monToFri = [1, 2, 3, 4, 5] as const;
 
   /** The bar is drawn inset inside its column span, so its rendered width is not the raw geometry
-   *  width. Use the same geometry owner as production rather than reimplementing the formula. */
+   * width. Use the same geometry owner as production rather than reimplementing the formula. */
   const renderedWidth = (from: string, to: string) => {
     return buildAllocationBarInset(GEOM.xForDateInGeom(from), GEOM.widthForDates(from, to)).insetWidth;
   };

@@ -53,7 +53,7 @@ const DISALLOWED =
 const GRAPHEME_SEGMENTER = new Intl.Segmenter("en", { granularity: "grapheme" });
 
 /** True if `value` contains any disallowed character. In multiline mode, newlines and tabs
- *  (both Cc) are exempt so a note can wrap. */
+ * (both Cc) are exempt so a note can wrap. */
 export function hasDisallowedChars(value: string, options: { multiline?: boolean } = {}): boolean {
   const subject = options.multiline ? value.replace(/[\n\t]/g, "") : value;
   return DISALLOWED.test(subject);
@@ -70,8 +70,8 @@ function stripDisallowedCharacters(value: string): string {
 }
 
 /** Strip disallowed characters, collapse whitespace runs, trim, and cap length. Used on
- *  the import + server write paths where rejecting isn't an option. Iterates by code
- *  point so surrogate pairs / emoji are dropped as whole characters. */
+ * the import + server write paths where rejecting isn't an option. Iterates by code
+ * point so surrogate pairs / emoji are dropped as whole characters. */
 export function cleanText(value: string, options: { multiline?: boolean; maxLength?: number } = {}): string {
   const multiline = options.multiline ?? false;
   let out = stripDisallowedCharacters(value);

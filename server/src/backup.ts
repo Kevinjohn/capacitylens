@@ -25,14 +25,14 @@ export interface Backups {
     lastSuccessAt: string | null;
   }>;
   /** Take one snapshot; resolves to the file written. Also used by the start-up shot.
-   *  Concurrency contract: calls SERIALIZE — a call made while another snapshot is in flight
-   *  queues behind it (two writers pruning the same dir would race), and each call's own
-   *  rejection is its own to surface (a predecessor's failure never fails a queued call).
-   *  Rejects immediately once stop() has begun: shutdown closes the DB right after the drain,
-   *  so a snapshot accepted here could only run against a closing handle. */
+   * Concurrency contract: calls SERIALIZE — a call made while another snapshot is in flight
+   * queues behind it (two writers pruning the same dir would race), and each call's own
+   * rejection is its own to surface (a predecessor's failure never fails a queued call).
+   * Rejects immediately once stop() has begun: shutdown closes the DB right after the drain,
+   * so a snapshot accepted here could only run against a closing handle. */
   snapshotNow(): Promise<string>;
   /** Clears the timer, then resolves once the WHOLE in-flight snapshot chain has drained — the
-   *  shutdown path must not close the DB under a running (or queued) backup. Never rejects. */
+   * shutdown path must not close the DB under a running (or queued) backup. Never rejects. */
   stop(): Promise<void>;
 }
 export const MAX_BACKUP_INTERVAL_MIN = 35_000;
@@ -89,8 +89,8 @@ function parseBoundedFloor({ name, raw, fallback, max, reportSubstitution }: Par
 }
 
 /** Fail-closed env parse: no CAPACITYLENS_BACKUP_DIR ⇒ null ⇒ backups don't exist. The numeric
- *  knobs are only read when backups are on; junk/low values use the documented defaults while
- *  over-limit values clamp to the published operator-safety ceiling. */
+ * knobs are only read when backups are on; junk/low values use the documented defaults while
+ * over-limit values clamp to the published operator-safety ceiling. */
 export function parseBackupConfig(
   environment: Record<string, string | undefined>,
   log: (message: string) => void = () => {},

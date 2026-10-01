@@ -39,7 +39,7 @@ export { runAuthMigrations, planAuthSchemaMigrations, BOOTSTRAP_ADMIN_EMAIL } fr
 // never touch them.
 
 /** Misconfiguration that must refuse boot loudly (same posture as assertSchemaCurrent) —
- *  the entrypoint catches this, prints the message, and exits 1. */
+ * the entrypoint catches this, prints the message, and exits 1. */
 export class AuthConfigError extends Error {}
 
 // Constant-time secret compare shared by the first-run setup token and bootstrap
@@ -223,8 +223,8 @@ export function ensureAuthControlTables(db: Db, environment: Env): void {
 }
 
 /** Structural half of a SQLite UNIQUE-constraint collision on the bootstrap-claim insert,
- *  shared by both acquisition sites. Each caller ORs its own message-regex clause on top (the
- *  two patterns differ deliberately for now), so this only covers the code/errcode probe. */
+ * shared by both acquisition sites. Each caller ORs its own message-regex clause on top (the
+ * two patterns differ deliberately for now), so this only covers the code/errcode probe. */
 function isSqliteConstraintCollision(sqlite: { code?: unknown; errcode?: unknown }): boolean {
   return sqlite.errcode === 19 || (typeof sqlite.code === "string" && sqlite.code.startsWith("SQLITE_CONSTRAINT"));
 }

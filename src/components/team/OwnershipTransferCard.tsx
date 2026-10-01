@@ -29,7 +29,7 @@ function memberLabel(members: readonly TeamMember[], userId: string): string {
 }
 
 /** One sentence for one terminal reason. Shared by the historic outcome and by the outcome a
- *  command just committed, so the two can never explain the same reason differently. */
+ * command just committed, so the two can never explain the same reason differently. */
 function describeReason(reason: OwnershipTransferTerminalReason | null, state: OwnershipTransferState): string {
   switch (reason) {
     case "target_declined":
@@ -52,7 +52,7 @@ function describeReason(reason: OwnershipTransferTerminalReason | null, state: O
 }
 
 /** The two things the dialog says about the last action: what it committed, and what went wrong.
- *  Both are answers to the command the viewer just gave, so they live together. */
+ * Both are answers to the command the viewer just gave, so they live together. */
 function CeremonyAlerts({ controller }: { controller: OwnershipTransferController }) {
   const terminal = controller.lastTerminal;
   return (
@@ -81,8 +81,8 @@ interface NominatePanelProps {
 }
 
 /** The Owner's half: choose an Admin and propose. Only active Admins are offered — the ceremony
- *  hands the company to someone who already administers it, so a lower tier would be an elevation
- *  of two steps on one person's say-so, and the server refuses it regardless. */
+ * hands the company to someone who already administers it, so a lower tier would be an elevation
+ * of two steps on one person's say-so, and the server refuses it regardless. */
 function NominatePanel({ controller, candidates, replacing }: NominatePanelProps) {
   const [selected, setSelected] = useState("");
   if (candidates.length === 0) {
@@ -117,7 +117,7 @@ function NominatePanel({ controller, candidates, replacing }: NominatePanelProps
 }
 
 /** Who may be nominated: the company's active Admins, never the person a live request already
- *  names. Offering the current nominee again would ask the server to replace a request with itself. */
+ * names. Offering the current nominee again would ask the server to replace a request with itself. */
 function adminCandidates(members: readonly TeamMember[], excludeUserId?: string): readonly TeamMember[] {
   return members.filter(
     (member) => member.role === "admin" && member.status === "active" && member.userId !== excludeUserId,
@@ -148,8 +148,8 @@ interface StepButtonProps {
 }
 
 /** One ceremony step as a button. Every step sends the same command against the same request at the
- *  revision the dialog read, so the only things that vary are which step, how it reads and whether it
- *  is the primary action of the pair. */
+ * revision the dialog read, so the only things that vary are which step, how it reads and whether it
+ * is the primary action of the pair. */
 function StepButton({ controller, request, step, label, variant }: StepButtonProps) {
   return (
     <Button
@@ -255,7 +255,7 @@ interface CeremonyBodyProps {
 }
 
 /** What the dialog shows once it has something to say: the live ceremony, or the nomination control,
- *  or the explanation of how the last one ended. */
+ * or the explanation of how the last one ended. */
 function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProps) {
   const live = controller.projection?.live ?? null;
   const outcome = controller.projection?.latestOutcome ?? null;
@@ -276,7 +276,7 @@ function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProp
 }
 
 /** How the last ceremony this viewer took part in ended, dated. The row is retained for a year, so
- *  an undated sentence would read as news every time the team page is opened. */
+ * an undated sentence would read as news every time the team page is opened. */
 function LastOutcome({ outcome }: { outcome: OwnershipTransferView | null }) {
   if (outcome === null) return null;
   const said = describeReason(outcome.terminalReason, outcome.state);
@@ -291,7 +291,7 @@ function LastOutcome({ outcome }: { outcome: OwnershipTransferView | null }) {
 }
 
 /** Only the current Owner may propose, and only when nothing is already live. The server enforces
- *  this; hiding the control merely keeps the card honest about what it offers. */
+ * this; hiding the control merely keeps the card honest about what it offers. */
 function mayNominate(controller: OwnershipTransferController, principalId: string | null): boolean {
   if (controller.projection?.live) return false;
   return controller.members.some((member) => member.userId === principalId && member.role === "owner");

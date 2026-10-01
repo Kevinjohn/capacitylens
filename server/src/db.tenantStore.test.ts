@@ -143,9 +143,9 @@ const timeOff = ({ id, accountId, resourceId, note }: TimeOffInput) => ({
 });
 
 /** All readSlice calls below pass includeTimeOffNote (REQUIRED) AND includeInactive (REQUIRED);
- *  the isolation/shape tests want the FULL slice, so they pass both `true` (every note + every
- *  archived/deleted row). The note redaction and the lifecycle projection each get their
- *  own describe block where the relevant flag is flipped. */
+ * the isolation/shape tests want the FULL slice, so they pass both `true` (every note + every
+ * archived/deleted row). The note redaction and the lifecycle projection each get their
+ * own describe block where the relevant flag is flipped. */
 const FULL = {
   includeTimeOffNote: true,
   includeInactive: true,

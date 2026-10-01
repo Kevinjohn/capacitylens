@@ -26,7 +26,7 @@ import type { Project } from "@capacitylens/shared/types/entities";
 type ProjectPrivacy = NonNullable<ReturnType<ReturnType<typeof usePrivateNameFields>["parsePrivacyPatch"]>>;
 
 /** Add (no `project`) or edit a project: name, REQUIRED client, preset colour. `onClose` fires on
- *  save or cancel. */
+ * save or cancel. */
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
   const add = useStore((state) => state.addProject);
   const update = useStore((state) => state.updateProject);

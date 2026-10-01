@@ -21,14 +21,14 @@ export function useOfflineState() {
 }
 
 /** Reactive view of the offline-read PREFERENCE — has the user opted this device in? Distinct from
- *  {@link useOfflineState}, which reports whether offline reading is currently in EFFECT; this is the
- *  toggle's own value, and it fails closed when the preference cannot be read. */
+ * {@link useOfflineState}, which reports whether offline reading is currently in EFFECT; this is the
+ * toggle's own value, and it fails closed when the preference cannot be read. */
 export function useOfflineReadEnabled(): boolean {
   return useSyncExternalStore(subscribeOfflinePreference, isOfflineReadEnabled, isOfflineReadEnabled);
 }
 
 /** Reactive view of the process-local persistence counters (failed saves, rebased edits, whether
- *  persistence is suspended) that the Diagnostics page adds to its support report. */
+ * persistence is suspended) that the Diagnostics page adds to its support report. */
 export function usePersistenceDiagnostics() {
   return useSyncExternalStore(
     subscribePersistenceDiagnostics,

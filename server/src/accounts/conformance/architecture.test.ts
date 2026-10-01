@@ -402,8 +402,8 @@ describe("account-boundary architecture", () => {
 });
 
 /** Every account-administration path the HTTP adapter owns. The ceremony's six write paths are
- *  listed individually: the guard asserts each one appears in the adapter and in NO app-boundary
- *  file, so a route that drifted out of the adapter would otherwise stop being guarded silently. */
+ * listed individually: the guard asserts each one appears in the adapter and in NO app-boundary
+ * file, so a route that drifted out of the adapter would otherwise stop being guarded silently. */
 const EXTRACTED_ACCOUNT_ROUTE_PATHS = [
   "/api/invites",
   "/api/invites/:token/preview",

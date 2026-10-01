@@ -15,12 +15,12 @@ export interface AuditRecord {
   /** The tenant the mutation targeted. */
   accountId: string;
   /** The kind of mutation. The lifecycle quartet is distinct from the generic CRUD verbs:
-   *  `archive`/`unarchive` flip the `archivedAt` tombstone, `softDelete` sets `deletedAt` (and, for a
-   *  resource, scrubs the PII `name`), and `purge` is the HARD cascade row-delete of a ≥30-day-old
-   *  tombstone. They stay distinct from `delete` (the generic by-id row delete) so the audit trail
-   *  tells a reversible soft-delete apart from an irreversible purge. changedFields stay field NAMES
-   *  only (e.g. `['archivedAt']`, `['deletedAt','name','allocations.note']`) — never values (the
-   *  no-PII invariant). */
+   * `archive`/`unarchive` flip the `archivedAt` tombstone, `softDelete` sets `deletedAt` (and, for a
+   * resource, scrubs the PII `name`), and `purge` is the HARD cascade row-delete of a ≥30-day-old
+   * tombstone. They stay distinct from `delete` (the generic by-id row delete) so the audit trail
+   * tells a reversible soft-delete apart from an irreversible purge. changedFields stay field NAMES
+   * only (e.g. `['archivedAt']`, `['deletedAt','name','allocations.note']`) — never values (the
+   * no-PII invariant). */
   action:
     | "create"
     | "update"
@@ -41,8 +41,8 @@ export interface AuditRecord {
     | "memberRemove"
     | "ownershipTransfer"
     /** A step of the ownership transfer consent ceremony that did NOT move ownership: a nomination,
-     *  the nominee's consent or its withdrawal, a decline, a cancellation. `ownershipTransfer` stays
-     *  reserved for completion, the moment the roles actually change hands. */
+     * the nominee's consent or its withdrawal, a decline, a cancellation. `ownershipTransfer` stays
+     * reserved for completion, the moment the roles actually change hands. */
     | "ownershipTransferRequest"
     | "inviteCreate"
     | "inviteAccept"
@@ -90,8 +90,8 @@ export interface AuditSink {
 /** fileAuditSink's rotation knob. */
 export interface FileAuditSinkOptions {
   /** Rotate before the next complete line would exceed this size, in bytes. A single larger line
-   *  is rejected and degrades the sink. Default 64 MiB (see DEFAULT_MAX_BYTES) — an unbounded
-   *  JSONL append-forever log eventually fills the disk, which then fails SQLite writes too. */
+   * is rejected and degrades the sink. Default 64 MiB (see DEFAULT_MAX_BYTES) — an unbounded
+   * JSONL append-forever log eventually fills the disk, which then fails SQLite writes too. */
   maxBytes?: number;
   /** Test seam for the one-time existing-file permission pin. */
   pinPermissions?: (file: string, mode: number) => void;

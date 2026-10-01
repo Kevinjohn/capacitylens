@@ -13,16 +13,16 @@ interface BootstrapOptions {
   /** Used only on a genuine first run (nothing ever persisted). */
   seedIfEmpty?: AppData;
   /** Called when a persistence write fails (e.g. storage quota exceeded, or the
-   *  server is unreachable). */
+   * server is unreachable). */
   onError?: (error: unknown) => void;
   /** Called after a persistence write succeeds — lets the caller clear a prior
-   *  error state once saving recovers (e.g. the server comes back). */
+   * error state once saving recovers (e.g. the server comes back). */
   onSuccess?: () => void;
   /** True when a backend is in use — server mode (the default; false only in the demo build,
-   *  VITE_CAPACITYLENS_DEMO=1). Enables the per-account switch
-   *  orchestrator: a tenant pick hydrates that account's slice via `loadAll(accountId)` and
-   *  re-seeds the diff snapshot atomically. The demo build (false) leaves the orchestrator inert — `data`
-   *  already holds all accounts, so a switch is a pure view change. */
+   * VITE_CAPACITYLENS_DEMO=1). Enables the per-account switch
+   * orchestrator: a tenant pick hydrates that account's slice via `loadAll(accountId)` and
+   * re-seeds the diff snapshot atomically. The demo build (false) leaves the orchestrator inert — `data`
+   * already holds all accounts, so a switch is a pure view change. */
   serverMode?: boolean;
 }
 

@@ -214,7 +214,7 @@ export function buildSessionUser(raw: RawSessionUser): SessionUser {
 }
 
 /** Re-assert HTTPS at the session boundary so a malformed provider or hand-edited value
- *  cannot reach the client as an image source. */
+ * cannot reach the client as an image source. */
 function parseImageUrl(value: unknown): string | null {
   return typeof value === "string" && value.startsWith("https://") ? value : null;
 }

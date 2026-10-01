@@ -113,19 +113,19 @@ export function migrateSchema(db: Db): void {
 }
 
 /** Rebuild the `activities` table (the SQLite-docs 'create new + copy + drop + rename' approach,
- *  simplified — there are no indexes/triggers/views to carry over, see the ASSUMPTION below) to bring
- *  it to the pre-v36 shape —
- *  nullable projectId AND a required `kind` column — while preserving rows + the foreign keys
- *  other tables hold against activities(id). The target DDL mirrors the pre-v36 `activities` block
- *  in SCHEMA_V8_SQL; v36 adds the lifecycle columns explicitly afterward.
- *  `kind` is preserved when the source schema already has it. Only genuinely pre-kind schemas
- *  derive it from projectId presence ('project' versus 'repeatable').
+ * simplified — there are no indexes/triggers/views to carry over, see the ASSUMPTION below) to bring
+ * it to the pre-v36 shape —
+ * nullable projectId AND a required `kind` column — while preserving rows + the foreign keys
+ * other tables hold against activities(id). The target DDL mirrors the pre-v36 `activities` block
+ * in SCHEMA_V8_SQL; v36 adds the lifecycle columns explicitly afterward.
+ * `kind` is preserved when the source schema already has it. Only genuinely pre-kind schemas
+ * derive it from projectId presence ('project' versus 'repeatable').
  *
- *  ASSUMPTION (true today, verified): `activities` has NO indexes, triggers, or extra constraints
- *  beyond the inline column ones. The drop+rename silently discards any such auxiliary object, so
- *  if one is ever added to `activities`, this rebuild must be updated to recreate it AFTER the rename —
- *  otherwise a migration would quietly lose it. (If that risk grows, gate with a PRAGMA index_list
- *  check that throws on anything unexpected.) */
+ * ASSUMPTION (true today, verified): `activities` has NO indexes, triggers, or extra constraints
+ * beyond the inline column ones. The drop+rename silently discards any such auxiliary object, so
+ * if one is ever added to `activities`, this rebuild must be updated to recreate it AFTER the rename —
+ * otherwise a migration would quietly lose it. (If that risk grows, gate with a PRAGMA index_list
+ * check that throws on anything unexpected.) */
 function rebuildActivitiesTable(db: Db, sourceHasKind: boolean): void {
   const kindExpression = sourceHasKind
     ? "kind"

@@ -30,7 +30,7 @@ function cleanupDownloadArtifacts(
  * request or prevent the file from being persisted; the platform exposes no reliable completion.
  *
  * @throws {Error} if creating or invoking the request throws. Callers must not describe a
- *   successful return as proof that the activation was accepted or the file was saved.
+ * successful return as proof that the activation was accepted or the file was saved.
  */
 export function downloadTextFile(filename: string, content: string, type = "application/json"): void {
   let url: string | undefined;

@@ -18,10 +18,10 @@ const ReauthDialog = lazy(() =>
 );
 
 /** Bridges the module-level re-auth coordinator (reauthCoordinator.ts) into React: subscribes to the
- *  pending flag via useSyncExternalStore and, while a SESSION_NOT_FRESH step-up is pending, renders
- *  the lazy ReauthDialog. Mounted INSIDE the authenticated provider (and only in auth-on, never
- *  'off') so it always has the live session's authMode/user/providers — auth-off never receives a
- *  freshness 403, so it needs no step-up UI. */
+ * pending flag via useSyncExternalStore and, while a SESSION_NOT_FRESH step-up is pending, renders
+ * the lazy ReauthDialog. Mounted INSIDE the authenticated provider (and only in auth-on, never
+ * 'off') so it always has the live session's authMode/user/providers — auth-off never receives a
+ * freshness 403, so it needs no step-up UI. */
 export function ReauthMount({
   authMode,
   user,

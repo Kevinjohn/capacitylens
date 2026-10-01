@@ -26,8 +26,8 @@ export const OWNERSHIP_TRANSFER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 
 /** Has a request with this deadline passed it? The bound is exclusive: a request is live for every
- *  instant strictly before `expiresAt`, so the deadline instant itself is already expired. Both
- *  values are server-generated ISO instants; a client clock never participates. */
+ * instant strictly before `expiresAt`, so the deadline instant itself is already expired. Both
+ * values are server-generated ISO instants; a client clock never participates. */
 export function isOwnershipTransferExpired(expiresAt: string, now: number): boolean {
   // Parsed by the repository's own ISO reader rather than `Date.parse`, which accepts shapes the
   // rest of the codebase rejects; `inviteIsExpired` reads its deadline the same way.
@@ -88,8 +88,8 @@ export function canActOnOwnershipTransfer(
 }
 
 /** May this caller see this request at all? Participants only — a transfer in progress, and who it
- *  names, is not ordinary member-management information, so other Admins and every lower role read
- *  nothing rather than a redacted something. */
+ * names, is not ordinary member-management information, so other Admins and every lower role read
+ * nothing rather than a redacted something. */
 export function canReadOwnershipTransfer({
   isInitiator,
   isTarget,

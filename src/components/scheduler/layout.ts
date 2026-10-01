@@ -79,17 +79,17 @@ export interface SchedulerDensity {
   /** Discipline band header. Never scaled by design — see rule 2 above. */
   groupHeaderHeight: number;
   /** Height of the left column's identity band — exactly one lane band, so the name/avatar stays
-   *  aligned with the first bar however tall a multi-allocation row grows. Mirrors the single-lane
-   *  case of `resolveRowHeightForLanes`; the two must move together. */
+   * aligned with the first bar however tall a multi-allocation row grows. Mirrors the single-lane
+   * case of `resolveRowHeightForLanes`; the two must move together. */
   identityBandHeight: number;
   /** Toolbar block padding and wrap-row gap, in px. Y axis only: the toolbar's horizontal gap is
-   *  fixed, because widening it would make the row wrap sooner and fight the Reflow behaviour
-   *  SchedulerToolbar documents. */
+   * fixed, because widening it would make the row wrap sooner and fight the Reflow behaviour
+   * SchedulerToolbar documents. */
   toolbarPadY: number;
   toolbarGapY: number;
   /** Left-hand nav rhythm, in px: gap between menu items, block padding of each section, and the
-   *  gap between sections/footer rows. Item HEIGHT is untouched (content, per rule 1), so the
-   *  collapsed icon rail — which pins each button to a square — is unaffected. */
+   * gap between sections/footer rows. Item HEIGHT is untouched (content, per rule 1), so the
+   * collapsed icon rail — which pins each button to a square — is unaffected. */
   navMenuGapY: number;
   navSectionPadY: number;
   navSectionGapY: number;

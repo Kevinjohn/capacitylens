@@ -71,8 +71,8 @@ export function resolveRepeatPattern(selection: Exclude<RepeatSelection, "none">
  *
  * @throws Error when the resolved resource does not match the draft.
  * @throws RangeError when a working-span mode receives an invalid `daysOver` value, has no effective
- *   working days, or a projected range leaves the supported ISO-date domain. Record-creation callers
- *   reject an empty effective week before projection so copy is routed to the assignee/form surface.
+ * working days, or a projected range leaves the supported ISO-date domain. Record-creation callers
+ * reject an empty effective week before projection so copy is routed to the assignee/form surface.
  */
 export function buildRepeatedAllocationDrafts(
   baseDraft: Draft<Allocation>,
@@ -232,7 +232,7 @@ function createSharedLoad({
 }
 
 /** The one window every draft in the batch falls inside, or `null` when it is too wide to
- *  materialise (the ceiling `buildCapacityAdvisory` already refuses a single window at). */
+ * materialise (the ceiling `buildCapacityAdvisory` already refuses a single window at). */
 function resolveSharedLoadWindow(drafts: readonly Draft<Allocation>[]): { start: ISODate; end: ISODate } | null {
   const first = drafts[0];
   if (!first) return null;

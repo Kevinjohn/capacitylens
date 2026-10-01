@@ -29,7 +29,7 @@ beforeEach(() => {
 const personDraft = makeResourceDraft({ name: "Person", role: "Dev", color: "#1" });
 
 /** The shared draft seeds isFavourite: false; the two favourite specs pin the ABSENT flag, so they
- *  add a resource carrying no flag at all. */
+ * add a resource carrying no flag at all. */
 const unflaggedDraft = { ...personDraft };
 delete unflaggedDraft.isFavourite;
 

@@ -68,11 +68,11 @@ export class BoundedWorkQueue {
   }
 
   /** The indexOf+splice withdrawal shared by the abort and wait-timeout paths only — the
-   *  dequeue-on-settle path (execute()'s finally) always takes the front item via shift() and never
-   *  calls this. Returns whether `item` was still queued (and so was removed): both callers must
-   *  treat `false` as "another path already withdrew it" and do nothing further — no reject, no
-   *  cleanup of the other conditional resource, no starting work. That decision, and the caller's own
-   *  operation order, stays with the caller. */
+   * dequeue-on-settle path (execute()'s finally) always takes the front item via shift() and never
+   * calls this. Returns whether `item` was still queued (and so was removed): both callers must
+   * treat `false` as "another path already withdrew it" and do nothing further — no reject, no
+   * cleanup of the other conditional resource, no starting work. That decision, and the caller's own
+   * operation order, stays with the caller. */
   private removeFromWaiting(item: WaitingWork): boolean {
     const index = this.waiting.indexOf(item);
     if (index < 0) return false;

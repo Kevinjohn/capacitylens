@@ -20,20 +20,20 @@ export interface ColumnGeometry {
   /** Total px width of the whole window (= offsets[n]). */
   readonly totalWidth: number;
   /** weekdays[i] = weekday of visible day i (0 = Sunday … 6 = Saturday), summed alongside the
-   *  widths. Consumers asking "is this column a week start / a weekend?" read it from here rather
-   *  than re-parsing the date: the lanes ask that per day PER ROW, so the parses otherwise
-   *  multiply by the number of visible resources on every render. */
+   * widths. Consumers asking "is this column a week start / a weekend?" read it from here rather
+   * than re-parsing the date: the lanes ask that per day PER ROW, so the parses otherwise
+   * multiply by the number of visible resources on every render. */
   readonly weekdays: number[];
   /** True at/above `DAY_COLUMN_MIN_WIDTH`: the zoom is fine enough for per-day columns (the header
-   *  renders day cells rather than week blocks, and the lanes paint their per-day decorations).
-   *  The SINGLE answer to that question — header, lanes and `minimiseActive` all read it here, so
-   *  they cannot flip a zoom step apart. */
+   * renders day cells rather than week blocks, and the lanes paint their per-day decorations).
+   * The SINGLE answer to that question — header, lanes and `minimiseActive` all read it here, so
+   * they cannot flip a zoom step apart. */
   readonly perDayColumns: boolean;
   /** True at/above `WEEKDAY_LABEL_MIN_WIDTH`: the columns have room for the weekday letters
-   *  (Mon/Tue…) on top of the date number. Implies {@link perDayColumns}. */
+   * (Mon/Tue…) on top of the date number. Implies {@link perDayColumns}. */
   readonly showWeekdayLabels: boolean;
   /** True when weekends are actually being narrowed (the pref is on AND the zoom is fine
-   *  enough that per-day columns render). The header keys its "S" weekend label off this. */
+   * enough that per-day columns render). The header keys its "S" weekend label off this. */
   readonly minimiseActive: boolean;
   /** Left edge px of column `index`, clamped to [0, n] (so an out-of-range index pins to an edge). */
   x(index: number): number;
@@ -42,17 +42,17 @@ export interface ColumnGeometry {
   /** Px width spanning columns [startIdx, endIdx] inclusive (≥ 0; 0 when reversed). */
   spanWidth(startIndex: number, endIndex: number): number;
   /** Inverse of {@link x}: a lane-relative pointer x → day index, clamped to [0, n-1].
-   *  The EXACT inverse at boundaries — a click at offsets[i] → i, at offsets[i]-ε → i-1. */
+   * The EXACT inverse at boundaries — a click at offsets[i] → i, at offsets[i]-ε → i-1. */
   indexAt(px: number): number;
   /** {@link indexAt} for a container's `scrollLeft`: it ROUNDS first. Every scroll-position read
-   *  must go through this rather than `indexAt` directly — see resolveWeekStartSnapTarget.ts's "SUB-PIXEL ROUNDING"
-   *  note for the full rationale (a HiDPI browser can store scrollLeft a fraction BELOW an integer
-   *  column boundary, and indexAt's strict floor would resolve that to the previous — under
-   *  minimised weekends, much narrower — column). */
+   * must go through this rather than `indexAt` directly — see resolveWeekStartSnapTarget.ts's "SUB-PIXEL ROUNDING"
+   * note for the full rationale (a HiDPI browser can store scrollLeft a fraction BELOW an integer
+   * column boundary, and indexAt's strict floor would resolve that to the previous — under
+   * minimised weekends, much narrower — column). */
   indexAtScroll(scrollLeft: number): number;
   /** Left edge px of a date. Extrapolates at FULL width outside the window (a bar starting
-   *  before day 0 still overflows off-screen-left exactly as it did under the uniform grid),
-   *  so off-window bars clip correctly. Returns 0 for an unparseable date (no NaN geometry). */
+   * before day 0 still overflows off-screen-left exactly as it did under the uniform grid),
+   * so off-window bars clip correctly. Returns 0 for an unparseable date (no NaN geometry). */
   xForDateInGeom(date: ISODate): number;
   /** Px width of the inclusive date range [start, end] (≥ 0; 0 when reversed or unparseable). */
   widthForDates(start: ISODate, end: ISODate): number;
@@ -64,7 +64,7 @@ export interface ColumnGeometryOptions {
   /** Resolved px width for a narrowed weekend column (e.g. WEEKEND_COLUMN_REM × root font px). */
   weekendWidth: number;
   /** Integer width assigned to every calendar week by the viewport fit. Any pixels left after
-   *  the base day/weekend widths are spread across individual columns, keeping integer offsets. */
+   * the base day/weekend widths are spread across individual columns, keeping integer offsets. */
   targetWeekWidth?: number;
 }
 

@@ -106,19 +106,19 @@ export interface StoreEntityActions {
   // All four are viewer-no-op and stale-id-no-op, and invalid transitions throw a display-safe Error
   // (the UI gates with the can* predicates first; the throw is the defense-in-depth backstop).
   /** Archive an entity (active → archived). DEMO-build path; surface-not-swallow — `archive` throws
-   *  if the row isn't active. @param entity which tombstone table. @param id the row to archive. */
+   * if the row isn't active. @param entity which tombstone table. @param id the row to archive. */
   archiveEntity: (entity: LifecycleEntity, id: ID) => void;
   /** Un-archive an entity (archived → active). DEMO-build path; `unarchive` throws if the row isn't
-   *  archived. @param entity which tombstone table. @param id the row to restore. */
+   * archived. @param entity which tombstone table. @param id the row to restore. */
   unarchiveEntity: (entity: LifecycleEntity, id: ID) => void;
   /** Soft-delete an entity (archived → deleted tombstone). DEMO-build path; `softDelete` throws unless
-   *  the row is archived first (the lifecycle requires prior archival). For a `resources` row the
-   *  tombstone's `name` is ALSO scrubbed via the shared `obfuscateResource` — the local copy retains
-   *  no original PII while it awaits purge. @param entity which tombstone table. @param id the row. */
+   * the row is archived first (the lifecycle requires prior archival). For a `resources` row the
+   * tombstone's `name` is ALSO scrubbed via the shared `obfuscateResource` — the local copy retains
+   * no original PII while it awaits purge. @param entity which tombstone table. @param id the row. */
   softDeleteEntity: (entity: LifecycleEntity, id: ID) => void;
   /** Hard-purge a soft-deleted tombstone (physically remove + cascade its children). DEMO-build path.
-   *  Enforces the {@link PURGE_MIN_AGE_DAYS} grace window via `canPurge`: if the tombstone is too young
-   *  it does NOT mutate and surfaces an error notice instead of throwing (a refused affordance, not a
-   *  bug). @param entity which tombstone table. @param id the tombstone to purge. */
+   * Enforces the {@link PURGE_MIN_AGE_DAYS} grace window via `canPurge`: if the tombstone is too young
+   * it does NOT mutate and surfaces an error notice instead of throwing (a refused affordance, not a
+   * bug). @param entity which tombstone table. @param id the tombstone to purge. */
   purgeEntity: (entity: LifecycleEntity, id: ID) => void;
 }

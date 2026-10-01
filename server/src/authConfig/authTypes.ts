@@ -32,10 +32,10 @@ export interface CreateCredentialUserInput {
 }
 
 /** The narrow Better Auth surface the server actually uses. betterAuth()'s concrete
- *  return type is invariant in its options generic (a plugin-parametrised instantiation
- *  won't assign to Auth<BetterAuthOptions>), so authFromEnv collapses it to this
- *  structural interface once at creation — everything downstream stays decoupled from
- *  the library's generics. */
+ * return type is invariant in its options generic (a plugin-parametrised instantiation
+ * won't assign to Auth<BetterAuthOptions>), so authFromEnv collapses it to this
+ * structural interface once at creation — everything downstream stays decoupled from
+ * the library's generics. */
 export interface Auth {
   mail: MailSender | null;
   publicUrl: URL;
@@ -52,9 +52,9 @@ export interface Auth {
       };
     } | null>;
     /** Better Auth's server-side reset-token mint — call it ONLY through
-     *  {@link mintPasswordResetToken}, which provides the AsyncLocalStorage capture context the
-     *  sendResetPassword callback delivers the token into. Anti-enumeration by design: it resolves
-     *  with a generic success whether or not the email matched a user. */
+     * {@link mintPasswordResetToken}, which provides the AsyncLocalStorage capture context the
+     * sendResetPassword callback delivers the token into. Anti-enumeration by design: it resolves
+     * with a generic success whether or not the email matched a user. */
     requestPasswordReset: (input: { body: { email: string } }) => Promise<unknown>;
   };
   /** Resolved options — what getMigrations needs to create the auth tables. */
@@ -72,23 +72,23 @@ export interface Auth {
   /** Verify every configured issuer/provider alias without writing (operator preflight). */
   assertProviderBindings?: () => void;
   /** Create a user + credential account as one SQLite transaction, bypassing the
-   *  public sign-up ROUTE entirely (and with it, the route's minPasswordLength check —
-   *  internalAdapter.createUser never validates password shape, only the sign-up.mjs handler
-   *  does). This is why the instance-wide minPasswordLength floor no longer needs to be bent for
-   *  the bootstrap boot (see the comment on minPasswordLength below authFromEnv).
+   * public sign-up ROUTE entirely (and with it, the route's minPasswordLength check —
+   * internalAdapter.createUser never validates password shape, only the sign-up.mjs handler
+   * does). This is why the instance-wide minPasswordLength floor no longer needs to be bent for
+   * the bootstrap boot (see the comment on minPasswordLength below authFromEnv).
    *
-   *  Deliberately the ONLY way to reach Better Auth's internalAdapter from outside this module —
-   *  earlier this exposed hashPassword/createUser/linkAccount as three independently callable
-   *  methods, an interface shape that invited a future caller to create a user with no credential
-   *  (an orphaned row that permanently locks out the bootstrap: {@link countUsers} > 0 forever,
-   *  with no sign-in-able account). This method owns hash → user → credential-link sequencing
-   *  and the transaction boundary, so that hazard can't recur. An optional local correlation
-   *  callback joins another same-database write (the invitation command's principal coordinate)
-   *  to that transaction. Resolves once Better Auth's async init context ($context) is ready;
-   *  nothing else should call it — every other caller goes through the narrow api surface above.
+   * Deliberately the ONLY way to reach Better Auth's internalAdapter from outside this module —
+   * earlier this exposed hashPassword/createUser/linkAccount as three independently callable
+   * methods, an interface shape that invited a future caller to create a user with no credential
+   * (an orphaned row that permanently locks out the bootstrap: {@link countUsers} > 0 forever,
+   * with no sign-in-able account). This method owns hash → user → credential-link sequencing
+   * and the transaction boundary, so that hazard can't recur. An optional local correlation
+   * callback joins another same-database write (the invitation command's principal coordinate)
+   * to that transaction. Resolves once Better Auth's async init context ($context) is ready;
+   * nothing else should call it — every other caller goes through the narrow api surface above.
    *
    *  @throws when hashing or any transaction participant fails; SQLite rolls every credential and
-   *  correlation write back before the failure escapes.
+   * correlation write back before the failure escapes.
    */
   createCredentialUser: (input: CreateCredentialUserInput) => Promise<{ id: string }>;
   /** Remove a just-created credential identity when a later invite claim cannot commit. */
@@ -117,9 +117,9 @@ export interface Auth {
 }
 
 /** The identity attached to every request in 'off' mode — the seam Stage C will later
- *  replace with the session user to derive accountId server-side. Off is trusted-local, so
- *  the synthetic principal is treated as verified (`emailVerified: true`) and given a clearly
- *  non-routable `.local` demo email so nothing mistakes it for a real verified identity. */
+ * replace with the session user to derive accountId server-side. Off is trusted-local, so
+ * the synthetic principal is treated as verified (`emailVerified: true`) and given a clearly
+ * non-routable `.local` demo email so nothing mistakes it for a real verified identity. */
 export const DEMO_USER: SessionUser = {
   id: "demo",
   name: "Demo",
@@ -157,15 +157,15 @@ export interface SessionUser {
   twoFactorEnabled?: boolean;
   name: string;
   /** A provider avatar URL mapped into Better Auth's `user.image` column.
-   *  `null` for accounts/providers that carry no picture. The session boundary checks HTTPS. */
+   * `null` for accounts/providers that carry no picture. The session boundary checks HTTPS. */
   image: string | null;
   /** Server-only freshness input for step-up checks; never used as an authenticator. */
   sessionCreatedAt?: string;
 }
 
 /** The subset of Better Auth's user we read before narrowing to {@link SessionUser}. Better
- *  Auth types `emailVerified` as a boolean it sets per provider; the optional/`null` here is
- *  the safety net for a provider/version that leaves it unset. */
+ * Auth types `emailVerified` as a boolean it sets per provider; the optional/`null` here is
+ * the safety net for a provider/version that leaves it unset. */
 export interface RawSessionUser {
   id: string;
   email: string;

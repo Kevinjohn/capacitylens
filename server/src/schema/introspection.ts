@@ -26,8 +26,8 @@ export const isNotNull = (db: Db, table: string, column: string): boolean =>
   columns(db, table).some((c) => c.name === column && c.notnull === 1);
 
 /** True when a table physically exists in this DB (vs. PRAGMA table_info, which returns an
- *  empty column list for BOTH a missing table and a zero-column one — we need to tell them apart
- *  for the legacy rename below). */
+ * empty column list for BOTH a missing table and a zero-column one — we need to tell them apart
+ * for the legacy rename below). */
 export const tableExists = (db: Db, table: string): boolean =>
   (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`).all(table) as unknown[]).length > 0;
 

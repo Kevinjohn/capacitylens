@@ -2,10 +2,10 @@
 // non-component helpers from a component module. Radix owns focus containment for all dialogs.
 
 /** Restore focus to `prev` (the element that had focus before the overlay opened) on close.
- *  But .focus() on a node that's been detached from the DOM is a silent no-op that drops
- *  focus to <body>, stranding keyboard/SR users (WCAG 2.4.3) — an action like delete can
- *  unmount the row/button that opened the dialog. So fall back to the <main> landmark (made
- *  programmatically focusable) to keep focus in the content. */
+ * But .focus() on a node that's been detached from the DOM is a silent no-op that drops
+ * focus to <body>, stranding keyboard/SR users (WCAG 2.4.3) — an action like delete can
+ * unmount the row/button that opened the dialog. So fall back to the <main> landmark (made
+ * programmatically focusable) to keep focus in the content. */
 export function restoreFocus(previousValue: HTMLElement | null) {
   if (previousValue?.isConnected) {
     previousValue.focus();

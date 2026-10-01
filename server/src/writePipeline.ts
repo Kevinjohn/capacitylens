@@ -10,11 +10,11 @@ import { createServerRevision } from "./revision";
 // authorization, provisioning, persistence, and audit responsibilities.
 
 /** The write verb, so the funnel can vary the few genuinely verb-specific rules (id matching,
- *  whether an incoming `builtin` is a create attempt, whether builtin-replacement applies). */
+ * whether an incoming `builtin` is a create attempt, whether builtin-replacement applies). */
 export type WriteVerb = "create" | "replace" | "patch";
 
 /** A caller-fault write rejection: the status + safe message a route replies with, or a batch op
- *  turns into a thrown ValidationError. All current cases are 400. */
+ * turns into a thrown ValidationError. All current cases are 400. */
 export interface WriteRejection {
   status: number;
   error: string;
@@ -125,10 +125,10 @@ export interface PreparedWrite {
   /** The sanitized + revision-stamped row ready to persist. */
   row: Record<string, unknown>;
   /** The generated Internal-client id this write REPLACES (PUT legacy-id adoption path), or
-   *  null. When non-null the caller runs replaceGeneratedBuiltin inside its transaction. */
+   * null. When non-null the caller runs replaceGeneratedBuiltin inside its transaction. */
   generatedReplacement: string | null;
   /** The account-scoped slice assertValidWrite ran against — reused by the builtin-replacement path
-   *  and (for accounts) the provisioning closure, so no site re-reads the DB. */
+   * and (for accounts) the provisioning closure, so no site re-reads the DB. */
   scopedState: AppData;
 }
 

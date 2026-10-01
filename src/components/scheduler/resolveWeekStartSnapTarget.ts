@@ -29,14 +29,14 @@ export interface WeekStartSnapTargetInput {
  *
  * @param input        snap inputs; `input.geom` binds locally as `geometry`.
  * @param input.geom   the column geometry for `days` (from {@link buildColumnGeometry}); supplies
- *                     the exact px↔day inverse (`indexAt`) and date→px (`xForDateInGeom`).
+ * the exact px↔day inverse (`indexAt`) and date→px (`xForDateInGeom`).
  * @param input.days   the visible day window (one validated `ISODate` per column).
  * @param input.scrollLeft the container's current horizontal scroll position, in px.
  * @param input.weekStartsOn 0 = Sunday, 1 = Monday (ISO-style) — the account's calendar week start.
  * @param input.epsilon convergence tolerance in px (default 0.5): treat a raw scroll position
- *                     within half a pixel of the target as aligned, including fractional positions.
+ * within half a pixel of the target as aligned, including fractional positions.
  * @returns the target `scrollLeft` px to floor-snap to, or `null` when already within `epsilon`
- *   of the week start (a no-op — the caller must NOT write, or the snap re-arms itself).
+ * of the week start (a no-op — the caller must NOT write, or the snap re-arms itself).
  *
  * PURE. For an aligned geometry/day window, never throws and never returns NaN:
  * `xForDateInGeom` returns 0 (not NaN) for an unparseable date, so a bad date degrades to a

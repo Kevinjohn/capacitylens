@@ -40,8 +40,8 @@ interface OwnershipTransferReadState {
 
 export interface OwnershipTransferState extends OwnershipTransferReadState {
   /** The first read is still in flight. Derived, not stored: a projection is an object once the
-   *  server has answered, so "no projection yet and no error" IS the loading state — and deriving
-   *  it keeps the card from briefly claiming there is no transfer. */
+   * server has answered, so "no projection yet and no error" IS the loading state — and deriving
+   * it keeps the card from briefly claiming there is no transfer. */
   loading: boolean;
 }
 
@@ -56,7 +56,7 @@ export interface OwnershipTransferController extends OwnershipTransferState {
   nominate(targetPrincipalId: string): Promise<void>;
   command(input: CommandInput): Promise<void>;
   /** The committed terminal outcome of the last command, if it had one. Cleared by the next
-   *  command, so a stale explanation cannot outlive the thing it explains. */
+   * command, so a stale explanation cannot outlive the thing it explains. */
   lastTerminal: OwnershipTransferTerminalView | null;
 }
 
@@ -100,9 +100,9 @@ async function readCeremony(accountId: string): Promise<CeremonyRead> {
 
 /**
  * @param keepStale Keep what the server last said when a half fails. True while the card is only
- *   watching — the last answer is better evidence than nothing. FALSE after a command: the ceremony
- *   has just moved, so the old projection would offer controls at a revision the server will now
- *   refuse, and "I do not know" is the honest answer.
+ * watching — the last answer is better evidence than nothing. FALSE after a command: the ceremony
+ * has just moved, so the old projection would offer controls at a revision the server will now
+ * refuse, and "I do not know" is the honest answer.
  */
 type MergeCeremonyReadOptions = { previous: OwnershipTransferReadState; next: CeremonyRead; keepStale?: boolean };
 function mergeCeremonyRead({ previous, next, keepStale = true }: MergeCeremonyReadOptions): OwnershipTransferReadState {
@@ -178,7 +178,7 @@ function useCeremonyRead({ accountId, beginRead, apply, forgetOutcome }: Ceremon
 interface CommandAnswer {
   failure: string | null;
   /** The committed terminal outcome to explain, if the server committed one. Returned rather than
-   *  stored directly, so it can be discarded with the rest of a superseded answer. */
+   * stored directly, so it can be discarded with the rest of a superseded answer. */
   terminal: OwnershipTransferTerminalView | null;
   /** Did the roles actually move? Only completion changes the caller's own authority. */
   completed: boolean;

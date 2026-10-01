@@ -32,7 +32,7 @@ export interface Entitlements {
  * the call shape a later plan/quota backend swaps in behind.
  *
  * @param accountId  The account to resolve entitlements for (unused today; reserved for the future
- *   per-account lookup).
+ * per-account lookup).
  * @returns The account's entitlements — always `{ unlimited: true }` until a plan model is wired.
  */
 export function resolveEntitlements(accountId: string): Entitlements {

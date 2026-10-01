@@ -11,7 +11,7 @@ import {
 import type { SyncState } from "./SyncState";
 
 /** Regroup the flat key→translation map into table→(id→translation) ONCE per pass, so a whole-table
- *  scan can look rows up by plain id instead of composing a key string per row. */
+ * scan can look rows up by plain id instead of composing a key string per row. */
 export function buildAcknowledgedRevisionsByTable(
   state: SyncState,
 ): Map<keyof AppData, Map<string, AcknowledgedRevision>> {

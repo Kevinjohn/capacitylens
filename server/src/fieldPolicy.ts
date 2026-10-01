@@ -18,8 +18,8 @@ import type { Client, Project } from "@capacitylens/shared/types/entities";
 // is defined once and used for redaction, write pinning, and export visibility.
 
 /** Caller-context options for {@link sanitizeWrite} and the read echo — facts about the WRITER/READER
- *  the row body alone cannot carry, so field-level gating runs at the single write funnel (not as
- *  per-route hacks). Owns the type here because the field-policy map is its single source of truth. */
+ * the row body alone cannot carry, so field-level gating runs at the single write funnel (not as
+ * per-route hacks). Owns the type here because the field-policy map is its single source of truth. */
 export interface SanitizeWriteOptions {
   /**
    * Write-side counterpart of read redaction: `false` when the caller's role may not see
@@ -44,7 +44,7 @@ export interface ReadSliceFieldVisibility {
 }
 
 /** One role-gated confidentiality policy: the field list, the role predicate that decides who may
- *  see it, and the redact/pin operations the three sites reuse. */
+ * see it, and the redact/pin operations the three sites reuse. */
 export interface GatedFieldPolicy {
   /** Stable id for debugging/tests. */
   readonly id: string;
@@ -113,13 +113,13 @@ export const GATED_FIELD_POLICIES: readonly GatedFieldPolicy[] = [
 ];
 
 /** True when any gated-field policy governs `table` (drives the write funnel's no-lookup short-circuit
- *  and the read-echo/pin fast paths). */
+ * and the read-echo/pin fast paths). */
 export function hasGatedFields(table: string): boolean {
   return GATED_FIELD_POLICIES.some((policy) => policy.tables.includes(table));
 }
 
 /** Apply every gated-field READ redaction (behaviour 1) whose policy governs `table` and whose flag
- *  is `false` on `vis`. A write response is also a read and must never bypass the state-read policy. */
+ * is `false` on `vis`. A write response is also a read and must never bypass the state-read policy. */
 export function redactGatedEcho(
   table: string,
   row: Record<string, unknown>,
@@ -142,7 +142,7 @@ interface PinGatedFieldsInput {
 }
 
 /** Apply every gated-field WRITE pin (behaviour 2) whose policy governs `table` and whose flag is
- *  `false` on `options`. Mutates `cleaned` in place, mirroring sanitizeWrite's tombstone pin. */
+ * `false` on `options`. Mutates `cleaned` in place, mirroring sanitizeWrite's tombstone pin. */
 export function pinGatedFields({ table, cleaned, existing, options }: PinGatedFieldsInput): void {
   for (const policy of GATED_FIELD_POLICIES) {
     if (policy.tables.includes(table) && options[policy.visKey] === false) {
@@ -152,9 +152,9 @@ export function pinGatedFields({ table, cleaned, existing, options }: PinGatedFi
 }
 
 /** Derive the visibility flags (behaviour 3's source of truth) from a role, or `null` for
- *  "no membership" (fail-closed: every gated field hidden). Each policy's predicate is applied to
- *  its own {@link SanitizeWriteOptions} flag, so the include/exclude decision can never disagree with
- *  the redact/pin decision. */
+ * "no membership" (fail-closed: every gated field hidden). Each policy's predicate is applied to
+ * its own {@link SanitizeWriteOptions} flag, so the include/exclude decision can never disagree with
+ * the redact/pin decision. */
 export function resolveVisibilityForRole(role: Role | null): SanitizeWriteOptions {
   const visibility: SanitizeWriteOptions = {};
   for (const policy of GATED_FIELD_POLICIES) {

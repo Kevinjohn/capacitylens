@@ -12,7 +12,7 @@ import { ACCOUNT_ROLES, type Role } from "./types";
 const ROLES: readonly Role[] = ACCOUNT_ROLES;
 
 /** Every standing a caller can hold relative to one request. A caller cannot be both participants:
- *  the table forbids equal ids, so that combination is not modelled. */
+ * the table forbids equal ids, so that combination is not modelled. */
 const STANDINGS = [
   { label: "initiator", isInitiator: true, isTarget: false },
   { label: "target", isInitiator: false, isTarget: true },

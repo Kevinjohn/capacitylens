@@ -59,9 +59,9 @@ export function invalidateRestrictedPrincipal(db: Db, accountId: string, princip
  * @param db      The open SQLite handle.
  * @param member  The membership to upsert.
  * @throws Error  If `member.role` is not a known {@link Role}. A bad role is a programming/integrity
- *   fault, not a recoverable request condition — fail LOUD (mirroring the store's deliberate
- *   integrity throws) rather than silently coercing it to a default, which would hand someone the
- *   wrong access level.
+ * fault, not a recoverable request condition — fail LOUD (mirroring the store's deliberate
+ * integrity throws) rather than silently coercing it to a default, which would hand someone the
+ * wrong access level.
  */
 export function upsertMember(db: Db, member: AccountMember, transfers: LiveTransferHandling = "invalidate"): string[] {
   if (!isKnownRole(member.role)) {
@@ -125,10 +125,10 @@ interface SetMemberStatusInput {
  * @param input.userId     The login whose membership is changing.
  * @param input.status     The {@link MembershipStatus} to move to.
  * @returns Which of the three outcomes occurred. `"missing"` is NOT_FOUND to callers — an absent
- *   membership must never report a committed lifecycle change. `"unchanged"` is a SUCCESS: the
- *   membership already holds the requested status, so the caller's intent is satisfied. The three
- *   are distinguished rather than collapsed to a boolean precisely because "no row" and "no change"
- *   demand opposite responses, and because a re-applied status must not pay the security cost below.
+ * membership must never report a committed lifecycle change. `"unchanged"` is a SUCCESS: the
+ * membership already holds the requested status, so the caller's intent is satisfied. The three
+ * are distinguished rather than collapsed to a boolean precisely because "no row" and "no change"
+ * demand opposite responses, and because a re-applied status must not pay the security cost below.
  */
 export function setMemberStatus({ db, accountId, userId, status }: SetMemberStatusInput): {
   outcome: "changed" | "unchanged" | "missing";
@@ -184,7 +184,7 @@ const activeMemberRoleStatement = cachedStatement(`
  * @param userId     The login to look up.
  * @returns The membership row, or `null` when this login has no membership in this account.
  * @throws Error  If the stored role is not a known {@link Role} — control-table corruption, which
- *   fails loud here exactly as it does in {@link listMembersForAccount}.
+ * fails loud here exactly as it does in {@link listMembersForAccount}.
  */
 export function getMembershipRow(db: Db, accountId: string, userId: string): AccountMember | null {
   const row = membershipRowStatement(db).get(accountId, userId) as AccountMemberRow | undefined;
@@ -268,8 +268,8 @@ const activeOwnerCountStatement = cachedStatement(
 );
 
 /** How many active Owners one account has. Counted in SQLite — served directly by the partial
- *  unique index that holds the single-active-Owner invariant — rather than by mapping every member
- *  row into objects to answer a question about a number. */
+ * unique index that holds the single-active-Owner invariant — rather than by mapping every member
+ * row into objects to answer a question about a number. */
 export function countActiveOwners(db: Db, accountId: string): number {
   const row = activeOwnerCountStatement(db).get(accountId) as { owners: number };
   return Number(row.owners);

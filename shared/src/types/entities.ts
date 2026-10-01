@@ -15,11 +15,11 @@ export const HALF_DAY_HOURS = 4;
 /** Whether an allocation is confirmed, tentative or completed. */
 export type AllocationStatus = "confirmed" | "tentative" | "completed";
 /** How allocations are entered: by daily load against a fixed end date ('hourly',
- *  the default), by volume of work spread over a span ('days'), or as a pure
- *  booking block where only the span matters and load is ignored ('blocks'). */
+ * the default), by volume of work spread over a span ('days'), or as a pure
+ * booking block where only the span matters and load is ignored ('blocks'). */
 export type SchedulingMode = "hourly" | "days" | "blocks";
 /** Runtime list of the valid scheduling modes — the single source the server's
- *  sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
+ * sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
 export const SCHEDULING_MODES: SchedulingMode[] = ["hourly", "days", "blocks"];
 /** Who may open the Capacity Overview for an account. Absent means owner/admin only. */
 export type CapacityOverviewAccess = "owner_admin" | "owner_admin_editor" | "everyone";
@@ -30,13 +30,13 @@ export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
   "everyone",
 ];
 /** How human-readable dates read across an account: day/month order, and whether the day number
- *  carries an ordinal suffix. Absent means "day-month" ("9 Sep"), the format the app has always
- *  used. This is account data, not a device preference — a company reads one convention. */
+ * carries an ordinal suffix. Absent means "day-month" ("9 Sep"), the format the app has always
+ * used. This is account data, not a device preference — a company reads one convention. */
 export type DateStyle = "day-month" | "day-ordinal-month" | "month-day" | "month-day-ordinal";
 /** Every supported style, in the order the Settings control offers them. The server/import
- *  sanitiser rejects anything absent from this list, and the `Record<DateStyle, …>` tables in the
- *  app fail to compile until they cover a new entry — so a style cannot exist in the type while
- *  being missing here. */
+ * sanitiser rejects anything absent from this list, and the `Record<DateStyle, …>` tables in the
+ * app fail to compile until they cover a new entry — so a style cannot exist in the type while
+ * being missing here. */
 export const DATE_STYLES: DateStyle[] = ["day-month", "day-ordinal-month", "month-day", "month-day-ordinal"];
 /** The format an absent `dateStyle` reads back as. */
 export const DEFAULT_DATE_STYLE: DateStyle = "day-month";
@@ -75,7 +75,7 @@ export interface Entity {
 }
 
 /** A tenant. Top-level: not scoped to any other account. Retired preferences keep their SQLite
- *  columns (listed in server/src/schema/historicalSpecs.ts) but are no longer part of this shape. */
+ * columns (listed in server/src/schema/historicalSpecs.ts) but are no longer part of this shape. */
 export interface Account extends Entity {
   name: string;
   color: string;
@@ -88,32 +88,32 @@ export interface Account extends Entity {
   /** Weekdays on which schedule creation may start. Stored as a set; presentation follows weekStartsOn. */
   workingDays?: Weekday[];
   /** UI language for this company. Absent = 'en'. English-only for now.
-   *  Frozen after creation. Not shown in Settings while English is the only option. */
+   * Frozen after creation. Not shown in Settings while English is the only option. */
   language?: string;
   /** Whether this company uses disciplines. Absent = true (the original behaviour).
-   *  When false, disciplines are hidden across the whole UI (nav, resource form,
-   *  schedule grouping + filter, lists, command palette) — the data is preserved. */
+   * When false, disciplines are hidden across the whole UI (nav, resource form,
+   * schedule grouping + filter, lists, command palette) — the data is preserved. */
   disciplinesEnabled?: boolean;
   /** Whether this company surfaces placeholder ("slot") resources. Absent = false
-   *  (hidden out of the box — NOT `?? true` like disciplinesEnabled) so new companies start
-   *  with placeholders OFF. When false, placeholders are hidden across the UI; the data is
-   *  preserved and returns when re-enabled. */
+   * (hidden out of the box — NOT `?? true` like disciplinesEnabled) so new companies start
+   * with placeholders OFF. When false, placeholders are hidden across the UI; the data is
+   * preserved and returns when re-enabled. */
   placeholdersEnabled?: boolean;
   /** Whether this company surfaces external / 3rd-party resources. Absent = false (hidden out
-   *  of the box, like placeholdersEnabled) so new companies start with external OFF. When false,
-   *  external resources are hidden across the UI; the data is preserved and returns when re-enabled. */
+   * of the box, like placeholdersEnabled) so new companies start with external OFF. When false,
+   * external resources are hidden across the UI; the data is preserved and returns when re-enabled. */
   externalEnabled?: boolean;
   /** Whether the scheduler's Allocation modal offers the inline "Add activity" input + button.
-   *  Absent = false (hidden). When false the inline creator is not rendered; the Activity picker
-   *  itself still works normally. */
+   * Absent = false (hidden). When false the inline creator is not rendered; the Activity picker
+   * itself still works normally. */
   inlineActivityCreateEnabled?: boolean;
   /** Whether populated allocation task text is shown in schedule details. Absent = false. */
   showTaskFieldInSchedule?: boolean;
   /** Who may open Capacity Overview. Absent = owner/admin only. */
   capacityOverviewAccess?: CapacityOverviewAccess;
   /** How human-readable dates read across this company. Absent = 'day-month' ("9 Sep"). Editors
-   *  and up may change it, and it applies to every member: a schedule where half the rows read
-   *  "9 Sep" and half read "Sep 9" is the problem the setting exists to remove. */
+   * and up may change it, and it applies to every member: a schedule where half the rows read
+   * "9 Sep" and half read "Sep 9" is the problem the setting exists to remove. */
   dateStyle?: DateStyle;
 }
 
@@ -133,10 +133,10 @@ export interface Discipline extends ScopedEntity {
 export interface Resource extends ScopedEntity {
   kind: ResourceKind;
   /** Optional: placeholders may be nameless (shown by `role`). For `external` this holds the
-   *  COMPANY name (the External form requires it). */
+   * COMPANY name (the External form requires it). */
   name?: string;
   /** e.g. "Senior Designer" — the label used for nameless placeholders; an `external`'s
-   *  optional descriptor (e.g. "Print", "Overflow dev"). */
+   * optional descriptor (e.g. "Print", "Overflow dev"). */
   role: string;
   /** Optional externally hosted avatar for people. Must be an absolute HTTPS URL without credentials. */
   avatarUrl?: string;
@@ -148,7 +148,7 @@ export interface Resource extends ScopedEntity {
   /** Working weekdays, e.g. [1,2,3,4,5] for Mon–Fri. Unused for placeholders and externals. */
   workingDays: Weekday[];
   /** Working weekdays whose capacity is the fixed four-hour half day. Always a subset of workingDays.
-   *  Unused for placeholders and externals. */
+   * Unused for placeholders and externals. */
   halfDays: Weekday[];
   /** PLACEHOLDERS ONLY: the single project a placeholder is bound to. */
   projectId?: ID;
@@ -160,14 +160,14 @@ export interface Resource extends ScopedEntity {
   /** Inclusive last date on which this person may be scheduled. Absent = unbounded. */
   lastAvailableDate?: ISODate | undefined;
   /** ISO 8601 timestamp of when this resource was archived (soft, reversible): hidden from
-   *  scheduling but fully retained. Absent = active (not archived). Part of the
-   *  Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
-   *  shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
+   * scheduling but fully retained. Absent = active (not archived). Part of the
+   * Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
+   * shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
   archivedAt?: ISOTimestamp;
   /** ISO 8601 timestamp of the soft-delete tombstone: when this resource was soft-deleted.
-   *  Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
-   *  soft-delete requires prior archival, and a tombstone is hard-purged only after
-   *  PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
+   * Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
+   * soft-delete requires prior archival, and a tombstone is hard-purged only after
+   * PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
   deletedAt?: ISOTimestamp;
 }
 
@@ -176,26 +176,26 @@ export interface Client extends ScopedEntity {
   name: string;
   color: string;
   /** When true, only account owners receive `name`; every other role receives the quoted
-   *  `codeName` in its place. Absent = public (the default). */
+   * `codeName` in its place. Absent = public (the default). */
   isPrivate?: boolean;
   /** Owner-managed cover name for a private client. Stored without quotation marks; the read
-   *  projection adds them consistently wherever the code name is displayed. */
+   * projection adds them consistently wherever the code name is displayed. */
   codeName?: string;
   /** True ONLY for the built-in "Internal" pseudo-client — exactly one per account, created by
-   *  seed / addAccount / migrate. A built-in client cannot be renamed or deleted, and a project-less
-   *  internal/all-projects activity buckets under it for display + filtering. Absent/false = a normal,
-   *  user-managed client. Identified at runtime by THIS flag, never a hard-coded id (so it survives
-   *  import-remap). See shared/src/data/internalClient.ts. */
+   * seed / addAccount / migrate. A built-in client cannot be renamed or deleted, and a project-less
+   * internal/all-projects activity buckets under it for display + filtering. Absent/false = a normal,
+   * user-managed client. Identified at runtime by THIS flag, never a hard-coded id (so it survives
+   * import-remap). See shared/src/data/internalClient.ts. */
   builtin?: boolean;
   /** ISO 8601 timestamp of when this client was archived (soft, reversible): hidden from
-   *  scheduling but fully retained. Absent = active (not archived). Part of the
-   *  Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
-   *  shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
+   * scheduling but fully retained. Absent = active (not archived). Part of the
+   * Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
+   * shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
   archivedAt?: ISOTimestamp;
   /** ISO 8601 timestamp of the soft-delete tombstone: when this client was soft-deleted.
-   *  Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
-   *  soft-delete requires prior archival, and a tombstone is hard-purged only after
-   *  PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
+   * Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
+   * soft-delete requires prior archival, and a tombstone is hard-purged only after
+   * PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
   deletedAt?: ISOTimestamp;
 }
 
@@ -205,20 +205,20 @@ export interface Project extends ScopedEntity {
   clientId: ID; // REQUIRED — a project must belong to a client
   color: string;
   /** When true, only account owners receive `name`; every other role receives the quoted
-   *  `codeName` in its place. Absent = public (the default). */
+   * `codeName` in its place. Absent = public (the default). */
   isPrivate?: boolean;
   /** Owner-managed cover name for a private project. Stored without quotation marks; the read
-   *  projection adds them consistently wherever the code name is displayed. */
+   * projection adds them consistently wherever the code name is displayed. */
   codeName?: string;
   /** ISO 8601 timestamp of when this project was archived (soft, reversible): hidden from
-   *  scheduling but fully retained. Absent = active (not archived). Part of the
-   *  Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
-   *  shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
+   * scheduling but fully retained. Absent = active (not archived). Part of the
+   * Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
+   * shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
   archivedAt?: ISOTimestamp;
   /** ISO 8601 timestamp of the soft-delete tombstone: when this project was soft-deleted.
-   *  Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
-   *  soft-delete requires prior archival, and a tombstone is hard-purged only after
-   *  PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
+   * Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
+   * soft-delete requires prior archival, and a tombstone is hard-purged only after
+   * PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
   deletedAt?: ISOTimestamp;
 }
 
@@ -232,15 +232,15 @@ export interface Phase extends ScopedEntity {
 export interface Activity extends ScopedEntity {
   name: string;
   /** What this activity is: project-specific work, internal work, or an all-projects activity. The
-   *  discriminant the schedule's activity lens filters on. See {@link ActivityKind}. */
+   * discriminant the schedule's activity lens filters on. See {@link ActivityKind}. */
   kind: ActivityKind;
   /** Set ONLY for `kind: 'project'` — the project this activity belongs to. Internal and
-   *  all-projects (`repeatable`) activities are project-less at the activity level; repeatable
-   *  allocations may carry their own project attribution. */
+   * all-projects (`repeatable`) activities are project-less at the activity level; repeatable
+   * allocations may carry their own project attribution. */
   projectId?: ID;
   phaseId?: ID;
   /** ISO 8601 timestamp of when this activity was archived (soft, reversible): hidden from
-   *  scheduling but fully retained. Absent = active (not archived). */
+   * scheduling but fully retained. Absent = active (not archived). */
   archivedAt?: ISOTimestamp;
   /** ISO 8601 timestamp of the soft-delete tombstone. Absent = not deleted. */
   deletedAt?: ISOTimestamp;
@@ -251,7 +251,7 @@ export interface Allocation extends ScopedEntity {
   resourceId: ID;
   activityId: ID;
   /** Set only for `repeatable`-activity allocations to attribute this booking to a project.
-   *  Absent means unattributed; `project` and `internal` activities must not carry it. */
+   * Absent means unattributed; `project` and `internal` activities must not carry it. */
   projectId?: ID;
   /** System-owned identity shared by allocations created in one repeat batch. Absent = one-off or legacy repeat. */
   seriesId?: ID;
@@ -263,8 +263,8 @@ export interface Allocation extends ScopedEntity {
   /** Optional short, single-line work description shown in schedule details when enabled. */
   task?: string | undefined;
   /** When true, this allocation treats weekends / non-working days as normal
-   *  working days (drag/move does not auto-extend across them). Absent =
-   *  weekend-aware (the default). */
+   * working days (drag/move does not auto-extend across them). Absent =
+   * weekend-aware (the default). */
   ignoreWeekends?: boolean;
   // future-additive (NOT built in v1): startTime?/endTime? for "9am–1pm" allocations
 }
@@ -311,28 +311,28 @@ export {
 export type { AppDataKey, ScopedEntityKey } from "./entityKeys";
 
 /** JSON/export format version. Bump when the portable AppData shape changes; drives
- *  data/migrate.ts and is deliberately independent of the server's physical SQLite version.
- *  (v4 added Activity.kind;
- *  v5 renamed the domain concept Task→Activity: the `tasks` table → `activities` and
- *  `Allocation.taskId` → `activityId`; v6 ensures every account has one built-in `Client`
- *  with `builtin: true` — the "Internal" pseudo-client; v7 adds optional client/project privacy
- *  fields, whose absent values already represent the public default; v8 adds an optional
- *  per-account Internal work colour mode (since retired); v9 adds optional per-account schedule
- *  view prefs — two internal-work visibility toggles (since retired) and inlineActivityCreateEnabled,
- *  whose absence means disabled; v10 adds optional Resource.isFavourite,
- *  whose absence means not favourite; v11 adds required Resource.halfDays, initially empty for
- *  legacy resources so every previously selected weekday remains a full day; v12 adds required
- *  Resource.engagement, defaulting legacy resources to Studio; v13 adds an optional account-wide
- *  engagement-grouping view preference (since retired; grouping is now derived); v14 adds account-wide
- *  working days, defaulting legacy accounts to the first five days of their configured week; v15
- *  adds optional Allocation.seriesId without inferring links for legacy repeat batches; v16 widens
- *  TimeOff.resourceId to nullable, where null represents company-wide time off for Everyone; v17
- *  separates company closures into their own table and restores required TimeOff.resourceId; v18
- *  adds optional per-allocation project attribution for repeatable activities; v19 adds optional
- *  Activity lifecycle tombstones archivedAt/deletedAt; v20 adds optional allocation task text and
- *  account-wide schedule visibility for it; v21 adds optional person availability boundaries; v22
- *  adds the optional account-wide dateStyle, whose absence means 'day-month'; v23 adds optional
- *  Resource.avatarUrl for externally hosted scheduled-person avatars.) */
+ * data/migrate.ts and is deliberately independent of the server's physical SQLite version.
+ * (v4 added Activity.kind;
+ * v5 renamed the domain concept Task→Activity: the `tasks` table → `activities` and
+ * `Allocation.taskId` → `activityId`; v6 ensures every account has one built-in `Client`
+ * with `builtin: true` — the "Internal" pseudo-client; v7 adds optional client/project privacy
+ * fields, whose absent values already represent the public default; v8 adds an optional
+ * per-account Internal work colour mode (since retired); v9 adds optional per-account schedule
+ * view prefs — two internal-work visibility toggles (since retired) and inlineActivityCreateEnabled,
+ * whose absence means disabled; v10 adds optional Resource.isFavourite,
+ * whose absence means not favourite; v11 adds required Resource.halfDays, initially empty for
+ * legacy resources so every previously selected weekday remains a full day; v12 adds required
+ * Resource.engagement, defaulting legacy resources to Studio; v13 adds an optional account-wide
+ * engagement-grouping view preference (since retired; grouping is now derived); v14 adds account-wide
+ * working days, defaulting legacy accounts to the first five days of their configured week; v15
+ * adds optional Allocation.seriesId without inferring links for legacy repeat batches; v16 widens
+ * TimeOff.resourceId to nullable, where null represents company-wide time off for Everyone; v17
+ * separates company closures into their own table and restores required TimeOff.resourceId; v18
+ * adds optional per-allocation project attribution for repeatable activities; v19 adds optional
+ * Activity lifecycle tombstones archivedAt/deletedAt; v20 adds optional allocation task text and
+ * account-wide schedule visibility for it; v21 adds optional person availability boundaries; v22
+ * adds the optional account-wide dateStyle, whose absence means 'day-month'; v23 adds optional
+ * Resource.avatarUrl for externally hosted scheduled-person avatars.) */
 export const EXPORT_SCHEMA_VERSION = 23;
 
 /** The versioned export document. */

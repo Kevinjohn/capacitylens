@@ -10,10 +10,10 @@ import { removeAccountMemberResourcesForAccount } from "../controlTables/account
 import { INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "./constants";
 export { markInitialized, isInitialized } from "./initialization";
 /** First-run seeding gate used by the server entrypoint: seed ONLY a never-initialised DB.
- *  Gated on the persistent `initialized` marker — which survives the user emptying their
- *  data — NOT on mere emptiness, so a user who deletes everything is NOT handed the demo
- *  dataset back on the next restart (the same predicate /api/meta reports). Seeding sets
- *  the marker, so it fires exactly once. Returns whether it seeded. */
+ * Gated on the persistent `initialized` marker — which survives the user emptying their
+ * data — NOT on mere emptiness, so a user who deletes everything is NOT handed the demo
+ * dataset back on the next restart (the same predicate /api/meta reports). Seeding sets
+ * the marker, so it fires exactly once. Returns whether it seeded. */
 export function seedIfUninitialized(db: Db, data: AppData): boolean {
   return tx(
     db,
@@ -43,9 +43,9 @@ export function insertAll(db: Db, data: AppData): void {
 }
 
 /** Wipe every product-domain row plus account membership/invitation control state. Domain tables
- *  are deleted children-first so FK checks stay satisfied. Authentication identities, migration
- *  history and installation-level control state deliberately survive this trusted-local reset. The
- *  init marker is cleared so the next load seeds again. */
+ * are deleted children-first so FK checks stay satisfied. Authentication identities, migration
+ * history and installation-level control state deliberately survive this trusted-local reset. The
+ * init marker is cleared so the next load seeds again. */
 export function wipe(db: Db): void {
   tx(db, () => {
     if (db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'account_member_resources'`).get()) {
@@ -80,9 +80,9 @@ export function wipe(db: Db): void {
 }
 
 /** Replace one account's scoped slice with the rows for that account in a branded complete `next`.
- *  Used by /api/import after its snapshot is revalidated inside the surrounding write transaction.
- *  The rewrite erases any sibling row not re-supplied; independently validated replacement data
- *  must cross the explicit {@link buildCompleteAccountSlice} boundary. */
+ * Used by /api/import after its snapshot is revalidated inside the surrounding write transaction.
+ * The rewrite erases any sibling row not re-supplied; independently validated replacement data
+ * must cross the explicit {@link buildCompleteAccountSlice} boundary. */
 export function replaceAccountSlice(db: Db, accountId: string, next: CompleteAccountSlice): void {
   const d = next as unknown as Record<string, Row[]>;
   tx(db, () => {

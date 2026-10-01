@@ -139,7 +139,7 @@ const V40_MIGRATION = {
   checksum: "5523524112cbd00936ed3fff90c0e00e142472abf78122e39dbc32f3bf59e2cc",
 } as const;
 /** The two newest account-preference steps. Spread into expectations rather than listed twice, so
- *  the next account column does not push one of these enumerations past the 60-line function cap. */
+ * the next account column does not push one of these enumerations past the 60-line function cap. */
 const NEWEST_ACCOUNT_MIGRATIONS = [V39_MIGRATION, V40_MIGRATION] as const;
 const V41_MIGRATION = {
   version: 41,

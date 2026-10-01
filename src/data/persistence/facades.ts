@@ -42,11 +42,11 @@ export type FlushPendingWritesResult = { kind: "clean" } | { kind: "blocked" } |
  * Flush any pending debounced write through the orchestrator and await the round-trip.
  *
  * @returns a clean result when writes are acknowledged, a failed result when the attempted write
- *          was rejected, or a blocked result otherwise. A caller
- *          must not proceed with an operation (e.g. a server-side import) that assumes the local
- *          edits it just tried to land are either persisted or knowingly abandoned while blocked.
- *          Also returns clean when no orchestrator is attached (demo build / tests): there is no
- *          debounce state to flush.
+ * was rejected, or a blocked result otherwise. A caller
+ * must not proceed with an operation (e.g. a server-side import) that assumes the local
+ * edits it just tried to land are either persisted or knowingly abandoned while blocked.
+ * Also returns clean when no orchestrator is attached (demo build / tests): there is no
+ * debounce state to flush.
  */
 export async function flushPendingWrites(): Promise<FlushPendingWritesResult> {
   return persistenceCoordinator.flushPending();
@@ -74,8 +74,8 @@ export class ReloadDiscardedEditError extends Error {
  * retry machinery still holds — see refreshActive's abortIfSaveFailed note).
  *
  * @returns a {@link RefreshOutcome}. Callers whose follow-up claims "the view now shows committed
- *          state" (the server-mode import's success notice) must gate on 'reloaded' — 'skipped'
- *          and 'failed' mean the store still holds the PRE-operation slice.
+ * state" (the server-mode import's success notice) must gate on 'reloaded' — 'skipped'
+ * and 'failed' mean the store still holds the PRE-operation slice.
  */
 export async function refreshActiveAccountSlice(id: string): Promise<RefreshOutcome> {
   return persistenceCoordinator.refreshActive(id);

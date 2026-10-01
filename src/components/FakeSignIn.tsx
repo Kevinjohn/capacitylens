@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 // persona via `src/lib/fakeAuth.ts` and `src/assets/avatar-demo.svg`.
 
 /** The multi-colour Google "G" mark. Decorative (aria-hidden) and inline so the demo needs
- *  no network request. */
+ * no network request. */
 function GoogleMark() {
   return (
     <svg viewBox="0 0 48 48" width="22" height="22" aria-hidden="true" focusable="false">
@@ -43,7 +43,7 @@ function GoogleMark() {
  * The demo sign-in gate.
  *
  * @param onSignIn called when the viewer "signs in" (clicks the account) — the host
- *   (AppShell) flips the device-global flag and advances to the account picker.
+ * (AppShell) flips the device-global flag and advances to the account picker.
  */
 export function FakeSignIn({ onSignIn }: { onSignIn: () => void }) {
   return (

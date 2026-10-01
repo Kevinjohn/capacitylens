@@ -24,8 +24,8 @@ export function readState(db: Db): AppData {
 }
 
 /** GET /api/accounts' authMode="off" query: every account's id and name. OFF mode is trusted-local
- *  and has no membership rows, so every account is visible. The caller adds the `role: "owner"`
- *  sentinel to form AccountSummary values; this function owns only the cached query. */
+ * and has no membership rows, so every account is visible. The caller adds the `role: "owner"`
+ * sentinel to form AccountSummary values; this function owns only the cached query. */
 export function listAccountSummaries(db: Db): Array<{ id: string; name: string }> {
   const cache = createStatementCache(db);
   cache.accountSummariesSelect ??= db.prepare(`SELECT id, name FROM accounts ORDER BY id`);
@@ -73,13 +73,13 @@ export function listAccountSummaries(db: Db): Array<{ id: string; name: string }
  * @param db         The open SQLite handle.
  * @param accountId  The account whose slice to read.
  * @param opts.includeTimeOffNote  REQUIRED. `true` keeps each time-off `note`; `false` strips it
- *                                 (owner/admin-only field — redacted before it leaves the server).
+ * (owner/admin-only field — redacted before it leaves the server).
  * @param opts.includePrivateNames REQUIRED. `true` keeps real private names; `false` substitutes
- *                                 quoted code names and strips the raw codeName field.
+ * quoted code names and strips the raw codeName field.
  * @param opts.includeInactive  REQUIRED. `false` drops archived/soft-deleted resources/clients/projects
- *                              (the normal app read); `true` returns every row.
+ * (the normal app read); `true` returns every row.
  * @returns A serialization-only projected slice containing ONLY `accountId`'s data. Its brand is
- *          intentionally incompatible with {@link replaceAccountSlice}.
+ * intentionally incompatible with {@link replaceAccountSlice}.
  */
 declare const projectedAccountSliceBrand: unique symbol;
 declare const completeAccountSliceBrand: unique symbol;

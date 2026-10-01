@@ -14,8 +14,8 @@ export function assertKnownTable(table: string): void {
 }
 
 /** assertKnownTable + TABLES-lookup prelude shared by every primitive that needs the table's spec
- *  (insertRowRaw / upsertRow / getRow). deleteRow doesn't need the spec, so it keeps calling
- *  assertKnownTable directly instead of discarding this return value. */
+ * (insertRowRaw / upsertRow / getRow). deleteRow doesn't need the spec, so it keeps calling
+ * assertKnownTable directly instead of discarding this return value. */
 export function resolveTable(table: string): TableSpec {
   assertKnownTable(table);
   const spec = TABLES[table];

@@ -19,7 +19,7 @@ import { m } from "@/i18n";
 // after step-up, or (on cancel) the original 403 it would have surfaced anyway.
 
 /** Peek (without consuming the body) at whether this is the server's freshness 403. Clones the
- *  response so the caller can still read the body when we hand the original back on cancel. */
+ * response so the caller can still read the body when we hand the original back on cancel. */
 async function isSessionNotFresh(res: Response): Promise<boolean> {
   if (res.status !== 403) return false;
   // Best-effort per DEFENSIVE-CODING.md §5: an unreadable/non-JSON 403 body simply isn't a step-up

@@ -67,7 +67,7 @@ interface ReadPreviewDatesInput {
 }
 
 /** The snapped range for this frame, judged in the lane the pointer is over. A reassignment also
- *  carries the dragged bar's OWN week, which is what sizes the range. */
+ * carries the dragged bar's OWN week, which is what sizes the range. */
 function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDatesInput) {
   const resourceId = bar.allocation.resourceId;
   const previewDays = resolveMemoisedWorkingDays(runtime.previewDaysRef.current, destination?.id ?? resourceId);

@@ -33,8 +33,8 @@ export interface DayState {
   partialCapacity: boolean;
   creationBlocked: boolean;
   /** This resource is on time off on this date. Decided HERE, in date space, so the lane cannot
-   *  reach a different answer by re-testing its time-off blocks in PIXEL space (narrowed weekend
-   *  columns make the two disagree). Always false for a capacity-starved (external) row. */
+   * reach a different answer by re-testing its time-off blocks in PIXEL space (narrowed weekend
+   * columns make the two disagree). Always false for a capacity-starved (external) row. */
   hasTimeOff: boolean;
 }
 
@@ -53,8 +53,8 @@ export interface RowModel {
   bars: BarLayout[];
   dayStates: DayState[];
   /** Days reading as a capacity conflict (`over` OR `timeOffConflict`) — the count the row's
-   *  screen-reader summary announces. Tallied in the day loop that builds `dayStates`, because the
-   *  view would otherwise rescan every day of every row on every vertical scroll frame. */
+   * screen-reader summary announces. Tallied in the day loop that builds `dayStates`, because the
+   * view would otherwise rescan every day of every row on every vertical scroll frame. */
   conflictDayCount: number;
   /** Days painted with the neutral half-day (partial capacity) treatment. Same reason as above. */
   partialCapacityDayCount: number;
@@ -69,7 +69,7 @@ export interface GroupModel {
   title: string;
   color?: string;
   /** True for the external / 3rd-party band. The view reads THIS (not the key string) to suppress
-   *  its utilisation average. */
+   * its utilisation average. */
   external: boolean;
   rows: RowModel[];
 }
@@ -129,11 +129,11 @@ export interface SchedulerModelOptions {
 }
 
 /** A row's capacity view of its own data. External / 3rd-party rows have NO capacity: no
- *  over-markers, no utilisation, no time-off blocks — an awareness band, not a bookable lane. That
- *  STARVATION CONTRACT lives HERE, as capacity-free outputs behind the same shape the tracked path
- *  fills, so the day loop below has one arm instead of two that have to be kept in step. `tracked`
- *  is the flag that keeps a starved row's zero `available` from reading as "fully booked" — only a
- *  genuinely tracked resource can be made unavailable by its own capacity. */
+ * over-markers, no utilisation, no time-off blocks — an awareness band, not a bookable lane. That
+ * STARVATION CONTRACT lives HERE, as capacity-free outputs behind the same shape the tracked path
+ * fills, so the day loop below has one arm instead of two that have to be kept in step. `tracked`
+ * is the flag that keeps a starved row's zero `available` from reading as "fully booked" — only a
+ * genuinely tracked resource can be made unavailable by its own capacity. */
 export interface CapacitySource {
   tracked: boolean;
   /** The row's applicable personal time off covering one date. */

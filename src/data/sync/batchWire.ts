@@ -132,7 +132,7 @@ interface SendBatchInput {
 }
 
 /** Dispatch stage: build and send the request, mapping a transport-level failure to the typed
- *  uncertain-commit error (the request may have been applied before the connection died). */
+ * uncertain-commit error (the request may have been applied before the connection died). */
 export async function sendBatch({ state, body, sequence, options }: SendBatchInput): Promise<Response> {
   let res: Response;
   try {
@@ -168,7 +168,7 @@ export async function sendBatch({ state, body, sequence, options }: SendBatchInp
 }
 
 /** Classification stage: turn a non-OK batch status into the typed error persist.ts branches on.
- *  Returns without effect for a 2xx — the receipt is validated by readBatchReceipt. */
+ * Returns without effect for a 2xx — the receipt is validated by readBatchReceipt. */
 export async function throwForBatchStatus(res: Response): Promise<void> {
   if (!res.ok) {
     // 409 is the optimistic-concurrency conflict signal (stale updatedAt; body
@@ -353,7 +353,7 @@ function reconcileArchives(receipt: BatchReceiptWire, expected: ReadonlySet<stri
 }
 
 /** Reconciliation stage: validate the commit receipt, then fold its server revisions and lifecycle
- *  archive confirmations into the {@link BatchCommitReceipt} the caller advances the snapshot with. */
+ * archive confirmations into the {@link BatchCommitReceipt} the caller advances the snapshot with. */
 export async function readBatchReceipt(
   res: Response,
   ops: Op[],

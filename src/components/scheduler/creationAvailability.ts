@@ -55,27 +55,27 @@ interface IsCreationStartBlockedInput {
 }
 
 /** Recurring weekdays on which an allocation may start for this resource. Company closures also
- *  block tracked resources; externals ignore closures and use only the company working calendar.
- *  A week with no effective days returns an empty array, so every start date is blocked. */
+ * block tracked resources; externals ignore closures and use only the company working calendar.
+ * A week with no effective days returns an empty array, so every start date is blocked. */
 export function resolveEffectiveWorkingDays(resource: Resource, accountWorkingDays: Weekday[]): Weekday[] {
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
   return effectiveWeek.kind === "days" ? effectiveWeek.days : [];
 }
 
 /** Why a schedule gesture may not begin on a date: the recurring company/personal calendars reject
- *  it, or the resource is on time off. Distinct because the two are separately overridable — an
- *  allocation-level `ignoreWorkingDays` bypasses the calendars only. */
+ * it, or the resource is on time off. Distinct because the two are separately overridable — an
+ * allocation-level `ignoreWorkingDays` bypasses the calendars only. */
 export type CreationBlockReason = "non-working" | "time-off";
 
 /** No time off to consider — a move gate asks the calendars only, and a shared empty array keeps
- *  that from allocating on a per-pointermove path. */
+ * that from allocating on a per-pointermove path. */
 const NO_TIME_OFF: TimeOff[] = [];
 const NO_CLOSURES: Closure[] = [];
 
 /** THE start-of-gesture gate, shared by every surface that asks "may a bar start on this
- *  resource-day?" (the model's per-day `creationBlocked`, the grid's draw commit, and the
- *  drag/keyboard move paths). Returns the REASON so a caller that must tell the two apart can,
- *  without re-deriving either rule. `timeOff` need not be pre-filtered by resource. */
+ * resource-day?" (the model's per-day `creationBlocked`, the grid's draw commit, and the
+ * drag/keyboard move paths). Returns the REASON so a caller that must tell the two apart can,
+ * without re-deriving either rule. `timeOff` need not be pre-filtered by resource. */
 export function resolveCreationBlockReason({
   resource,
   date,
@@ -145,7 +145,7 @@ export function isCreationStartBlockedForEffectiveWeek({
 }
 
 /** Whether recurring company/personal calendars reject an EXISTING allocation's proposed start.
- *  The allocation-level override intentionally bypasses both; time off is a separate conflict. */
+ * The allocation-level override intentionally bypasses both; time off is a separate conflict. */
 export function isAllocationMoveStartBlocked({
   resource,
   date,

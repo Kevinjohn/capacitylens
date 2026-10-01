@@ -31,8 +31,8 @@ export function buildWeekAnchor(weekStart: ISODate): { originDate: ISODate; focu
 }
 
 /** The same pair for an account's CURRENT week, read through its own calendar settings. Used both
- *  by "go to today" and by the tenant-boundary resets in useStore, so a company always opens on the
- *  week its own time zone / week start says it is. */
+ * by "go to today" and by the tenant-boundary resets in useStore, so a company always opens on the
+ * week its own time zone / week start says it is. */
 export function readCurrentWeekAnchor(
   data: AppData,
   accountId: ID | null,
@@ -57,7 +57,7 @@ function createDefaultSchedulerUi(emptyFilters: () => Filters): SchedulerUI {
 }
 
 /** Open the grid on `weekStart` and ask it to scroll there — the shared body of the two
- *  "navigate to a week" actions. */
+ * "navigate to a week" actions. */
 function recenterOn(state: StoreState, weekStart: ISODate): { ui: SchedulerUI } {
   return {
     ui: {

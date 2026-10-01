@@ -2,11 +2,11 @@
  * Dependency-free fuzzy scorer for the command palette.
  *
  * Scoring tiers (lower = better rank):
- *   0 — exact prefix match         "br"    → "Bruce Wayne"
- *   1 — word-boundary prefix match "way"   → "Bruce Wayne"
- *   2 — contiguous match anywhere  "uce"   → "Bruce Wayne"
- *   3 — subsequence (scattered)    "bwn"   → "Bruce Wayne"
- *   Infinity — no match
+ * 0 — exact prefix match         "br"    → "Bruce Wayne"
+ * 1 — word-boundary prefix match "way"   → "Bruce Wayne"
+ * 2 — contiguous match anywhere  "uce"   → "Bruce Wayne"
+ * 3 — subsequence (scattered)    "bwn"   → "Bruce Wayne"
+ * Infinity — no match
  *
  * Within a tier, shorter names rank higher (tighter fit).
  * Tie-break: lexicographic on lower-cased name (stable).
@@ -32,7 +32,7 @@ export function foldForSearch(value: string): string {
 const WORD_BOUNDARY_RE = /(?:^|[\s\-_]+)(.)/g;
 
 /** Score an ALREADY-FOLDED query against a raw `text`. Split out so a filter pass folds its query
- *  once instead of once per item; `fuzzyScore` is the folding entry point. */
+ * once instead of once per item; `fuzzyScore` is the folding entry point. */
 function scoreFolded(query: string, text: string): number {
   if (!query) return 0;
 
@@ -69,9 +69,9 @@ function scoreFolded(query: string, text: string): number {
 
 /** Return the score for `query` against `text`, or Infinity if no match.
  *  @remarks Pure and TOTAL — although `query` is untrusted user input, every branch returns a
- *    number and the regex is a fixed pattern over a single capture (no catastrophic backtracking),
- *    so this cannot throw. Do NOT wrap it in try/catch — there's nothing to guard and a wrapper
- *    would only mask a future real bug. */
+ * number and the regex is a fixed pattern over a single capture (no catastrophic backtracking),
+ * so this cannot throw. Do NOT wrap it in try/catch — there's nothing to guard and a wrapper
+ * would only mask a future real bug. */
 export function fuzzyScore(query: string, text: string): number {
   return scoreFolded(foldForSearch(query), text);
 }

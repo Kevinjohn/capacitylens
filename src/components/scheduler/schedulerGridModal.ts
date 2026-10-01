@@ -4,8 +4,8 @@ import { isCapacityTracked } from "@capacitylens/shared/types/entities";
 import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 
 /** The mean visible-window utilisation of the capacity-tracked rows, formatted for display — null
- *  when there are none. External rows carry no capacity, so the headline and per-group figures
- *  both exclude them here. */
+ * when there are none. External rows carry no capacity, so the headline and per-group figures
+ * both exclude them here. */
 export function buildAverageUtilizationLabel(rows: RowModel[]): string | null {
   const trackedRows = rows.filter((row) => isCapacityTracked(row.resource));
   return trackedRows.length

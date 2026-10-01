@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 const SHOW_JUMP_TO_DATE: boolean = false;
 
 /** A visible span in words — "1 week" / "4 weeks". Shared by the dropdown's options and its
- *  accessible name so the two can't drift apart. */
+ * accessible name so the two can't drift apart. */
 const buildZoomLabel = (weeks: number) =>
   weeks > 1 ? m.scheduler_weeks_option_other({ count: weeks }) : m.scheduler_weeks_option_one({ count: weeks });
 

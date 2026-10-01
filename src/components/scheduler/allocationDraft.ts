@@ -55,8 +55,8 @@ type CountFieldInput = Pick<
 type Fail = (field: AllocationDraftProblem["field"], message: AllocationDraftProblem["message"]) => void;
 
 /** The Start + "Days over" pair the two span modes share. The date-domain message is distinct from
- *  the plain range one: near year 9999 the cap is the calendar itself, not MAX_SPAN_DAYS, and
- *  telling the user "max 36,500" there would be a lie. */
+ * the plain range one: near year 9999 the cap is the calendar itself, not MAX_SPAN_DAYS, and
+ * telling the user "max 36,500" there would be a lie. */
 function validateCountField(
   { startDate, validDaysOver, spanFitsDateDomain, spanLimitedByDateDomain, maximumDaysOver }: CountFieldInput,
   fail: Fail,
@@ -179,8 +179,8 @@ function validateEffectiveHours(input: AllocationDraftValidationInput, fail: Fai
 }
 
 /** Every rule the visible allocation draft must satisfy before it may be written, in the order the
- *  user should hear about them. Reports the FIRST problem and returns whether the draft is persistable.
- *  Save and Duplicate both run this so Duplicate cannot persist a shape Save would reject. */
+ * user should hear about them. Reports the FIRST problem and returns whether the draft is persistable.
+ * Save and Duplicate both run this so Duplicate cannot persist a shape Save would reject. */
 export function validateAllocationDraft(input: AllocationDraftValidationInput, fail: Fail): boolean {
   if (!validateSelections(input, fail)) return false;
   // External and hourly allocations both use the raw Start/End inputs. Validate this once so
@@ -216,8 +216,8 @@ export interface EndDateInput {
 }
 
 /** The end date to persist. A span-mode edit that changed NOTHING the span depends on keeps the
- *  STORED end verbatim: re-deriving it would silently renormalise a historical row (one saved under
- *  a different working week, or before a span rule changed) on an unrelated edit such as a note. */
+ * STORED end verbatim: re-deriving it would silently renormalise a historical row (one saved under
+ * a different working week, or before a span rule changed) on an unrelated edit such as a note. */
 export function resolveEndDate({
   editing,
   isBlocks,

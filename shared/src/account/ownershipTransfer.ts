@@ -44,9 +44,9 @@ export function isLiveOwnershipTransferState(state: OwnershipTransferState): sta
 }
 
 /** The wire shape of a committed terminal outcome: a 409 whose code identifies the ceremony as
- *  DONE rather than rejected, carrying one of the non-live terminal states. Both HTTP clients that
- *  decode this response (the ceremony reader and the generic unknown-outcome classifier) share this
- *  predicate so they cannot drift — a malformed code or a live state must never match either. */
+ * DONE rather than rejected, carrying one of the non-live terminal states. Both HTTP clients that
+ * decode this response (the ceremony reader and the generic unknown-outcome classifier) share this
+ * predicate so they cannot drift — a malformed code or a live state must never match either. */
 export function isOwnershipTransferTerminalOutcomeBody(
   body: Record<string, unknown>,
 ): body is Record<string, unknown> & { code: "OWNERSHIP_TRANSFER_TERMINAL"; state: OwnershipTransferState } {
@@ -76,7 +76,7 @@ export const OWNERSHIP_TRANSFER_ACTIONS = Object.freeze([
 export type OwnershipTransferAction = (typeof OWNERSHIP_TRANSFER_ACTIONS)[number];
 
 /** Why a request reached a terminal state without the roles being exchanged. Bounded on purpose:
- *  it is persisted and surfaced to a participant, so it must never carry free text or identifiers. */
+ * it is persisted and surfaced to a participant, so it must never carry free text or identifiers. */
 export const OWNERSHIP_TRANSFER_TERMINAL_REASONS = Object.freeze([
   "target_declined",
   "owner_cancelled",
@@ -132,7 +132,7 @@ export function canTransitionOwnershipTransfer(
 }
 
 /** The state a successful `action` moves a request to. `null` when the edge is not permitted, so a
- *  caller cannot accidentally read a destination for a transition that may not happen. */
+ * caller cannot accidentally read a destination for a transition that may not happen. */
 export function nextOwnershipTransferState(
   state: OwnershipTransferState,
   action: OwnershipTransferAction,
@@ -155,8 +155,8 @@ export function nextOwnershipTransferState(
 }
 
 /** One transfer request as any participant-facing projection sees it. Display identity is resolved
- *  from the membership and identity projections at read time: no name or email is ever copied into
- *  the workflow row, so the ceremony creates no second store of personal data. */
+ * from the membership and identity projections at read time: no name or email is ever copied into
+ * the workflow row, so the ceremony creates no second store of personal data. */
 export interface OwnershipTransferRequest {
   id: string;
   accountId: WorkspaceId;
@@ -164,7 +164,7 @@ export interface OwnershipTransferRequest {
   targetUserId: PrincipalId;
   state: OwnershipTransferState;
   /** Monotonic workflow revision. Every state-changing command supplies the value it was authorised
-   *  against, so a command formed against an earlier acceptance cycle cannot apply to a later one. */
+   * against, so a command formed against an earlier acceptance cycle cannot apply to a later one. */
   revision: string;
   createdAt: IsoInstant;
   expiresAt: IsoInstant;

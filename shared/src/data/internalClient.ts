@@ -30,7 +30,7 @@ import type { AppData, Client, ID, ISOTimestamp } from "../types/entities";
 export const INTERNAL_CLIENT_NAME = "Internal";
 
 /** A preset swatch colour for the Internal client (Blue bright — a valid `#rrggbb` from the
- *  palette, distinct from NEUTRAL_COLOR which is reserved for external resources). */
+ * palette, distinct from NEUTRAL_COLOR which is reserved for external resources). */
 export const INTERNAL_CLIENT_COLOR = "#2d75da";
 
 /**
@@ -93,8 +93,8 @@ function isStringValue(value: unknown): value is string {
 }
 
 /** The account's built-in Internal client, or undefined if none exists yet. Identifies it by the
- *  `builtin` flag (id-independent so it survives import-remap). First match wins — the seed /
- *  addAccount / migrate paths guarantee at most one per account. */
+ * `builtin` flag (id-independent so it survives import-remap). First match wins — the seed /
+ * addAccount / migrate paths guarantee at most one per account. */
 export function internalClientFor(clients: Client[], accountId: ID): Client | undefined {
   return clients.find((client) => isObjectValue(client) && isBuiltinClient(client) && client.accountId === accountId);
 }

@@ -3,8 +3,8 @@ import { effectiveProjectId } from "./integrity";
 import type { Allocation, Client, ID, Project, Resource, Activity } from "../types/entities";
 
 /** The single neutral grey — the bar/colour fallback AND the colour of external / 3rd-party
- *  identity (avatar, swatch, band, bars). Re-exported app-side as `NEUTRAL_COLOR` from
- *  src/lib/palette so both sides share ONE definition. */
+ * identity (avatar, swatch, band, bars). Re-exported app-side as `NEUTRAL_COLOR` from
+ * src/lib/palette so both sides share ONE definition. */
 export const NEUTRAL_COLOR = "#9ca3af";
 /** Canonical user-selectable colour palette. Persisted user colours must belong to this set.
  * `NEUTRAL_COLOR` (external resources) and the Internal-client colour are deliberate system
@@ -66,11 +66,11 @@ export const PRESET_COLORS = Object.freeze([
 const PRESET_COLOR_SET = new Set<string>(PRESET_COLORS);
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 /** Parsed RGB of every preset, precomputed ONCE alongside `PRESET_COLOR_SET`. The nearest-preset
- *  scan below runs on every persisted/imported colour, and re-parsing all 52 palette hex strings
- *  per call was pure repeated work. Index-aligned with `PRESET_COLORS`, so palette order (the
- *  deterministic tie-break) is preserved. An entry is `null` only if a palette member were not a
- *  valid 6-digit hex — unreachable (pinned by a test), but kept nullable so such an entry is
- *  SKIPPED rather than poisoning every distance with NaN. */
+ * scan below runs on every persisted/imported colour, and re-parsing all 52 palette hex strings
+ * per call was pure repeated work. Index-aligned with `PRESET_COLORS`, so palette order (the
+ * deterministic tie-break) is preserved. An entry is `null` only if a palette member were not a
+ * valid 6-digit hex — unreachable (pinned by a test), but kept nullable so such an entry is
+ * SKIPPED rather than poisoning every distance with NaN. */
 const PRESET_RGB: readonly (RgbChannels | null)[] = PRESET_COLORS.map((preset) => parseRgb(preset));
 
 /** True when the value is one of the preset swatches, ignoring case and surrounding space. Pure. */
@@ -79,9 +79,9 @@ export function isPresetColor(value: unknown): value is string {
 }
 
 /** Used by {@link snapToPresetColor} ONLY when the input can't be parsed as a 6-digit hex at
- *  all (so no "nearest" distance can even be computed) — e.g. `null`, `undefined`, `"nope"`.
- *  This is the ONE fixed colour left in the system; every *parseable* colour, however far off
- *  the palette, is snapped to its nearest preset instead — see snapToPresetColor. */
+ * all (so no "nearest" distance can even be computed) — e.g. `null`, `undefined`, `"nope"`.
+ * This is the ONE fixed colour left in the system; every *parseable* colour, however far off
+ * the palette, is snapped to its nearest preset instead — see snapToPresetColor. */
 export const FALLBACK_PRESET_COLOR = "#5c34d4";
 
 /**
@@ -124,8 +124,8 @@ export function snapToPresetColor(value: unknown): string {
 }
 
 /** Id→entity maps for O(1) colour resolution. The scheduler model already builds
- *  these to position bars, so colour resolution reuses them instead of re-scanning
- *  the raw arrays once per bar. */
+ * these to position bars, so colour resolution reuses them instead of re-scanning
+ * the raw arrays once per bar. */
 export interface BarColorMaps {
   activities: Map<ID, Activity>;
   projects: Map<ID, Project>;
@@ -232,8 +232,8 @@ export function readableTextColor(hex: string): string {
 const AA_NORMAL = 4.5;
 
 /** The exact channel quantisation `toHex` writes (and therefore the value a later re-parse of that
- *  hex reads back). Shared so the nudge loop below can score a candidate from its live float
- *  channels WITHOUT round-tripping through a hex string, yet score the identical byte values. */
+ * hex reads back). Shared so the nudge loop below can score a candidate from its live float
+ * channels WITHOUT round-tripping through a hex string, yet score the identical byte values. */
 const channelByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
 
 const toHex = (redChannel: number, greenChannel: number, blueChannel: number) =>

@@ -63,7 +63,7 @@ const LIFECYCLE_ANCESTRY: readonly LifecycleAncestryRelation[] = [
 // Derived constants — the two access patterns the walk and the projection need, computed ONCE from
 // the single relation list above so a new edge can never leave one of them stale.
 /** Edges grouped by CHILD table: a walk step reads only its own edges (most tables have one or
- *  none) instead of re-scanning the whole relation list. */
+ * none) instead of re-scanning the whole relation list. */
 const CHILD_RELATIONS: ReadonlyMap<AppDataKey, readonly LifecycleAncestryRelation[]> = LIFECYCLE_ANCESTRY.reduce(
   (byChild, relation) => {
     const edges = byChild.get(relation.child);
@@ -75,13 +75,13 @@ const CHILD_RELATIONS: ReadonlyMap<AppDataKey, readonly LifecycleAncestryRelatio
 );
 
 /** The only tables the walk ever LOOKS UP — every other table is a leaf child, so indexing it would
- *  build a Map nothing reads. */
+ * build a Map nothing reads. */
 export const PARENT_TABLES: readonly AppDataKey[] = [...new Set(LIFECYCLE_ANCESTRY.map((relation) => relation.parent))];
 
 /** Per-projection cache of a walk's verdict, keyed `${table}|${id}`. Sound because the child-vs-parent
- *  accountId equality check happens at the EDGE, before recursion: a parent's own verdict is a pure
- *  function of (table, id, data) — it never depends on which child reached it. Rows are resolved
- *  through the id-keyed index, so one key can only ever mean one row. */
+ * accountId equality check happens at the EDGE, before recursion: a parent's own verdict is a pure
+ * function of (table, id, data) — it never depends on which child reached it. Rows are resolved
+ * through the id-keyed index, so one key can only ever mean one row. */
 export type LifecycleAncestryMemo = Map<string, LifecycleAncestryResult>;
 
 /**
@@ -127,7 +127,7 @@ export function inspectAncestry({ table, row, lookup, memo }: InspectAncestryOpt
 }
 
 /** One resolved parent's verdict, reused across every child that reaches it (see
- *  {@link LifecycleAncestryMemo}). Without a memo this is a plain recursive call. */
+ * {@link LifecycleAncestryMemo}). Without a memo this is a plain recursive call. */
 function resolveMemoisedAncestry({ table, row, lookup, memo }: MemoisedAncestryOptions): LifecycleAncestryResult {
   if (!memo) return inspectAncestry({ table, row, lookup, memo: undefined });
   const key = `${table}|${row.id}`;

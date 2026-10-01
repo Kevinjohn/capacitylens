@@ -37,7 +37,7 @@ export interface VisibleSpanInsets {
  *
  * @param axis  Scroll axis the span is clamped along.
  * @param start CSS length of the span's leading edge in the scroll container's content
- *              coordinates for `axis`, usually a `var()` the span sets on itself.
+ * coordinates for `axis`, usually a `var()` the span sets on itself.
  * @param size  CSS length of the span along `axis`.
  */
 export function buildVisibleSpanInsets(axis: ScrollAxis, start: string, size: string): VisibleSpanInsets {

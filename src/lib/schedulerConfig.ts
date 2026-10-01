@@ -20,23 +20,23 @@ export const DAY_COLUMN_MIN_WIDTH = 18;
 export const WEEKDAY_LABEL_MIN_WIDTH = 36;
 
 /** Bare-minimum width of a Sat/Sun column when "minimise weekends" is on — just room for a
- *  two-digit date. Expressed in REM (not px) so it tracks the user's font size / zoom; it's
- *  resolved to px against the root font size where the ColumnGeometry is built. Only applies at
- *  fine zoom (dayWidth >= DAY_COLUMN_MIN_WIDTH); buildColumnGeometry also caps it at dayWidth. */
+ * two-digit date. Expressed in REM (not px) so it tracks the user's font size / zoom; it's
+ * resolved to px against the root font size where the ColumnGeometry is built. Only applies at
+ * fine zoom (dayWidth >= DAY_COLUMN_MIN_WIDTH); buildColumnGeometry also caps it at dayWidth. */
 export const WEEKEND_COLUMN_REM = 1.4; // ≈ a 2-digit number at text-xs + a little padding
 
 /** Idle delay (ms) after a FREE horizontal scroll settles before the week snap
- *  floors the left edge back to the current week's first day — long enough that a continuous drag
- *  isn't fought mid-gesture, short enough to feel immediate once the user lets go. */
+ * floors the left edge back to the current week's first day — long enough that a continuous drag
+ * isn't fought mid-gesture, short enough to feel immediate once the user lets go. */
 export const WEEK_SNAP_IDLE_MS = 120;
 
 /** How many days the timeline spans FORWARD from the focus date. */
 export const DEFAULT_RANGE_DAYS = 120;
 /** Scrollable history kept to the LEFT of the focus date (default view, Today,
- *  jump-to-date, account switch). The view still opens scrolled to the focus date —
- *  the buffer exists so a leftward swipe PANS into the past instead of overscrolling
- *  the left edge, which macOS treats as browser back-navigation. A whole number of
- *  weeks, so the origin stays on the same weekday as the focused Monday. */
+ * jump-to-date, account switch). The view still opens scrolled to the focus date —
+ * the buffer exists so a leftward swipe PANS into the past instead of overscrolling
+ * the left edge, which macOS treats as browser back-navigation. A whole number of
+ * weeks, so the origin stays on the same weekday as the focused Monday. */
 export const PAST_BUFFER_DAYS = 28;
 
 /**

@@ -10,8 +10,8 @@ import { IMMUTABLE_ACCOUNT_FIELDS } from "../../validate";
 export { SINGLE_COMPANY_CAP_MESSAGE };
 
 /** SELECT COUNT(*) FROM accounts — the cap's sole precondition. Same query POST /api/orgs used
- *  before the cap existed; kept as one function so every enforcement point reads the identical
- *  number (never re-derived ad hoc at each call site). */
+ * before the cap existed; kept as one function so every enforcement point reads the identical
+ * number (never re-derived ad hoc at each call site). */
 export function countAccounts(db: Db): number {
   return (db.prepare("SELECT COUNT(*) AS n FROM accounts").get() as { n: number }).n;
 }

@@ -34,7 +34,7 @@ export const redactSecretUrl = (url: unknown): string | undefined => {
 };
 
 /** Build the exact structured logger policy consumed by Fastify.
- *  Exported so tests can pin redaction before req/res serializers discard header objects. */
+ * Exported so tests can pin redaction before req/res serializers discard header objects. */
 export function createRequestLoggerOptions(stream?: AppOptions["logStream"]) {
   return {
     ...(stream ? { stream } : {}),

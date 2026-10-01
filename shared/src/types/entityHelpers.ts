@@ -2,8 +2,8 @@ import type { AppData, Resource, ResourceKind, SchedulingMode, ScopedEntity, Sco
 import { APP_DATA_KEYS, FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from "./entityKeys";
 
 /** Does an allocation entered in this mode carry an hourly load? Blocks record placement and use
- *  `blockHoursPerDay` instead of typed hours. Capacity projections, labels, reassignment, and
- *  validation use this predicate for a consistent distinction. */
+ * `blockHoursPerDay` instead of typed hours. Capacity projections, labels, reassignment, and
+ * validation use this predicate for a consistent distinction. */
 export function carriesHourlyLoad(mode: SchedulingMode): boolean {
   return mode !== "blocks";
 }
@@ -14,33 +14,33 @@ export function isScopedEntityKey(key: string): key is ScopedEntityKey {
 }
 
 /** A uniform `ScopedEntity[]` view of AppData's scoped tables for operations that process every
- *  scoped table. This named seam contains the cast TypeScript cannot infer through a
- *  heterogeneous-union index. */
+ * scoped table. This named seam contains the cast TypeScript cannot infer through a
+ * heterogeneous-union index. */
 export function scopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntity[]> {
   return data;
 }
 
 /** Clamp an ALLOCATION's hours/day into [0, MAX_HOURS_PER_DAY]; a non-finite value → 0. The
- *  ONE rule shared by the store write boundary (every allocation write) and the import
- *  sanitiser, so the two can never drift. 0 is legal (a 'blocks' booking carries 0 load);
- *  a day can't exceed 24h. */
+ * ONE rule shared by the store write boundary (every allocation write) and the import
+ * sanitiser, so the two can never drift. 0 is legal (a 'blocks' booking carries 0 load);
+ * a day can't exceed 24h. */
 export function clampHoursPerDay(hours: number): number {
   return Number.isFinite(hours) ? Math.max(0, Math.min(hours, MAX_HOURS_PER_DAY)) : 0;
 }
 
 /** Clamp a RESOURCE's working hours/day to (0, MAX_HOURS_PER_DAY]. Unlike an allocation, a
- *  resource must work a POSITIVE number of hours (0 capacity = no working day at all — same
- *  reason the store rejects an empty working-week), so junk / <= 0 falls back to a normal 8h
- *  day; a finite positive value just clamps to the 24h ceiling. Shared by the import sanitiser
- *  and the store resource write path so the two stay in lockstep. */
+ * resource must work a POSITIVE number of hours (0 capacity = no working day at all — same
+ * reason the store rejects an empty working-week), so junk / <= 0 falls back to a normal 8h
+ * day; a finite positive value just clamps to the 24h ceiling. Shared by the import sanitiser
+ * and the store resource write path so the two stay in lockstep. */
 export function clampWorkingHoursPerDay(hours: number): number {
   return Number.isFinite(hours) && hours > 0 ? Math.min(hours, MAX_HOURS_PER_DAY) : FULL_DAY_HOURS;
 }
 
 /** Outsourced / 3rd-party resources have NO capacity (no hours, utilisation, or over-markers) and
- *  render in their own neutral band. This is the SINGLE predicate every capacity surface gates on —
- *  so a new capacity-free kind is a one-line change here, not N scattered `kind === 'external'`
- *  checks across the scheduler / forms / import. */
+ * render in their own neutral band. This is the SINGLE predicate every capacity surface gates on —
+ * so a new capacity-free kind is a one-line change here, not N scattered `kind === 'external'`
+ * checks across the scheduler / forms / import. */
 export function isExternalResource(resource: { kind: ResourceKind }): boolean {
   return resource.kind === "external";
 }
@@ -51,7 +51,7 @@ export function isCapacityTracked(resource: { kind: ResourceKind }): boolean {
 }
 
 /** True when a resource persists its own working-week pattern. Placeholders derive their live week
- *  from the company calendar, while externals have no capacity at all. */
+ * from the company calendar, while externals have no capacity at all. */
 export function hasPersonalWorkingPattern(resource: { kind: ResourceKind }): boolean {
   return resource.kind === "person";
 }
@@ -70,9 +70,9 @@ function buildDefaultCapacityWorkingPattern(): Pick<Resource, "workingDays" | "h
 }
 
 /** The unused silent-default capacity fields every `external` resource is created with: externals
- *  have no capacity, but the Resource type + store still require a positive working day and a
- *  non-empty week. A FACTORY (not a shared object) so each call gets its own weekday arrays — no
- *  aliasing if a consumer mutates one. One source for the External form, seed, and fixtures. */
+ * have no capacity, but the Resource type + store still require a positive working day and a
+ * non-empty week. A FACTORY (not a shared object) so each call gets its own weekday arrays — no
+ * aliasing if a consumer mutates one. One source for the External form, seed, and fixtures. */
 export function externalCapacityDefaults(): Pick<
   Resource,
   "employmentType" | "engagement" | "workingHoursPerDay" | "workingDays" | "halfDays"
@@ -86,9 +86,9 @@ export function externalCapacityDefaults(): Pick<
 }
 
 /** The account-independent silent defaults for placeholder capacity fields. Placeholders derive
- *  their live working week from the company calendar, so these persisted fields are deliberately
- *  inert and must never copy an account's current selection. A factory gives every caller fresh
- *  arrays, avoiding aliases if a consumer mutates one. */
+ * their live working week from the company calendar, so these persisted fields are deliberately
+ * inert and must never copy an account's current selection. A factory gives every caller fresh
+ * arrays, avoiding aliases if a consumer mutates one. */
 export function placeholderCapacityDefaults(): Pick<Resource, "workingDays" | "halfDays"> {
   return buildDefaultCapacityWorkingPattern();
 }
@@ -110,9 +110,9 @@ export function emptyAppData(): AppData {
 }
 
 /** True when every AppData table is an empty array — a genuinely empty dataset (a
- *  first run or a fully-cleared store). The single definition shared by the client
- *  bootstrap (src/data/persist.ts) and the server's init-marker backfill
- *  (server/src/db.ts) so the two "is this empty?" checks can never drift. */
+ * first run or a fully-cleared store). The single definition shared by the client
+ * bootstrap (src/data/persist.ts) and the server's init-marker backfill
+ * (server/src/db.ts) so the two "is this empty?" checks can never drift. */
 export function isEmpty(data: AppData): boolean {
   return APP_DATA_KEYS.every((key) => data[key].length === 0);
 }

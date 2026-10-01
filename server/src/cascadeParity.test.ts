@@ -196,7 +196,7 @@ function withSeededDb<T>(use: (db: Db) => T): T {
 /**
  * Run the same delete both ways and compare the survivors.
  * @param sql  the real database path — a purge through the TenantStore, or a plain deleteRow for a
- *             table with no lifecycle purge (where only the FK clauses act).
+ * table with no lifecycle purge (where only the FK clauses act).
  */
 function expectParity(
   transform: (data: AppData) => AppData,
