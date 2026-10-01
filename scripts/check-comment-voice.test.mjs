@@ -13,6 +13,8 @@ test("reports ticket references in comments", () => {
     "// See issue 456 for context.",
     "// The P1.11 helper.",
     "// The round-1 regression.",
+    "// Deferred to Stage C.",
+    "// Allowed by plan exception 3.",
     "const a = 1;",
   ].join("\n");
   assert.deepEqual(findings(content), [
@@ -22,6 +24,8 @@ test("reports ticket references in comments", () => {
     "4: ticket reference",
     "5: ticket reference",
     "6: ticket reference",
+    "7: ticket reference",
+    "8: ticket reference",
   ]);
 });
 
@@ -33,18 +37,40 @@ test("reports an em-dash in line, block and JSX comments", () => {
 });
 
 test("reports section banners", () => {
-  const content = ["// ---- Helpers ----", "// ======", "// ──── Section", "/* ****** */"].join("\n");
+  const content = ["// ---- Helpers ----", "// ======", "// ──── Section", "/* ****** */", "// ── Title"].join("\n");
   assert.deepEqual(findings(content), [
     "1: section banner",
     "2: section banner",
     "3: section banner",
     "4: section banner",
+    "5: section banner",
   ]);
 });
 
 test("reports a hanging indent on TSDoc continuation lines", () => {
   const content = ["/** First line.", " *  continued with a hanging indent.", " * Flat line.", " */"].join("\n");
   assert.deepEqual(findings(content), ["2: hanging TSDoc indent"]);
+});
+
+test("reports an indented TSDoc tag line and an indented continuation after a tag", () => {
+  const content = [
+    "/** First line.",
+    " *  @param a - the first.",
+    " * @param b - the second, which",
+    " *   wraps with a hanging indent.",
+    " * @returns nothing.",
+    " */",
+  ].join("\n");
+  assert.deepEqual(findings(content), ["2: hanging TSDoc indent", "4: hanging TSDoc indent"]);
+});
+
+test("does not apply the TSDoc indent rule to plain block comments", () => {
+  assert.deepEqual(findings(["/*", " * Plain block.", " *   indented on purpose.", " */"].join("\n")), []);
+});
+
+test("reads a JSDoc comment once and never treats JSX text as a comment", () => {
+  assert.deepEqual(findings('/** @type {/* \u2014 */ string} */\nconst a = "";\n'), ["1: em-dash"]);
+  assert.deepEqual(findings("export const v = <p>\n  // copy \u2014 #12\n</p>;\n", "src/sample.tsx"), []);
 });
 
 test("reports a TODO or FIXME without an issue URL", () => {
@@ -71,6 +97,7 @@ test("ignores strings, template literals, regex literals and JSX text", () => {
 test("allows issue URLs, colours and indentation inside fences, examples and lists", () => {
   const content = [
     "// See https://github.com/owner/repo/issues/123 for context.",
+    "// Notes live at https://example.com/P1.11/T7#12 for reference.",
     "// The surface is #161922.",
     "/**",
     " * Usage:",

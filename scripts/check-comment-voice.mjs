@@ -7,15 +7,18 @@ import ts from "typescript";
 const SOURCE_PATTERN = /\.(?:ts|tsx|mts|mjs)$/;
 const ISSUE_URL = /https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/issues\/\d+/;
 const URL_PATTERN = /\bhttps?:\/\/\S+/g;
-// Issue numbers (#123), plan labels (T7, P1.11, Phase 2, round 1) and "issue 123". Six or more
-// digits after a hash is a colour such as #161922, not an issue.
+// Issue numbers (#123), plan labels (T7, P1.11, Phase 2, Stage C, round 1, plan exception) and
+// "issue 123". Six or more digits after a hash is a colour such as #161922, not an issue.
 const TICKET_PATTERNS = [
   /(?<![\w&])#\d{1,5}\b/,
   /\b[TP]\d+(?:\.\d+)*\b/,
   /\b(?:phase|round)[ -]\d+\b/i,
+  /\b[Ss]tage [A-Z]\b/,
+  /\bplan exceptions?\b/i,
   /\b(?:issue|ticket|PR|pull request)s? #?\d+\b/i,
 ];
-const BANNER_PATTERN = /([-=_~#*+─━═])\1{3,}/;
+// Four repeated ASCII divider characters, or two box-drawing characters, make a banner.
+const BANNER_PATTERN = /([-=_~#*+])\1{3,}|[\u2500-\u257f]{2,}/;
 const LIST_ITEM = /^(?:[-*+\u2022]|\d+[.)]|\(\w{1,3}\)|[a-z][.)])\s/;
 
 function scriptKind(path) {
@@ -25,7 +28,9 @@ function scriptKind(path) {
 }
 
 // Every comment sits in the trivia before some token. The scanner splits that trivia into the
-// previous line's trailing comments and the next token's leading ones, so both are read. JSX text is skipped because its characters are copy, not trivia.
+// previous line's trailing comments and the next token's leading ones, so both are read. JSX text
+// is skipped because its characters are copy, not trivia, and JSDoc nodes because they sit inside
+// a comment that is already read.
 export function extractComments(path, content) {
   const source = ts.createSourceFile(path, content, ts.ScriptTarget.Latest, false, scriptKind(path));
   const seen = new Map();
@@ -74,6 +79,7 @@ function hangingIndentLines(text) {
     if (body.startsWith("@")) {
       example = body.startsWith("@example");
       list = false;
+      if (indent !== "") flagged.push(index);
       continue;
     }
     if (LIST_ITEM.test(body)) {
@@ -114,6 +120,7 @@ export function evaluateCommentVoice(path, content) {
     .sort((a, b) => a.line - b.line);
 }
 
+// `git ls-files` lists tracked files only, so ignored and generated output is never scanned.
 export function collectSourceFiles(root) {
   const result = spawnSync("git", ["ls-files", "-z", "--", "src", "shared", "server/src"], {
     cwd: root,
