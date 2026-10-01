@@ -146,6 +146,25 @@ jobs:
           ' "$state_file"
       - name: Verify live internal TLS generation
         run: docker compose exec -T api node scripts/verify-tls-renewal.mjs
+      - name: Verify full Compose restart reuses internal certificate
+        run: |
+          before="$(curl -fsS http://localhost:8080/api/health | node -e '
+            let input = "";
+            process.stdin.on("data", (chunk) => input += chunk);
+            process.stdin.on("end", () => process.stdout.write(JSON.parse(input).internalTls.fingerprintSha256));
+          ')"
+          test -n "$before"
+          docker compose up -d --force-recreate
+          for _ in {1..30}; do
+            if curl -fsS http://localhost:8080/api/health >/dev/null; then break; fi
+            sleep 2
+          done
+          after="$(curl -fsS http://localhost:8080/api/health | node -e '
+            let input = "";
+            process.stdin.on("data", (chunk) => input += chunk);
+            process.stdin.on("end", () => process.stdout.write(JSON.parse(input).internalTls.fingerprintSha256));
+          ')"
+          test "$before" = "$after"
       - name: Smoke test security headers
         run: |
           headers="$(curl -fsS -D - -o /dev/null http://localhost:8080/)"
@@ -154,6 +173,11 @@ jobs:
           echo "$headers" | grep -qi '^x-frame-options:'
           echo "$headers" | grep -qi '^x-content-type-options:'
           echo "$headers" | grep -qi '^referrer-policy:'
+      - name: Keep account-route redirects on the public origin
+        run: |
+          headers="$(curl -sS -D - -o /dev/null -H 'Host: capacity.example.test' http://localhost:8080/account)"
+          echo "$headers" | grep -q '^HTTP/1.1 301'
+          echo "$headers" | grep -qi '^location: /account/'
       - name: Smoke test immutable asset caching
         run: |
           asset_path="$(curl -fsS http://localhost:8080/ | grep -oE '/assets/[^"[:space:]]+\.(js|css)' | head -n 1)"
@@ -204,4 +228,102 @@ jobs:
         run: docker compose logs
       - name: Stop the production stack
         if: always()
+        run: docker compose down --volumes
+
+  authenticated:
+    name: Authenticated Compose and remote client smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: capacitylens-auth-smoke
+      WEB_PORT: "8082"
+      DOCKER_SMOKE_URL: http://127.0.0.1:8082
+      SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: self-hosted-password
+      SMALLSASS_ACCOUNT_MODE: password-only
+      SMALLSASS_ACCOUNT_PUBLIC_URL: https://capacity.example.test
+      SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off"
+      CAPACITYLENS_CORS_ORIGIN: https://client.example.test
+      CAPACITYLENS_STORAGE_ENCRYPTED: "1"
+      CAPACITYLENS_SECURITY_LOG_FORWARDING: "1"
+      CAPACITYLENS_HTTPS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Create disposable installation secrets
+        run: |
+          for name in SMALLSASS_ACCOUNT_SECRET SMALLSASS_ACCOUNT_SETUP_TOKEN DOCKER_SMOKE_PASSWORD; do
+            value="$(openssl rand -hex 32)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+          echo "DOCKER_SMOKE_ACCOUNT_ID_FILE=$RUNNER_TEMP/account-id" >> "$GITHUB_ENV"
+      - name: Build and start authenticated installation
+        run: docker compose up --build -d
+      - name: Wait for authenticated API health
+        run: |
+          for _ in {1..30}; do
+            if curl -fsS http://127.0.0.1:8082/api/health >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          echo "authenticated API never became healthy" >&2
+          exit 1
+      - name: Create owner, company and allocation through public proxy
+        run: node scripts/docker-auth-smoke.mjs setup
+      - name: Remove setup credential and recreate API
+        run: |
+          echo "SMALLSASS_ACCOUNT_SETUP_TOKEN=" >> "$GITHUB_ENV"
+          SMALLSASS_ACCOUNT_SETUP_TOKEN= docker compose up -d --no-deps --force-recreate api
+          for _ in {1..30}; do
+            if curl -fsS http://127.0.0.1:8082/api/health >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          echo "recreated API never became healthy" >&2
+          exit 1
+      - name: Verify authenticated data and closed access after recreation
+        run: node scripts/docker-auth-smoke.mjs verify
+      - name: Verify remote browser CORS policy
+        run: |
+          headers="$(curl -fsS -D - -o /dev/null -H 'Origin: https://client.example.test' http://127.0.0.1:8082/api/health)"
+          echo "$headers" | grep -qi '^access-control-allow-origin: https://client.example.test'
+      - name: Build and start static remote client
+        env:
+          COMPOSE_PROJECT_NAME: capacitylens-remote-client-smoke
+          WEB_PORT: "8083"
+          VITE_CAPACITYLENS_API: https://capacity.example.test
+        run: |
+          docker compose up --build -d web-client
+          test "$(docker compose ps --services --status running)" = "web-client"
+          for _ in {1..30}; do
+            if curl -fsS http://127.0.0.1:8083/ >/dev/null; then break; fi
+            sleep 2
+          done
+          headers="$(curl -fsS -D - -o /dev/null http://127.0.0.1:8083/)"
+          echo "$headers" | grep -qi "connect-src 'self' https://capacity.example.test"
+          redirect="$(curl -sS -D - -o /dev/null -H 'Host: client.example.test' http://127.0.0.1:8083/account)"
+          echo "$redirect" | grep -q '^HTTP/1.1 301'
+          echo "$redirect" | grep -qi '^location: /account/'
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8083/api/health)" = "404"
+      - name: Show authenticated stack logs on failure
+        if: failure()
+        run: docker compose logs
+      - name: Stop authenticated stack
+        if: always()
+        run: docker compose down --volumes
+      - name: Show remote client logs on failure
+        if: failure()
+        env:
+          COMPOSE_PROJECT_NAME: capacitylens-remote-client-smoke
+          WEB_PORT: "8083"
+          VITE_CAPACITYLENS_API: https://capacity.example.test
+        run: docker compose logs web-client
+      - name: Stop remote client stack
+        if: always()
+        env:
+          COMPOSE_PROJECT_NAME: capacitylens-remote-client-smoke
+          WEB_PORT: "8083"
+          VITE_CAPACITYLENS_API: https://capacity.example.test
         run: docker compose down --volumes

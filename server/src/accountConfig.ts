@@ -240,12 +240,14 @@ export function resolveAccountEnvironment(source: Record<string, string | undefi
   // normalized environment in tests and embedded callers.
   assertNoRetiredAccountNames(source);
   for (const key of RETIRED_SSO_NAMES) {
-    if (source[key] !== undefined) {
+    // Compose projects absent retired settings as empty placeholders; any configured value,
+    // including whitespace, must still stop startup before storage is opened.
+    if (source[key] !== undefined && source[key] !== "") {
       throw new AccountConfigError(`${key} was removed; configure Google or tenant-specific Microsoft instead.`);
     }
   }
   for (const key of RETIRED_GENERIC_OIDC_KEYS) {
-    if (source[key] !== undefined) {
+    if (source[key] !== undefined && source[key] !== "") {
       throw new AccountConfigError(`${key} was removed; configure Google or tenant-specific Microsoft instead.`);
     }
   }

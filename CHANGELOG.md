@@ -7,6 +7,15 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Docker installations now refuse retired generic company-login settings at startup instead of
+  silently omitting them. Repeat Compose starts now reuse the existing internal certificate
+  after an API restart or database restore, and the installation guide follows the current
+  password setup flow (#1387).
+- Docker web targets now keep account-route redirects on the public origin, and the documented
+  audit-outbox recovery command accepts pnpm's argument separator (#1387).
+
 ## [0.72.0-alpha.1] - 2026-09-30
 
 ### Added
