@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.73.0-alpha.1] - 2026-10-01
+
 ### Added
 
 - A new company can start with example data: a **Start with example data** box on the create-company
@@ -38,8 +40,6 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
-- The Docker install guide now sets `SMALLSASS_ACCOUNT_MODE=password-only`; its previous `password`
-  value refused to start (#1383).
 - Docker installations now refuse retired generic company-login settings at startup instead of
   silently omitting them. Repeat Compose starts now reuse the existing internal certificate
   after an API restart or database restore, and the installation guide follows the current
@@ -4763,7 +4763,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.72.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.73.0-alpha.1...HEAD
+[0.73.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.72.0-alpha.1...v0.73.0-alpha.1
 [0.72.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.71.0-alpha.1...v0.72.0-alpha.1
 [0.71.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.70.1-alpha.1...v0.71.0-alpha.1
 [0.70.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...v0.70.1-alpha.1

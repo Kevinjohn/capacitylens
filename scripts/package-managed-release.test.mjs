@@ -208,6 +208,8 @@ test("adds the operator files, the exact version to the guide and the source rev
   const guide = await readFile(join(root, "INSTALL.md"), "utf8");
   assert.match(guide, /releases\/download\/v1\.2\.3\/capacitylens-1\.2\.3\.tar\.gz/);
   assert.doesNotMatch(guide, /X\.Y\.Z/);
+  // An isolated site's files are unreadable to the platform's default background-process user.
+  assert.match(guide, /Background process \(daemon\):\*\* user: the site's user/);
 });
 
 test("ships an environment example whose only blanks are the three values to fill in", async () => {
