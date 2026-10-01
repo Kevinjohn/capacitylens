@@ -3,3 +3,6 @@ contact_links:
   - name: Security vulnerability
     url: https://github.com/Kevinjohn/capacitylens/security/advisories/new
     about: Please report vulnerabilities privately — see SECURITY.md. Do not open a public issue.
+  - name: Setup or usage question
+    url: https://github.com/Kevinjohn/capacitylens/discussions/categories/q-a
+    about: Ask in Discussions (Q&A). Include the version, deployment method and relevant logs.

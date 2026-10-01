@@ -27,6 +27,14 @@ This is the short, present-tense record of decisions that constrain future work.
   versioned device preference scoped to the signed-in person and company (with stable demo, local
   and no-company scopes), never company data or export data. A copy change may bump the version to
   show materially changed guidance again.
+- A new setting needs a user who cannot proceed without it. Prefer deriving a value from what the
+  operator or company already told us.
+- Intentional friction against task tracking: inline **Add activity** and the **Task** field stay
+  opt-in company settings, off by default. Early users treated activities as a task list; one
+  company reached about 300 activities and scheduled hour by hour instead of blocking days on a
+  project. CapacityLens is a week-granularity capacity view, and the friction is deliberate.
+- CapacityLens is a single product. The earlier sibling-product framing is retired; there is one
+  product, one repository and one set of releases.
 - The global sidebar shortcut (⌘B / Ctrl+B) yields while text entry or IME composition owns the
   keyboard and while any modal is open; those contexts keep both the chord and page layout stable.
 
