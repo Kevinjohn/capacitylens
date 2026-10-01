@@ -167,6 +167,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   visible and local helpers local; smaller files must reduce the reading context for a behavior.
 - Preserve existing account/workspace/provider vocabulary and semantic ID aliases at their owning
   contracts. Naming changes never alter wire fields, stable identifiers or released migrations.
+- Write comments in the voice set by `DEFENSIVE-CODING.md` §7: why not what, TSDoc on exports,
+  no banners, history or plan references.
 
 ## Load-bearing invariants
 
