@@ -91,6 +91,15 @@ export interface SchedulerUI {
   scrollToResource: { id: ID; token: number; consumed: boolean } | null;
 }
 
+type SetAccountSummariesOptions = {
+  list: AccountSummary[];
+  requestId?: number | undefined;
+  complete?: boolean | undefined;
+};
+type SetDirtyFormSourceOptions = { source: symbol; dirty: boolean };
+type SetUtilizationPrefOptions = { key: keyof UtilizationPreferences; value: boolean };
+type SetBarLabelPrefOptions = { key: keyof BarLabelPreferences; value: boolean };
+
 export interface StoreState extends StoreEntityActions {
   data: AppData;
   ui: SchedulerUI;
@@ -219,7 +228,7 @@ export interface StoreState extends StoreEntityActions {
   beginAccountSummariesRequest: () => number;
   /** Replace the picker list. A request-bound result applies only while it is still the latest;
    *  an unbound direct mutation invalidates every in-flight request. Returns whether it applied. */
-  setAccountSummaries: (list: AccountSummary[], requestId?: number, complete?: boolean) => boolean;
+  setAccountSummaries: (options: SetAccountSummariesOptions) => boolean;
 
   /** Publish freshly loaded data. Leaves the company, with a notice, when the active one is no longer present. */
   replaceAll: (data: AppData) => void;
@@ -244,15 +253,15 @@ export interface StoreState extends StoreEntityActions {
   /** Set the unsaved-work flag directly; prefer `setDirtyFormSource` for per-component ownership. */
   setDirtyForm: (value: boolean) => void;
   /** Publish or clear one component's dirty contribution without disturbing another owner. */
-  setDirtyFormSource: (source: symbol, dirty: boolean) => void;
+  setDirtyFormSource: (options: SetDirtyFormSourceOptions) => void;
   /** Mark/clear the allocation being dragged (drives the grid's drag-pin). */
   setDraggingAllocation: (id: ID | null) => void;
   /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
   setTheme: (pref: ThemePreference) => void;
   /** Toggle a single utilisation display preference: persist and update state. */
-  setUtilizationPref: (key: keyof UtilizationPreferences, value: boolean) => void;
+  setUtilizationPref: (options: SetUtilizationPrefOptions) => void;
   /** Toggle a single bar-label display preference: persist and update state. */
-  setBarLabelPref: (key: keyof BarLabelPreferences, value: boolean) => void;
+  setBarLabelPref: (options: SetBarLabelPrefOptions) => void;
   /** Open/collapse the sidebar: persist the choice and update state. */
   setSidebarOpen: (open: boolean) => void;
   /** Toggle the minimise-weekends preference: persist and update state. */

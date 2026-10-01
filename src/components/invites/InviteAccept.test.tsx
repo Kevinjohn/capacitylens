@@ -651,7 +651,7 @@ registerInviteAcceptTest(() =>
   it("hands a newly-created invitee to a fresh boot for the verified joined company", async () => {
     resetStoreWithAccount();
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([]);
+    useStore.getState().setAccountSummaries({ list: [] });
     authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
     const refreshAuth = vi.fn(async () => {});
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

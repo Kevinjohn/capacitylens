@@ -148,7 +148,7 @@ it("does not reactivate a consumed joined-account handoff after a later account-
   const otherAccountId = "acct-other";
   const accounts = [makeAccount(), makeAccount({ id: otherAccountId, name: "Other Co" })];
   useStore.getState().replaceAll(makeAppData({ accounts }));
-  useStore.getState().setAccountSummaries(accounts.map(({ id, name }) => ({ id, name, role: "owner" })));
+  useStore.getState().setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: "owner" })) });
   useStore.getState().setActiveAccount(otherAccountId);
 
   renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`] });
@@ -157,7 +157,7 @@ it("does not reactivate a consumed joined-account handoff after a later account-
 
   act(() => {
     useStore.getState().setActiveAccount(otherAccountId);
-    useStore.getState().setAccountSummaries(accounts.map(({ id, name }) => ({ id, name, role: "owner" })));
+    useStore.getState().setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: "owner" })) });
   });
 
   expect(useStore.getState().activeAccountId).toBe(otherAccountId);
@@ -174,12 +174,9 @@ it("does not apply a late joined-account handoff after an explicit company choic
 
   act(() => useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID));
   act(() => {
-    useStore
-      .getState()
-      .setAccountSummaries([
-        ...useStore.getState().accountSummaries,
-        { id: lateAccountId, name: "Late Co", role: "owner" },
-      ]);
+    useStore.getState().setAccountSummaries({
+      list: [...useStore.getState().accountSummaries, { id: lateAccountId, name: "Late Co", role: "owner" }],
+    });
   });
 
   expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
@@ -316,7 +313,7 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
 
   act(() => {
     useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([summary]);
+    useStore.getState().setAccountSummaries({ list: [summary] });
   });
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());

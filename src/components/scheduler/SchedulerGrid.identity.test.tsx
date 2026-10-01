@@ -19,7 +19,7 @@ beforeEach(() => {
   useStore.getState().setZoom(1);
   useStore.getState().setDrawMode("work");
   useStore.getState().clearFilters();
-  useStore.getState().setUtilizationPref("showDiscipline", true);
+  useStore.getState().setUtilizationPref({ key: "showDiscipline", value: true });
   useStore.setState((state) => ({ ui: { ...state.ui, collapsedGroups: [], scrollToResource: null } }));
 });
 
@@ -59,7 +59,7 @@ describe("SchedulerGrid component identity and row variants", () => {
     const bar = screen.getByTestId("allocation-bar");
     const group = screen.getByTestId("discipline-group");
     bar.focus();
-    act(() => useStore.getState().setUtilizationPref("showDiscipline", false));
+    act(() => useStore.getState().setUtilizationPref({ key: "showDiscipline", value: false }));
     expect(screen.getByTestId("allocation-bar")).toBe(bar);
     expect(screen.getByTestId("discipline-group")).toBe(group);
     expect(bar).toHaveFocus();

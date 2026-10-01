@@ -47,7 +47,7 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
       }
       const summaries = useStore.getState().accountSummaries;
       const removedName = summaries.find((summary) => summary.id === id)?.name;
-      setAccountSummaries(summaries.filter((account) => account.id !== id));
+      setAccountSummaries({ list: summaries.filter((account) => account.id !== id) });
       if (removedName) setNotice(m.picker_delete_success({ name: removedName }), "info");
       // The delete flipped the facts /me computes: on a single-company instance, dropping the only
       // company back to zero accounts makes canCreateAccount true again (the bootstrap exemption).

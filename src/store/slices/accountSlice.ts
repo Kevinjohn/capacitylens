@@ -176,7 +176,7 @@ function createSetActiveAccountAction({ set, get }: AccountActionContext): Store
 }
 
 function createSetAccountSummariesAction({ set, get }: AccountActionContext): StoreState["setAccountSummaries"] {
-  return (list, requestId, complete = true) => {
+  return ({ list, requestId, complete = true }) => {
     if (requestId !== undefined) {
       if (requestId !== get().accountSummariesRequestId) return false;
       set({ accountSummaries: list, accountSummariesComplete: complete });

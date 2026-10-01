@@ -34,7 +34,7 @@ vi.mock("../data/offlineCache", async (importOriginal) => {
 
 afterEach(() => {
   useStore.setState({ activeAccountId: null });
-  useStore.getState().setAccountSummaries([]);
+  useStore.getState().setAccountSummaries({ list: [] });
   useStore.getState().setNotice(null);
   setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.unstubAllGlobals();
@@ -336,7 +336,7 @@ function createMutationRefreshTests() {
     );
     const refresh = refreshAccountSummaries();
 
-    useStore.getState().setAccountSummaries([{ id: "created", name: "Just created", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "created", name: "Just created", role: "owner" }] });
     response.resolve(json(200, [{ id: "old", name: "Before create", role: "owner" }]));
     await refresh;
 
@@ -351,7 +351,7 @@ function createMutationRefreshTests() {
     );
     const refresh = refreshAccountSummaries();
 
-    useStore.getState().setAccountSummaries([{ id: "created", name: "Just created", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "created", name: "Just created", role: "owner" }] });
     useStore.setState({ activeAccountId: "created" });
     response.resolve(json(200, [{ id: "old", name: "Before create", role: "owner" }]));
     await refresh;
@@ -430,7 +430,7 @@ function createMalformedHookTests() {
   it("store.accountSummaries is preserved when /api/accounts 200s with a non-array body", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {}); // silence the expected breadcrumb
     const existing = [{ id: "a1", name: "Studio A", role: "owner" as const }];
-    useStore.getState().setAccountSummaries(existing);
+    useStore.getState().setAccountSummaries({ list: existing });
     let resolveFetch!: () => void;
     const done = new Promise<void>((r) => (resolveFetch = r));
     vi.stubGlobal(
@@ -459,7 +459,7 @@ function createMembershipHookTest() {
     // junk must not read as "no accounts" and blank the picker.
     vi.spyOn(console, "warn").mockImplementation(() => {}); // silence the expected breadcrumb
     const existing = [{ id: "a1", name: "Studio A", role: "owner" as const }];
-    useStore.getState().setAccountSummaries(existing);
+    useStore.getState().setAccountSummaries({ list: existing });
     let resolveFetch!: () => void;
     const done = new Promise<void>((r) => (resolveFetch = r));
     vi.stubGlobal(

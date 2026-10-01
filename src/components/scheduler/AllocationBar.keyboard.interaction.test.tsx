@@ -40,8 +40,8 @@ function registerViewerAndAnnotationPopoverTests() {
     const user = userEvent.setup();
     const allocation = seedAllocation({ note: "Call the client before kickoff" });
     const onEdit = vi.fn();
-    useStore.getState().setBarLabelPref("showClient", false);
-    useStore.getState().setBarLabelPref("showProject", false);
+    useStore.getState().setBarLabelPref({ key: "showClient", value: false });
+    useStore.getState().setBarLabelPref({ key: "showProject", value: false });
     render(
       <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
         <AllocationBar

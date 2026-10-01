@@ -15,8 +15,8 @@ beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().clearFilters();
   // Device-global prefs persist across tests via localStorage — reset to defaults.
-  useStore.getState().setBarLabelPref("showClient", true);
-  useStore.getState().setBarLabelPref("showProject", true);
+  useStore.getState().setBarLabelPref({ key: "showClient", value: true });
+  useStore.getState().setBarLabelPref({ key: "showProject", value: true });
 });
 
 function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
@@ -195,7 +195,7 @@ describe("AllocationBar client/project context", () => {
   });
 
   it("omits the client when showClient is off", () => {
-    useStore.getState().setBarLabelPref("showClient", false);
+    useStore.getState().setBarLabelPref({ key: "showClient", value: false });
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const el = screen.getByTestId("allocation-bar");
@@ -204,7 +204,7 @@ describe("AllocationBar client/project context", () => {
   });
 
   it("omits the project when showProject is off", () => {
-    useStore.getState().setBarLabelPref("showProject", false);
+    useStore.getState().setBarLabelPref({ key: "showProject", value: false });
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const el = screen.getByTestId("allocation-bar");
@@ -213,8 +213,8 @@ describe("AllocationBar client/project context", () => {
   });
 
   it("shows only the activity when both toggles are off", () => {
-    useStore.getState().setBarLabelPref("showClient", false);
-    useStore.getState().setBarLabelPref("showProject", false);
+    useStore.getState().setBarLabelPref({ key: "showClient", value: false });
+    useStore.getState().setBarLabelPref({ key: "showProject", value: false });
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const el = screen.getByTestId("allocation-bar");

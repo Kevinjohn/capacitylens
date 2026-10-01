@@ -160,10 +160,12 @@ describe("AppShell product orientation", () => {
     const accountA = makeAccount({ id: "acct-a", name: "Wayne Enterprises" });
     const accountB = makeAccount({ id: "acct-b", name: "Stark Industries" });
     useStore.getState().replaceAll(makeAppData({ accounts: [accountA, accountB] }));
-    useStore.getState().setAccountSummaries([
-      { id: accountA.id, name: accountA.name, role: "owner" },
-      { id: accountB.id, name: accountB.name, role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: accountA.id, name: accountA.name, role: "owner" },
+        { id: accountB.id, name: accountB.name, role: "owner" },
+      ],
+    });
     useStore.getState().setActiveAccount(accountA.id);
     localStorage.removeItem(buildProductOrientationKey("user-a", accountA.id));
     localStorage.removeItem(buildProductOrientationKey("user-a", accountB.id));

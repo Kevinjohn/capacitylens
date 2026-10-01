@@ -408,7 +408,8 @@ function registerModalDirtyStateTests() {
 
 function registerModalControlDirtyTests() {
   it("keeps one editor globally dirty while a clean overlapping Modal mounts and unmounts", () => {
-    const modals = (showCleanOverlay: boolean) => (
+    type ModalsOptions = { showCleanOverlay: boolean };
+    const modals = ({ showCleanOverlay }: ModalsOptions) => (
       <>
         <Modal key="editor" title="Dirty editor" onClose={vi.fn()}>
           <input aria-label="edited field" />
@@ -420,18 +421,18 @@ function registerModalControlDirtyTests() {
         )}
       </>
     );
-    const { rerender, unmount } = render(modals(false));
+    const { rerender, unmount } = render(modals({ showCleanOverlay: false }));
 
     fireEvent.input(screen.getByLabelText("edited field"), {
       target: { value: "unsaved" },
     });
     expect(useStore.getState().dirtyForm).toBe(true);
 
-    rerender(modals(true));
+    rerender(modals({ showCleanOverlay: true }));
     expect(screen.getByRole("dialog", { name: "Clean overlay" })).toBeInTheDocument();
     expect(useStore.getState().dirtyForm).toBe(true);
 
-    rerender(modals(false));
+    rerender(modals({ showCleanOverlay: false }));
     expect(screen.queryByRole("dialog", { name: "Clean overlay" })).not.toBeInTheDocument();
     expect(useStore.getState().dirtyForm).toBe(true);
 

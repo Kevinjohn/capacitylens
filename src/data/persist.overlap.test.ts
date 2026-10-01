@@ -29,10 +29,12 @@ let detach: (() => void) | undefined;
 beforeEach(() => {
   localStorage.clear();
   resetStoreWithAccount();
-  useStore.getState().setAccountSummaries([
-    { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" },
-    { id: secondAccount.id, name: secondAccount.name, role: "owner" },
-  ]);
+  useStore.getState().setAccountSummaries({
+    list: [
+      { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" },
+      { id: secondAccount.id, name: secondAccount.name, role: "owner" },
+    ],
+  });
 });
 afterEach(() => {
   detach?.();

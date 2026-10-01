@@ -49,7 +49,9 @@ function withCanCreateAccount({ canCreateAccount, ui }: WithCanCreateAccountOpti
 /** Seed both account data and the server-sourced summaries the picker renders. */
 function seedAccounts(...accounts: ReturnType<typeof makeAccount>[]) {
   useStore.getState().replaceAll(makeAppData({ accounts }));
-  useStore.getState().setAccountSummaries(accounts.map((a) => ({ id: a.id, name: a.name, role: "owner" as const })));
+  useStore
+    .getState()
+    .setAccountSummaries({ list: accounts.map((a) => ({ id: a.id, name: a.name, role: "owner" as const })) });
 }
 
 function requireAccount(name: string) {
@@ -67,7 +69,7 @@ beforeEach(() => {
   serverFlag.on = false;
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
-  useStore.getState().setAccountSummaries([]);
+  useStore.getState().setAccountSummaries({ list: [] });
   useStore.getState().setHydrated(true);
   useStore.getState().setNotice(null);
   // Sign through the cosmetic demo gate so AppShell renders the picker (the demo sign-in
@@ -310,10 +312,12 @@ function registerServerListMembershipTests() {
     // Simulate server mode: `data` holds only ONE account (the active slice would, post-load), but the
     // login has TWO memberships in accountSummaries. The picker must show BOTH from the summaries.
     useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: "a1", name: "Active Co" })] }));
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Active Co", role: "owner" },
-      { id: "a2", name: "Other Co", role: "editor" }, // NOT in data.accounts
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Active Co", role: "owner" },
+        { id: "a2", name: "Other Co", role: "editor" }, // NOT in data.accounts
+      ],
+    });
     render(
       <AuthContext.Provider
         value={{
@@ -338,7 +342,7 @@ function registerServerListMembershipTests() {
 function registerServerListAccessTests() {
   it("labels an auth-off persisted server as open access instead of demo or Owner", () => {
     serverFlag.on = true;
-    useStore.getState().setAccountSummaries([{ id: "a1", name: "Open Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a1", name: "Open Co", role: "owner" }] });
 
     render(<AccountPicker />);
 
@@ -350,7 +354,7 @@ function registerServerListAccessTests() {
     serverFlag.on = true;
     useStore
       .getState()
-      .setAccountSummaries([{ id: "a1", name: "Unclear Co", role: "viewer", roleStatus: "unavailable" }]);
+      .setAccountSummaries({ list: [{ id: "a1", name: "Unclear Co", role: "viewer", roleStatus: "unavailable" }] });
 
     render(
       <AuthContext.Provider
@@ -378,7 +382,7 @@ function registerUnloadedAccountActivationTest() {
     const user = userEvent.setup();
     // `data` is empty (no slice loaded yet — the pre-load state), but the summary exists.
     useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Other Co", role: "editor" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Other Co", role: "editor" }] });
     render(<AccountPicker />);
     await user.click(screen.getByRole("button", { name: "Other Co" }));
     // setActiveAccount validates against the UNION of data.accounts + summaries, so it activates
@@ -600,7 +604,7 @@ function registerServerDeleteUnloadedTest() {
     serverFlag.on = true;
     const user = userEvent.setup();
     const fetchMock = stubFetch({ ok: true, status: 204 });
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Ghost Co", role: "owner" }]); // slice NOT loaded
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] }); // slice NOT loaded
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
@@ -634,7 +638,7 @@ function registerServerDeleteInFlightTest() {
         }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Ghost Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
@@ -668,7 +672,7 @@ function registerServerDeleteReconciliationTest() {
         : { ok: true, status: 200, json: async () => [] },
     );
     vi.stubGlobal("fetch", fetchMock);
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Ghost Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
@@ -695,7 +699,7 @@ function registerServerDeleteUnknownResponseTest() {
         : { ok: true, status: 200, json: async () => [{ id: "a9", name: "Ghost Co", role: "owner" }] },
     );
     vi.stubGlobal("fetch", fetchMock);
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Ghost Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
@@ -719,7 +723,7 @@ function registerServerDeleteTransportFailureTest() {
       throw new Error(url === "/api/accounts/a9" ? "delete transport failed" : "directory refresh failed");
     });
     vi.stubGlobal("fetch", fetchMock);
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Ghost Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
@@ -738,12 +742,14 @@ function registerServerDeleteTransportFailureTest() {
 function registerServerDeletePermissionsTest() {
   it("offers a Delete button only on an owner summary", () => {
     serverFlag.on = true;
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Owner Co", role: "owner" },
-      { id: "a2", name: "Admin Co", role: "admin" },
-      { id: "a3", name: "Editor Co", role: "editor" },
-      { id: "a4", name: "Viewer Co", role: "viewer" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Owner Co", role: "owner" },
+        { id: "a2", name: "Admin Co", role: "admin" },
+        { id: "a3", name: "Editor Co", role: "editor" },
+        { id: "a4", name: "Viewer Co", role: "viewer" },
+      ],
+    });
     render(
       <AuthContext.Provider
         value={{
@@ -797,7 +803,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
       throw new Error(`unexpected fetch: ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Only Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Only Co", role: "owner" }] });
     render(
       <AuthProvider>
         <AccountPicker />

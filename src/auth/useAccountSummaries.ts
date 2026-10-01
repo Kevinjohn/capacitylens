@@ -211,7 +211,9 @@ export async function refreshAccountSummaries(requestOptions?: {
     },
   });
   if (list !== null && callerAcceptsEffects()) {
-    const published = useStore.getState().setAccountSummaries(list, requestId, completeness.value);
+    const published = useStore
+      .getState()
+      .setAccountSummaries({ list: list, requestId: requestId, complete: completeness.value });
     const activeAccountId = useStore.getState().activeAccountId;
     if (
       published &&
@@ -278,10 +280,8 @@ export function useAccountSummaries({
     // DEMO build: the picker's list IS the store's accounts (tagged owner = full access, mirroring the
     // server's OFF wire shape so the pure `can` keeps local fully editable). Kept in lockstep on every
     // add/delete so the picker reflects changes without a fetch.
-    useStore
-      .getState()
-      .setAccountSummaries(
-        localAccounts.map((allocation) => ({ id: allocation.id, name: allocation.name, role: "owner" as const })),
-      );
+    useStore.getState().setAccountSummaries({
+      list: localAccounts.map((allocation) => ({ id: allocation.id, name: allocation.name, role: "owner" as const })),
+    });
   }, [serverMode, localAccounts]);
 }

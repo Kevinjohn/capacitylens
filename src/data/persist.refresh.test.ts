@@ -189,7 +189,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     const { adapter, loadAll } = recordingAdapter(a2Slice());
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
     const detach = attachPersistence({
       store: useStore,
       adapter: adapter,
@@ -333,10 +333,12 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
 
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll },
@@ -376,10 +378,12 @@ async function attachHeldAccountSwitch() {
   });
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
-  useStore.getState().setAccountSummaries([
-    { id: "a1", name: "Alpha", role: "owner" },
-    { id: "b1", name: "Beta", role: "owner" },
-  ]);
+  useStore.getState().setAccountSummaries({
+    list: [
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+    ],
+  });
   const detach = attachPersistence({
     store: useStore,
     adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
