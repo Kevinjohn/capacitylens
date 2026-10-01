@@ -17,7 +17,8 @@ It's easy to confuse these, so here's the plain-language version before anything
 the Docker Compose stack already contains its own nginx — the `web` service, configured
 by the repo's root `nginx.conf`. It serves the built app and reverse-proxies `/api/` to
 the API over an internal TLS hop it sets up for you. That nginx listens on
-`127.0.0.1:8080` and is not reachable from the internet.
+`127.0.0.1:8080` and is not reachable from the internet. A native install has no such
+layer; see [Native install](#native-install-release-archive).
 
 The public reverse proxy is a **second, separate thing** — one you install and run on
 the host yourself, in front of that `127.0.0.1:8080`. It's the one that gets your domain
@@ -158,62 +159,56 @@ leaf expiry and live certificate fingerprint, and its `internalTls.status` field
 from `ok` to `expiring` during that same 30-day window — alert on that field. See
 [Monitoring and health checks](/self-hosting/monitoring).
 
-## Bare-metal nginx
+## Native install (release archive)
 
-Without Docker, run the API bound to loopback and terminate public HTTPS at nginx:
+A native install needs no web server of its own: the server serves the web app as well as the
+API, so one reverse-proxy line in front of it covers the whole site. Keep the server bound to
+loopback with `CAPACITYLENS_HOST=127.0.0.1`, its default, and use `127.0.0.1:8787`, the default
+port, as the upstream. The archive ships two proxy examples, both for the address
+`capacity.example.com`. Replace it with yours.
 
-- Set `CAPACITYLENS_HOST=127.0.0.1`.
-- Use `proxy_pass http://127.0.0.1:8787;` — 8787 is the API's default port.
-- Route `/api/` without stripping the prefix; the server mounts every route under
-  `/api/`.
-- Overwrite both `X-Forwarded-For` and `X-Forwarded-Proto` the way the packaged
-  `nginx.conf` does, and reuse its security headers.
+Caddy is the shorter route. Add the block from `Caddyfile.example` to `/etc/caddy/Caddyfile`:
 
-The public nginx site for the direct Node installation should have an HTTPS server and
-an HTTP redirect. Use the certificate paths provided by your ACME client:
-
-```nginx
-server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    server_name capacity.example.com;
-
-    ssl_certificate /etc/letsencrypt/live/capacity.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/capacity.example.com/privkey.pem;
-
-    root /opt/capacitylens/dist;
-    index index.html;
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:8787;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-
-server {
-    listen 80;
-    listen [::]:80;
-    server_name capacity.example.com;
-    return 301 https://$host$request_uri;
+```text
+capacity.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8787
 }
 ```
 
-Set `CAPACITYLENS_HTTPS=1` only after this public HTTPS route works. Check the config and
-reload nginx only after the certificate files exist:
+Caddy obtains and renews the certificate, and overwrites the forwarded headers the server trusts.
+It writes no access log unless you add a `log` directive. If you add one, exclude `/invite/*`,
+`/reset-password/*`, `/api/invites/*`, `/api/auth/callback/*` and `/api/auth/oauth2/callback/*`:
+those request lines carry single-use sign-in secrets. Reload it with:
+
+```bash
+sudo systemctl reload caddy
+```
+
+nginx is the alternative. `capacitylens.nginx.conf` is a complete site file: it terminates TLS,
+serves the web app from the release's `dist/` folder and proxies `/api/` to the server. It
+overwrites both `X-Forwarded-For` and `X-Forwarded-Proto`, keeps the invitation, sign-in and
+password-reset links out of the access log, and sends the same security headers as the packaged
+`nginx.conf`, except that its HSTS header is host-only. Get the certificate with your
+distribution's ACME client first, then follow the instructions at the top of the file:
+
+```bash
+sudo cp /opt/capacitylens/current/capacitylens.nginx.conf /etc/nginx/sites-available/capacitylens
+```
+
+Replace the hostname and the certificate paths in the copy, then enable it and reload nginx:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/capacitylens /etc/nginx/sites-enabled/
+```
 
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Then verify both the loopback API and the public route:
+With an `https` `SMALLSASS_ACCOUNT_PUBLIC_URL`, the server sends HSTS itself; set
+`CAPACITYLENS_HTTPS=0` if your proxy already does. Then verify both the loopback server and the
+public route:
 
 ```bash
 curl -fsS http://127.0.0.1:8787/api/health
@@ -246,7 +241,7 @@ HTTP.
 
 ## What's next
 
-- [Install with Docker](/self-hosting/install-with-docker) if you're setting this up for
-  the first time.
+- [Install CapacityLens](/getting-started/install) if you're setting this up for the first
+  time.
 - [Monitoring and health checks](/self-hosting/monitoring) to watch certificate expiry
   and proxy health once it's running.

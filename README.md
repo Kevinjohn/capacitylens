@@ -68,21 +68,16 @@ asked "can we take this on?" and need a shared, honest answer.
 
 ## Run it for real
 
-Node 24 and pnpm are required; the pinned version is in `.nvmrc`.
+Every release from 0.73.0-alpha.1 carries a server archive. Node 24 is the only prerequisite.
 
-```bash
-nvm use
-corepack enable
-pnpm install
-pnpm run dev
-```
+1. **Download** `capacitylens-X.Y.Z.tar.gz` from the [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
+2. **Pick a folder** for the database; its file is created there on first start.
+3. **Configure:** copy `capacitylens.env.example` and fill in its three empty lines: the address, and two values from `openssl rand -base64 48`. Set `CAPACITYLENS_DB` to a file in step 2's folder.
+4. **Start it** with `node --env-file=<your env file> server/dist/index.mjs`, or as a service.
+5. **Open the address** and create your company with the setup token from step 3.
 
-That starts the web app on `:5173` and the SQLite API on `:8787`, with sample data loaded.
-A fresh production instance starts empty.
-
-For a real deployment with Docker Compose, plain Node 24 or a managed VPS platform —
-including TLS, backups and upgrades — follow the
-[self-hosting guide](docs-src/self-hosting/index.md).
+[Install CapacityLens](docs-src/getting-started/install.md) has the commands for a managed host
+or a Linux host. Docker is [another way to install](docs-src/self-hosting/install-with-docker.md).
 
 ## Sign-in, in short
 
@@ -126,7 +121,13 @@ in-memory demo adapter.
 
 ## Contributing
 
+Node 24 and pnpm are required; the pinned version is in `.nvmrc`.
+
 ```bash
+nvm use
+corepack enable
+pnpm install
+pnpm run dev          # web app on :5173 and SQLite API on :8787, with sample data loaded
 pnpm run gate:all     # app and server: formatting, typecheck, lint, tests, coverage and build budget
 pnpm run e2e          # Chromium demo, database and authentication flows
 ```

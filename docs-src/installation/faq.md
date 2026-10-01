@@ -10,8 +10,8 @@ These answers cover decisions that commonly arise while putting CapacityLens on 
 
 ## Do I need Docker?
 
-No. Docker Compose, direct Node, and managed VPS procedures are separate installation
-routes. Choose one and follow only its prerequisites.
+No. The release archive runs on Node 24 alone, on a managed VPS platform or a Linux host.
+Docker Compose is another way to install; follow only the prerequisites of the route you choose.
 
 ## Is the local demo an installation route?
 
@@ -20,8 +20,8 @@ used to store real scheduling data.
 
 ## Which Node version should I use?
 
-For a direct installation, use the version selected by the release's `.nvmrc`. Do not
-assume the machine's default Node is compatible.
+Node 24, installed so the service can run it. Do not assume the machine's default Node is
+compatible: the server stops at start-up on an older version and says so.
 
 ## Who chooses the company name and calendar rules?
 

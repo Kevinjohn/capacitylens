@@ -21,6 +21,10 @@ wrong, skip straight to [Restore a snapshot](#restore-a-snapshot).
   The database and the audit log share a single durability boundary: SQLite retains
   pending audit events until they're durably written to disk, so a complete recovery
   bundle includes both.
+- **The environment file** — `/etc/capacitylens.env` on a native install, or the site's
+  environment on a managed host. It holds the secrets and settings the database runs with, so a
+  restore onto a new host needs it. Keep a copy in a password manager or off-host store, not
+  beside the snapshots.
 
 ::: warning
 Never `cp` a live database file as a backup. SQLite keeps recent writes in the `-wal`
@@ -34,9 +38,9 @@ first if you must copy files by hand.
 Set `CAPACITYLENS_BACKUP_DIR` to a directory and CapacityLens takes an online SQLite
 backup at boot and on a configurable interval (`CAPACITYLENS_BACKUP_INTERVAL_MIN`,
 default 60 minutes) — this uses SQLite's own backup API, not a file copy, so it's safe to
-run against a live database. Docker Compose turns this on by default, snapshotting into
-the `capacitylens-backups` volume; set `CAPACITYLENS_BACKUP_DIR=` (explicitly empty) to
-turn it off.
+run against a live database. Under `NODE_ENV=production` it is on by default, snapshotting
+into a `backups` folder beside the database file; Docker Compose snapshots into the
+`capacitylens-backups` volume. Set `CAPACITYLENS_BACKUP_DIR=` (explicitly empty) to turn it off.
 
 Every snapshot is verified — an integrity check, a foreign-key check and a schema-version
 check — before it's given its final name or counted for retention. A failed check is
@@ -63,19 +67,15 @@ Rehearse this before launch, and again after any material storage change — new
 new volume driver, new backup destination. Don't let the first real restore be the first
 time anyone has run it.
 
-Use a staging host or a temporary checkout with its own storage. Before starting, have
-the exact release that will run the restored snapshot, a dated `capacitylens-utc-*.db` or older
+Use a staging host or a scratch folder with its own storage. Before starting, have
+the exact release that will run the restored snapshot, unpacked from its archive, a dated `capacitylens-utc-*.db` or older
 local-time `capacitylens-*.db` snapshot, free space for a second copy, and a private
 place to record the result. The `capacitylens-pre-migration-*` files are only for
 [upgrade rollback](/self-hosting/upgrades). Do not use production database or named
 volumes, production ports, public proxies or provider callback URLs.
 
-From that release's checkout, install its locked dependencies and build the API runtime:
-
-```bash
-pnpm install --frozen-lockfile
-pnpm --filter capacitylens-server run build:runtime
-```
+The archive already holds the built server at `server/dist/index.mjs`, so there is nothing to
+install or build. Run the next commands from the unpacked release folder.
 
 Create a loopback-only scratch environment and copy the snapshot into it:
 

@@ -5,6 +5,10 @@ description: Pin each hosted installation to deliberate CapacityLens releases wi
 
 # Choose the release source
 
+This page belongs to the long-form route, which builds CapacityLens from a source checkout.
+To install from the release archive with nothing to build, follow the
+[five steps](/self-hosting/managed-vps/) instead.
+
 This page gives the managed platform a stable branch that changes only when you approve a
 CapacityLens release. It prevents ordinary changes to the public project from deploying to a
 live installation. Allow about ten minutes when your source-control account is already connected.

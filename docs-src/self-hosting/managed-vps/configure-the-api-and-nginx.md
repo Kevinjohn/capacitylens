@@ -5,6 +5,10 @@ description: Add the production environment, supervised API process and same-ori
 
 # Configure the API and nginx
 
+This page belongs to the long-form route, which builds CapacityLens from a source checkout.
+To install from the release archive with nothing to build, follow the
+[five steps](/self-hosting/managed-vps/) instead.
+
 This page starts the CapacityLens API as the isolated site user and connects it to the public web
 app through nginx. It also enables scheduled backups, structured logs and deep health checks.
 Allow about twenty minutes, including verification.

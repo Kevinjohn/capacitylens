@@ -9,7 +9,7 @@ This page gets you looking at a working schedule in about two minutes, using a s
 agency's data. Schedule changes stay in memory and reset when you refresh. The cosmetic
 signed-in state and device display preferences can stay in browser storage, but there are
 no credentials or real sign-in. If you're ready to install CapacityLens for real instead,
-skip to [Choose how to install CapacityLens](/getting-started/install).
+skip to [Install CapacityLens](/getting-started/install).
 
 You'll need [Node.js](https://nodejs.org) 24 or newer and [pnpm](https://pnpm.io) (by
 way of `corepack`, which ships with Node) on your machine. Check your version with
@@ -81,10 +81,10 @@ Everything is editable, so there's no wrong button to press.
 Schedule data is throwaway. Refreshing the page resets it, while the cosmetic signed-in
 state and device display preferences may remain on that browser. When you're ready to
 keep real data, move on to
-[Choose how to install CapacityLens](/getting-started/install).
+[Install CapacityLens](/getting-started/install).
 :::
 
 ## What's next
 
-[Choose how to install CapacityLens](/getting-started/install) for a persistent install
+[Install CapacityLens](/getting-started/install) for a persistent install
 with real sign-in.

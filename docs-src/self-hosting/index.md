@@ -14,13 +14,14 @@ parts fit together, and which page to read next for the job in front of you.
 CapacityLens supports three ways to install. Choose the route that matches how you manage
 your host:
 
+- [Install without Docker](/self-hosting/install-without-docker) runs the release archive on a
+  Linux host with Node 24 and systemd. No pnpm or build is needed. Caddy is recommended for
+  HTTPS and nginx is optional.
+- [Deploy on a managed VPS platform](/self-hosting/managed-vps/) is its own five steps in the
+  labels of Forge, Ploi, RunCloud and similar platforms that manage nginx, background
+  processes and release directories for you.
 - [Install with Docker](/self-hosting/install-with-docker) requires Docker and Docker
   Compose. The packaged stack manages the web app and API services.
-- [Install without Docker](/self-hosting/install-without-docker) requires Node 24, pnpm,
-  systemd and nginx. You manage the web app and API services directly.
-- [Deploy on a managed VPS platform](/self-hosting/managed-vps/) adapts the direct Node
-  installation for Forge, Ploi, RunCloud and similar platforms that manage nginx,
-  supervised processes and release directories for you.
 
 Docker is not a shared prerequisite. Each installation page lists only what its route
 needs.
