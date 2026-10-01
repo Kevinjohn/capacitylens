@@ -183,7 +183,8 @@ rules below are numbered so a review can cite one.
 6. **No em-dashes in comments.** Use a full stop or a comma.
 
 7. **No plan or ticket references, and no history.** Cite a `DECISIONS.md` heading or an issue URL
-   instead of a phase or ticket label. Remove migration narratives and promises about future
+   instead of a phase or ticket label; architectural rationale goes in `DECISIONS.md`. Remove
+   migration narratives and promises about future
    callers. History lives in `CHANGELOG.md`, `DECISIONS.md` and version control. The exceptions are
    immutable migration provenance and a compatibility deadline, which stay because they remain
    operationally necessary.
@@ -201,7 +202,8 @@ rules below are numbered so a review can cite one.
 
 11. **Density.** An intricate file (`AllocationBar`'s gesture lifecycle, `SchedulerGrid`'s
     virtualization and drag-freeze, `AuthProvider`'s "failure renders the app" policy) carries one
-    head paragraph. Any other file carries no comments beyond rules 2 and 4.
+    head paragraph. Any other file needs no comments beyond rules 2 and 4, plus a why-comment
+    wherever rule 1 or rule 10 calls for one.
 
 ---
 
