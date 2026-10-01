@@ -24,7 +24,7 @@ const TOTALS_TONE_CLASS: Record<CapacityTotalsTone, string> = {
 
 function UnassignedValue({ result }: { result: CapacityOverviewPeriodResult }) {
   return (
-    <div className={"px-3.5 py-[9px]"}>
+    <div className="px-3.5 py-[9px]">
       {result.unassignedDemandDays > 0 ? (
         <span className={MONO_VALUE_CLASS}>{formatDays(result.unassignedDemandDays, "unassigned")}</span>
       ) : (
@@ -78,7 +78,7 @@ function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; 
   // An overbooked week swaps the capacity figure for the overbooked days in red (the long
   // "overbooked" label wrapped inside twelve-week cells); the track itself only ever shows free time.
   return (
-    <div className={"flex flex-col gap-[5px] px-3.5 py-[9px]"}>
+    <div className="flex flex-col gap-[5px] px-3.5 py-[9px]">
       <div className="flex items-baseline justify-between gap-1.5">
         <span className={`${MONO_VALUE_CLASS} ${resolveLedgerValueInk(result)}`}>
           {result.freeDays > 0 ? formatDays(result.freeDays, "capacity") : "—"}
@@ -103,7 +103,7 @@ function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; 
 
 function LoadCurveValue({ result, label }: { result: CapacityOverviewPeriodResult; label: string }) {
   return (
-    <div className={"px-3.5 py-2.5"}>
+    <div className="px-3.5 py-2.5">
       <CapacityTrack
         result={result}
         axis="height"
