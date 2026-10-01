@@ -113,8 +113,8 @@ another's is an account in code, a company on screen and `accountId` on the wire
 | `account` (code) | The boundary that isolates one company's data. Product types, modules and functions say account: `Account`, `server/src/accountStore.ts`, `assertAccountRelationshipIntegrityCurrent`. New code does not add `tenant`, `org` or `workspace` names for it. |
 | company (UI) | What screens, messages and user-facing docs call an account. |
 | `accountId` (wire) | The account key in rows, request bodies, query strings and exports. |
-| `workspaceId` | The account port's alias for an account id, `WorkspaceId` in `shared/src/account/types.ts`. Use it only in the portable account boundary; product code says `accountId`. |
-| resource | A schedulable person: a row on the schedule, including placeholders and external parties. Screens say person or Resource. A resource needs no sign-in. |
+| `workspaceId` | The account port's alias for an account id, `WorkspaceId` in `shared/src/account/types.ts`. New code uses it only in the portable account boundary and says `accountId` elsewhere. Earlier product code that still says `workspaceId` (erasure, cutover repair, some account-entity handlers, the audit outbox) is tracked debt. |
+| resource | A row on the schedule that can be booked: a person, a placeholder or an external party. Screens say person or Resource. A resource needs no sign-in. |
 | member | A login inside one company. Its membership carries the role: Owner, Admin, Editor or Viewer. |
 | principal | An identity across companies, `PrincipalId` in the portable boundary. |
 | user | The Better Auth `user` row behind a principal. |

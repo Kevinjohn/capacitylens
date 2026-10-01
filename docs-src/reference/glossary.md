@@ -10,7 +10,7 @@ full list, in plain language, with a link to where each term is covered in depth
 
 | Term | Meaning |
 | ---- | ------- |
-| <span id="account">account</span> | In the app, **Account** means the personal page for your sign-in, password and sessions. Older technical code and records may use `account` for a company workspace; user-facing docs and screens call that a **company**. See [Roles and permissions](/getting-started/roles-and-permissions). |
+| <span id="account">account</span> | In the app, **Account** means the personal page for your sign-in, password and sessions. In exports and technical records a company appears as an account; user-facing docs and screens call it a **company**. See [Roles and permissions](/getting-started/roles-and-permissions). |
 | <span id="activity">activity</span> | An activity names the work placed on the schedule. It can belong to one project, be internal work with no project, or be reusable across all projects. See [Schedule and change work](/using/schedule-work). |
 | <span id="admin">admin</span> | Admin is the second-highest of the four roles a member can hold in a company, below Owner and above Editor and Viewer. An Admin can invite and manage other members, see time-off notes, and restore or purge archived data — but cannot touch the Owner or transfer ownership. An Admin can be nominated as the next Owner, and only that Admin can agree to it. See [Roles and permissions](/getting-started/roles-and-permissions). |
 | <span id="allocation">allocation</span> | An allocation joins a person to an activity for a date range. It is the block of scheduled work shown across that person's row, with a tentative, confirmed or completed status. See [Schedule and change work](/using/schedule-work). |
