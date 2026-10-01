@@ -72,7 +72,7 @@ Every release from 0.73.0-alpha.1 carries a server archive. Node 24 is the only 
 
 1. **Download** `capacitylens-X.Y.Z.tar.gz` from the [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
 2. **Pick a folder** for the database; its file is created there on first start.
-3. **Configure:** copy `capacitylens.env.example` and fill in its three empty lines: the address, and two values from `openssl rand -base64 48`. Set `CAPACITYLENS_DB` to a file in step 2's folder.
+3. **Configure:** in the unpacked folder, run `node server/dist/index.mjs init --public-url <address> --db <file in step 2's folder>`. It prints the environment file with both secrets generated: paste it into your host's environment editor, or add `--out /etc/capacitylens.env` to write the file.
 4. **Start it** with `node --env-file=<your env file> server/dist/index.mjs`, or as a service.
 5. **Open the address** and create your company with the setup token from step 3.
 

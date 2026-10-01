@@ -947,9 +947,9 @@ releases.
    tar -xzf capacitylens-X.Y.Z.tar.gz
    ```
 
-   Repeat the steps of the gate's `release-package-smoke` job against that folder: copy
-   `capacitylens.env.example`, fill in its three empty lines with a loopback address and two
-   `openssl rand -base64 48` values, set `CAPACITYLENS_DB` to a writable path, and start
+   Repeat the checks of the gate's `release-package-smoke` job against that folder: write an
+   environment file with `node server/dist/index.mjs init`, giving `--public-url` a loopback
+   address, `--db` a writable path and `--out` the file, and start
    `node --env-file=<file> dist/index.mjs` from its `server/` folder. Expect deep health with
    `"db":true`, `"audit":"ok"` and a backup `status` of `"ok"`, HTML at `/` with a
    `Content-Security-Policy` header, and, after stopping the server,

@@ -45,17 +45,15 @@ version instead.
 2. **Data folder:** `/home/forge/capacitylens-data`, outside the release so upgrades keep it.
    The first line of the deploy script creates it, so there is nothing to do by hand.
 
-3. **Environment:** paste these five lines into the site's environment editor. Fill in the
-   address and two different values, each pasted from `openssl rand -base64 48`; the second is
-   the one-time setup token for your Owner.
+3. **Environment:** run `init` once in the site's command runner (Forge: the site's Commands
+   panel, which starts in the site's folder), with your address:
 
-   ```dotenv
-   NODE_ENV=production
-   CAPACITYLENS_PUBLIC_URL=https://capacity.example.com
-   CAPACITYLENS_SECRET=
-   CAPACITYLENS_SETUP_TOKEN=
-   CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db
+   ```bash
+   node current/server/dist/index.mjs init --public-url https://capacity.example.com --db /home/forge/capacitylens-data/capacitylens.db
    ```
+
+   It prints five lines with the session secret and the one-time setup token for your Owner
+   generated. Paste them into the site's environment editor.
 
    Store the setup token in a password manager before you save. The server refuses to start
    while the address, the secret or the token is empty, and names the one that is missing.

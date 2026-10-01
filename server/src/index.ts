@@ -38,6 +38,7 @@ import {
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort } from "./boot/refusals";
 import { startServerRuntime } from "./boot/serverRuntime";
 import { applyProductionDefaults, resolveHttps } from "./boot/productionDefaults";
+import { runInitCli } from "./cli/init";
 
 export { parseAuditMaxMb } from "./boot/refusals";
 
@@ -71,6 +72,12 @@ function resolveWebDir(configured: string | undefined): string | undefined {
 // Secrets, SQLite/WAL files, audit logs, and backups created by this process must never inherit a
 // permissive shell/container umask. Individual writers also pin 0600 for defence in depth.
 process.umask(0o077);
+
+// `init` writes the environment file the rest of this entrypoint reads, so it runs before the reset
+// interlock, account resolution or any database open, and needs none of them to be configured.
+if (process.argv[2] === "init") {
+  process.exit(await runInitCli(process.argv.slice(3)));
+}
 
 // Environment variables: docs-src/self-hosting/configuration.md.
 

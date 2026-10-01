@@ -22,14 +22,14 @@ Allow about twenty minutes, including verification.
 
 ## 1. Generate the secrets
 
-Run this command twice on a trusted machine or through the platform's command runner:
+Run `init` through the platform's command runner from the site's folder, with your origin:
 
 ```bash
-openssl rand -base64 48
+node current/production/server/dist/index.mjs init --public-url https://your-current-domain.example --db /home/<site-user>/data/capacitylens.db
 ```
 
-Use the first value for `CAPACITYLENS_SECRET`. Use the second value for
-`CAPACITYLENS_SETUP_TOKEN`.
+Copy its `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` values into the environment in the
+next step, and leave out the other lines it prints: this route sets them differently.
 
 Store the setup token in a password manager before saving the environment. It is needed only to
 claim the first Owner account. Never commit either value or paste it into deployment logs, support
@@ -127,7 +127,7 @@ so in-flight requests and backup work can drain.
 ::: warning `.env` is read as shell, so quote awkward values
 `source` runs the file as a shell script. A value containing a space, `#`, `$`, backtick, quote or
 backslash will be cut short or mangled, and the API will start with the wrong secret rather than
-fail loudly. The `openssl rand -base64 48` values above are safe unquoted. Anything you paste from
+fail loudly. The secrets `init` generates are safe unquoted. Anything you paste from
 elsewhere — a company-login client secret, for example — must be wrapped in single quotes:
 
 ```dotenv
