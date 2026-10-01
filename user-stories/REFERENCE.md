@@ -56,7 +56,9 @@ accept responses never include it.
    the browser's IANA zone, puts local/common choices first, and shows a friendly name, current
    abbreviation and numeric UTC offset for every option), and **Language** (read-only **English** —
    `data-testid="create-language"`; English-only until Paraglide). Company colour uses the default
-   preset automatically rather than asking for a one-off choice during onboarding. These three are set ONCE here and are then **disabled** in
+   preset automatically rather than asking for a one-off choice during onboarding. On a
+   server-backed deploy the form also shows a **Start with example data** checkbox, ticked when it
+   is the user's first company and unticked otherwise; the in-memory demo does not offer it. These three are set ONCE here and are then **disabled** in
    Settings; the server rejects a later change with **409**.
    When there are no companies and the caller may create one, the picker presents only two next
    steps: **New company** or **Ask an admin for an invite**. A caller without create permission sees
@@ -842,6 +844,15 @@ remain after people inside the applicable band. The preference is
 stored on the account (`groupResourcesByEngagement`, absent = on), so every member of the company
 sees the same grouping.
 
+**Example data (Settings → Example data).** Shown to an Owner or Admin
+(`data-testid="settings-example-data"`) only on a server-backed deploy, and only while the company has
+no people, clients (other than the built-in Internal client), projects or allocations. Its
+`Add example data` button (`data-testid="add-example-data"`) calls
+`POST /api/accounts/:accountId/example-data`, then reloads the company and shows **Example data
+added.** The server independently refuses anyone below Admin with **403** and a company that holds
+any of those rows with **409**. The rows are ordinary rows with no sample flag, so deleting them
+leaves no trace.
+
 **Clear device data (Settings → Device data).** A closed-by-default maintenance disclosure near the
 bottom of Settings contains a `Clear device data` button
 (`data-testid="clear-local-storage"`). Clicking it opens the standard confirm dialog (title
@@ -1447,6 +1458,8 @@ frozen, P1.14),
 `new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —
 whenever `GET /api/auth/me` reports `canCreateAccount: false`: the single-company cap is reached,
 or under auth-on the caller lacks owner/admin standing on any account),
+`settings-example-data` and `add-example-data` (Settings → Example data row and its button; shown only
+to an Owner or Admin of an empty company on a server-backed deploy),
 `clear-local-storage` (Settings → Device data danger button; opens a destructive confirm),
 `archived-resources-section`, `archived-clients-section`, `archived-projects-section` and
 `archived-activities-section` (expanded sections below their active management lists; shown in local

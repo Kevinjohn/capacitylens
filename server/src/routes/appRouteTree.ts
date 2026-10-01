@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { type SsoCutoverIdentityPort } from "../accounts/betterAuthIdentityPort";
 import { registerFederatedIdentityRoutes } from "../accounts/federatedIdentityRoutes";
 import { registerAccountRoutes } from "../accounts/accountRoutes";
+import { registerExampleDataRoutes } from "./exampleDataRoutes";
 import { registerGettingStartedRoutes } from "./gettingStartedRoutes";
 import { readMemberSignInTrackingSnapshot, setMemberSignInTracking } from "../accounts/memberSignInTracking";
 import { registerLifecycleRoutes } from "./lifecycleRoutes";
@@ -122,6 +123,20 @@ function registerDataRoutes(input: RegisterRouteGroupInput): void {
   registerImportRouteGroup(input);
 }
 
+function registerExampleDataRouteGroup(input: RegisterRouteGroupInput): void {
+  const { childApp: app, db, runtime, config, rootHelpers, authorization } = input;
+  registerExampleDataRoutes(app, {
+    db,
+    store: runtime.store,
+    authMode: config.authMode,
+    accountAdminPort: runtime.accountAdminPort,
+    accountLock: runtime.accountLock,
+    authorize: authorization.authorizeAllowed,
+    commitProductAudit: runtime.commitProductAudit,
+    fail: rootHelpers.sendFail,
+  });
+}
+
 function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
   const { childApp: app, db, runtime, config, rootHelpers, authorization, budgetedMail } = input;
   const { accountAdminPort, accountAudit, accountFlows, audit, identityPort, masquerades, store, commitProductAudit } =
@@ -131,6 +146,7 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
   const { authorizeAllowed, fieldVisibilityFor, memberReadProjection, redactWriteEcho, resolveEffectiveRole } =
     authorization;
   registerGettingStartedRoutes(app, { db, authorize: authorizeAllowed });
+  registerExampleDataRouteGroup(input);
   registerAccountRoutes(app, {
     memberResources: runtime.memberResources,
     authMode,

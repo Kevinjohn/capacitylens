@@ -9,6 +9,16 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- A new company can start with example data: a **Start with example data** box on the create-company
+  form (ticked for a first company), or **Settings, Example data** while the company is empty. It adds
+  two people, a client, a project and a few bookings across this week and next, as ordinary rows. An
+  Owner or Admin can add it, and the server refuses a company that already has people, clients,
+  projects or allocations (#1388).
+
+## [0.73.0-alpha.1] - 2026-10-01
+
+### Added
+
 - Each release publishes a runnable server archive, `capacitylens-X.Y.Z.tar.gz`, with a `.sha256`
   checksum. It holds the built web app, the server and its runtime dependencies, an environment
   example with three lines to fill in, a systemd unit, nginx and Caddy site files and an
@@ -33,8 +43,6 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
-- The Docker install guide now sets `SMALLSASS_ACCOUNT_MODE=password-only`; its previous `password`
-  value refused to start (#1383).
 - Docker installations now refuse retired generic company-login settings at startup instead of
   silently omitting them. Repeat Compose starts now reuse the existing internal certificate
   after an API restart or database restore, and the installation guide follows the current
@@ -4758,7 +4766,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.72.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.73.0-alpha.1...HEAD
+[0.73.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.72.0-alpha.1...v0.73.0-alpha.1
 [0.72.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.71.0-alpha.1...v0.72.0-alpha.1
 [0.71.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.70.1-alpha.1...v0.71.0-alpha.1
 [0.70.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...v0.70.1-alpha.1

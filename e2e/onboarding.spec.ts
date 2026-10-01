@@ -36,6 +36,8 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
     await expect(tz).toContainText("America/New_York");
     await expect(tz).toBeFocused();
     await expect(page.getByTestId("create-language")).toHaveText("English");
+    // Example data is added by the server, so the in-memory demo does not offer it.
+    await expect(page.getByRole("checkbox", { name: "Start with example data" })).toHaveCount(0);
 
     // Capture a non-default week-start and time zone, then create.
     await page.getByRole("radio", { name: "Sunday" }).click();

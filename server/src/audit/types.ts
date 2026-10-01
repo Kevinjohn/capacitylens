@@ -28,6 +28,8 @@ export interface AuditRecord {
     | "delete"
     | "batch"
     | "import"
+    /** Example rows added to an empty company; `changedFields` names the tables that received rows. */
+    | "exampleData"
     | "archive"
     | "unarchive"
     | "softDelete"

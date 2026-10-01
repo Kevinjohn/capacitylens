@@ -85,6 +85,7 @@ const PRODUCT_ACTION_VALUES = [
   "delete",
   "batch",
   "import",
+  "exampleData",
   "archive",
   "unarchive",
   "softDelete",
