@@ -32,8 +32,7 @@ week-start or time zone after work is scheduled would silently re-interpret ever
    the app for the new company.
 
 **Frozen (in Settings):** 4. Open **Settings → Data and support** → the **Company details**
-row shows a compact read-only summary: **Company name**, **Week starts on**, **Time zone** and
-**Language**. 5. Open its question-mark help action to read why those choices cannot be changed here.
+row shows a compact read-only summary: **Company name**, **Week starts on** and **Time zone**. 5. Open its question-mark help action to read why those choices cannot be changed here.
 
 ## Acceptance criteria
 
@@ -42,8 +41,8 @@ row shows a compact read-only summary: **Company name**, **Week starts on**, **T
 - Every Timezone option shows a friendly display name, its current abbreviation and a numeric
   offset such as **London — Europe/London (BST, UTC+01:00)**; the label handles daylight-saving
   changes rather than showing an unexplained IANA identifier alone.
-- In Settings, **Company details** shows Company name, Week starts on, Time
-  zone (with numeric offset) and Language in a read-only table before Diagnostics; no disabled
+- In Settings, **Company details** shows Company name, Week starts on and Time
+  zone (with numeric offset) in a read-only table; no disabled
   form controls or ordinary company-name editing control are shown.
 - Its question-mark action opens a labelled modal explaining that the values were selected at
   creation and cannot be changed here.
