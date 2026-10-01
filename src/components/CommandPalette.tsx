@@ -144,11 +144,11 @@ function PaletteResults({
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
   // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
-  // Per-account view pref (default OFF): when off, placeholders are not offered as jump targets.
-  // Per-account view pref (default OFF): when off, external / 3rd parties are not offered as
+  // Per-account view pref (default off): when off, placeholders are not offered as jump targets.
+  // Per-account view pref (default off): when off, external / 3rd parties are not offered as
   // jump targets, their schedule row is hidden, so jumping to it would scroll to nothing.
   // Internal-project results also jump to the schedule, so omit them when their bars are hidden.
-  // Internal ACTIVITIES deliberately remain below: they open the complete management list instead.
+  // Internal activities deliberately remain below: they open the complete management list instead.
 
   const [query, setQuery] = useState("");
   // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
@@ -161,19 +161,19 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
   const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
   // Build the full item list (kept verbatim, capacitylens's own fuzzyFilter drives results, not cmdk's
-  // internal filter, hence `shouldFilter={false}` below). Memoised so the fuzzy filter over ALL data
-  // does NOT re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
+  // internal filter, hence `shouldFilter={false}` below). Memoised so the fuzzy filter over all data
+  // does not re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
   // re-render), and the active-row change must not re-run the filter. Keyed on the real inputs only.
   const items: PaletteItem[] = usePaletteItems(query, onClose);
 
   // Group items by section for rendering (one CommandGroup per section).
 
-  // Repair the combobox's `aria-activedescendant`. cmdk hardcodes it from its OWN `selectedItemId`,
+  // Repair the combobox's `aria-activedescendant`. cmdk hardcodes it from its own `selectedItemId`,
   // which it fails to populate on the controlled-`value` path (the value-change handler short-circuits
   // once a controlled value is present), so the input names no active descendant, breaking the
   // combobox SR pattern. cmdk's element ids are its internal `useId`s (we can't pass our own, its
   // `id` wins over props), so we read the active option's real id straight off the DOM and write it
-  // onto the input ourselves. cmdk marks exactly ONE option `aria-selected="true"` (the active row),
+  // onto the input ourselves. cmdk marks exactly one option `aria-selected="true"` (the active row),
   // so we match that single option by its selected state. No need to also cross-check `data-value`
   // against our controlled `activeValue` (redundant, and it breaks the auto-selected first row whose
   // value our state hasn't caught up to yet). cmdk may establish its initial selection after our

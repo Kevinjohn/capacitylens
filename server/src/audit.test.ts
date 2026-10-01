@@ -19,9 +19,9 @@ import {
 
 // CAPACITYLENS_AUDIT (opts.audit): an append-only JSONL line per AppData mutation,
 // {ts,userId,accountId,action,entity,id,changedFields}. The primary invariant proven here: changedFields
-// are field NAMES only, a tenant VALUE (a time-off note, a name) NEVER reaches a line. Plus the
+// are field names only, a tenant value (a time-off note, a name) never reaches a line. Plus the
 // fail-never contract (append never throws; the request still 2xx; a uniform warning header; deep-
-// health latches degraded; ONE redacted error line) and the default-deploy byte-identity (noop sink
+// health latches degraded; one redacted error line) and the default-deploy byte-identity (noop sink
 // → no file, no warning header).
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -157,10 +157,10 @@ describe("AuditRecord shape (1)", () => {
     expect(rec.entity).toBe("accounts");
     expect(rec.id).toBe("a1");
     expect(rec.accountId).toBe("a1");
-    expect(rec.userId).toBe("demo"); // DEMO_USER in OFF mode
+    expect(rec.userId).toBe("demo"); // DEMO_USER in off mode
     expect(typeof rec.ts).toBe("string");
     expect(Date.parse(rec.ts)).not.toBeNaN();
-    // changedFields = the row's field NAMES (sanitized row keys), not values.
+    // changedFields = the row's field names (sanitized row keys), not values.
     expect(rec.changedFields).toEqual(expect.arrayContaining(["id", "name", "color", "createdAt", "updatedAt"]));
   });
 
@@ -254,12 +254,12 @@ describe("NO PII (2) — the #1 invariant", () => {
     expect(put.statusCode).toBe(200);
 
     const raw = readFileSync(file, "utf8");
-    // The NAME is present...
+    // The name is present...
     expect(raw).toContain("note");
-    // ...but NO secret VALUE substring, on either line.
+    // ...but no secret value substring, on either line.
     expect(raw).not.toContain(SECRET);
     expect(raw).not.toContain(SECRET2);
-    // Belt-and-braces: no other field VALUE leaks, the only string values that COULD appear are
+    // Belt-and-braces: no other field value leaks, the only string values that could appear are
     // the structural ids/dates we intend (a1/to1/r1/the date). Assert the human-typed value class
     // (the note, the resource role 'Designer') is absent.
     expect(raw).not.toContain("Designer");
@@ -279,7 +279,7 @@ describe("NO resource PII in the audit log (2b) — P2.3 acceptance", () => {
     const SENTINEL = "ZZSENTINELPERSON_DELETE_ME";
     await post(app, "accounts", account("a1")); // FK parent for the resource
     const createIdx = lines().length; // the resource create line lands here
-    // Create an audited resource carrying the sentinel as its NAME (the only resource PII today).
+    // Create an audited resource carrying the sentinel as its name (the only resource PII today).
     expect((await post(app, "resources", { ...person("r1", "a1"), name: SENTINEL })).statusCode).toBe(201);
     // A second audited mutation (a non-PII PATCH) so there's more than one line to scan.
     const patch = await call(app, {
@@ -289,11 +289,11 @@ describe("NO resource PII in the audit log (2b) — P2.3 acceptance", () => {
     });
     expect(patch.statusCode).toBe(200);
 
-    // The RAW audit JSONL must NEVER contain the name VALUE, on any line.
+    // The raw audit JSONL must never contain the name value, on any line.
     const raw = readFileSync(file, "utf8");
     expect(raw).not.toContain(SENTINEL);
 
-    // ...yet the create line DID capture the field, 'name' is recorded as a changedFields KEY (the
+    // ...yet the create line did capture the field, 'name' is recorded as a changedFields key (the
     // name of the field, never its value): the audit saw the create and stored only the key.
     const rec = requiredAt(lines(), createIdx);
     expect(rec.entity).toBe("resources");
@@ -416,13 +416,13 @@ async function assertBrokenSinkKeepsMutationAvailable() {
   expect(res.headers["x-capacitylens-audit-warning"]).toBe("true");
 
   const health = await call(app, { method: "GET", url: "/api/health" });
-  expect(health.statusCode).toBe(200); // ok:true: audit-degraded is a SOFT signal
+  expect(health.statusCode).toBe(200); // ok:true: audit-degraded is a soft signal
   expect(health.json()).toEqual({ ok: true, db: true, audit: "degraded", auditPending: 2 });
 }
 
 async function assertAppendFailureIsRedacted() {
   const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-fail-"));
-  // A directory path used as a FILE → appendFileSync throws → the sink catches it.
+  // A directory path used as a file → appendFileSync throws → the sink catches it.
   const log = vi.fn();
   const sink = createFileAuditSink(dir, log); // dir is a directory, not a file
   expect(() =>
@@ -812,7 +812,7 @@ function assertRotationKeepsFreshGeneration() {
   const file = join(dir, "audit.jsonl");
   const log = vi.fn();
   // maxBytes pinned to the size of exactly one line (every id here is 2 chars, so every line is
-  // the same length). The SECOND append is therefore always the one that finds the cap reached.
+  // the same length). The second append is therefore always the one that finds the cap reached.
   const lineBytes = Buffer.byteLength(JSON.stringify(rotationRecord("r1")) + "\n", "utf8");
   const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
 
@@ -823,7 +823,7 @@ function assertRotationKeepsFreshGeneration() {
   expect(readFileSync(`${file}.1`, "utf8")).toBe(JSON.stringify(rotationRecord("r1")) + "\n");
   expect(readFileSync(file, "utf8")).toBe(JSON.stringify(rotationRecord("r2")) + "\n");
 
-  // The fresh file is now ALSO at the cap, so a third append rotates again, proving appends
+  // The fresh file is now also at the cap, so a third append rotates again, proving appends
   // keep landing in a genuinely fresh file each cycle, not erroring or wedging on a second rotation.
   expect(sink.append(rotationRecord("r3"))).toBe(true);
   expect(readFileSync(`${file}.1`, "utf8")).toBe(JSON.stringify(rotationRecord("r2")) + "\n");
@@ -949,8 +949,8 @@ function assertRotationRenameFailureDegrades() {
   const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
   expect(sink.append(rotationRecord("r1"))).toBe(true); // creates the file, under cap
 
-  // Pre-create a DIRECTORY at the rotation destination, so renameSync(file, `${file}.1`) fails
-  // with EISDIR (you cannot rename a file onto an existing directory), a REAL fs failure, the
+  // Pre-create a directory at the rotation destination, so renameSync(file, `${file}.1`) fails
+  // with EISDIR (you cannot rename a file onto an existing directory), a real fs failure, the
   // same "no mocking" style the append-failure test above uses (directory-as-file for appendFileSync).
   mkdirSync(`${file}.1`);
 

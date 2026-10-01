@@ -5,7 +5,7 @@ import { hasPersonalWorkingPattern, type Resource, type Weekday } from "../types
  * at least one weekday, with duplicates removed and values stored in ascending order. */
 export type EffectiveWorkingWeek = { kind: "none" } | { kind: "days"; days: Weekday[] };
 
-/** THE membership test for an effective week: false for `none`, so every consumer that asks
+/** The membership test for an effective week: false for `none`, so every consumer that asks
  * "is this weekday effective?" shares one definition instead of re-deriving the discriminant. */
 export function effectiveWeekIncludes(effectiveWeek: EffectiveWorkingWeek, weekday: Weekday): boolean {
   return effectiveWeek.kind === "days" && effectiveWeek.days.includes(weekday);
@@ -13,7 +13,7 @@ export function effectiveWeekIncludes(effectiveWeek: EffectiveWorkingWeek, weekd
 
 /** Whether a normal (calendar-respecting) record placed at `weekday` starts outside the effective
  * week. Ignore-working-days placements are exempt by definition, which is why this is the
- * ADVISORY test (repeat occurrences), never the creation gate: creation has no ignored-creation
+ * advisory test (repeat occurrences), never the creation gate: creation has no ignored-creation
  * escape hatch and uses creationBlockedAt/creationBlockedForEffectiveWeek instead. */
 export function startsOnNonEffectiveWeekday(
   effectiveWeek: EffectiveWorkingWeek,
@@ -23,7 +23,7 @@ export function startsOnNonEffectiveWeekday(
   return !ignoreWorkingDays && !effectiveWeekIncludes(effectiveWeek, weekday);
 }
 
-/** The ONE predicate for a normal allocation that cannot use working-span math, because feeding
+/** The one predicate for a normal allocation that cannot use working-span math, because feeding
  * `none` into date math means calendar-day semantics or a 9999-12-31 end date. An ignored
  * allocation always spans calendar days, so it is exempt. */
 export function lacksEffectiveWorkingDays(

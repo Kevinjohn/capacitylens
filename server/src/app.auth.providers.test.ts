@@ -13,7 +13,7 @@ import {
 import { microsoftCallbackCapture } from "./authConfig/captureContexts";
 
 // CAPACITYLENS_MODE (opts.authMode/auth). The load-bearing assertion set:
-// OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
+// Off is byte-for-byte today (the whole existing app.test.ts suite already enforces that
 // by running unchanged. These tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.

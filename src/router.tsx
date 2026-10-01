@@ -52,10 +52,10 @@ const DiagnosticsView = lazy(() =>
 const AccountView = lazy(() =>
   import("./components/account/AccountView").then((module) => ({ default: module.AccountView })),
 );
-// Invite accept: its own top-level route, OUTSIDE AppShell's tenant/account gate so the safe
+// Invite accept: its own top-level route, outside AppShell's tenant/account gate so the safe
 // preview and invite-specific onboarding render before a company is selected. AuthProvider carves
 // this route out of the password login wall: an unauthenticated visitor signs in on the invite page,
-// reloads onto the SAME URL, then explicitly accepts as that identity. Lazy so the chunk loads only
+// reloads onto the same URL, then explicitly accepts as that identity. Lazy so the chunk loads only
 // when an invite link is actually opened.
 const InviteAccept = lazy(() =>
   import("./components/invites/InviteAccept").then((module) => ({ default: module.InviteAccept })),
@@ -64,7 +64,7 @@ const JoinCompany = lazy(() =>
   import("./components/join/JoinCompany").then((module) => ({ default: module.JoinCompany })),
 );
 // Password reset is a top-level route outside AppShell, like InviteAccept, but unlike
-// an invite it must render for a visitor with NO session (they're locked out; that's the point), so
+// an invite it must render for a visitor with no session (they're locked out; that's the point), so
 // AuthProvider carves /reset-password/ out of the login wall (see the status 'login' branch there).
 // Lazy for the same bundle reason: the chunk loads only when a reset link is actually opened.
 const ResetPassword = lazy(() => import("./auth/ResetPassword").then((module) => ({ default: module.ResetPassword })));
@@ -128,7 +128,7 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <AppShell />,
-    // A render error in AppShell or ANY child route bubbles to this boundary and shows
+    // A render error in AppShell or any child route bubbles to this boundary and shows
     // the branded recovery screen, otherwise the data router renders its bland default.
     errorElement: <RouteError />,
     children: [
@@ -153,7 +153,7 @@ export const router = createBrowserRouter([
   {
     // Invite accept is a sibling of AppShell, not a child: AppShell's
     // tenant gate would otherwise show the AccountPicker before this page ever ran. It carries its
-    // own errorElement + Suspense boundary (AppShell provides those only for ITS children). The
+    // own errorElement + Suspense boundary (AppShell provides those only for its children). The
     // surrounding AuthProvider (main.tsx) provides identity state and lets this token-scoped
     // onboarding page render before a session exists.
     path: PUBLIC_AUTH_ENTRY_PATHS.invitation,

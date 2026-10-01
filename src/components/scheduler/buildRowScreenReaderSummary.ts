@@ -21,8 +21,8 @@ export interface RowSummaryContext {
  * both hourly over-capacity days and explicit block/time-off conflicts are counted here, the
  * non-colour pair to the red background. The half-day count likewise names the neutral
  * partial-capacity treatment without relying on colour. The visible utilisation % conveys its
- * meaning only via a `title` on a non-interactive span, which AT may not expose, so it is folded
- * in too (WCAG 1.3.1), the per-PERSON signal, kept distinct from the conflict count above and
+ * meaning only via a `title` on a non-interactive span, which at may not expose, so it is folded
+ * in too (WCAG 1.3.1), the per-person signal, kept distinct from the conflict count above and
  * from `overSoon`. */
 export function buildRowScreenReaderSummary(row: RowModel, context: RowSummaryContext): string {
   const parts: string[] = [];

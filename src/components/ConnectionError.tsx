@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 
 // Shown when bootstrap could not load state from the server (it's down or
-// unreachable). Distinct from StorageRecovery (corrupt LOCAL data): there is nothing
+// unreachable). Distinct from StorageRecovery (corrupt local data): there is nothing
 // to reset here, the data lives on the server, so the only recourse is to retry.
 // Autosave is deliberately not attached in this state, so an edit on top of the empty
 // render can't be pushed as a destructive diff once the server returns.

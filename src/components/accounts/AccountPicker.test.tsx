@@ -309,13 +309,13 @@ describe("AccountPicker server-mode list (P1.13)", () => {
 function registerServerListMembershipTests() {
   it("lists from accountSummaries, NOT data.accounts (server mode holds only the active slice in data)", () => {
     serverFlag.on = true;
-    // Simulate server mode: `data` holds only ONE account (the active slice would, post-load), but the
-    // login has TWO memberships in accountSummaries. The picker must show BOTH from the summaries.
+    // Simulate server mode: `data` holds only one account (the active slice would, post-load), but the
+    // login has two memberships in accountSummaries. The picker must show both from the summaries.
     useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: "a1", name: "Active Co" })] }));
     useStore.getState().setAccountSummaries({
       list: [
         { id: "a1", name: "Active Co", role: "owner" },
-        { id: "a2", name: "Other Co", role: "editor" }, // NOT in data.accounts
+        { id: "a2", name: "Other Co", role: "editor" }, // Not in data.accounts
       ],
     });
     render(
@@ -385,7 +385,7 @@ function registerUnloadedAccountActivationTest() {
     useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Other Co", role: "editor" }] });
     render(<AccountPicker />);
     await user.click(screen.getByRole("button", { name: "Other Co" }));
-    // setActiveAccount validates against the UNION of data.accounts + summaries, so it activates
+    // setActiveAccount validates against the union of data.accounts + summaries, so it activates
     // (the switch orchestrator then hydrates the slice) rather than bouncing back to the picker.
     expect(useStore.getState().activeAccountId).toBe("a2");
   });
@@ -441,16 +441,16 @@ function registerServerCreateRequestTest() {
     expect(body.inlineActivityCreateEnabled).toBe(false);
     // Summary seeded (the picker lists it; setActiveAccount validated against it)…
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toContain("org-1");
-    // …and NO local addAccount ran (the slice arrives via the switch orchestrator's loadAll, not here).
+    // …and no local addAccount ran (the slice arrives via the switch orchestrator's loadAll, not here).
     expect(useStore.getState().data.accounts).toHaveLength(0);
   });
 }
 
 function registerServerCreateUnusableBodyTest() {
   it("on a 2xx create with an unusable body: NO error, form closes, list refetched, nothing activated", async () => {
-    // A 2xx means the org EXISTS server-side. An unreadable/off-spec body must therefore NOT surface
+    // A 2xx means the org EXISTS server-side. An unreadable/off-spec body must therefore not surface
     // an error over a create that succeeded (a resubmit would duplicate / trip the cap-403), and must
-    // NOT seed a bogus {id: undefined} summary that setActiveAccount would then accept. Instead: the
+    // not seed a bogus {id: undefined} summary that setActiveAccount would then accept. Instead: the
     // form closes and the authoritative /api/accounts refetch lists the new company.
     serverFlag.on = true;
     const user = userEvent.setup();
@@ -597,13 +597,13 @@ function registerServerCreateTransportFailureTest() {
 
 function registerServerDeleteUnloadedTest() {
   it("deletes an UNLOADED company via DELETE /api/accounts/:id and drops its summary", async () => {
-    // The regression this guards: the local deleteAccount cascade diffs the LOADED slice only, so a
+    // The regression this guards: the local deleteAccount cascade diffs the loaded slice only, so a
     // company whose slice isn't in `data` would emit no ops, delete nothing server-side, and
     // resurrect on the next summaries refetch. Server mode must call the dedicated route instead.
     serverFlag.on = true;
     const user = userEvent.setup();
     const fetchMock = stubFetch({ ok: true, status: 204 });
-    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] }); // slice NOT loaded
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] }); // slice not loaded
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
@@ -777,9 +777,9 @@ function registerServerDeletePermissionsTest() {
 }
 
 describe("AccountPicker — refreshAuth after org create/delete (canCreateAccount stays fresh)", () => {
-  // The server recomputes canCreateAccount PER REQUEST from mutable state (account count +
+  // The server recomputes canCreateAccount per request from mutable state (account count +
   // membership roles), so the picker re-asks /api/auth/me after every org create/delete. These
-  // tests mount the REAL AuthProvider (the mocked apiConfig above puts it in server mode) so the
+  // tests mount the real AuthProvider (the mocked apiConfig above puts it in server mode) so the
   // whole loop is exercised: boot /me → snapshot, mutate, refetched /me → the flipped value
   // reaches the picker's affordances. Without the re-ask, deleting the only company on a capped
   // instance stranded the user on an inviteless empty state with no "New company" button.
@@ -794,7 +794,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === "/api/auth/me") {
         meCalls += 1;
-        // Single-company instance: AT the cap on boot, back UNDER it (zero accounts, the
+        // Single-company instance: at the cap on boot, back under it (zero accounts, the
         // bootstrap exemption) once the only company is deleted.
         return jsonRes(200, { authMode: "off", user: null, canCreateAccount: meCalls > 1, multiAccount: false });
       }
@@ -819,7 +819,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
     // The refetched /me flips canCreateAccount → the button (and the empty two-choice state)
-    // come back WITHOUT a manual reload, the dead end this pins against.
+    // come back without a manual reload, the dead end this pins against.
     expect(await screen.findByLabelText("Company name")).toBeInTheDocument();
     expect(screen.queryByTestId("company-empty-options")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.filter((c) => c[0] === "/api/auth/me")).toHaveLength(2);

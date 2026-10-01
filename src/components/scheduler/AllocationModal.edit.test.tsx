@@ -29,7 +29,7 @@ const capacityAdvisoryMock = vi.hoisted(() =>
 
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory VERDICTS the modal renders.
+// care only about the advisory verdicts the modal renders.
 vi.mock("@/lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
@@ -547,7 +547,7 @@ describe("AllocationModal edit", () => {
         status: "confirmed",
       }),
     );
-    // Turn placeholders OFF, they're hidden everywhere, but an allocation already on one must not
+    // Turn placeholders off, they're hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) placeholder.
     setPlaceholdersEnabled({ on: false });
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
@@ -561,8 +561,8 @@ describe("AllocationModal edit", () => {
   });
 
   it("risk A: editing an allocation on a HIDDEN external still offers that external so the value is preserved", async () => {
-    // Externals default OFF too; the suite-wide beforeEach only turns placeholders on. Create an
-    // external, book it, then assert the picker keeps it as an option even with the pref OFF.
+    // Externals default off too; the suite-wide beforeEach only turns placeholders on. Create an
+    // external, book it, then assert the picker keeps it as an option even with the pref off.
     const ext = requireCreated(
       useStore.getState().addResource({
         kind: "external",
@@ -586,7 +586,7 @@ describe("AllocationModal edit", () => {
         status: "confirmed",
       }),
     );
-    // External pref OFF (its default), hidden everywhere, but an allocation already on one must not
+    // External pref off (its default), hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) external.
     setExternalEnabled({ on: false });
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);

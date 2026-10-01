@@ -3,9 +3,9 @@ export function isTextEntryShortcutOwner(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.matches("input, textarea, select") || target.isContentEditable) return true;
 
-  // jsdom SHIM, not production logic: real browsers already answered this via `isContentEditable`
+  // jsdom shim, not production logic: real browsers already answered this via `isContentEditable`
   // above, which jsdom does not implement (it is always false there). The walk below reproduces
-  // the inheritance rule by hand off the `contenteditable` ATTRIBUTE, nearest ancestor wins, and
+  // the inheritance rule by hand off the `contenteditable` attribute, nearest ancestor wins, and
   // an explicit `contenteditable="false"` stops the search, so the guard behaves the same under
   // test as it does in a browser. Delete it only if jsdom gains `isContentEditable`.
   let owner = target.closest("[contenteditable]");

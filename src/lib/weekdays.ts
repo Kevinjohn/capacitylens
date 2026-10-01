@@ -1,8 +1,8 @@
 import { m } from "@/i18n";
 import type { Weekday } from "@capacitylens/shared/types/entities";
 
-// The table holds UNCALLED message references (`m.weekday_long_mon`, not `m.weekday_long_mon()`).
-// This module is evaluated once at import, and Paraglide resolves the active locale at CALL time,
+// The table holds uncalled message references (`m.weekday_long_mon`, not `m.weekday_long_mon()`).
+// This module is evaluated once at import, and Paraglide resolves the active locale at call time,
 // storing resolved strings here would freeze every weekday label to the import-time language, which
 // can switch without a reload. The lookups below therefore call the reference they find.
 // Indexed by the `Weekday` day-of-week number (Sun=0 … Sat=6), so a missing arm fails tsc.

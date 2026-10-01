@@ -6,12 +6,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
-// COSMETIC demo sign-in, a Google-account-chooser look shown BEFORE the account picker so
-// a viewer sees the intended "log in first, then pick a company" flow. There is NO real
-// authentication and NO popup: clicking an account just flips the device-global
+// Cosmetic demo sign-in, a Google-account-chooser look shown before the account picker so
+// a viewer sees the intended "log in first, then pick a company" flow. There is no real
+// authentication and no popup: clicking an account just flips the device-global
 // `fakeSignedIn` flag (via onSignIn) and reveals the picker. The real, server-authoritative
-// auth seam is `src/auth/` (AuthProvider / LoginScreen); AppShell only mounts THIS screen
-// when that auth is OFF (authMode === 'off'), so the two never double-gate. Restyle the
+// auth seam is `src/auth/` (AuthProvider / LoginScreen); AppShell only mounts this screen
+// when that auth is off (authMode === 'off'), so the two never double-gate. Restyle the
 // persona via `src/lib/fakeAuth.ts` and `src/assets/avatar-demo.svg`.
 
 /** The multi-colour Google "G" mark. Decorative (aria-hidden) and inline so the demo needs

@@ -41,12 +41,12 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
     return id;
   };
 
-  // Defense-in-depth viewer guard. It is INERT unless the active role is EXACTLY 'viewer':
-  // every other value (null (OFF/local/not-fetched), 'owner', 'admin', 'editor') permits, so the
-  // default deploy is byte-identical to today (fully editable). When the role IS 'viewer', a scoped
-  // mutation NO-OPS (the caller returns early) and surfaces a notice, so an ungated affordance or an
+  // Defense-in-depth viewer guard. It is inert unless the active role is exactly 'viewer':
+  // every other value (null (off/local/not-fetched), 'owner', 'admin', 'editor') permits, so the
+  // default deploy is byte-identical to today (fully editable). When the role is 'viewer', a scoped
+  // mutation no-ops (the caller returns early) and surfaces a notice, so an ungated affordance or an
   // optimistic local write the server would 403 can't desync local state. This is UX/defense-in-depth,
-  // NOT the security boundary. The server 403 is the true backstop; we never throw here (a
+  // not the security boundary. The server 403 is the true backstop; we never throw here (a
   // throw would read as corruption and could crash a drag handler), we just refuse + inform.
   const blockedByViewer = (): boolean => {
     const state = get();
@@ -81,7 +81,7 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
     findOwnedIn(data, requireAccount(), key, id);
   const assertAllocation = assertAllocationRefs;
 
-  // The built-in "Internal" client is a FIXED bucket, every account must keep exactly one, so it
+  // The built-in "Internal" client is a fixed bucket, every account must keep exactly one, so it
   // may be neither renamed nor moved through the lifecycle. One guard for all four rejecting
   // actions, each supplying the verb its message ends with. A non-client entity, a stale id and an
   // ordinary client all pass. Throws a display-safe message: surface, don't swallow (the callers
@@ -96,9 +96,9 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
 
   // Value-level integrity backstop: a resource with zero working days has no capacity
   // any day. The form guards this, but the store is the last line so no path can persist
-  // it. (The import path instead REPAIRS an empty set to Mon–Fri, see sanitizeImport.)
-  // The three guards share ONE shape rule, a distinct set of in-week weekday numbers, from the
-  // shared isWeekdaySet, and now enforce the SAME policy for resources and companies: at least
+  // it. (The import path instead repairs an empty set to Mon–Fri, see sanitizeImport.)
+  // The three guards share one shape rule, a distinct set of in-week weekday numbers, from the
+  // shared isWeekdaySet, and now enforce the same policy for resources and companies: at least
   // one working day, because company days govern capacity and an empty company week would zero
   // every person. A half day must additionally be a working day.
   const assertWorkingDays = (days: Weekday[]): void => {
@@ -111,14 +111,14 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
       throw new Error("Half days must be unique whole-number weekdays contained in the working week.");
     }
   };
-  // Write-time colour guard: snaps a bad/legacy colour to its NEAREST palette preset via the
-  // shared snapToPresetColor mapper, the SAME mapper the server's sanitizeWrite('accounts') and
+  // Write-time colour guard: snaps a bad/legacy colour to its nearest palette preset via the
+  // shared snapToPresetColor mapper, the same mapper the server's sanitizeWrite('accounts') and
   // the one-time snap-legacy-account-colors migration use, so client and server can never
   // disagree about what a given colour snaps to (see DECISIONS.md). `allowNeutral` preserves the
-  // ONE deliberate exception: NEUTRAL_COLOR is not itself a preset (see shared/lib/color.ts), but
+  // one deliberate exception: NEUTRAL_COLOR is not itself a preset (see shared/lib/color.ts), but
   // an external resource's grey must round-trip unchanged rather than snap to its nearest preset.
   //
-  // Deliberately called ONLY on a path that is actually about to persist (immediately before
+  // Deliberately called only on a path that is actually about to persist (immediately before
   // mutate()/updateById below), never before a reject check (blockedByViewer / a stale-id no-op /
   // an assert* throw). A rejected write must not silently substitute a colour the caller never
   // asked for onto an entity that was never saved; see the CRUD contract note on StoreState.
@@ -127,7 +127,7 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
 
   // Collapses the `patch.color === undefined ? patch : { ...patch, color: snapColor(...) }`
   // idiom that used to be copy-pasted across every update* action (P#: colour-repair
-  // consolidation). Returns the SAME object reference when there's no colour to repair, so a
+  // consolidation). Returns the same object reference when there's no colour to repair, so a
   // colourless edit doesn't pay for a needless clone.
   const applySnappedColor = <T extends { color?: unknown }>({
     patch,

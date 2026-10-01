@@ -17,7 +17,7 @@ import { useOwnershipTransfer, type OwnershipTransferController } from "./useOwn
 /**
  * The three-step ownership transfer ceremony, for whichever side of it the viewer is on.
  *
- * The section renders NOTHING for anyone who is not a participant. That is not tidiness: a transfer in
+ * The section renders nothing for anyone who is not a participant. That is not tidiness: a transfer in
  * progress, and who it names, is not ordinary member-management information, and the server returns
  * an empty projection to everyone else, so there is nothing to render even if this decided
  * otherwise. Every control's authority is re-checked by the server; hiding is never the mechanism.
@@ -264,7 +264,7 @@ function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProp
   }
   return (
     <>
-      {/* Shown ALONGSIDE the nominate control, never instead of it. The Owner is the one person who
+      {/* Shown alongside the nominate control, never instead of it. The Owner is the one person who
           can always start a transfer, so an either/or would hand them a fresh panel and no word of
           the decline, expiry or invalidation that ended the last one while they were away. */}
       <LastOutcome outcome={outcome} />
@@ -301,7 +301,7 @@ function mayNominate(controller: OwnershipTransferController, principalId: strin
  * Has this section anything to tell this viewer?
  *
  * Nothing live, nothing to explain and no standing to start one: render nothing rather than an
- * empty section that invites a question it cannot answer. A failure IS something to say, so it keeps
+ * empty section that invites a question it cannot answer. A failure is something to say, so it keeps
  * the entry point visible. A nominee whose read failed must not be shown the same blank page as a nominee
  * who has no request at all.
  */

@@ -19,7 +19,7 @@ interface SegmentedControlProps<T> {
   value: T;
   onChange: (value: T) => void;
   options: SegmentedOption<T>[];
-  /** Accessible name for the group; supply this OR `ariaLabelledby`. */
+  /** Accessible name for the group; supply this or `ariaLabelledby`. */
   ariaLabel?: string;
   /** Id of an existing visible label, as an alternative to `ariaLabel`. */
   ariaLabelledby?: string;
@@ -63,7 +63,7 @@ const selectedSegmentClass = [
   "data-[state=on]:border-brand",
 ].join(" ");
 
-// Nested-radius contract: padding is ALWAYS 2px; the item radius is therefore exactly the track
+// Nested-radius contract: padding is always 2px; the item radius is therefore exactly the track
 // radius minus 2px at every size. Inactive items reserve the selected border with transparent ink,
 // so moving selection cannot change either the track width or an item's box by 2px.
 const sizeClasses: Record<SegmentedSize, { radius: string; item: string }> = {

@@ -12,7 +12,7 @@ import { m } from "@/i18n";
 // (it was duplicated ~15 times across the CRUD forms).
 //
 // i18n: the copy resolves through Paraglide (`@/i18n`), and every validator below calls `m.*()`
-// INSIDE the function, never at module scope. That is load-bearing: a const captured at module
+// inside the function, never at module scope. That is load-bearing: a const captured at module
 // load would freeze the import-time language, and the locale can switch without a reload.
 // Mirrors metadata.ts.
 
@@ -52,10 +52,10 @@ export function parseText(value: string, fail: Fail, options: TextOptions = {}):
     }
     return "";
   }
-  // Length cap FIRST, before the denylist scan: a unicode-property regex shouldn't run on an
+  // Length cap first, before the denylist scan: a unicode-property regex shouldn't run on an
   // unbounded string. Defence-in-depth, the denylist isn't ReDoS-prone today, but bounding the
   // input keeps it that way. Outcome-identical: an over-long string fails either way, and only a
-  // string that's BOTH over-long AND has junk changes message (now "too long", caps win first).
+  // string that's both over-long and has junk changes message (now "too long", caps win first).
   if (unicodeCharacterCount(trimmed) > maxLength) {
     fail(field, m.validation_text_too_long());
     return null;
@@ -86,7 +86,7 @@ export function validatePresetColor(value: string, fail: Fail, field = "color"):
  * import path repairs an empty set, but the form is the only path that could persist one. */
 export function validateWorkingDays(days: number[], fail: Fail, field = "workingDays"): boolean {
   // Shape (distinct in-week days) comes from the shared predicate; the non-empty rule is this
-  // caller's own policy. An empty COMPANY week is legal, an empty RESOURCE week is not.
+  // caller's own policy. An empty company week is legal, an empty resource week is not.
   if (!isWeekdaySet(days) || days.length === 0) {
     fail(field, m.validation_working_days_required());
     return false;

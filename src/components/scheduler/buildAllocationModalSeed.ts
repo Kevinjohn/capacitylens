@@ -137,8 +137,8 @@ export function buildAllocationModalSeed({
       ? resolveScheduledHoursOnDay(initialResource, initialStart, initialEffectiveWeek)
       : FULL_DAY_HOURS;
 
-  // Days-mode inputs (used only when isDays). For an EXISTING allocation we invert
-  // hours/dates against the assignee/company effective week; for a NEW one we honour the span
+  // Days-mode inputs (used only when isDays). For an existing allocation we invert
+  // hours/dates against the assignee/company effective week; for a new one we honour the span
   // the user drew on the lane (start..end) at full-time load, mirroring how hourly
   // create defaults hours to a full working day across the same range.
   const initialUsesWorkingSpan = hasWorkingSpan(initialResource, mode);

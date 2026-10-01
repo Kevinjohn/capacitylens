@@ -39,7 +39,7 @@ export function resolveScheduledHoursOnDay(
   return resolveScheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
 }
 
-/** THE applies-to-this-resource rule for personal time off. */
+/** The applies-to-this-resource rule for personal time off. */
 function isApplicableToResource(resourceId: ID, timeOffEntry: TimeOff): boolean {
   return timeOffEntry.resourceId === resourceId;
 }
@@ -134,8 +134,8 @@ interface ResolveAllocatedHoursOnDayInput {
 }
 
 /** Sum of allocated hours for `resource` on `date` across every overlapping allocation.
- * A weekend-aware allocation (the default for a partial working week) does NO work on the
- * effective week's non-working weekdays, so a bar that merely SPANS Sat/Sun contributes 0 there,
+ * A weekend-aware allocation (the default for a partial working week) does no work on the
+ * effective week's non-working weekdays, so a bar that merely spans Sat/Sun contributes 0 there,
  * matching how the same `isWeekendAware` rule governs the bar's duration and drag. An allocation
  * that ignores the working calendars (`ignoreWeekends`) places its hours on every calendar day in
  * `[startDate, endDate]`. A normal allocation with no effective week loads no days. Time-off days
@@ -172,7 +172,7 @@ export function resolveAllocatedHoursForWeekday({
   weekday,
   effectiveWeek,
 }: ResolveAllocatedHoursForWeekdayInput): number {
-  // Derive the working-weekday flag ONCE per day: it's invariant across the loop, only the
+  // Derive the working-weekday flag once per day: it's invariant across the loop, only the
   // allocation's `ignoreWeekends` varies (and isWeekendAware is parse-free), so this keeps the
   // render-time over-marker hot path off a per-allocation parseISO.
   const dayIsWorking = effectiveWeekIncludes(effectiveWeek, weekday);

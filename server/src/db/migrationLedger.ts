@@ -55,29 +55,29 @@ export function defineMigration(...args: DefineMigrationArguments): DatabaseMigr
 }
 
 /**
- * Per-version allow-list of PRIOR definition checksums this build still accepts on an
- * ALREADY-APPLIED migration row. Every entry is one explicitly reviewed, one-time amendment; the
- * map is empty for every migration whose definition has never changed after shipping. This is NOT a
+ * Per-version allow-list of prior definition checksums this build still accepts on an
+ * already-applied migration row. Every entry is one explicitly reviewed, one-time amendment; the
+ * map is empty for every migration whose definition has never changed after shipping. This is not a
  * general "ignore mismatches" relaxation, only the exact (version → historical-checksum) pairs
- * listed here are tolerated, and any OTHER checksum drift (on these versions or any other) still
+ * listed here are tolerated, and any other checksum drift (on these versions or any other) still
  * refuses startup with the same error.
  *
- * v11 amendment (alpha line only): the ORIGINAL v11 definition
- * 'repair:promote-oldest-active-member-when-ownerless:v1' promoted the OLDEST active member
- * REGARDLESS of role when an account went ownerless; the amended definition
- * 'repair:promote-highest-role-tier-active-member-when-ownerless:v2' promotes the HIGHEST role tier
- * (tie-broken by earliest membership). The edit was made IN PLACE rather than as a follow-up
+ * v11 amendment (alpha line only): the original v11 definition
+ * 'repair:promote-oldest-active-member-when-ownerless:v1' promoted the oldest active member
+ * regardless of role when an account went ownerless; the amended definition
+ * 'repair:promote-highest-role-tier-active-member-when-ownerless:v2' promotes the highest role tier
+ * (tie-broken by earliest membership). The edit was made in place rather than as a follow-up
  * migration because the old SQL destroyed the original roles, so a forward repair can no longer
  * distinguish a wrongly-promoted low-tier member from a legitimate owner. Any database opened by a
  * previous build (up to and including v0.22.0-alpha.0 / commit fd5374b, live alpha deployments and
- * dev DBs) recorded the OLD v11 checksum in its ledger; without this one-time amendment those
+ * dev DBs) recorded the old v11 checksum in its ledger; without this one-time amendment those
  * installs would checksum-mismatch on boot and refuse to start, bricking already-upgraded databases.
  *
- * RESIDUAL RISK, ACCEPTED FOR THE ALPHA LINE: a database that ran the OLD v11 may carry a
+ * Residual risk, accepted for the alpha line: a database that ran the old v11 may carry a
  * wrongly-promoted low-tier owner that the amended v11 would have chosen differently; that row is
- * NOT re-repaired here (the destroyed roles make a correct forward repair impossible). This residual
+ * not re-repaired here (the destroyed roles make a correct forward repair impossible). This residual
  * case is tracked by the DECISIONS.md "REVISIT before a stable release" flag on the ownerless-repair
- * decision. The ledger row is LEFT UNTOUCHED. We accept the superseded checksum during read-only
+ * decision. The ledger row is left untouched. We accept the superseded checksum during read-only
  * planning rather than rewriting history, so assertMigrationHistory stays a pure read.
  */
 const SUPERSEDED_MIGRATION_CHECKSUMS: ReadonlyMap<number, readonly string[]> = new Map([

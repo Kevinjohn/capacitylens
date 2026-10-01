@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useExclusiveAction } from "./useExclusiveAction";
 
-// The load-bearing property is the SAME-RENDER one: the ref must already refuse a second action
+// The load-bearing property is the same-render one: the ref must already refuse a second action
 // inside the very click that started the first, before React has committed `busy = true` and had a
 // chance to disable anything. A test that only asserts on `busy` would pass against a
 // state-flag-only implementation and miss exactly the double-click this hook exists to stop.

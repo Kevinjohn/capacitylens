@@ -69,7 +69,7 @@ function registerMovedSchedulerTests201021() {
 function registerMovedSchedulerTests201022() {
   it("overSoon truly SKIPS external resources — even one with real over-capacity hours", () => {
     const d = withExternal();
-    // ext1's workingHoursPerDay is 8; this 20h booking on a working Monday WOULD read as over if
+    // ext1's workingHoursPerDay is 8; this 20h booking on a working Monday would read as over if
     // the external guard were bypassed.
     d.allocations.push({
       id: "aext2",
@@ -106,7 +106,7 @@ function registerMovedSchedulerTests201023() {
     const d = dataset();
     // r1 works Mon–Fri; 2026-06-06 is a Saturday (available = 0 for r1 regardless of ignoreWeekends,
     // that flag only affects whether the allocation counts hours there, not the resource's
-    // availability). ignoreWeekends: true makes the allocation actually WORK that zero-capacity day.
+    // availability). ignoreWeekends: true makes the allocation actually work that zero-capacity day.
     d.allocations.push({
       id: "a-sat",
       accountId: "acct-test",

@@ -69,8 +69,8 @@ export function createResourceSlice(
               ? { ...merged, ...placeholderCapacityDefaults() }
               : merged;
             // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
-            // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
-            // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.
+            // placeholder projectId whose project is archived (absent from the server-mode active-only
+            // slice) must not block an unrelated edit; a changed projectId is still validated strictly.
             assertScopedRefs(get().data, existing.accountId, "resources", preparedPatch, existing);
             assertResourceProjectAllowsDependents(get().data, existing.accountId, id, preparedResource, existing);
             assertResourceKindAllowsDependents(get().data, existing.accountId, id, preparedResource.kind);
@@ -153,7 +153,7 @@ function createResourceAddAction(internals: ResourceSliceInternals, get: StoreAp
             : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
         );
       }
-      // Colour snap runs LAST, right before persisting, never before the asserts above, so a
+      // Colour snap runs last, right before persisting, never before the asserts above, so a
       // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
       const safe = applySnappedColor({ patch: entity, allowNeutral: entity.kind === "external" });
       mutate((data) => ({ ...data, resources: [...data.resources, safe] }));
@@ -183,7 +183,7 @@ function createTimeOffActions(
         patch: patch,
         prepare: (merged, existing) => {
           // Same merged-row rule as updateAllocation: the server re-runs assertResourceExists on the
-          // full merged row, so a type/date/note-only edit of time-off on a now-EXTERNAL resource
+          // full merged row, so a type/date/note-only edit of time-off on a now-external resource
           // would 400 there while succeeding here. See updateOwned.
           assertResourceExists(get().data, existing.accountId, merged.resourceId, existing);
           assertDateRange(merged.startDate, merged.endDate);

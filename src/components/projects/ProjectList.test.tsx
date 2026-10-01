@@ -10,7 +10,7 @@ import { MemoryRouter } from "react-router-dom";
 beforeEach(() => {
   resetStoreWithAccount();
   useStore.getState().clearFilters();
-  // Server is the app default now; the archive-flow tests below assert the LOCAL store-mutation path
+  // Server is the app default now; the archive-flow tests below assert the local store-mutation path
   // (no fetch/reload), so opt into the demo build. isServerConfigured() reads the env per dispatch,
   // and the non-archive tests here don't touch persistence mode, so a file-wide stub is harmless.
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
@@ -125,9 +125,9 @@ describe("ProjectList", () => {
     expect(projects[0]?.clientId).toBe(client.id);
   });
 
-  // The per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
-  // the inline archive section). DEMO mode here → archiveEntity: the project gets `archivedAt`
-  // set (its activities are RETAINED, reversible) and vanishes from this active-only list.
+  // The per-row "Delete" affordance now archives (soft-delete is reached later from
+  // the inline archive section). Demo mode here → archiveEntity: the project gets `archivedAt`
+  // set (its activities are retained, reversible) and vanishes from this active-only list.
   it("shows the Archive ConfirmDialog when the archive button is clicked", async () => {
     const user = userEvent.setup();
     const client = requireCreated(useStore.getState().addClient({ name: "Ferris Corp", color: "#111" }));
@@ -224,9 +224,9 @@ describe("ProjectList", () => {
     expect(screen.getByText("No projects yet.")).toBeInTheDocument();
   });
 
-  // An unresolvable clientId means different things per mode: in SERVER mode the per-account read
-  // strips archived parents from the slice, so it reads as "archived client"; in the DEMO build the
-  // raw slice retains archived clients, so it is genuinely dangling data and must NOT be dressed up
+  // An unresolvable clientId means different things per mode: in server mode the per-account read
+  // strips archived parents from the slice, so it reads as "archived client"; in the demo build the
+  // raw slice retains archived clients, so it is genuinely dangling data and must not be dressed up
   // as archival.
   const seedOrphanProject = () => {
     // Seed via replaceAll to inject a project whose client is absent from the slice

@@ -92,8 +92,8 @@ function rebuildNullableInviteIds(db: Db): void {
 }
 
 /**
- * Create the membership control table (and its lookup indexes) if absent. IDEMPOTENT, every
- * statement is `IF NOT EXISTS`, so this is safe to run on EVERY boot and on every opened DB
+ * Create the membership control table (and its lookup indexes) if absent. Idempotent, every
+ * statement is `IF NOT EXISTS`, so this is safe to run on every boot and on every opened DB
  * (including the `:memory:` databases tests open via openDb).
  *
  * Schema: `account_members(accountId, userId, role, status, createdAt, signInConfirmed?)` with a composite
@@ -104,10 +104,10 @@ function rebuildNullableInviteIds(db: Db): void {
  * Also creates `invites(tokenHash PK, id, accountId, role, preauthEmail?, expiresAt, usedAt?, createdAt)`
  * (the single-use, expiring invite links that mint a membership on accept) with a
  * by-`accountId` index (list an account's outstanding invites). The `id` column is a
- * NON-SECRET handle, distinct from the bearer `token`: list/revoke key on `id` so the secret `token`
- * stays WRITE-ONCE and never travels on a read path.
+ * non-secret handle, distinct from the bearer `token`: list/revoke key on `id` so the secret `token`
+ * stays write-once and never travels on a read path.
  *
- * No FOREIGN KEY to `accounts(id)` on EITHER table BY DESIGN: these are control-plane tables that
+ * No FOREIGN KEY to `accounts(id)` on either table by design: these are control-plane tables that
  * must stay decoupled from the AppData cascade. They must never be dragged into the entity drift
  * path, and membership/invites are managed by dedicated permissioned endpoints, not by the AppData
  * delete cascade. They therefore carry no FK, so the caller's `PRAGMA foreign_keys` state is
@@ -142,13 +142,13 @@ export function ensureControlTables(db: Db): void {
   // The v26 migration owns this additive shape. Repeating its guarded repair here keeps fresh and
   // pre-ledger development databases on the same every-boot control-plane boundary as invites.
   migrateMemberSignInTrackingV26(db);
-  // ADDITIVE column for an ALREADY-CREATED dev DB (the `id` column
+  // Additive column for an already-created dev DB (the `id` column
   // arrived after the `invites` table). A DB that already has the older table won't get `id` from the
-  // IF-NOT-EXISTS CREATE above (node:sqlite never re-runs CREATE on an existing table), so add it
+  // if-not-EXISTS CREATE above (node:sqlite never re-runs CREATE on an existing table), so add it
   // here: guarded by a column-exists check, mirroring schema.ts's additive ALTER idiom. SQLite
-  // can't ALTER-ADD a NOT NULL column to existing rows, so it lands NULLABLE; createInvite always
+  // can't ALTER-add a NOT NULL column to existing rows, so it lands nullable; createInvite always
   // writes a non-null id, and the rebuilt DDL above makes it NOT NULL for every fresh DB.
-  // Fetch the invites column set ONCE (rather than one PRAGMA per column checked below), both
+  // Fetch the invites column set once (rather than one PRAGMA per column checked below), both
   // `legacyPlaintextInvites` and the `id`-presence check below read the same live shape.
   const inviteColumnNames = new Set(
     (db.prepare(`PRAGMA table_info(invites)`).all() as Array<{ name: string }>).map((c) => c.name),

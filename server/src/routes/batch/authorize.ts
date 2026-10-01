@@ -105,7 +105,7 @@ export function authorizeBatchOperations(parameters: AuthorizeBatchOperationsInp
   for (const op of ops) {
     if (op.table === "accounts" && op.method === "PUT") {
       if (!authorizeAccountPut({ op, db, authMode, reply, authorizeOnce })) return false;
-      // OFF-mode creates are checked against the projected final set and rechecked by the
+      // Off-mode creates are checked against the projected final set and rechecked by the
       // provisioning policy inside the transaction.
       continue;
     }

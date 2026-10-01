@@ -10,11 +10,11 @@ export function setMasqueradeEndedHandler(handler: (() => void) | null): void {
 }
 
 // Two deadline tiers, because one bound can't fit every call. Interactive calls (a single
-// entity write, an auth check, a `hasData` probe) must fail FAST. A wedged socket should
-// surface within seconds. But the three BULK operations, the whole-slice `GET /api/state`
+// entity write, an auth check, a `hasData` probe) must fail fast. A wedged socket should
+// surface within seconds. But the three bulk operations, the whole-slice `GET /api/state`
 // load/hydrate, the atomic `POST /api/batch` write, and the full inactive-slice export, can
 // legitimately take far longer on a large tenant against a healthy-but-slow server, and the
-// batch is the dangerous one: aborting a still-in-flight batch makes `drain` NOT advance
+// batch is the dangerous one: aborting a still-in-flight batch makes `drain` not advance
 // `lastSynced`, so persist.ts retries the identical diff forever (the banner never clears) even
 // though nothing is actually broken. So bulk calls get a much longer bound.
 export const API_REQUEST_TIMEOUT_MS = 15_000;
@@ -34,9 +34,9 @@ export function isTransportFailure(error: unknown): boolean {
  * Build the abort signal for an API call. `timeoutMs` picks the deadline tier:
  *   - omitted → the interactive {@link API_REQUEST_TIMEOUT_MS} (15s) bound;
  *   - {@link API_BULK_TIMEOUT_MS} (or any number) → that longer bound, for whole-slice reads/writes;
- *   - `null` → NO client deadline at all, for the keepalive unload flush, where a timeout is
+ *   - `null` → no client deadline at all, for the keepalive unload flush, where a timeout is
  *     self-contradictory (the request is meant to outlive the page as far as the browser permits).
- * A caller `signal` is always honoured; the result aborts as soon as EITHER it or the timeout does.
+ * A caller `signal` is always honoured; the result aborts as soon as either it or the timeout does.
  */
 export function createRequestSignal(
   signal?: AbortSignal | null,

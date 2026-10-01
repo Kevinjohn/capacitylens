@@ -70,7 +70,7 @@ export function AppSidebar({
   // properties on the sidebar root rather than threaded as props: the nav is assembled from several
   // groups (the primary destinations, the pinned admin group, the account footer), and the rules
   // below key off the shadcn primitives' own `data-slot` hooks, so every menu inside the sidebar
-  // picks the rhythm up without each one having to read the store. Only GAPS and PADDING move, item
+  // picks the rhythm up without each one having to read the store. Only gaps and padding move, item
   // height is untouched, so the collapsed icon rail (which pins each button square) is unaffected.
   // See src/index.css.
   const density = SCHEDULER_DENSITY;
@@ -135,7 +135,7 @@ function SidebarNavigation({
 }) {
   return (
     <SidebarContent>
-      {/* ONE <nav> landmark around both groups. The admin group is a separate visual block
+      {/* One <nav> landmark around both groups. The admin group is a separate visual block
           but the same navigation region, so screen-reader users still hear a single
           "Navigation" landmark rather than two competing ones. `mt-auto` pushes it to the bottom of
           the scroll area whenever the primary list is shorter than the viewport. */}

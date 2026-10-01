@@ -11,14 +11,14 @@
 //                                                     transform, and it lives in
 //                                                     shared/src/domain/mutations.ts, not integrity.ts)
 //
-// SET NULL alone only unbinds; it does NOT bump the survivor's updatedAt, so an admin PURGE restamps
+// SET NULL alone only unbinds; it does not bump the survivor's updatedAt, so an admin purge restamps
 // those rows itself (purgeLifecycleRow in tenantStore.ts) and a sync client observes the edit. This
 // mapping is a comment, so cascadeParity.test.ts is what actually holds the two sides together: it
-// runs one fixture through the shared transforms AND through this schema (+ purge) and diffs the
+// runs one fixture through the shared transforms and through this schema (+ purge) and diffs the
 // survivors. Change a rule here or there and that suite fails.
 //
 // id columns are declared NOT NULL here for fresh databases. Existing databases are
-// NOT rebuilt to add NOT NULL to the PK, a table-rebuild for all 9 tables is
+// not rebuilt to add NOT NULL to the PK, a table-rebuild for all 9 tables is
 // disproportionate, and assertSchemaCurrent already exempts `id` from its nullability
 // check (SQLite PRAGMA reports notnull=0 for TEXT PRIMARY KEY regardless of the DDL,
 // so the spec and live DB would always appear to disagree). The route-level

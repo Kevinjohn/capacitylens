@@ -39,7 +39,7 @@ function toWire(request: OwnershipTransferRequest) {
 /**
  * A committed business-terminal outcome answered as a conflict.
  *
- * It is NOT an error: the expiry it reports was written and committed. The caller's command did not
+ * It is not an error: the expiry it reports was written and committed. The caller's command did not
  * apply, so 409 is the honest status, but the body names the terminal state and reason so an
  * interface can explain what happened rather than merely refusing.
  */
@@ -78,7 +78,7 @@ export async function readOwnershipTransfer(
   const { accountId } = req.params;
   if (!authorize({ req, reply, accountId, action: "actOnOwnershipTransfer", options: { requireFreshSession: false } }))
     return;
-  // OFF mode has no owner model at all, so an honest empty projection beats a crash or a claim.
+  // Off mode has no owner model at all, so an honest empty projection beats a crash or a claim.
   if (authMode === "off") return reply.code(200).send({ live: null, latestOutcome: null });
   const masqueradeRefusal = sendMasqueradeRefusal(req, reply, context);
   if (masqueradeRefusal) return masqueradeRefusal;

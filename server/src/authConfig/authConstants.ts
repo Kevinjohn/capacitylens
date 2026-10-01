@@ -6,7 +6,7 @@ import {
 /** Reset links are admin-minted and handed over out-of-band (Slack/chat), so the 1-hour Better
  * Auth default is too tight. The recipient may not be at a keyboard. 24h matches the "share a
  * link with a colleague" reality while staying far below the invite TTL (an invite grants entry;
- * a reset link grants an EXISTING identity, so it stays the shorter-lived of the two). */
+ * a reset link grants an existing identity, so it stays the shorter-lived of the two). */
 export const RESET_LINK_TTL_SECONDS = 60 * 60 * 24;
 /** A session can never outlive this wall-clock duration, regardless of activity. */
 export const SESSION_ABSOLUTE_TTL_SECONDS = ACCOUNT_SESSION_ABSOLUTE_TTL_SECONDS;

@@ -8,13 +8,13 @@ export function hasUnsavedPersistenceWrites(): boolean {
 /**
  * Suspend the orchestrator's writes and return a resume function. While suspended, edits are
  * parked, not sent; a successful reload rebases just those edits onto the fresh slice. Resume
- * decides the fate of an edit still parked when the LAST
+ * decides the fate of an edit still parked when the last
  * suspension lifts:
  *  - default: re-schedule it. The caller's operation never replaced the slice (e.g. the import
  *    POST failed), so the parked edit is an ordinary unsaved edit and dropping it would be a
  *    silent loss;
  *  - `dropParkedEdits: true`: drop it and surface a {@link ReloadDiscardedEditError}, the
- *    caller's operation REPLACED the slice server-side, so an edit made against the old basis must
+ *    caller's operation replaced the slice server-side, so an edit made against the old basis must
  *    not survive. A successful reload may temporarily rebase that edit for the caller to decide;
  *    dropping restores the retained authoritative slice. Without a successful reload, saving the
  *    stale tree could instead upsert ghost pre-import rows into the replacement.
@@ -27,13 +27,13 @@ export function suspendServerWrites(): (options?: { dropParkedEdits?: boolean })
 
 /**
  * Result kinds from {@link refreshActiveAccountSlice} (and the orchestrator's internal refreshActive):
- *  - 'reloaded': the server's slice was fetched AND installed; the UI shows committed state.
+ *  - 'reloaded': the server's slice was fetched and installed; the UI shows committed state.
  *  - 'skipped': deliberately not performed (stale account id, the user switched tenants,
  *                   or a save is in a failed state under abortIfSaveFailed, or a newer
- *                   switch/refresh superseded this one). The store was NOT touched.
+ *                   switch/refresh superseded this one). The store was not touched.
  *  - 'failed': the slice load threw; surfaced via onError (persist banner). Store untouched.
  *  - 'unattached': no orchestrator (demo build / unit tests); the caller may fall back to a
- *                   bare loadAll+replaceAll, safe ONLY because there is no debounce state.
+ *                   bare loadAll+replaceAll, safe only because there is no debounce state.
  */
 export type RefreshOutcome = { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" };
 export type FlushPendingWritesResult = { kind: "clean" } | { kind: "blocked" } | { kind: "failed"; error: unknown };
@@ -68,14 +68,14 @@ export class ReloadDiscardedEditError extends Error {
 }
 
 /**
- * Re-hydrate the active account's slice THROUGH the persistence orchestrator: pending debounced
+ * Re-hydrate the active account's slice through the persistence orchestrator: pending debounced
  * edits are flushed and in-flight saves awaited before the reload, and the reload is skipped
  * entirely while a save is in a failed state (reloading would clobber the un-persisted edits the
  * retry machinery still holds, see refreshActive's abortIfSaveFailed note).
  *
  * @returns a {@link RefreshOutcome}. Callers whose follow-up claims "the view now shows committed
  * state" (the server-mode import's success notice) must gate on 'reloaded', 'skipped'
- * and 'failed' mean the store still holds the PRE-operation slice.
+ * and 'failed' mean the store still holds the pre-operation slice.
  */
 export async function refreshActiveAccountSlice(id: string): Promise<RefreshOutcome> {
   return persistenceCoordinator.refreshActive(id);

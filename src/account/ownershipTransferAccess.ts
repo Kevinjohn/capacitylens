@@ -40,7 +40,7 @@ export interface OwnershipTransferProjectionView {
 /**
  * What a ceremony command answered.
  *
- * `terminal` is the server's COMMITTED outcome, a deadline that had passed and was materialised,
+ * `terminal` is the server's committed outcome, a deadline that had passed and was materialised,
  * not a refusal. It arrives as a 409 carrying its own code, and it is decoded as a success here so
  * the card can explain what happened instead of showing an error the user cannot act on.
  */

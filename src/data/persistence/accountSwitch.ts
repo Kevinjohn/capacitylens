@@ -63,7 +63,7 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
         owner.update({ lastActiveAccountId: newId });
         // Null (dropped to the picker / sign-out) loads nothing, the picker shows accountSummaries,
         // and the next non-null pick will hydrate. Cancel any in-flight switch so its late load can't
-        // seed. Still FLUSH the OLD account's pending debounced edits first (same data-loss edge as a
+        // seed. Still flush the old account's pending debounced edits first (same data-loss edge as a
         // real A→B switch): data and the snapshot are both still account A here, so the flush diffs
         // A-vs-A correctly. No loadAll follows, so there's no later snapshot reseed to race.
         if (newId === null) {

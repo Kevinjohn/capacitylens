@@ -153,7 +153,7 @@ export function buildProtectedClientMessage(verb: string): string {
   return `The built-in Internal client cannot be ${verb}.`;
 }
 
-/** 400 body for a batch op whose method is not PUT, DELETE or ARCHIVE. */
+/** 400 body for a batch op whose method is not PUT, DELETE or archive. */
 export function buildUnknownOpMethodMessage(method: unknown): string {
   return `Unknown op method: ${String(method)}.`;
 }

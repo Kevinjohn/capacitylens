@@ -19,7 +19,7 @@ import type { BarLayout } from "@/components/scheduler/schedulerModel";
 // Shared test fixtures. Centralises the Mon–Fri working-week and resource-draft
 // factory, plus the multi-tenancy helpers: a default account, a `makeAccount`
 // factory, a `makeAppData` that always includes that account, and a one-line
-// store reset that seeds the account AND makes it active (so `add*`, which now
+// store reset that seeds the account and makes it active (so `add*`, which now
 // requires an active account, works in unit tests).
 
 /** Mon–Fri, typed as Weekday[] so call sites don't need the `as Weekday[]` cast. */
@@ -200,7 +200,7 @@ export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void 
   useStore.getState().setNotice(null);
   // Same for the transient a11y capacity announcement (WCAG 4.1.3): a prior keyboard-edit test
   // leaves an srAnnouncement on the singleton, so clear it here so specs asserting on it are
-  // order-independent. There's no "clear" setter (announceCapacity only ever SETS), so null it directly.
+  // order-independent. There's no "clear" setter (announceCapacity only ever sets), so null it directly.
   useStore.setState({ srAnnouncement: null, membershipRevision: 0 });
   // Likewise reset the transient access role so a prior viewer-guard test can't leave the
   // singleton store in 'viewer' and silently no-op the next spec's mutations. Default = editable.
@@ -225,7 +225,7 @@ export function setExternalEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetEx
 /** A JSON `Response` for a stubbed `fetch`/client call, the shape the API clients' body decoders
  * expect (a real `Response`, `Content-Type: application/json`, a JSON-encoded body).
  *
- * Call it PER INVOCATION, not once into a shared const: a `Response` body is a single-use stream, so
+ * Call it per invocation, not once into a shared const: a `Response` body is a single-use stream, so
  * a mock that resolves the same instance twice hands the second reader an already-consumed body. The
  * idiom is `mock.mockImplementation(() => Promise.resolve(jsonResponse(...)))`.
  *

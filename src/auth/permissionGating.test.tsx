@@ -21,13 +21,13 @@ import type { Allocation } from "@capacitylens/shared/types/entities";
 import type { Role } from "@capacitylens/shared/domain/access";
 
 // Client permission gating. Two halves:
-//   1) the useCanEdit affordance gate (ListPage Add, AllocationBar grips), and the OFF/local
-//      regression guard (provider ABSENT / role null → fully editable, byte-identical to today);
+//   1) the useCanEdit affordance gate (ListPage Add, AllocationBar grips), and the off/local
+//      regression guard (provider absent / role null → fully editable, byte-identical to today);
 //   2) the store's defense-in-depth viewer guard (a viewer's add*/update*/delete* no-ops + notices;
 //      null/editor/owner permit).
-// The server 403 is the TRUE backstop; this suite only covers the client UX + the local guard.
+// The server 403 is the true backstop; this suite only covers the client UX + the local guard.
 
-/** Render `ui` inside a PermissionContext fixed to `role` (null = no provider equivalent / OFF/local). */
+/** Render `ui` inside a PermissionContext fixed to `role` (null = no provider equivalent / off/local). */
 function withRole(role: Role | null, ui: ReactNode) {
   return render(<PermissionContext.Provider value={{ role }}>{ui}</PermissionContext.Provider>);
 }

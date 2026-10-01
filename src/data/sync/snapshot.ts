@@ -10,7 +10,7 @@ import {
 } from "./revisions";
 import type { SyncState } from "./SyncState";
 
-/** Regroup the flat key→translation map into table→(id→translation) ONCE per pass, so a whole-table
+/** Regroup the flat key→translation map into table→(id→translation) once per pass, so a whole-table
  * scan can look rows up by plain id instead of composing a key string per row. */
 export function buildAcknowledgedRevisionsByTable(
   state: SyncState,
@@ -36,14 +36,14 @@ export function canonicalizeAcknowledged(state: SyncState, data: AppData): AppDa
     const canonicalRows = sourceRows.map((row) => {
       const acknowledged = acknowledgedById.get(row.id);
       if (!acknowledged || row.updatedAt !== acknowledged.client) return row;
-      // DURABLE translation, NOT consume-once. The entry MUST survive this diff. Nothing ever
+      // Durable translation, not consume-once. The entry must survive this diff. Nothing ever
       // writes the server's revision back into the Zustand store, so the store's copy of this row
-      // keeps its client-side updatedAt for the tab's whole life. lastSynced holds the SERVER stamp;
+      // keeps its client-side updatedAt for the tab's whole life. lastSynced holds the server stamp;
       // every future diff therefore re-sees store(clientStamp) ≠ lastSynced(serverStamp) and would
       // re-emit a phantom PUT for a row the user never touched, which would re-stamp the row on the
       // server and 409-discard another user's real edit. Keeping the entry lets each future diff
-      // translate the client stamp to the acknowledged server stamp, yielding ZERO ops. The entry is
-      // invalidated only when it stops applying: a genuine re-edit bumps row.updatedAt to a NEW value
+      // translate the client stamp to the acknowledged server stamp, yielding zero ops. The entry is
+      // invalidated only when it stops applying: a genuine re-edit bumps row.updatedAt to a new value
       // (this `=== acknowledged.client` guard then fails, so exactly one real PUT is emitted and
       // rememberRevisions overwrites the entry with the new client→server pair), and a full rehydrate
       // clears the whole Map (seedSnapshot). So the Map holds at most one entry per row edited since
@@ -58,7 +58,7 @@ export function canonicalizeAcknowledged(state: SyncState, data: AppData): AppDa
 }
 
 // Seed the diff snapshot to a freshly loaded slice and announce the seed to drain() (seedGen).
-// Clearing the acknowledged-revision translations is PART of seeding: those entries map the prior
+// Clearing the acknowledged-revision translations is part of seeding: those entries map the prior
 // session's client stamps onto server revisions, but a rehydrate replaces both lastSynced and the
 // store with server-stamped rows, so the translations are now stale (and a fresh row reusing an old
 // client stamp could be mistranslated). This is also the Map's cleanup boundary, see
@@ -131,7 +131,7 @@ export function publishAllocationRewrites(
 /** Drop translations for rows absent from the fully committed target. Defer this until lifecycle
  * convergence has restored any failed archives, so retryable disappearances keep their mapping. */
 export function pruneAcknowledgedRevisions(state: SyncState, data: AppData): void {
-  // Nothing to prune, and, since only the tables the surviving translations MENTION can decide a
+  // Nothing to prune, and, since only the tables the surviving translations mention can decide a
   // key's fate, never a reason to index every row of every table just to answer a handful of ids.
   if (state.acknowledgedRevisions.size === 0) return;
   for (const [table, acknowledgedById] of buildAcknowledgedRevisionsByTable(state)) {

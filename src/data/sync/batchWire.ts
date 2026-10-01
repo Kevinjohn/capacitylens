@@ -27,7 +27,7 @@ import type { SyncState } from "./SyncState";
 import { addResourceAvailabilityClearMarkers } from "./resourceAvailabilityWire";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// Apply the complete ordered diff as ONE request and therefore ONE SQLite transaction. An
+// Apply the complete ordered diff as one request and therefore one SQLite transaction. An
 // over-limit diff is never split into separately committed prefixes.
 export function commitBatch(
   state: SyncState,
@@ -51,7 +51,7 @@ export function prepareBatchBody(
   if (ops.length > MAX_BATCH_OPS) {
     throw new BatchTooLargeError(`Atomic sync exceeds the ${MAX_BATCH_OPS}-operation server limit.`);
   }
-  // Rebase PUT preconditions, then serialize ONCE, the same body feeds both the keepalive
+  // Rebase PUT preconditions, then serialize once, the same body feeds both the keepalive
   // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
   const wireOps = addResourceAvailabilityClearMarkers(state, rebaseForWire(state, ops)).map((op) =>
     options?.archiveLifecycleDeletes && op.method === "DELETE" && isLifecycleEntityKey(op.table)
@@ -149,9 +149,9 @@ export async function sendBatch({ state, body, sequence, options }: SendBatchInp
         ...(options?.keepalive === undefined ? {} : { keepalive: options.keepalive }),
         credentials: "include",
       },
-      // The atomic write is a BULK op: give it the long bound so a big-but-healthy batch isn't
+      // The atomic write is a bulk op: give it the long bound so a big-but-healthy batch isn't
       // aborted into the retry-the-same-diff wedge (drain never advances lastSynced on abort).
-      // The keepalive unload flush gets NO deadline, a timeout on a request meant to outlive the
+      // The keepalive unload flush gets no deadline, a timeout on a request meant to outlive the
       // page is self-contradictory; when the page survives, its receipt or failure still flows back
       // through flushUnload to the persistence coordinator.
       options?.keepalive ? null : API_BULK_TIMEOUT_MS,
@@ -172,7 +172,7 @@ export async function sendBatch({ state, body, sequence, options }: SendBatchInp
 export async function throwForBatchStatus(res: Response): Promise<void> {
   if (!res.ok) {
     // 409 is the optimistic-concurrency conflict signal (stale updatedAt; body
-    // `{ error, current }`). Throw the TYPED BatchConflictError so persist.ts can resolve it
+    // `{ error, current }`). Throw the typed BatchConflictError so persist.ts can resolve it
     // by reloading (server wins), retrying the same stale diff is deterministic futility.
     // Body parse is best-effort: an unreadable body still yields a conflict error.
     if (res.status === 409) {
@@ -360,7 +360,7 @@ export async function readBatchReceipt(
   options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
 ): Promise<BatchCommitReceipt> {
   const receipt = parseBatchReceipt(await res.json().catch(() => null), ops.length);
-  // The batch receipt can flag audit degradation in its BODY as well as the shared header; the
+  // The batch receipt can flag audit degradation in its body as well as the shared header; the
   // header half goes through the same synchronous helper as the lifecycle routes above.
   if (receipt.auditWarning === true) announceAuditWarning();
   else noteAuditWarning(res);

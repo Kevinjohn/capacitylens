@@ -21,7 +21,7 @@ import { useServerImport } from "./import-export/useServerImport";
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
 // Order + labels for the "what's in this file" import summary. Each `label` is a render-time
-// GETTER (`() => m.key()`), not a pre-resolved string (the nav LINKS / option-getter pattern):
+// getter (`() => m.key()`), not a pre-resolved string (the nav LINKS / option-getter pattern):
 // this list is module-scope, so resolving `m.key()` here would freeze the label to the
 // load-time locale. The getter defers it to render, summarize() calls each at its call site.
 const SUMMARY: [keyof AppData, () => string][] = [
@@ -266,24 +266,24 @@ export function ImportExport() {
   // Export only the active account's planning data. The `accounts` list itself is deliberately
   // omitted: import re-stamps records into whichever account is active and preserves that
   // destination's identity, calendar, language, scheduling and visibility settings.
-  // DELIBERATELY the RAW useScopedData, NOT useActiveScopedData: the export must NOT apply the
-  // view-only active filter. It serializes whatever the store actually holds. In the DEMO build the store
-  // is the whole device blob, so archived + soft-deleted rows ARE retained in the backup. In SERVER
+  // Deliberately the raw useScopedData, not useActiveScopedData: the export must not apply the
+  // view-only active filter. It serializes whatever the store actually holds. In the demo build the store
+  // is the whole device blob, so archived + soft-deleted rows are retained in the backup. In server
   // mode the store is hydrated from the active-only per-account read (readSlice `includeInactive:false`),
   // so those rows are not present client-side. They remain in the server DB and belong to the
-  // COMPLETE per-tenant export / the admin "Archived & deleted" view, not this client-side
+  // complete per-tenant export / the admin "Archived & deleted" view, not this client-side
   // snapshot. Using the raw hook keeps this export decoupled from the view-hiding rule (and complete in
-  // the demo build); the normal VIEWS use the active-only projection, this export does not.
+  // the demo build); the normal views use the active-only projection, this export does not.
   const importData = useStore((state) => state.importData);
   const setNotice = useStore((state) => state.setNotice);
   const role = useRole();
   const serverMode = isServerConfigured();
   const activeAccountId = useStore((state) => state.activeAccountId);
   // Import is owner-only in server mode, mirroring the server's own POST /api/import gate: a slice
-  // REPLACEMENT is destructive and id-remapping bypasses field-level write pins. In particular, an
+  // replacement is destructive and id-remapping bypasses field-level write pins. In particular, an
   // admin's valid redacted export has no private codeName/real-name fields and must never be accepted
   // as a replacement that destroys those owner-confidential identities.
-  // `role === null` stays importable. That is the OFF/demo/no-provider regression guard
+  // `role === null` stays importable. That is the off/demo/no-provider regression guard
   // (see permissionContext.ts); the server 403 remains the authoritative backstop either way.
   const canImport = !serverMode || role === null || canSeePrivateNames(role);
   // A parsed-but-not-yet-applied import, awaiting the user's confirmation. Import
@@ -317,7 +317,7 @@ export function ImportExport() {
   };
 
   return (
-    // Lives in a Settings card, NOT the sidebar: a full-slice export/replace is a
+    // Lives in a Settings card, not the sidebar: a full-slice export/replace is a
     // once-in-a-while administrative act, and it was crowding the day-to-day destinations. The
     // enclosing SettingsSection owns the heading, help and disclosure, so this renders controls only.
     <div className="flex flex-col gap-3" data-testid="settings-data-tools">
@@ -329,7 +329,7 @@ export function ImportExport() {
         onFile={(file) => void readFile(file)}
       />
 
-      {/* The import UI LOCK (see importBusy above): a non-dismissable blocking dialog for the few
+      {/* The import UI lock (see importBusy above): a non-dismissable blocking dialog for the few
           seconds of POST + re-hydrate. onClose is a deliberate no-op, visibility is owned by
           importBusy alone, so Escape/backdrop cannot dismiss it. The body carries tabIndex={0} so
           the Modal's Tab-trap engages (it no-ops on a panel with zero focusables) and initial

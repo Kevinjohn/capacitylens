@@ -1,13 +1,13 @@
 export { writePreMigrationBackup, type PreMigrationBackupOptions } from "./backup/writePreMigrationBackup";
 export type { DurableSnapshotPublisher } from "./backup/publish";
 export { startBackups } from "./backup/scheduler";
-// Online DB snapshots (flag CAPACITYLENS_BACKUP_DIR, default OFF: this
+// Online DB snapshots (flag CAPACITYLENS_BACKUP_DIR, default off: this
 // module is never started, touches no filesystem, owns no timer). A small server feature
 // rather than a host cron because WAL mode means a raw `cp` can catch a torn state,
 // node:sqlite's backup() takes a consistent online snapshot instead (fallback:
-// VACUUM INTO, same guarantee). New filenames carry UTC stamps; retention also recognises legacy
+// VACUUM into, same guarantee). New filenames carry UTC stamps; retention also recognises legacy
 // local-time names and orders those by publication mtime. The shutdown path (index.ts) awaits
-// stop(), which clears the timer AND waits for
+// stop(), which clears the timer and waits for
 // any in-flight snapshot, so a drain can't close the DB under a running backup.
 
 export interface BackupConfig {
@@ -25,13 +25,13 @@ export interface Backups {
     lastSuccessAt: string | null;
   }>;
   /** Take one snapshot; resolves to the file written. Also used by the start-up shot.
-   * Concurrency contract: calls SERIALIZE, a call made while another snapshot is in flight
+   * Concurrency contract: calls serialize, a call made while another snapshot is in flight
    * queues behind it (two writers pruning the same dir would race), and each call's own
    * rejection is its own to surface (a predecessor's failure never fails a queued call).
    * Rejects immediately once stop() has begun: shutdown closes the DB right after the drain,
    * so a snapshot accepted here could only run against a closing handle. */
   snapshotNow(): Promise<string>;
-  /** Clears the timer, then resolves once the WHOLE in-flight snapshot chain has drained. The
+  /** Clears the timer, then resolves once the whole in-flight snapshot chain has drained. The
    * shutdown path must not close the DB under a running (or queued) backup. Never rejects. */
   stop(): Promise<void>;
 }

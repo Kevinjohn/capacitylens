@@ -32,8 +32,8 @@ export interface DayState {
    * rule makes the whole date unavailable, so the view never paints contradictory backgrounds. */
   partialCapacity: boolean;
   creationBlocked: boolean;
-  /** This resource is on time off on this date. Decided HERE, in date space, so the lane cannot
-   * reach a different answer by re-testing its time-off blocks in PIXEL space (narrowed weekend
+  /** This resource is on time off on this date. Decided here, in date space, so the lane cannot
+   * reach a different answer by re-testing its time-off blocks in pixel space (narrowed weekend
    * columns make the two disagree). Always false for a capacity-starved (external) row. */
   hasTimeOff: boolean;
 }
@@ -52,15 +52,15 @@ export interface RowModel {
   rowHeight: number;
   bars: BarLayout[];
   dayStates: DayState[];
-  /** Days reading as a capacity conflict (`over` OR `timeOffConflict`), the count the row's
+  /** Days reading as a capacity conflict (`over` or `timeOffConflict`), the count the row's
    * screen-reader summary announces. Tallied in the day loop that builds `dayStates`, because the
    * view would otherwise rescan every day of every row on every vertical scroll frame. */
   conflictDayCount: number;
   /** Days painted with the neutral half-day (partial capacity) treatment. Same reason as above. */
   partialCapacityDayCount: number;
   timeOff: TimeOffBlock[];
-  utilization: number; // working-day ratio over the VISIBLE window [visStart, visEnd]
-  overSoon: boolean; // over-allocated on >=1 working day inside the FIXED forward window [overStart, overEnd]
+  utilization: number; // working-day ratio over the visible window [visStart, visEnd]
+  overSoon: boolean; // over-allocated on >=1 working day inside the fixed forward window [overStart, overEnd]
   dimmed: boolean; // no work on the active project/client filter, shown for staffing context
 }
 
@@ -68,7 +68,7 @@ export interface GroupModel {
   key: string;
   title: string;
   color?: string;
-  /** True for the external / 3rd-party band. The view reads THIS (not the key string) to suppress
+  /** True for the external / 3rd-party band. The view reads this (not the key string) to suppress
    * its utilisation average. */
   external: boolean;
   rows: RowModel[];
@@ -81,18 +81,18 @@ export interface SchedulerModelOptions {
   // Its origin (days[0]) equals ui.originDate.
   geom: ColumnGeometry;
   days: ISODate[];
-  // TWO separate windows, deliberately distinct (CLAUDE.md / DECISIONS.md):
+  // Two separate windows, deliberately distinct (CLAUDE.md / DECISIONS.md):
   //
-  // - [visStart, visEnd] drives the DISPLAYED utilisation % (per-person `utilization`, and so the
-  //   per-discipline avg + overall figures that average it). It tracks the currently VISIBLE span
+  // - [visStart, visEnd] drives the displayed utilisation % (per-person `utilization`, and so the
+  //   per-discipline avg + overall figures that average it). It tracks the currently visible span
   //   (the zoom range anchored at the scroll left-edge), so "63% utilisation" answers "over the
   //   weeks I'm looking at". SchedulerGrid passes this day-quantized (recomputed only when the
-  //   left-edge DAY or the zoom changes, never per scroll pixel).
-  // - [overStart, overEnd] drives the `overSoon` red flag ONLY: a FIXED forward window from today
+  //   left-edge day or the zoom changes, never per scroll pixel).
+  // - [overStart, overEnd] drives the `overSoon` red flag only: a fixed forward window from today
   //   (UTILIZATION_WINDOW_DAYS), independent of zoom/pan, the second, zoom-independent "over soon"
   //   warning that must stay separate from the zoomable %. Don't widen it to the visible window.
   //
-  // The per-day red marker is a THIRD, distinct signal across the whole `days` timeline. It renders
+  // The per-day red marker is a third, distinct signal across the whole `days` timeline. It renders
   // for `dayStates.over` (allocated > available) or `dayStates.timeOffConflict` (a zero-load Block
   // overlaps time off). Hourly allocation remains weekend-aware, so a bar merely spanning Sat/Sun
   // does no weekend work; Blocks likewise do not flag ordinary personal/company non-working days.
@@ -104,17 +104,17 @@ export interface SchedulerModelOptions {
     // discipline filter is ignored. Capacity-tracked rows instead use the engagement fallback
     // bands, derived from the data (see hasSupplementaryResources in store/selectors.ts).
     disciplinesEnabled: boolean;
-    // Per-account view pref (default OFF). When false, placeholder ("slot") resources are dropped
-    // by `resourceVisible` below. This ONE filter removes the lane, its bars/day-states, AND its
+    // Per-account view pref (default off). When false, placeholder ("slot") resources are dropped
+    // by `resourceVisible` below. This one filter removes the lane, its bars/day-states, and its
     // contribution to per-discipline + overall utilisation (both derive from this model). It is a
-    // pure VIEW pref: the placeholder resources and their allocations stay in the data untouched and
+    // pure view pref: the placeholder resources and their allocations stay in the data untouched and
     // reappear when re-enabled. See selectors.ts / DECISIONS.md.
     placeholdersEnabled: boolean;
-    // Per-account view pref (default OFF), the EXACT analog of `placeholdersEnabled` for external /
+    // Per-account view pref (default off), the exact analog of `placeholdersEnabled` for external /
     // 3rd-party resources. When false, externals are dropped by `resourceVisible` below, the same
     // single chokepoint. Crucially that also empties the trailing external band, which the final
-    // `.filter((g) => g.rows.length > 0)` then drops, so NO empty "External / 3rd party" header
-    // renders when externals are hidden. A pure VIEW pref: external data is untouched and reappears
+    // `.filter((g) => g.rows.length > 0)` then drops, so no empty "External / 3rd party" header
+    // renders when externals are hidden. A pure view pref: external data is untouched and reappears
     // when re-enabled. See selectors.ts / DECISIONS.md.
     externalEnabled: boolean;
     /** Account-wide hard boundary for the start of a schedule creation gesture. */
@@ -128,9 +128,9 @@ export interface SchedulerModelOptions {
   laneLayout?: LaneLayout;
 }
 
-/** A row's capacity view of its own data. External / 3rd-party rows have NO capacity: no
+/** A row's capacity view of its own data. External / 3rd-party rows have no capacity: no
  * over-markers, no utilisation, no time-off blocks, an awareness band, not a bookable lane. That
- * STARVATION CONTRACT lives HERE, as capacity-free outputs behind the same shape the tracked path
+ * starvation contract lives here, as capacity-free outputs behind the same shape the tracked path
  * fills, so the day loop below has one arm instead of two that have to be kept in step. `tracked`
  * is the flag that keeps a starved row's zero `available` from reading as "fully booked", only a
  * genuinely tracked resource can be made unavailable by its own capacity. */

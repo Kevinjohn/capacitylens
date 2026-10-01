@@ -60,7 +60,7 @@ export interface PurgeLifecycleResult {
   removedCounts: Partial<Record<ScopedEntityKey, number>>;
 }
 
-// One UNION ALL query in place of one SELECT COUNT(*) per SCOPED_KEYS table: same predicate per
+// One UNION ALL query in place of one SELECT count(*) per SCOPED_KEYS table: same predicate per
 // branch, same admin-only before/after-purge counts, same Record<ScopedEntityKey, number> shape.
 const SCOPED_ROW_COUNTS_SQL = SCOPED_KEYS.map(
   (table) => `SELECT '${table}' AS tableName, COUNT(*) AS count FROM ${table} WHERE accountId = ?`,
@@ -173,13 +173,13 @@ function purgeOwnedRow(
   deleteRow(db, entity, id);
 }
 
-// TENANT-SCOPING STORAGE SEAM. Permissioned routes use these accountId-keyed reads, validation
+// Tenant-scoping storage seam. Permissioned routes use these accountId-keyed reads, validation
 // lookups and lifecycle operations where the storage boundary adds tenant ownership or projection.
 // Generic mutations and whole-slice import remain explicit SQLite operations in their owning paths;
 // this interface is intentionally not a complete or transparently replaceable database abstraction.
 //
-// THE NO-CROSS-TENANT INVARIANT (mirrors the account-boundary contract): no caller may
-// issue a cross-tenant query. Every method is keyed by a single accountId and returns/writes ONLY
+// The no-cross-tenant invariant (mirrors the account-boundary contract): no caller may
+// issue a cross-tenant query. Every method is keyed by a single accountId and returns/writes only
 // that account's data; readSlice's predicates and the owned lifecycle operations enforce it at the
 // SQL layer. A method that could touch more than one account breaks this seam's contract.
 
@@ -191,7 +191,7 @@ function purgeOwnedRow(
  */
 export interface TenantStore {
   /**
-   * Read ONLY `accountId`'s serialization projection (every AppData key present; arrays may be
+   * Read only `accountId`'s serialization projection (every AppData key present; arrays may be
    * empty). The projected brand cannot be passed to a destructive replacement. An unknown id yields an empty
    * slice (`accounts: []` + empty scoped arrays), never a throw.
    *
@@ -199,7 +199,7 @@ export interface TenantStore {
    * time-off `note` is included. When `false`, `note` is redacted from every time-off row server-side
    * (see {@link readSlice} in db.ts), so it never reaches an Editor/Viewer client.
    *
-   * `opts.includePrivateNames` is REQUIRED, only owners pass true. False substitutes quoted code
+   * `opts.includePrivateNames` is required, only owners pass true. False substitutes quoted code
    * names for private client/project real names and strips raw codeName fields server-side.
    *
    * `opts.includeInactive` is required. The caller must decide whether archived/soft-deleted
@@ -246,7 +246,7 @@ export function createSqliteTenantStore(
   removeResourceLink: (accountId: string, resourceId: string) => void = () => undefined,
 ): TenantStore {
   // Single query + fromRow, replacing an id-only SELECT followed by one getRow point lookup per
-  // id (N+1). Same WHERE predicate as before, so it hits the same idx_allocations_{field} index and
+  // id (N+1). Same where predicate as before, so it hits the same idx_allocations_{field} index and
   // returns rows in the same order the old id-loop preserved, verified empirically, since neither
   // form carries an ORDER BY of its own.
   const listRelatedAllocations = (field: "resourceId" | "activityId", accountId: string, id: string): Allocation[] =>

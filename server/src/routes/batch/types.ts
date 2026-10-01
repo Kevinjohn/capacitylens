@@ -33,7 +33,7 @@ export interface BatchDeleteOp extends BatchOperationBase {
   updatedAt?: string;
 }
 
-/** A validated ARCHIVE of a lifecycle entity in its owning account. */
+/** A validated archive of a lifecycle entity in its owning account. */
 export interface BatchArchiveOp extends BatchOperationBase {
   method: "ARCHIVE";
   accountId: string;

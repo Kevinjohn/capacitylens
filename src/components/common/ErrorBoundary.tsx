@@ -19,9 +19,9 @@ export function ErrorFallback({ message }: { message?: string }) {
 }
 
 /** React Router v7 route `errorElement`. A data router catches in-tree render/loader
- * errors in its OWN per-route boundary, they never propagate to the React
+ * errors in its own per-route boundary, they never propagate to the React
  * <ErrorBoundary> wrapping <RouterProvider>, so the app's recovery screen must be
- * wired HERE for any view crash (SchedulerView, a list page, AppShell, …) to show it. */
+ * wired here for any view crash (SchedulerView, a list page, AppShell, …) to show it. */
 export function RouteError() {
   const error = useRouteError();
   if (error) console.error("CapacityLens route error:", error);
@@ -32,7 +32,7 @@ interface State {
   error: Error | null;
 }
 
-/** Top-level class boundary for errors thrown OUTSIDE the router tree (e.g. by
+/** Top-level class boundary for errors thrown outside the router tree (e.g. by
  * <RouterProvider> itself). In-tree route errors are handled by {@link RouteError}. */
 export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   state: State = { error: null };

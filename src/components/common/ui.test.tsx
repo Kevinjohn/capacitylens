@@ -589,7 +589,7 @@ function registerModalFooterTests() {
     expect(document.activeElement).toBe(first); // focuses first control on open
 
     second.focus();
-    // Parent re-renders with a BRAND-NEW onClose (as a store mutation would cause).
+    // Parent re-renders with a brand-new onClose (as a store mutation would cause).
     rerender(
       <Modal title="Churn" onClose={() => {}}>
         {body}

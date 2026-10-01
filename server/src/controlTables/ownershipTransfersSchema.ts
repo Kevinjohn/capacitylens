@@ -11,25 +11,25 @@ import type { Db } from "../db";
  * The `account_ownership_transfers` control table: the durable record of the three-step ownership
  * transfer ceremony.
  *
- * This is a SERVER-CONTROL table, not AppData, the same zone as `account_members` and `invites`
+ * This is a server-control table, not AppData, the same zone as `account_members` and `invites`
  * (see the header of `controlTables.ts`). It is deliberately absent from shared `AppData`,
  * `APP_DATA_KEYS`, `SCOPED_KEYS`, `tables.ts`, `sanitizeImportedRecord`, the generic `/api/:entity`
  * CRUD and import/export, and `EXPORT_SCHEMA_VERSION` does not move for it. A row names two
  * principals and confers a pending elevation path, so letting it reach the entity machinery would
  * publish who is being handed the company through the ordinary state read.
  *
- * FROZEN v41 migration body, and the v41 LEDGER DEFINITION itself: the executed SQL is the hashed
+ * Frozen v41 migration body, and the v41 ledger definition itself: the executed SQL is the hashed
  * manifest, one copy, so the checksum can never describe something other than what ran (the same
- * arrangement as `FOREIGN_KEY_CHILD_INDEXES_V23_SQL`). The state and reason lists are spelled out as LITERALS rather than
+ * arrangement as `FOREIGN_KEY_CHILD_INDEXES_V23_SQL`). The state and reason lists are spelled out as literals rather than
  * interpolated from the shared unions on purpose: this SQL is folded into the v41 ledger checksum,
  * and a checksummed migration that read a live shared constant would silently change what it
  * installs while its checksum stayed the same. A test asserts the literals still match the shared
- * unions, so drift is caught in review rather than on disk; a genuinely new state would be a NEW
+ * unions, so drift is caught in review rather than on disk; a genuinely new state would be a new
  * migration with its own checksum, never an edit to this string.
  *
- * NO FOREIGN KEY to `accounts(id)`, and none to `account_members` either:
+ * No FOREIGN KEY to `accounts(id)`, and none to `account_members` either:
  *
- * - Control-plane tables carry no FK BY DESIGN (see `ensureControlTables` in `retentionV24.ts`), so
+ * - Control-plane tables carry no FK by design (see `ensureControlTables` in `retentionV24.ts`), so
  *   they stay out of the AppData delete cascade and out of `PRAGMA foreign_key_check`. Deletion is
  *   explicit, {@link deleteRequestsForAccount} is what workspace erasure calls.
  * - A membership FK would be actively wrong: removing a member must invalidate their live request,
@@ -105,7 +105,7 @@ function isTerminalReason(value: string): value is OwnershipTransferTerminalReas
 }
 
 /**
- * Map one raw row onto the shared {@link OwnershipTransferRequest}, failing LOUD on a stored state
+ * Map one raw row onto the shared {@link OwnershipTransferRequest}, failing loud on a stored state
  * or reason outside the shared unions.
  *
  * Same convention as `toAccountMember`: an unreadable control row is corruption, never a
@@ -172,7 +172,7 @@ function normalizeSql(sql: string): string {
  * assertion against a v23 database, where a v41 table is correctly absent). It therefore gets its
  * own assertion, in the same shape as `assertAuditOutboxCurrent`.
  *
- * The live index is checked by its full DEFINITION, not merely its presence: an index that existed
+ * The live index is checked by its full definition, not merely its presence: an index that existed
  * but had lost its partial predicate would still satisfy a presence check while silently permitting
  * a second live request, the one thing this table exists to prevent.
  */
@@ -182,7 +182,7 @@ function normalizeSql(sql: string): string {
  * checksum (`defineMigration` hashes version, name and definition only) so its home is free.
  *
  * Assert while the migration transaction still owns both the DDL and the ledger write, so a
- * malformed pre-existing IF-NOT-EXISTS object rolls the step back rather than leaving the live
+ * malformed pre-existing if-not-EXISTS object rolls the step back rather than leaving the live
  * slot unguarded. A control-plane table, so no AppData schema moves and EXPORT_SCHEMA_VERSION
  * stays put. */
 export function runOwnershipTransfersV41(db: Db): void {

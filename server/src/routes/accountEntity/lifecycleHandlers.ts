@@ -108,7 +108,7 @@ function createPostHandler(dependencies: AccountLifecycleDependencies) {
       scoped: false,
     });
     if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
-    // Authenticated creation stays on POST /api/orgs; OFF creation remains cap-bounded by the flow.
+    // Authenticated creation stays on POST /api/orgs; off creation remains cap-bounded by the flow.
     if (dependencies.authMode !== "off") {
       return reply.code(403).send({ error: REPLY_ERRORS.accountCreateClosed });
     }

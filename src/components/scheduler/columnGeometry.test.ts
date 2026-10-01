@@ -232,8 +232,8 @@ describe("buildColumnGeometry — gating + degenerate windows", () => {
 });
 
 // Pan invariant, the load-bearing reason a Back/Forward pan keeps the visible-window utilisation
-// correct WITHOUT any layout measurement. `panDays(+7)` shifts the origin date by a week while
-// PRESERVING scrollLeft and dayWidth, so the visible-window start is still resolved by the SAME
+// correct without any layout measurement. `panDays(+7)` shifts the origin date by a week while
+// preserving scrollLeft and dayWidth, so the visible-window start is still resolved by the same
 // position index `indexAt(scrollLeft)`. Because the geometry for the new (shifted) days array has
 // identical column widths (the weekday/weekend pattern repeats every 7 days), `indexAt(px)` returns
 // the same index before and after, and the date at that index has advanced by exactly +7. A future
@@ -262,7 +262,7 @@ describe("pan invariant: a +7-day Back/Forward pan moves the visible-window star
         const idxOld = geomOld.indexAt(px);
         const idxNew = geomNew.indexAt(px);
         expect(idxNew).toBe(idxOld); // same position index before and after the pan
-        // The resolved visible-start DATE advanced by exactly one week. No off-by-one, no drift.
+        // The resolved visible-start date advanced by exactly one week. No off-by-one, no drift.
         const oldDay = daysOld[idxOld];
         expect(oldDay).toBeDefined();
         if (!oldDay) throw new Error("Expected the old visible date.");

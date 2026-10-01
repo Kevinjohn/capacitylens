@@ -69,9 +69,9 @@ interface PruneInput {
 
 /** Delete the oldest snapshots beyond `keep`; returns how many were pruned. Only files
  * matching the snapshot pattern are touched, anything else in the dir is left alone.
- * Never throws: prune() runs AFTER writeSnapshot() has renamed a complete snapshot into
+ * Never throws: prune() runs after writeSnapshot() has renamed a complete snapshot into
  * place, so a rejection here would fail (and page an operator over) a backup that actually
- * SUCCEEDED, a false runbook alarm. Retention is retried on every snapshot anyway. */
+ * succeeded, a false runbook alarm. Retention is retried on every snapshot anyway. */
 export function prune({ dir, keep, database, currentFile, log }: PruneInput): number {
   let files: string[];
   try {
@@ -91,7 +91,7 @@ export function prune({ dir, keep, database, currentFile, log }: PruneInput): nu
     const p = join(dir, candidate);
     try {
       // `force` swallows exactly ENOENT: a file deleted out from under us (external cleanup
-      // between the readdir and this rm) is gone either way. That IS the retention outcome.
+      // between the readdir and this rm) is gone either way. That is the retention outcome.
       rmSync(p, { force: true });
       pruned++;
     } catch (error) {

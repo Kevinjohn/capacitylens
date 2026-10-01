@@ -26,7 +26,7 @@ import { isRecord } from "@capacitylens/shared/lib/isRecord";
 // signed-in caller's membership and consumes the token (single-use, expiry-checked). This suite
 // drives sign-up -> create -> accept and asserts: the create gate (owner/admin 201, editor/viewer/
 // non-member 403, session-less 401, bad/empty role 400); accept binds the membership + stamps usedAt;
-// reuse 409; expired 410; unknown 404; OFF mode; and the AppData-EXCLUSION guarantee.
+// reuse 409; expired 410; unknown 404; off mode; and the AppData-exclusion guarantee.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const fixtures = registerServerFixtureCleanup();
@@ -91,7 +91,7 @@ function seedOne(db: Db): void {
 /**
  * Flip a Better Auth user's `emailVerified` flag directly in the DB (the `user` table; column is an
  * INTEGER 0/1). A fresh email+password sign-up is unverified, so this is how the tests
- * obtain a VERIFIED principal: the NEXT getSession reads the live user row (Better Auth joins it
+ * obtain a verified principal: the next getSession reads the live user row (Better Auth joins it
  * fresh), so normalizeSessionUser then reports emailVerified=true.
  */
 function verifyUserEmail(db: Db, email: string): void {
@@ -144,7 +144,7 @@ function registerOwnerInviteCreationTest(): void {
     };
     expect(atRest.tokenHash).not.toBe(token);
     expect(JSON.stringify(db.prepare(`SELECT * FROM invites`).all())).not.toContain(token);
-    // The row landed in the control table, unused, with a FUTURE expiry.
+    // The row landed in the control table, unused, with a future expiry.
     const stored = readInvite(db, token);
     expect(stored.accountId).toBe("a1");
     expect(stored.role).toBe("editor");
@@ -866,7 +866,7 @@ describe("invites — OFF mode (trusted-local)", () => {
       accountId: "a1",
       role: "editor",
     });
-    expect(created.statusCode).toBe(201); // OFF = allow-all, minted as DEMO_USER's act
+    expect(created.statusCode).toBe(201); // Off = allow-all, minted as DEMO_USER's act
     const token = readResponseString(created, "token");
 
     const res = await acceptReq(app, token);
@@ -879,7 +879,7 @@ describe("invites — OFF mode (trusted-local)", () => {
 // Email pre-authorisation. The pure decision matrix (preauthInviteAllows + normalizeEmail) is
 // unit-tested deterministically below; the integration block then proves the create-store-normalize
 // path and every accept outcome (link binds, wrong-email 403, unverified-match 403, verified-match
-// 200, OFF skip) end-to-end, asserting that a 403 never consumes the single-use invite.
+// 200, off skip) end-to-end, asserting that a 403 never consumes the single-use invite.
 
 function registerPreauthNormalizationTests(): void {
   it("normalizeEmail trims and lowercases", () => {
@@ -898,7 +898,7 @@ function registerPreauthNormalizationTests(): void {
 
 function registerVerifiedPreauthMatchTest(): void {
   it("preauth + verified + EXACT (normalized) match → true (case/whitespace folded by store-time normalize)", () => {
-    // preauthEmail is stored ALREADY normalized; the user email is normalized inside the helper, so a
+    // preauthEmail is stored already normalized; the user email is normalized inside the helper, so a
     // differently-cased / padded live email still matches the normalized stored value.
     const stored = normalizeEmail("Carol@Example.com"); // = 'carol@example.com'
     expect(
@@ -1196,7 +1196,7 @@ function registerPreauthRefusalTests(): void {
     const res = await acceptReq(app, token, { cookie: b.cookie });
     expect(res.statusCode).toBe(403);
     expect(getMemberRole(db, "a1", b.userId)).toBeNull(); // no bind
-    expect(readInvite(db, token).usedAt).toBeNull(); // NOT consumed, still live for the right caller
+    expect(readInvite(db, token).usedAt).toBeNull(); // Not consumed, still live for the right caller
   });
 }
 
@@ -1239,7 +1239,7 @@ function registerVerifiedPreauthAcceptanceTest(): void {
     const created = await addressedInviter(app, { cookie: a.cookie })("editor", "verified@capacitylens.dev");
     const token = readResponseString(created, "token");
 
-    // Sign up, then flip emailVerified in the live user row; the NEXT getSession reads it fresh, so
+    // Sign up, then flip emailVerified in the live user row; the next getSession reads it fresh, so
     // the principal the accept handler sees is verified (proves the verified-match → bind path E2E).
     const b = await signUp(app, "verified@capacitylens.dev");
     verifyUserEmail(db, "verified@capacitylens.dev");
@@ -1305,7 +1305,7 @@ describe("invites are excluded from the AppData path", () => {
     expect(res.statusCode).toBe(200);
     const state = res.json() as Record<string, unknown>;
     expect(state).not.toHaveProperty("invites");
-    // Belt-and-braces: the table name AND the token secret must appear NOWHERE in the wire state.
+    // Belt-and-braces: the table name and the token secret must appear nowhere in the wire state.
     expect(JSON.stringify(state)).not.toContain("invites");
     expect(JSON.stringify(state)).not.toContain("secret-invite-token");
     expect(readState(db) as unknown as Record<string, unknown>).not.toHaveProperty("invites");
@@ -1318,7 +1318,7 @@ describe("invites are excluded from the AppData path", () => {
       method: "GET",
       url: "/api/invites/some-token",
     });
-    // NOTE: /api/invites/:token/accept is a real route; a bare GET on that shape is a 404 (no GET
+    // Note: /api/invites/:token/accept is a real route; a bare GET on that shape is a 404 (no GET
     // handler), and a GET on the collection path is likewise unhandled. Neither lists rows.
     expect([404, 405]).toContain(get.statusCode);
     const post = await app.inject({

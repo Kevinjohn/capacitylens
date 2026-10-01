@@ -5,8 +5,8 @@ import { createCachedTableStatement, createStatementCache, buildPlaceholders } f
 import { tx } from "../txn";
 import { markInitialized } from "./initialization";
 import { createServerRevision } from "../revision";
-// Insert one row WITHOUT touching the init marker, the primitive the bulk paths
-// (insertAll / replaceAccountSlice) loop over so they can mark ONCE at the end instead of
+// Insert one row without touching the init marker, the primitive the bulk paths
+// (insertAll / replaceAccountSlice) loop over so they can mark once at the end instead of
 // re-running an `INSERT OR IGNORE INTO _meta` per row.
 export function insertRowRaw(db: Db, table: string, row: Row): void {
   const spec = resolveTable(table);
@@ -70,7 +70,7 @@ export function clearAllocationAttributionForActivities(
 export function upsertRow(db: Db, table: string, row: Row): void {
   const spec = resolveTable(table);
   const columns = spec.columns.map((c) => c.name);
-  // Exclude id (the conflict key) AND createdAt from the UPDATE: createdAt is immutable
+  // Exclude id (the conflict key) and createdAt from the UPDATE: createdAt is immutable
   // (entities.ts calls it "impossible to backfill"), so a re-PUT must never rewrite the
   // original creation time, and a body that omits it must not null it out on update.
   const setCols = columns.filter((c) => c !== "id" && c !== "createdAt");

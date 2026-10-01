@@ -21,8 +21,8 @@ export function useAuthContextValue(
   // otherwise get a fresh object literal every render, re-rendering every consumer (AppSidebar,
   // SettingsView, the picker, ...) on any unrelated AuthProvider re-render (e.g. persistError
   // toggling). The two AuthContext.Provider sites below (the pre-session invitation carve-out and
-  // the authenticated tree) share this ONE computation. Each branch's fields are picked from
-  // `status` (or hardcoded, matching exactly what that branch always rendered) here, ABOVE the
+  // the authenticated tree) share this one computation. Each branch's fields are picked from
+  // `status` (or hardcoded, matching exactly what that branch always rendered) here, above the
   // early returns, so the hook itself is called unconditionally on every render (Rules of Hooks).
   const contextAuthMode = authModeForStatus(status);
   const contextUser = status.kind === "pass" ? status.user : null;

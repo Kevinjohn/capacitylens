@@ -118,7 +118,7 @@ describe("cleanText", () => {
   });
 
   it("keeps a tab as-is (exempt from stripping) rather than dropping it", () => {
-    // A tab is a Cc control char and WOULD be caught by DISALLOWED if the '\n'/'\t'
+    // A tab is a Cc control char and would be caught by disallowed if the '\n'/'\t'
     // exemption in the copy loop were narrowed to just '\n'. It would then be
     // dropped outright instead of kept-then-collapsed-to-a-space.
     expect(cleanText("a\tb")).toBe("a b");

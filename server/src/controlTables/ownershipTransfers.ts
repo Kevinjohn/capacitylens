@@ -26,13 +26,13 @@ import {
  */
 
 /**
- * Not every handle that reaches the terminalisers HAS this table.
+ * Not every handle that reaches the terminalisers has this table.
  *
  * Two callers arrive before v41 exists: the membership choke point, which application migrations
  * v12 and v14 drive on a handle where `ensureControlTables` has installed the membership tables but
  * not this one; and the stopped-server repair commands, which deliberately run against a database
  * whose migration 40 is still pending. A live request cannot exist in either case, so absence means
- * "nothing to end", but the query would still throw. Guarding HERE, rather than at each call site,
+ * "nothing to end", but the query would still throw. Guarding here, rather than at each call site,
  * is what keeps a repair path from failing with an opaque `no such table`. Absence is re-probed
  * every call, never cached, so the same handle starts terminalising the moment v41 runs on it.
  */
@@ -41,7 +41,7 @@ const ownershipTransfersTableExists = createTableExistenceProbe("account_ownersh
 /**
  * The workflow revision one step on.
  *
- * Stored as an integer STRING to match the `membershipRevision` convention the rest of the account
+ * Stored as an integer string to match the `membershipRevision` convention the rest of the account
  * contract already uses, so every revision a client sees has one wire shape. Parsed strictly: a
  * non-integer revision is corruption of the value that stops a stale command applying to a later
  * acceptance cycle, and continuing from a guess would defeat exactly that protection.
@@ -75,7 +75,7 @@ export function readLiveRequest(db: Db, accountId: string): OwnershipTransferReq
 /**
  * One request by id, whatever its state.
  *
- * `accountId` is a REQUIRED parameter rather than a convenience: it is the cross-tenant guard. Every
+ * `accountId` is a required parameter rather than a convenience: it is the cross-tenant guard. Every
  * ceremony command carries the workspace it was authorised against, so keying the read on both makes
  * a request id from another company indistinguishable from an absent one at the storage layer,
  * instead of relying on each caller to compare the row's `accountId` afterwards.
@@ -99,7 +99,7 @@ const latestTerminalStatement = cachedStatement(
 );
 
 /**
- * The most recent TERMINAL request this principal took part in, or `null`.
+ * The most recent terminal request this principal took part in, or `null`.
  *
  * The second half of the participant projection. A live-only read hands an offline participant
  * `null` for a decline, a cancellation, an expiry and an invalidation alike; this is how they learn
@@ -121,7 +121,7 @@ export function readLatestTerminalForParticipant(
  * Synchronous and transaction-agnostic like every function here: the caller owns the transaction,
  * because an initiation commits alongside its command-ledger row and its audit event or not at all.
  *
- * Deliberately NOT preceded by a "is there already a live request?" read. The partial unique index
+ * Deliberately not preceded by a "is there already a live request?" read. The partial unique index
  * refuses the second live row, so a concurrent second initiation surfaces as a SQLite constraint
  * error the caller maps to a conflict. A read-then-insert would pass both racers.
  */
@@ -159,7 +159,7 @@ interface ApplyTransitionInput {
   nextState: OwnershipTransferState;
   nextRevision: string;
   /** The three mutable columns are always written explicitly, never left to carry over: `withdraw`
-   * must CLEAR `targetAcceptedAt`, so an omitted column would silently keep a consent that was
+   * must clear `targetAcceptedAt`, so an omitted column would silently keep a consent that was
    * taken back. */
   targetAcceptedAt: string | null;
   terminalAt: string | null;
@@ -175,15 +175,15 @@ const applyTransitionStatement = cachedStatement(
 /**
  * Compare-and-set one transition, returning whether it applied.
  *
- * The `WHERE` clause matches on `(id, accountId, state, revision)` and NOTHING else, in particular
+ * The `WHERE` clause matches on `(id, accountId, state, revision)` and nothing else, in particular
  * never on membership values, because completion bumps those in the same transaction and a
  * membership-sensitive predicate would make the ceremony's own write unable to find its row.
  *
  * `false` means the row moved under the caller (a concurrent cancel, accept or invalidation), and
- * NOTHING was written. It is not an error here: the caller decides whether that is a conflict to
+ * nothing was written. It is not an error here: the caller decides whether that is a conflict to
  * report or a race it loses quietly, and only the caller knows which command it was running.
  *
- * @throws Error if `expectedState` is terminal. Terminal rows are IMMUTABLE, they are the durable
+ * @throws Error if `expectedState` is terminal. Terminal rows are immutable, they are the durable
  * evidence a participant reads, so a caller asking to transition one is a programming fault, not
  * a lost race, and must fail loudly rather than return an ambiguous `false`.
  */
@@ -233,7 +233,7 @@ interface TerminaliseForMemberInput extends TerminaliseForAccountInput {
  * Invalidate every live request of one company, returning the ids actually changed.
  *
  * The ids are the return value because the choke point that calls this holds no audit writer: the
- * calling port operation, inside the SAME transaction, emits one `ownership_transfer.invalidated`
+ * calling port operation, inside the same transaction, emits one `ownership_transfer.invalidated`
  * event per id. State correctness stays unforgettable down here; audit stays atomic with the write.
  *
  * The resulting state is always `invalidated`: `reason` says why consent stopped being valid, it
@@ -253,7 +253,7 @@ export function terminaliseLiveRequestsForAccount({
  * Invalidate every live request naming one principal, returning the ids actually changed.
  *
  * Called from the membership-write choke point in the same transaction as the write that caused it,
- * so consent is bound EAGERLY: demotion, re-promotion, status change and removal each kill the
+ * so consent is bound eagerly: demotion, re-promotion, status change and removal each kill the
  * request when they happen, and no later transition can resurrect it.
  *
  * Scoped to `accountId` as well as `userId`: a principal may hold memberships in several companies,
@@ -303,7 +303,7 @@ interface InvalidateLiveInput {
   parameters: string[];
 }
 
-/** The shared body of the two terminalisers. Reads the matching ids BEFORE the update so the caller
+/** The shared body of the two terminalisers. Reads the matching ids before the update so the caller
  * learns exactly which rows it changed; both statements run inside the caller's transaction, so no
  * row can appear or disappear between them. */
 function invalidateLive({ db, now, reason, scope, parameters }: InvalidateLiveInput): string[] {
@@ -334,7 +334,7 @@ const deleteForAccountStatement = cachedStatement(`DELETE FROM account_ownership
  * carries no FK by design), so without an explicit delete an erased company would leave behind rows
  * naming two of its principals. Erasure deletes rather than terminalising first: the delete runs in
  * the same transaction, so an invalidation written before it would never be visible to anyone, and
- * the audit trail of WHY the ceremony ended outlives the rows under audit policy.
+ * the audit trail of why the ceremony ended outlives the rows under audit policy.
  */
 export function deleteRequestsForAccount(db: Db, accountId: string): void {
   if (!ownershipTransfersTableExists(db)) return;
@@ -351,7 +351,7 @@ const sweepHistoryStatement = cachedStatement(
  * Only terminal rows can match: the table CHECK gives a live row a NULL `terminalAt`, so the
  * predicate cannot reach a running ceremony however far in the past its `createdAt` is.
  *
- * Scoped to ONE company, like `pruneInvites`: this runs from a ceremony command, inside a mutation
+ * Scoped to one company, like `pruneInvites`: this runs from a ceremony command, inside a mutation
  * holding that workspace's lock and audited against that workspace. An unscoped DELETE would let one
  * company's cancel remove another company's rows, outside any lock the caller holds, retention is a
  * per-company policy, not a housekeeping job that rides along with whoever writes next.
@@ -359,7 +359,7 @@ const sweepHistoryStatement = cachedStatement(
  * @param accountId  The company whose history is being bounded. The workspace the caller's mutation
  * is locked and audited against.
  * @param now  The current instant in epoch milliseconds, arithmetic, not a stamp, which is why
- * this one takes a number where the terminalisers take the ISO instant they WRITE.
+ * this one takes a number where the terminalisers take the ISO instant they write.
  */
 export function sweepExpiredHistory(db: Db, accountId: string, now: number): number {
   if (!Number.isFinite(now)) {

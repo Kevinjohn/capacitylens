@@ -302,7 +302,7 @@ function registerScopedImportPart1(): void {
       ...emptyAppData(),
       clients: [{ id: "c1", accountId: "X", createdAt: "t", updatedAt: "t", name: "Dupe", color: "#9" }],
     });
-    // Editing the imported row in a2 must NOT touch a1's original c1.
+    // Editing the imported row in a2 must not touch a1's original c1.
     const importedId = present(s().data.clients.find((c) => c.accountId === "a2")).id;
     expect(importedId).not.toBe("c1");
     s().updateClient(importedId, { name: "Changed" });

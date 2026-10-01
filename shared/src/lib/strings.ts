@@ -1,6 +1,6 @@
 // Text hygiene for user-entered free text (names, roles, notes). Two surfaces use it:
-//   - the FORMS reject disallowed input via hasDisallowedChars (so the user fixes it);
-//   - the IMPORT + SERVER write paths can't show a form error, so they STRIP it via
+//   - the forms reject disallowed input via hasDisallowedChars (so the user fixes it);
+//   - the import + server write paths can't show a form error, so they strip it via
 //     cleanText (consistent with the rest of sanitizeImport's repair-don't-reject rule).
 // One source definition is imported by client + server, so the policy cannot drift in code.
 // Unicode property escapes use the executing engine's Unicode tables, however; supported browser
@@ -23,7 +23,7 @@ export function unicodeCharacterCount(value: string): number {
   return Array.from(value).length;
 }
 
-// Stateless and reusable, build it ONCE at module scope (same idiom as GRAPHEME_SEGMENTER below)
+// Stateless and reusable, build it once at module scope (same idiom as GRAPHEME_SEGMENTER below)
 // instead of allocating a fresh encoder on every length check.
 const TEXT_ENCODER = new TextEncoder();
 
@@ -34,15 +34,15 @@ export function utf8ByteLength(value: string): number {
 
 // Characters refused in user text: emoji & pictographs (Extended_Pictographic), "other"
 // symbols (So, covers flag emoji / regional indicators, keycaps and dingbats that aren't
-// Extended_Pictographic, plus ™ © ® ° and the like), ENCLOSING marks (Me, the combining
+// Extended_Pictographic, plus ™ © ® ° and the like), enclosing marks (Me, the combining
 // enclosing keycap U+20E3 that turns "1"/"#"/"*" into keycap emoji; no legitimate name
-// char is enclosing), the VARIATION SELECTORS (U+FE00–FE0F incl. emoji VS-16 U+FE0F, and
+// char is enclosing), the variation selectors (U+FE00–FE0F incl. emoji vs-16 U+FE0F, and
 // the supplement U+E0100–E01EF) that force emoji presentation, control chars (Cc), format
 // / zero-width chars (Cf, ZWJ, RTL overrides, …), lone surrogates (Cs), private-use (Co)
 // and unassigned (Cn) code points. Cn is deliberately conservative: a code point is refused until
 // the executing runtime knows its assigned category. Removing it would let an older runtime accept
 // a newly assigned symbol that a newer runtime rejects as So or Extended_Pictographic.
-// NOTE we deliberately do NOT ban Nonspacing_Mark (Mn)
+// Note we deliberately do not ban Nonspacing_Mark (Mn)
 // wholesale: that would strip legitimate decomposed accents (e.g. "e" + U+0301), we
 // target only U+FE0F via the variation-selector range. Ordinary letters (incl. accents +
 // CJK), digits, whitespace, punctuation, and currency/math symbols (Sc/Sm, €, £, +, =)

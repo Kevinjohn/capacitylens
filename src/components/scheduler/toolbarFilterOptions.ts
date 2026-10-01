@@ -42,7 +42,7 @@ export function buildFilterOptions(
           ...(clientName ? { contextLabel: `${clientName} /`, primaryLabel: project.name } : {}),
         };
       }),
-    // The activity lens covers only the project-LESS kinds, project-specific activities are
+    // The activity lens covers only the project-less kinds, project-specific activities are
     // reached via the Projects dropdown above.
     internalActivities: data.activities.filter((activity) => activity.kind === "internal").sort(byName),
     repeatableActivities: data.activities.filter((activity) => activity.kind === "repeatable").sort(byName),

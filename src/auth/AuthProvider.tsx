@@ -17,7 +17,7 @@ import { AuthenticatedExternalSignInFailure, AuthLoading, ReauthMount } from "./
 import { useAuthContextValue } from "./useAuthContextValue";
 
 // Auth boundary. In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
-// pure pass-through that performs NO fetch at all. In server mode (the default) it asks
+// pure pass-through that performs no fetch at all. In server mode (the default) it asks
 // GET /api/auth/me once at boot: authMode 'off' (the default deploy) renders the app
 // without a sign-in; a 401 replaces everything with the LoginScreen. The screen is a
 // lazy chunk so better-auth's client never loads unless a login is actually shown.
@@ -203,18 +203,18 @@ function AuthenticatedBoundary({
 /**
  * Boot-time auth boundary.
  *
- * - DEMO mode (VITE_CAPACITYLENS_DEMO=1): a pure pass-through, performs ZERO fetches, renders children.
- * - SERVER mode (the default): asks GET /api/auth/me ONCE at boot. authMode 'off' (the default deploy) renders
+ * - demo mode (VITE_CAPACITYLENS_DEMO=1): a pure pass-through, performs zero fetches, renders children.
+ * - server mode (the default): asks GET /api/auth/me once at boot. authMode 'off' (the default deploy) renders
  *   the app as today; a 401 swaps in the lazy LoginScreen; any other failure renders a retryable
  *   authentication error boundary.
  * - Re-checks on `persistError` so an expired session (a 401 on a write) swaps to the login screen
- *   rather than letting writes keep failing silently behind the banner; an UNRESOLVED re-check
+ *   rather than letting writes keep failing silently behind the banner; an unresolved re-check
  *   keeps the previous snapshot (same policy as refreshAuth, see checkAuth).
  * - Exposes `refreshAuth` on the context so client actions that change what /me reports (org
  *   create/delete → a recomputed canCreateAccount) can re-ask mid-session instead of gating UI
  *   affordances on the boot-time snapshot.
  *
- * `authMode` comes ONLY from the server. There is no client-side auth flag.
+ * `authMode` comes only from the server. There is no client-side auth flag.
  */
 export function AuthProvider({
   children,

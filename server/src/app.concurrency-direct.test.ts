@@ -28,7 +28,7 @@ function createDirectPutConcurrencyTests(): void {
         updatedAt: "2026-02-02T00:00:00.000Z",
       },
     });
-    // A PUT carrying an OLDER updatedAt is a stale overwrite → 409.
+    // A PUT carrying an older updatedAt is a stale overwrite → 409.
     const stale = await put({
       app,
       entity: "clients",
@@ -116,10 +116,10 @@ function createConcurrencyOptOutTests(): void {
 }
 
 function createBatchStalePutConcurrencyTests(): void {
-  // The batch PUT branch applies the SAME stale-write refusal as the direct PUT (it previously
+  // The batch PUT branch applies the same stale-write refusal as the direct PUT (it previously
   // had none, a stale client batch could silently overwrite newer server rows even with the flag
   // on). The 409 carries the stored row as `current`, and, the batch being one tx, rolls the
-  // WHOLE batch back, sibling ops included.
+  // whole batch back, sibling ops included.
   it("batch: rejects a stale PUT op with 409 + current when enabled, rolling back the WHOLE batch", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -133,7 +133,7 @@ function createBatchStalePutConcurrencyTests(): void {
       },
     });
     const res = await batch(app, [
-      // A fresh sibling op that would succeed alone. It must NOT survive the rollback.
+      // A fresh sibling op that would succeed alone. It must not survive the rollback.
       {
         method: "PUT",
         table: "clients",
@@ -272,7 +272,7 @@ function createFutureRevisionConcurrencyTests(): void {
 function createPartialPatchConcurrencyTests(): void {
   it("accepts a partial PATCH that omits updatedAt (a normal partial edit is never a 409)", async () => {
     // The PATCH route calls isStaleWrite unconditionally; a partial PATCH legitimately omits
-    // updatedAt, so it must NOT be treated as a stale conflict, otherwise every ordinary partial
+    // updatedAt, so it must not be treated as a stale conflict, otherwise every ordinary partial
     // edit 409s. Restored documented semantics: no incoming updatedAt ⇒ no basis for a conflict.
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
@@ -301,7 +301,7 @@ function createNullPatchConcurrencyTests(): void {
 function createUnparseableStoredRevisionTests(): void {
   it("keeps writing to a row whose STORED updatedAt is unparseable (never write-bricked)", async () => {
     // Regression: the inverted predicate returned "stale" whenever a timestamp failed to parse, so a
-    // row with a corrupt/legacy stored updatedAt 409'd on EVERY write, permanently unrecoverable.
+    // row with a corrupt/legacy stored updatedAt 409'd on every write, permanently unrecoverable.
     // With the fix an unparseable stored side is simply "no basis for a conflict", so the write
     // proceeds and the server re-stamps a fresh valid updatedAt.
     const db = openDb(":memory:");

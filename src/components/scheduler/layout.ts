@@ -45,11 +45,11 @@ export const laneLayout: LaneLayout = {
 //
 // Three deliberate rules, all owner decisions:
 //
-//  1. barHeight NEVER scales. The bar is content, not spacing, growing it would restyle every
-//     allocation and change how much of a label fits, where the ask was room BETWEEN things.
-//  2. groupHeaderHeight NEVER scales either. A discipline band holds one short label and nothing
+//  1. barHeight never scales. The bar is content, not spacing, growing it would restyle every
+//     allocation and change how much of a label fits, where the ask was room between things.
+//  2. groupHeaderHeight never scales either. A discipline band holds one short label and nothing
 //     else, so padding it out just makes a tall empty stripe rather than a calmer one.
-//  3. The gap BETWEEN two stacked allocations gets its own, larger multiplier. At the shared scale
+//  3. The gap between two stacked allocations gets its own, larger multiplier. At the shared scale
 //     it moves 4px → 8px, which is swamped by the row padding either side of it and reads as "that
 //     gap never changed". LANE_GAP_SCALE lifts it to 16px so two overlapping projects visibly
 //     separate: just under the 20px of padding above and below, so the row still groups as one.
@@ -59,7 +59,7 @@ export const laneLayout: LaneLayout = {
 //
 // TOOLBAR_* and NAV_* are the base rhythm in px for the schedule toolbar and the left-hand nav,
 // matching the Tailwind utilities they replace (py-2/gap-y-2, and the sidebar's gap-1/gap-2/p-2).
-// They live here so ONE knob moves every vertical gap in the app shell and nothing drifts.
+// They live here so one knob moves every vertical gap in the app shell and nothing drifts.
 export const DENSITY_SCALE = 2;
 
 /** The stacked-allocation gap scales harder than everything else, see rule 3 above. */
@@ -88,7 +88,7 @@ export interface SchedulerDensity {
   toolbarPadY: number;
   toolbarGapY: number;
   /** Left-hand nav rhythm, in px: gap between menu items, block padding of each section, and the
-   * gap between sections/footer rows. Item HEIGHT is untouched (content, per rule 1), so the
+   * gap between sections/footer rows. Item height is untouched (content, per rule 1), so the
    * collapsed icon rail, which pins each button to a square, is unaffected. */
   navMenuGapY: number;
   navSectionPadY: number;

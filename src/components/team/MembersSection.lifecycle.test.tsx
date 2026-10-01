@@ -33,9 +33,9 @@ vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-// MembersSection is the Team & access management UI. It renders ONLY in auth-on + server mode and
+// MembersSection is the Team & access management UI. It renders only in auth-on + server mode and
 // self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
-// true) and fetch, and assert the OWNER-ONLY affordances are hidden for an admin (no owner option, no
+// true) and fetch, and assert the owner-only affordances are hidden for an admin (no owner option, no
 // controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
 
 // Make the section "enabled": a configured server. The real module reads import.meta.env, which the
@@ -69,9 +69,9 @@ afterEach(() => {
 });
 
 describe("MembersSection — member lifecycle", () => {
-  // Transfer ownership is deliberately NOT here: there is no per-member button.
+  // Transfer ownership is deliberately not here: there is no per-member button.
   // Its server route and
-  // client method are untouched, so this describe covers what the ROW can now do instead.
+  // client method are untouched, so this describe covers what the row can now do instead.
   const lifecycleMembers: RawMember[] = [
     { userId: "me", role: "owner", isSelf: true },
     { userId: "ed", role: "editor" },
@@ -414,7 +414,7 @@ function registerLifecycleVisibilityTests(): void {
     renderSection();
     await openInactiveGroup(user);
     const edRow = await waitForMemberRow(/ed@x\.io/);
-    // A non-active member must stay REACHABLE and legible, or the state is unreversible.
+    // A non-active member must stay reachable and legible, or the state is unreversible.
     expect(within(edRow).getByTestId("member-status")).toHaveTextContent(m.settings_member_status_disabled());
 
     await openMemberMenu(user, edRow);
@@ -448,7 +448,7 @@ function registerLifecycleVisibilityTests(): void {
     // into a silent reinstatement. Restore is the only way back, and it is its own audited action.
     expect(within(edRow).queryByTestId("member-edit")).not.toBeInTheDocument();
 
-    // The gear is NOT withdrawn with it: disabling someone must never cost an administrator the
+    // The gear is not withdrawn with it: disabling someone must never cost an administrator the
     // ability to rotate their password, kill their sessions, or remove them outright.
     await openMemberMenu(user, edRow);
     expect(screen.getByTestId("member-reset-password")).toBeInTheDocument();
@@ -470,7 +470,7 @@ function registerLifecycleDisclosureTests(): void {
     );
     renderSection();
 
-    // The main table is the TEAM. Two of these three memberships are history and must not pad it out.
+    // The main table is the team. Two of these three memberships are history and must not pad it out.
     const mainTable = await screen.findByTestId("members-table");
     expect(within(mainTable).getAllByTestId("member-row")).toHaveLength(1);
     expect(within(mainTable).queryByText(/ed@x\.io/)).not.toBeInTheDocument();
@@ -534,7 +534,7 @@ function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
     const selfRow = await waitForMemberRow(/me@x\.io/);
 
     // Self-suspension would be an unrecoverable in-app lockout; the Owner is protected because the
-    // single-active-Owner invariant keys on role='owner' AND status='active'.
+    // single-active-Owner invariant keys on role='owner' and status='active'.
     await openMemberMenu(user, selfRow);
     expect(screen.queryByTestId("member-disable")).not.toBeInTheDocument();
     expect(screen.queryByTestId("member-archive")).not.toBeInTheDocument();

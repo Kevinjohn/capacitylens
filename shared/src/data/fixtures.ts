@@ -1,4 +1,4 @@
-// Fully-populated test fixtures. EVERY optional field set to a non-default value.
+// Fully-populated test fixtures. Every optional field set to a non-default value.
 // Used by the server round-trip tests (server/src/app.test.ts) and available for
 // future app-level tests. Pure data, no behaviour.
 import { externalCapacityDefaults, placeholderCapacityDefaults } from "../types/entities";
@@ -30,8 +30,8 @@ export const FIXTURE_ACCOUNT: Account = {
   workingDays: [0, 1, 2, 3],
   language: "en",
   disciplinesEnabled: false,
-  // Both true (the NON-default, absent reads as false/hidden) so the server round-trip test
-  // proves the new optional boolean columns persist a PRESENT value, not just absence.
+  // Both true (the non-default, absent reads as false/hidden) so the server round-trip test
+  // proves the new optional boolean columns persist a present value, not just absence.
   placeholdersEnabled: true,
   externalEnabled: true,
   // Inline creation defaults false; keeping the explicit value exercises boolean persistence.
@@ -53,7 +53,7 @@ export const FIXTURE_CLIENT: Client = {
   codeName: "Fixture Nightwing",
   // A generic fixture must remain a regular client: the built-in Internal client can only be
   // created and repaired by the account lifecycle path.
-  // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
+  // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
   // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
   deletedAt: TS2,
@@ -81,7 +81,7 @@ export const FIXTURE_PROJECT: Project = {
   color: "#2d75da",
   isPrivate: true,
   codeName: "Fixture Aurora",
-  // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
+  // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
   // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
   deletedAt: TS2,
@@ -114,7 +114,7 @@ export const FIXTURE_RESOURCE: Resource = {
   projectId: "fix-p1",
   color: "#3ace6b",
   isFavourite: true,
-  // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
+  // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
   // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
   deletedAt: TS2,
@@ -148,7 +148,7 @@ export const FIXTURE_RESOURCE_PERSON: Resource = {
   updatedAt: TS2,
 };
 
-/** The external / 3rd-party kind: a company name + optional descriptor, and NO discipline or
+/** The external / 3rd-party kind: a company name + optional descriptor, and no discipline or
  * project binding (externals carry unused silent-default working hours/days). Proves `kind`
  * round-trips through the server with the optional FK columns left NULL. */
 export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
@@ -175,7 +175,7 @@ export const FIXTURE_ACTIVITY: Activity = {
   updatedAt: TS2,
 };
 
-/** The internal & repeatable kinds: project-less by definition, so they OMIT projectId /
+/** The internal & repeatable kinds: project-less by definition, so they omit projectId /
  * phaseId entirely (not null, absent). Prove all three ActivityKind values round-trip through
  * the server with the optional FK columns left NULL. */
 export const FIXTURE_ACTIVITY_INTERNAL: Activity = {

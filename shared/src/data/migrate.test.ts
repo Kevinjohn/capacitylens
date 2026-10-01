@@ -7,7 +7,7 @@ import { migrateV3toV4 } from "./migrate/steps/v1-v6";
 describe("migrate", () => {
   // Guards a development-time mistake: a migration step added to POST_REPAIR_BASE_STEPS (in
   // migrate.ts) without EXPORT_SCHEMA_VERSION bumped to match, or vice versa. That invariant used
-  // to throw at module-evaluation time, which meant merely IMPORTING shared/data/migrate (as
+  // to throw at module-evaluation time, which meant merely importing shared/data/migrate (as
   // src/data/sync/loadSlice.ts and src/data/validateAccountSlice.ts do, both on the app's entry
   // graph) could white-screen the whole app before any error boundary exists. It is now asserted
   // lazily, the first time migrate() actually runs, so importing the module can never throw and a
@@ -245,7 +245,7 @@ describe("migrate account and client defaults", () => {
 
 describe("migrate schedule visibility defaults", () => {
   it("leaves a v8 account without the schedule view prefs absent so they read as shown/enabled (v8 → v9)", () => {
-    // v8→v9 is a metadata-only step (like v7→v8): the three new optional booleans stay ABSENT so the
+    // v8→v9 is a metadata-only step (like v7→v8): the three new optional booleans stay absent so the
     // client's `?? true` reads them as shown/enabled, the migration materialises no defaults.
     const data = {
       ...emptyAppData(),
@@ -390,8 +390,8 @@ describe("migrate engagement defaults", () => {
 
 describe("migrate activity and client repairs", () => {
   it("backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable", () => {
-    // Legacy input still carries the OLD `tasks` key (pre-rename); migrate renames it to
-    // `activities` (v4→v5) so the OUTPUT is asserted on `out.activities`.
+    // Legacy input still carries the old `tasks` key (pre-rename); migrate renames it to
+    // `activities` (v4→v5) so the output is asserted on `out.activities`.
     const out = migrate({
       schemaVersion: 3,
       data: {

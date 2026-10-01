@@ -5,7 +5,7 @@ export const SNAPSHOT_RE = /^capacitylens-(?:utc-)?\d{8}-\d{6}(-\d{3})?\.db$/;
 export const UTC_SNAPSHOT_RE = /^capacitylens-utc-\d{8}-\d{6}(-\d{3})?\.db$/;
 
 // In-progress writes go to `<snapshot>.tmp` and are renamed on success, so a crash mid-write
-// can never leave a torn file behind a valid snapshot name. Deliberately does NOT match
+// can never leave a torn file behind a valid snapshot name. Deliberately does not match
 // SNAPSHOT_RE (no `.db$`), so prune() and the stamp seeding both ignore temp files.
 export const TMP_RE =
   /^(?:capacitylens-(?:utc-)?\d{8}-\d{6}(?:-\d{3})?\.db|capacitylens-pre-migration-v\d+-to-v\d+\.db)\.tmp$/;

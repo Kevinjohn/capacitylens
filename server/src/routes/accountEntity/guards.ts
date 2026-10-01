@@ -26,7 +26,7 @@ export function sendAccountRouteFailure(
  * optimistic-concurrency stale-write 409. Returns the sent refusal (the caller must return it
  * immediately), or null when the write may proceed.
  *
- * PUT interleaves unrelated code (computing `vis`, its trusted-local replay attempt) BETWEEN the
+ * PUT interleaves unrelated code (computing `vis`, its trusted-local replay attempt) between the
  * frozen guard and the stale guard, so it calls this helper twice (once for `ownsRow`+`frozen`,
  * once afterward for `stale` alone) to keep that interleaving, and therefore behavior, unchanged.
  * PATCH has nothing between the three checks and calls this once with all three.

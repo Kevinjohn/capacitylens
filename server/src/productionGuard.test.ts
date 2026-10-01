@@ -58,14 +58,14 @@ function productionPosture(overrides: ProductionEnv) {
 }
 
 // Once NODE_ENV=production, the dev/open posture is retired, the entrypoint refuses to
-// boot when auth is OFF (unless deliberately opted in) and warns on the softer posture concerns.
+// boot when auth is off (unless deliberately opted in) and warns on the softer posture concerns.
 // Outside production it is a strict no-op so dev / e2e / self-host are untouched. These tests
-// prove BOTH directions (it actually refuses, and a clean production config passes clean).
+// prove both directions (it actually refuses, and a clean production config passes clean).
 
 describe("evaluateProductionPosture", () => {
   it("is a no-op outside production, even with the worst-looking env (dev/self-host untouched)", () => {
     // CAPACITYLENS_MODE unset (off), open signup on, none of which may
-    // produce a refusal OR a warning unless NODE_ENV is explicitly 'production'.
+    // produce a refusal or a warning unless NODE_ENV is explicitly 'production'.
     const worst = {
       CAPACITYLENS_MODE: undefined,
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
@@ -132,7 +132,7 @@ describe("production bootstrap and mandatory controls", () => {
 
   it("refuses the development-only bootstrap-owner flag in production", () => {
     // The entrypoint folds the --create-owner-admin-admin argv spelling into this env form before
-    // calling here, so this single check covers BOTH spellings of the flag.
+    // calling here, so this single check covers both spellings of the flag.
     const result = productionPosture({
       CAPACITYLENS_MODE: "password-only",
       CAPACITYLENS_CREATE_ADMIN_ADMIN: "1",
@@ -159,7 +159,7 @@ describe("production bootstrap and mandatory controls", () => {
     });
     expect(result.refusals).toHaveLength(1);
     // Names the exact credential (from the auth.ts export) and the env, so the operator knows what to
-    // change; the pinned SECRET itself must never be echoed back into the refusal text.
+    // change; the pinned secret itself must never be echoed back into the refusal text.
     expect(
       result.refusals.some(
         (w) =>
@@ -198,10 +198,10 @@ describe("production mandatory service controls", () => {
 });
 
 describe("production rate limits and optional hardening", () => {
-  // The guard must validate CAPACITYLENS_RATE_LIMIT with the SAME parser the limiter uses
+  // The guard must validate CAPACITYLENS_RATE_LIMIT with the same parser the limiter uses
   // (parseRateLimit), not a looser Number() check. A divergent Number()+isSafeInteger check accepted
   // these values while parseRateLimit maps every one of them to 0 (off), so production would boot
-  // claiming a hardened posture with rate limiting silently disabled. Each must now REFUSE.
+  // claiming a hardened posture with rate limiting silently disabled. Each must now refuse.
   it.each([
     ["a value over the 1,000,000 cap", "2000000"],
     ["surrounding whitespace", " 100 "],

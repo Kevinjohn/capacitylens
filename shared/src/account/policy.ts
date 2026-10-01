@@ -1,7 +1,7 @@
 import { isAccountRole, type IdentityAdminAction, type Role } from "./types";
 
 /** Single-company-per-instance cap (owner policy, see AppOptions.multiAccount / CLAUDE.md). The
- * deployment defaults to hosting exactly ONE company; every route that could add a SECOND `accounts`
+ * deployment defaults to hosting exactly one company; every route that could add a second `accounts`
  * row shares this one message so the rule can't drift between PUT/batch/orgs. */
 export const SINGLE_COMPANY_CAP_MESSAGE =
   "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
@@ -31,12 +31,12 @@ const MIN_ADMIN_TIER = {
   "masquerade-member": "admin",
   "manage-member-sign-in-tracking": "owner",
   "transfer-ownership": "owner",
-  // Admin tier, NOT owner: this is the gate every ceremony route shares, and the nominated Admin
+  // Admin tier, not owner: this is the gate every ceremony route shares, and the nominated Admin
   // must pass it to give or withdraw their own consent. It is deliberately the weakest necessary
   // gate: who may actually perform each ceremony action is decided by canActOnOwnershipTransfer,
   // which knows participant identity, and by the owner-only "transfer-ownership" threshold above
   // for the Owner's three actions. Making this gate owner-only would lock the nominee out of
-  // consenting; making it the ONLY check would let any Admin consent on the nominee's behalf.
+  // consenting; making it the only check would let any Admin consent on the nominee's behalf.
   "act-on-ownership-transfer": "admin",
   "erase-workspace": "owner",
 } as const satisfies Record<AccountAdminAction, Role>;
@@ -65,10 +65,10 @@ export function canAdministerAccount(role: Role, action: AccountAdminAction): bo
 }
 
 /**
- * May `actor` edit `target`'s role AT ALL, i.e. is this member's role even a thing this actor can
+ * May `actor` edit `target`'s role at all, i.e. is this member's role even a thing this actor can
  * touch, setting aside which role they would set it to?
  *
- * The question a member ROW asks: whether to render a role control for that member. It is separate
+ * The question a member row asks: whether to render a role control for that member. It is separate
  * from {@link canManageMemberRole}, which additionally judges one specific destination role and is
  * therefore the wrong question for a row that has not chosen one yet.
  *
@@ -77,7 +77,7 @@ export function canAdministerAccount(role: Role, action: AccountAdminAction): bo
  * ordinary role edit reaches one. Fail-closed on an unrecognised target role.
  *
  * The rule is stated here in full rather than delegated to {@link canRemoveMember}: the two are
- * equal TODAY (its test pins that equivalence as current truth), but "may I retitle you" and "may I
+ * equal today (its test pins that equivalence as current truth), but "may I retitle you" and "may I
  * revoke you" are different questions, and one gaining a condition must not silently change the
  * other.
  */
@@ -88,7 +88,7 @@ export function canEditAnyMemberRole(actorRole: Role, targetRole: Role): boolean
 
 /** Whether the actor may change the target's role to `nextRole`. Promotion to Owner is never allowed here. Pure. */
 export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
-  // Standing over this target first, then the destination-specific rule: promoting anyone TO Owner
+  // Standing over this target first, then the destination-specific rule: promoting anyone to Owner
   // is likewise reserved to the ownership transfer.
   if (!canEditAnyMemberRole(actorRole, targetRole) || !isAccountRole(nextRole)) return false;
   return nextRole !== "owner";
@@ -102,7 +102,7 @@ export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
 /**
  * May `actor` move `target`'s membership between lifecycle states (disable / archive / restore)?
  *
- * Deliberately the SAME authority as removal, minus self-service: suspending a membership denies
+ * Deliberately the same authority as removal, minus self-service: suspending a membership denies
  * account entry exactly as removal does, so it must not be reachable by anyone who could not also
  * remove the target. The Owner exclusion inside {@link canRemoveMember} is load-bearing beyond
  * policy taste, the physical single-active-Owner index and the boot assertion both key on

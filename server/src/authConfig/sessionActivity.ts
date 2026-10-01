@@ -23,13 +23,13 @@ type StoredSessionActivity = { updatedAt: string | number | null };
 /**
  * Apply the app's idle timeout to a session Better Auth has already resolved.
  *
- * STORAGE REPRESENTATION IS NOT ASSUMED. Better Auth 1.6.x on node:sqlite stores
+ * Storage representation IS NOT assumed. Better Auth 1.6.x on node:sqlite stores
  * `session.updatedAt` as ISO-8601 *text*, not the integer epoch milliseconds an earlier
  * version of this function trusted a comment about. Comparing or writing numbers against a
  * text-valued column means SQL predicates silently never match (INTEGER always sorts before
  * TEXT), which turned both the expiry compare-and-set and the activity touch into no-ops on
  * production rows. So: read the raw stored value, parse whatever is there, compare-and-set
- * against the RAW value, and write back in the SAME representation that is stored. Direct
+ * against the raw value, and write back in the same representation that is stored. Direct
  * conditional SQL is required because the adapter exposes only unconditional async writes and
  * cannot provide compare-and-set; the CAS keeps deletes and touches monotonic even when
  * overlapping requests settle out of order. Fails closed (row deleted, `null` returned) on an
@@ -197,7 +197,7 @@ export async function enforceSessionActivity<Session extends SessionActivitySess
  *
  * Better Auth sets `emailVerified` per provider during sign-in (Google/Microsoft OIDC derive
  * it from the `email_verified` claim; GitHub and email+password sign-up leave it `false` until
- * verified). We deliberately do NOT branch on a provider allow-list. We trust Better Auth's
+ * verified). We deliberately do not branch on a provider allow-list. We trust Better Auth's
  * per-provider value and use `?? false` as the safety net for any provider that omits it, so an
  * unverifiable provider can never present as verified.
  */

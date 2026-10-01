@@ -10,7 +10,7 @@ describe("batch op-count cap (MAX_BATCH_OPS)", () => {
   it(`rejects a batch of more than ${MAX_BATCH_OPS} ops with 400 before anything is written`, async () => {
     const { app } = freshApp();
     // Op count (not just body bytes) bounds parsing, authorization, scoped projection updates and
-    // writes: the cap must fire BEFORE the pre-scan/tx, leaving the DB untouched.
+    // writes: the cap must fire before the pre-scan/tx, leaving the DB untouched.
     const ops = Array.from({ length: MAX_BATCH_OPS + 1 }, (_, i) => ({
       method: "PUT",
       table: "accounts",
@@ -113,7 +113,7 @@ describe("null-id rejection (POST/batch without id → 400)", () => {
 
 describe("absent/null request body on generic writes → 400, not 500", () => {
   // POST /api/:entity used to dereference the body (body.accountId! for a scoped table,
-  // sanitizeWrite's assertIdPresent for accounts) BEFORE any 400 classification could run, so a
+  // sanitizeWrite's assertIdPresent for accounts) before any 400 classification could run, so a
   // missing/null body crashed as an unclassified TypeError → statusFor → 500. /api/batch and
   // /api/import already guard `!body` this way; the generic routes now match.
   it("POST /api/resources with no body/Content-Type is 400, not 500", async () => {

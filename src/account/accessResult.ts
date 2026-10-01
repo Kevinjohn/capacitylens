@@ -16,12 +16,12 @@ export type TeamAccessResult<T> =
   | { kind: "invalid"; status: number; message: string };
 
 /**
- * The sentence to show a user for a non-ok {@link TeamAccessResult}: the SERVER's own message when a
+ * The sentence to show a user for a non-ok {@link TeamAccessResult}: the server's own message when a
  * rejection carried one, otherwise the caller's per-operation fallback.
  *
  * Only `kind: 'rejected'` is server-authored refusal ("that member is the last owner"), so only that
  * kind's message is preferred. `unknown` (the write may or may not have landed) and `invalid` (we
- * could not decode the body) carry messages that describe OUR uncertainty, not the user's problem,
+ * could not decode the body) carry messages that describe our uncertainty, not the user's problem,
  * and the caller's fallback stays the better sentence for them, which is exactly what every Team &
  * access call site already open-codes. An empty-string message falls back too: a blank toast is a
  * worse outcome than a generic one.

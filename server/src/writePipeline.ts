@@ -21,9 +21,9 @@ export interface WriteRejection {
 }
 
 /**
- * The FULL (unredacted, tombstones-retained) slice read the referential validators need. Every
+ * The full (unredacted, tombstones-retained) slice read the referential validators need. Every
  * check in assertValidWrite (validate.ts) only ever matches rows with `parent.accountId === accountId`
- * AND inspects lifecycle tombstones (archivedAt/deletedAt), so the write's OWN account slice, with
+ * and inspects lifecycle tombstones (archivedAt/deletedAt), so the write's own account slice, with
  * inactive rows retained, is complete coverage. Private-name/note redaction is irrelevant to
  * validation, so all three include flags are `true`. (Mirrors lifecycleRoutes' FULL_SLICE_READ.)
  */
@@ -52,7 +52,7 @@ function accountIdIsInvalid(verb: WriteVerb, row: Record<string, unknown>): bool
  *
  * Verb-specific rules: `create` (POST, no URL id) requires a string body id; `replace` (PUT)
  * requires the body id to match the URL id; `patch` takes its id from the URL and treats accountId
- * as optional (only a PRESENT non-string accountId is rejected). `create`/`replace` require a string
+ * as optional (only a present non-string accountId is rejected). `create`/`replace` require a string
  * accountId on scoped tables.
  */
 export function checkEntityWriteBody({
@@ -62,7 +62,7 @@ export function checkEntityWriteBody({
   urlId,
   scoped,
 }: CheckEntityWriteBodyInput): WriteRejection | null {
-  // Array bodies are rejected for EVERY verb (PUT already did; POST/PATCH now match, a spread of an
+  // Array bodies are rejected for every verb (PUT already did; POST/PATCH now match, a spread of an
   // array into a merge/write is never a valid entity body).
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return { status: 400, error: "A request body is required." };
@@ -74,8 +74,8 @@ export function checkEntityWriteBody({
     if (row.id !== urlId) return { status: 400, error: "Body id must match the URL id." };
   }
   if (scoped) {
-    // PATCH: accountId is OPTIONAL (partial patch inherits the stored one), reject only a present
-    // non-string. create/replace: accountId is REQUIRED. Unified message across all three.
+    // PATCH: accountId is optional (partial patch inherits the stored one), reject only a present
+    // non-string. create/replace: accountId is required. Unified message across all three.
     if (accountIdIsInvalid(verb, row)) {
       return { status: 400, error: "A string accountId is required." };
     }
@@ -95,7 +95,7 @@ interface ResolveBuiltinWriteRejectionInput {
 
 /**
  * The built-in Internal client write guard. Two symmetric protections:
- *  - UPDATE/REPLACE/PATCH over an EXISTING built-in row is refused ('cannot be modified'). Its
+ *  - UPDATE/REPLACE/PATCH over an existing built-in row is refused ('cannot be modified'). Its
  *    lifecycle is server-owned. Applies to PUT/PATCH and the batch loop.
  *  - a CREATE (POST) may not hand-craft a builtin client ('managed by the server'). It is minted
  *    only by account provisioning or the deterministic replacement path. PUT-as-create keeps
@@ -124,7 +124,7 @@ export function resolveBuiltinWriteRejection({
 export interface PreparedWrite {
   /** The sanitized + revision-stamped row ready to persist. */
   row: Record<string, unknown>;
-  /** The generated Internal-client id this write REPLACES (PUT legacy-id adoption path), or
+  /** The generated Internal-client id this write replaces (PUT legacy-id adoption path), or
    * null. When non-null the caller runs replaceGeneratedBuiltin inside its transaction. */
   generatedReplacement: string | null;
   /** The account-scoped slice assertValidWrite ran against, reused by the builtin-replacement path
@@ -136,10 +136,10 @@ export interface PreparedWrite {
  * The shared prepare-and-validate core sanitizes and stamps the row, reads only the writing
  * account's slice, then runs referential validation.
  *
- * `body` is what the verb feeds sanitizeWrite: the raw create/replace body, or the MERGED
+ * `body` is what the verb feeds sanitizeWrite: the raw create/replace body, or the merged
  * `{...existing, ...patch, id}` for a patch. `existing` is the stored row (undefined on a create).
  *
- * Validation is deferred in exactly two behaviour-preserving cases: an ACCOUNTS CREATE (validated
+ * Validation is deferred in exactly two behaviour-preserving cases: an accounts CREATE (validated
  * inside the replay-safe provisioning closure, an accounts UPDATE still validates here, as it did
  * pre-funnel), and a generated-builtin replacement (validated inside replaceGeneratedBuiltin against
  * its re-pointed projection). Everything else validates here.
@@ -166,7 +166,7 @@ export function prepareScopedWrite(input: {
   // Builtin-client replacement is a PUT affordance only. POST cannot hand-craft builtin rows, and
   // PATCH never rewrites the generated Internal client.
   const generatedReplacement = verb === "replace" ? resolveGeneratedBuiltinReplacement(scopedState, entity, row) : null;
-  // Defer ONLY an accounts CREATE (provisioning validates it inside its replay-safe closure) and a
+  // Defer only an accounts CREATE (provisioning validates it inside its replay-safe closure) and a
   // generated-builtin replacement (replaceGeneratedBuiltin validates its own projection). An accounts
   // UPDATE, and every scoped write, validates here.
   const deferAccountsCreate = entity === "accounts" && existing === undefined;
@@ -191,7 +191,7 @@ export function stampServerRevision(
   };
 }
 
-// STATE parameter, not `db`: a pure existence check against the caller's already-loaded AppData
+// State parameter, not `db`: a pure existence check against the caller's already-loaded AppData
 // projection (the funnel's scoped read / the batch's incrementally-maintained projection), so it
 // never triggers a fresh read itself.
 export function resolveGeneratedBuiltinReplacement(

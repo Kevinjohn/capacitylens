@@ -70,7 +70,7 @@ describe("dateMath", () => {
   });
 
   it("eachDayISO steps correctly across a month boundary (stepwise addDays, not a single re-parse)", () => {
-    // The rewritten loop advances one calendar day at a time from a SINGLE parsed `start`, this
+    // The rewritten loop advances one calendar day at a time from a single parsed `start`, this
     // pins that stepping through Jan 31 -> Feb 1 (and into a leap-day Feb) is byte-identical to the
     // old per-iteration re-parse.
     expect(eachDayISO("2026-01-30", "2026-02-02")).toEqual(["2026-01-30", "2026-01-31", "2026-02-01", "2026-02-02"]);
@@ -190,7 +190,7 @@ describe("todayISO with a fixed clock", () => {
 
     it("always resolves the SAME zone, ignoring which timeZone happens to be passed", () => {
       // Guards the early-return short-circuit `if (!timeZone) return toISODate(new
-      // Date())`: forcing it to ALWAYS fire (dropping the timeZone argument on the
+      // Date())`: forcing it to always fire (dropping the timeZone argument on the
       // floor) would make a valid, given zone come back as the local date instead.
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-06-14T20:00:00Z"));
@@ -205,7 +205,7 @@ describe("todayISO with mocked out-of-range years", () => {
       vi.restoreAllMocks();
     });
 
-    // `todayISO` caches one formatter per zone at module scope, so each case here takes a FRESH
+    // `todayISO` caches one formatter per zone at module scope, so each case here takes a fresh
     // module instance (the same isolation the aggregate-warning case below uses), otherwise the
     // real formatter an earlier test cached for the same zone would answer instead of the mock.
     async function isolatedDateMath() {
@@ -214,7 +214,7 @@ describe("todayISO with mocked out-of-range years", () => {
     }
 
     it("throws RangeError (not a silent pseudo-ISODate) when the resolved year is outside the four-digit domain", async () => {
-      // Intl gives `year: "numeric"` parts, NOT zero-padded/four-digit, so a system clock
+      // Intl gives `year: "numeric"` parts, not zero-padded/four-digit, so a system clock
       // outside years 1000-9999 would otherwise assemble a garbage string like "99-06-15" that
       // silently poisons the module's load-bearing lexicographic YYYY-MM-DD comparisons instead
       // of surfacing as the upstream-validation bug it is. Mock the formatter output directly

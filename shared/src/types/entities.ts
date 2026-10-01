@@ -44,8 +44,8 @@ export const DEFAULT_DATE_STYLE: DateStyle = "day-month";
  * What a resource row represents:
  * - `person`: a real team member with capacity (the default).
  * - `placeholder`: an unfilled role/"slot", bound to one project (see `projectId`).
- * - `external`: an outsourced 3rd-party company. Can be assigned activities, but has NO
- *   hours/capacity/utilisation and is EXCLUDED from all capacity math; it renders in its own
+ * - `external`: an outsourced 3rd-party company. Can be assigned activities, but has no
+ *   hours/capacity/utilisation and is excluded from all capacity math; it renders in its own
  *   band at the bottom of the schedule. Reuses `name` (company name, required by the form) +
  *   `role` (optional descriptor); its `workingHoursPerDay`/`workingDays`/`halfDays` are unused silent
  *   defaults. See the external-resource rule in DECISIONS.md.
@@ -58,12 +58,12 @@ export type ResourceEngagement = "studio" | "supplementary";
 /** The reason for a time-off entry. */
 export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
 /**
- * What an activity IS, the axis the schedule's "activity view" filters on. Three kinds:
+ * What an activity is, the axis the schedule's "activity view" filters on. Three kinds:
  * - `project`: project-specific: belongs to one project (carries `projectId`, optionally a `phaseId`).
  * - `internal`: project-less internal work (Admin, internal review/meeting).
  * - `repeatable`: all-projects: project-less activity used across many projects (Design, Workshop).
- * Coherence (enforced in assertScopedRefs, repaired on import): `project` HAS a `projectId`;
- * `internal`/`repeatable` have NEITHER `projectId` nor `phaseId`.
+ * Coherence (enforced in assertScopedRefs, repaired on import): `project` has a `projectId`;
+ * `internal`/`repeatable` have neither `projectId` nor `phaseId`.
  */
 export type ActivityKind = "project" | "internal" | "repeatable";
 
@@ -95,12 +95,12 @@ export interface Account extends Entity {
    * schedule grouping + filter, lists, command palette). The data is preserved. */
   disciplinesEnabled?: boolean;
   /** Whether this company surfaces placeholder ("slot") resources. Absent = false
-   * (hidden out of the box, NOT `?? true` like disciplinesEnabled) so new companies start
-   * with placeholders OFF. When false, placeholders are hidden across the UI; the data is
+   * (hidden out of the box, not `?? true` like disciplinesEnabled) so new companies start
+   * with placeholders off. When false, placeholders are hidden across the UI; the data is
    * preserved and returns when re-enabled. */
   placeholdersEnabled?: boolean;
   /** Whether this company surfaces external / 3rd-party resources. Absent = false (hidden out
-   * of the box, like placeholdersEnabled) so new companies start with external OFF. When false,
+   * of the box, like placeholdersEnabled) so new companies start with external off. When false,
    * external resources are hidden across the UI; the data is preserved and returns when re-enabled. */
   externalEnabled?: boolean;
   /** Whether the scheduler's Allocation modal offers the inline "Add activity" input + button.
@@ -133,7 +133,7 @@ export interface Discipline extends ScopedEntity {
 export interface Resource extends ScopedEntity {
   kind: ResourceKind;
   /** Optional: placeholders may be nameless (shown by `role`). For `external` this holds the
-   * COMPANY name (the External form requires it). */
+   * company name (the External form requires it). */
   name?: string;
   /** e.g. "Senior Designer", the label used for nameless placeholders; an `external`'s
    * optional descriptor (e.g. "Print", "Overflow dev"). */
@@ -150,7 +150,7 @@ export interface Resource extends ScopedEntity {
   /** Working weekdays whose capacity is the fixed four-hour half day. Always a subset of workingDays.
    * Unused for placeholders and externals. */
   halfDays: Weekday[];
-  /** PLACEHOLDERS ONLY: the single project a placeholder is bound to. */
+  /** Placeholders only: the single project a placeholder is bound to. */
   projectId?: ID;
   color: string;
   /** Account-wide display preference for people and external resources. Absent = not favourite. */
@@ -181,10 +181,10 @@ export interface Client extends ScopedEntity {
   /** Owner-managed cover name for a private client. Stored without quotation marks; the read
    * projection adds them consistently wherever the code name is displayed. */
   codeName?: string;
-  /** True ONLY for the built-in "Internal" pseudo-client, exactly one per account, created by
+  /** True only for the built-in "Internal" pseudo-client, exactly one per account, created by
    * seed / addAccount / migrate. A built-in client cannot be renamed or deleted, and a project-less
    * internal/all-projects activity buckets under it for display + filtering. Absent/false = a normal,
-   * user-managed client. Identified at runtime by THIS flag, never a hard-coded id (so it survives
+   * user-managed client. Identified at runtime by this flag, never a hard-coded id (so it survives
    * import-remap). See shared/src/data/internalClient.ts. */
   builtin?: boolean;
   /** ISO 8601 timestamp of when this client was archived (soft, reversible): hidden from
@@ -202,7 +202,7 @@ export interface Client extends ScopedEntity {
 /** A client project. */
 export interface Project extends ScopedEntity {
   name: string;
-  clientId: ID; // REQUIRED: a project must belong to a client
+  clientId: ID; // Required: a project must belong to a client
   color: string;
   /** When true, only account owners receive `name`; every other role receives the quoted
    * `codeName` in its place. Absent = public (the default). */
@@ -234,7 +234,7 @@ export interface Activity extends ScopedEntity {
   /** What this activity is: project-specific work, internal work, or an all-projects activity. The
    * discriminant the schedule's activity lens filters on. See {@link ActivityKind}. */
   kind: ActivityKind;
-  /** Set ONLY for `kind: 'project'`, the project this activity belongs to. Internal and
+  /** Set only for `kind: 'project'`, the project this activity belongs to. Internal and
    * all-projects (`repeatable`) activities are project-less at the activity level; repeatable
    * allocations may carry their own project attribution. */
   projectId?: ID;
@@ -266,7 +266,7 @@ export interface Allocation extends ScopedEntity {
    * working days (drag/move does not auto-extend across them). Absent =
    * weekend-aware (the default). */
   ignoreWeekends?: boolean;
-  // future-additive (NOT built in v1): startTime?/endTime? for "9am–1pm" allocations
+  // future-additive (not built in v1): startTime?/endTime? for "9am–1pm" allocations
 }
 
 /** One person's time off over a date range; company-wide closures are {@link Closure} records. */

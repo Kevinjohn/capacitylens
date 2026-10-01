@@ -342,14 +342,14 @@ describe.each(Object.entries(STYLE_TABLE))("date style %s", (style, cells) => {
 });
 
 // The instant formatters render on the viewer's own clock. Assertions stay locale-agnostic on
-// purpose: these deliberately take NO locale argument (see the module's "Instants" note), so pinning
+// purpose: these deliberately take no locale argument (see the module's "Instants" note), so pinning
 // literal en-GB or en-US output would pin the CI runner's ICU default rather than the contract.
 describe("formatInstant / formatInstantDate", () => {
   // The vitest environment fixes TZ=UTC, so 13:45Z is 13:45 local here.
   const instant = "2026-07-14T13:45:00.000Z";
 
   it("renders exactly what the call sites they replace rendered", () => {
-    // Behaviour preservation IS the contract this round: the browser-default locale, not
+    // Behaviour preservation is the contract this round: the browser-default locale, not
     // activeDateLocale()'s enGB. This assertion fails the moment a locale argument is introduced.
     expect(formatInstant(instant)).toBe(new Date(instant).toLocaleString());
     expect(formatInstantDate(instant)).toBe(new Date(instant).toLocaleDateString());
@@ -383,7 +383,7 @@ describe("formatInstant / formatInstantDate", () => {
   });
 
   it("degrades an unparseable timestamp to Invalid Date instead of throwing", () => {
-    // Unlike the ISODate formatters above, these render SERVER-supplied values: a bad one must cost
+    // Unlike the ISODate formatters above, these render server-supplied values: a bad one must cost
     // one row, not the whole section.
     expect(() => formatInstant("not-a-timestamp")).not.toThrow();
     expect(formatInstant("not-a-timestamp")).toBe("Invalid Date");

@@ -58,7 +58,7 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies): Acco
       commandId: command.commandId,
     });
 
-  // Every mutation route audits its own record UNLESS the command was a replay (audit already
+  // Every mutation route audits its own record unless the command was a replay (audit already
   // happened on first execution), `extra` lets a route fold in one more precondition (e.g.
   // "only if something actually changed") without re-deriving the replay check at each call site.
   const auditUnlessReplayed = ({ reply, result, record, extra = true }: AuditUnlessReplayedInput): void => {
@@ -66,13 +66,13 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies): Acco
   };
 
   // ── Member management.
-  // Owner/Admin list / change-role / revoke members of THEIR account, plus list / revoke outstanding
-  // invites. Every route gates through the SAME authorize seam (cross-tenant → 403 automatically):
+  // Owner/Admin list / change-role / revoke members of their account, plus list / revoke outstanding
+  // invites. Every route gates through the same authorize seam (cross-tenant → 403 automatically):
   // members under 'manageMembers', invites under 'manageInvites' (both admin-tier). The pure shared
   // guards (canManageMemberRole / canRemoveMember) keep Owner outside ordinary role and removal
   // operations for every actor. Owner changes are not ordinary member mutations: the single
   // Owner moves only through the transactional transfer endpoint, while a partial unique index and
-  // boot assertion enforce exactly one Owner for every member-bearing company. OFF mode
+  // boot assertion enforce exactly one Owner for every member-bearing company. Off mode
   // (trusted-local) has no real member model, so the list routes return empty and mutation routes
   // explicitly report the unavailable capability instead of claiming an inert request committed.
   const rejectTrustedLocalMemberMutation = (reply: FastifyReply): unknown =>
@@ -81,7 +81,7 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies): Acco
     });
 
   // Gate shared by every member-mutation route below: admin-tier authorize() first (it sends its own
-  // 403/404 on failure), then OFF mode's "no real member model" refusal. Same order/short-circuit as
+  // 403/404 on failure), then off mode's "no real member model" refusal. Same order/short-circuit as
   // each call site had inline.
   const authorizeMemberMutation = ({
     req,
@@ -99,7 +99,7 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies): Acco
   };
 
   // Shared by reset-password and revoke-sessions below: both need the target's membership row,
-  // INCLUDING inactive ones, before doing security-sensitive work. includeInactive: an existence
+  // including inactive ones, before doing security-sensitive work. includeInactive: an existence
   // probe, not an authorization one (that is the port's job just below). An admin disables a
   // compromised account first and rotates its password / kills its sessions second, so an
   // active-only probe here would 404 exactly the case these routes exist for.

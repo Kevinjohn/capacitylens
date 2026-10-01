@@ -16,7 +16,7 @@ import { call, PASSWORD_ENV, cookiesOf, headerValues } from "./testHelpers/passw
 import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
 // CAPACITYLENS_MODE (opts.authMode/auth). The load-bearing assertion set:
-// OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
+// Off is byte-for-byte today (the whole existing app.test.ts suite already enforces that
 // by running unchanged. These tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
@@ -482,7 +482,7 @@ describe("CAPACITYLENS_MODE password", () => {
     // is present and defaults correctly (the invite-bind gate depends on it).
     expect(parseAuthMeResponse(me).user.emailVerified).toBe(false);
 
-    // The GENERIC account create is CLOSED auth-on (403 → POST /api/orgs): the bare row write never
+    // The generic account create is closed auth-on (403 → POST /api/orgs): the bare row write never
     // minted a membership, so it could only produce orphan accounts, /api/orgs is the atomic path.
     // A session is still proven to authenticate (403, an authz refusal, not the session-less 401).
     const write = await call(app, {
@@ -493,8 +493,8 @@ describe("CAPACITYLENS_MODE password", () => {
     });
     expect(write.statusCode).toBe(403);
     expect(parseErrorMessage(write)).toContain("/api/orgs");
-    // The no-arg whole read is CLOSED in auth-on (tenant isolation).
-    // A logged-in user must hydrate PER ACCOUNT via ?accountId=, so the bare GET /api/state now 400s.
+    // The no-arg whole read is closed in auth-on (tenant isolation).
+    // A logged-in user must hydrate per account via ?accountId=, so the bare GET /api/state now 400s.
     const noArg = await call(app, {
       method: "GET",
       url: "/api/state",

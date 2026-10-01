@@ -96,19 +96,19 @@ export function createCapacitySource({
   closures,
   blocksMode,
 }: CreateCapacitySourceInput) {
-  // The [visibleStart, visibleEnd] and [overStart, overEnd] windows are RESOURCE-INVARIANT. Every row in
-  // this model reads the exact same two windows. Building their day arrays here ONCE avoids resources
+  // The [visibleStart, visibleEnd] and [overStart, overEnd] windows are resource-invariant. Every row in
+  // this model reads the exact same two windows. Building their day arrays here once avoids resources
   // × (visibleDays + 14) redundant eachDayISO calls per model rebuild (this fires on every scroll-day
   // change, zoom, filter keystroke and edit). Each row separately caches its computed resource-day
   // results below, so dates shared by the timeline, visible window and fixed overSoon window scan
   // that resource's allocations/time off only once. Not sliced from `days`: `days` covers the
-  // SCROLLABLE timeline, while overStart/overEnd
-  // is a FIXED window anchored on today that can fall outside it (and visibleStart/visibleEnd, though always
+  // scrollable timeline, while overStart/overEnd
+  // is a fixed window anchored on today that can fall outside it (and visibleStart/visibleEnd, though always
   // within `days` in practice, isn't worth a fragile index-based slice to save one extra pair of calls).
   const visibleDays = eachDayISO(visibleStart, visibleEnd);
   const overDays = eachDayISO(overStart, overEnd);
   // Every per-day capacity lookup below asks for a date drawn from one of those three arrays, so
-  // their sorted, de-duplicated union is the COMPLETE set of dates any row can query. Bucketing a
+  // their sorted, de-duplicated union is the complete set of dates any row can query. Bucketing a
   // resource's allocations / time off onto it once (see bucketByCoveredDate) is what turns the
   // per-row day loop from O(days × allocations) into O(days + coverage). Resource-invariant, so it
   // is built here once rather than per row. ISO dates sort lexicographically = chronologically.
@@ -124,10 +124,10 @@ export function createCapacitySource({
     effectiveWeek,
   }: ResourceCapacitySourceInput): CapacitySource => {
     if (isExternalResource(resource)) return createUntrackedCapacitySource();
-    // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
+    // Bucket this resource's load and time off by the days they cover, once, so each of the
     // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead
     // of making it rescan every allocation (and every time-off row) per day.
-    // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
+    // Capacity reflects all the resource's allocations (truthful load), not the filtered view.
     return createTrackedCapacitySource({ resource, allocations, resourceTimeOff, effectiveWeek }, context);
   };
 

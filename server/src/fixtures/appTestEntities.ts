@@ -3,7 +3,7 @@ import { createApp } from "../app";
 import { openDb, type Db } from "../db";
 // API integration tests: drive the real Fastify app + a real (in-memory) node:sqlite
 // DB via inject(). Covers CRUD, whole-state read, cascade deletes, import round-trip,
-// migration reuse, and the validation rules, which run the SAME shared domain-core
+// migration reuse, and the validation rules, which run the same shared domain-core
 // the client uses, so passing here proves "server validation == client validation".
 
 export const TS = "2026-01-01T00:00:00.000Z";

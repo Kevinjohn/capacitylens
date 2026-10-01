@@ -167,7 +167,7 @@ function registerSchedulerUiPart5(): void {
 
   it("signOutDemo drops the active company, the back-breadcrumb, and the fake flag", () => {
     // A company is active (resetStoreWithAccount). Turn the demo flag on, then sign out: it
-    // must clear the active company AND previousAccountId, leaving the latter set would give
+    // must clear the active company and previousAccountId, leaving the latter set would give
     // the re-shown picker a one-click "← Back to {company}", defeating the fresh "log in first,
     // then pick a company" intent.
     expect(s().activeAccountId).not.toBeNull();
@@ -222,7 +222,7 @@ function registerSchedulerUiPart7(): void {
   });
 
   it("goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday", () => {
-    // Seed an account whose calendar week starts on SUNDAY and make it active. This guards a
+    // Seed an account whose calendar week starts on Sunday and make it active. This guards a
     // regression where goToDate floored to Monday regardless of the account's weekStartsOn.
     const sunStart = "acct-sun";
     useStore.getState().replaceAll(
@@ -233,7 +233,7 @@ function registerSchedulerUiPart7(): void {
     useStore.getState().setActiveAccount(sunStart);
     // 2026-09-09 is a Wednesday (verified); the Sunday that starts its week is 2026-09-06 (verified).
     useStore.getState().goToDate("2026-09-09");
-    expect(useStore.getState().ui.focusDate).toBe("2026-09-06"); // that week's Sunday, NOT 09-07 (Monday)
+    expect(useStore.getState().ui.focusDate).toBe("2026-09-06"); // that week's Sunday, not 09-07 (Monday)
     expect(weekdayOf(useStore.getState().ui.focusDate)).toBe(0); // 0 = Sunday
     // Origin sits the back-buffer behind the snapped Sunday, so the past stays scrollable.
     expect(useStore.getState().ui.originDate).toBe(addDaysISO("2026-09-06", -PAST_BUFFER_DAYS));

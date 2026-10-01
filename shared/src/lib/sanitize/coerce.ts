@@ -21,15 +21,15 @@ export const VALID_TIMEOFF = ["holiday", "sick", "unpaid", "other"] as const;
 export const oneOf = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T =>
   typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
 
-/** A RESOURCE's working day must be POSITIVE (a 0-hour working day has no capacity), route
- * it through the SHARED clampWorkingHoursPerDay so import and the store resource path agree
+/** A resource's working day must be positive (a 0-hour working day has no capacity), route
+ * it through the shared clampWorkingHoursPerDay so import and the store resource path agree
  * (a finite value clamps to (0,24]; junk / <= 0 / a non-number falls back to a normal 8h day). */
 export const clampHours = (value: unknown): number =>
   typeof value === "number" ? clampWorkingHoursPerDay(value) : FULL_DAY_HOURS;
 
 /** Allocation hours/day, unlike a resource's working day, may legitimately be 0 (a
  * "blocks"-mode booking persists hoursPerDay: 0, the span counts but the load doesn't).
- * Route a finite value through the SHARED clampHoursPerDay so import and the store write
+ * Route a finite value through the shared clampHoursPerDay so import and the store write
  * boundary can never drift (a negative clamps to 0, not the fallback); only a missing /
  * non-numeric / NaN value falls back to a normal 8h day. */
 export const clampAllocHours = (value: unknown, fallback: number): number =>
@@ -45,7 +45,7 @@ const isWeekday = (value: unknown): value is Weekday =>
 /** Repair a sloppily-formatted date to the canonical zero-padded "YYYY-MM-DD". The whole
  * app relies on dates being zero-padded so they sort chronologically as strings (see
  * isWithin), and the forms guarantee that, but a hand-edited import might carry
- * "2026-6-1". Pad it so the record is KEPT (the alternative, validateDateRange dropping
+ * "2026-6-1". Pad it so the record is kept (the alternative, validateDateRange dropping
  * it, silently loses real data). A value that isn't a recognizable Y-M-D is left as-is
  * for validateDateRange to reject. Real-calendar validity (e.g. month 13) is still its job. */
 export const normalizeISODate = (value: unknown): unknown => {
@@ -79,12 +79,12 @@ export const repairResourceAvailability = (record: Record<string, unknown>): voi
   }
 };
 
-/** DE-DUPLICATE: the scheduling math keys weekend-awareness on workingDays.length (a
+/** De-duplicate: the scheduling math keys weekend-awareness on workingDays.length (a
  * length-7 array means "works every calendar day"), so a duplicated set like
  * [1,1,1,1,1,1,1] would otherwise reach length 7 and model a Monday-only resource as a
  * 7-day worker. Collapse to the distinct sorted weekdays so length reflects real coverage.
- * NOTE this deliberately does NOT reuse normalizeAccountWorkingDays: that one REJECTS a whole
- * selection containing any junk, while a RESOURCE's week is repaired by FILTERING the junk out and
+ * Note this deliberately does not reuse normalizeAccountWorkingDays: that one rejects a whole
+ * selection containing any junk, while a resource's week is repaired by filtering the junk out and
  * keeping whatever real weekdays remain. Only the default they fall back to is shared. */
 export const safeWorkingDays = (value: unknown): Weekday[] => {
   if (!Array.isArray(value)) return defaultAccountWorkingDays();
@@ -117,10 +117,10 @@ export const cleanField = ({ record, field, multiline = false }: CleanFieldOptio
   record[field] = cleanText(record[field], { multiline });
 };
 
-/** Like cleanField, but for a REQUIRED text column (the server schema marks these NOT NULL).
+/** Like cleanField, but for a required text column (the server schema marks these NOT NULL).
  * Cleaning a hand-edited value can collapse it to empty (e.g. an emoji-only name), and a
  * missing value is empty too, either would survive in memory (which has no NOT NULL constraint)
- * yet be REJECTED by the server, diverging the two import paths. Fall back to a placeholder
+ * yet be rejected by the server, diverging the two import paths. Fall back to a placeholder
  * so a required column is never empty and both paths accept the record identically. */
 export const cleanRequiredField = (record: Record<string, unknown>, field: string, fallback: string): void => {
   const cleaned = typeof record[field] === "string" ? cleanText(record[field]) : "";

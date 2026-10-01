@@ -45,7 +45,7 @@ beforeEach(() => {
   resetStoreWithAccount();
   useStore.getState().clearFilters();
   // The placeholder-hiding behaviour is the system under test in some cases; default the device
-  // pref ON here so the pre-existing tests are unaffected, and flip it OFF in the dedicated tests.
+  // pref on here so the pre-existing tests are unaffected, and flip it off in the dedicated tests.
   setPlaceholdersEnabled({ on: true });
 });
 
@@ -310,7 +310,7 @@ it("HIDES a placeholder time-off entry when placeholders are OFF (data stays int
     .getState()
     .addTimeOff({ resourceId: ph.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" });
 
-  // Turn placeholders OFF. The entry must disappear from the rendered list…
+  // Turn placeholders off. The entry must disappear from the rendered list…
   setPlaceholdersEnabled({ on: false });
   render(<TimeOffList />);
   expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();

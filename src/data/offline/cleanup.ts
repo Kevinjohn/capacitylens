@@ -4,11 +4,11 @@ import { openOfflineDb, awaitTx } from "./idb";
 import { advanceWriteBoundary } from "./crypto";
 import { buildAuthKey, buildScopedKey } from "./keys";
 
-/** Shared cleanup shell. Both paths advance the write boundary BEFORE opening the database, run
+/** Shared cleanup shell. Both paths advance the write boundary before opening the database, run
  * exactly one keys+records transaction, always drop page-local state, and report a
  * preference-storage failure last so a deletion is never sacrificed to it. `mutate` may return a
  * promise that rejects on a request-level failure alongside the transaction's own outcome.
- * A user-scoped sign-out must TELL its caller when no records could be removed; the device-wide
+ * A user-scoped sign-out must tell its caller when no records could be removed; the device-wide
  * wipe has nothing left to promise, so it returns instead, hence the explicit parameter. */
 async function clearOfflineRecords(
   onMissingIndexedDb: "throw" | "return",

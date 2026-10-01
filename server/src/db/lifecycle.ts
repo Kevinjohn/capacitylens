@@ -9,9 +9,9 @@ import type { CompleteAccountSlice } from "./slices";
 import { removeAccountMemberResourcesForAccount } from "../controlTables/accountMemberResources";
 import { INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "./constants";
 export { markInitialized, isInitialized } from "./initialization";
-/** First-run seeding gate used by the server entrypoint: seed ONLY a never-initialised DB.
+/** First-run seeding gate used by the server entrypoint: seed only a never-initialised DB.
  * Gated on the persistent `initialized` marker, which survives the user emptying their
- * data, NOT on mere emptiness, so a user who deletes everything is NOT handed the demo
+ * data, not on mere emptiness, so a user who deletes everything is not handed the demo
  * dataset back on the next restart (the same predicate /api/meta reports). Seeding sets
  * the marker, so it fires exactly once. Returns whether it seeded. */
 export function seedIfUninitialized(db: Db, data: AppData): boolean {

@@ -271,9 +271,9 @@ describe("ActivityList", () => {
   });
 
   // An unresolvable projectId means different things per mode (mirrors ProjectList's clientName
-  // tests): in SERVER mode the per-account read strips archived parents from the slice, so it
-  // reads as "(archived project)"; in the DEMO build the raw slice retains archived projects, so
-  // it is genuinely dangling data and must NOT be dressed up as archival.
+  // tests): in server mode the per-account read strips archived parents from the slice, so it
+  // reads as "(archived project)"; in the demo build the raw slice retains archived projects, so
+  // it is genuinely dangling data and must not be dressed up as archival.
   const seedOrphanActivity = () => {
     useStore.getState().replaceAll(
       makeAppData({

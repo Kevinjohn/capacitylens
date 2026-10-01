@@ -17,7 +17,7 @@ import { cwd } from "node:process";
 // committed build and fail if someone swaps in a JS lightbox library, if the allowlist
 // grows, or if the plugin stops wrapping some images.
 //
-// What this does NOT check: that docs/ is up to date with docs-src/. Rebuilding and
+// What this does not check: that docs/ is up to date with docs-src/. Rebuilding and
 // diffing here would be far too slow for a unit test. That is why
 // .github/workflows/docs.yml rebuilds the site and fails on any diff against the
 // committed docs/. Without that step these assertions could pass against stale HTML

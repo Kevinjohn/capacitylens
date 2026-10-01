@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { jsonResponse } from "./fixtures";
 
-// The shared stub-Response factory. Its single-use-body property is the reason it is a FUNCTION and
+// The shared stub-Response factory. Its single-use-body property is the reason it is a function and
 // not a constant, and that is the mistake a caller can make silently, a second read of a reused
 // instance yields an empty body, which most decoders report as "invalid server response" rather than
 // as the test bug it is. Pin it here so the shape stays honest for every suite that adopts it.

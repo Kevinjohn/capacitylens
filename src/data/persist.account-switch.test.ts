@@ -11,7 +11,7 @@ import { internalClient, requireCallback, makeLocalTwoAccounts, accountSwitchSli
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account AND makes it active, so the add* calls below
+  // Seeds a single account and makes it active, so the add* calls below
   // (which now require an active account) work.
   resetStoreWithAccount();
 });
@@ -499,8 +499,8 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     detach();
   });
 
-  // The §5 correctness core at the persist layer: a tenant switch hydrates THAT account's slice and
-  // re-seeds the adapter's diff snapshot atomically, with NO spurious save of the loaded slice.
+  // The §5 correctness core at the persist layer: a tenant switch hydrates that account's slice and
+  // re-seeds the adapter's diff snapshot atomically, with no spurious save of the loaded slice.
   it("lets the account-transition owner await the subscriber's exact hydration, including null", async () => {
     let resolveLoad!: (data: AppData) => void;
     const load = new Promise<AppData>((resolve) => {
@@ -590,7 +590,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
     expect(loadAll).toHaveBeenCalledWith("a2"); // per-account hydration
     expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["c2"]); // slice loaded into the store
-    // The slice load must NOT read as a user edit → no save of the loaded slice.
+    // The slice load must not read as a user edit → no save of the loaded slice.
     expect(saveAll).not.toHaveBeenCalled();
     detach();
   });
@@ -635,10 +635,10 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
   it("FLUSHES (does not drop) account A's pending debounced edits before loading B's slice", async () => {
     // Regression guard for the data-loss edge: a user edits account A and switches to B
-    // WITHIN the debounce window. The orchestrator used to clearTimeout + pending=null, silently
-    // DROPPING A's last edit. It must instead FLUSH that pending write while data===A AND the diff
-    // snapshot===A (so the diff is A-vs-A, correct), landing it BEFORE B's slice load reseeds the
-    // snapshot to B, never a cross-account diff. Uses the REAL ServerSyncAdapter so the actual
+    // within the debounce window. The orchestrator used to clearTimeout + pending=null, silently
+    // dropping A's last edit. It must instead flush that pending write while data===A and the diff
+    // snapshot===A (so the diff is A-vs-A, correct), landing it before B's slice load reseeds the
+    // snapshot to B, never a cross-account diff. Uses the real ServerSyncAdapter so the actual
     // diff/snapshot logic runs against a fake fetch; we assert on the wire traffic.
     const { adapter, wire } = recordingAccountSwitchAdapter();
 
@@ -661,11 +661,11 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
     expect(useStore.getState().activeAccountId).toBe("a1");
 
-    // Genuine edit to A → DEBOUNCED (not yet on the wire). Capture its id to find it later.
+    // Genuine edit to A → debounced (not yet on the wire). Capture its id to find it later.
     const edited = requireCreated(useStore.getState().addClient({ name: "A only", color: "#222222" }));
     expect(wire.some((w) => w.ops)).toBe(false); // nothing flushed yet, still inside the 300ms window
 
-    // Switch to B BEFORE the debounce timer fires → must FLUSH A's edit, then load B.
+    // Switch to B before the debounce timer fires → must flush A's edit, then load B.
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "reloaded" });
 
     // A's edit reached the adapter (flushed, not dropped): a batch carrying A's client (a PUT, so
@@ -674,12 +674,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       o.row?.accountId === "a1" || o.accountId === "a1";
     const aBatchIdx = wire.findIndex((w) => w.ops?.some((o) => o.id === edited.id && carriesA(o)));
     expect(aBatchIdx).toBeGreaterThanOrEqual(0);
-    // And it landed BEFORE B's slice load (no window where a diff could cross accounts).
+    // And it landed before B's slice load (no window where a diff could cross accounts).
     const bLoadIdx = wire.findIndex((w) => w.url.includes("accountId=b1"));
     expect(bLoadIdx).toBeGreaterThanOrEqual(0);
     expect(aBatchIdx).toBeLessThan(bLoadIdx);
 
-    // After B loaded, NO batch carries A's ops (no cross-account diff B-vs-A).
+    // After B loaded, no batch carries A's ops (no cross-account diff B-vs-A).
     const afterB = wire.slice(bLoadIdx);
     expect(afterB.some((w) => w.ops?.some(carriesA))).toBe(false);
     expect(useStore.getState().activeAccountId).toBe("b1");

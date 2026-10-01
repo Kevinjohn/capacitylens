@@ -9,8 +9,8 @@ import { call, PASSWORD_ENV, signUp } from "./testHelpers/passwordAuth";
 import { redactSecretUrl } from "./routes/appLogging";
 import type { Db } from "./db";
 
-// CAPACITYLENS_LOG (opts.log): ON gives structured per-request JSON via Fastify's
-// bundled pino and routes the 500-path error through the request logger; OFF is byte-for-
+// CAPACITYLENS_LOG (opts.log): on gives structured per-request JSON via Fastify's
+// bundled pino and routes the 500-path error through the request logger; off is byte-for-
 // byte today's behaviour (no request logs, bare console.error on 500s). The logStream
 // seam exists only so these tests can read the JSON lines instead of stdout.
 
@@ -174,13 +174,13 @@ describe("CAPACITYLENS_LOG redaction (P0.5.5)", () => {
 });
 
 describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
-  // The invite-accept URL carries the bearer token in its PATH; pino logs req.url verbatim, so a
+  // The invite-accept URL carries the bearer token in its path; pino logs req.url verbatim, so a
   // serializer must mask the :token segment before it reaches stdout. Other URLs stay intact.
   it("rewrites /api/invites/<token>/accept to /api/invites/[redacted]/accept", async () => {
     const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     const TOKEN = "SENTINEL_LIVE_INVITE_TOKEN";
-    // The token is unknown → the route 404s, but the request IS logged with the URL we care about.
+    // The token is unknown → the route 404s, but the request is logged with the URL we care about.
     const res = await app.inject({
       method: "POST",
       url: `/api/invites/${TOKEN}/accept`,

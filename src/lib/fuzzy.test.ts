@@ -166,8 +166,8 @@ describe("fuzzyFilter — query and tie behavior", () => {
 
   it("sorts strictly by tier first, even when the tie-break would otherwise disagree", () => {
     const items = [
-      { id: "t0", name: "alphabetsoup" }, // starts with 'al' -> tier 0, but the LONGER name
-      { id: "t2", name: "zzalz" }, // contains 'al' -> tier 2, but the SHORTER name
+      { id: "t0", name: "alphabetsoup" }, // starts with 'al' -> tier 0, but the longer name
+      { id: "t2", name: "zzalz" }, // contains 'al' -> tier 2, but the shorter name
     ];
     expect(fuzzyFilter(items, "al", (i) => i.name).map((i) => i.id)).toEqual(["t0", "t2"]);
   });
@@ -175,14 +175,14 @@ describe("fuzzyFilter — query and tie behavior", () => {
   it("does not skip the tier compare on equal tiers (falls through to the length tie-break)", () => {
     const items = [
       { id: "long", name: "alphabet" }, // tier 0, length 8
-      { id: "short", name: "al" }, // tier 0, length 2, same tier, should sort FIRST (shorter)
+      { id: "short", name: "al" }, // tier 0, length 2, same tier, should sort first (shorter)
     ];
     expect(fuzzyFilter(items, "al", (i) => i.name).map((i) => i.id)).toEqual(["short", "long"]);
   });
 
   it("breaks a same-tier tie by length even when alpha order disagrees", () => {
     const items = [
-      { id: "short", name: "qz" }, // tier 0, length 2, alphabetically AFTER 'qaaaaa'
+      { id: "short", name: "qz" }, // tier 0, length 2, alphabetically after 'qaaaaa'
       { id: "long", name: "qaaaaa" }, // tier 0, length 6
     ];
     // Length wins: shorter ('qz') sorts first, even though 'qz' > 'qaaaaa' alphabetically.
@@ -198,7 +198,7 @@ describe("fuzzyFilter — query and tie behavior", () => {
   });
 
   it("keeps the same tiers as fuzzyScore even though the query is folded once for the whole pass", () => {
-    // fuzzyFilter folds the TRIMMED query a single time and scores against that; fuzzyScore folds
+    // fuzzyFilter folds the trimmed query a single time and scores against that; fuzzyScore folds
     // per call. The two must agree for every item, including when the query needs both trimming and
     // diacritic folding, or the sort order silently diverges from the documented tiers.
     const items = [

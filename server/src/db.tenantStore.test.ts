@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 // Prove the per-account scoped read primitive (readSlice) + the TenantStore seam isolate one
-// account's slice and NEVER leak another tenant's rows, the no-cross-tenant invariant the whole
+// account's slice and never leak another tenant's rows, the no-cross-tenant invariant the whole
 // tenancy seam rests on. Mirrors app.test.ts's openDb(':memory:') + plain-row fixture pattern; seeds
 // directly via insertAll (parent-first) so it tests the db layer, not the routes.
 
@@ -142,7 +142,7 @@ const timeOff = ({ id, accountId, resourceId, note }: TimeOffInput) => ({
   ...meta(),
 });
 
-/** All readSlice calls below pass includeTimeOffNote (REQUIRED) AND includeInactive (REQUIRED);
+/** All readSlice calls below pass includeTimeOffNote (required) and includeInactive (required);
  * the isolation/shape tests want the FULL slice, so they pass both `true` (every note + every
  * archived/deleted row). The note redaction and the lifecycle projection each get their
  * own describe block where the relevant flag is flipped. */
@@ -198,7 +198,7 @@ function createReadSliceBaseTests(): void {
     for (const key of SCOPED_KEYS) {
       const rows = slice[key];
       expect(rows.length).toBe(1);
-      // ZERO rows from a2 in any scoped table, the no-cross-tenant invariant.
+      // Zero rows from a2 in any scoped table, the no-cross-tenant invariant.
       expect(rows.every((r) => (r as { accountId: string }).accountId === "a1")).toBe(true);
     }
   });
@@ -218,7 +218,7 @@ function createReadSliceBaseTests(): void {
     const slice = readSlice(db, "does-not-exist", FULL);
     expect(slice.accounts).toEqual([]);
     for (const key of SCOPED_KEYS) expect(slice[key]).toEqual([]);
-    // Result has EVERY AppData key present (starts from emptyAppData), not a partial object.
+    // Result has every AppData key present (starts from emptyAppData), not a partial object.
     expect(Object.keys(slice).sort()).toEqual(Object.keys(emptyAppData()).sort());
   });
   it("round-trips optional + json columns through the codec", () => {
@@ -483,7 +483,7 @@ describe("sqliteTenantStore", createSqliteTenantStoreTests);
 
 describe("readSlice — P1.6 time-off note redaction", () => {
   // Seed a1 with a time-off row carrying a note; the standalone primitive decides note visibility
-  // from the REQUIRED includeTimeOffNote flag (the route maps it to canSeeTimeOffNote(role)).
+  // from the required includeTimeOffNote flag (the route maps it to canSeeTimeOffNote(role)).
   const NOTE = "PRIVATE_TIMEOFF_NOTE";
   function seedWithNote(): Db {
     const db = openDb(":memory:");
@@ -576,7 +576,7 @@ describe("readSlice — private client/project name redaction", () => {
 const ARCH = "2026-03-01T00:00:00.000Z";
 const DEL = "2026-04-01T00:00:00.000Z";
 
-// One account 'a1' with a MIX in each lifecycle-bearing table: an active + an archived resource,
+// One account 'a1' with a mix in each lifecycle-bearing table: an active + an archived resource,
 // an active + a soft-deleted client, an active + a soft-deleted project. Plus a phase, an activity
 // and a time-off row (no lifecycle field) to prove they pass through regardless of the flag.
 function seedLifecycleMix(): Db {
@@ -600,7 +600,7 @@ function seedLifecycleMix(): Db {
     person("r-active", "a1", "d1"),
     { ...person("r-archived", "a1", "d1"), archivedAt: ARCH }, // archived (not deleted)
   ];
-  // Non-lifecycle children, must survive BOTH flags untouched.
+  // Non-lifecycle children, must survive both flags untouched.
   d.phases = [phase("ph1", "a1", "p-active")];
   d.activities = [activity("act1", "a1", "p-active")];
   d.timeOff = [timeOff({ id: "to1", accountId: "a1", resourceId: "r-active" })];
@@ -622,7 +622,7 @@ function createLifecycleProjectionReadTests(): void {
     expect(slice.resources.map((r) => r.id)).toEqual(["r-active"]);
     expect(slice.clients.map((c) => c.id)).toEqual(["c-active"]);
     expect(slice.projects.map((p) => p.id)).toEqual(["p-active"]);
-    // Non-lifecycle tables are NEVER filtered, pass through unchanged.
+    // Non-lifecycle tables are never filtered, pass through unchanged.
     expect(slice.phases.map((p) => p.id)).toEqual(["ph1"]);
     expect(slice.activities.map((a) => a.id)).toEqual(["act1"]);
     expect(slice.timeOff.map((t) => t.id)).toEqual(["to1"]);
@@ -645,7 +645,7 @@ function createLifecycleProjectionReadTests(): void {
 
   it("the rows remain in the DB (retained) — the WHOLE-tree loadState still sees every row", () => {
     const db = seedLifecycleMix();
-    // The projection narrows the READ only; nothing is deleted. loadState (export/OFF whole read) keeps all.
+    // The projection narrows the read only; nothing is deleted. loadState (export/OFF whole read) keeps all.
     const all = readState(db);
     expect(all.resources.filter((r) => r.accountId === "a1").length).toBe(2);
     expect(all.clients.filter((c) => c.accountId === "a1").length).toBe(2);

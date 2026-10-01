@@ -72,9 +72,9 @@ export type CreationBlockReason = "non-working" | "time-off";
 const NO_TIME_OFF: TimeOff[] = [];
 const NO_CLOSURES: Closure[] = [];
 
-/** THE start-of-gesture gate, shared by every surface that asks "may a bar start on this
+/** The start-of-gesture gate, shared by every surface that asks "may a bar start on this
  * resource-day?" (the model's per-day `creationBlocked`, the grid's draw commit, and the
- * drag/keyboard move paths). Returns the REASON so a caller that must tell the two apart can,
+ * drag/keyboard move paths). Returns the reason so a caller that must tell the two apart can,
  * without re-deriving either rule. `timeOff` need not be pre-filtered by resource. */
 export function resolveCreationBlockReason({
   resource,
@@ -144,7 +144,7 @@ export function isCreationStartBlockedForEffectiveWeek({
   return resolveEffectiveWeekCreationBlockReason({ resource, date, timeOff, effectiveWeek, closures }) !== null;
 }
 
-/** Whether recurring company/personal calendars reject an EXISTING allocation's proposed start.
+/** Whether recurring company/personal calendars reject an existing allocation's proposed start.
  * The allocation-level override intentionally bypasses both; time off is a separate conflict. */
 export function isAllocationMoveStartBlocked({
   resource,

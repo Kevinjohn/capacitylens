@@ -3,7 +3,7 @@ import { createContext, useContext } from "react";
 // Auth context, separate from AuthProvider so component files
 // export only components (react-refresh) and consumers (SettingsView) don't import the
 // provider machinery. The server's reported authMode is the single source of truth,
-// there is NO client-side auth flag; the default below is what the demo build and an
+// there is no client-side auth flag; the default below is what the demo build and an
 // auth-off server both resolve to, so consumers rendered without a provider (unit
 // tests, storybook-style isolation) behave exactly like today's app.
 
@@ -52,10 +52,10 @@ export interface AuthContextValue {
   /** Configured public provider metadata. Needed by pre-session invite and re-authentication
    * surfaces so they use the same server-owned provider list as the ordinary login wall. */
   providers?: readonly AuthProviderInfo[];
-  /** May the UI offer to create ANOTHER company? Mirrors the server's POST /api/orgs gate, the
-   * single-company-per-instance cap AND the caller's standing (auth-on: an active owner/admin
-   * somewhere, or first-run bootstrap). The SERVER stays the authoritative enforcer (the create
-   * POST still 403s). This only hides the "New company" affordance. FAIL-OPEN default `true`
+  /** May the UI offer to create another company? Mirrors the server's POST /api/orgs gate, the
+   * single-company-per-instance cap and the caller's standing (auth-on: an active owner/admin
+   * somewhere, or first-run bootstrap). The server stays the authoritative enforcer (the create
+   * POST still 403s). This only hides the "New company" affordance. Fail-open default `true`
    * whenever the fact is unavailable (demo build, a fetch failure, a 401/503 response, or an
    * older server that predates these fields), so a client-side unknown never hides a legitimate
    * affordance; the server 403 is the real backstop. */
@@ -69,10 +69,10 @@ export interface AuthContextValue {
   /** Current identity's method for fresh authentication. */
   reauthMethod?: "password" | "provider";
   /** Re-asks GET /api/auth/me mid-session. The server recomputes `canCreateAccount` per request
-   * from MUTABLE state (account count + the caller's membership roles), so a client action that
+   * from mutable state (account count + the caller's membership roles), so a client action that
    * changes that state, creating or deleting a company, must call this or the picker gates its
    * affordances on a stale boot-time snapshot (deleting the only company would otherwise strand
-   * the user on an empty state with no "New company" button until a manual reload). TOTAL: never
+   * the user on an empty state with no "New company" button until a manual reload). Total: never
    * rejects, an unresolved refresh keeps the previous snapshot with a `console.warn` breadcrumb
    * (fail-open; the server 403 stays the real enforcer), so `void refreshAuth()` is safe to
    * fire-and-forget. No-op in the demo build and in the providerless default below. */

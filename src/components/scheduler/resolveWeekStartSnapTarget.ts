@@ -10,8 +10,8 @@ import type { ISODate } from "@capacitylens/shared/types/entities";
 // (Feature 2's scroll-idle snap) calls this; the geometry is built by the exhaustively-tested
 // buildColumnGeometry, so the px↔day↔date round-trip is exact at integer boundaries.
 //
-// FLOOR, never forward, by design. Forward weeks are reached via Prev/Next; a free scroll only ever
-// settles BACKWARD onto its own week start. And it converges in ONE step: a programmatic scroll
+// Floor, never forward, by design. Forward weeks are reached via Prev/Next; a free scroll only ever
+// settles backward onto its own week start. And it converges in one step: a programmatic scroll
 // (zoom / recenter, Feature 1) has already landed on a week start, so target ≈ scrollLeft, the
 // epsilon guard returns null, and the caller no-ops. No feedback loop where the snap re-triggers
 // itself.
@@ -36,23 +36,23 @@ export interface WeekStartSnapTargetInput {
  * @param input.epsilon convergence tolerance in px (default 0.5): treat a raw scroll position
  * within half a pixel of the target as aligned, including fractional positions.
  * @returns the target `scrollLeft` px to floor-snap to, or `null` when already within `epsilon`
- * of the week start (a no-op, the caller must NOT write, or the snap re-arms itself).
+ * of the week start (a no-op, the caller must not write, or the snap re-arms itself).
  *
- * PURE. For an aligned geometry/day window, never throws and never returns NaN:
+ * Pure. For an aligned geometry/day window, never throws and never returns NaN:
  * `xForDateInGeom` returns 0 (not NaN) for an unparseable date, so a bad date degrades to a
  * harmless `0` target rather than corrupting the scroll position.
  *
- * SUB-PIXEL ROUNDING (the canonical note, `ColumnGeometry.indexAtScroll` points here): the
+ * Sub-pixel rounding (the canonical note, `ColumnGeometry.indexAtScroll` points here): the
  * left-edge day is resolved from `Math.round(scrollLeft)`, not the raw value. Column offsets are
  * integers and a settled scrollLeft is *meant* to be integer, but a HiDPI
  * browser (Firefox in particular, devicePixelRatio > 1) can store scrollLeft as a fraction just
  * *below* an integer column boundary (e.g. `mondayOffset - 0.4`). `indexAt` floors strictly (largest
- * i with `offsets[i] <= px`), so without rounding that fraction resolves to the PREVIOUS day, under
- * minimised weekends the narrow Sunday, and `startOfWeekISO` of *that* day is the PREVIOUS week's
+ * i with `offsets[i] <= px`), so without rounding that fraction resolves to the previous day, under
+ * minimised weekends the narrow Sunday, and `startOfWeekISO` of *that* day is the previous week's
  * start, so the floor-snap would jump the view back a whole week. The 0.5px convergence guard below
- * does NOT catch this: the computed target is a week away, far outside epsilon. Rounding first makes
+ * does not catch this: the computed target is a week away, far outside epsilon. Rounding first makes
  * a sub-pixel-below-boundary position resolve to the column it's essentially already at. The
- * convergence check still compares the RAW `scrollLeft` to `target`. It measures the real distance
+ * convergence check still compares the raw `scrollLeft` to `target`. It measures the real distance
  * the caller must move, which is what the no-op decision turns on.
  */
 export function resolveWeekStartSnapTarget({

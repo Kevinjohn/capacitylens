@@ -26,13 +26,13 @@ export interface DaysModeOpts {
 }
 
 /** Upper bound for a (days-over) span. ~100 working/calendar years, far beyond any real
- * allocation. The SAME number as dateMath's materialisation ceiling (one constant, two names) so a
+ * allocation. The same number as dateMath's materialisation ceiling (one constant, two names) so a
  * span that validates here can always be materialised. endDateForSpan also clamps this against the
  * days remaining in the four-digit ISO date domain because the fixed cap alone cannot protect a
  * start close to 9999-12-31. */
 export const MAX_SPAN_DAYS = MAX_MATERIALISED_DAYS;
 
-/** Which rule this call counts days by. Resolving the weekend-aware branch ONCE, and carrying the
+/** Which rule this call counts days by. Resolving the weekend-aware branch once, and carrying the
  * working-day array in the "workingDays" arm, is what lets the entry points below drop the
  * `opts.workingDays!` non-null assertions they each used to repeat. */
 type SchedulingModeResolution = { kind: "calendar" } | { kind: "workingDays"; days: Weekday[] };

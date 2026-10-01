@@ -68,8 +68,8 @@ export async function bootstrap(
         ? await adapter.loadAll(undefined, { skipRemoteRead: true })
         : await adapter.loadAll();
   } catch (error) {
-    // Stored data couldn't be loaded. Render an empty dataset, but DELIBERATELY
-    // attach NO persistence and run NO seed-save. The next mutation must not
+    // Stored data couldn't be loaded. Render an empty dataset, but deliberately
+    // attach no persistence and run no seed-save. The next mutation must not
     // overwrite recoverable data. Route to the recovery UI that fits the failure:
     //   - 'unavailable' (a remote/server load failed): a retry screen. Clearing
     //     local storage would do nothing for a server-backed app that's merely down.
@@ -78,8 +78,8 @@ export async function bootstrap(
     return recordLoadFailure(store, error);
   }
   // Seed only when nothing was ever stored, never resurrect data the user cleared.
-  // hasExisting (e.g. the server's /api/meta) decides ONLY whether to seed. If it throws
-  // AFTER a successful load, don't discard the loaded data or skip attaching persistence
+  // hasExisting (e.g. the server's /api/meta) decides only whether to seed. If it throws
+  // after a successful load, don't discard the loaded data or skip attaching persistence
   // (which would brick saving and show a misleading banner), fall back to inferring
   // existence from the loaded data itself, so we still skip seeding when there's data.
   const existed = await resolveExisting(adapter, loaded);
@@ -90,7 +90,7 @@ export async function bootstrap(
   store.getState().replaceAll(initial);
   store.getState().setHydrated(true);
   // Guard the first-run seed write: a failure here (quota / private mode) must
-  // surface via onError AND must NOT stop persistence from being attached,
+  // surface via onError and must not stop persistence from being attached,
   // otherwise the session would silently never save and never show the banner.
   if (seedNeeded) await saveInitialSeed(adapter, initial, options.onError);
 

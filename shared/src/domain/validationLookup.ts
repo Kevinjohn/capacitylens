@@ -65,7 +65,7 @@ export const resolveValidationRow = ({
   return (data[table] as unknown as (Record<string, unknown> & { id: ID })[]).find((row) => row.id === id);
 };
 
-/** Fetch a row and narrow it to THIS account in one step. An ABSENT row and a CROSS-ACCOUNT row both
+/** Fetch a row and narrow it to this account in one step. An absent row and a cross-account row both
  * read as `undefined`, so every caller keeps its own domain-specific rejection message. */
 export const resolveOwnedRow = <T extends ScopedEntity>({
   data,
@@ -78,7 +78,7 @@ export const resolveOwnedRow = <T extends ScopedEntity>({
   return row && belongsToAccount(row, accountId) ? row : undefined;
 };
 
-/** The account's allocations on ONE end of the pair, beside {@link resolveValidationRow}: the indexed
+/** The account's allocations on one end of the pair, beside {@link resolveValidationRow}: the indexed
  * server-batch lookup when a large transaction supplies one, otherwise a scan of the local array. */
 export const listValidationAllocations = ({
   data,
@@ -122,7 +122,7 @@ export const isEffectivelyActive = ({ data, table, row, lookup }: IsEffectivelyA
     lifecycleStatus(row) === "active" &&
     inspectLifecycleAncestry(
       table,
-      // The ONE named seam for the single cast the ancestry walk needs: an interface-typed entity
+      // The one named seam for the single cast the ancestry walk needs: an interface-typed entity
       // carries no implicit index signature, so TypeScript can't see it as the loose
       // LifecycleAncestryRow the walk reads by field name. Every field the walk touches
       // (id / accountId / tombstones / FK ids) is present on these rows.

@@ -5,9 +5,9 @@ import { m } from "@/i18n";
 // can be exported without tripping react-refresh/only-export-components, the controls.ts idiom.
 
 /** Map the redeem endpoint's failure body to the surfaced message. Better Auth 400s carry a typed
- * `{ code }`: INVALID_TOKEN covers unknown/used/expired alike (single-use tokens are CONSUMED on
- * redeem, so "used" is indistinguishable from "unknown" by design). We map ONLY recognised codes and
- * otherwise fall back to our generic message. We deliberately do NOT surface a raw server
+ * `{ code }`: INVALID_TOKEN covers unknown/used/expired alike (single-use tokens are consumed on
+ * redeem, so "used" is indistinguishable from "unknown" by design). We map only recognised codes and
+ * otherwise fall back to our generic message. We deliberately do not surface a raw server
  * `body.message`, because an off-mode server (where this route isn't mounted) answers with Fastify's
  * internal "Route POST:/api/auth/reset-password not found" string, which must never reach the user.
  * Exported so this library-shape sniff is test-pinned per DEFENSIVE-CODING.md §2, see

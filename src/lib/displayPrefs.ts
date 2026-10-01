@@ -7,11 +7,11 @@
 // everything) on first run; other prefs in this file carry their own documented
 // defaults (the sidebar is tri-state; fake-sign-in and intro-seen default off).
 //
-// ON THE SWALLOW (deliberate): every localStorage access below is wrapped and falls back to a
-// documented default. This is the ONE category where swallow-to-default is correct (see
-// DEFENSIVE-CODING.md §5). These are device-global, NON-TENANT view toggles, so a blocked /
-// private-mode / quota / corrupt store can lose a toggle but can NEVER corrupt account data, and
-// the in-memory store still honours the choice for the session. Do NOT copy this onto a data path.
+// On the swallow (deliberate): every localStorage access below is wrapped and falls back to a
+// documented default. This is the one category where swallow-to-default is correct (see
+// DEFENSIVE-CODING.md §5). These are device-global, non-tenant view toggles, so a blocked /
+// private-mode / quota / corrupt store can lose a toggle but can never corrupt account data, and
+// the in-memory store still honours the choice for the session. Do not copy this onto a data path.
 
 // All keys below carry the shared brand prefix (defined once in shared/src/brand.ts) so clearing /
 // migrating by prefix catches every one of them.
@@ -41,7 +41,7 @@ interface WriteStoredSidebarOpenInput {
 // Two encodings serve every pref in this file: a single boolean stored as the literal string
 // 'on'/'off' under its own key (readBooleanPreference/writeBooleanPreference), and a small record of booleans
 // stored as JSON (readBooleanRecordPreference/writeBooleanRecordPreference). The sidebar pref below is deliberately
-// NEITHER: it is tri-state ('open'/'closed'/never-chosen). All four helpers share the swallow
+// neither: it is tri-state ('open'/'closed'/never-chosen). All four helpers share the swallow
 // rule from the file header: a blocked/corrupt store loses the toggle but can never touch tenant
 // data.
 
@@ -224,25 +224,25 @@ export function readDefaultSidebarOpen(): boolean {
 }
 
 // "Minimise weekends": shrink the Saturday/Sunday columns on the schedule to a sliver.
-// Device-global like the prefs above (own key, not account data), but DEFAULTS ON, the owner's
+// Device-global like the prefs above (own key, not account data), but defaults on, the owner's
 // stated default. A plain on/off string (like the sidebar) rather than JSON: it's a single bool.
 export const [readStoredMinimiseWeekends, writeStoredMinimiseWeekends] = createBooleanPreference({
   key: "minimiseWeekends",
   fallback: true,
 });
 
-// Week snap: after a FREE horizontal scroll settles, the schedule floors its left edge back to the
+// Week snap: after a free horizontal scroll settles, the schedule floors its left edge back to the
 // current week's first day, so a stray scroll can't leave the view on a mid-week day. Always on for
-// users, with no Settings control. The storage key remains ONLY as a test override: browser tests
+// users, with no Settings control. The storage key remains only as a test override: browser tests
 // store "off" to hold a mid-week position across the idle re-floor (see e2e/browserTestSupport.ts).
-// Governs FREE SCROLL ONLY; the navigation snap (zoom / Prev-Next / date-picker) is always on.
+// Governs free scroll only; the navigation snap (zoom / Prev-Next / date-picker) is always on.
 export const WEEK_SNAP_OVERRIDE_KEY = "snapToWeekStart";
 export const [readStoredWeekSnapOverride] = createBooleanPreference({ key: WEEK_SNAP_OVERRIDE_KEY, fallback: true });
 
-// "Fake sign-in": a COSMETIC demo gate shown before the account picker so a viewer sees a
+// "Fake sign-in": a cosmetic demo gate shown before the account picker so a viewer sees a
 // "log in first, then pick a company" flow. Device-global like the prefs above (own key,
-// on/off string, NOT account data) and DEFAULTS OFF so the demo sign-in shows on first run.
-// This is NOT real auth. The real, server-authoritative seam is `src/auth/`. The flag is
+// on/off string, not account data) and defaults off so the demo sign-in shows on first run.
+// This is not real auth. The real, server-authoritative seam is `src/auth/`. The flag is
 // flipped on by the demo sign-in screen and cleared by "Sign out". See
 // `src/components/FakeSignIn.tsx` and DECISIONS.md.
 export const [readStoredFakeSignedIn, writeStoredFakeSignedIn] = createBooleanPreference({

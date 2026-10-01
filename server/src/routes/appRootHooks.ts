@@ -201,11 +201,11 @@ export function installRootHooks({ app, db, runtime, config, options }: InstallR
   const securityEvent = createSecurityEvent({ app: app, options: options, logOn: logOn });
   installConnectionHooks(app, options, securityEvent);
   installAuthTransactionGate(app, db);
-  // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
+  // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, not a wildcard.
   const corsOrigin = options.corsOrigin ?? DEFAULT_CORS;
   const corsOrigins = resolveCorsOrigins(corsOrigin);
-  // 500s with logging ON go through the request-scoped logger (one parseable JSON line,
-  // correlated with the request); OFF keeps today's bare console.error.
+  // 500s with logging on go through the request-scoped logger (one parseable JSON line,
+  // correlated with the request); off keeps today's bare console.error.
   const sendFail = (reply: FastifyReply, error: unknown) =>
     fail(reply, error, logOn ? (e: unknown) => reply.log.error(e) : undefined);
   const accountFail = (reply: FastifyReply, error: unknown) => {
@@ -225,7 +225,7 @@ export function installRootHooks({ app, db, runtime, config, options }: InstallR
       ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
     });
   };
-  // Single redaction funnel for any UNCAUGHT throw (a route that forgot a try/catch, a
+  // Single redaction funnel for any uncaught throw (a route that forgot a try/catch, a
   // SQLITE_BUSY thrown mid-statement). Positively identified parsing errors carry safe messages.
   // A duck-typed statusCode alone proves nothing about message safety; unknown errors route through
   // fail() so a 500 stays generic and a 400 DB-constraint message cannot leak schema internals.

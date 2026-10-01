@@ -62,7 +62,7 @@ describe("parseText (optional fields)", () => {
     const fail = vi.fn();
     const atLimit = "a".repeat(MAX_NAME_LENGTH);
     const overLimit = "a".repeat(MAX_NAME_LENGTH + 1);
-    expect(parseText(atLimit, fail)).toBe(atLimit); // exactly at cap: NOT too long
+    expect(parseText(atLimit, fail)).toBe(atLimit); // exactly at cap: not too long
     expect(fail).not.toHaveBeenCalled();
     expect(parseText(overLimit, fail)).toBeNull(); // one over: too long
     expect(fail).toHaveBeenCalledWith("name", m.validation_text_too_long());

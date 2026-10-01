@@ -72,7 +72,7 @@ function seedWorkspace(db: Db): void {
   });
 }
 
-// Bypasses upsertMember's automatic bumpSecurityRevision, so the membership row exists with NO
+// Bypasses upsertMember's automatic bumpSecurityRevision, so the membership row exists with no
 // account_security_revisions row, the "never signed in since" case the 0-default must cover.
 function insertMemberRaw(
   db: Db,

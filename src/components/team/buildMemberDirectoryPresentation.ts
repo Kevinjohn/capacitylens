@@ -45,7 +45,7 @@ export function buildMemberDirectoryPresentation(members: Member[] | null) {
     grouped[member.status === "active" && !member.accessDisabled ? "active" : "inactive"].push(member);
   const activeMembers = members ? grouped.active.sort(compareMembers) : null;
   const inactiveMembers = grouped.inactive.sort(compareMembers);
-  // Labels are resolved HERE, at render, not at module scope: a locale change must be reflected
+  // Labels are resolved here, at render, not at module scope: a locale change must be reflected
   // without reloading the module. Both the invite form and the pencil's editor offer the
   // same list, so it is built once.
   const roleOptions = ASSIGNABLE_ROLES.map((value) => ({ value, label: resolveRoleLabel(value) }));

@@ -17,7 +17,7 @@ import { call, PASSWORD_ENV, cookiesOf } from "./testHelpers/passwordAuth";
 import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
 // CAPACITYLENS_MODE (opts.authMode/auth). The load-bearing assertion set:
-// OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
+// Off is byte-for-byte today (the whole existing app.test.ts suite already enforces that
 // by running unchanged. These tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
@@ -754,7 +754,7 @@ function registerAuthModeRefusalTests(): void {
 function registerCredentialAndDiscoveryConfigurationTests(): void {
   it("password mode with an exactly-32-char secret passes the length gate", () => {
     const db = openDb(":memory:");
-    // PASSWORD_ENV has a valid URL; a 32-char secret must NOT trip the length check.
+    // PASSWORD_ENV has a valid URL; a 32-char secret must not trip the length check.
     expect(() =>
       createAuthFromEnvironment(db, {
         ...PASSWORD_ENV,

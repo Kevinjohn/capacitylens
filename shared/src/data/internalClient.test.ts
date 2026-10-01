@@ -44,7 +44,7 @@ function registerSeedTests(): void {
     expect(once.clients.filter((c) => c.builtin)).toHaveLength(2);
     expect(internalClientFor(once.clients, "a1")).toBeDefined();
     expect(internalClientFor(once.clients, "a2")).toBeDefined();
-    // Run again, no duplicate, and (no change) returns the SAME reference.
+    // Run again, no duplicate, and (no change) returns the same reference.
     const twice = applyInternalClientRepairs(once, TS);
     expect(twice).toBe(once);
     expect(twice.clients.filter((c) => c.builtin)).toHaveLength(2);
@@ -287,8 +287,8 @@ function registerRepairBoundaryTests(): void {
       clients: [buildInternalClient("a1", TS)],
     };
     const repaired = applyInternalClientRepairs(data, NOW);
-    expect(internalClientFor(repaired.clients, "a2")).toBeDefined(); // the function DID run
-    expect(requiredInternalClient(repaired.clients, "a1").updatedAt).toBe(TS); // canonical row NOT restamped
+    expect(internalClientFor(repaired.clients, "a2")).toBeDefined(); // the function did run
+    expect(requiredInternalClient(repaired.clients, "a1").updatedAt).toBe(TS); // canonical row not restamped
   });
 }
 
@@ -301,7 +301,7 @@ function registerMigrationTests(): void {
           { id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
           { id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
         ],
-        // a1 already has a builtin Internal (must NOT be duplicated); a2 has none.
+        // a1 already has a builtin Internal (must not be duplicated); a2 has none.
         clients: [
           {
             id: "pre-internal",
@@ -366,11 +366,11 @@ function registerPublicPredicateTests(): void {
     const clients = [existing];
     // No builtin yet for this account → first builtin is allowed.
     expect(wouldAddSecondBuiltin([], "a1", "c-int")).toBe(false);
-    // A DIFFERENT id against an account that already has one → would be a second → reject.
+    // A different id against an account that already has one → would be a second → reject.
     expect(wouldAddSecondBuiltin(clients, "a1", "c-int2")).toBe(true);
-    // The SAME id (updating the existing builtin) → not a second → allowed.
+    // The same id (updating the existing builtin) → not a second → allowed.
     expect(wouldAddSecondBuiltin(clients, "a1", "c-int")).toBe(false);
-    // A different ACCOUNT that has no builtin → allowed (per-account scoping).
+    // A different account that has no builtin → allowed (per-account scoping).
     expect(wouldAddSecondBuiltin(clients, "a2", "c-int-2")).toBe(false);
   });
 }

@@ -489,7 +489,7 @@ function registerWeekendRuleTests() {
 
 function registerNonWorkingWeekdayTest() {
   it("skips a non-working WEEKDAY too, not just Sat/Sun (a Mon–Wed part-timer)", () => {
-    // The narrowed rule is about NON-WORKING days, not literally weekends: a Mon–Wed resource works
+    // The narrowed rule is about non-working days, not literally weekends: a Mon–Wed resource works
     // none of Thu/Fri/Sat/Sun, so a weekend-aware allocation spanning into them does no work there.
     const monWed = makeResource({ workingDays: [1, 2, 3] });
     const allocs = [
@@ -1090,7 +1090,7 @@ function registerBlocksAdvisoryTests() {
         timeOff: [],
       }).overDays,
     ).toBe(0);
-    // Blocks propose 0 load too, so nothing is over, whereas the RAW hourly rows would flag
+    // Blocks propose 0 load too, so nothing is over, whereas the raw hourly rows would flag
     // nothing here either; the difference shows when the proposal itself carries hours.
     expect(
       capacityAdvisory({
@@ -1113,7 +1113,7 @@ function registerBlocksAdvisoryTests() {
 
   it("does not count an existing weekend-aware allocation on a weekend day it merely spans", () => {
     // The other allocation spans Fri-Mon but (weekend-aware, no ignoreWeekends) does no work on
-    // Sat. The proposal opts INTO the weekend via ignoreWeekends with 0 hours, so a spurious
+    // Sat. The proposal opts into the weekend via ignoreWeekends with 0 hours, so a spurious
     // carry-over of the other allocation's hours onto Sat would wrongly flag it as over.
     const others = [
       makeAlloc({
@@ -1302,8 +1302,8 @@ describe("dayCapacity over-allocation", () => {
 
   registerTimeOffAndWeekdayTests();
 
-  // The acceptance boundary: "over" is STRICTLY allocated > available. Exactly AT capacity
-  // (8 vs 8) is NOT over (no red); one hour over (9 vs 8) IS over (red). Lock both ends.
+  // The acceptance boundary: "over" is strictly allocated > available. Exactly at capacity
+  // (8 vs 8) is not over (no red); one hour over (9 vs 8) is over (red). Lock both ends.
   registerStrictCapacityTests();
 
   registerFractionalCapacityTest();
@@ -1318,7 +1318,7 @@ describe("utilization", () => {
 });
 
 // The near-term "over soon" radar is a `.some(day => day.over)` over the window's capacity, the
-// scheduler model runs it against its own memoised per-date capacity, so these cases pin the RULE
+// scheduler model runs it against its own memoised per-date capacity, so these cases pin the rule
 // (which days may read as over) on the straight-line definition both paths agree on.
 describe("over-allocated inside a window", () => {
   const r = makeResource();

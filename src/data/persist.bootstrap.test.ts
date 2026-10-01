@@ -9,7 +9,7 @@ import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "@/test/f
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account AND makes it active, so the add* calls below
+  // Seeds a single account and makes it active, so the add* calls below
   // (which now require an active account) work.
   resetStoreWithAccount();
 });
@@ -30,12 +30,12 @@ describe("bootstrap", () => {
 
   it("does not re-seed after the user has cleared all their data", async () => {
     const adapter = new InMemoryDemoAdapter();
-    await adapter.saveAll(emptyAppData()); // user deleted everything; empty IS persisted
+    await adapter.saveAll(emptyAppData()); // user deleted everything; empty is persisted
     const detach = await bootstrap(useStore, adapter, {
       debounceMs: 0,
       seedIfEmpty: seed(),
     });
-    expect(useStore.getState().data.resources).toHaveLength(0); // seed must NOT come back
+    expect(useStore.getState().data.resources).toHaveLength(0); // seed must not come back
     detach();
   });
 
@@ -59,7 +59,7 @@ describe("bootstrap", () => {
     expect(useStore.getState().hydrated).toBe(true); // app still renders
     expect(errors).toHaveLength(1); // the failure surfaced (would flip the banner)
     // Bootstrap deliberately leaves company selection at the picker. Choose the seeded tenant, then
-    // prove persistence is STILL attached: a later edit persists via the now-working adapter.
+    // prove persistence is still attached: a later edit persists via the now-working adapter.
     const seededAccount = useStore.getState().data.accounts[0];
     if (!seededAccount) throw new Error("expected bootstrap to retain the seeded account");
     useStore.getState().setActiveAccount(seededAccount.id);
@@ -112,7 +112,7 @@ describe("bootstrap", () => {
 
   it("keeps loaded data and attaches persistence when hasExisting() throws after a successful load", async () => {
     // Server mode: /api/state succeeds but /api/meta has a transient blip. The loaded data
-    // must NOT be discarded and saving must NOT be bricked by the hasExisting() throw.
+    // must not be discarded and saving must not be bricked by the hasExisting() throw.
     const loaded = makeAppData({
       clients: [
         {
@@ -140,9 +140,9 @@ describe("bootstrap", () => {
     expect(useStore.getState().hydrated).toBe(true);
     expect(useStore.getState().data.clients).toHaveLength(1); // loaded data kept, not discarded
     expect(useStore.getState().data.clients[0]?.name).toBe("Loaded");
-    expect(useStore.getState().data.resources).toHaveLength(0); // NOT re-seeded (data exists)
+    expect(useStore.getState().data.resources).toHaveLength(0); // Not re-seeded (data exists)
 
-    // Persistence IS attached: a later edit still saves.
+    // Persistence is attached: a later edit still saves.
     useStore.getState().addClient({ name: "Later", color: "#222222" });
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalled());
     detach();
@@ -162,7 +162,7 @@ describe("bootstrap", () => {
       seedIfEmpty: seed(),
     });
 
-    // Routed to the retry screen, NOT the corrupt-data reset UI.
+    // Routed to the retry screen, not the corrupt-data reset UI.
     expect(useStore.getState().connectionError).toBe(true);
     expect(useStore.getState().loadError).toBe(false);
     expect(useStore.getState().hydrated).toBe(true);

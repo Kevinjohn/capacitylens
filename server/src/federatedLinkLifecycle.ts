@@ -8,7 +8,7 @@ import { tx } from "./txn";
  * Shared AccountAuditEvent builder for the cutover-adjacent audit writes: federated-link
  * reconciliation here, plus the four SSO-cutover repair writes in cutoverRepair.ts. Every field but
  * `id`, `occurredAt`, and the six named overrides is identical across all five call sites,
- * `commandId` is always null and `outcome` is always "success". Field ORDER matches every existing
+ * `commandId` is always null and `outcome` is always "success". Field order matches every existing
  * literal exactly: enqueueAudit persists `JSON.stringify(record)`, so key order is part of the
  * durable payload, not just cosmetic.
  */

@@ -41,7 +41,7 @@ export type AuthStatusResult =
       hadUnsavedChanges: boolean;
     };
 
-// A 'pass' AuthStatusResult that fails OPEN on the single-company-per-instance fields (see authContext.ts):
+// A 'pass' AuthStatusResult that fails open on the single-company-per-instance fields (see authContext.ts):
 // used for every branch below that can't read a trustworthy canCreateAccount/multiAccount off the
 // wire (an off-spec body, a non-401 non-ok response, or a network failure), the server 403 remains
 // the real enforcer, so "unknown" must never hide a legitimate "New company" affordance.
@@ -61,7 +61,7 @@ export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null
   };
 }
 
-// Narrowing guards for the UNTRUSTED /api/auth/me response body (see fetchAuthStatus). The server
+// Narrowing guards for the untrusted /api/auth/me response body (see fetchAuthStatus). The server
 // is external input. We validate its shape rather than trusting an `as` cast.
 export function isAuthMode(value: unknown): value is AccountMode {
   return value === "off" || value === "password-only" || value === "sso-only" || value === "password-and-sso";

@@ -123,14 +123,14 @@ function runTopLevelTransaction<Result>(db: Db, callback: () => Result, options:
     db.exec("COMMIT");
     return result;
   } catch (e) {
-    // Roll back, but NEVER let a ROLLBACK failure MASK the original error. If BEGIN never armed a
-    // transaction or the connection is gone, db.exec('ROLLBACK') itself throws, swallow ONLY that
+    // Roll back, but never let a ROLLBACK failure mask the original error. If BEGIN never armed a
+    // transaction or the connection is gone, db.exec('ROLLBACK') itself throws, swallow only that
     // (after logging), then always rethrow `e`, the real cause, so the diagnostic chain stays
     // intact. The rare acceptable nested swallow: the original failure is still surfaced.
     try {
       db.exec("ROLLBACK");
     } catch (rollbackError) {
-      // If SQLite says the transaction is STILL active after a failed ROLLBACK, later commits
+      // If SQLite says the transaction is still active after a failed ROLLBACK, later commits
       // cannot be trusted to sit on a durability boundary. Read through a function boundary because
       // native accessors may change during exec(), despite the earlier top-level branch narrowing.
       if (isTransactionActive(db)) poisonedHandles.add(db);

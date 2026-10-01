@@ -25,7 +25,7 @@ describe("SchedulerToolbar weeks dropdown", () => {
 
     const trigger = screen.getByRole("combobox", { name: /Weeks visible/ });
     expect(trigger).toHaveTextContent("4 weeks");
-    // The visible text must live INSIDE the accessible name (WCAG 2.5.3 Label in Name), so speech
+    // The visible text must live inside the accessible name (WCAG 2.5.3 Label in Name), so speech
     // input can act on what the user reads: "Weeks visible" alone would not contain "4 weeks".
     expect(trigger).toHaveAccessibleName("Weeks visible, 4 weeks");
 
@@ -499,7 +499,7 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
     await user.type(screen.getByLabelText("Search people"), "jo"); // schedules a 180ms timer
     await user.click(screen.getByRole("button", { name: "Clear Filters" })); // must cancel it
 
-    // Wait past the debounce window: the orphaned timer must NOT re-apply "jo".
+    // Wait past the debounce window: the orphaned timer must not re-apply "jo".
     await new Promise((r) => setTimeout(r, 250));
     expect(useStore.getState().ui.filters.search).toBe("");
     expect((screen.getByLabelText("Search people") as HTMLInputElement).value).toBe("");
@@ -517,7 +517,7 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
     // Simulate the external reset an account switch performs (filters → emptyFilters).
     useStore.getState().setFilters({ search: "" });
 
-    // Past the debounce window: the stale 'bob' must NOT have clobbered the cleared value.
+    // Past the debounce window: the stale 'bob' must not have clobbered the cleared value.
     await new Promise((r) => setTimeout(r, 250));
     expect(useStore.getState().ui.filters.search).toBe("");
   });
@@ -527,11 +527,11 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
     showFilters();
     const box = screen.getByLabelText("Search people") as HTMLInputElement;
 
-    // Pending term: the store's search is '' and STAYS '' through the replacement below,
-    // so any logic keyed on the search VALUE cannot see this write, the race the palette
+    // Pending term: the store's search is '' and stays '' through the replacement below,
+    // so any logic keyed on the search value cannot see this write, the race the palette
     // e2e spec kept tripping (the timer resurrected the stale term over the replacement).
     fireEvent.change(box, { target: { value: "zzz-nobody-matches-zzz" } });
-    // What CommandPalette's project selection does: REPLACE the filters wholesale.
+    // What CommandPalette's project selection does: replace the filters wholesale.
     useStore.getState().setFilters({ ...buildEmptyFilters(), projectId: "p1" });
 
     await new Promise((r) => setTimeout(r, 250));

@@ -14,8 +14,8 @@ import type { CapacityOverviewAccess } from "../types/entities";
 import type { Role, Action } from "./access";
 import { canAdministerAccount } from "../account/policy";
 
-// These tests are an INDEPENDENT oracle of the CapacityLens Decisions access matrix: the expected
-// booleans below are hard-coded by hand from the spec, NOT derived from the implementation. If
+// These tests are an independent oracle of the CapacityLens Decisions access matrix: the expected
+// booleans below are hard-coded by hand from the spec, not derived from the implementation. If
 // access.ts and this table disagree, that's the test doing its job, do not "fix" it by copying the
 // implementation's logic.
 
@@ -41,7 +41,7 @@ const ACTIONS = [
 
 // The full 4×11 expected matrix, written out explicitly from the Decisions table:
 //   read: any member (owner, admin, editor, viewer)
-//   write: editor and up (owner, admin, editor); NOT viewer
+//   write: editor and up (owner, admin, editor); not viewer
 //   manageInternalClient: admin and up (owner, admin)
 //   manageMembers: admin and up (owner, admin)
 //   manageInvites: admin and up (owner, admin)
@@ -113,8 +113,8 @@ function expectEditableRolePrecondition(actor: Role, target: Role, next: Role): 
 
 describe("can(role, action) — the pure access matrix", () => {
   // Completeness guard: the action list the sweep iterates must equal the `Action` union, so a new
-  // Action can't slip past the exhaustive check. (The `satisfies` on ACTIONS catches an EXTRA/typo
-  // member at compile time; this asserts none was DROPPED, keep this count in step with `Action`.)
+  // Action can't slip past the exhaustive check. (The `satisfies` on ACTIONS catches an extra/typo
+  // member at compile time; this asserts none was dropped, keep this count in step with `Action`.)
   it("iterates exactly the Action union (11 actions, no more, no fewer)", () => {
     expect(ACTIONS.length).toBe(11);
     expect(new Set(ACTIONS).size).toBe(ACTIONS.length); // no duplicates
@@ -204,7 +204,7 @@ describe("canViewCapacityOverview(role, access) — account setting policy", () 
 });
 
 // Member-management guards. The expected booleans below are the hand-written oracle of the
-// member-management policy (Owner changes only through transfer), NOT derived from the
+// member-management policy (Owner changes only through transfer), not derived from the
 // implementation: if access.ts and these tables disagree, the test is doing its job.
 
 describe("isAtLeast(role, min) — tier comparison", () => {
@@ -294,7 +294,7 @@ describe("canRemoveMember(actor, target) — removal matrix", () => {
 });
 
 describe("canEditAnyMemberRole(actor, target) — role-editability matrix", () => {
-  // The destination-free question a member ROW asks before rendering a role control. Same
+  // The destination-free question a member row asks before rendering a role control. Same
   // hand-derived oracle shape as the guards above: admin tier, and never the Owner.
   const oracle = (actor: Role, target: Role): boolean => {
     if (!(actor === "owner" || actor === "admin")) return false;
@@ -331,7 +331,7 @@ describe("canResetMemberAcrossAccounts(actor, target) — global-identity reset 
   });
 
   it("CLOSES the cross-account escalation: an admin of X cannot reset a user who owns Y", () => {
-    // Target is a mere editor in X but the OWNER of Y; actor is only in X.
+    // Target is a mere editor in X but the owner of Y; actor is only in X.
     const actor = roles([["X", "admin"]]);
     const target = roles([
       ["X", "editor"],
@@ -380,7 +380,7 @@ describe("canResetMemberAcrossAccounts(actor, target) — global-identity reset 
   });
 
   it("SELF-RESET exemption: a multi-account self passes even where cross-account authority would fail", () => {
-    // Owner of X who is a mere editor of Y resets their OWN password. actor === target, so the maps
+    // Owner of X who is a mere editor of Y resets their own password. actor === target, so the maps
     // are identical; the non-self path would hit Y and fail identity administration for editor/editor.
     // The isSelf exemption skips the cross-account check. You cannot escalate against your own identity.
     const self = roles([
@@ -388,7 +388,7 @@ describe("canResetMemberAcrossAccounts(actor, target) — global-identity reset 
       ["Y", "editor"],
     ]);
     expect(canResetMemberAcrossAccounts(self, self, true)).toBe(true);
-    // Same maps WITHOUT the exemption is (correctly) refused, proving the exemption is load-bearing.
+    // Same maps without the exemption is (correctly) refused, proving the exemption is load-bearing.
     expect(canResetMemberAcrossAccounts(self, self, false)).toBe(false);
   });
 

@@ -43,8 +43,8 @@ interface BuildSnappedBarGeometryInput {
 // hit-testing (readLaneSnapshots / laneAt / setDropTarget) and the store write + capacity
 // advisory stay in the component; this module is only the date/hours/geometry computation.
 
-/** Hours/day an allocation should carry after being REASSIGNED (dragged) to `target`. An external
- * / 3rd party always carries no load (0). In Hours/Days mode, a zero-hour booking dragged OFF an
+/** Hours/day an allocation should carry after being reassigned (dragged) to `target`. An external
+ * / 3rd party always carries no load (0). In Hours/Days mode, a zero-hour booking dragged off an
  * external is promoted to the target's working day because those forms require positive load.
  * Blocks mode deliberately permits and preserves zero; existing positive historical values are
  * also retained for a real→real reassign. A same-resource move never calls this. */
@@ -60,12 +60,12 @@ export function reconcileReassignedHours({
   return resolveScheduledHoursOnDay(target, startDate, effectiveWeek) || FULL_DAY_HOURS;
 }
 
-/** Days-mode resize keeps the VOLUME (days of work) fixed while the span changes, so
+/** Days-mode resize keeps the volume (days of work) fixed while the span changes, so
  * hours/day scales inversely with the span: new × newSpan = old × oldSpan.
  * the fixed full-day hours cancel out, so they aren't needed here. Returns the clamped hours
- * AND whether the clamp actually bit, so a gesture commit can surface the lost volume
+ * and whether the clamp actually bit, so a gesture commit can surface the lost volume
  * (the cap truncates work, the bar would otherwise silently show the clamped 24h).
- * `clamped` is true ONLY when the raw derived hours exceeded MAX_HOURS_PER_DAY; a
+ * `clamped` is true only when the raw derived hours exceeded MAX_HOURS_PER_DAY; a
  * normal in-range resize, a move, the divide-by-zero guard, and the zero-old-span guard
  * all report false. */
 export function resolveVolumePreservingHours({
@@ -76,7 +76,7 @@ export function resolveVolumePreservingHours({
 }: ResolveVolumePreservingHoursInput): { hours: number; clamped: boolean } {
   const oldSpan = spanDays(previousDate.startDate, previousDate.endDate, options);
   const newSpan = spanDays(next.startDate, next.endDate, options);
-  // A zero-working-day OLD span (e.g. a weekend-aware allocation currently covering only Sat–Sun)
+  // A zero-working-day old span (e.g. a weekend-aware allocation currently covering only Sat–Sun)
   // has no volume to preserve, `hoursPerDay * 0 / newSpan` is 0, and committing that would
   // silently wipe the stored hours the moment the resize lands on a working day. Preserving the
   // existing value is the only non-destructive choice (no defaulting to 8, no clamping).
@@ -88,7 +88,7 @@ export function resolveVolumePreservingHours({
 }
 
 /** Resolve a gesture (move / resize) into the new date range and hours/day to commit.
- * The dates come from applyGesture (weekend-aware via opts); in DAYS mode a resize
+ * The dates come from applyGesture (weekend-aware via opts); in days mode a resize
  * rescales hours/day to hold the work volume constant, while a move, or an unchanged
  * span (deltaDays === 0), keeps the original hours. Mirrors the pointer-commit math so
  * the source and reassign-target both go through one place. `clamped` reports whether a
@@ -117,8 +117,8 @@ export function resolveGesture({ mode, current, deltaDays, options, hoursPerDay,
   return { dates, hours: hoursPerDay, clamped: false };
 }
 
-/** Pixel geometry for the live drag preview: snap the dates the SAME way the commit will
- * (applyGesture), then run them through the SAME ColumnGeometry the view-model used to place
+/** Pixel geometry for the live drag preview: snap the dates the same way the commit will
+ * (applyGesture), then run them through the same ColumnGeometry the view-model used to place
  * bar.x / bar.width. Going through one geometry is what keeps the bar from jumping on release,
  * even when the snapped range crosses a narrowed weekend, the preview is pixel-identical to the
  * committed bar. Callers apply this only when deltaDays !== 0 (an unchanged drag keeps bar.x /

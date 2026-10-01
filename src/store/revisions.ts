@@ -6,7 +6,7 @@ export const stamp = () => {
 };
 export const touch = () => new Date().toISOString();
 const MAX_DATE_MS = 8_640_000_000_000_000;
-// Take an ARRAY, not rest args: the whole-tenant callers (readNextDataRevision, prepareHistoryTarget)
+// Take an array, not rest args: the whole-tenant callers (readNextDataRevision, prepareHistoryTarget)
 // pass one timestamp per row, and spreading tens of thousands of rows as function arguments can
 // overflow the engine's argument limit (RangeError), failing an undo/redo or cascade-delete
 // outright. Iterating an array is unbounded-safe. `touchAfter` keeps the ergonomic variadic shape
@@ -27,7 +27,7 @@ export const touchAfterAll = (timestamps: Array<string | undefined>): string => 
   return new Date(next).toISOString();
 };
 export const touchAfter = (...timestamps: Array<string | undefined>): string => touchAfterAll(timestamps);
-// Fold a WHOLE tenant's revisions into the running maximum in ONE pass. Materialising the
+// Fold a whole tenant's revisions into the running maximum in one pass. Materialising the
 // timestamps first would allocate an array per table (tens of thousands of strings on a large
 // account) for a value only ever reduced to a single number.
 export const advanceOverData = (data: AppData, next: number): number => {

@@ -21,18 +21,18 @@ export interface ColumnGeometry {
   readonly totalWidth: number;
   /** weekdays[i] = weekday of visible day i (0 = Sunday … 6 = Saturday), summed alongside the
    * widths. Consumers asking "is this column a week start / a weekend?" read it from here rather
-   * than re-parsing the date: the lanes ask that per day PER ROW, so the parses otherwise
+   * than re-parsing the date: the lanes ask that per day per row, so the parses otherwise
    * multiply by the number of visible resources on every render. */
   readonly weekdays: number[];
   /** True at/above `DAY_COLUMN_MIN_WIDTH`: the zoom is fine enough for per-day columns (the header
    * renders day cells rather than week blocks, and the lanes paint their per-day decorations).
-   * The SINGLE answer to that question, header, lanes and `minimiseActive` all read it here, so
+   * The single answer to that question, header, lanes and `minimiseActive` all read it here, so
    * they cannot flip a zoom step apart. */
   readonly perDayColumns: boolean;
   /** True at/above `WEEKDAY_LABEL_MIN_WIDTH`: the columns have room for the weekday letters
    * (Mon/Tue…) on top of the date number. Implies {@link perDayColumns}. */
   readonly showWeekdayLabels: boolean;
-  /** True when weekends are actually being narrowed (the pref is on AND the zoom is fine
+  /** True when weekends are actually being narrowed (the pref is on and the zoom is fine
    * enough that per-day columns render). The header keys its "S" weekend label off this. */
   readonly minimiseActive: boolean;
   /** Left edge px of column `index`, clamped to [0, n] (so an out-of-range index pins to an edge). */
@@ -42,15 +42,15 @@ export interface ColumnGeometry {
   /** Px width spanning columns [startIdx, endIdx] inclusive (≥ 0; 0 when reversed). */
   spanWidth(startIndex: number, endIndex: number): number;
   /** Inverse of {@link x}: a lane-relative pointer x → day index, clamped to [0, n-1].
-   * The EXACT inverse at boundaries, a click at offsets[i] → i, at offsets[i]-ε → i-1. */
+   * The exact inverse at boundaries, a click at offsets[i] → i, at offsets[i]-ε → i-1. */
   indexAt(px: number): number;
-  /** {@link indexAt} for a container's `scrollLeft`: it ROUNDS first. Every scroll-position read
+  /** {@link indexAt} for a container's `scrollLeft`: it rounds first. Every scroll-position read
    * must go through this rather than `indexAt` directly, see resolveWeekStartSnapTarget.ts's "SUB-PIXEL ROUNDING"
-   * note for the full rationale (a HiDPI browser can store scrollLeft a fraction BELOW an integer
+   * note for the full rationale (a HiDPI browser can store scrollLeft a fraction below an integer
    * column boundary, and indexAt's strict floor would resolve that to the previous (under
    * minimised weekends, much narrower) column). */
   indexAtScroll(scrollLeft: number): number;
-  /** Left edge px of a date. Extrapolates at FULL width outside the window (a bar starting
+  /** Left edge px of a date. Extrapolates at full width outside the window (a bar starting
    * before day 0 still overflows off-screen-left exactly as it did under the uniform grid),
    * so off-window bars clip correctly. Returns 0 for an unparseable date (no NaN geometry). */
   xForDateInGeom(date: ISODate): number;
@@ -204,7 +204,7 @@ function createGeometryAccessors(
 /**
  * Build the column geometry for `days` at `dayWidth`.
  *
- * Weekends are only narrowed when `minimiseWeekends` is on AND `dayWidth >= DAY_COLUMN_MIN_WIDTH`
+ * Weekends are only narrowed when `minimiseWeekends` is on and `dayWidth >= DAY_COLUMN_MIN_WIDTH`
  * (the per-day-column threshold): below it the header shows week blocks, so narrowing is both
  * meaningless and risky, `weekendWidth` could otherwise exceed `dayWidth` at extreme zoom-out.
  * A non-finite / non-positive `weekendWidth` degrades to no narrowing (full-width weekends), so
@@ -215,7 +215,7 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
   const perDayColumns = dayWidth >= DAY_COLUMN_MIN_WIDTH;
   const minimiseActive = options.minimiseWeekends && perDayColumns;
   // A narrowed weekend is never wider than a normal day; an unmeasured/garbage width (NaN, 0)
-  // degrades to dayWidth so the prefix sum stays finite and strictly increasing. ROUNDED to a
+  // degrades to dayWidth so the prefix sum stays finite and strictly increasing. Rounded to a
   // whole pixel so every offset is an integer: a fractional weekend width (e.g. 22.39) makes
   // fractional offsets, but the browser stores scrollLeft as a whole number, the mismatch made
   // the zoom scroll-anchor's indexAt() floor to the previous (weekend) column, drifting the

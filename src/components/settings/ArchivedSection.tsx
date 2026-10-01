@@ -263,7 +263,7 @@ export function ArchivedSection({ collapsible = false, defaultOpen = true }: Arc
   const activeAccountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
   const hintBaseId = useId();
-  // A null role must stay permitted for OFF/local mode; useCan owns that policy.
+  // A null role must stay permitted for off/local mode; useCan owns that policy.
   const mayPurge = useCan("purge");
   const sectionEnabled = mayPurge;
   const localData = useInactiveScopedData();

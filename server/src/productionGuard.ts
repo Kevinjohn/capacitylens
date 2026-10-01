@@ -3,15 +3,15 @@ import { parseAuthMode, BOOTSTRAP_ADMIN_EMAIL } from "./auth";
 import { parseRateLimit, MAX_RATE_LIMIT } from "./rateLimit";
 
 // Production safety interlock. Once NODE_ENV=production, the development/open posture
-// must actually be retired: running with auth OFF in
+// must actually be retired: running with auth off in
 // production would expose the open/demo dataset (DEMO_USER, no login) to the world. This
 // module is the pure predicate the entrypoint consults, like bootGuard's resetForbidden, it
-// is a deliberate fail-closed SAFETY interlock and is therefore NOT behind an opt-in flag
-// (defaulting a guard to off defeats it). The ONLY escape is the explicit
-// CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, which DOWNGRADES the auth-off refusal to a loud
+// is a deliberate fail-closed safety interlock and is therefore not behind an opt-in flag
+// (defaulting a guard to off defeats it). The only escape is the explicit
+// CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, which downgrades the auth-off refusal to a loud
 // warning: it never silences the concern.
 //
-// Active ONLY when NODE_ENV==='production'. Dev / e2e / self-host runs (where NODE_ENV is
+// Active only when NODE_ENV==='production'. Dev / e2e / self-host runs (where NODE_ENV is
 // never 'production') are returned untouched, empty arrays, exactly as bootGuard leaves
 // them. That no-op is the load-bearing "self-hosters unaffected" guarantee: the open posture
 // stays a first-class supported mode everywhere except a NODE_ENV=production process.
@@ -20,14 +20,14 @@ import { parseRateLimit, MAX_RATE_LIMIT } from "./rateLimit";
  * The outcome of evaluating the production safety contract against an environment.
  *
  * Two severities, deliberately separated: a {@link ProductionPostureResult.refusals | refusal}
- * is a fatal misconfiguration the server MUST refuse to boot on (fail-closed), while a
+ * is a fatal misconfiguration the server must refuse to boot on (fail-closed), while a
  * {@link ProductionPostureResult.warnings | warning} is a softer concern that lets boot
  * continue but is logged loudly so an operator can see it. Mirrors the
  * `AuthConfigError`/`resetForbidden` "refuse loudly, never limp on" posture for the fatal
  * tier, and the existing per-flag startup logging for the soft tier.
  */
 export interface ProductionPostureResult {
-  /** Fatal misconfigurations, the server MUST refuse to boot. Empty unless NODE_ENV==='production'. */
+  /** Fatal misconfigurations, the server must refuse to boot. Empty unless NODE_ENV==='production'. */
   refusals: string[];
   /** Non-fatal posture concerns, boot continues but logs each loudly. */
   warnings: string[];
@@ -114,7 +114,7 @@ function inspectOperationalHardening(
  * back the lists of refusals and warnings to act on, so this is unit-testable across every env
  * combination without mutating global state.
  *
- * The contract is active ONLY when `env.NODE_ENV === 'production'`; for any other value
+ * The contract is active only when `env.NODE_ENV === 'production'`; for any other value
  * (including unset, 'development', 'test') it returns `{ refusals: [], warnings: [] }` so dev /
  * e2e / self-host runs are completely untouched. That no-op is the load-bearing guarantee that
  * the open/auth-off posture remains a supported mode everywhere except production (the same
@@ -123,8 +123,8 @@ function inspectOperationalHardening(
  * In production it evaluates, in order:
  * - **Refusal: auth off:** `parseAuthMode(env.CAPACITYLENS_MODE) === 'off'` is the dev/open
  *   posture production retires; it would leave the demo dataset world-readable+writable. This is a
- *   refusal UNLESS the operator has deliberately opted in via
- *   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1'`, in which case it is DOWNGRADED to a warning
+ *   refusal unless the operator has deliberately opted in via
+ *   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1'`, in which case it is downgraded to a warning
  *   (the open posture is then run on purpose, but still surfaced). The escape never silences the
  *   concern. It only changes its severity.
  * - **Warning: optional hardening absent:** disabled breached-password screening, absent audit
@@ -159,7 +159,7 @@ export function evaluateProductionPosture(environment: ProductionEnvironment): P
   const result = { refusals, warnings };
   const mode = inspectAuthentication(environment, result);
   inspectAuthenticationHardening(environment, mode, warnings);
-  // Validate with the SAME parser the limiter uses (parseRateLimit), not a looser Number()+isSafeInteger
+  // Validate with the same parser the limiter uses (parseRateLimit), not a looser Number()+isSafeInteger
   // check. A divergent check let ' 100 ', '1e3' and '2000000' pass the guard while parseRateLimit maps
   // them to 0 (off), so production could boot claiming a hardened posture with rate limiting silently
   // disabled. Any value the parser resolves to 0 (unset, '0', a sign/decimal/whitespace/exponent, or a

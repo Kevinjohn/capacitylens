@@ -56,7 +56,7 @@ export function buildDayCapacity({
   effectiveWeek,
   closures,
 }: BuildDayCapacityInput): DayCapacity {
-  // ONE parseISO for the whole resource-day: the availability and load halves each need the
+  // One parseISO for the whole resource-day: the availability and load halves each need the
   // weekday (twice over, for the working-week and half-day tests), and this runs per resource ×
   // per visible day on every model rebuild.
   const weekday = weekdayOf(date);
@@ -84,7 +84,7 @@ export function buildDayCapacity({
 }
 
 /** Whole-window capacity, one entry per calendar day, derived straight from the inputs.
- * The render path does NOT come through here: buildSchedulerModel walks the SAME window for every
+ * The render path does not come through here: buildSchedulerModel walks the same window for every
  * resource, so it builds the day array once, buckets each resource's allocations and time off by
  * covered date (`bucketByCoveredDate`), and memoises `buildDayCapacity` per date. This stays the
  * straight-line definition those optimisations are checked against. */

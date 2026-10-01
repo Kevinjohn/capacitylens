@@ -3,10 +3,10 @@ import { createApp } from "./app";
 import { openDb, readState } from "./db";
 import { insertRequest, upsertMember } from "./controlTables";
 
-// EXCLUSION proof: the `account_members` server-control table must be UNREACHABLE through the
-// generic entity machinery and ABSENT from the state read. openDb creates it on every open, so even
+// Exclusion proof: the `account_members` server-control table must be unreachable through the
+// generic entity machinery and absent from the state read. openDb creates it on every open, so even
 // with a row present it must not leak through /api/:entity, GET /api/state (the state read/export
-// source; there is no separate /api/state/export route today, loadState IS the export source), or
+// source; there is no separate /api/state/export route today, loadState is the export source), or
 // loadState itself.
 
 describe("account_members is excluded from the AppData path", () => {
@@ -17,7 +17,7 @@ describe("account_members is excluded from the AppData path", () => {
     const get = await app.inject({ method: "GET", url: "/api/account_members" });
     expect(get.statusCode).toBe(404);
 
-    // POST /api/:entity gates on isKnownTable → 404 "Unknown entity", the SAME refusal any unknown
+    // POST /api/:entity gates on isKnownTable → 404 "Unknown entity", the same refusal any unknown
     // table gets, never a 200/201 that would persist a row through the entity path.
     const post = await app.inject({
       method: "POST",
@@ -32,7 +32,7 @@ describe("account_members is excluded from the AppData path", () => {
     const app = createApp(db);
 
     // Insert a real membership row directly through the control-table helper (the only path that
-    // touches it). It must STILL not surface in the AppData read/export.
+    // touches it). It must still not surface in the AppData read/export.
     upsertMember(db, {
       accountId: "acc-1",
       userId: "user-1",
@@ -55,7 +55,7 @@ describe("account_members is excluded from the AppData path", () => {
   });
 });
 
-// The same EXCLUSION proof for `account_ownership_transfers`. A row names the two principals
+// The same exclusion proof for `account_ownership_transfers`. A row names the two principals
 // of a pending ownership handover, so reaching it through the generic entity machinery would
 // publish who is being handed the company to anyone who can read the ordinary state.
 describe("account_ownership_transfers is excluded from the AppData path", () => {

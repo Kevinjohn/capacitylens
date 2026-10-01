@@ -3,8 +3,8 @@ import { CAPACITY_OVERVIEW_ACCESS_VALUES, DATE_STYLES, SCHEDULING_MODES } from "
 import type { Account } from "../../types/entities";
 
 /**
- * Every optional BOOLEAN preference on an account. Each is dropped rather than persisted when a
- * hand-edited value isn't a real boolean, so its ABSENCE reads back as the documented default on
+ * Every optional boolean preference on an account. Each is dropped rather than persisted when a
+ * hand-edited value isn't a real boolean, so its absence reads back as the documented default on
  * the client, which differs per field and is what `Account` documents:
  * disciplinesEnabled            absent = true  (disciplines shown)
  * placeholdersEnabled           absent = false (placeholders hidden out of the box)

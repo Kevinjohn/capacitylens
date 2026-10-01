@@ -18,7 +18,7 @@ export type CapacityAllocationInput = Pick<
   "resourceId" | "startDate" | "endDate" | "hoursPerDay" | "ignoreWeekends"
 >;
 
-/** Existing load in hours, keyed by the ISO day it lands on, for ONE resource. Building this ONCE
+/** Existing load in hours, keyed by the ISO day it lands on, for one resource. Building this once
  * is what makes an advisory O(window + load) instead of O(windowDays × allocations), and lets a
  * batch of advisories over the same resource (a repeat projection) share a single bucket instead
  * of rebuilding a growing one per generated allocation. */
@@ -51,7 +51,7 @@ export function addCapacityLoad({
   const from = allocation.startDate > start ? allocation.startDate : start;
   const to = allocation.endDate < end ? allocation.endDate : end;
   for (const day of eachDayISO(from, to)) {
-    // Count each existing allocation only on the days IT works, matching the over-marker's load.
+    // Count each existing allocation only on the days it works, matching the over-marker's load.
     if (
       !hasAllocationLoadOnDay({
         effectiveWeek: effectiveWeek,
@@ -126,7 +126,7 @@ function tallyAdvisory({
   let overDays = 0;
   let timeOffDays = 0;
   for (const day of days) {
-    // Derive the weekday + time-off ONCE per day and reuse for both tallies, resolveAvailableHoursOnDay
+    // Derive the weekday + time-off once per day and reuse for both tallies, resolveAvailableHoursOnDay
     // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
     const weekday = weekdayOf(day);
     const working = effectiveWeekIncludes(effectiveWeek, weekday);
@@ -166,17 +166,17 @@ interface BuildCapacityAdvisoryInput {
   closures: Closure[];
 }
 
-/** Non-blocking advisory for a PROPOSED allocation (its own dates, `hoursPerDay` and
+/** Non-blocking advisory for a proposed allocation (its own dates, `hoursPerDay` and
  * `ignoreWeekends`): how many days it would push the resource over capacity, and how many fall on
  * time off. The proposal is taken whole so a draft or persisted row passes straight through, only
  * its `resourceId` is unread, because the advisory always scopes to `resource`.
  * `otherAllocations` is the existing load to count against (caller excludes the allocation being
- * edited); it need NOT be pre-filtered by resource (see `addCapacityLoad`).
+ * edited); it need not be pre-filtered by resource (see `addCapacityLoad`).
  * Shared by the modal and the drag-commit path so the rule
  * lives in one place. Mirrors the per-day over-marker (`resolveAllocatedHoursOnDay`): it counts a day only
- * when the proposed allocation actually WORKS it (so a weekend-aware bar merely spanning Sat/Sun
+ * when the proposed allocation actually works it (so a weekend-aware bar merely spanning Sat/Sun
  * isn't "over"), and an `ignoreWeekends` weekend, 0 capacity, reads as over exactly like the red
- * cell does. Time off stays its OWN category, never folded into overDays (a holiday a working
+ * cell does. Time off stays its own category, never folded into overDays (a holiday a working
  * allocation covers is surfaced as "on time off for N days", not "over"), which is the one place the
  * advisory deliberately diverges from the marker. */
 export function buildCapacityAdvisory({
@@ -216,7 +216,7 @@ interface BuildCapacityAdvisoryFromLoadInput {
   closures: Closure[];
 }
 
-/** `buildCapacityAdvisory` against a load bucket the caller already holds, for a BATCH of proposals on
+/** `buildCapacityAdvisory` against a load bucket the caller already holds, for a batch of proposals on
  * one resource, where rebuilding the bucket per proposal is the dominant cost. The bucket must
  * cover at least the proposal's window (see `bucketCapacityLoad`). */
 export function buildCapacityAdvisoryFromLoad({

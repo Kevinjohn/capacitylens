@@ -26,7 +26,7 @@ const capacityAdvisoryMock = vi.hoisted(() =>
 
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory VERDICTS the modal renders.
+// care only about the advisory verdicts the modal renders.
 vi.mock("@/lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
@@ -380,7 +380,7 @@ describe("AllocationModal days mode", () => {
   it('rejects an EMPTY "Days over" submitted via Enter (no blur) instead of saving a 0-hour allocation', async () => {
     // The NaN hole: a valid "Days of work" but a "Days over" left empty/part-typed emits NaN
     // (NumberField only clamps to min on blur). hoursPerDayFor(daysOfWork, NaN, whpd) is NaN, the
-    // store's clampHoursPerDay(NaN) → 0, so a SILENT 0-hour allocation would save. Submitting via
+    // store's clampHoursPerDay(NaN) → 0, so a silent 0-hour allocation would save. Submitting via
     // Enter directly from the field skips the blur-clamp, exercising exactly that path. The load
     // guard must reject (NaN fails Number.isFinite) and persist nothing.
     enableDays();

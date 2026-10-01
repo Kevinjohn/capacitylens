@@ -45,7 +45,7 @@ export const AUDIT_DRAIN_PAGE_SIZE = 500;
 type PreparedStatement = ReturnType<Db["prepare"]>;
 
 /**
- * Factory for a per-handle prepared-statement cache: the SQL is prepared at most ONCE per Db handle
+ * Factory for a per-handle prepared-statement cache: the SQL is prepared at most once per Db handle
  * rather than on every call. This outbox is touched inside the write transaction of nearly every
  * mutating request. WeakMap keyed by the Db handle (mirrors auth.ts's `cachedTableExists` idiom), so
  * an entry is collected with its handle and the many short-lived `:memory:` handles tests open never

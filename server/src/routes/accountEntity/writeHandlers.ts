@@ -128,7 +128,7 @@ async function persistPut(input: {
  * sent by the authorization gate is returned as the same reply. */
 function sendPutRefusal(input: AccountWriteInput, existing: Record<string, unknown> | undefined): FastifyReply | null {
   const { dependencies, req, reply, id } = input;
-  // Authenticated account creation is closed before the OFF-mode cap is considered. Existing rows
+  // Authenticated account creation is closed before the off-mode cap is considered. Existing rows
   // skip the create-only cap and instead require write authority for their own account id.
   if (!existing && dependencies.authMode !== "off") {
     return reply.code(403).send({ error: REPLY_ERRORS.accountCreateClosed });

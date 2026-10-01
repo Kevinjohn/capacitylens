@@ -11,21 +11,21 @@ export {
   SINGLE_COMPANY_CAP_MESSAGE,
 } from "./accountEntity/policy";
 
-// THE SINGLE HOME FOR `accounts`-ROW WRITE RULES.
+// The single home for `accounts`-row write rules.
 //
-// `accounts` is the one table in TABLES that is NOT tenant-scoped: it has no `accountId` column, so
+// `accounts` is the one table in TABLES that is not tenant-scoped: it has no `accountId` column, so
 // every guard the generic /api/:entity routes derive from `row.accountId` (the isScopedTable
 // authorize gate, ownsRow's immutability check, the scoped DELETE's owner assertion) is a no-op for
 // it. The generic routes therefore grew ~25 hand-replicated `entity === "accounts"` branches, one
-// per verb per rule, and any rule added to one verb but not another silently applied SCOPED-entity
-// semantics to an account row. These dedicated STATIC routes own the account rules once each;
+// per verb per rule, and any rule added to one verb but not another silently applied scoped-entity
+// semantics to an account row. These dedicated static routes own the account rules once each;
 // Fastify matches them ahead of the parametric /api/:entity routes, which now refuse `accounts`
 // outright. POST /api/batch keeps its own account handling (a client sync diff genuinely carries
 // accounts PUT ops, see src/data/syncOps.ts) but shares every predicate exported below, so the two
 // paths cannot drift.
 
 /**
- * Register the dedicated `accounts` write routes. They are STATIC paths (`/api/accounts…`), which
+ * Register the dedicated `accounts` write routes. They are static paths (`/api/accounts…`), which
  * find-my-way matches ahead of the parametric `/api/:entity` routes, so an account row can never
  * reach the generic handlers and pick up scoped-entity semantics.
  */

@@ -16,7 +16,7 @@
 
 /** Fold canonically decomposable diacritics and case for search comparisons. The fixed NFD form
  * and Unicode-property regex are total for arbitrary strings, including lone surrogate code units.
- * Exported so other search surfaces fold IDENTICALLY rather than keeping a private copy that could
+ * Exported so other search surfaces fold identically rather than keeping a private copy that could
  * drift from what the palette actually matches on. */
 export function foldForSearch(value: string): string {
   return value
@@ -31,7 +31,7 @@ export function foldForSearch(value: string): string {
  * first. Safe: the scan below is synchronous and calls nothing that could re-enter the scorer. */
 const WORD_BOUNDARY_RE = /(?:^|[\s\-_]+)(.)/g;
 
-/** Score an ALREADY-FOLDED query against a raw `text`. Split out so a filter pass folds its query
+/** Score an already-folded query against a raw `text`. Split out so a filter pass folds its query
  * once instead of once per item; `fuzzyScore` is the folding entry point. */
 function scoreFolded(query: string, text: string): number {
   if (!query) return 0;
@@ -68,9 +68,9 @@ function scoreFolded(query: string, text: string): number {
 }
 
 /** Return the score for `query` against `text`, or Infinity if no match.
- *  @remarks Pure and TOTAL, although `query` is untrusted user input, every branch returns a
+ *  @remarks Pure and total, although `query` is untrusted user input, every branch returns a
  * number and the regex is a fixed pattern over a single capture (no catastrophic backtracking),
- * so this cannot throw. Do NOT wrap it in try/catch. There's nothing to guard and a wrapper
+ * so this cannot throw. Do not wrap it in try/catch. There's nothing to guard and a wrapper
  * would only mask a future real bug. */
 export function fuzzyScore(query: string, text: string): number {
   return scoreFolded(foldForSearch(query), text);
@@ -81,7 +81,7 @@ export function fuzzyFilter<T>(items: T[], query: string, getText: (item: T) => 
   const trimmed = query.trim();
   if (!trimmed) return items;
 
-  // Fold the query ONCE for the whole pass, and carry each survivor's lower-cased text so the
+  // Fold the query once for the whole pass, and carry each survivor's lower-cased text so the
   // comparator below doesn't re-lower the same strings on every one of its O(n log n) compares.
   const folded = foldForSearch(trimmed);
   const scored: { item: T; tier: number; text: string; lower: string }[] = [];

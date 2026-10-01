@@ -617,7 +617,7 @@ function registerExpiryAndMutationGuardTests(): void {
 
 function registerOwnershipTransferConcealmentTest(): void {
   // The global policy refuses every unsafe method, so the ceremony's six commands are already
-  // covered. The READ is not, and it names who is being handed the company, so it conceals rather
+  // covered. The read is not, and it names who is being handed the company, so it conceals rather
   // than redacts: a masquerading session is not the participant whose ceremony this is.
   it("refuses the ownership transfer read while masquerading, and admits it otherwise", async () => {
     const { app, db } = await fixture();

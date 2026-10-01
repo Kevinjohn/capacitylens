@@ -6,13 +6,13 @@ import type {
   ScopedEntityKey,
 } from "@capacitylens/shared/types/entities";
 
-// A Draft drops the server-owned fields (id/timestamps) AND `accountId`, the
+// A Draft drops the server-owned fields (id/timestamps) and `accountId`, the
 // store stamps the active account, so callers never supply it.
 //
-// It ALSO drops `builtin` (a field only `Client` carries, `Omit` is a harmless no-op on every other
+// It also drops `builtin` (a field only `Client` carries, `Omit` is a harmless no-op on every other
 // entity): the built-in "Internal" client is minted exclusively by the privileged seed / addAccount /
-// migrate paths, which construct the full Client record directly, NOT via addClient/updateClient.
-// Public CRUD must NOT be able to create a SECOND builtin or promote a normal client to one, that
+// migrate paths, which construct the full Client record directly, not via addClient/updateClient.
+// Public CRUD must not be able to create a second builtin or promote a normal client to one, that
 // would break the "exactly one Internal per account" invariant the scheduler / migrate / import all
 // rely on. Excluding the field at the type level is the guard; the store also strips it defensively at
 // runtime (see addClient/updateClient).
@@ -38,7 +38,7 @@ export type ScopedPatch<K extends ScopedEntityKey> = {
 
 // The entity tables that carry the lifecycle tombstones (`archivedAt`/`deletedAt`) and so
 // can travel the Active → Archived → Soft-deleted → Purged machine (`shared/src/domain/lifecycle.ts`).
-// MIRRORS the server's lifecycle-route entity union so the LOCAL store actions below and the server's
-// dedicated routes operate over the IDENTICAL set, phases/allocations/timeOff/disciplines/
+// Mirrors the server's lifecycle-route entity union so the local store actions below and the server's
+// dedicated routes operate over the identical set, phases/allocations/timeOff/disciplines/
 // accounts have no tombstone and are deliberately excluded.
 export type LifecycleEntity = "resources" | "clients" | "projects" | "activities";

@@ -51,7 +51,7 @@ export interface Auth {
         expiresAt: string | null;
       };
     } | null>;
-    /** Better Auth's server-side reset-token mint, call it ONLY through
+    /** Better Auth's server-side reset-token mint, call it only through
      * {@link mintPasswordResetToken}, which provides the AsyncLocalStorage capture context the
      * sendResetPassword callback delivers the token into. Anti-enumeration by design: it resolves
      * with a generic success whether or not the email matched a user. */
@@ -72,12 +72,12 @@ export interface Auth {
   /** Verify every configured issuer/provider alias without writing (operator preflight). */
   assertProviderBindings?: () => void;
   /** Create a user + credential account as one SQLite transaction, bypassing the
-   * public sign-up ROUTE entirely (and with it, the route's minPasswordLength check,
+   * public sign-up route entirely (and with it, the route's minPasswordLength check,
    * internalAdapter.createUser never validates password shape, only the sign-up.mjs handler
    * does). This is why the instance-wide minPasswordLength floor no longer needs to be bent for
    * the bootstrap boot (see the comment on minPasswordLength below authFromEnv).
    *
-   * Deliberately the ONLY way to reach Better Auth's internalAdapter from outside this module,
+   * Deliberately the only way to reach Better Auth's internalAdapter from outside this module,
    * earlier this exposed hashPassword/createUser/linkAccount as three independently callable
    * methods, an interface shape that invited a future caller to create a user with no credential
    * (an orphaned row that permanently locks out the bootstrap: {@link countUsers} > 0 forever,

@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiFetchReauth } from "./apiFetchReauth";
 import { isReauthPending, completeReauth } from "./reauthCoordinator";
 
-// DEFECT B, the step-up interception seam. apiFetchReauth wraps apiFetch and, on the server's
+// Defect B, the step-up interception seam. apiFetchReauth wraps apiFetch and, on the server's
 // SESSION_NOT_FRESH 403, raises the shared re-auth request (the dialog is driven off reauthPending)
-// and: after a successful re-auth, transparently RE-ISSUES the identical request. A cancel or a
+// and: after a successful re-auth, transparently re-issues the identical request. A cancel or a
 // non-freshness response passes straight through, untouched.
 
 const json = (status: number, body: unknown) =>
@@ -92,7 +92,7 @@ describe("apiFetchReauth passthrough", () => {
       method: "DELETE",
       headers: { "Idempotency-Key": "delete-a1" },
     });
-    // The dialog trigger: a step-up becomes pending, and we have NOT retried yet.
+    // The dialog trigger: a step-up becomes pending, and we have not retried yet.
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
     expect(fetchMock).toHaveBeenCalledTimes(1);
 

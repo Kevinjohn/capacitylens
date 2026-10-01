@@ -23,7 +23,7 @@ export const NO_CLOSURES: Closure[] = [];
 
 /** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`
  * (`dates.length` when every entry is earlier). Date-only ISO strings are zero-padded, so
- * lexicographic order IS chronological order and a plain string compare is a valid ordering. */
+ * lexicographic order is chronological order and a plain string compare is a valid ordering. */
 export function resolveFirstDateIndexAtOrAfter(dates: ISODate[], target: ISODate): number {
   let lowerIndex = 0;
   let upperIndex = dates.length;
@@ -41,7 +41,7 @@ export function resolveFirstDateIndexAtOrAfter(dates: ISODate[], target: ISODate
  * lookup then passes only the handful of rows that touch that day instead of rescanning the
  * resource's whole list, making the day loop O(dates + coverage) rather than O(dates × rows), the
  * same trick `buildCapacityAdvisory` documents in capacity.ts. Insertion order inside each bucket follows
- * `rows`, so the hours capacity.ts sums are added in the SAME order as a full scan and the result is
+ * `rows`, so the hours capacity.ts sums are added in the same order as a full scan and the result is
  * bit-for-bit identical (float addition is not associative). */
 export function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISODate }>(
   rows: T[],

@@ -3,13 +3,13 @@ import { type Db } from "../../db";
 import { IMMUTABLE_ACCOUNT_FIELDS } from "../../validate";
 
 // SINGLE_COMPANY_CAP_MESSAGE (owner policy, see AppOptions.multiAccount / CLAUDE.md) now lives in
-// @capacitylens/shared/account/policy: every route that could add a SECOND `accounts` row, this
+// @capacitylens/shared/account/policy: every route that could add a second `accounts` row, this
 // PUT, the batch loop, POST /api/orgs, shares that one shared-package constant so the rule can't
 // drift between vectors. Re-exported here so app.ts's existing `from "./routes/accountEntityRoutes"`
 // import keeps working unchanged.
 export { SINGLE_COMPANY_CAP_MESSAGE };
 
-/** SELECT COUNT(*) FROM accounts, the cap's sole precondition. Same query POST /api/orgs used
+/** SELECT count(*) from accounts, the cap's sole precondition. Same query POST /api/orgs used
  * before the cap existed; kept as one function so every enforcement point reads the identical
  * number (never re-derived ad hoc at each call site). */
 export function countAccounts(db: Db): number {
@@ -22,8 +22,8 @@ interface IsAccountCreateCappedInput {
 }
 
 /**
- * True when creating a NEW `accounts` row right now would violate the single-company cap: the table
- * already holds ≥1 row AND the instance has not opted into `multiAccount`. Callers MUST call this
+ * True when creating a new `accounts` row right now would violate the single-company cap: the table
+ * already holds ≥1 row and the instance has not opted into `multiAccount`. Callers must call this
  * only for the CREATE case (no existing row). An UPDATE/DELETE of an already-existing account is
  * never capped; enforcement is create-time only, per AppOptions.multiAccount.
  */
@@ -42,16 +42,16 @@ export function buildCanonicalAccountProductPayload(row: Record<string, unknown>
 /**
  * True when a sanitised accounts write would change an already-set frozen field, the
  * violation signal the PUT/PATCH/batch handlers all turn into a 409, the batch path throws an
- * AccountContractError with code CONFLICT, which the sync client maps through
+ * AccountContractError with code conflict, which the sync client maps through
  * statusForAccountFailure to the same 409 (its authoritative-reload trigger), not a 400.
  *
- * Reports a violation ONLY when `existing` has a stored value AND the sanitised incoming value
+ * Reports a violation only when `existing` has a stored value and the sanitised incoming value
  * differs. Four deliberate rules:
- *  - Change, not presence: the sync adapter re-sends the WHOLE row on any edit (e.g. a rename),
- *    so an unchanged frozen value MUST pass, only a real change is a violation.
+ *  - Change, not presence: the sync adapter re-sends the whole row on any edit (e.g. a rename),
+ *    so an unchanged frozen value must pass, only a real change is a violation.
  *  - A missing stored value may be set once, preserving legacy/minimal API-created accounts.
  *  - sanitizeWrite pins an existing value when malformed input is dropped, making it a no-op.
- *  - No existing row → creation, when these values are legitimately SET → never a violation.
+ *  - No existing row → creation, when these values are legitimately set → never a violation.
  *
  * @param existing the stored row (undefined on a create, always passes)
  * @param incoming the sanitised candidate row, before it is persisted

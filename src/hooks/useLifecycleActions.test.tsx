@@ -5,10 +5,10 @@ import { useStore } from "@/store/useStore";
 import { makeAccount, makeAppData, resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
-// SERVER-mode coverage for the lifecycle dispatch hook (the LOCAL/store path is covered by
+// Server-mode coverage for the lifecycle dispatch hook (the local/store path is covered by
 // useStore.lifecycle.test.ts + the list/section component tests). With a backend configured, the
-// hook POSTs the dedicated lifecycle route, surfaces a non-OK body.error as an error notice WITHOUT
-// crashing (the highest-value gap, since purge is destructive), and on success RELOADS the active
+// hook POSTs the dedicated lifecycle route, surfaces a non-OK body.error as an error notice without
+// crashing (the highest-value gap, since purge is destructive), and on success reloads the active
 // slice through the attached persistence orchestrator. An explicit no-orchestrator test seam covers
 // the documented loadAll → replaceAll fallback. We assert both paths so a refactor cannot bypass
 // the orchestrator's pending-write flush while leaving fallback-only coverage green.
@@ -34,7 +34,7 @@ vi.mock("@/data/persist", () => ({
 }));
 
 // The reloaded slice the stubbed loadAll returns. A recognisable AppData so we can prove replaceAll
-// ran with EXACTLY this on the success path. Mocking the adapter means no real network/server.
+// ran with exactly this on the success path. Mocking the adapter means no real network/server.
 const reloadedSlice: AppData = makeAppData({
   clients: [
     {
@@ -49,7 +49,7 @@ const reloadedSlice: AppData = makeAppData({
 });
 // The loadAll spy records the accountId it's called with (asserted via toHaveBeenCalledWith) and
 // resolves to the recognisable reloaded slice, the active-slice re-fetch the success path performs.
-// Typed via vi.fn<…>() so the mocked adapter's loadAll(id) call type-checks AND the mock API
+// Typed via vi.fn<…>() so the mocked adapter's loadAll(id) call type-checks and the mock API
 // (mockResolvedValue / toHaveBeenCalledWith) stays available.
 const loadAll = vi.fn<(accountId: string) => Promise<AppData>>(() => Promise.resolve(reloadedSlice));
 vi.mock("@/data/storageAdapter", () => ({
@@ -231,13 +231,13 @@ describe("useLifecycleActions — refresh callback", () => {
     });
     const { result } = renderHook(() => useLifecycleActions());
 
-    // The promise RESOLVES (never rejects). A caller can `void` it safely.
+    // The promise resolves (never rejects). A caller can `void` it safely.
     await expect(result.current.purge("clients", "c-young")).resolves.toBeUndefined();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(useStore.getState().notice?.tone).toBe("error");
     expect(useStore.getState().notice?.message).toBe("Can only be permanently deleted 30 days after deletion.");
-    // A failed mutation must NOT reload (no out-of-band write happened).
+    // A failed mutation must not reload (no out-of-band write happened).
     expect(loadAll).not.toHaveBeenCalled();
     // The store data was left untouched (still the seeded single-account slice, no 'c-reloaded').
     expect(useStore.getState().data.clients.some((c) => c.id === "c-reloaded")).toBe(false);
@@ -303,10 +303,10 @@ describe("useLifecycleActions — successful response variants", () => {
 
 describe("useLifecycleActions — account switching", () => {
   it("SKIPS the post-mutation reload when the active account changed while the POST was in flight", async () => {
-    // The wrong-tenant race: the lifecycle POST resolves AFTER the user switched away from the
+    // The wrong-tenant race: the lifecycle POST resolves after the user switched away from the
     // account the mutation ran in. The mutation committed server-side (it shows on that account's
-    // next hydration); the NEW tenant's slice is owned by the switch orchestrator, and this stale
-    // reload must not fight it, reloading here would install the OLD tenant's slice under the new
+    // next hydration); the new tenant's slice is owned by the switch orchestrator, and this stale
+    // reload must not fight it, reloading here would install the old tenant's slice under the new
     // active id. Simulated by switching the active account inside the stubbed fetch (mid-flight).
     const fetchMock = vi
       .fn()

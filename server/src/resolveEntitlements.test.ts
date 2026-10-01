@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { resolveEntitlements } from "./resolveEntitlements";
 
-// The INERT default-unlimited entitlements seam (the control-plane swap point). Today every
-// account is unlimited. There is NO billing, NO plan field, NO enforcement, and nothing on a route
+// The inert default-unlimited entitlements seam (the control-plane swap point). Today every
+// account is unlimited. There is no billing, no plan field, no enforcement, and nothing on a route
 // imports entitlementsFor. This pins the documented default so a future plan/quota lookup that swaps
-// in behind entitlementsFor changes ONLY this function (and these expectations), nothing downstream.
+// in behind entitlementsFor changes only this function (and these expectations), nothing downstream.
 
 describe("entitlementsFor (default-unlimited seam, P1.16)", () => {
   it("returns { unlimited: true } for any account id", () => {

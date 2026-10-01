@@ -4,7 +4,7 @@ import type { ColumnGeometry } from "./columnGeometry";
 import { buildVisibleSpanInsets } from "./visibleSpanInsets";
 
 /** The band is usually both wider and taller than the viewport, so its name is clamped to the
- * visible portion on BOTH axes and centred there: it then stays on screen however far the
+ * visible portion on both axes and centred there: it then stays on screen however far the
  * schedule has been scrolled across a long closure or down a long list of people. */
 const LABEL_INSETS_X = buildVisibleSpanInsets("x", "var(--band-left)", "var(--band-width)");
 const LABEL_INSETS_Y = buildVisibleSpanInsets("y", "0px", "var(--band-height)");
@@ -87,7 +87,7 @@ export function ClosureBand({
             "repeating-linear-gradient(45deg, color-mix(in oklab, var(--color-faint) 32%, transparent) 0 3px, color-mix(in oklab, var(--color-scheduler-canvas) 72%, transparent) 3px 9px)",
         }}
       />
-      {/* The name rides on its OWN layer rather than inside the band. The band's shading has to
+      {/* The name rides on its own layer rather than inside the band. The band's shading has to
           stay beneath the group-header rows, and `z-0` makes it a stacking context, so a
           name nested in it would be buried by every group header it scrolled behind. The very
           "closure is unnamed" symptom. A sibling layer can outrank those rows while

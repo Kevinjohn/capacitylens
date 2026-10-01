@@ -76,7 +76,7 @@ export function useOwnerSetup({
 }) {
   const [name, setName] = useState("");
   const [setupToken, setSetupToken] = useState("");
-  // Flips true the moment OUR owner-setup submit is refused because someone else's setup
+  // Flips true the moment our owner-setup submit is refused because someone else's setup
   // already won the race (server's live per-request gate, see server/src/auth.ts). needsSetup
   // is a one-time snapshot from page load, so a second tab/operator can still see the create-owner
   // form after the workspace is bootstrapped; this local override forces the ordinary sign-in
@@ -105,8 +105,8 @@ export function useOwnerSetup({
       });
       if (failure) {
         // The live per-request gate (server/src/auth.ts) closes the instant a user exists, so a
-        // second tab/operator racing our own first-run setup gets refused with this EXACT typed
-        // code: Better Auth's disableSignUp shape, reused verbatim by our hook. That's the ONE
+        // second tab/operator racing our own first-run setup gets refused with this exact typed
+        // code: Better Auth's disableSignUp shape, reused verbatim by our hook. That's the one
         // failure that isn't really "your input was wrong": someone else already finished setup,
         // so drop out of setup mode into ordinary sign-in rather than leave the loser stuck on a
         // dead-end create-owner form with no recovery but a manual reload.
@@ -124,7 +124,7 @@ export function useOwnerSetup({
       }
       onSignedIn();
     } catch {
-      // Same contract as the sign-in path: a THROW is a pre-response network/transport error,
+      // Same contract as the sign-in path: a throw is a pre-response network/transport error,
       // surface a generic message + reset busy so the button never sticks disabled. Record the
       // operation without the caught value because transport metadata may retain the secret header.
       console.error("LoginScreen: owner-setup sign-up request failed");

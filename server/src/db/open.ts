@@ -47,7 +47,7 @@ export function openDbConnection(path: string): Db {
       timeout: 5000,
     });
   } catch (e) {
-    // Boot SHOULD crash on an unopenable DB, but frame the raw node:sqlite error with the path so
+    // Boot should crash on an unopenable DB, but frame the raw node:sqlite error with the path so
     // an operator sees "could not open <CAPACITYLENS_DB>" instead of a bare stack. Rethrow (don't swallow).
     throw new Error(`Could not open the SQLite database at "${path}": ${e instanceof Error ? e.message : String(e)}`, {
       cause: e,
@@ -80,7 +80,7 @@ function configureDatabaseForMigration(db: Db, path: string): void {
     throw new Error(`SQLite journal mode is ${journalMode || "unknown"}; expected WAL.`);
   }
   // A successful write acknowledgement must not inherit a runtime-dependent SQLite default.
-  // FULL asks SQLite to sync the WAL at every commit; the assertion makes a driver/build that
+  // Full asks SQLite to sync the WAL at every commit; the assertion makes a driver/build that
   // cannot establish that policy a startup failure instead of silently weakening durability.
   db.exec("PRAGMA synchronous = FULL;");
   const synchronous = Number((db.prepare("PRAGMA synchronous").get() as { synchronous?: number }).synchronous);
@@ -98,7 +98,7 @@ function applyMigration(db: Db, pendingVersion: number, hooks: DatabaseMigration
     () => {
       // Planning is deliberately read-only and happens before BEGIN IMMEDIATE so startup can take a
       // rollback snapshot first. Another same-version process may therefore finish this step while
-      // this handle waits for SQLite's writer lock. Re-read only AFTER acquiring that lock and
+      // this handle waits for SQLite's writer lock. Re-read only after acquiring that lock and
       // validate the winner's immutable ledger before treating its commit as our clean no-op.
       const currentVersion = pragmaNumber(db, "user_version");
       if (currentVersion >= migration.version) {
@@ -174,7 +174,7 @@ function initializeWithForeignKeysDisabled(db: Db, initialize: () => void): void
   const initialization = attempt(initialize);
   // This handle may be retained by migration tooling after a surfaced failure. Never leave its
   // connection-scoped integrity enforcement disabled merely because initialization did not finish.
-  // A cleanup PRAGMA failure on a broken connection must never MASK the original init failure.
+  // A cleanup PRAGMA failure on a broken connection must never mask the original init failure.
   const cleanup = attempt(() => db.exec("PRAGMA foreign_keys = ON;"));
   if (initialization.kind === "failure") throw initialization.error;
   if (cleanup.kind === "failure") {

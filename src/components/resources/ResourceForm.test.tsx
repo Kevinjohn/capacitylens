@@ -520,7 +520,7 @@ it("saves a placeholder once a bound project is chosen", async () => {
   expect(resources[0]?.halfDays).toEqual([]);
 });
 
-// Editing a placeholder whose bound project is ARCHIVED (hidden from the active-only picker): the
+// Editing a placeholder whose bound project is archived (hidden from the active-only picker): the
 // current project must appear as a disabled-but-selected option so an unrelated edit (role) can
 // save the unchanged projectId instead of silently blanking the select and sending a changed
 // projectId. Mirrors ProjectForm's archived-client round-trip.

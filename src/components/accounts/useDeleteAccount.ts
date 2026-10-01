@@ -19,11 +19,11 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
   // delete. Demo-mode delete is synchronous and never sets it.
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState<AccountSummary | null>(null);
-  // SERVER-mode delete calls the dedicated DELETE route (gated 'purge', admin+, server-side; it
-  // erases the whole tenant transactionally). The store's local deleteAccount can NOT do this job in
+  // Server-mode delete calls the dedicated DELETE route (gated 'purge', admin+, server-side; it
+  // erases the whole tenant transactionally). The store's local deleteAccount can not do this job in
   // server mode: persistence diffs AppData snapshots, and in server mode `data` holds only the loaded
   // slice: "deleting" a company whose slice isn't loaded would diff to zero ops, delete nothing, and
-  // the company would resurrect on the next summaries refetch. `data` is deliberately NOT mutated
+  // the company would resurrect on the next summaries refetch. `data` is deliberately not mutated
   // here: the picker only renders with no active account, so a stale (now-deleted) slice in `data` is
   // invisible and gets replaced wholesale by the next account pick's loadAll.
   const deleteOrgOnServer = async (id: string) => {
@@ -52,13 +52,13 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
       // The delete flipped the facts /me computes: on a single-company instance, dropping the only
       // company back to zero accounts makes canCreateAccount true again (the bootstrap exemption).
       // Without this re-ask the picker would show the "ask an admin for an invite" empty state with
-      // NO "New company" button, a dead end until a manual reload. refreshAuth is TOTAL (an
+      // no "New company" button, a dead end until a manual reload. refreshAuth is total (an
       // unresolved refresh keeps the stale value with a warn; the server 403 backstops), so
       // fire-and-forget is safe.
       void refreshAuth();
     } catch (e) {
-      // A timeout/abort says only that the BROWSER stopped waiting. The transactional erasure may
-      // already have COMMITTED server-side. Asserting "nothing was removed" here would leave a
+      // A timeout/abort says only that the browser stopped waiting. The transactional erasure may
+      // already have committed server-side. Asserting "nothing was removed" here would leave a
       // now-deleted company in the picker (re-clicking it 403s) until a manual reload. Reconcile
       // instead: re-read the authoritative /api/accounts list and adopt it (the company drops out
       // if the erase committed; a failed re-read leaves the list untouched, same as before).
@@ -81,7 +81,7 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
       void deleteOrgOnServer(id);
       return;
     }
-    // DEMO build: the local cascade drops the account and all its scoped data irreversibly.
+    // Demo build: the local cascade drops the account and all its scoped data irreversibly.
     try {
       const removedName = useStore.getState().data.accounts.find((account) => account.id === id)?.name;
       deleteAccount(id);

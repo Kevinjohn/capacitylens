@@ -14,7 +14,7 @@ import { requireCallback, a2Slice, attachActiveA2 } from "./__tests__/persistTes
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account AND makes it active, so the add* calls below
+  // Seeds a single account and makes it active, so the add* calls below
   // (which now require an active account) work.
   resetStoreWithAccount();
 });
@@ -351,7 +351,7 @@ it("attachPersistence a successful save settling after detach cannot call the ol
 
 it("attachPersistence flushes a pending debounced write on pagehide (so a tab close does not lose it)", async () => {
   const adapter = new InMemoryDemoAdapter();
-  const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 300 }); // debounced, NOT immediate
+  const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 300 }); // debounced, not immediate
   useStore.getState().addClient({ name: "Ferris", color: "#1" });
   expect((await adapter.loadAll()).clients).toHaveLength(0); // still inside the debounce window
   window.dispatchEvent(new Event("pagehide"));
@@ -553,7 +553,7 @@ it("attachPersistence retries a failed write in the background without waiting f
 });
 
 it("attachPersistence re-attempts a write stranded after the retry budget is spent when the browser comes back online", async () => {
-  // The bounded retry budget stops a PERMANENTLY-failing write from retrying forever, but a
+  // The bounded retry budget stops a permanently-failing write from retrying forever, but a
   // mere network outage shouldn't strand the delta until the next edit: an `online` event
   // re-attempts it with a fresh budget (so a reload after recovery doesn't lose it).
   vi.useFakeTimers();

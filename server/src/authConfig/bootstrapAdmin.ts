@@ -68,8 +68,8 @@ export async function createCredentialUserWith({
   );
 }
 
-/** Create/upgrade Better Auth's tables in the shared SQLite file. Called at boot ONLY
- * when mode ≠ off. An off-mode DB never grows auth tables (the OFF guarantee). */
+/** Create/upgrade Better Auth's tables in the shared SQLite file. Called at boot only
+ * when mode ≠ off. An off-mode DB never grows auth tables (the off guarantee). */
 export async function runAuthMigrations(auth: Auth): Promise<void> {
   const { runMigrations } = await getMigrations(auth.options);
   await runMigrations();
@@ -144,7 +144,7 @@ function isMigrationTableList(value: unknown): value is Array<{ table: string }>
 // The headless escape hatch for a first login: a fresh password-mode instance normally bootstraps
 // through the login screen's "Create the owner account" form (the browser path), but a scripted /
 // container deploy may want a credential ready at boot. The flag creates admin@admin.admin with a
-// operator-supplied password ONLY on an EMPTY user table. Requiring the caller to retain the
+// operator-supplied password only on an empty user table. Requiring the caller to retain the
 // credential outside this process avoids an irrecoverable secret if startup output fails.
 
 /** Stable identity for the optional bootstrap owner. Its password is supplied by the operator. */
@@ -272,7 +272,7 @@ async function createBootstrapAdminResult(
 export function createBootstrapAdminFactory(dependencies: BootstrapAdminDependencies) {
   /**
    * Create the bootstrap owner account when, and only
-   * when, the Better Auth `user` table has ZERO rows. Called at boot from index.ts, after
+   * when, the Better Auth `user` table has zero rows. Called at boot from index.ts, after
    * runAuthMigrations and before buildApp, whenever the operator passed --create-owner-admin-admin
    * (or CAPACITYLENS_CREATE_ADMIN_ADMIN=1).
    *

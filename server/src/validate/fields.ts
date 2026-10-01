@@ -31,7 +31,7 @@ interface ListAppliedRequestedFieldNamesInput {
   applied: Record<string, unknown>;
 }
 
-/** Field names the caller requested AND the write funnel actually changed. This keeps audit
+/** Field names the caller requested and the write funnel actually changed. This keeps audit
  * metadata value-free while excluding rejected, pinned and normalized-to-existing input. */
 export function listAppliedRequestedFieldNames({
   table,

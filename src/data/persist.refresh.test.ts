@@ -17,13 +17,13 @@ import {
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account AND makes it active, so the add* calls below
+  // Seeds a single account and makes it active, so the add* calls below
   // (which now require an active account) work.
   resetStoreWithAccount();
 });
 
 describe("refresh-on-focus (P1.16, server mode)", () => {
-  // Coming back to the tab/window re-hydrates the active account's slice by REUSING refreshActive
+  // Coming back to the tab/window re-hydrates the active account's slice by reusing refreshActive
   // (the switch orchestrator's body), so the adapter's private lastSynced snapshot is re-seeded
   // atomically with `data`. Proven here against a recording adapter + window 'focus' events (the
   // same shape as the pagehide tests in persist.attach.test.ts). Uses the recordingAdapter /
@@ -47,7 +47,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     expect(loadAll).toHaveBeenCalledWith("a2"); // re-hydrated the active account
     expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
     // The re-hydration re-seeds lastSynced atomically: loading the same slice it already holds is
-    // NOT a user edit, so it must NOT push a save back.
+    // not a user edit, so it must not push a save back.
     expect(saveAll).not.toHaveBeenCalled();
     detach();
     now.mockRestore();
@@ -205,7 +205,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
   });
 
   it("FLUSHES a pending debounced edit BEFORE the focus refetch (user edit lands first)", async () => {
-    // The unsaved-edit safety: a pending debounced edit + a focus must POST that edit BEFORE loadAll
+    // The unsaved-edit safety: a pending debounced edit + a focus must POST that edit before loadAll
     // re-seeds the snapshot (last-writer-wins, user wins). Order-assert on the recorded call sequence.
     const order: string[] = [];
     const loadAll = vi.fn(async () => {
@@ -225,7 +225,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     window.dispatchEvent(new Event("focus"));
     await vi.waitFor(() => expect(order).toContain("loadAll"));
 
-    // The edit's save flushed BEFORE the refresh loadAll (no cross-account / lost-edit window).
+    // The edit's save flushed before the refresh loadAll (no cross-account / lost-edit window).
     expect(order[0]).toBe("saveAll");
     expect(order).toContain("loadAll");
     expect(order.indexOf("saveAll")).toBeLessThan(order.indexOf("loadAll"));
@@ -252,8 +252,8 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
 
   it("ABORTS the focus refresh while a save is FAILED — the un-persisted edit must not be clobbered", async () => {
     // The data-loss trap: an edit's save fails (retry scheduled), the user tabs away and back, and the
-    // focus refresh loadAll+replaceAll's the SERVER's copy over the optimistic state, re-seeding the
-    // snapshot so the pending retry diffs to ZERO ops, "succeeds", and the edit is silently gone
+    // focus refresh loadAll+replaceAll's the server's copy over the optimistic state, re-seeding the
+    // snapshot so the pending retry diffs to zero ops, "succeeds", and the edit is silently gone
     // forever. The refresh must abort instead: the retry machinery still holds the edit, and the
     // persist banner (onError) already tells the user they're unsynced.
     const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
@@ -270,7 +270,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     await vi.waitFor(() => expect(readPersistenceDiagnosticsSnapshot().suspended).toBe(true));
     await vi.waitFor(() => expect(readPersistenceDiagnosticsSnapshot().suspended).toBe(false));
 
-    expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // NO reload, the refresh aborted
+    expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // No reload, the refresh aborted
     // The optimistic edit is still in the store, available to the retry/stranded-write machinery.
     expect(useStore.getState().data.clients.some((c) => c.name === "Unsynced")).toBe(true);
     detach();
@@ -402,7 +402,7 @@ async function attachHeldAccountSwitch() {
 }
 
 describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
-  // The out-of-band server writers (archive/delete/purge routes) reload the active slice THROUGH the
+  // The out-of-band server writers (archive/delete/purge routes) reload the active slice through the
   // orchestrator via this export. A bare loadAll+replaceAll would clobber a still-debounced edit and
   // re-seed the snapshot under it (the same permanent-loss mechanism the focus-refresh abort guards).
   // Uses the recordingAdapter / a2Slice / attachActiveA2 helpers from __tests__/persistTestKit.ts.
@@ -439,7 +439,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     saveAll.mockRejectedValue(new Error("write unavailable"));
 
     useStore.getState().addClient({ name: "Unsynced", color: "#222222" });
-    expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "skipped" }); // the orchestrator DECLINED, honestly…
+    expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "skipped" }); // the orchestrator declined, honestly…
 
     expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // …which refused to clobber the edit
     expect(useStore.getState().data.clients.some((c) => c.name === "Unsynced")).toBe(true);
@@ -447,9 +447,9 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
   });
 
   it("with a STALE id is a no-op and does NOT cancel an in-flight newer switch (wrong-tenant race)", async () => {
-    // The race: a lifecycle POST for account A resolves AFTER the user switched A→B while B's
+    // The race: a lifecycle POST for account A resolves after the user switched A→B while B's
     // slice load is still on the wire. Pre-fix, the stale refreshActive(A) bumped the switch token,
-    // CANCELLING B's late-resolving load, then installed A's slice while activeAccountId === B
+    // cancelling B's late-resolving load, then installed A's slice while activeAccountId === B
     // (cross-tenant display → cross-tenant writes). The entry guard must make the stale call a
     // pure no-op: no loadAll(A), no token bump, and B's held-open load still lands.
     const { detach, loadAll, readReleaseB } = await attachHeldAccountSwitch();
@@ -461,11 +461,11 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     expect(releaseB).not.toBeNull(); // B's loadAll dispatched, unresolved
     const aLoadsBefore = loadAll.mock.calls.filter((c) => c[0] === "a1").length;
 
-    // The lifecycle hook's stale reload lands NOW (mutation ran in A; user is on B).
+    // The lifecycle hook's stale reload lands now (mutation ran in A; user is on B).
     expect(await refreshActiveAccountSlice("a1")).toEqual({ kind: "skipped" }); // stale id, declined, honestly…
     expect(loadAll.mock.calls.filter((c) => c[0] === "a1").length).toBe(aLoadsBefore); // …as a no-op
 
-    // B's in-flight load was NOT cancelled: when it resolves, B's slice still lands.
+    // B's in-flight load was not cancelled: when it resolves, B's slice still lands.
     requireCallback(releaseB, "account B load release")();
     await vi.waitFor(() => expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["cb"]));
     expect(useStore.getState().activeAccountId).toBe("b1");

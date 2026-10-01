@@ -55,8 +55,8 @@ interface PatchStatusReqInput {
 
 // ── Member lifecycle: disable / archive / restore.
 // A membership's status is what every authorization read narrows on, so these routes are an access
-// control surface, not a labelling one. The assertions below fix BOTH halves: the status actually
-// changes, AND the account stops admitting the member the moment it does.
+// control surface, not a labelling one. The assertions below fix both halves: the status actually
+// changes, and the account stops admitting the member the moment it does.
 
 const patchStatusReq = ({ app, accountId, userId, status, headers = {} }: PatchStatusReqInput) =>
   call(app, {
@@ -217,7 +217,7 @@ function createDisableMemberTest(): void {
     expect(storedStatus(db, "a1", ed.userId)).toBe("active");
     expect(isAccessRestricted(db, "a1", ed.userId)).toBe(true);
 
-    // THE POINT: the membership row survives, but it confers nothing.
+    // The point: the membership row survives, but it confers nothing.
     expect(
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
     ).toBe(403);
@@ -254,7 +254,7 @@ function createOwnerDisableRejectionTest(): void {
     const { app, db, owner, ed } = await ownerAndEditor("owner-target");
     upsertMember(db, { accountId: "a1", userId: ed.userId, role: "admin", status: "active", createdAt: TS });
     // Even an admin acting within their tier cannot disable the owner; the single-active-owner index
-    // and the boot assertion both key on role='owner' AND status='active'.
+    // and the boot assertion both key on role='owner' and status='active'.
     expect(
       (
         await patchStatusReq({
@@ -444,7 +444,7 @@ describe("member sign-in confirmation", () => {
   });
 });
 
-// The status domain must reach EVERY membership path, not just the new route.
+// The status domain must reach every membership path, not just the new route.
 // Widening a membership to active/disabled/archived is only half a feature. The other half is that
 // every path which resolves a member, invite redemption, identity administration, removal, role
 // change: agrees about what a non-active row means. Each case below failed before this pass, and
@@ -469,7 +469,7 @@ function registerDisabledInviteRedemptionTest(): void {
   it("a disabled member cannot redeem an invite back into the account, and the invite stays unused", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-bypass");
     // An addressed invite the disabled member holds. Before this fix the accept path
-    // probed membership with an ACTIVE-only read, saw "not a member", and upserted them back to
+    // probed membership with an active-only read, saw "not a member", and upserted them back to
     // active at the invite's role, reversing the administrator's decision with no audit record.
     const created = await call(app, {
       method: "POST",
@@ -495,7 +495,7 @@ function registerDisabledInviteRedemptionTest(): void {
     expect(
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
     ).toBe(403);
-    // And the invite is NOT burned. It still works once an admin restores the membership.
+    // And the invite is not burned. It still works once an admin restores the membership.
     const invite = getInvite(db, token);
     if (!invite) throw new Error("Expected the invitation to remain available.");
     expect(invite.usedAt).toBeNull();
@@ -566,7 +566,7 @@ function registerRestoredInviteRedemptionTest(): void {
 function registerDisabledMemberAuthorityTest(): void {
   it("an admin keeps reset-password and revoke-sessions authority over a member they just disabled", async () => {
     const { app, owner, ed } = await ownerAndInactiveEditor("identity-authority");
-    // The compromised-account case: an admin disables first, THEN kills the live session. Before
+    // The compromised-account case: an admin disables first, then kills the live session. Before
     // this fix the target's authority map was active-only, so disabling someone reported them as
     // "not a member" and removed both controls, leaving the attacker's session running.
     const listed = await membersReq(app, "a1", { cookie: owner.cookie });
@@ -620,7 +620,7 @@ function registerDisabledMemberRemovalTest(): void {
 function registerDisabledMemberRoleChangeTest(): void {
   it("refuses a ROLE change on a non-active membership — restore is the only way back", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("role-suspended");
-    // Deliberately NOT widened. changeMemberRole writes `status: "active"`, so accepting it here
+    // Deliberately not widened. changeMemberRole writes `status: "active"`, so accepting it here
     // would make a role edit a silent reinstatement. The UI hides the pencil on these rows; this is
     // the server half of the same rule.
     const res = await call(app, {
@@ -664,7 +664,7 @@ function registerRepeatedStatusNoOpTest(): void {
     const token = (minted.json() as { token: string }).token;
 
     // ...then a second admin, on a stale screen, re-applies the status the member already holds.
-    // SQLite counts a MATCHED row as changed even when the written value is identical, so an
+    // SQLite counts a matched row as changed even when the written value is identical, so an
     // unguarded UPDATE would run the membership-write security protocol and silently kill the link.
     const res = await patchStatusReq({
       app,
@@ -677,7 +677,7 @@ function registerRepeatedStatusNoOpTest(): void {
     expect(res.json()).toMatchObject({ userId: ed.userId, status: "active" });
     expect(storedStatus(db, "a1", ed.userId)).toBe("active");
 
-    // THE POINT: the link the first admin distributed still redeems.
+    // The point: the link the first admin distributed still redeems.
     const redeemed = await call(app, {
       method: "POST",
       url: "/api/auth/reset-password",
@@ -705,7 +705,7 @@ function registerChangedStatusResetTest(): void {
       ).json() as { token: string }
     ).token;
 
-    // The guard must not become an excuse to skip the protocol on a REAL transition: a link minted
+    // The guard must not become an excuse to skip the protocol on a real transition: a link minted
     // while the member was active must not redeem into a non-active one.
     expect(
       (
@@ -749,7 +749,7 @@ describe("member listing order (#175)", () => {
     const owner = await signUp(app, "owner-order@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
 
-    // Three members sharing ONE joinedAt, seeded in an order that is neither alphabetical nor the
+    // Three members sharing one joinedAt, seeded in an order that is neither alphabetical nor the
     // one the id happens to produce, so a passing assertion cannot be an accident of insertion.
     const later = "2026-02-01T00:00:00.000Z";
     for (const name of ["Clark Kent", "alfred Pennyworth", "Barry Allen"]) {

@@ -39,7 +39,7 @@ export async function signOutAndReload(overrides: Partial<SignOutDependencies> =
     ...overrides,
   };
 
-  // ALWAYS reload, success OR failure. In-memory tenant data must not outlive the sign-out
+  // Always reload, success or failure. In-memory tenant data must not outlive the sign-out
   // attempt: the server may have accepted a request whose response was lost. Reloading re-checks
   // /me and either restores the authenticated UI or presents the sign-in wall.
   try {

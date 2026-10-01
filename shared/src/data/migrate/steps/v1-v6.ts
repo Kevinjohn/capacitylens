@@ -54,7 +54,7 @@ export function migrateV3toV4(data: Record<string, unknown>): Record<string, unk
  * `activities`, and every allocation's `taskId` foreign key to `activityId`. Pure key
  * renames. No field values change (the `kind` strings 'project'|'internal'|'repeatable'
  * are unaffected). Idempotent: a blob already on the new shape (no `tasks` key) passes
- * through untouched. An in-progress blob carrying BOTH keys keeps every distinct row while
+ * through untouched. An in-progress blob carrying both keys keeps every distinct row while
  * preferring the modern activity when the same valid id appears in both tables. */
 export function migrateV4toV5(data: Record<string, unknown>): Record<string, unknown> {
   const migratedData: Record<string, unknown> = { ...data };
@@ -93,19 +93,19 @@ export function migrateV4toV5(data: Record<string, unknown>): Record<string, unk
   return migratedData;
 }
 
-/** v5 → v6: ensure EVERY account carries exactly one built-in "Internal" client (`builtin: true`).
+/** v5 → v6: ensure every account carries exactly one built-in "Internal" client (`builtin: true`).
  * A real, persisted Client (not a sentinel) so it can own projects and bucket project-less
- * activities. IDEMPOTENT: an account that already has a `builtin` client is left alone, so this is
+ * activities. Idempotent: an account that already has a `builtin` client is left alone, so this is
  * safe to run repeatedly and on already-migrated / seeded data. A duplicate is never created, and a
  * blob that already satisfies the invariant round-trips deep-equal (no client added → no change).
- * Detection is by the FLAG, not an id (so it survives import-remap). Runs AFTER the v4→v5 rename, so
+ * Detection is by the flag, not an id (so it survives import-remap). Runs after the v4→v5 rename, so
  * the tables are at their current names; `accounts`/`clients` may be absent on a partial blob. We
  * no-op then (an account-less import slice has nothing to attach an Internal client to).
  *
  * This is the typed `ensureInternalClients` algorithm (see internalClient.ts) re-expressed for the
- * RAW, untyped migration blob: a versioned migration runs on a pre-typed `Record<string, unknown>`
+ * raw, untyped migration blob: a versioned migration runs on a pre-typed `Record<string, unknown>`
  * and must stay deterministic (no live clock, a fixed timestamp), so it can't call the typed helper
- * directly. The row SHAPE + the "match builtin by flag + accountId" predicate are kept in lockstep by
+ * directly. The row shape + the "match builtin by flag + accountId" predicate are kept in lockstep by
  * using the shared `buildInternalClient` factory for the row literal. */
 export function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
   if (!isUnknownArray(data.accounts) || data.accounts.length === 0) return data;

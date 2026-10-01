@@ -5,7 +5,7 @@ import type { Role } from "./types";
 /**
  * How long a nomination stays open, from initiation. Seven days is long enough for an
  * administrative handover across two people's working schedules, and short enough that a forgotten
- * request is not a latent elevation path. Acceptance does NOT extend it: the deadline bounds the
+ * request is not a latent elevation path. Acceptance does not extend it: the deadline bounds the
  * whole ceremony, not the wait for any one step.
  *
  * The single source for both the server's deadline arithmetic and the interface's explanation of
@@ -40,7 +40,7 @@ export function isOwnershipTransferExpired(expiresAt: string, now: number): bool
 
 /** The caller's current relationship to one request, re-read inside the transaction. */
 export interface OwnershipTransferActorStanding {
-  /** The caller's CURRENT active role in the company, re-read inside the transaction. */
+  /** The caller's current active role in the company, re-read inside the transaction. */
   callerRole: Role;
   /** Is the caller the Owner who proposed this request? */
   isInitiator: boolean;
@@ -52,7 +52,7 @@ export interface OwnershipTransferActorStanding {
  * May this caller perform this ceremony action?
  *
  * Role tier alone can never answer this. The nominated Admin's own consent (accept, withdraw,
- * decline) is performed at Admin tier, so a tier-only rule would let EVERY Admin consent on the
+ * decline) is performed at Admin tier, so a tier-only rule would let every Admin consent on the
  * nominee's behalf, which is precisely the consent the ceremony exists to obtain. Participant
  * identity is therefore part of the predicate, not a separate courtesy check.
  *

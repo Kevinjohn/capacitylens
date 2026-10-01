@@ -160,19 +160,19 @@ export function useSchedulerGridPreferences() {
   const activeAccount = useStore((state) =>
     state.data.accounts.find((account) => account.id === state.activeAccountId),
   );
-  // Every per-account view pref this grid reads, resolved from the ONE `activeAccount` row above
+  // Every per-account view pref this grid reads, resolved from the one `activeAccount` row above
   // instead of a separate store subscription each. They all look up the same account, so ten
   // selector subscriptions meant ten `accounts.find` scans on every unrelated store write. The
-  // selectors still OWN their absent-field defaults (each differs and is load-bearing), so they
+  // selectors still own their absent-field defaults (each differs and is load-bearing), so they
   // are called here against a one-account view of the data rather than reimplemented.
   const accountPreferences = useMemo(() => {
     const view = { ...emptyAppData(), accounts: activeAccount ? [activeAccount] : [] };
     const id = activeAccount?.id ?? null;
     return {
-      // Default OFF: when off, placeholder ("slot") rows are hidden from the schedule (and dropped
+      // Default off: when off, placeholder ("slot") rows are hidden from the schedule (and dropped
       // from utilisation) by buildSchedulerModel's resourceVisible filter.
       placeholdersEnabled: hasPlaceholdersEnabled(view, id),
-      // Default OFF: when off, external / 3rd-party rows are hidden from the schedule (and their
+      // Default off: when off, external / 3rd-party rows are hidden from the schedule (and their
       // now-empty band header is dropped) by the same resourceVisible filter.
       externalEnabled: hasExternalResourcesEnabled(view, id),
       // When disciplines are off, discipline bands disappear and the model uses the
@@ -195,7 +195,7 @@ export function useSchedulerGridPreferences() {
   const utilizationPreferences = useStore((state) => state.utilizationPrefs);
   // Device-global display pref (default on): narrow the weekend columns. Drives the geometry below.
   const minimiseWeekends = useStore((state) => state.minimiseWeekends);
-  // After a FREE scroll settles, floor the left edge back to the current week's first day (the
+  // After a free scroll settles, floor the left edge back to the current week's first day (the
   // scroll-idle snap in onScroll below). Always on for users; only a test-only storage override
   // turns it off. The navigation snap (zoom / Prev-Next / date-picker) is independent of this.
   const weekSnapEnabled = useStore((state) => state.weekSnapEnabled);
@@ -216,16 +216,16 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
   const partiallyExposesNextColumnState = usePartiallyExposedNextColumn(viewport, ui.zoom);
   const { calendarTimeZone } = accountPreferences;
   const today = useCalendarToday(calendarTimeZone);
-  // FIXED forward window from today (overStart..overEnd): drives ONLY the `overSoon` red flag, a
-  // near-term, zoom/pan-INDEPENDENT "over soon" radar, so the per-resource overbooked warning fires
+  // Fixed forward window from today (overStart..overEnd): drives only the `overSoon` red flag, a
+  // near-term, zoom/pan-independent "over soon" radar, so the per-resource overbooked warning fires
   // regardless of the visible range. Kept separate from the displayed % (which follows the view).
   const overStart = today;
   const overEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1);
 
-  // VISIBLE window [visibleStart, visibleEnd]: drives the DISPLAYED utilisation % (per-person, per-discipline
+  // Visible window [visibleStart, visibleEnd]: drives the displayed utilisation % (per-person, per-discipline
   // avg, overall). The visible span is `ui.zoom * 7` calendar days anchored at the scroll left-edge
   // day; the inclusive end is `+ (zoom*7 - 1)`. A 1-week view is the 7 inclusive days [L, L+6], not
-  // +7 (8 days). The end is CLAMPED to the last timeline day so the window never reads past `days[]`.
+  // +7 (8 days). The end is clamped to the last timeline day so the window never reads past `days[]`.
   // Day-quantized via leftEdgeIndex so a scroll within a column doesn't rebuild the model.
   const { start: visibleStart, end: visibleEnd } = useMemo(
     () => resolveVisibleWindow({ days, leftEdgeIndex, zoom: ui.zoom, focusDate: ui.focusDate }),
@@ -240,8 +240,8 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
     [visibleStart, visibleEnd],
   );
 
-  // Vertical density. `density` covers the geometry the VIEW draws directly; `rowLaneLayout` is the
-  // projection the MODEL packs lanes with. Both are module constants, so they are stable dependencies.
+  // Vertical density. `density` covers the geometry the view draws directly; `rowLaneLayout` is the
+  // projection the model packs lanes with. Both are module constants, so they are stable dependencies.
   const density = SCHEDULER_DENSITY;
   const rowLaneLayout = SCHEDULER_LANE_LAYOUT;
 

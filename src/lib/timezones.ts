@@ -41,7 +41,7 @@ function warnRuntimeFallback(message: string, error?: unknown): void {
  * engines that lack the API. Rendered through {@link resolveTimeZoneOptionLabel}, which owns the
  * display copy.
  *
- * The returned array is FROZEN and shared between callers, read it, do not sort or splice it.
+ * The returned array is frozen and shared between callers, read it, do not sort or splice it.
  */
 export function listSupportedTimeZones(): readonly string[] {
   cachedZones ??= Object.freeze(buildSupportedTimeZones());
@@ -82,7 +82,7 @@ function buildSupportedTimeZones(): string[] {
 
 // One Intl.DateTimeFormat per zone: constructing a formatter is the expensive part (the offset
 // lookup itself is cheap), and a formatter stays valid for every instant, so this cache never
-// goes stale. Deliberately NOT caching the resulting label, a zone's offset changes with the
+// goes stale. Deliberately not caching the resulting label, a zone's offset changes with the
 // date, and a time-based cache has to reason about transitions that can land mid-hour (Lord
 // Howe's half-hour DST step) for a saving the formatter cache already delivers.
 const offsetFormattersByTimeZone = new Map<string, Intl.DateTimeFormat>();
@@ -154,7 +154,7 @@ export function resolveTimeZoneOffsetLabel(timeZone: string, date = new Date()):
 /** Render an option label with both the zone's display name and its current numeric offset.
  * 'Etc/GMT': the app default, reads as the localised "GMT" rather than its IANA identifier,
  * which is the one piece of display copy this list needs; every other zone shows its identifier.
- * Resolved at CALL time (never at module scope) so the label follows the active locale. */
+ * Resolved at call time (never at module scope) so the label follows the active locale. */
 export function resolveTimeZoneOptionLabel(
   timeZone: string,
   displayName = resolveTimeZoneDisplayName(timeZone),

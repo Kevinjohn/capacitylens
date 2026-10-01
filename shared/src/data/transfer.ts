@@ -19,11 +19,11 @@ export function serializeData(data: AppData): string {
  * rows, not millions. Refuse anything wildly out of range rather than locking the
  * main thread (client import) or the server event loop trying to remap it.
  *
- * NOT redundant with the 5 MiB byte caps (ImportExport's client file-size check and
- * the server's request BODY_LIMIT): those bound the payload SIZE, this bounds the
- * record COUNT, a different axis. Real exports run ~100–400 bytes/record, so a 5 MiB
+ * Not redundant with the 5 MiB byte caps (ImportExport's client file-size check and
+ * the server's request BODY_LIMIT): those bound the payload size, this bounds the
+ * record count, a different axis. Real exports run ~100–400 bytes/record, so a 5 MiB
  * file holds well under this cap and the byte cap fires first there. But `parseData`
- * also runs on the server's POST /api/import, where a HOSTILE body of many near-empty
+ * also runs on the server's POST /api/import, where a hostile body of many near-empty
  * records (`{}` compacts to ~3 bytes) fits well over a million inside the 5 MiB
  * BODY_LIMIT, so this count cap is the live backstop that actually bites on that path.
  * (I.e. the error is reachable, not dead code; keep it.) */
@@ -33,11 +33,11 @@ export const MAX_IMPORT_RECORDS = 200_000;
  * Most operations one POST /api/batch request may carry, inclusive. One protocol limit: the client
  * refuses an over-cap diff and the server rejects one, both importing it from here.
  *
- * The MAX_IMPORT_RECORDS precedent, applied to the sync path. BODY_LIMIT bounds request BYTES, not
- * request WORK: every operation is sanitized, authorized, validated and applied to the in-memory
+ * The MAX_IMPORT_RECORDS precedent, applied to the sync path. BODY_LIMIT bounds request bytes, not
+ * request work: every operation is sanitized, authorized, validated and applied to the in-memory
  * projection. The transaction reads each affected account slice once, then indexed point/reverse
  * lookups keep per-op validation and projection updates proportional to each operation's
- * referenced/affected rows rather than the whole tenant. Op COUNT is therefore the remaining
+ * referenced/affected rows rather than the whole tenant. Op count is therefore the remaining
  * request-controlled multiplier. 5 000 is generous headroom over the largest realistic full-slice
  * diff the client sync adapter produces (a whole busy agency's slice is low-thousands of rows)
  * while bounding a crafted/looping flood.
@@ -106,8 +106,8 @@ export function parseData(json: string): AppData {
     }
   }
   const data = migrate(raw);
-  // NOTE: this `total` counts EVERY table on AppData (it includes `accounts`), because here we're
-  // gating the FILE, its size and emptiness, not the per-account import. The importer
+  // Note: this `total` counts every table on AppData (it includes `accounts`), because here we're
+  // gating the file, its size and emptiness, not the per-account import. The importer
   // (remapAndValidateImport) later counts only the SCOPED_KEYS it actually brings into the active
   // account, so its "imported N" can be smaller than this total by exactly the accounts array.
   // The two counts answer different questions on purpose; don't "reconcile" them into one.
@@ -115,7 +115,7 @@ export function parseData(json: string): AppData {
   if (total > MAX_IMPORT_RECORDS) {
     throw new Error(`This file has too many records (${total.toLocaleString()}).`);
   }
-  // A CapacityLens-shaped file that migrates to ZERO records would, if imported, replace the
+  // A CapacityLens-shaped file that migrates to zero records would, if imported, replace the
   // active company's slice with nothing, a silent wipe. Refuse it: importing an empty
   // file is never the intent (delete is the explicit path for clearing data).
   if (total === 0) {

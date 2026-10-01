@@ -279,7 +279,7 @@ describe("resolveAccessibleBarColors", () => {
 
   it("zero-pads a single-hex-digit channel back to two digits", () => {
     // The adjusted red channel here rounds to 0, i.e. a single hex digit ("0")
-    // that MUST be left-padded to "00", dropping the padStart pad character
+    // that must be left-padded to "00", dropping the padStart pad character
     // would shorten the whole hex string.
     expect(resolveAccessibleBarColors("#0070f8")).toEqual({ bg: "#0067e4", ink: "#ffffff" });
   });

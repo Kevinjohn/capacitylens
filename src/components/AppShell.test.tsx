@@ -769,7 +769,7 @@ function registerDirtyFormPaletteGuardTest(): void {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
     });
 
-    // Palette must NOT render
+    // Palette must not render
     expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
     // Notice must show the exact message. It's surfaced via a Sonner toast now (bridged from
     // the store `notice`), which portals in asynchronously, so await it.
@@ -909,7 +909,7 @@ function registerInfoNoticeDismissalTest(): void {
 
 function registerPersistentErrorNoticeTest(): void {
   it("keeps an ERROR notice on screen past the 4s info window (no auto-dismiss), unlike info", async () => {
-    // Drive Sonner's auto-close timer with FAKE timers so we can genuinely advance past the
+    // Drive Sonner's auto-close timer with fake timers so we can genuinely advance past the
     // 4000ms info window deterministically (a real 4s wait is too slow + flaky). `findBy*`
     // polls on real timers, so we never use it here. We pump Sonner's mount + dismiss timers
     // with advanceTimersByTimeAsync and read synchronously. Restored in finally so the other
@@ -918,7 +918,7 @@ function registerPersistentErrorNoticeTest(): void {
     try {
       renderAppShell({});
 
-      // BASELINE: an INFO notice MUST auto-dismiss once the 4000ms window elapses. Prove the
+      // Baseline: an info notice must auto-dismiss once the 4000ms window elapses. Prove the
       // window actually closes (so the error assertion below isn't vacuously true).
       act(() => {
         useStore.getState().setNotice("Info that should auto-dismiss.");
@@ -933,7 +933,7 @@ function registerPersistentErrorNoticeTest(): void {
       expect(screen.queryByText(/auto-dismiss/)).not.toBeInTheDocument();
       expect(useStore.getState().notice).toBeNull(); // bridge cleared the store in lock-step
 
-      // ERROR: created with duration: Infinity, so the SAME 4500ms advance must NOT dismiss it.
+      // Error: created with duration: Infinity, so the same 4500ms advance must not dismiss it.
       act(() => {
         useStore.getState().setNotice("That allocation could not be moved.", "error");
       });
@@ -969,8 +969,8 @@ function registerPersistentWarningNoticeTest(): void {
   it("keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)", async () => {
     // The 'warning' tone (e.g. the clamped-hours/data-truncation advisory) must inherit the
     // persistent (duration: Infinity) treatment like an error, a fixed 4s timer on the sole signal
-    // of a silent truncation fails WCAG 2.2.1, but must NOT carry the danger `.toast-error` accent,
-    // since the edit SUCCEEDED. Same fake-timer technique as the info-vs-error test above.
+    // of a silent truncation fails WCAG 2.2.1, but must not carry the danger `.toast-error` accent,
+    // since the edit succeeded. Same fake-timer technique as the info-vs-error test above.
     vi.useFakeTimers();
     try {
       renderAppShell({});
@@ -984,10 +984,10 @@ function registerPersistentWarningNoticeTest(): void {
       const message = screen.getByText(/capped at 24h\/day/);
       const toastEl = message.closest("[data-sonner-toast]");
       expect(toastEl).not.toBeNull();
-      // NEUTRAL surface: not raised via toast.error, so no danger accent (unlike the error tone).
+      // Neutral surface: not raised via toast.error, so no danger accent (unlike the error tone).
       expect(toastEl).not.toHaveClass("toast-error");
 
-      // Persists well past where an INFO toast (4000ms) would have auto-dismissed.
+      // Persists well past where an info toast (4000ms) would have auto-dismissed.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(4500);
       });
@@ -1010,13 +1010,13 @@ function registerPersistentWarningNoticeTest(): void {
 
 function registerNoticeReplacementRaceTest(): void {
   it("rapidly replacing notice A with B leaves B intact (no stale-clear race)", async () => {
-    // REGRESSION for the stale-clear race: rapidly swapping notice A→B (e.g. two drags
-    // in quick succession) must NOT let A's deferred programmatic dismiss wipe B. When the bridge
+    // Regression for the stale-clear race: rapidly swapping notice A→B (e.g. two drags
+    // in quick succession) must not let A's deferred programmatic dismiss wipe B. When the bridge
     // replaces A's toast it runs cleanup `toast.dismiss(idA)`, and Sonner fires A's `onDismiss`
     // even for a *programmatic* dismiss, so without the `=== thisNotice` identity guard A's
     // `clear()` would call setNotice(null) and erase B. (Verified: with the guard removed the
     // store reads `notice === undefined` here instead of B.) Fake timers let us pump Sonner's
-    // deferred-dismiss + exit-animation rAFs for A deterministically while staying WELL under the
+    // deferred-dismiss + exit-animation rAFs for A deterministically while staying well under the
     // 4000ms auto-dismiss window, so B never auto-closes. We isolate the swap race, not the timer.
     vi.useFakeTimers();
     try {
@@ -1032,12 +1032,12 @@ function registerNoticeReplacementRaceTest(): void {
       });
       expect(screen.getByText("First notice")).toBeInTheDocument();
 
-      // The back-to-back second notice REPLACES A. This is what tears A's toast down and fires
+      // The back-to-back second notice replaces A. This is what tears A's toast down and fires
       // A's deferred onDismiss (the thing that, unguarded, would wipe B).
       act(() => {
         useStore.getState().setNotice("Second notice");
       });
-      // Pump A's deferred dismiss rAF, THEN its exit-animation removal, in two steps, Sonner
+      // Pump A's deferred dismiss rAF, then its exit-animation removal, in two steps, Sonner
       // chains those across rAF/flush boundaries, so a single big advance can leave A's node
       // mid-animation. Total here (~250ms post-swap) stays well under the 4000ms auto-dismiss,
       // so B never auto-closes.
@@ -1048,7 +1048,7 @@ function registerNoticeReplacementRaceTest(): void {
         await vi.advanceTimersByTimeAsync(200); // A's exit animation completes → node removed
       });
 
-      // CORE ASSERTION, the store still holds B (A's deferred clear was identity-guarded out; an
+      // Core assertion, the store still holds B (A's deferred clear was identity-guarded out; an
       // unguarded bridge leaves this undefined). Read synchronously: `findBy*` polls on real timers
       // and would hang under fake timers, so we never use it here.
       expect(useStore.getState().notice?.message).toBe("Second notice");
@@ -1158,7 +1158,7 @@ describe("AppShell undo/redo keyboard", () => {
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
     });
-    expect(useStore.getState().data.clients).toHaveLength(1); // NOT undone
+    expect(useStore.getState().data.clients).toHaveLength(1); // Not undone
 
     // Form no longer dirty → ⌘Z undoes as normal.
     act(() => {

@@ -15,10 +15,10 @@ import {
 const RESOURCE_KINDS: ReadonlySet<unknown> = new Set(["person", "placeholder", "external"]);
 
 /**
- * Strict tenancy at the WRITE boundary. An update/delete must own its target:
- *   - ABSENT row  → return null; the caller no-ops (preserves the silent-no-op
+ * Strict tenancy at the write boundary. An update/delete must own its target:
+ *   - absent row  → return null; the caller no-ops (preserves the silent-no-op
  *     contract for a stale id, e.g. a drag committed after an undo).
- *   - CROSS-ACCOUNT row → throw; a real integrity violation no legitimate flow
+ *   - cross-account row → throw; a real integrity violation no legitimate flow
  *     produces. Returns the owned row so callers can read its current values.
  */
 export function getOwned<K extends ScopedEntityKey>(
@@ -182,17 +182,17 @@ function assertResourceRefs(context: ScopedRefsContext): void {
 
 /**
  * Every foreign key on a new/updated scoped record must point at a row in the
- * SAME account. Optional FKs are checked only when present. A project/phase create or full row must
+ * same account. Optional FKs are checked only when present. A project/phase create or full row must
  * carry its required parent; a partial update may omit that field but may not explicitly clear it.
  *
  * `existing` (updates only) is the currently-stored row the write targets, pass the
  * `getOwned` result so its tenancy is already proven. When a checked FK field equals
- * the existing row's value, its EXISTENCE check is skipped: the reference was validated
- * when it was written, and in SERVER mode the client's hydrated slice is ACTIVE-ONLY
+ * the existing row's value, its existence check is skipped: the reference was validated
+ * when it was written, and in server mode the client's hydrated slice is active-only
  * (readSlice strips archived/soft-deleted clients/projects), so re-checking an unchanged
- * parent id against the slice would falsely reject every UNRELATED edit (a rename, a
- * colour change) of a row whose parent is archived. A CHANGED id is still validated
- * strictly, so this never weakens tenancy. You can't MOVE a record onto a parent the
+ * parent id against the slice would falsely reject every unrelated edit (a rename, a
+ * colour change) of a row whose parent is archived. A changed id is still validated
+ * strictly, so this never weakens tenancy. You can't move a record onto a parent the
  * slice can't prove is yours. (The server needs no such relaxation: its validateWrite
  * runs against the full DB, where an archived parent still exists.)
  */
@@ -264,11 +264,11 @@ export function assertScopedRefs(
 }
 
 /**
- * An allocation must reference a real resource + activity IN THE ACTIVE ACCOUNT, a
+ * An allocation must reference a real resource + activity in the active account, a
  * repeatable attribution may only reference a live project when changed, a placeholder may only
  * take allocations effective under its bound project, and an external /
  * 3rd-party resource (which has no capacity) may only carry a zero load. `hoursPerDay`
- * is REQUIRED. Every allocation write knows its load, and making the parameter
+ * is required. Every allocation write knows its load, and making the parameter
  * mandatory forces the compiler to surface it so the capacity-free rule below can never
  * be silently skipped by a future caller (the old optional arg made that invariant
  * opt-in per call site).
@@ -362,7 +362,7 @@ export function assertAllocationRefs(
     throwDomainError("allocation_activity_inactive", "Allocation must reference an activity under an active project.");
   }
   assertValid(validateAllocationAssignment(resource, resolvedProjectId));
-  // External / 3rd parties have NO capacity: their allocations carry no load (hoursPerDay 0). The
+  // External / 3rd parties have no capacity: their allocations carry no load (hoursPerDay 0). The
   // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only, enforce it at the
   // write boundary too so a direct store / API write can't land a phantom load on a capacity-free
   // resource (the scheduler hides it, so it would persist invisibly). Import coerces the same value

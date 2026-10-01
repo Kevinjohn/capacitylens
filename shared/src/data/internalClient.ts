@@ -1,29 +1,29 @@
 import type { AppData, Client, ID, ISOTimestamp } from "../types/entities";
 
-// The built-in "Internal" pseudo-client. It is a REAL, persisted {@link Client} (it carries an
-// `accountId` and a primary-key id like any other), NOT a virtual/sentinel id, so it can own
+// The built-in "Internal" pseudo-client. It is a real, persisted {@link Client} (it carries an
+// `accountId` and a primary-key id like any other), not a virtual/sentinel id, so it can own
 // real projects, and a project-less internal/all-projects activity buckets under it for display +
-// filtering. Exactly ONE per account, marked by the `builtin: true` flag. Identify it AT RUNTIME by
+// filtering. Exactly one per account, marked by the `builtin: true` flag. Identify it at runtime by
 // the flag, never by a hard-coded id formula: import-remap (remapAndValidateImport) mints fresh ids,
 // so any id we wrote would not survive a round-trip. The flag does. See DECISIONS.md.
 //
-// ── THE SINGLE-INTERNAL INVARIANT (canonical doc; cited from each enforcement point) ──
-// "Exactly ONE built-in Internal client per account" is one policy enforced at THREE points, one per
-// write path, DELIBERATE defence-in-depth, NOT accidental duplication. They use three DIFFERENT
+// ── the single-internal invariant (canonical doc; cited from each enforcement point) ──
+// "Exactly ONE built-in Internal client per account" is one policy enforced at three points, one per
+// write path, deliberate defence-in-depth, not accidental duplication. They use three different
 // mechanisms because the three write contracts differ structurally; they cannot collapse into one
 // shared assert:
-//   1. STORE STRIP, public client CRUD (src/store/useStore.ts addClient/updateClient). `builtin`
-//      is excluded from Draft/Patch<Client> at the type level and DELETED at runtime, so public CRUD
+//   1. Store strip, public client CRUD (src/store/useStore.ts addClient/updateClient). `builtin`
+//      is excluded from Draft/Patch<Client> at the type level and deleted at runtime, so public CRUD
 //      can never carry the flag at all. There is nothing to reject against: the rule is "never set
 //      it," minted only by the privileged seed / addAccount / migrate paths.
-//   2. IMPORT FOLD, bulk replace (remapAndValidateImport in shared/src/domain/mutations.ts). Import
-//      REPLACES the whole account slice, so there is no surviving "existing" to reject against, it
-//      reconciles instead: keep the FIRST imported builtin (re-stamping its active canonical fields)
-//      and remap every OTHER builtin's id onto it so their dependents re-point. `applyInternalClientRepairs` then
+//   2. Import fold, bulk replace (remapAndValidateImport in shared/src/domain/mutations.ts). Import
+//      replaces the whole account slice, so there is no surviving "existing" to reject against, it
+//      reconciles instead: keep the first imported builtin (re-stamping its active canonical fields)
+//      and remap every other builtin's id onto it so their dependents re-point. `applyInternalClientRepairs` then
 //      synthesises one if the file carried none.
-//   3. SERVER REJECT, direct API (server/src/validate.ts validateWrite). The API is the integrity
-//      boundary and is the ONLY path that CAN set `builtin: true` against live, persisted state, so
-//      it is the only one that does a true "is there already one?" check and REJECTS a second
+//   3. Server reject, direct API (server/src/validate.ts validateWrite). The API is the integrity
+//      boundary and is the only path that can set `builtin: true` against live, persisted state, so
+//      it is the only one that does a true "is there already one?" check and rejects a second
 //      ({@link wouldAddSecondBuiltin}).
 
 /** The display name of the built-in Internal client (also recognised on import/migrate). */
@@ -50,7 +50,7 @@ function repairRevision(current: ISOTimestamp, now: ISOTimestamp): ISOTimestamp 
 
 /** The deterministic id an account's Internal client is created with. Ordinary creation uses it
  * directly; repair falls back to a suffixed variant when it is already taken (see
- * {@link availableInternalClientId}). Identification at RUNTIME is still by the `builtin` flag.
+ * {@link availableInternalClientId}). Identification at runtime is still by the `builtin` flag.
  * This formula never survives an import-remap (see the module doc). */
 export function internalClientIdFor(accountId: ID): ID {
   return `internal:${accountId}`;
@@ -105,9 +105,9 @@ export function isBuiltinClient(client: Pick<Client, "builtin">): boolean {
 }
 
 /**
- * SERVER-REJECT enforcement point (3) of the single-Internal invariant, see the module doc above.
- * True when writing a client with `builtin: true` and the given id WOULD add a SECOND built-in to the
- * account: the account already has a builtin whose id differs from this write. Updating the SAME
+ * Server-reject enforcement point (3) of the single-Internal invariant, see the module doc above.
+ * True when writing a client with `builtin: true` and the given id would add a second built-in to the
+ * account: the account already has a builtin whose id differs from this write. Updating the same
  * builtin (matching id) is fine and returns false. `internalClientFor` is first-match, so a duplicate
  * would silently shadow data under an arbitrary Internal, reject it at the API boundary instead.
  */
@@ -117,8 +117,8 @@ export function wouldAddSecondBuiltin(clients: Client[], accountId: ID, id: ID):
 }
 
 /**
- * Does the retained Internal row still differ from its canonical form? ONE copy of the predicate,
- * because {@link applyInternalClientRepairs} must decide two things with EXACTLY the same test: whether
+ * Does the retained Internal row still differ from its canonical form? One copy of the predicate,
+ * because {@link applyInternalClientRepairs} must decide two things with exactly the same test: whether
  * any repair is needed at all, and whether an individual row's `updatedAt` must be bumped. The two
  * must stay in lockstep, see the comment at the bump site.
  */
@@ -232,7 +232,7 @@ function rewireDuplicateProjects(
 }
 
 /**
- * Ensure EVERY account in `data` has exactly one built-in Internal client. When legacy/corrupt data
+ * Ensure every account in `data` has exactly one built-in Internal client. When legacy/corrupt data
  * contains duplicates, the generated id is preferred, otherwise the oldest/id-first row is retained;
  * projects are rewired to it and the extras are removed. Returns the same reference when no repair
  * is needed.
@@ -264,8 +264,8 @@ export function applyInternalClientRepairs(data: AppData, now: ISOTimestamp): Ap
     }
     recordBuiltinDuplicates(builtins, generatedId, { duplicateIds, duplicateIndexes, retainedIndexes });
   }
-  // ONE pass over the rows: the repaired projection and the "was anything actually repaired?" flag
-  // come from the SAME predicate evaluation, so they cannot disagree.
+  // One pass over the rows: the repaired projection and the "was anything actually repaired?" flag
+  // come from the same predicate evaluation, so they cannot disagree.
   const { clients, repairedAny } = repairRetainedClients(data.clients, {
     retainedIndexes,
     duplicateIndexes,

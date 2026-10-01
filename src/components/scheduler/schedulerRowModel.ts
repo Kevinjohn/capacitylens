@@ -162,8 +162,8 @@ export function createRowBuilder({
     // Resolve the company/personal intersection once for the whole row. Capacity, creation
     // blocking, visible utilisation and overSoon all reuse this discriminated result.
     const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
-    // A row is "dimmed" when a work filter (client/project OR the activity lens) is active and
-    // this resource has NO MATCHING BAR in the displayed timeline. We still show their full
+    // A row is "dimmed" when a work filter (client/project or the activity lens) is active and
+    // this resource has no matching bar in the displayed timeline. We still show their full
     // real load (so you can see who's free to staff), just visually de-emphasised. Deriving this
     // from the exact matching bar set means off-timeline and otherwise hidden matches cannot
     // create a full-opacity, zero-bar "ghost" row that escapes the show-unmatched filter.
@@ -194,8 +194,8 @@ export function createRowBuilder({
       .filter(hasTimelineIntersection)
       .map((entry) => buildTimeOffBlock(entry, geometry));
     const timeOff: TimeOffBlock[] = capacity.tracked ? personalTimeOffBlocks : NO_TIME_OFF_BLOCKS;
-    // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the
-    // `overSoon` red flag runs over the FIXED forward window [overStart, overEnd], two
+    // The displayed utilisation % runs over the visible window [visStart, visEnd]; the
+    // `overSoon` red flag runs over the fixed forward window [overStart, overEnd], two
     // deliberately separate signals (see the param doc above). Utilisation ignores zero-capacity
     // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
     // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot

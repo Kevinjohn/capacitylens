@@ -75,7 +75,7 @@ describe("volumePreservingHoursClamped", () => {
   });
 
   // The clamp flag is what lets a gesture commit surface the lost work volume. It must be
-  // true ONLY when the raw derived hours actually exceeded the cap (a truncation), never on
+  // true only when the raw derived hours actually exceeded the cap (a truncation), never on
   // a normal in-range resize or the divide-by-zero guard. This is the test that fails without
   // the surfacing change being wired through.
   it("flags clamped=true when the raw derived hours exceed MAX_HOURS_PER_DAY (24)", () => {
@@ -127,7 +127,7 @@ describe("volumePreservingHoursClamped edge cases", () => {
     ).toEqual({ hours: 6, clamped: false });
   });
 
-  // A weekend-aware allocation spanning only Sat–Sun has ZERO working days in its OLD span. Before
+  // A weekend-aware allocation spanning only Sat–Sun has zero working days in its old span. Before
   // the fix, `hoursPerDay * 0 / newSpan` derives 0 and commits it with clamped=false, silent data
   // loss, since the bar still renders but contributes nothing to utilisation. There is no volume to
   // preserve when the old span had none, so the only non-destructive result is the stored hours,
@@ -273,10 +273,10 @@ describe("computeGesture rescaling guards", () => {
     ).toBe(false);
   });
 
-  // A move never rescales even when the span is unchanged (its old/new span ARE equal, so a
+  // A move never rescales even when the span is unchanged (its old/new span are equal, so a
   // naive rescale would be a mathematical no-op on `hours` alone), the `mode !== 'move'` guard
   // must still be the thing gating the branch, not a coincidence of equal spans. An out-of-range
-  // hoursPerDay (30, over the 24h cap) makes the two code paths diverge in BOTH fields even though
+  // hoursPerDay (30, over the 24h cap) makes the two code paths diverge in both fields even though
   // the span stays 4: the hardcoded move path returns it untouched/unclamped; the volume-preserving
   // path (entered only if the mode guard is broken) would clamp it to 24 and flag `clamped: true`.
   it("a move never enters the volume-preserving path, even with an out-of-range hoursPerDay", () => {
@@ -292,7 +292,7 @@ describe("computeGesture rescaling guards", () => {
     expect(clamped).toBe(false);
   });
 
-  // deltaDays === 0 must short-circuit BEFORE the days-mode rescale, not merely produce the same
+  // deltaDays === 0 must short-circuit before the days-mode rescale, not merely produce the same
   // numbers as it by coincidence. Same trick: an out-of-range hoursPerDay makes the (wrongly)
   // entered rescale path diverge from the hardcoded "unchanged" return in both hours and clamped.
   it("deltaDays === 0 skips the rescale entirely, even with an out-of-range hoursPerDay", () => {
@@ -356,8 +356,8 @@ describe("snappedBarGeometry", () => {
   });
 
   it("keeps the preview pixel-identical to the view-model when the range crosses a narrow weekend", () => {
-    // Minimise ON: Sat/Sun are 8px, weekdays 20px. A Fri→following-Mon span must measure from
-    // the REAL mixed column widths (the same geometry the committed bar uses), not 4×20.
+    // Minimise on: Sat/Sun are 8px, weekdays 20px. A Fri→following-Mon span must measure from
+    // the real mixed column widths (the same geometry the committed bar uses), not 4×20.
     const narrow = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 20, {
       minimiseWeekends: true,
       weekendWidth: 8,
@@ -377,7 +377,7 @@ describe("snappedBarGeometry", () => {
       geometry: narrow,
     });
     expect(preview).toEqual(committed);
-    // Width = Fri(20) + Sat(8) + Sun(8) + Mon(20) = 56, NOT 4×20.
+    // Width = Fri(20) + Sat(8) + Sun(8) + Mon(20) = 56, not 4×20.
     expect(preview.width).toBe(56);
   });
 });

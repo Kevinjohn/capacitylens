@@ -7,9 +7,9 @@ import type { ReauthAction, ReauthResult } from "./reauthCoordinator";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
 import { m } from "@/i18n";
 
-// DEFECT B, the "Confirm it's you" step-up dialog. Better Auth's client is mocked so we can drive a
+// Defect B, the "Confirm it's you" step-up dialog. Better Auth's client is mocked so we can drive a
 // success / failure without a network. The dialog resolves the coordinator on success (which the
-// wrapper turns into a retry) and shows the failure INLINE without closing.
+// wrapper turns into a retry) and shows the failure inline without closing.
 
 const signInEmail = vi.fn();
 const signInSocial = vi.fn();
@@ -30,7 +30,7 @@ vi.mock("./authClient", () => ({
 
 // The real bridge (ReauthMount in AuthProvider) is this exact shape: show the dialog only while a
 // step-up is pending. Rendering it here lets us assert the dialog opens on requestReauth() and
-// UNMOUNTS (closes) when the coordinator resolves.
+// unmounts (closes) when the coordinator resolves.
 function Harness({
   user,
   providers = [],

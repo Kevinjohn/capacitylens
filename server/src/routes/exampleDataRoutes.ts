@@ -51,7 +51,7 @@ function stillMayAdd(userId: string, accountId: string, dependencies: ExampleDat
 export function registerExampleDataRoutes(app: FastifyInstance, dependencies: ExampleDataRouteDependencies): void {
   const { db, store, accountLock, authorize, commitProductAudit, fail } = dependencies;
 
-  // Adds one small ordinary company's worth of rows to an EMPTY company. Unlike /api/import this
+  // Adds one small ordinary company's worth of rows to an empty company. Unlike /api/import this
   // never replaces anything, so it needs the company's Owner or Admin rather than the Owner and no
   // fresh sign-in. The emptiness rule is checked inside the same write transaction as the insert,
   // so two concurrent calls cannot both succeed.

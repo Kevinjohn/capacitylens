@@ -60,7 +60,7 @@ export interface DelInput {
   accountId?: string | undefined;
 }
 
-// Scoped tables now REQUIRE an asserted owning account on DELETE; pass accountId for them.
+// Scoped tables now require an asserted owning account on DELETE; pass accountId for them.
 // accounts (top-level) carry none, so accountId is omitted there.
 export const del = ({ app, entity, id, accountId }: DelInput) =>
   call(app, {

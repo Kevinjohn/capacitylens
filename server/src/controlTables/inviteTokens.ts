@@ -6,10 +6,10 @@ export function inviteTokenHash(token: string): string {
 }
 
 /**
- * Mint a fresh NON-SECRET invite id, a `randomBytes`-based value DISTINCT from the bearer
+ * Mint a fresh non-secret invite id, a `randomBytes`-based value distinct from the bearer
  * token. It need not be unguessable (it grants nothing on its own, list/revoke also key on
  * `accountId`), but it must be collision-resistant so two invites of one account get distinct ids;
- * 16 random bytes is ample. Kept SEPARATE from the token generator so the two are never confused.
+ * 16 random bytes is ample. Kept separate from the token generator so the two are never confused.
  *
  * @returns A base64url-encoded random id for an invite row.
  */

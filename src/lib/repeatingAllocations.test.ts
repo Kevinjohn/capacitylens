@@ -60,7 +60,7 @@ const repeatContext = ({
 });
 
 describe("#257 characterization: repeat start-day policy", () => {
-  // PERMANENT invariants: monthly off-day starts are created, while weekly cadences retain their anchor weekday.
+  // Permanent invariants: monthly off-day starts are created, while weekly cadences retain their anchor weekday.
   it("projects monthly occurrences even when generated starts are personally non-working", () => {
     const startDates = generateRepeatingStartDates("2026-06-01", "2026-08-01", {
       kind: "monthly-date",
@@ -316,8 +316,8 @@ describe("repeatingAllocationAdvisory", () => {
   });
 
   it("attributes existing load to the drafts whose window it actually covers", () => {
-    // The batch shares ONE day→hours bucket across every draft, so existing load has to stay
-    // pinned to its own dates: an allocation sitting only in the LAST draft's week must not make
+    // The batch shares one day→hours bucket across every draft, so existing load has to stay
+    // pinned to its own dates: an allocation sitting only in the last draft's week must not make
     // the first draft read as over, and vice versa.
     const drafts = [
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01", hoursPerDay: 5 }),
@@ -358,7 +358,7 @@ describe("repeatingAllocationAdvisory", () => {
 
 describe("repeatingAllocationAdvisory load accounting", () => {
   it("does not double-count existing load across the drafts of one batch", () => {
-    // Each draft is advised against the existing load ONCE (plus the drafts before it). A bucket
+    // Each draft is advised against the existing load once (plus the drafts before it). A bucket
     // that re-added the same allocation per draft would push the later occurrences over.
     const drafts = [
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01", hoursPerDay: 4 }),

@@ -2,9 +2,9 @@ import { isExternalResource } from "../types/entities";
 import { effectiveProjectId } from "./integrity";
 import type { Allocation, Client, ID, Project, Resource, Activity } from "../types/entities";
 
-/** The single neutral grey, the bar/colour fallback AND the colour of external / 3rd-party
+/** The single neutral grey, the bar/colour fallback and the colour of external / 3rd-party
  * identity (avatar, swatch, band, bars). Re-exported app-side as `NEUTRAL_COLOR` from
- * src/lib/palette so both sides share ONE definition. */
+ * src/lib/palette so both sides share one definition. */
 export const NEUTRAL_COLOR = "#9ca3af";
 /** Canonical user-selectable colour palette. Persisted user colours must belong to this set.
  * `NEUTRAL_COLOR` (external resources) and the Internal-client colour are deliberate system
@@ -65,12 +65,12 @@ export const PRESET_COLORS = Object.freeze([
 ] as const);
 const PRESET_COLOR_SET = new Set<string>(PRESET_COLORS);
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
-/** Parsed RGB of every preset, precomputed ONCE alongside `PRESET_COLOR_SET`. The nearest-preset
+/** Parsed RGB of every preset, precomputed once alongside `PRESET_COLOR_SET`. The nearest-preset
  * scan below runs on every persisted/imported colour, and re-parsing all 52 palette hex strings
  * per call was pure repeated work. Index-aligned with `PRESET_COLORS`, so palette order (the
  * deterministic tie-break) is preserved. An entry is `null` only if a palette member were not a
  * valid 6-digit hex, unreachable (pinned by a test), but kept nullable so such an entry is
- * SKIPPED rather than poisoning every distance with NaN. */
+ * skipped rather than poisoning every distance with NaN. */
 const PRESET_RGB: readonly (RgbChannels | null)[] = PRESET_COLORS.map((preset) => parseRgb(preset));
 
 /** True when the value is one of the preset swatches, ignoring case and surrounding space. Pure. */
@@ -78,24 +78,24 @@ export function isPresetColor(value: unknown): value is string {
   return typeof value === "string" && PRESET_COLOR_SET.has(value.trim().toLowerCase());
 }
 
-/** Used by {@link snapToPresetColor} ONLY when the input can't be parsed as a 6-digit hex at
+/** Used by {@link snapToPresetColor} only when the input can't be parsed as a 6-digit hex at
  * all (so no "nearest" distance can even be computed), e.g. `null`, `undefined`, `"nope"`.
- * This is the ONE fixed colour left in the system; every *parseable* colour, however far off
+ * This is the one fixed colour left in the system; every *parseable* colour, however far off
  * the palette, is snapped to its nearest preset instead, see snapToPresetColor. */
 export const FALLBACK_PRESET_COLOR = "#5c34d4";
 
 /**
- * Snap ANY colour value to the canonical `PRESET_COLORS` palette:
+ * Snap any colour value to the canonical `PRESET_COLORS` palette:
  *  - a value already in the palette is returned normalized (trimmed + lowercased);
- *  - any other parseable 6-digit hex is mapped to its NEAREST preset by RGB Euclidean distance
+ *  - any other parseable 6-digit hex is mapped to its nearest preset by RGB Euclidean distance
  *    (ties broken by palette order, the first minimal-distance preset wins, so the mapping is
  *    deterministic and reproducible);
  *  - an unparseable value (wrong shape, non-string, `null`/`undefined`) returns
  *    {@link FALLBACK_PRESET_COLOR}.
  *
- * This is the SINGLE mapping used by server writes, import repair, the one-time
+ * This is the single mapping used by server writes, import repair, the one-time
  * `snap-legacy-account-colors` DB migration and the client store, so a given stored colour is
- * always classified IDENTICALLY on every persistence path.
+ * always classified identically on every persistence path.
  * See DECISIONS.md for the policy this implements.
  */
 export function snapToPresetColor(value: unknown): string {
@@ -113,7 +113,7 @@ export function snapToPresetColor(value: unknown): string {
     const { red: pr, green: pg, blue: pb } = presetRgb;
     // Squared Euclidean distance in RGB space. No sqrt needed since we only compare magnitudes.
     const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
-    // Strict `<` (not `<=`) so the FIRST minimal-distance preset wins on a tie, palette order
+    // Strict `<` (not `<=`) so the first minimal-distance preset wins on a tie, palette order
     // is the deterministic tie-break.
     if (distance < nearestDistance) {
       nearestDistance = distance;
@@ -222,7 +222,7 @@ export function contrastRatio(hexA: string, hexB: string): number {
 
 /** Pick whichever of white / dark ink has the higher WCAG contrast on `hex`. */
 export function readableTextColor(hex: string): string {
-  // Load-bearing guard, NOT redundant with contrastRatio: an unparseable `hex` makes BOTH ratios
+  // Load-bearing guard, not redundant with contrastRatio: an unparseable `hex` makes both ratios
   // below the documented "no contrast info" value of 1, which would tie and hand the answer to
   // white ink. An unreadable colour must fall back to dark ink.
   if (calculateRelativeLuminance(hex) === null) return DARK_INK;
@@ -233,7 +233,7 @@ const AA_NORMAL = 4.5;
 
 /** The exact channel quantisation `toHex` writes (and therefore the value a later re-parse of that
  * hex reads back). Shared so the nudge loop below can score a candidate from its live float
- * channels WITHOUT round-tripping through a hex string, yet score the identical byte values. */
+ * channels without round-tripping through a hex string, yet score the identical byte values. */
 const channelByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
 
 const toHex = (redChannel: number, greenChannel: number, blueChannel: number) =>
@@ -272,8 +272,8 @@ export function resolveAccessibleBarColors(hex: string): { bg: string; ink: stri
   if (!channels) return { bg: NEUTRAL_COLOR, ink: readableTextColor(NEUTRAL_COLOR) };
   const nudgedChannels = { ...channels };
   const darken = ink === LIGHT_INK;
-  // The ink never changes inside the loop, so linearise it ONCE. Previously each iteration
-  // re-formatted the candidate to hex and re-parsed BOTH it and the ink through contrastRatio;
+  // The ink never changes inside the loop, so linearise it once. Previously each iteration
+  // re-formatted the candidate to hex and re-parsed both it and the ink through contrastRatio;
   // now only the settled colour is formatted, after the loop.
   const inkLuminance = calculateRelativeLuminance(ink) ?? 0;
   // Score from the quantised bytes (`channelByte`), i.e. exactly the channels a re-parse of
@@ -283,7 +283,7 @@ export function resolveAccessibleBarColors(hex: string): { bg: string; ink: stri
     nudgeChannels(nudgedChannels, darken);
     nudged = true;
   }
-  // An already-legible colour is returned VERBATIM (the caller's casing/whitespace survives),
+  // An already-legible colour is returned verbatim (the caller's casing/whitespace survives),
   // matching the previous `let bg = hex` that only the loop ever overwrote.
   return {
     bg: nudged ? toHex(nudgedChannels.red, nudgedChannels.green, nudgedChannels.blue) : hex,

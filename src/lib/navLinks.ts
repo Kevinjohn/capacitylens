@@ -31,7 +31,7 @@ import {
 
 /**
  * A nav destination: `[route, labelFn, icon]`. The label is a **getter** (`() => m.nav_x()`), not a
- * pre-resolved string, so each destination's text is resolved at RENDER (inside the `navLinks.map`
+ * pre-resolved string, so each destination's text is resolved at render (inside the `navLinks.map`
  * site in AppSidebar) rather than at module load. That matters for i18n: `LINKS` is
  * module-scope, and calling `m.nav_x()` here would freeze the label to the locale active at import,
  * the getter defers it to render so a locale switch (account change) re-resolves the text on the
@@ -39,7 +39,7 @@ import {
  */
 export type NavigationLinkDefinition = { to: string; label: () => string; icon: LucideIcon };
 
-// Every route path below is single-sourced in tourAnchors.ts, so a route rename is ONE edit. That
+// Every route path below is single-sourced in tourAnchors.ts, so a route rename is one edit. That
 // matters most for the destinations the "Show me around" tour spotlights via `[data-nav="<route>"]`,
 // a drifting path would silently un-anchor its spotlight step (driver.js degrades a
 // missing-element step to a centred popover; getting-started.spec.ts pins every exported tour
@@ -49,7 +49,7 @@ export const LINKS: NavigationLinkDefinition[] = [
   { to: ROUTE_CAPACITY_OVERVIEW, label: () => m.nav_capacity_overview(), icon: ChartNoAxesColumnIncreasingIcon },
   { to: ROUTE_SCHEDULE, label: () => m.nav_schedule(), icon: CalendarIcon },
   { to: ROUTE_RESOURCES, label: () => m.nav_resources(), icon: UsersIcon },
-  // External / 3rd parties moved INTO the Resources tab behind a per-account setting
+  // External / 3rd parties moved into the Resources tab behind a per-account setting
   // (`externalEnabled` on the Account, default off, Settings → Additional resourcing options). They no longer have their
   // own nav link; the old /external route redirects to /resources for saved bookmarks.
   { to: ROUTE_DISCIPLINES, label: () => m.nav_disciplines(), icon: TagIcon },
@@ -60,7 +60,7 @@ export const LINKS: NavigationLinkDefinition[] = [
 ];
 
 /**
- * Administration destinations, pinned to the BOTTOM of the sidebar in their own group below a
+ * Administration destinations, pinned to the bottom of the sidebar in their own group below a
  * separator. They are the same `NavigationLinkDefinition` shape and render through the same
  * menu markup as `LINKS`, only their placement differs. Team & access is here because it is
  * role-gated in practice (most people never act on it) and Settings because it is rarely visited:

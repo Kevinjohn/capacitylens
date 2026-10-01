@@ -65,8 +65,8 @@ function createFrozenFieldPutTests(): void {
   it("an UNCHANGED PUT of the frozen fields → 200 (change-not-presence)", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    // The sync adapter re-sends the WHOLE row on any edit (e.g. a rename), an unchanged
-    // frozen value present in the body must PASS.
+    // The sync adapter re-sends the whole row on any edit (e.g. a rename), an unchanged
+    // frozen value present in the body must pass.
     const res = await put({
       app,
       entity: "accounts",
@@ -267,7 +267,7 @@ function createErrorStatusMappingTest() {
 
 describe("error status mapping (statusFor)", () => {
   createErrorStatusMappingTest();
-  // PINNING TEST: these trigger real node:sqlite violations so the classifier stays tied to the
+  // Pinning test: these trigger real node:sqlite violations so the classifier stays tied to the
   // runtime's structured error metadata for each supported row-data constraint family.
   describe("pins node:sqlite constraint metadata on real violations", () => {
     const grab = (fn: () => void): Error => {
@@ -303,7 +303,7 @@ describe("error status mapping (statusFor)", () => {
     });
 
     it("maps a real FOREIGN KEY violation to 400", () => {
-      const db = openDb(":memory:"); // openDb turns foreign_keys ON
+      const db = openDb(":memory:"); // openDb turns foreign_keys on
       const e = grab(() =>
         db.exec(
           `INSERT INTO clients (id, accountId, name, color, createdAt, updatedAt) VALUES ('c', 'no-such-account', 'Ferris', '#fff', 't', 't')`,

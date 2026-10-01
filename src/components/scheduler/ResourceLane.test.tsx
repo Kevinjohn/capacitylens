@@ -114,7 +114,7 @@ describe("ResourceLane day rendering", () => {
     renderLane({ timeOff: [], dayStates: DAY_STATES.map((s) => ({ ...s, hasTimeOff: false })) });
     const marker = screen.getByTestId("over-marker");
     expect(marker).toBeInTheDocument();
-    // The user-facing point: a CLEAR, saturated red background, not a faint tint. Lock the
+    // The user-facing point: a clear, saturated red background, not a faint tint. Lock the
     // dedicated `danger-cell` token class so a regression back to the subtle `bg-danger/12`
     // alpha or the pale `danger-soft` button tint reds the gate.
     expect(marker).toHaveClass("bg-danger-cell");
@@ -155,7 +155,7 @@ describe("ResourceLane day rendering", () => {
 
 describe("ResourceLane allocation rendering", () => {
   // The render-layer boundary mirroring the pure-fn boundary: a day that is at-or-under
-  // capacity carries `over: false`, so NO over-marker / red background renders for it.
+  // capacity carries `over: false`, so no over-marker / red background renders for it.
   it("does NOT render an over-marker when no day is over (at-or-under capacity)", () => {
     renderLane({ bars: [], dayStates: [dayState(), dayState(), dayState()] });
     expect(screen.queryByTestId("over-marker")).not.toBeInTheDocument();
@@ -167,10 +167,10 @@ describe("ResourceLane allocation rendering", () => {
   });
 
   it("keeps the time-off label available to AT even when too narrow for the visible label (WCAG 1.3.1)", () => {
-    // A 30px block drops the VISIBLE uppercase label (<=44px), but the sr-only span must still name it.
+    // A 30px block drops the visible uppercase label (<=44px), but the sr-only span must still name it.
     renderLane({ timeOff: [{ id: "to1", x: 0, width: 30, label: "Holiday" }] });
     const block = screen.getByTestId("timeoff-block");
-    // The specific label survives in an sr-only span (not just dropped to AT).
+    // The specific label survives in an sr-only span (not just dropped to at).
     expect(block).toHaveTextContent("Holiday");
     expect(block.querySelector(".sr-only")?.textContent).toBe("Holiday");
     // The dead pointer-events-none `title` is gone. It was unreachable, so it conveyed nothing.

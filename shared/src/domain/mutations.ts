@@ -19,11 +19,11 @@ export {
 } from "./resourceAvailability";
 
 // Pure, environment-agnostic domain mutations + integrity assertions extracted
-// from the Zustand store so the SAME logic can run on a future server (and be
+// from the Zustand store so the same logic can run on a future server (and be
 // unit-tested once, against both). Nothing here touches React / Zustand / DOM /
 // browser persistence. The store stays the orchestrator: it resolves the active account
 // and owns the clock (id/createdAt/updatedAt); these functions validate refs and
-// compute the next AppData. All cascade/transform helpers return a NEW AppData.
+// compute the next AppData. All cascade/transform helpers return a new AppData.
 //
 // Account resolution itself (the "no active account" guard) deliberately stays in
 // the store, it reads live UI state. Every function here takes `accountId`

@@ -5,8 +5,8 @@ import type { AppData } from "../../types/entities";
 export const KNOWN_KEYS: readonly string[] = APP_DATA_KEYS;
 
 // Legacy table keys that a pre-rename export/blob may carry. `activities` was once `tasks`
-// (the Task→Activity rename, schema v5). The IMPORT shape-guards recognise these so a
-// legacy file, even one that ONLY carries the renamed table, is accepted (then migrated),
+// (the Task→Activity rename, schema v5). The import shape-guards recognise these so a
+// legacy file, even one that only carries the renamed table, is accepted (then migrated),
 // not mistaken for non-CapacityLens JSON and rejected. The migrate path renames them (migrateV4toV5).
 const LEGACY_KEYS: string[] = ["tasks"];
 /** Every table key an incoming blob may legitimately carry, current plus legacy. Exported so the
@@ -52,8 +52,8 @@ export function importCandidate(value: unknown): Record<string, unknown> | null 
     : null;
 }
 
-/** Recognisable-CapacityLens guard for the IMPORT path: any JSON that parses but isn't
- * shaped like CapacityLens data would otherwise be migrated to an EMPTY dataset and
+/** Recognisable-CapacityLens guard for the import path: any JSON that parses but isn't
+ * shaped like CapacityLens data would otherwise be migrated to an empty dataset and
  * silently wipe the user's data. (The load path stays lenient on purpose.) Lives in
  * migrate.ts so the shape guard and the migrate it gates can't drift, mirrors how
  * schedule/diary keep their `looksLike…` guard next to migrate(). */
@@ -64,12 +64,12 @@ export function looksLikeCapacityLens(value: unknown): boolean {
   return !!candidate && RECOGNISED_KEYS.some((key) => Array.isArray(candidate[key]));
 }
 
-/** A KNOWN table PRESENT but not an array (e.g. `resources: {…}` from a truncated or
+/** A known table present but not an array (e.g. `resources: {…}` from a truncated or
  * hand-edited export) is structural damage. migrate()'s resolveArray() would silently coerce
  * it to [], and the "imported N" count, computed post-migrate, would report the lost
- * table as success. So REJECT it, matching every other load path,
+ * table as success. So reject it, matching every other load path,
  * which routes the same blob to recovery. Principle: repair within a record, reject a
- * structurally broken file. (An ABSENT table is fine, migrate fills it empty.) */
+ * structurally broken file. (An absent table is fine, migrate fills it empty.) */
 export function hasNonArrayKnownTable(value: unknown): boolean {
   const candidate = importCandidate(value);
   // Legacy keys count too: a pre-rename `tasks: {…}` (object, not array) is the same

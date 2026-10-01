@@ -5,7 +5,7 @@ const MOBILE_QUERY = `(max-width: ${PHONE_MAX_WIDTH_PX}px)`;
 
 // One MediaQueryList shared by the snapshot read and the subscription. `getSnapshot` runs on
 // every render and `window.matchMedia()` allocates a fresh list per call, so resolving it once
-// keeps the hook cheap and guarantees both halves observe the same object. Resolved LAZILY,
+// keeps the hook cheap and guarantees both halves observe the same object. Resolved lazily,
 // module scope can evaluate before a DOM exists, and re-resolved whenever `window.matchMedia`
 // itself changes identity (absent in jsdom until a test installs or swaps a stub), in which case
 // the query is null and the hook reports "not mobile".

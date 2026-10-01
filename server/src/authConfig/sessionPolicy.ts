@@ -44,12 +44,12 @@ export function buildSessionPolicy({
     // SQLite, so a stolen database or backup copy alone does not surrender live provider credentials,
     // defence in depth between database-copy theft and application-secret theft.
     account: { accountLinking: { disableImplicitLinking: true }, encryptOAuthTokens: true },
-    // Session-cookie hardening follows the PUBLIC Better Auth URL, not the Node listener: an HTTPS
+    // Session-cookie hardening follows the public Better Auth URL, not the Node listener: an HTTPS
     // browser origin still needs Secure cookies when nginx proxies to Node over HTTP. Better Auth's
     // built-in secure-cookie switch emits the weaker `__Secure-` name prefix. Disable that naming
     // helper and express Secure directly so every HTTPS cookie can use the stricter `__Host-`
     // prefix (Secure + Path=/ + no Domain). Loopback HTTP keeps an unprefixed development name.
-    // `sameSite:'lax'` (NOT 'strict') is required for SSO: 'strict' would
+    // `sameSite:'lax'` (not 'strict') is required for SSO: 'strict' would
     // drop the session cookie on the top-level OAuth redirect back from the IdP → broken sign-in;
     // 'lax' still sends the cookie on that GET callback and is safe. `httpOnly:true` keeps the token
     // out of document.cookie (no JS read).

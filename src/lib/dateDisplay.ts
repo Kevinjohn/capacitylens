@@ -10,9 +10,9 @@ import { DATE_STYLES, DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@
 // one makes date-fns `format` throw a RangeError, which we deliberately let surface as the
 // upstream-validation bug it is (see dateMath's module precondition) rather than wrap-and-swallow.
 //
-// DATE STYLE: this module is the only place that builds a month- or year-bearing (style-sensitive)
+// Date style: this module is the only place that builds a month- or year-bearing (style-sensitive)
 // date-fns pattern; call sites never see a pattern, only these helpers. The active style is the
-// ACCOUNT's `dateStyle` (company data, not a device preference) mirrored into this module by the
+// account's `dateStyle` (company data, not a device preference) mirrored into this module by the
 // store so a pure formatter can read it mid-render (see the mirror below). It resolves
 // to a `DateStyleDescriptor` below: `monthFirst` sets day/month order, `ordinal` sets whether the
 // day number carries a date-fns `do` suffix. The weekday form (`formatShortDate`/
@@ -21,7 +21,7 @@ import { DATE_STYLES, DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@
 // only reorders it. Two more calls stay off the descriptor entirely because they carry no month:
 // `DateHeader.tsx`'s day number ("d") and weekday abbreviation ("EEE").
 //
-// COLLAPSE RULE for ranges: a same-day range renders as one full single date. A same-month range
+// Collapse rule for ranges: a same-day range renders as one full single date. A same-month range
 // shows the month once, at the position the style would normally put it (trailing for a day-first
 // style, leading for a month-first style). A same-year range shows the year once, at the very end.
 // A range crossing a year boundary collapses nothing: every endpoint carries day, month and year,
@@ -31,7 +31,7 @@ import { DATE_STYLES, DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@
 // week columns; neighbouring headers establish the ordered calendar context, while the narrow cell
 // stays compact. The range separator is always ` – ` (U+2013 EN DASH), never a hyphen.
 //
-// COLLAPSE IN ACCESSIBLE NAMES: a name that labels a control sitting beside a visible date range
+// Collapse in accessible names: a name that labels a control sitting beside a visible date range
 // uses the same collapsed string that range shows, so a voice-control user can speak what is on
 // screen (see `CompanyClosureSection.tsx`). A name that is the only place a date appears states
 // both endpoints in full instead, because there is no visible text for it to agree with and the
@@ -41,7 +41,7 @@ import { DATE_STYLES, DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@
 // `formatShortDateEndpoint` are those uncollapsed endpoints, and they are what such a name calls,
 // never the bare single-date helpers.
 //
-// LOCALE: all of the above take the date-fns locale from `readActiveDateLocale()`
+// Locale: all of the above take the date-fns locale from `readActiveDateLocale()`
 // (`src/i18n/index.ts:34`, `en → enGB`). Style is independent of locale today (no `en`/`enGB`
 // literal lives outside `src/i18n`); a locale-driven style default is future work, and its
 // insertion point is the account default in `resolveDateStyle` (`src/store/selectors.ts`).
@@ -66,8 +66,8 @@ const DATE_STYLE_DESCRIPTORS: Record<DateStyle, DateStyleDescriptor> = {
  * React is notified (see `src/store/useStore.ts`), so a render can never read a style the store has
  * already moved past. Outside an account (sign-in, invite acceptance) it holds the default.
  *
- * This is NOT where a format change becomes visible: a component only re-renders because it
- * subscribed to the account, and a `useMemo` that BAKES a formatted string needs the style in its
+ * This is not where a format change becomes visible: a component only re-renders because it
+ * subscribed to the account, and a `useMemo` that bakes a formatted string needs the style in its
  * dependencies (see `useDateStyle`). The mirror only guarantees the two agree.
  */
 let activeDateStyle: DateStyle = DEFAULT_DATE_STYLE;
@@ -209,7 +209,7 @@ const dayMonthParts = (descriptor: DateStyleDescriptor): DateParts => ({
 /**
  * The tersest readable date: "10 Jun" (or "Jun 10" / "10th Jun" / "Jun 10th" under other styles).
  *
- * Day + abbreviated month, no weekday and no year, for surfaces where the date is a SECONDARY
+ * Day + abbreviated month, no weekday and no year, for surfaces where the date is a secondary
  * detail squeezed beside other content (an allocation bar's accessible name and its hover card,
  * which both also carry the label, hours and status). {@link formatShortDate} is the scannable
  * list form; this is the one that has to stay short, so it deliberately drops the weekday rather
@@ -232,7 +232,7 @@ export function formatDayMonthRange(startDate: ISODate, endDate: ISODate): strin
  * A week-column header in an ordered run of consecutive weeks: the same range as
  * {@link formatDayMonthRange}, minus the year across a year boundary. The neighbouring columns
  * establish the ordered calendar context, and the cell is too narrow to spend two lines on it. Do
- * NOT use this anywhere a range stands alone. That is what the year exists for.
+ * not use this anywhere a range stands alone. That is what the year exists for.
  */
 export function formatWeekColumnRange(startDate: ISODate, endDate: ISODate): string {
   return formatRange({
@@ -245,7 +245,7 @@ export function formatWeekColumnRange(startDate: ISODate, endDate: ISODate): str
 
 /**
  * One endpoint of a range, stated in full rather than collapsed against the other: the
- * accessible-name case (COLLAPSE IN ACCESSIBLE NAMES above) where a screen reader meets the two
+ * accessible-name case (collapse in accessible names above) where a screen reader meets the two
  * dates as separate words, and the "series through …" line, whose counterpart is the bar's own end.
  *
  * `counterpart` is the date this one is implicitly read against. When the two fall in different
@@ -321,18 +321,18 @@ export function formatDayCount(start: ISODate, end: ISODate): string {
   return dayCount === 1 ? m.list_timeoff_days_one({ count: dayCount }) : m.list_timeoff_days_other({ count: dayCount });
 }
 
-// The two above render calendar DAYS (an `ISODate`, no clock, no zone). The two below render an
-// INSTANT (a server timestamp (an invite's expiry, a session's creation)) on the VIEWER'S OWN
+// The two above render calendar days (an `ISODate`, no clock, no zone). The two below render an
+// instant (a server timestamp (an invite's expiry, a session's creation)) on the viewer's own
 // wall clock. `formatInstant` accepts the string wire values and numeric epoch values used by local
 // read-only snapshots; `formatInstantDate` remains string-input because it serves server invite
 // dates. That conversion is the whole point: the alternative these replaced was a `.slice(0, 10)`
 // of the raw UTC string, which misreads by up to a day either side of midnight for anyone outside
 // UTC.
 //
-// WHY `Intl` (toLocale*) here rather than date-fns + `readActiveDateLocale()` like the day formatters:
-// `readActiveDateLocale()` returns a date-fns `Locale` OBJECT, which is not a BCP-47 tag and cannot be
+// Why `Intl` (toLocale*) here rather than date-fns + `readActiveDateLocale()` like the day formatters:
+// `readActiveDateLocale()` returns a date-fns `Locale` object, which is not a BCP-47 tag and cannot be
 // handed to `Intl`. Resolving one would mean introducing a second locale mapping, and the mapping
-// available today ('en' → enGB) does NOT agree with the browser default these call sites already
+// available today ('en' → enGB) does not agree with the browser default these call sites already
 // ship (en-GB day/month vs. an en-US reader's month/day). Behaviour preservation wins this round:
 // the locale argument is deliberately omitted, so output is byte-identical to the call sites being
 // replaced. When a real second locale lands, both of these gain the tag together with the call
@@ -344,9 +344,9 @@ export function formatDayCount(start: ISODate, end: ISODate): string {
 // degrade a single row, not blank the section.
 
 /**
- * An instant as local date AND TIME: "14/07/2026, 13:00:00" (browser-default locale).
+ * An instant as local date and time: "14/07/2026, 13:00:00" (browser-default locale).
  *
- * The hour is LOAD-BEARING, not decoration. These are short-lived security artefacts (a
+ * The hour is load-bearing, not decoration. These are short-lived security artefacts (a
  * password-reset link that lives 24h, a session with an expiry) where a date-only string both
  * misleads by up to a day in a non-UTC zone and hides the hour the thing dies. Use this whenever the
  * reader may need to act before the deadline today.
@@ -361,7 +361,7 @@ export function formatInstant(instant: string | number): string {
 /**
  * An instant as a local date only: "14/07/2026" (browser-default locale).
  *
- * The counterpart to {@link formatInstant} for deadlines measured in DAYS, not hours, an invite's
+ * The counterpart to {@link formatInstant} for deadlines measured in days, not hours, an invite's
  * validity spans several days, so a compact list row stays date-only rather than spending width on a
  * time nobody plans around. Still resolved on the viewer's local calendar (that is the part slicing
  * the UTC string got wrong); only the hour is dropped.

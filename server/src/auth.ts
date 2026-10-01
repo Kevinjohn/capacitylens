@@ -43,8 +43,8 @@ export { runAuthMigrations, planAuthSchemaMigrations, BOOTSTRAP_ADMIN_EMAIL } fr
 export class AuthConfigError extends Error {}
 
 // Constant-time secret compare shared by the first-run setup token and bootstrap
-// token. Returns false UNLESS the configured token is a non-empty string AND the presented
-// value is a non-empty string of the SAME byte length whose bytes match, so an unset/empty
+// token. Returns false unless the configured token is a non-empty string and the presented
+// value is a non-empty string of the same byte length whose bytes match, so an unset/empty
 // token (the default) never allows the token path, and the length-equality short-circuit
 // doesn't reveal the secret's length by timing (timingSafeEqual itself requires equal-length
 // buffers). Headers arrive as string | string[] | undefined from Fastify, or string | null
@@ -68,7 +68,7 @@ export function isMatchingSecretToken(configured: string | undefined, presented:
  * Mint a single-use, {@link RESET_LINK_TTL_SECONDS}-lived password-reset token for `email` via
  * Better Auth's verification store. Returns the token, or `null` when Better Auth
  * matched no user for the email (its anti-enumeration success tells us nothing, so "callback never
- * fired" IS the no-such-user signal). The caller (the admin-gated route in app.ts) turns the token
+ * fired" is the no-such-user signal). The caller (the admin-gated route in app.ts) turns the token
  * into a link and returns it exactly once. Better Auth persists only a digest of the identifier;
  * the bearer token itself is never stored or logged here.
  *
@@ -78,7 +78,7 @@ export function isMatchingSecretToken(configured: string | undefined, presented:
  */
 export async function mintPasswordResetToken(auth: Auth, email: string): Promise<string | null> {
   const store: { token: string | null } = { token: null };
-  // The sendResetPassword hook is AWAITED inside requestPasswordReset (no backgroundTasks handler
+  // The sendResetPassword hook is awaited inside requestPasswordReset (no backgroundTasks handler
   // is configured), so the capture is complete when this resolves.
   await resetTokenCapture.run(store, () => auth.api.requestPasswordReset({ body: { email } }));
   return store.token;
@@ -105,7 +105,7 @@ export function revokeFederatedLinkStateInTx(db: Db, principalId: string): void 
 const verificationTableExists = createTableExistenceProbe("verification");
 const microsoftProofTableExists = createTableExistenceProbe("microsoft_identity_proofs");
 
-// {@link countUsers} is consulted BEFORE runAuthMigrations as well as after it, authFromEnv makes
+// {@link countUsers} is consulted before runAuthMigrations as well as after it, authFromEnv makes
 // its boot-time minPasswordLength decision on the pre-migration handle, where the table does not
 // exist yet. Caching that pre-migration `false` would make every later per-request call read
 // "zero users" forever, holding first-run sign-up open on a populated instance.

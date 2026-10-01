@@ -29,19 +29,19 @@ afterEach(() => {
   temporaryDirectories.clear();
 });
 
-// The RESTORE DRILL, codified. A backup that has never been restored is a hope, not a
-// backup: this exercises the WHOLE recovery path end to end so the restore SEQUENCE itself is
+// The restore drill, codified. A backup that has never been restored is a hope, not a
+// backup: this exercises the whole recovery path end to end so the restore sequence itself is
 // continuously verified by `pnpm run gate:server`, not just on a one-off manual run on the droplet.
 //
-// The cycle mirrors docs-src/self-hosting/backups-and-restore.md's "Restore" section EXACTLY: snapshot the live DB → make an
-// edit AFTER the snapshot (work the backup can't have captured) → simulate disaster by corrupting
+// The cycle mirrors docs-src/self-hosting/backups-and-restore.md's "Restore" section exactly: snapshot the live DB → make an
+// edit after the snapshot (work the backup can't have captured) → simulate disaster by corrupting
 // the live file → restore by copying the snapshot over it and removing the WAL/SHM sidecars → open
-// and verify. The two assertions below are deliberately NON-VACUOUS: the corrupt live DB must fail
-// to open BEFORE the restore (so "lost" is real, not a no-op that quietly left the data in place),
+// and verify. The two assertions below are deliberately non-vacuous: the corrupt live DB must fail
+// to open before the restore (so "lost" is real, not a no-op that quietly left the data in place),
 // and after the restore the seeded data must be back (recovery proven) while the post-snapshot edit
 // must be gone (point-in-time RPO, proof the file was genuinely replaced by the snapshot).
 //
-// Everything runs against ON-DISK files in a tmp dir: the source MUST be on disk so it can be
+// Everything runs against on-disk files in a tmp dir: the source must be on disk so it can be
 // corrupted, unlike backup.test.ts's `:memory:` source.
 
 /** A fake clock that advances one second per call, so every snapshot gets a unique name. */
@@ -72,7 +72,7 @@ describe("P3.3 restore drill", () => {
     await backups.stop();
     expect(existsSync(snapshot)).toBe(true);
 
-    // 3. An edit made AFTER the snapshot, work the backup cannot have captured (the RPO loss).
+    // 3. An edit made after the snapshot, work the backup cannot have captured (the RPO loss).
     live.exec("UPDATE accounts SET name = 'POST-SNAPSHOT-EDIT' WHERE name = 'Wayne Enterprises'");
     const afterEdit = readState(live).accounts.map((a) => a.name);
     expect(afterEdit).toContain("POST-SNAPSHOT-EDIT");
@@ -100,8 +100,8 @@ describe("P3.3 restore drill", () => {
     }
     expect(corrupt?.isOpen).toBe(false);
 
-    // 7. Restore, the runbook sequence EXACTLY (backups-and-restore.md step 2): copy the snapshot
-    //    to a TEMPORARY sibling, pin + verify its mode and owner, ATOMICALLY rename it over the
+    // 7. Restore, the runbook sequence exactly (backups-and-restore.md step 2): copy the snapshot
+    //    to a temporary sibling, pin + verify its mode and owner, atomically rename it over the
     //    live file, then remove the WAL/SHM sidecars. The earlier direct copyFileSync skipped the
     //    temp+rename sequence entirely, so the drill never exercised what operators actually run.
     const temporary = livePath + ".restore";
@@ -114,7 +114,7 @@ describe("P3.3 restore drill", () => {
     rmSync(livePath + "-shm", { force: true });
 
     // 8. Verify recovery (both non-vacuous): the seeded data is back (if restore were a no-op the
-    //    open would still throw → test fails), and the post-snapshot edit is GONE, point-in-time
+    //    open would still throw → test fails), and the post-snapshot edit is gone, point-in-time
     //    RPO behaviour, i.e. the live file was genuinely replaced by the snapshot.
     const restored = openDb(livePath);
     const names = readState(restored).accounts.map((a) => a.name);

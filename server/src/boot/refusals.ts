@@ -1,6 +1,6 @@
 import type { Db } from "../db";
 
-// Print one clear "refusing to start" line and exit non-zero. Boot SHOULD crash on a bad
+// Print one clear "refusing to start" line and exit non-zero. Boot should crash on a bad
 // precondition (we never limp along half-configured). This just makes the failure legible to an
 // operator instead of a raw stack, matching the framed AuthConfigError / resetForbidden paths.
 export function refuseToStart(reason: string): never {
@@ -21,7 +21,7 @@ export function tryOrRefuse<T>(callback: () => T): T {
 }
 
 // Best-effort close on a startup-refusal path: the original failure is what's reported to the
-// operator (via refuseToStart), so a close failure here is a SECOND, surfaced-not-swallowed
+// operator (via refuseToStart), so a close failure here is a second, surfaced-not-swallowed
 // problem, never the one that wins the message. `candidate` may be unassigned (a failure before
 // openDbConnection ran), hence the optional call.
 export function closeDbSafely(candidate: Db | undefined): void {
@@ -32,7 +32,7 @@ export function closeDbSafely(candidate: Db | undefined): void {
   }
 }
 
-// Fail-closed PORT parse (mirrors parseRateLimit): a typo like PORT=abc or an out-of-range value
+// Fail-closed port parse (mirrors parseRateLimit): a typo like port=abc or an out-of-range value
 // must not silently fall through to a confusing app.listen error, reject it up front with a clear
 // message. Unset → the 8787 default.
 export function parsePort(raw: string | undefined): number {
@@ -44,7 +44,7 @@ export function parsePort(raw: string | undefined): number {
   return n;
 }
 
-// Fail-SOFT numeric parse (mirrors parseBackupConfig's `positive`, not parsePort's refuseToStart):
+// Fail-soft numeric parse (mirrors parseBackupConfig's `positive`, not parsePort's refuseToStart):
 // this only bounds the audit log's on-disk size, not a security-relevant gate, so a missing/junk
 // value falls back to the documented 64 MiB default rather than refusing to boot.
 export function parseAuditMaxMb(raw: string | undefined): number {

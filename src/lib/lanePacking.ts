@@ -4,7 +4,7 @@ import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 
 // Greedy first-fit interval partitioning, per resource. Produces the minimum
 // number of vertical lanes needed so that overlapping allocations never share a
-// lane. Ends are INCLUSIVE, so an item ending on day X overlaps one starting on
+// lane. Ends are inclusive, so an item ending on day X overlaps one starting on
 // day X, hence the strict `<` in the free-lane test.
 
 export interface Interval {
@@ -41,7 +41,7 @@ export function packLanes(items: Interval[]): PackResult {
   // not become the origin, or it would NaN-poison every other item's day-index).
   const origin = sorted.find((interval) => isValidISODate(interval.startDate))?.startDate ?? sorted[0]?.startDate;
   if (origin === undefined) return { lanes: [], laneCount: 0 };
-  // The origin is invariant, so parse it ONCE instead of letting `dayIndex` re-parse it for both
+  // The origin is invariant, so parse it once instead of letting `dayIndex` re-parse it for both
   // ends of every interval. An unparseable origin (every record bad) yields an Invalid Date, so
   // every offset below is NaN and every item takes the same lane-0 fallback as before.
   const originDate = parseISO(origin);

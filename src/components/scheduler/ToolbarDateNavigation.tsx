@@ -53,7 +53,7 @@ export function ToolbarDateNavigation({ zoom, onZoomChange, onPanDays, onToday }
       </Button>
       {SHOW_JUMP_TO_DATE && <JumpToDateInput />}
       {/* Weeks visible. The trigger shows only the span ("4 weeks"), so the accessible name adds
-          the purpose AND repeats that visible text, "Weeks visible, 4 weeks". A bare
+          the purpose and repeats that visible text, "Weeks visible, 4 weeks". A bare
           "Weeks visible" label would hide the words the user can see from speech input
           (WCAG 2.5.3 Label in Name). */}
       <Select value={String(zoom)} onValueChange={(value) => onZoomChange(Number(value) as WeeksZoom)}>

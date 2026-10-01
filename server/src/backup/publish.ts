@@ -119,12 +119,12 @@ interface WriteVerifiedSnapshotInput {
   publisher: DurableSnapshotPublisher;
 }
 
-/** Write (backup(), or VACUUM INTO as its pre-approved fallback), verify, checkpoint WAL/SHM, and
+/** Write (backup(), or VACUUM into as its pre-approved fallback), verify, checkpoint WAL/SHM, and
  * durably publish one snapshot at `tmp` under its final `file` name. Shared by
  * writePreMigrationBackup and startBackups's writeSnapshot, same online-copy-then-verify-then-
  * publish sequence for the same reason: the online copy is transactionally consistent, but can
  * faithfully copy a source that is already structurally or relationally invalid, so verification
- * must happen BEFORE the valid-name rename (and, for a retention-pruning caller, before any prune).
+ * must happen before the valid-name rename (and, for a retention-pruning caller, before any prune).
  * An unusable new artifact must never advertise success or let a known-good restore point be
  * pruned in its place. Each caller keeps its own try/catch: cleanup-on-failure and degraded-health
  * signaling differ per caller and are not this function's concern. */
@@ -137,9 +137,9 @@ export async function writeVerifiedSnapshot({
   expectedVersion,
   publisher,
 }: WriteVerifiedSnapshotInput): Promise<void> {
-  // node:sqlite's online backup (verified on Node 24); VACUUM INTO is the pre-approved fallback
+  // node:sqlite's online backup (verified on Node 24); VACUUM into is the pre-approved fallback
   // should the API regress, same consistent-snapshot guarantee. backup() happily overwrites the
-  // zero-byte placeholder; VACUUM INTO refuses an existing target, so the fallback drops the
+  // zero-byte placeholder; VACUUM into refuses an existing target, so the fallback drops the
   // placeholder first (re-opening a tiny cross-instance window we accept on this never-taken-today
   // path rather than complicating it).
   if (typeof backup === "function") await backup(db, tmp);

@@ -78,7 +78,7 @@ function BarContents({
           }}
         />
       )}
-      {/* Centred over the bar's VISIBLE portion, not its start: a bar that began before the
+      {/* Centred over the bar's visible portion, not its start: a bar that began before the
           window would otherwise carry its label off-screen with it. `pointer-events-none` keeps
           the resize grips underneath hittable, and the bar itself still receives the gesture. */}
       <span

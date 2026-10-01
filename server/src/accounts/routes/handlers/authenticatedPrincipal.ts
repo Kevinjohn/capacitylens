@@ -28,7 +28,7 @@ export function requireAuthenticatedUser(req: FastifyRequest) {
   return req.user;
 }
 
-/** Both halves at once, for the handlers that need the actor AND the login behind it. */
+/** Both halves at once, for the handlers that need the actor and the login behind it. */
 export function requireAuthenticatedPrincipal(req: FastifyRequest) {
   return { actor: requireAccountActor(req), user: requireAuthenticatedUser(req) };
 }

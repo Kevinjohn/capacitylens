@@ -64,7 +64,7 @@ describe("schedulerDensity", () => {
     );
   });
 
-  // The bar is CONTENT, not spacing: growing it would restyle every allocation and change how much
+  // The bar is content, not spacing: growing it would restyle every allocation and change how much
   // label fits. Only the gaps between things move.
   it("keeps the bar at its base height", () => {
     expect(SCHEDULER_LANE_LAYOUT.barHeight).toBe(LAYOUT.barHeight);

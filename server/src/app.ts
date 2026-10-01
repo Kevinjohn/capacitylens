@@ -22,7 +22,7 @@ export { createRequestLoggerOptions } from "./routes/appLogging";
 export { MAX_SERVER_CONNECTIONS } from "./routes/appLimits";
 
 // The identity requireUser attaches to every gated request. Session/identity
-// plumbing ONLY, accountId stays client-asserted (ownsRow is still the tenant guard);
+// plumbing only, accountId stays client-asserted (ownsRow is still the tenant guard);
 // this is the seam Stage C will later use to derive accountId server-side.
 declare module "fastify" {
   interface FastifyRequest {
@@ -51,7 +51,7 @@ export interface AppOptions {
   allowReset?: boolean;
   /** CAPACITYLENS_LOG=1: structured per-request logging (Fastify's bundled pino, JSON on
    * stdout: method/path/status/latency), and the 500-path error log routed through the
-   * request-scoped logger. Default OFF = exactly today's behaviour (startup line +
+   * request-scoped logger. Default off = exactly today's behaviour (startup line +
    * console.error on 500s). */
   log?: boolean;
   /** Test seam: where the JSON log lines go when `log` is on (default stdout). */
@@ -60,7 +60,7 @@ export interface AppOptions {
    * tests/factory consumers default to a no-op. Must never throw into a request. */
   securityLog?: (event: Record<string, unknown>) => void;
   /** CAPACITYLENS_HEALTH_DEEP=1: /api/health also proves the DB answers a constant-work read:
-   * 200 { ok, db: true }, or 503 { ok: false } when the read throws. Default OFF =
+   * 200 { ok, db: true }, or 503 { ok: false } when the read throws. Default off =
    * today's unconditional { ok: true } (Playwright's webServer probe depends on it). */
   healthDeep?: boolean;
   /** Optional scheduled-backup health provider. Present only when backups are configured; kept as
@@ -77,12 +77,12 @@ export interface AppOptions {
   rateLimit?: number;
   /** Trust the immediate reverse proxy's sanitized forwarding headers. This keys rate limits on
    * X-Forwarded-For and reconstructs the browser-visible scheme for the CSRF same-origin check
-   * from X-Forwarded-Proto. Set ONLY when the API is unreachable directly and the proxy overwrites
+   * from X-Forwarded-Proto. Set only when the API is unreachable directly and the proxy overwrites
    * both headers; on a directly exposed host either header is client-spoofable. */
   trustProxyHeaders?: boolean;
   /** CAPACITYLENS_MODE: 'off' (the default) means Better Auth does not exist here.
    * The only auth surface is GET /api/auth/me reporting the demo identity, and
-   * requireUser attaches that identity and continues, so NO request that succeeds
+   * requireUser attaches that identity and continues, so no request that succeeds
    * today may fail. 'password'/'sso' mount opts.auth's handler at /api/auth/* and
    * 401 every other /api/* route (except /api/health) without a valid session. */
   authMode?: AccountMode;
@@ -113,27 +113,27 @@ export interface AppOptions {
    * CLAUDE.md's product positioning), once the `accounts` table holds ≥1 row, every vector that
    * would CREATE a new one (POST /api/accounts, a PUT/batch-PUT whose id has no existing row,
    * POST /api/orgs) is refused with a 403 naming this flag (see accountCreateCapped /
-   * SINGLE_COMPANY_CAP_MESSAGE), REGARDLESS of authMode, even 'off', which is otherwise
-   * trusted-local allow-all: this is a DEPLOYMENT-SHAPE policy, not an authz rule, so it gets no
-   * off-mode bypass. It also does NOT bypass for the bootstrap token below. That decides WHO may
-   * create an account, not WHETHER one may exist. UPDATE/PATCH/DELETE of an EXISTING account are
+   * SINGLE_COMPANY_CAP_MESSAGE), regardless of authMode, even 'off', which is otherwise
+   * trusted-local allow-all: this is a deployment-shape policy, not an authz rule, so it gets no
+   * off-mode bypass. It also does not bypass for the bootstrap token below. That decides who may
+   * create an account, not whether one may exist. UPDATE/PATCH/DELETE of an existing account are
    * never affected: the cap is create-time only, so a genuinely multi-company instance (this flag
    * on, or a DB seeded before the cap existed) keeps serving normally. */
   multiAccount?: boolean;
   /** CAPACITYLENS_BOOTSTRAP_TOKEN: a shared secret that, when sent as the
    * `x-capacitylens-bootstrap-token` request header on `POST /api/orgs`, authorises
-   * constrained org-creation even for a caller who is NOT yet an Owner/Admin of any
-   * account (e.g. an operator provisioning the SECOND account on an instance that already
-   * has one). DEFAULT undefined = the token path is DISABLED: an unset/empty token can
-   * never match, so `POST /api/orgs` then allows ONLY first-run (zero accounts) or an
-   * existing Owner/Admin (or OFF mode). The compare is constant-time + length-checked so
-   * it leaks neither the token's length nor its bytes by timing. NOTE: the token now
-   * PRESUMES a multi-account instance. It only ever matters once opts.multiAccount is
-   * also true, since the single-company cap above denies EVERY create (token or not)
+   * constrained org-creation even for a caller who is not yet an Owner/Admin of any
+   * account (e.g. an operator provisioning the second account on an instance that already
+   * has one). Default undefined = the token path is disabled: an unset/empty token can
+   * never match, so `POST /api/orgs` then allows only first-run (zero accounts) or an
+   * existing Owner/Admin (or off mode). The compare is constant-time + length-checked so
+   * it leaks neither the token's length nor its bytes by timing. Note: the token now
+   * presumes a multi-account instance. It only ever matters once opts.multiAccount is
+   * also true, since the single-company cap above denies every create (token or not)
    * while the instance is capped to one company. */
   bootstrapToken?: string;
   /** The API is reached over HTTPS, so host-only HSTS is safe to emit. Default false here:
-   * HSTS (Strict-Transport-Security) is ONLY valid over HTTPS and is actively HARMFUL over
+   * HSTS (Strict-Transport-Security) is only valid over HTTPS and is actively harmful over
    * plain HTTP, a browser that caches an HSTS directive received on http:// would force
    * https:// on a host that has no TLS, breaking it. The entrypoint (index.ts) derives it:
    * CAPACITYLENS_HTTPS=1/0 decides explicitly, otherwise an https public URL turns it on,
@@ -141,11 +141,11 @@ export interface AppOptions {
    * all other helmet baseline headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
    * are on regardless, as they are pure improvements with no HTTPS precondition. */
   https?: boolean;
-  /** CAPACITYLENS_AUDIT: the append-only JSONL audit sink. ON-by-default is decided at
-   * the index.ts layer (which builds a fileAuditSink from env, or a noop when =off); THIS factory
-   * defaults to noopAuditSink() so tests AND the default local/no-server deploy are byte-identical
-   * unless a real sink is explicitly injected. NEVER pass a row/body into the sink, only typed
-   * product or normalized account entries whose changedFields are field NAMES (the no-PII
+  /** CAPACITYLENS_AUDIT: the append-only JSONL audit sink. On-by-default is decided at
+   * the index.ts layer (which builds a fileAuditSink from env, or a noop when =off); this factory
+   * defaults to noopAuditSink() so tests and the default local/no-server deploy are byte-identical
+   * unless a real sink is explicitly injected. Never pass a row/body into the sink, only typed
+   * product or normalized account entries whose changedFields are field names (the no-PII
    * invariant). */
   audit?: AuditSink;
   /** Test seam for deterministically pausing import preparation around concurrent writes. The
@@ -165,7 +165,7 @@ export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
     requestTimeout: REQUEST_TIMEOUT_MS,
     connectionTimeout: CONNECTION_TIMEOUT_MS,
     // CAPACITYLENS_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
-    // ON always attaches the redact config (both branches) so a secret can never reach the
+    // On always attaches the redact config (both branches) so a secret can never reach the
     // logs: see LOG_REDACT_PATHS. Off ⇒ logger disabled entirely, today's behaviour, byte for byte.
     // requestLoggerOptions also owns invite-token masking and URL query/fragment removal and reconstructs Fastify's request
     // serializer so method/hostname/remote address remain available without emitting headers.

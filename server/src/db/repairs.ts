@@ -15,12 +15,12 @@ import {
   V13_FROZEN_PRESET_COLORS,
 } from "./migrations/definitions";
 /**
- * Ensure EVERY account in the DB has exactly one built-in Internal client (`builtin: true`).
+ * Ensure every account in the DB has exactly one built-in Internal client (`builtin: true`).
  * Missing rows are inserted; duplicate rows are deterministically folded into the generated id when
  * present (otherwise the oldest/id-first row), with dependent projects rewired before deletion. The
  * partial unique index is installed after this repair and prevents recurrence.
  *
- * Stays SQL (set-based, runs inside the DB) rather than calling the shared TS helper, but the CANONICAL
+ * Stays SQL (set-based, runs inside the DB) rather than calling the shared TS helper, but the canonical
  * definition of "the account's builtin Internal" lives in shared `internalClientFor` /
  * `ensureInternalClients`. The `builtin = 'true'` predicate below is its SQL transcription, and the
  * inserted row is built by the shared `buildInternalClient` factory so the row shape can't drift.
@@ -131,7 +131,7 @@ function snapToFrozenPresetV13(value: string | null): string {
     const [pr, pg, pb] = presetRgb;
     // Squared Euclidean distance in RGB space. No sqrt needed since we only compare magnitudes.
     const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
-    // Strict `<` (not `<=`) so the FIRST minimal-distance preset wins on a tie, palette order is
+    // Strict `<` (not `<=`) so the first minimal-distance preset wins on a tie, palette order is
     // the deterministic tie-break, matching shared `snapToPresetColor`.
     if (distance < nearestDistance) {
       nearestDistance = distance;
@@ -143,8 +143,8 @@ function snapToFrozenPresetV13(value: string | null): string {
 
 function hexToRgbV13(hex: string): [number, number, number] | null {
   const c = hex.replace("#", "");
-  if (c.length !== 6) return null; // reject short AND overlong hex (the latter mis-slices)
-  // HISTORICAL/FROZEN: parseInt accepts a valid prefix in each chunk. Do not tighten this shipped
+  if (c.length !== 6) return null; // reject short and overlong hex (the latter mis-slices)
+  // Historical/FROZEN: parseInt accepts a valid prefix in each chunk. Do not tighten this shipped
   // parser in place; future frozen parsers must validate the complete /^#[0-9a-f]{6}$/i shape first.
   const r = parseInt(c.slice(0, 2), 16);
   const g = parseInt(c.slice(2, 4), 16);
@@ -153,13 +153,13 @@ function hexToRgbV13(hex: string): [number, number, number] | null {
 }
 
 /**
- * v13 one-time data repair: BEFORE this migration, sanitizeWrite('accounts') replaced ANY stored
- * colour outside the current preset palette with one FIXED fallback hex on every single write,
+ * v13 one-time data repair: before this migration, sanitizeWrite('accounts') replaced any stored
+ * colour outside the current preset palette with one fixed fallback hex on every single write,
  * so a legacy account colour that predated today's `PRESET_COLORS` (or any hex a hand-crafted
  * request supplied) would silently flip to that one fixed colour the next time its row was
- * touched, with no migration ever having repaired the rows already on disk. Run ONCE: snap every
- * stored account colour through {@link snapToFrozenPresetV13}, the palette-FROZEN transcription of
- * the shared mapper, so each legacy colour is repaired to its NEAREST preset (not a fixed colour)
+ * touched, with no migration ever having repaired the rows already on disk. Run once: snap every
+ * stored account colour through {@link snapToFrozenPresetV13}, the palette-frozen transcription of
+ * the shared mapper, so each legacy colour is repaired to its nearest preset (not a fixed colour)
  * and the write-time guard becomes a no-op for every already-migrated row. The frozen palette (not
  * the live shared one) keeps this checksummed step reproducible forever. See DECISIONS.md.
  */

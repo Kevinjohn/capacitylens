@@ -325,7 +325,7 @@ describe("ownership transfer ceremony port: staying readable and unblocked", () 
       command: command("initiate"),
     });
     if (initiated.kind !== "applied") throw new Error("initiation did not apply");
-    // Freshness is a threshold for ACTING. An Owner who signed in an hour ago must still be able to
+    // Freshness is a threshold for acting. An Owner who signed in an hour ago must still be able to
     // see the nomination they are being asked to approve, or the ceremony is unreachable.
     await expect(port.readOwnershipTransfer({ actor: { ...owner, fresh: false }, workspaceId })).resolves.toMatchObject(
       { live: { id: initiated.request.id, state: "awaiting_target" } },
@@ -351,7 +351,7 @@ describe("ownership transfer ceremony port: staying readable and unblocked", () 
       .prepare("UPDATE account_ownership_transfers SET createdAt = ?, expiresAt = ? WHERE id = ?")
       .run("2026-08-25T09:00:00.000Z", "2026-09-01T09:00:00.000Z", stale.request.id);
 
-    // The Owner nominates somebody else WITHOUT naming the dead request: there is nothing to replace.
+    // The Owner nominates somebody else without naming the dead request: there is nothing to replace.
     const next = await port.initiateOwnershipTransfer({
       actor: owner,
       workspaceId,
@@ -370,7 +370,7 @@ describe("ownership transfer ceremony port: staying readable and unblocked", () 
     expect(expiries).toHaveLength(1);
     expect(expiries[0]?.outcome).toBe("success");
     expect(expiries[0]?.id).toContain(`:${stale.request.id}`);
-    // The event names the nominee of the request that ENDED, not the person being nominated now.
+    // The event names the nominee of the request that ended, not the person being nominated now.
     expect(expiries[0]?.targetPrincipalId).toBe(target.principalId);
   });
 });

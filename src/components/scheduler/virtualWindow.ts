@@ -12,7 +12,7 @@ interface ResolveVirtualWindowInput {
 // deterministic and unit-testable at any scale. The windowing path can't be exercised
 // in jsdom (clientHeight is 0 there), so the test validates this directly.
 //
-// The off-screen scroll extent is RESERVED by spacer divs the grid sizes from `RowLayout`
+// The off-screen scroll extent is reserved by spacer divs the grid sizes from `RowLayout`
 // (tops/total) rather than from a pad returned here: the grid can render one extra disjoint
 // item (the pinned drag source), so it needs the gap either side of every rendered item, not
 // just the two outer ones.
@@ -22,7 +22,7 @@ export interface VirtualWindow {
   last: number; // last item index to render (inclusive); -1 when empty
 }
 
-/** Cumulative offsets (prefix sums) of every item + the total. Depends ONLY on
+/** Cumulative offsets (prefix sums) of every item + the total. Depends only on
  * heights, so callers memoise it on `heights` and rebuild it only when the row set
  * changes, not on every scroll frame. */
 export interface RowLayout {

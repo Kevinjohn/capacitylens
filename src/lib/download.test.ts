@@ -141,7 +141,7 @@ function registerDownloadFailureScenarios(): void {
   });
 
   it("cleans up safely (no secondary crash) when the failure happens before the anchor exists", () => {
-    // createObjectURL throws BEFORE `a` is ever assigned, so the catch block's cleanup guards
+    // createObjectURL throws before `a` is ever assigned, so the catch block's cleanup guards
     // (`a?.parentNode`, `url`) must hold when both are still undefined.
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", {

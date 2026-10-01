@@ -1,6 +1,6 @@
-// Password policy, the pure, environment-agnostic numbers BOTH halves of the app must agree on.
+// Password policy, the pure, environment-agnostic numbers both halves of the app must agree on.
 // A dependency-free leaf (no runtime deps, no I/O), so the server (Better Auth config) and the client
-// (the reset-page pre-check) import the SAME source and can't drift, the repo's standard no-drift
+// (the reset-page pre-check) import the same source and can't drift, the repo's standard no-drift
 // pattern (see access.ts). If these diverged, the client would accept a password the server rejects
 // and then show a length message that contradicts the real bound.
 

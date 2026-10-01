@@ -252,10 +252,10 @@ try {
       assertCompanyProviderCutoverReady({ providerIds: companyProviders, identity, administration });
     });
   }
-  // First-run owner bootstrap, AFTER the auth tables exist, BEFORE the app serves a request. In
+  // First-run owner bootstrap, after the auth tables exist, before the app serves a request. In
   // off/sso mode createBootstrapAdmin throws AuthConfigError (the flag is meaningless there),
   // which this catch frames as a legible refusal; with users already present it logs one
-  // "skipped" line and boot continues (deliberately NOT an error, see its TSDoc).
+  // "skipped" line and boot continues (deliberately not an error, see its TSDoc).
   if (bootstrapAdmin) await createBootstrapAdmin(db, authMode, auth);
   if (process.env.CAPACITYLENS_SEED_DEMO === "1") seedIfUninitialized(db, seedForCurrentWeek());
   stopStartupIfRequested({ startupSignals, openDb: db });

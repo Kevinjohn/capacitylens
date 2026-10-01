@@ -78,7 +78,7 @@ export const scopedData = (accountId: string, over: Partial<AppData>): AppData =
     ],
   });
 
-// Drop known table keys from a slice to simulate an OLDER server omitting them (rolling-deploy skew).
+// Drop known table keys from a slice to simulate an older server omitting them (rolling-deploy skew).
 export const omitKeys = (data: AppData, ...keys: string[]): Record<string, unknown> =>
   Object.fromEntries(Object.entries(data).filter(([key]) => !keys.includes(key)));
 

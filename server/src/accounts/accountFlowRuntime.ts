@@ -10,10 +10,10 @@ export interface AccountAuditInput {
   targetPrincipalId?: string | null;
   command: CommandIdentity;
   changedFields?: readonly string[];
-  /** Disambiguates two events one command emits with the SAME action and outcome.
+  /** Disambiguates two events one command emits with the same action and outcome.
    *
    * Event identity is `commandId:action:outcome`, which is unique per command for a mutation that
-   * changes one thing. It is NOT unique when a single command legitimately acts on several rows,
+   * changes one thing. It is not unique when a single command legitimately acts on several rows,
    * erasing a company deprovisions every orphaned principal, and one membership write can
    * invalidate more than one ownership-transfer request. Without a key those events collide on the
    * outbox row id and all but one are silently dropped, which is exactly the evidence an audit

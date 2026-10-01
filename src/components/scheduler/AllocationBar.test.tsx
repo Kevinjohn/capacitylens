@@ -138,7 +138,7 @@ describe("AllocationBar rendering", () => {
     bar.seriesEnd = "2027-03-02";
     render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
-    // The series end is measured against the booking's START, the earliest date in the label, so
+    // The series end is measured against the booking's start, the earliest date in the label, so
     // it cannot be the one bare date among dated ones and be heard as ending before the booking
     // begins.
     expect(screen.getByTestId("allocation-bar")).toHaveAccessibleName(/28 Dec 2026 to 8 Jan 2027/i);
@@ -234,7 +234,7 @@ describe("AllocationBar accessible name (status / dates / note)", () => {
     expect(label).toContain("Tentative");
     expect(label).toContain("1 Jun");
     expect(label).toContain("5 Jun");
-    // The raw enum + ISO must NOT leak into the accessible name.
+    // The raw enum + ISO must not leak into the accessible name.
     expect(label).not.toContain("tentative");
     expect(label).not.toContain("2026-06-01");
   });

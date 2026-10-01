@@ -46,7 +46,7 @@ const SYNC_ORDER_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
  * (db.ts's statementCache, auth.ts's table-presence probes, txn.ts's activeTransactionModes): a
  * node:sqlite Statement is tied to the Db handle that prepared it, so the cache key is the handle
  * itself and an entry is collected with its handle, tests that open many short-lived in-memory
- * Dbs don't leak. recordAppliedSyncBatch is deliberately NOT cached here; it keeps preparing its
+ * Dbs don't leak. recordAppliedSyncBatch is deliberately not cached here; it keeps preparing its
  * statements per call as before.
  */
 type PreparedStatement = ReturnType<Db["prepare"]>;

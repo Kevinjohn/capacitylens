@@ -69,7 +69,7 @@ export function ProjectList() {
     [clients, data.projects],
   );
   const clientsById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);
-  // The per-row action ARCHIVES (soft-delete is reached from the inline archive section);
+  // The per-row action archives (soft-delete is reached from the inline archive section);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Project>();

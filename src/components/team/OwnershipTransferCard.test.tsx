@@ -311,7 +311,7 @@ describe("OwnershipTransferCard outcomes", () => {
     renderAs(OWNER.userId);
     await openOwnershipDialog();
 
-    // The Owner can always start a transfer, so the explanation must sit BESIDE the nominate
+    // The Owner can always start a transfer, so the explanation must sit beside the nominate
     // control: showing one instead of the other loses the only account of what happened.
     const outcome = await screen.findByTestId("ownership-transfer-outcome");
     expect(outcome).toHaveTextContent(m.ownership_transfer_outcome_declined());

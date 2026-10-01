@@ -71,7 +71,7 @@ function commitLapsedRequest(
   });
   context.audit({
     actorPrincipalId: input.actor.principalId,
-    // The LAPSED request's own nominee, never the new one: this event says who was party to the
+    // The lapsed request's own nominee, never the new one: this event says who was party to the
     // ceremony that ended, and the person being nominated now was never part of it.
     targetPrincipalId: live.targetUserId,
     workspaceId: input.workspaceId,
@@ -301,8 +301,8 @@ function runRowCommand(
 export function createOwnershipTransferOperations(context: TransferContext): TransferPort {
   return {
     async readOwnershipTransfer({ actor, workspaceId }) {
-      // A READ, and freshness is a mutation threshold: the route waives it deliberately (every step
-      // still asserts it), because an Owner who signed in an hour ago must still be able to SEE the
+      // A read, and freshness is a mutation threshold: the route waives it deliberately (every step
+      // still asserts it), because an Owner who signed in an hour ago must still be able to see the
       // nomination they are being asked to approve.
       assertAdministrativeAssurance({
         actor,

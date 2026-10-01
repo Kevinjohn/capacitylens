@@ -43,7 +43,7 @@ interface AccessCopyInput {
 type AccessState = "offline" | "demo" | "open" | "checking" | "not-applicable" | "unavailable";
 type AccessCopyResult = { kind: AccessState } | { kind: "role"; role: Role };
 
-/** THE precedence ladder, resolved once so the label and its explanatory counterpart can never
+/** The precedence ladder, resolved once so the label and its explanatory counterpart can never
  * drift into disagreeing about which state the viewer is in. Ordering is load-bearing: a cached
  * offline session outranks the access posture, which outranks how far the permission check has
  * got, and a resolved check with no role still reads as "unavailable" rather than a blank role. */
@@ -57,7 +57,7 @@ function resolveAccessState(input: AccessCopyInput): AccessCopyResult {
   return { kind: "role", role: input.role };
 }
 
-// UNCALLED message references, called at lookup: Paraglide resolves the active locale at CALL
+// Uncalled message references, called at lookup: Paraglide resolves the active locale at call
 // time, so a resolved string captured at module load would freeze to the import-time language.
 const STATE_LABELS: Record<AccessState, () => string> = {
   offline: m.access_offline_label,

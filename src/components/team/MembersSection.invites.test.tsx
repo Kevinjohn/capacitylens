@@ -41,9 +41,9 @@ vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-// MembersSection is the Team & access management UI. It renders ONLY in auth-on + server mode and
+// MembersSection is the Team & access management UI. It renders only in auth-on + server mode and
 // self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
-// true) and fetch, and assert the OWNER-ONLY affordances are hidden for an admin (no owner option, no
+// true) and fetch, and assert the owner-only affordances are hidden for an admin (no owner option, no
 // controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
 
 // Make the section "enabled": a configured server. The real module reads import.meta.env, which the
@@ -334,7 +334,7 @@ function registerInviteAccountTransitionTests(): void {
         return await new Promise<Response>(() => {});
       }
       if (target.endsWith("/invites") && isRead) {
-        // The authoritative list AFTER the create below returns the invite it minted, as a server
+        // The authoritative list after the create below returns the invite it minted, as a server
         // does: an empty list would mean "that invite is already gone", which is a different test.
         return jsonResponse({ invites: minted });
       }

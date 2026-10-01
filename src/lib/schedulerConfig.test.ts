@@ -31,7 +31,7 @@ describe("resolveColumnFit", () => {
     expect(resolveColumnFit(1064, 1, 22)).toEqual({ dayWidth: 204, weekWidth: 1064 });
     // 2 weeks: each week is 532px; (532 - 2·22)/5 = 97.6 -> base 97 + distributed remainder.
     expect(resolveColumnFit(1064, 2, 22)).toEqual({ dayWidth: 97, weekWidth: 532 });
-    // The fit is WIDER than the uniform 7-equal-columns width (which under-fills with narrow weekends).
+    // The fit is wider than the uniform 7-equal-columns width (which under-fills with narrow weekends).
     expect(resolveColumnFit(1064, 1).dayWidth).toBe(152); // uniform: 1064/7
     expect(204).toBeGreaterThan(152);
   });

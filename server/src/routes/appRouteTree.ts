@@ -292,9 +292,9 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
 
 export function registerApiRoutes(input: RegisterApiRoutesInput): void {
   const { app } = input;
-  // Every route below registers through a child plugin, NOT directly on the root:
+  // Every route below registers through a child plugin, not directly on the root:
   // @fastify/rate-limit attaches to routes via an onRoute hook that only exists once the
-  // plugin LOADS (at ready(), in registration order), a route declared straight on the
+  // plugin loads (at ready(), in registration order), a route declared straight on the
   // root would register first and silently escape the limiter. The child loads after it,
   // so its routes are seen, and it inherits the root CORS hook + error handler. The
   // callback shadows `app` deliberately: the route code is identical without the wrapper.

@@ -113,7 +113,7 @@ describe("nextOwnershipTransferState", () => {
     expect(nextOwnershipTransferState("awaiting_owner", "cancel")).toBe("cancelled");
   });
 
-  // Withdrawal is the one edge that goes BACKWARDS, and it must not be confused with a decline:
+  // Withdrawal is the one edge that goes backwards, and it must not be confused with a decline:
   // the nominee may accept again, so the Owner's original nomination survives.
   it("returns withdrawal to awaiting_target rather than to a terminal state", () => {
     expect(nextOwnershipTransferState("awaiting_owner", "withdraw")).toBe("awaiting_target");

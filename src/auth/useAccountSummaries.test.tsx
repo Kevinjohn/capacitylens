@@ -23,12 +23,12 @@ vi.mock("@/data/offlineCache", async (importOriginal) => {
 // answers, in particular the malformed-200 case (the bug this pins: a 200 whose JSON body is not
 // an array used to coerce to `[]`, a fake "no accounts" that blanked the picker, where every
 // other failure reported null / keep-what-you-have):
-//   - a real array        -> the validated list ([] only for a GENUINE empty array; off-spec rows
+//   - a real array        -> the validated list ([] only for a genuine empty array; off-spec rows
 //                            are dropped with a console.warn breadcrumb, partial corruption is
 //                            handled-but-logged, never silent)
 //   - a non-OK response   -> null (keep what you have)
-//   - a 200 NON-ARRAY body -> null too, same stance, with a console.warn breadcrumb
-//   - a NONEMPTY array where EVERY row is off-spec -> null too (malformed, NOT "no accounts",
+//   - a 200 non-array body -> null too, same stance, with a console.warn breadcrumb
+//   - a nonempty array where every row is off-spec -> null too (malformed, not "no accounts",
 //                            an [] here would blank the picker over a broken response)
 // plus the hook-level consequence: a null read leaves store.accountSummaries untouched.
 
@@ -191,7 +191,7 @@ function createMalformedResponseClassificationTests() {
   it('a NONEMPTY array whose rows are ALL malformed -> null (keep what you have, NOT a fake "no accounts") + a warn', async () => {
     // The regression this pins: [null] used to map/filter to [], which the hook treated as a genuine
     // empty list and blanked the picker, contradicting the "[] is reserved for a genuine empty
-    // array" contract. All-rows-invalid is a MALFORMED response, so it reports null like the
+    // array" contract. All-rows-invalid is a malformed response, so it reports null like the
     // non-array case (the hook then leaves the existing list untouched).
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
@@ -436,7 +436,7 @@ function createMalformedHookTests() {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
-        // Signal AFTER returning would race the .json() await inside the hook; queueMicrotask keeps
+        // Signal after returning would race the .json() await inside the hook; queueMicrotask keeps
         // the resolution ordered behind the hook's own awaits closely enough for the flush below.
         queueMicrotask(resolveFetch);
         return json(200, { not: "an array" });

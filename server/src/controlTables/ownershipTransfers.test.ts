@@ -70,7 +70,7 @@ function stateOf(db: Db, id: string): string | undefined {
 describe("the v41 migration body", () => {
   // The DDL spells the two unions out as literals because its text is folded into the ledger
   // checksum and may never be regenerated from a live shared constant. This is the drift guard that
-  // makes that safe: it lives OUTSIDE the checksum, so adding a state to the shared contract fails
+  // makes that safe: it lives outside the checksum, so adding a state to the shared contract fails
   // here: where the answer is a new migration, rather than silently on someone's disk.
   it("pins the same states and terminal reasons as the shared contract", () => {
     for (const state of OWNERSHIP_TRANSFER_STATES) {
@@ -371,7 +371,7 @@ describe("participant reads", () => {
   });
 
   it("fails loud on a stored state outside the shared contract", () => {
-    // Build the table WITHOUT its CHECK constraints. The mapper's throw is the second line of
+    // Build the table without its CHECK constraints. The mapper's throw is the second line of
     // defence behind them, so proving it needs a row the constraints would have refused, and no
     // write path in this module can produce one.
     const db = new DatabaseSync(":memory:") as unknown as Db;
@@ -405,7 +405,7 @@ describe("retention and erasure", () => {
       nomination({ id: "ot-recent", state: "completed", terminalAt: justInside, terminalReason: null }),
     );
 
-    // Another company's equally stale row: the sweep runs inside ONE workspace's mutation lock, so
+    // Another company's equally stale row: the sweep runs inside one workspace's mutation lock, so
     // it must not reach outside it however far past the retention window the other row is.
     insertRequest(
       db,

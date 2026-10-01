@@ -112,7 +112,7 @@ export interface AccountAdminPort extends JoiningPolicyAdminPort {
   /** Active membership by default. This is the read request authorization goes through, so a
    * disabled or archived row must look like no membership at all. `includeInactive` answers the
    * different question "does this relationship exist?" and is for identity administration only:
-   * an admin disables a compromised account BEFORE rotating its password and killing its
+   * an admin disables a compromised account before rotating its password and killing its
    * sessions, so those routes must still find the member they just suspended. */
   getMembership(input: {
     principalId: PrincipalId;
@@ -120,7 +120,7 @@ export interface AccountAdminPort extends JoiningPolicyAdminPort {
     includeInactive?: boolean;
   }): Promise<Membership | null>;
   /** Active memberships by default. `includeInactive` additionally returns disabled and archived
-   * rows and exists for ONE caller. The administrative member directory, which must show an
+   * rows and exists for one caller. The administrative member directory, which must show an
    * administrator the state they applied so they can reverse it. `requireFresh` defaults to true
    * for administrative callers; the member-directory projection may set it false after the HTTP
    * authorization seam has established the caller's current role. Never widen an authorization

@@ -30,7 +30,7 @@ export function buildWeekAnchor(weekStart: ISODate): { originDate: ISODate; focu
   return { originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS), focusDate: weekStart };
 }
 
-/** The same pair for an account's CURRENT week, read through its own calendar settings. Used both
+/** The same pair for an account's current week, read through its own calendar settings. Used both
  * by "go to today" and by the tenant-boundary resets in useStore, so a company always opens on the
  * week its own time zone / week start says it is. */
 export function readCurrentWeekAnchor(

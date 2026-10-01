@@ -26,7 +26,7 @@ const capacityAdvisoryMock = vi.hoisted(() =>
 );
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory VERDICTS the modal renders.
+// care only about the advisory verdicts the modal renders.
 vi.mock("@/lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,

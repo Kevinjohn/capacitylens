@@ -1,12 +1,12 @@
 import { APP_DATA_WRITE_ORDER, type AppData, type Entity } from "@capacitylens/shared/types/entities";
 
 // The pure diff/apply core of server sync, extracted from ServerSyncAdapter so the
-// snapshot-to-REST-ops logic can be read and tested in isolation from the network
+// snapshot-to-rest-ops logic can be read and tested in isolation from the network
 // adapter. No I/O here, just two pure functions over AppData snapshots.
 
 // Parent-before-child: every create/update must follow its foreign-key targets.
-// Deletes use the reverse (child-before-parent). The emitted batch runs ALL upserts
-// before ALL deletes, see diffOps for why (a reparent's new binding must land before
+// Deletes use the reverse (child-before-parent). The emitted batch runs all upserts
+// before all deletes, see diffOps for why (a reparent's new binding must land before
 // the old parent's delete cascades).
 const UPSERT_ORDER = APP_DATA_WRITE_ORDER;
 
@@ -76,9 +76,9 @@ function collectPossibleBaseDeletes({ table, baseRows, baseIndexes, nextById }: 
 }
 
 function diffTable(table: TableKey, possibleBases: readonly AppData[], next: AppData): TableDiff {
-  // INVARIANT: every AppData reaching the adapter is post-migrate (migrate() guarantees each
+  // Invariant: every AppData reaching the adapter is post-migrate (migrate() guarantees each
   // table column is an array) and lastSynced begins as emptyAppData(), so these `as Entity[]`
-  // casts are always over real arrays. A non-array here is an UPSTREAM PROGRAMMER ERROR, not
+  // casts are always over real arrays. A non-array here is an upstream programmer error, not
   // user data; the assert turns an otherwise-cryptic "x.map is not a function" into a diagnosable
   // message. Pure function, a throw correctly propagates to the caller's error path.
   const nextRows = next[table] as Entity[];
@@ -94,7 +94,7 @@ function diffTable(table: TableKey, possibleBases: readonly AppData[], next: App
   if (baseIndexes.length !== 1) {
     return { upserts, deletes: collectPossibleBaseDeletes({ table, baseRows, baseIndexes, nextById }) };
   }
-  // The ordinary single-base diff: that base's index ALREADY is the candidate id set, same
+  // The ordinary single-base diff: that base's index already is the candidate id set, same
   // first-seen order, same per-id row (the last duplicate) the multi-base lookup above picks,
   // so iterate it instead of flattening every row id into a throwaway array plus a Set.
   const [baseIndex] = baseIndexes;
@@ -108,9 +108,9 @@ function diffTable(table: TableKey, possibleBases: readonly AppData[], next: App
  * updatedAt on every edit, so it's a reliable change marker); a "delete" when it's
  * gone from `next`.
  *
- * ORDER IS LOAD-BEARING: all upserts precede all deletes. Reparent + delete in one
+ * Order is load-bearing: all upserts precede all deletes. Reparent + delete in one
  * batch (e.g. move project P from client C1→C2, then delete C1) must apply P's new
- * clientId BEFORE C1 is deleted, otherwise C1's `ON DELETE CASCADE` removes P (still
+ * clientId before C1 is deleted, otherwise C1's `ON DELETE CASCADE` removes P (still
  * bound to C1 in the DB) and its unmodified descendants, which carry no upsert op and
  * would be lost. Doing upserts first lets the cascade find nothing to take.
  * Exported for unit tests. */
@@ -137,11 +137,11 @@ export function diffOpsFromPossibleBases(possibleBases: readonly AppData[], next
   return [...upserts, ...deletes];
 }
 
-/** Apply a set of (already-confirmed) ops to a base snapshot, returning a NEW AppData.
+/** Apply a set of (already-confirmed) ops to a base snapshot, returning a new AppData.
  *
- * Diff-replay utility, exported for unit tests. It is NOT wired into a partial-advance sync path:
- * `ServerSyncAdapter.drain()` relies on BATCH ATOMICITY. A batch either fully applies or throws,
- * so on success `lastSynced` advances to the WHOLE target (see drain), and there is no production
+ * Diff-replay utility, exported for unit tests. It is not wired into a partial-advance sync path:
+ * `ServerSyncAdapter.drain()` relies on batch atomicity. A batch either fully applies or throws,
+ * so on success `lastSynced` advances to the whole target (see drain), and there is no production
  * caller that advances `lastSynced` by only-the-ops-that-landed. If a per-op partial-advance
  * recovery is ever added, this is the building block; until then, don't assume sync recovers
  * row-by-row from a partial flush. */
@@ -157,9 +157,9 @@ export function applyOps(base: AppData, ops: Op[]): AppData {
     }
     next[table] = [...rows];
   }
-  // Position index per TOUCHED table, built lazily (same idiom as ServerSyncAdapter.rebaseForWire):
+  // Position index per touched table, built lazily (same idiom as ServerSyncAdapter.rebaseForWire):
   // a run of PUTs into one table costs O(ops + rows) instead of a linear findIndex each. An entry
-  // records the FIRST position holding an id, exactly what findIndex returned, and the whole
+  // records the first position holding an id, exactly what findIndex returned, and the whole
   // table's index is dropped whenever a mutation can move or re-label rows (a DELETE re-filters the
   // array; a PUT whose row carries a different id than the op renames a slot), so the next lookup
   // rebuilds from the live array rather than trusting a stale position.

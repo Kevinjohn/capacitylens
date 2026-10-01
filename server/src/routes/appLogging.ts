@@ -1,9 +1,9 @@
 import type { FastifyRequest } from "fastify";
 import type { AppOptions } from "../app";
 
-// NEVER let a secret reach the logs. pino strips these exact paths from every record
-// when logging is on; remove:true DELETES the key (so the value is gone entirely, not printed as
-// "[Redacted]"). DEFENSE-IN-DEPTH: Fastify's default req/res serializers don't log headers at all
+// Never let a secret reach the logs. pino strips these exact paths from every record
+// when logging is on; remove:true deletes the key (so the value is gone entirely, not printed as
+// "[Redacted]"). Defense-in-depth: Fastify's default req/res serializers don't log headers at all
 // (req → method/url/hostname/remoteAddress; res → statusCode/responseTime), so today nothing here
 // would emit these, but the moment a custom serializer logs headers, or someone logs a raw req/res,
 // this is the backstop that keeps Authorization / Cookie / Set-Cookie out of stdout. If such a

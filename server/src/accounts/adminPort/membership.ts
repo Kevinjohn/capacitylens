@@ -328,7 +328,7 @@ export function exchangeOwnershipInTx({
   nextOwnerId,
   now,
 }: ExchangeOwnershipInput): void {
-  // "keep": these two writes ARE the ceremony completing, so they must not invalidate the request
+  // "keep": these two writes are the ceremony completing, so they must not invalidate the request
   // they are applying. Every other membership write ends a live nomination naming its principal.
   upsertMember(
     db,

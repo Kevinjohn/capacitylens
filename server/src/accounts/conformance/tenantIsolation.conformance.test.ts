@@ -47,14 +47,14 @@ describe("control-table writes stay inside their account: transfer recovery", ()
  *
  * Written after an ownership-transfer retention sweep shipped with no `accountId` in its `WHERE`
  * clause, deleting every company's terminal rows from inside a mutation holding one company's lock.
- * Nothing in the repository observed mutation SCOPE: `tenantIntegrity.ts` guards AppData product
+ * Nothing in the repository observed mutation scope: `tenantIntegrity.ts` guards AppData product
  * tables, the schema assertions check columns and indexes, and `architecture.test.ts` decides which
  * modules may own raw control-table SQL, which is why it correctly admitted the defect.
  *
- * The probe that matters is the FOREIGN one: calling a mutator for account A with account B's
+ * The probe that matters is the foreign one: calling a mutator for account A with account B's
  * identifier, and asserting nothing was written. A test that merely invokes the mutator for its own
  * account and checks the other account is untouched passes even with the tenant predicate removed,
- * because the row is already uniquely keyed by id. Member cases therefore seed the SAME `userId` in
+ * because the row is already uniquely keyed by id. Member cases therefore seed the same `userId` in
  * both accounts, so losing the account half of a composite key is observable.
  */
 
@@ -62,7 +62,7 @@ describe("control-table writes stay inside their account: transfer recovery", ()
 // first company, Stark Industries for the second.
 const WAYNE = "a-studio";
 const STARK = "a-loft";
-/** Deliberately a member of BOTH companies: the shared principal is what makes a lost `accountId`
+/** Deliberately a member of both companies: the shared principal is what makes a lost `accountId`
  * visible on every membership write. */
 const SHARED = "u-bruce-wayne";
 const NEWCOMER = "u-barbara-gordon";
@@ -717,7 +717,7 @@ const EXCLUDED = new Map<string, string>([
   ["memberSignInTracking.migrateMemberSignInTrackingV26", "one-time migration over every account"],
   ["memberSignInTracking.assertMemberSignInTrackingSchemaCurrent", "schema assertion"],
   // Identity-keyed by design: one sign-in, or one deliberate access reset, is a fact about the
-  // principal in EVERY company that opted in, so these cross accounts on purpose. Their per-account
+  // principal in every company that opted in, so these cross accounts on purpose. Their per-account
   // opt-in correlation is covered in memberSignInTracking's own tests.
   ["memberSignInTracking.confirmTrackedMemberSignIn", "identity-keyed across every opted-in account"],
   ["memberSignInTracking.clearTrackedMemberSignIn", "identity-keyed across every opted-in account"],
@@ -748,7 +748,7 @@ const EXCLUDED = new Map<string, string>([
 
 describe("the isolation inventory", () => {
   it("reflects over every module in controlTables/", () => {
-    // Read from disk rather than trusting the import list: a NEW control-table module is the
+    // Read from disk rather than trusting the import list: a new control-table module is the
     // easiest way for an unscoped write to arrive unclassified.
     const onDisk = readdirSync(new URL("../../controlTables/", import.meta.url), { recursive: true })
       .map(String)
@@ -781,7 +781,7 @@ describe("the isolation inventory", () => {
   });
 
   it("backs every covered mutator with a case that still calls it", () => {
-    // The set above only CLAIMS coverage; this proves it. Without it, deleting or renaming a case
+    // The set above only claims coverage; this proves it. Without it, deleting or renaming a case
     // leaves the inventory certifying isolation that nothing tests any more, worse than no
     // inventory at all, because a reader who sees the name stops looking.
     const source = readFileSync(new URL(import.meta.url), "utf8");

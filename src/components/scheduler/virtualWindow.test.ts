@@ -8,7 +8,7 @@ interface ComputeWindowTestInput {
   overscanPx?: number | undefined;
 }
 
-// The one-shot composition SchedulerGrid does NOT do (it memoises the layout across scroll
+// The one-shot composition SchedulerGrid does not do (it memoises the layout across scroll
 // frames, so it holds the two calls apart). Production has no use for the pair, so it lives
 // here, where every case below wants a window straight from a heights array.
 const computeWindow = ({ heights, scrollTop, viewportHeight, overscanPx = 300 }: ComputeWindowTestInput) =>
@@ -150,7 +150,7 @@ function registerFitAndOverflowGuardTests() {
     expect(computeWindow({ heights, scrollTop: 30, viewportHeight: 80, overscanPx: 0 })).toEqual({ first: 0, last: 3 });
   });
 
-  // The `first` scan's own bound (`first < n - 1`) must stop it at the LAST valid index, never
+  // The `first` scan's own bound (`first < n - 1`) must stop it at the last valid index, never
   // walk off the end into out-of-range (undefined) heights/tops. A very large `top` (scrollTop far
   // past the content) makes the height-check side of the loop condition stay true all the way to
   // the last row, so only the explicit bound decides where it stops.

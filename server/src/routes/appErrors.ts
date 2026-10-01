@@ -3,7 +3,7 @@ import { ValidationError } from "../validate";
 import { REPLY_ERRORS } from "./replyErrors";
 
 // SQLite extended constraint codes that describe caller-supplied row data. Deliberately exclude
-// TRIGGER (1811), FUNCTION (1043), VTAB (2323), COMMIT_HOOK (531) and other internal constraint
+// trigger (1811), function (1043), VTAB (2323), COMMIT_HOOK (531) and other internal constraint
 // sources: those are server/storage failures and must remain logged 500s.
 const SQLITE_CALLER_DATA_CONSTRAINT_CODES = new Set([
   275, // SQLITE_CONSTRAINT_CHECK
@@ -57,12 +57,12 @@ export function resolveRequestClientIp({ request, trustProxyHeaders }: ResolveRe
 export function fail(reply: FastifyReply, error: unknown, logError: (e: unknown) => void = console.error) {
   const status = resolveErrorStatus(error);
   // A 500 is an unexpected server/db bug: log the real error server-side but return a
-  // GENERIC body so we never leak internals (stack-ish messages, SQL, paths).
+  // generic body so we never leak internals (stack-ish messages, SQL, paths).
   if (status === 500) {
     logError(error);
     return reply.code(500).send({ error: REPLY_ERRORS.internalServerError });
   }
-  // 400s: a curated ValidationError message is safe AND useful (it's a friendly sentence we
+  // 400s: a curated ValidationError message is safe and useful (it's a friendly sentence we
   // authored). A raw DB-constraint message (e.g. "NOT NULL constraint failed: clients.color")
   // leaks schema internals, genericise it, mirroring the 500 redaction one tier down.
   const message = error instanceof ValidationError ? error.message : REPLY_ERRORS.constraintViolation;

@@ -170,9 +170,9 @@ export function NumberField({
         aria-required={resolveBooleanAttribute({ value: required })}
         aria-invalid={resolveBooleanAttribute({ value: invalid })}
         aria-describedby={invalid ? describedById : undefined}
-        // For <input type="number"> the browser reports `value` as EITHER a valid numeric string
-        // OR "", it sanitises away part-typed junk ("1.", "-", "1e"), so Number(value) is a finite
-        // number or Number("") === 0, and NEVER NaN. (The obvious guess that "" or "abc" reaches
+        // For <input type="number"> the browser reports `value` as either a valid numeric string
+        // or "", it sanitises away part-typed junk ("1.", "-", "1e"), so Number(value) is a finite
+        // number or Number("") === 0, and never NaN. (The obvious guess that "" or "abc" reaches
         // here as NaN is wrong: "abc" can't be typed into a number input, and Number("") is 0.)
         // Emitting 0 for an empty field is the deliberate tradeoff, the value round-trips as a
         // number, at the cost that the field can't be held visually blank mid-edit (clearing it

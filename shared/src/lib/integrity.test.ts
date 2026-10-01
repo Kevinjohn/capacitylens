@@ -476,7 +476,7 @@ describe("isValidISODate", () => {
   });
 
   it("rejects a NON-STRING even when it stringifies to a valid-looking date", () => {
-    // The `typeof s !== 'string'` guard must fire FIRST: parseDate() throws on a non-string
+    // The `typeof s !== 'string'` guard must fire first: parseDate() throws on a non-string
     // (`.split` on a number/array), so dropping the guard would surface a throw instead of a
     // clean `false`. An array like ['2026-06-01'] String()-coerces to a matching shape, so only
     // the type check, not the regex, protects the parse.
@@ -564,8 +564,8 @@ describe("placeholder binding", () => {
   });
 
   it("distinguishes an UNBOUND placeholder from a wrong-project one by message", () => {
-    // An unbound placeholder (no projectId) and one bound to the WRONG project both reject,
-    // but with DIFFERENT reasons, so the `!resource.projectId` branch and each message string
+    // An unbound placeholder (no projectId) and one bound to the wrong project both reject,
+    // but with different reasons, so the `!resource.projectId` branch and each message string
     // are load-bearing, not interchangeable.
     expect(validateAllocationAssignment(unboundPlaceholder(), "p1").errors[0]).toMatch(/not bound to a project/i);
     expect(validateAllocationAssignment(placeholder({ projectId: "p1" }), "p2").errors[0]).toMatch(
@@ -646,7 +646,7 @@ function registerPhaseCascadeTests(): void {
     });
     const next = deletePhaseCascade(data, "phase1", CASCADE_REVISION);
     expect(next.phases.map((p) => p.id)).toEqual(["phase2"]); // sibling phase kept
-    expect(assertEntityById(next.activities, "t3").phaseId).toBe("phase2"); // NOT ungrouped
+    expect(assertEntityById(next.activities, "t3").phaseId).toBe("phase2"); // Not ungrouped
     expect(assertEntityById(next.activities, "t1").phaseId).toBeUndefined(); // was under phase1
   });
 }
@@ -659,7 +659,7 @@ function registerProjectCascadeTests(): void {
     expect(next.activities).toHaveLength(0);
     expect(next.allocations).toHaveLength(0); // both allocations referenced p1 activities
     expect(assertEntityById(next.resources, "ph1").projectId).toBeUndefined();
-    expect(next.resources).toHaveLength(2); // resources are NOT deleted
+    expect(next.resources).toHaveLength(2); // resources are not deleted
   });
 
   it("deleteProjectCascade leaves general (no-project) activities and their allocations intact", () => {
@@ -694,7 +694,7 @@ function registerProjectCascadeTests(): void {
 
   it("deleteProjectCascade unbinds a surviving activity’s phaseId that pointed at a deleted phase", () => {
     // t-keep belongs to p2 but (incoherently) references phase ph-p1, which belongs to p1.
-    // Deleting p1 removes ph-p1; t-keep must SURVIVE with its phaseId unbound, never a
+    // Deleting p1 removes ph-p1; t-keep must survive with its phaseId unbound, never a
     // dangling reference (mirrors the server FK's ON DELETE SET NULL).
     const data = danglingPhaseData();
     const revision = "2026-07-15T00:00:00.000Z";
@@ -706,14 +706,14 @@ function registerProjectCascadeTests(): void {
   });
 
   it("deleteProjectCascade spares a SIBLING project’s phases, activities, allocations and bound placeholder", () => {
-    // Deleting p1 must touch ONLY p1's subtree: p2 and everything coherently under it survives,
+    // Deleting p1 must touch only p1's subtree: p2 and everything coherently under it survives,
     // and a coherent p2 activity keeps its (p2) phase. The removed-phase set must not over-collect.
     const data = siblingProjectData();
     const next = deleteProjectCascade(data, "p1", CASCADE_REVISION);
     expect(next.projects.map((p) => p.id)).toEqual(["p2"]); // only p1 removed
     expect(next.phases.map((p) => p.id)).toEqual(["ph-p2"]); // p2's phase kept
     expect(next.activities.map((t) => t.id)).toEqual(["a-p2"]); // p1 activity removed, p2 kept
-    expect(assertEntityById(next.activities, "a-p2").phaseId).toBe("ph-p2"); // coherent phase NOT unbound
+    expect(assertEntityById(next.activities, "a-p2").phaseId).toBe("ph-p2"); // coherent phase not unbound
     expect(next.allocations.map((a) => a.id)).toEqual(["al-p2"]); // sibling allocation survives
     expect(assertEntityById(next.resources, "ph2").projectId).toBe("p2"); // p2 placeholder keeps binding
   });
@@ -755,7 +755,7 @@ function registerClientCascadeTests(): void {
 
   it("deleteClientCascade removes ONLY the target client’s subtree, sparing a sibling client", () => {
     // Two clients; deleting c1 leaves c2's project/phase/activity/allocation/placeholder intact.
-    // A c2 activity that (incoherently) points at a c1 phase SURVIVES with its phaseId unbound.
+    // A c2 activity that (incoherently) points at a c1 phase survives with its phaseId unbound.
     const data = siblingClientData();
     const revision = "2026-07-15T00:00:00.000Z";
     const next = deleteClientCascade(data, "c1", revision);
@@ -765,7 +765,7 @@ function registerClientCascadeTests(): void {
     expect(next.activities.map((t) => t.id).sort()).toEqual(["a2", "a3"]); // a1 (c1) removed
     const survivingActivity = assertEntityById(next.activities, "a2");
     expect(survivingActivity.name).toBe("A2"); // record kept whole, not blanked
-    expect(survivingActivity.phaseId).toBe("ph2"); // coherent phase NOT unbound
+    expect(survivingActivity.phaseId).toBe("ph2"); // coherent phase not unbound
     const repairedActivity = assertEntityById(next.activities, "a3");
     expect(repairedActivity.phaseId).toBeUndefined(); // dangling c1 phase unbound
     expect(repairedActivity.updatedAt).toBe(revision);
@@ -796,7 +796,7 @@ function registerDisciplineCascadeTests(): void {
     data.resources.push(person({ id: "r2", disciplineId: "d2" }));
     const next = deleteDisciplineCascade(data, "d1", CASCADE_REVISION);
     expect(next.disciplines.map((d) => d.id)).toEqual(["d2"]); // sibling discipline kept
-    expect(assertEntityById(next.resources, "r2").disciplineId).toBe("d2"); // NOT ungrouped
+    expect(assertEntityById(next.resources, "r2").disciplineId).toBe("d2"); // Not ungrouped
     // r1 was in d1 → ungrouped, but kept as a whole record (not blanked to {})
     const r1 = assertEntityById(next.resources, "r1");
     expect(r1.disciplineId).toBeUndefined();

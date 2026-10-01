@@ -63,22 +63,22 @@ function sanitizeAccountWrite(
   options: SanitizeWriteOptions,
 ): Record<string, unknown> {
   const workingDaysRequested = Object.hasOwn(copy, "workingDays");
-  // POLICY: a non-preset colour snaps to its NEAREST palette preset (shared/lib/color's
-  // snapToPresetColor: the SAME mapper the client uses and the one-time
-  // snap-legacy-account-colors migration ran), not a fixed fallback purple. Before this, ANY
+  // Policy: a non-preset colour snaps to its nearest palette preset (shared/lib/color's
+  // snapToPresetColor: the same mapper the client uses and the one-time
+  // snap-legacy-account-colors migration ran), not a fixed fallback purple. Before this, any
   // stored colour outside the (then-current) preset set was replaced with one fixed hex on
   // every write, so a legacy account's colour, or any hex a hand-crafted request supplied,
   // would silently flip to that one colour the next time the row was touched. See DECISIONS.md.
   copy.color = snapToPresetColor(copy.color);
   if (typeof copy.name === "string") copy.name = cleanText(copy.name);
-  // schedulingMode is an OPTIONAL enum (absent = 'hourly'). Drop a junk value rather
+  // schedulingMode is an optional enum (absent = 'hourly'). Drop a junk value rather
   // than persisting a mode the scheduler's hourly/days/blocks switch can't handle, the
   // one enum a direct /api/accounts write would otherwise slip past every other guard.
   if (copy.schedulingMode !== undefined && !SCHEDULING_MODES.includes(copy.schedulingMode as never)) {
     delete copy.schedulingMode;
   }
   // The stored week start feeds the empty-workingDays repair: weekStartsOn is immutable and only
-  // restored onto the copy AFTER sanitisation (see the loop below), so without this a payload
+  // restored onto the copy after sanitisation (see the loop below), so without this a payload
   // omitting it would repair a Sunday-start account's week to the Monday-start default.
   sanitizeAccount(copy, resolveStoredWeekStart(existing));
   preserveCapacityOverviewAccess({
@@ -191,8 +191,8 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
   // archive/unarchive/delete/purge routes, which build rows via the pure lifecycle transitions and
   // persist them through TenantStore.writeLifecycleRow without passing through sanitizeWrite. So
   // Across every generic write (POST/PUT/PATCH/batch), they are immutable in both directions: pin them to what is already
-  // stored (`existing`), ignoring the body. A crafted body can't SET a tombstone on an active row,
-  // and an unrelated edit can't CLEAR one and silently resurrect a row. On CREATE both fields are
+  // stored (`existing`), ignoring the body. A crafted body can't set a tombstone on an active row,
+  // and an unrelated edit can't clear one and silently resurrect a row. On CREATE both fields are
   // stripped, so new rows start active. Imports remain untouched because they use
   // sanitizeImportedRecord directly and legitimately round-trip tombstones.
   pinLifecycleFields(table, cleaned, existing);
@@ -208,7 +208,7 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
       if (!availabilityRequested?.[field] && typeof existing[field] === "string") cleaned[field] = existing[field];
     }
   }
-  // Field-confidentiality PINS (note-erasure guard + private-name guard): the fields are
+  // Field-confidentiality pins (note-erasure guard + private-name guard): the fields are
   // single-sourced in GATED_FIELD_POLICIES. A writer who cannot see a gated field has it pinned to
   // the stored value on UPDATE and stripped on CREATE; a writer who can see it passes it through.
   pinGatedFields({ table, cleaned, existing, options });
@@ -216,7 +216,7 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
 }
 
 /**
- * Repair the constrained value-level fields of a write body, returning a NEW object
+ * Repair the constrained value-level fields of a write body, returning a new object
  * (the input is not mutated). Scoped tables delegate to the shared
  * sanitizeImportedRecord; accounts (not a scoped table) get their colour repaired
  * here. A well-formed body from the real client is unchanged. This only bites
@@ -226,7 +226,7 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
  * write paths flow through, so no path can slip past the NULL-id guard.
  *
  * `existing` is the currently-stored row (from getRow) on an UPDATE, PUT/PATCH/batch pass it so
- * the lifecycle tombstones (and, for a note-blind writer, the time-off `note`) can be PINNED to
+ * the lifecycle tombstones (and, for a note-blind writer, the time-off `note`) can be pinned to
  * what's on disk (see the scoped branch); it is undefined on a CREATE (POST), which is why a new
  * row always starts with its tombstones stripped (active).
  *

@@ -161,7 +161,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
   const submit = () => {
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
-    // A project-specific activity MUST have a project; internal/all-projects are project-less (projectId/phaseId
+    // A project-specific activity must have a project; internal/all-projects are project-less (projectId/phaseId
     // undefined). Surface the project requirement as a field error rather than relying on the
     // store throw, so the invalid control is marked.
     if (kind === "project" && !projectId) {

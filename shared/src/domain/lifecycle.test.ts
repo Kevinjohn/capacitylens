@@ -26,9 +26,9 @@ import type {
 import { emptyAppData } from "../types/entities";
 import type { AppData, Resource, Weekday } from "../types/entities";
 
-// These tests are an INDEPENDENT oracle of the lifecycle state machine: the expected states /
+// These tests are an independent oracle of the lifecycle state machine: the expected states /
 // booleans below are hand-derived from the contract (deletedAt wins; archive needs active; delete +
-// unarchive need archived; purge needs deleted + age ≥ 30d, fail-closed), NOT copied from the
+// unarchive need archived; purge needs deleted + age ≥ 30d, fail-closed), not copied from the
 // implementation. If lifecycle.ts and these tables disagree, that's the test doing its job.
 
 // Fixed ISO consts so every assertion is deterministic (no ambient clock anywhere in the machine).
@@ -48,7 +48,7 @@ const NOW = "2026-06-01T00:00:00.000Z"; // an arbitrary "now" used for archive/s
 const DAY_MS = 86_400_000;
 
 // `new Date(number).toISOString()` is deterministic/pure (a number in, never an ambient clock), fine
-// in a TEST. Used to build exact-age "now" values relative to the tombstone for the canPurge boundary.
+// in a test. Used to build exact-age "now" values relative to the tombstone for the canPurge boundary.
 const nowAfterDelete = (days: number): string => new Date(Date.parse(T_DEL) + days * DAY_MS).toISOString();
 
 // The three canonical sample entities, each carrying an extra `{ id, name }` payload so the
@@ -171,7 +171,7 @@ describe("unarchive — archived → active (clears archivedAt as ABSENT, immuta
     const result = unarchive(input);
     expect("archivedAt" in result).toBe(false);
     expect(result.archivedAt).toBeUndefined();
-    // Rule 3: un-archive only clears archivedAt. It must NOT disturb deletedAt (which is already
+    // Rule 3: un-archive only clears archivedAt. It must not disturb deletedAt (which is already
     // absent on an 'archived' source). Lock that it stays absent rather than leaking a tombstone in.
     expect(result.deletedAt).toBeUndefined();
     expect(lifecycleStatus(result)).toBe("active");
@@ -263,11 +263,11 @@ describe("canPurge — deleted + age ≥ 30d, fail-closed", () => {
     expect(canPurge(makeDeleted(), "not-a-date")).toBe(false);
   });
   it("future-dated tombstone (now is 5d BEFORE deletedAt, negative age) → false (clock skew, never falls open)", () => {
-    // A negative age must NEVER read as purgeable: `nowMs - deletedMs` is negative, so `>= MS` is false.
+    // A negative age must never read as purgeable: `nowMs - deletedMs` is negative, so `>= MS` is false.
     expect(canPurge(makeDeleted(), nowAfterDelete(-5))).toBe(false);
   });
   it("deleted WITHOUT archivedAt, aged 31d → true (archival is NOT a purge precondition — state+age only)", () => {
-    // An aged tombstone is purgeable regardless of HOW it got there; only 'deleted' + age matters.
+    // An aged tombstone is purgeable regardless of how it got there; only 'deleted' + age matters.
     expect(canPurge({ deletedAt: T_DEL }, nowAfterDelete(31))).toBe(true);
   });
   it("null deletedAt → false (null = absent ⇒ not deleted ⇒ fail-closed; DB round-trip yields null)", () => {
@@ -308,7 +308,7 @@ describe("isLifecycleEntityKey — narrowing guard for the tombstone-carrying ta
   });
 });
 
-// A full, valid sample Resource so the preservation assertions check the REAL field set. The
+// A full, valid sample Resource so the preservation assertions check the real field set. The
 // id's leading hex ('a1b2') is the source of the deterministic token tag. Each call returns a
 // fresh object (including its own weekday arrays) so the immutability checks aren't fooled by aliasing.
 const RESOURCE_BASE: Resource = {
@@ -419,7 +419,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     expect(tag?.length).toBeGreaterThan(0);
   });
 
-  // ANON_FALLBACK_TAG branch of shortResourceTag(id): when the id yields NO alphanumerics to
+  // ANON_FALLBACK_TAG branch of shortResourceTag(id): when the id yields no alphanumerics to
   // derive a tag from, the token falls back to the documented '0000' rather than leaving a bare
   // 'Removed person #'. Both an empty id and an all-punctuation id must hit that same fallback.
   it("empty id ⇒ fallback tag '0000' (no alphanumerics to derive from)", () => {

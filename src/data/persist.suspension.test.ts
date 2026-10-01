@@ -16,7 +16,7 @@ import { deferredSignal, requireCallback, recordingAdapter, a2Slice, attachActiv
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account AND makes it active, so the add* calls below
+  // Seeds a single account and makes it active, so the add* calls below
   // (which now require an active account) work.
   resetStoreWithAccount();
 });
@@ -105,7 +105,7 @@ describe("flushPendingWrites (the import seam)", () => {
 
 describe("suspendServerWrites (the import write-suspension seam)", () => {
   // The server-mode import suspends writes across its POST + re-hydrate: flushPendingWrites only
-  // proves cleanliness at one INSTANT, so an edit made while the POST is pending must be PARKED,
+  // proves cleanliness at one instant, so an edit made while the POST is pending must be parked,
   // sending it would either land just before the import (silently wiped) or be flushed by the
   // post-import reload against the pre-import snapshot (stale rows upserted into the imported
   // slice: remapped ids insert cleanly, no 409 stops them).
@@ -193,7 +193,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
     expect(saveAll).not.toHaveBeenCalled(); // parked, not sent
 
-    // The suspending operation FAILED before any reload (e.g. the POST was refused): the slice is
+    // The suspending operation failed before any reload (e.g. the POST was refused): the slice is
     // unchanged, so the parked edit saves on resume, losing it would be a silent drop, no notice.
     resume();
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
@@ -248,7 +248,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
   it("an edit during the (a′) flush await is parked, rebased after load, and saved", async () => {
     // Pre-fix, an edit arriving while the entry flush was awaited re-armed a debounce timer at
     // depth 0; the timer fired mid-load, its save was silently eaten by the seedGen guard, and the
-    // (c) check couldn't see it, a silent loss. The suspension now covers the WHOLE sequence.
+    // (c) check couldn't see it, a silent loss. The suspension now covers the whole sequence.
     vi.useFakeTimers();
     let releaseSave: () => void = () => undefined;
     let detach: (() => void) | null = null;
@@ -271,7 +271,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
       await saveStarted.promise; // the flush is on the wire
 
       useStore.getState().addClient({ name: "During flush", color: "#333333" }); // arrives mid-flush-await
-      await vi.advanceTimersByTimeAsync(300); // a re-armed timer WOULD have fired
+      await vi.advanceTimersByTimeAsync(300); // a re-armed timer would have fired
       expect(saveAll).toHaveBeenCalledTimes(1); // parked instead
 
       requireCallback(releaseSave, "pending save release")();
@@ -322,7 +322,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
   it("unload flush still keepalive-pushes an edit parked by a RELOAD suspension — WITHOUT consuming it", async () => {
     // The snapshot is still the pre-reload one until loadAll resolves, so the keepalive diff is
     // self-vs-self and safe, declining (as the external-import guard does) would silently lose
-    // the edit on every tab close during a reload window. The edit stays PARKED besides: if the
+    // the edit on every tab close during a reload window. The edit stays parked besides: if the
     // keepalive fails and the page survives (tab merely hidden), the reload's (c) check must
     // still own its fate, consuming it here erased the only remaining record of the edit.
     let release: (() => void) | null = null;
@@ -358,7 +358,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
   });
 
   it("a failed keepalive during the pre-load window is followed by a normal rebased save", async () => {
-    // Pre-fix, the hidden-tab flush CONSUMED `pending` before dataAtLoad was snapshotted; when the
+    // Pre-fix, the hidden-tab flush consumed `pending` before dataAtLoad was snapshotted; when the
     // swallowed keepalive then failed and the page survived, every signal at (c) read clean and
     // the edit vanished with zero surface.
     let releaseLoad: (() => void) | null = null;
@@ -384,7 +384,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     const refresh = refreshActiveAccountSlice("a2");
     await vi.waitFor(() => expect(releaseLoad).toBeTypeOf("function"));
     useStore.getState().addClient({ name: "Hidden-tab edit", color: "#222222" }); // parked
-    window.dispatchEvent(new Event("pagehide")); // keepalive dispatched, and REJECTS
+    window.dispatchEvent(new Event("pagehide")); // keepalive dispatched, and rejects
 
     requireCallback(releaseLoad, "reload release")();
     expect(await refresh).toEqual({ kind: "reloaded" });

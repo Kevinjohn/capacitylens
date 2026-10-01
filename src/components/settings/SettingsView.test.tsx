@@ -441,7 +441,7 @@ describe("SettingsView — Schedule (minimise weekends)", () => {
 
 describe("SettingsView — account toggle wiring", () => {
   // Third tuple entry = the documented absent-field default (store/selectors.ts). Pinned as a
-  // LITERAL per row: re-deriving it from the key would only restate the component's own rule and
+  // literal per row: re-deriving it from the key would only restate the component's own rule and
   // would keep agreeing with it if that rule ever changed.
   it.each([
     ["Use disciplines", "disciplinesEnabled", true],

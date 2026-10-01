@@ -11,12 +11,12 @@ export interface AllocationRewriteRevision {
 // Persistence contract shared by the in-memory demo and server-backed application.
 export interface PersistenceAdapter {
   /** Load persisted data. `accountId` (server adapter only) loads only that account's scoped slice
-   * and re-seeds the diff snapshot to it; OMITTED requests the whole tree (OFF mode and a pre-pick
+   * and re-seeds the diff snapshot to it; omitted requests the whole tree (off mode and a pre-pick
    * bootstrap without live identity). `skipRemoteRead` seeds an empty server snapshot for a
    * live-authenticated pre-pick bootstrap. The in-memory demo adapter ignores both arguments. */
   loadAll(accountId?: string, options?: { skipRemoteRead?: boolean }): Promise<AppData>;
   /** Persist the whole dataset. `opts.unload` signals a page-teardown flush: an async
-   * adapter must then DISPATCH every write up-front (a sequential await-loop would only
+   * adapter must then dispatch every write up-front (a sequential await-loop would only
    * get the first request out before the event loop dies). Synchronous adapters ignore it. */
   saveAll(data: AppData, options?: { unload?: boolean }): Promise<void>;
   /** Optional server-rewrite bridge. Receipts identify the client revision they committed so the
@@ -25,9 +25,9 @@ export interface PersistenceAdapter {
   /** True when a dataset was ever persisted, lets bootstrap distinguish a
    * genuine first run from a user who deliberately cleared everything.
    *
-   * MAY THROW (e.g. a server `/api/meta` round-trip can fail). A throw is INDETERMINATE,
-   * not "no data": callers MUST compensate non-destructively, bootstrap falls back to
-   * `!isEmpty(loaded)`, and must NEVER react to a throw by discarding already-loaded data or
+   * May throw (e.g. a server `/api/meta` round-trip can fail). A throw is indeterminate,
+   * not "no data": callers must compensate non-destructively, bootstrap falls back to
+   * `!isEmpty(loaded)`, and must never react to a throw by discarding already-loaded data or
    * skipping the persistence attach (that would strand the user unable to save). */
   hasExisting?(): Promise<boolean>;
 }
@@ -44,7 +44,7 @@ export class LoadError extends Error {
   readonly kind: LoadErrorKind;
 
   // Accepts ErrorOptions so adapters reclassifying a caught failure (parse/migrate/storage/network)
-  // can forward `{ cause }` and preserve the FULL error chain, not just a re-worded message.
+  // can forward `{ cause }` and preserve the full error chain, not just a re-worded message.
   constructor(kind: LoadErrorKind, message: string, options?: ErrorOptions) {
     super(message, options);
     this.kind = kind;

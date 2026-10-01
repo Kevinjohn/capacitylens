@@ -95,7 +95,7 @@ describe("week-snap test override", () => {
   });
 
   it("swallows a blocked read to the default (on)", () => {
-    // Private mode / quota / a sandboxed iframe can make getItem THROW (not just return null). The
+    // Private mode / quota / a sandboxed iframe can make getItem throw (not just return null). The
     // read must degrade to the default rather than crash boot (DEFENSIVE-CODING.md §5).
     const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new DOMException("blocked", "SecurityError");

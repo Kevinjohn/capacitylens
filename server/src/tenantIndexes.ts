@@ -51,7 +51,7 @@ export const ALLOCATION_PROJECT_INDEX_V35_SQL = `CREATE INDEX IF NOT EXISTS ${AL
 export const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
 /** Shared shape check behind assertTenantAccountIndexesV21 and assertTenantEntityIndexesCurrent's
- * foreign-key loop: both verify a single non-unique, non-partial, ASC/BINARY, table-created index
+ * foreign-key loop: both verify a single non-unique, non-partial, asc/BINARY, table-created index
  * on exactly one named column. The two call sites keep their own byte-identical error message text
  * (`message` is caller-supplied), only the PRAGMA-reading/shape-check logic is shared. */
 interface SingleColumnIndexInput {

@@ -11,10 +11,10 @@ import { seed } from "@capacitylens/shared/data/seed";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 
 // requirePermission: the auth-on 403 matrix for the authorize() route gate, plus the primary
-// invariant that OFF mode stays allow-all/no-op (cross-account ids included). The gate maps each
+// invariant that off mode stays allow-all/no-op (cross-account ids included). The gate maps each
 // protected route onto a pure can(role, action) decision against the caller's membership role; this
 // suite drives those routes end-to-end (sign-up → membership → request) and asserts the resulting
-// 2xx/403, NOT the matrix in isolation (access.test.ts owns the matrix unit).
+// 2xx/403, not the matrix in isolation (access.test.ts owns the matrix unit).
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
@@ -75,14 +75,14 @@ const closure = (id: string, accountId: string) => ({
   ...meta(),
 });
 
-// A recognizable sentinel for a1's time-off note. Asserting it is ABSENT from the raw response
-// BODY (not just the parsed key) is what proves the redaction is SERVER-SIDE. The note never serialized.
+// A recognizable sentinel for a1's time-off note. Asserting it is absent from the raw response
+// body (not just the parsed key) is what proves the redaction is server-side. The note never serialized.
 const SENTINEL_TIMEOFF_NOTE = "SENTINEL_TIMEOFF_NOTE";
 
 /**
  * Two accounts a1/a2, seeded directly via insertAll (parent-first). a1 additionally carries a
  * resource + a time-off row whose `note` is {@link SENTINEL_TIMEOFF_NOTE}, so the redaction
- * suite can assert owner/admin SEE it and editor/viewer do NOT.
+ * suite can assert owner/admin see it and editor/viewer do not.
  */
 function seedTwo(db: Db): void {
   const d = emptyAppData() as unknown as Record<string, unknown[]>;
@@ -247,7 +247,7 @@ function seedPrivateNames(db: Db): void {
 }
 
 // Per-verb requests against a1's seeded rows (cookie carries the session in auth-on).
-// Each returns the status of ONE write/read so a test can assert allow (2xx) vs deny (403).
+// Each returns the status of one write/read so a test can assert allow (2xx) vs deny (403).
 
 const getState = (app: FastifyInstance, accountId: string, cookie?: string) =>
   call(app, { method: "GET", url: `/api/state?accountId=${accountId}`, headers: cookie ? { cookie } : {} });
@@ -259,7 +259,7 @@ interface PostClientInput {
   cookie?: string | undefined;
 }
 
-/** POST a NEW client into `accountId`. */
+/** POST a new client into `accountId`. */
 const postClient = ({ app, accountId, id, cookie }: PostClientInput) =>
   call(app, { method: "POST", url: "/api/clients", payload: client(id, accountId), headers: cookie ? { cookie } : {} });
 
@@ -318,7 +318,7 @@ interface BatchIntoInput {
   cookie?: string | undefined;
 }
 
-/** A batch that upserts a NEW client into `accountId`. */
+/** A batch that upserts a new client into `accountId`. */
 const batchInto = ({ app, accountId, id, cookie }: BatchIntoInput) =>
   call(app, {
     method: "POST",
@@ -443,7 +443,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("non-member: account-asserted operations are 403 while row-addressed PATCH conceals as 404", async () => {
     const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
-    const { cookie } = await signUp(app, "stranger@capacitylens.dev"); // NO membership upserted
+    const { cookie } = await signUp(app, "stranger@capacitylens.dev"); // No membership upserted
 
     expect((await getState(app, "a1", cookie)).statusCode).toBe(403);
     expect((await postClient({ app, accountId: "a1", id: "nc1", cookie })).statusCode).toBe(403);
@@ -483,14 +483,14 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       payload: {
         ops: [
           { method: "PUT", table: "clients", id: "mixA", row: client("mixA", "a1") }, // allowed alone
-          { method: "PUT", table: "clients", id: "mixB", row: client("mixB", "a2") }, // denied → rejects WHOLE
+          { method: "PUT", table: "clients", id: "mixB", row: client("mixB", "a2") }, // denied → rejects whole
         ],
       },
       headers: { cookie },
     });
     expect(res.statusCode).toBe(403);
 
-    // Pre-scan rejected the batch before the tx opened, so the a1 op left NO trace. Read a1 as a
+    // Pre-scan rejected the batch before the tx opened, so the a1 op left no trace. Read a1 as a
     // member and confirm only the originally-seeded client c1 exists.
     const a1 = await getState(app, "a1", cookie);
     expect(a1.statusCode).toBe(200);
@@ -532,7 +532,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     expect(getRow(db, "resources", "r1")?.isFavourite).toBe(true);
     expect((await deleteProject({ app, accountId: "a1", id: "p1", cookie })).statusCode).toBe(204);
     expect((await batchInto({ app, accountId: "a1", id: "ec3", cookie })).statusCode).toBe(200);
-    // Import is NOT an editor write: it replaces the whole slice AND (all ids remapped) bypasses
+    // Import is not an editor write: it replaces the whole slice and (all ids remapped) bypasses
     // the note pin, ultimately gated to owner. See the dedicated import-tier suite below.
     expect((await importInto({ app, accountId: "a1", id: "ec4", cookie })).statusCode).toBe(403);
   });
@@ -632,7 +632,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
 
     // controlTables.ts now caches the prepared active-membership-role Statement per Db handle (see
     // `cachedStatement`), so `db.prepare()` for its SQL runs at most once per handle regardless of
-    // how many times the role is actually looked up. SQLite's authorizer callback fires at PREPARE
+    // how many times the role is actually looked up. SQLite's authorizer callback fires at prepare
     // time, not at execution time, so counting it (as this test used to) would now undercount,
     // it'd see one prepare no matter how many logical reads happen. Wrap `db.prepare` instead: when
     // the active-membership-role SQL is (once) prepared, instrument the returned Statement's `.get`
@@ -718,7 +718,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     expect(res.statusCode).toBe(403);
     expect(readErrorMessage(res)).toContain("/api/orgs");
     expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
-    // …and /api/orgs DOES let the same user bootstrap their first company (201 + owner membership).
+    // …and /api/orgs does let the same user bootstrap their first company (201 + owner membership).
     const orgs = await call(app, {
       method: "POST",
       url: "/api/orgs",
@@ -914,8 +914,8 @@ describe("scoped generic writes conceal foreign row existence", () => {
 
 describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer never receive it", () => {
   // a1 carries a time-off row whose note === SENTINEL_TIMEOFF_NOTE (see seedTwo). The note is
-  // owner/admin-only (canSeeTimeOffNote), redacted SERVER-SIDE in the scoped read. For editor/viewer
-  // we assert BOTH the parsed `note` is absent AND the sentinel appears NOWHERE in the raw body, the
+  // owner/admin-only (canSeeTimeOffNote), redacted server-side in the scoped read. For editor/viewer
+  // we assert both the parsed `note` is absent and the sentinel appears nowhere in the raw body, the
   // latter is what proves the redaction is server-side (the string was never serialized), not a
   // client-side hide.
   it.each([
@@ -967,9 +967,9 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
   it("OFF mode (trusted-local): scoped read INCLUDES the note", async () => {
     const db = openDb(":memory:");
-    const app = createApp(db, { optimisticConcurrency: false }); // no authMode ⇒ OFF
+    const app = createApp(db, { optimisticConcurrency: false }); // no authMode ⇒ off
     seedTwo(db);
-    const res = await getState(app, "a1"); // no cookie needed in OFF
+    const res = await getState(app, "a1"); // no cookie needed in off
     expect(res.statusCode).toBe(200);
     expect(readTimeOffNote(res)).toBe(SENTINEL_TIMEOFF_NOTE);
     expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE);
@@ -978,16 +978,16 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
 function timeOffWriteFixture() {
   // The write-side counterpart of the read redaction above. An editor's reads have the `note`
-  // REDACTED, so every row they round-trip back (PUT / batch PUT, the client's real save paths)
+  // redacted, so every row they round-trip back (PUT / batch PUT, the client's real save paths)
   // is note-less by construction; without the sanitizeWrite pin, upsertRow would store NULL and
-  // silently erase a note the editor never saw. Owner/admin (and OFF mode) writers keep full
+  // silently erase a note the editor never saw. Owner/admin (and off mode) writers keep full
   // control: they can still change or clear the note.
 
   const SENTINEL = SENTINEL_TIMEOFF_NOTE;
   const stampedTimeOff = (over: Record<string, unknown> = {}) =>
     ({ ...timeOff({ id: "to1", accountId: "a1", resourceId: "r1" }), ...over }) as Record<string, unknown>;
 
-  /** The note as an OWNER sees it after the write under test (the ground truth in the DB). */
+  /** The note as an owner sees it after the write under test (the ground truth in the DB). */
   const noteInDb = (db: Db): unknown =>
     (db.prepare(`SELECT note FROM timeOff WHERE id = 'to1'`).get() as { note: unknown }).note;
 
@@ -1089,7 +1089,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     expect((db.prepare(`SELECT endDate FROM timeOff WHERE id = 'to1'`).get() as { endDate: string }).endDate).toBe(
       "2026-02-05",
     );
-    // The write's ECHO is a read: the pinned note must NOT ride the response back to the
+    // The write's echo is a read: the pinned note must not ride the response back to the
     // note-blind writer (redactNoteEcho), same server-side proof as the read-redaction suite.
     expect(res.body).not.toContain(SENTINEL);
   });
@@ -1111,7 +1111,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
 describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
   const { SENTINEL, stampedTimeOff, noteInDb, memberApp } = timeOffWriteFixture();
   it("editor STALE write (optimistic concurrency) → the 409's `current` payload is note-REDACTED too", async () => {
-    // The conflict path is a READ of the stored row: without redaction, an editor could learn a
+    // The conflict path is a read of the stored row: without redaction, an editor could learn a
     // note they can't read simply by sending a stale write. Both write paths must redact it.
     const { app, cookie } = await memberApp("editor", { optimisticConcurrency: true });
     const stale = stampedTimeOff({ updatedAt: "1999-01-01T00:00:00.000Z" }); // stored TS is strictly newer
@@ -1191,7 +1191,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
   const { stampedTimeOff, noteInDb } = timeOffWriteFixture();
   it("OFF mode (trusted-local): PUT without the note key still clears it — pre-change behaviour intact", async () => {
     const db = openDb(":memory:");
-    const app = createApp(db, { optimisticConcurrency: false }); // OFF ⇒ the writer always "sees" the note
+    const app = createApp(db, { optimisticConcurrency: false }); // Off ⇒ the writer always "sees" the note
     seedTwo(db);
     const res = await call(app, { method: "PUT", url: "/api/timeOff/to1", payload: stampedTimeOff() });
     expect(res.statusCode).toBe(200);
@@ -1200,8 +1200,8 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
 });
 
 describe("P1.5 authorize — account hard-delete is owner-only and dedicated-route-only", () => {
-  // Account hard-delete CASCADES (FK ON DELETE CASCADE wipes all the account's scoped data), so in
-  // auth-on it must NOT be reachable by an arbitrary signed-in user. Only the direct
+  // Account hard-delete cascades (FK ON DELETE CASCADE wipes all the account's scoped data), so in
+  // auth-on it must not be reachable by an arbitrary signed-in user. Only the direct
   // DELETE /api/accounts/:id route may invoke it; generic sync rejects account DELETE operations
   // before authorization. The route gates the owner-only `deleteAccount` capability against the
   // account's own id; admin-tier record purge remains a separate action.
@@ -1209,8 +1209,8 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
   it("non-member: direct DELETE is 403 and generic batch DELETE is 400; a1 survives", async () => {
     const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
-    const { cookie } = await signUp(app, "stranger-del@capacitylens.dev"); // NO membership
-    // A separate ADMIN of a1 so we can read a1 back afterwards (the stranger can't read it).
+    const { cookie } = await signUp(app, "stranger-del@capacitylens.dev"); // No membership
+    // A separate admin of a1 so we can read a1 back afterwards (the stranger can't read it).
     const admin = await signUp(app, "a1admin-witness@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: admin.userId, role: "admin", status: "active", createdAt: TS });
 
@@ -1247,8 +1247,8 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
 
     const res = await deleteAccount(app, "purgeMe", cookie);
     expect(res.statusCode).toBe(204);
-    // This is now a TENANT ERASURE, not a bare row delete. The caller is the SOLE member, so the
-    // erasure also removes their identity and KILLS their session, their cookie no longer authenticates, so a
+    // This is now a tenant erasure, not a bare row delete. The caller is the sole member, so the
+    // erasure also removes their identity and kills their session, their cookie no longer authenticates, so a
     // read-back as them is 401 (not 200). "Account gone" is therefore asserted on observable DB state
     // directly: the accounts row, the membership row, and the member's auth session are all removed.
     expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeMe'`).get() as { n: number }).n).toBe(0);
@@ -1277,15 +1277,15 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
 
 describe("P1.5 authorize — /api/import is owner-only", () => {
   // Import is a destructive delete-all + re-insert of the tenant slice (replaceAccountSlice), the
-  // purge tier's hard-delete semantics, AND it bypasses field-level write pins: every id is
+  // purge tier's hard-delete semantics, and it bypasses field-level write pins: every id is
   // remapped, so the timeOff note pin can never match a stored row. At 'write' tier a
   // note-blind editor could erase every owner-confidential note simply by importing their own
   // (note-redacted) export. Client/project privacy makes the final tier stricter still: an admin's
-  // export is name-redacted, so only an owner has a lossless slice suitable for replacement. OFF
-  // mode stays open (see the OFF-mode allow-all suite).
+  // export is name-redacted, so only an owner has a lossless slice suitable for replacement. Off
+  // mode stays open (see the off-mode allow-all suite).
 
   const importSlice = (app: FastifyInstance, accountId: string, cookie: string) => {
-    // A realistic attack payload: the editor's own export of a1, note-LESS by construction
+    // A realistic attack payload: the editor's own export of a1, note-less by construction
     // (their reads are redacted), so importing it would silently erase the stored note.
     const data = {
       ...emptyAppData(),
@@ -1353,11 +1353,11 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
 
 function accountWriteFixture() {
   // The scoped tables carry accountId and pass through the isScopedTable() authorize gate; `accounts`
-  // does NOT (top-level, no accountId column), so a bare account UPDATE (rename / colour / scheduling
-  // mode / feature toggles) needs its OWN gate, else any signed-in user could rewrite another tenant's
+  // does not (top-level, no accountId column), so a bare account UPDATE (rename / colour / scheduling
+  // mode / feature toggles) needs its own gate, else any signed-in user could rewrite another tenant's
   // company settings. An UPDATE (existing row) requires membership + write tier; a CREATE (no existing
-  // row) is CLOSED auth-on (403 → POST /api/orgs; the old onboarding exemption is retired) and open
-  // only in OFF mode. OFF mode stays allow-all. (Regression for the cross-tenant account-write gap,
+  // row) is closed auth-on (403 → POST /api/orgs; the old onboarding exemption is retired) and open
+  // only in off mode. Off mode stays allow-all. (Regression for the cross-tenant account-write gap,
   // this is a deliberate compatibility boundary.)
 
   const putAccount = (app: FastifyInstance, id: string, cookie?: string) =>
@@ -1385,7 +1385,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   it("non-member (signed in): PUT / PATCH / batch-PUT updating a1 → 403", async () => {
     const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
-    const { cookie } = await signUp(app, "acct-stranger@capacitylens.dev"); // NO membership
+    const { cookie } = await signUp(app, "acct-stranger@capacitylens.dev"); // No membership
     expect((await putAccount(app, "a1", cookie)).statusCode).toBe(403);
     expect((await patchAccount(app, "a1", cookie)).statusCode).toBe(403);
     expect((await batchPutAccount(app, "a1", cookie)).statusCode).toBe(403);
@@ -1422,8 +1422,8 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 
 describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
   const { putAccount, batchPutAccount } = accountWriteFixture();
-  // Auth-on, a CREATE via any generic vector is CLOSED outright, 403 directing to POST /api/orgs
-  // (the atomic account + Internal client + owner-membership path). The refusal is UNCONDITIONAL in
+  // Auth-on, a CREATE via any generic vector is closed outright, 403 directing to POST /api/orgs
+  // (the atomic account + Internal client + owner-membership path). The refusal is unconditional in
   // auth-on: it fires ahead of the single-company cap, at zero accounts (the bootstrap case now
   // belongs to /api/orgs too), and regardless of multiAccount. Three cases pin the full behaviour:
   it("(a) zero-account instance, auth-on: a non-member PUT / batch-PUT of the FIRST account → 403 → /api/orgs (bootstrap moved there)", async () => {
@@ -1454,7 +1454,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     const batch = await batchPutAccount(app, "brandNew4", cookie);
     expect(batch.statusCode).toBe(403);
     expect(readErrorMessage(batch)).toContain("/api/orgs");
-    // /api/orgs then applies the single-company cap itself (its own GATE 0), see app.orgs.test.ts.
+    // /api/orgs then applies the single-company cap itself (its own gate 0), see app.orgs.test.ts.
   });
 });
 
@@ -1473,7 +1473,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 
   it("OFF mode: account update (PUT/PATCH/batch) is allow-all (no cookie, no membership)", async () => {
     const db = openDb(":memory:");
-    const app = createApp(db, { optimisticConcurrency: false }); // OFF
+    const app = createApp(db, { optimisticConcurrency: false }); // Off
     seedTwo(db);
     expect((await putAccount(app, "a1")).statusCode).toBe(200);
     expect((await patchAccount(app, "a1")).statusCode).toBe(200);
@@ -1668,7 +1668,7 @@ describe("private client/project names — owner-only server projection", () => 
 });
 
 describe("P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)", () => {
-  // No authMode ⇒ OFF (trusted-local). Every read/write succeeds, INCLUDING cross-account ids,
+  // No authMode ⇒ off (trusted-local). Every read/write succeeds, including cross-account ids,
   // authorize() short-circuits to true on its first line, so membership/policy resolution never runs.
   function offApp(): FastifyInstance {
     const db = openDb(":memory:");

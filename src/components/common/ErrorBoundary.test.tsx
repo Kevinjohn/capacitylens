@@ -58,7 +58,7 @@ describe("RouteError (React Router errorElement)", () => {
 
     render(<RouterProvider router={router} />);
 
-    // The data router catches the in-tree throw and renders our errorElement (NOT its
+    // The data router catches the in-tree throw and renders our errorElement (not its
     // own bland default), so the recovery UI appears.
     expect(screen.getByText("Something went wrong")).toBeInTheDocument();
     expect(screen.getByText("boom")).toBeInTheDocument();

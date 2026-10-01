@@ -92,8 +92,8 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        // Active (cmdk sets data-[selected=true] on pointer-enter AND keyboard nav) → the
-        // AA-validated brand-soft tint + ink. Deliberately NO `hover:bg-canvas`: cmdk already
+        // Active (cmdk sets data-[selected=true] on pointer-enter and keyboard nav) → the
+        // AA-validated brand-soft tint + ink. Deliberately no `hover:bg-canvas`: cmdk already
         // activates the hovered row, so a CSS :hover canvas tint would only ever flash a
         // `bg-canvas` row whose sublabel is still `text-faint` (4.43:1 on canvas, fails AA),
         // whereas the active path swaps the sublabel to `text-muted-foreground`. No shadcn bg-accent.
