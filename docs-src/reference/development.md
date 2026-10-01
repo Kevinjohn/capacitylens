@@ -1116,8 +1116,9 @@ releases.
 The server-mode client keeps process-local persistence counters for failed saves, retries,
 reconciliations, superseded reloads, rebases and discarded edits, plus the current
 write-suspension state (`usePersistenceDiagnostics`). The counters intentionally contain no tenant
-values and reset whenever a fresh persistence lifecycle attaches. Settings no longer displays
-them. They're diagnostic breadcrumbs, not durable telemetry or an operator health endpoint.
+values and reset whenever a fresh persistence lifecycle attaches. The Owner/Admin Diagnostics page
+(`src/components/diagnostics/`) adds them to its copied support report. They're diagnostic
+breadcrumbs, not durable telemetry or an operator health endpoint.
 
 ## Test data and generated files
 

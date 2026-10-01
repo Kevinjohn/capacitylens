@@ -94,6 +94,7 @@ const adminSidebar = [
       { text: "Prepare clients and work", link: "/admin/prepare-work" },
       { text: "Make the first booking", link: "/admin/first-booking" },
       { text: "Ongoing administration", link: "/admin/ongoing-administration" },
+      { text: "Diagnostics", link: "/admin/diagnostics" },
       { text: "Admin FAQ", link: "/admin/faq" },
     ],
   },
