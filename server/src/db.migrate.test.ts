@@ -52,6 +52,10 @@ import {
   assertTenantEntityIndexesCurrent,
 } from "./tenantIndexes";
 
+// Migration cases perform filesystem and database work; coverage can exceed the default 5 seconds.
+// Keep extra headroom local to this file in both shard and coverage runs.
+vi.setConfig({ testTimeout: 15_000 });
+
 // openDb only ran CREATE TABLE IF NOT EXISTS, so a file written by an older schema
 // kept its old columns/constraints forever and broke after a model change. These
 // tests synthesize such an old file BY HAND and prove openDb's migrateSchema upgrades
