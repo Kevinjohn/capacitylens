@@ -93,6 +93,6 @@ colour is automatic, so onboarding does not create an unnecessary design task.
   bookings across this week and next, one time-off entry). Only an Owner or Admin can add it, only to
   a company with no people, clients, projects or allocations; the server enforces both, and a
   second attempt is refused. If adding fails after the company was created, the error is shown and
-  the company stays usable with the Settings action still available.
+  the company stays usable with the Settings action still available. Keeping the box ticked also completes the Getting Started checklist, an accepted consequence of adding the rows.
 - ✅ A failed company load shows recovery instead of another company's data; Retry keeps the
   selection, while Choose another company returns to the picker.

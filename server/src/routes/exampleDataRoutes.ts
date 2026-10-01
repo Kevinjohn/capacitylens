@@ -14,7 +14,7 @@ import type { TenantStore } from "../tenantStore";
 import { NO_REPROMPT, type AuthorizeRouteInput } from "./routeShared";
 
 const NOT_EMPTY_MESSAGE =
-  "Example data can only be added to a company that has no people, clients, projects or allocations.";
+  "Example data can only be added to a company that has no people, clients, projects or allocations, including archived or deleted ones.";
 
 class CompanyNotEmptyError extends Error {
   constructor() {

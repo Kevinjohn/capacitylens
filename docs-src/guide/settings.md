@@ -215,6 +215,14 @@ See [Offline access](/guide/offline-access).
 Clear CapacityLens preferences and opt-in offline snapshots from this browser, leaving company
 data on the server unchanged.
 
+### Example data
+
+Owners and Admins see **Example data** only while the company shows no people, clients, projects or
+allocations. **Add example data** adds two people, a client, a project and a few bookings across this
+week and next. They are ordinary records, so delete them like any others. The server refuses the
+request if the company already holds any of these, including archived or deleted people, clients and
+projects.
+
 ### Deleted items
 
 Permanently delete items after their 30-day retention period. Archived items are restored or

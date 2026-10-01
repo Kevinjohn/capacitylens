@@ -141,6 +141,19 @@ it.each(["resources", "clients", "projects"] as const)(
   },
 );
 
+it("refuses a company whose only person is archived", async () => {
+  const { app, db } = await fixture();
+  const owner = await member(app, db, { role: "owner", email: "bruce.wayne@example.test" });
+  const own = buildExampleCompany({ accountId: "a-studio", referenceDate: "2031-09-17" });
+  insertRow(db, "resources", { ...exampleRow(own.resources), disciplineId: undefined, archivedAt: TS });
+  const before = countRows(db, "a-studio");
+
+  const refused = await post(app, "a-studio", owner);
+  expect(refused.statusCode).toBe(409);
+  expect(refused.json()).toMatchObject({ error: expect.stringContaining("archived or deleted") as string });
+  expect(countRows(db, "a-studio")).toEqual(before);
+});
+
 it("answers 404 for an unknown company when authentication is off", async () => {
   const db = trackDb(openDb(":memory:"));
   seedCompany(db, "a-studio", "Wayne Enterprises");
