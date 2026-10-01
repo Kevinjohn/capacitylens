@@ -142,29 +142,66 @@ When you want "more safety" on a pure path, **add a clamp/early-return in the pu
 
 ## 7. Comments & TSDoc — the bedrock of an open-source repo
 
-We comment for the **junior contributor reading this cold**, and we explain **why**, not what.
+We comment for the **junior contributor reading this cold**, and we explain **why**, not what. The
+rules below are numbered so a review can cite one.
 
-- **Every exported symbol gets TSDoc.** `shared/` is a private workspace package
-  (`@capacitylens/shared`) imported by both the app and the server — its API is the highest priority. State **preconditions** ("input must be a
-  validated `ISODate` — see `isValidISODate`"), **`@throws`** (and what a throw _means_ — e.g. "a
-  throw from `downloadTextFile` means the file was NOT saved; do not proceed with a dependent
-  delete"), and **purity** ("returns a new `AppData`, never mutates").
-- **Document contracts invisible at the type level.** The store's CRUD actions _throw on a
-  tenancy/integrity violation and silently no-op on a stale id_ — that's the single most important
-  thing a caller must know, and the type signature doesn't say it. Write it on the interface.
-- **Why-comments on non-obvious decisions and cross-file invariants** — especially where safety
-  depends on something non-local ("this cast is sound because the row was just sanitized";
-  "correctness depends on `SCOPED_KEYS` being exhaustive — the gate enforces it").
-- **Guard-comments** on the §4 "don't wrap this" spots, so the next hardening pass doesn't regress them.
-- **One-paragraph headers** on intricate components/files (`AllocationBar`'s gesture lifecycle,
-  `SchedulerGrid`'s virtualization + drag-freeze, `AuthProvider`'s "failure renders the app" policy).
-- **Keep docs honest.** A comment that describes behaviour the code doesn't implement is worse than
-  none — fix or delete it (and pin fragile assumptions, like a library's error wording, with a test).
-- **Describe the current contract, not its implementation history.** Remove phase/ticket labels,
-  migration narratives and promises about future callers from source comments. Keep historical
-  context only when it remains operationally necessary, such as immutable migration provenance or
-  a compatibility deadline. Put architectural rationale in `DECISIONS.md` and let version control
-  retain superseded implementation stories.
+1. **A comment says why; the code says what.** Delete any comment a reader would not miss. A
+   comment that restates the next line is noise that will drift.
+
+2. **Every exported symbol gets TSDoc.** `shared/` is a private workspace package
+   (`@capacitylens/shared`) imported by both the app and the server, so its API is the highest
+   priority.
+
+   - The first line is one sentence. Continuation lines start with `*` and carry no hanging indent.
+   - State **preconditions** ("input must be a validated `ISODate`, see `isValidISODate`"),
+     **`@throws`** and what a throw _means_ ("a throw from `downloadTextFile` means the file was
+     NOT saved; do not proceed with a dependent delete"), and **purity** ("returns a new `AppData`,
+     never mutates"), whenever they apply.
+   - Add `@param` and `@returns` only when the name or the type cannot say it.
+   - Document contracts invisible at the type level on the interface. The store's CRUD actions
+     _throw on a tenancy/integrity violation and silently no-op on a stale id_. That is the single
+     most important thing a caller must know, and the type signature does not say it.
+
+   ```ts
+   /**
+    * Returns a new `AppData` with the allocation removed, never mutating the input.
+    * The id must belong to the active account; a foreign id throws.
+    *
+    * @throws a tenancy violation, which means nothing was changed.
+    */
+   ```
+
+3. **Internal code uses `//` above the line, in full sentences.** No trailing comments.
+
+4. **Catch and guard comments stay mandatory.** Every `catch` states what is swallowed or surfaced
+   and why (§5). Every "do not wrap" spot from §4 carries its guard-comment, so the next hardening
+   pass does not regress it.
+
+5. **Emphasis comes from wording, never from capitals.** Acronyms stay upper-case (`SQL`, `TOTP`,
+   `ISO`). Say "must" or "never" in a normal sentence instead of shouting.
+
+6. **No em-dashes in comments.** Use a full stop or a comma.
+
+7. **No plan or ticket references, and no history.** Cite a `DECISIONS.md` heading or an issue URL
+   instead of a phase or ticket label. Remove migration narratives and promises about future
+   callers. History lives in `CHANGELOG.md`, `DECISIONS.md` and version control. The exceptions are
+   immutable migration provenance and a compatibility deadline, which stay because they remain
+   operationally necessary.
+
+8. **No section banners.** A file that needs banners needs splitting.
+
+9. **No commented-out code.** A `TODO` carries an issue URL or is deleted. `@deprecated` names the
+   replacement.
+
+10. **Explain the invariant, not the fix.** Write what must stay true, especially where safety
+    depends on something non-local ("this cast is sound because the row was just sanitized";
+    "correctness depends on `SCOPED_KEYS` being exhaustive, which the gate enforces"). A comment
+    that describes behaviour the code does not implement is worse than none: fix or delete it, and
+    pin fragile assumptions, such as a library's error wording, with a test.
+
+11. **Density.** An intricate file (`AllocationBar`'s gesture lifecycle, `SchedulerGrid`'s
+    virtualization and drag-freeze, `AuthProvider`'s "failure renders the app" policy) carries one
+    head paragraph. Any other file carries no comments beyond rules 2 and 4.
 
 ---
 
