@@ -132,12 +132,12 @@ export interface AppOptions {
    *  also true, since the single-company cap above denies EVERY create (token or not)
    *  while the instance is capped to one company. */
   bootstrapToken?: string;
-  /** CAPACITYLENS_HTTPS=1 — the API is reached over HTTPS, so HSTS is safe to emit.
-   *  Default false: HSTS (Strict-Transport-Security) is ONLY valid over HTTPS and is
-   *  actively HARMFUL over plain HTTP — a browser that caches an HSTS directive received
-   *  on http:// would force https:// on a host that has no TLS, breaking it. This server
-   *  typically runs HTTP behind a TLS-terminating proxy (Nginx), so the operator must
-   *  OPT IN once TLS truly fronts the public origin. Off ⇒ helmet emits no HSTS header;
+  /** The API is reached over HTTPS, so host-only HSTS is safe to emit. Default false here:
+   *  HSTS (Strict-Transport-Security) is ONLY valid over HTTPS and is actively HARMFUL over
+   *  plain HTTP — a browser that caches an HSTS directive received on http:// would force
+   *  https:// on a host that has no TLS, breaking it. The entrypoint (index.ts) derives it:
+   *  CAPACITYLENS_HTTPS=1/0 decides explicitly, otherwise an https public URL turns it on,
+   *  because that URL means TLS fronts the public origin. Off ⇒ helmet emits no HSTS header;
    *  all other helmet baseline headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
    *  are on regardless, as they are pure improvements with no HTTPS precondition. */
   https?: boolean;

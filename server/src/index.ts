@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
 import { DEFAULT_CORS, parseRateLimit } from "./app";
@@ -44,6 +47,27 @@ function resolveOptionalEnvironmentValue(value: string | undefined): string | un
   return value;
 }
 
+// The built web app served beside the API. Explicitly empty disables it; an explicit directory must
+// hold index.html, because a mistyped path must refuse rather than quietly run API-only. Unset: serve
+// the release archive's own dist/ (server/dist/index.mjs -> ../../dist) only when the packager's
+// marker proves this is a generated release, so a source checkout never serves a stale local build.
+function resolveWebDir(configured: string | undefined): string | undefined {
+  if (configured === "") return undefined;
+  if (configured !== undefined) {
+    const directory = resolve(configured);
+    if (!existsSync(join(directory, "index.html"))) {
+      throw new Error(
+        `CAPACITYLENS_WEB_DIR=${configured} has no index.html. Point it at the built web app or unset it.`,
+      );
+    }
+    return directory;
+  }
+  const releaseRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const bundledWebDir = join(releaseRoot, "dist");
+  const isGeneratedRelease = existsSync(join(releaseRoot, ".capacitylens-generated-release"));
+  return isGeneratedRelease && existsSync(join(bundledWebDir, "index.html")) ? bundledWebDir : undefined;
+}
+
 // Secrets, SQLite/WAL files, audit logs, and backups created by this process must never inherit a
 // permissive shell/container umask. Individual writers also pin 0600 for defence in depth.
 process.umask(0o077);
@@ -81,6 +105,7 @@ const https = resolveHttps(accountEnv);
 const log = process.env.CAPACITYLENS_LOG === "1";
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === "1";
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT);
+const webDir = tryOrRefuse(() => resolveWebDir(process.env.CAPACITYLENS_WEB_DIR));
 const requireMfa = accountEnv.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1";
 const internalTls: ReturnType<typeof loadInternalTls> = tryOrRefuse(() =>
   loadInternalTls({ environment: process.env }),
@@ -294,6 +319,7 @@ startServerRuntime({
         }),
     requireMfa,
     allowOpenSignup: accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1",
+    ...(webDir === undefined ? {} : { webDir }),
   },
   backupConfig,
   db,

@@ -28,6 +28,9 @@ jobs:
       id-token: write
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      # Tags whose major.minor.patch is at most this one predate the runnable server archive and keep
+      # their original assets. Every later tag must build it: a missing packager fails the run.
+      LAST_RELEASE_WITHOUT_ARCHIVE: "0.72.0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,21 +54,56 @@ jobs:
           output-file: capacitylens.spdx.json
           upload-artifact: false
           upload-release-assets: false
+      - name: Decide whether this release carries the server archive
+        id: archive
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          core="${version%%-*}"
+          # Compare major.minor.patch only, so prerelease suffixes cannot reorder the comparison.
+          newest="$(printf '%s\n%s\n' "$LAST_RELEASE_WITHOUT_ARCHIVE" "$core" | sort -V | tail -n 1)"
+          if [ "$core" != "$LAST_RELEASE_WITHOUT_ARCHIVE" ] && [ "$newest" = "$core" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "name=capacitylens-$version" >> "$GITHUB_OUTPUT"
+      - name: Package the runnable server archive
+        if: steps.archive.outputs.enabled == 'true'
+        run: |
+          pnpm --filter capacitylens-server run build:runtime
+          pnpm run package:managed-release
+          pnpm run package:release-archive
+      - name: List the release assets
+        id: assets
+        env:
+          ARCHIVE_ENABLED: ${{ steps.archive.outputs.enabled }}
+          ARCHIVE_NAME: ${{ steps.archive.outputs.name }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' capacitylens-web.tar.gz capacitylens.spdx.json > release-assets.txt
+          if [ "$ARCHIVE_ENABLED" = true ]; then
+            printf '%s\n' "release/$ARCHIVE_NAME.tar.gz" "release/$ARCHIVE_NAME.tar.gz.sha256" >> release-assets.txt
+          fi
+          {
+            echo "subjects<<RELEASE_ASSETS"
+            cat release-assets.txt
+            echo "RELEASE_ASSETS"
+          } >> "$GITHUB_OUTPUT"
       - name: Attest the release artifacts
         id: provenance
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
-          subject-path: |
-            capacitylens-web.tar.gz
-            capacitylens.spdx.json
+          subject-path: ${{ steps.assets.outputs.subjects }}
       - name: Publish artifacts and recognized provenance
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
         run: |
+          set -euo pipefail
           cp "$PROVENANCE_BUNDLE" capacitylens-release.intoto.jsonl
+          mapfile -t assets < release-assets.txt
           gh release upload "$RELEASE_TAG" \
-            capacitylens-web.tar.gz \
-            capacitylens.spdx.json \
+            "${assets[@]}" \
             capacitylens-release.intoto.jsonl \
             --clobber

@@ -39,6 +39,7 @@ type ServerApplicationOptions = Pick<
   | "rateLimit"
   | "requireMfa"
   | "trustProxyHeaders"
+  | "webDir"
 >;
 
 interface ServerRuntimeInput {
