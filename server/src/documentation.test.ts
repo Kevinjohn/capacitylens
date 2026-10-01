@@ -28,6 +28,15 @@ describe("standing documentation contracts", () => {
     expect(references.get("Unreleased")).toContain(`/compare/v${releases[0]}...HEAD`);
   });
 
+  it("keeps every archived changelog release linked in heading order", () => {
+    const archive = read("CHANGELOG-ARCHIVE.md");
+    const headings = [...archive.matchAll(/^## \[([^\]]+)\]/gm)].map((match) => match[1]);
+    const references = [...archive.matchAll(/^\[([^\]]+)\]: (\S+)$/gm)].map((match) => match[1]);
+
+    expect(headings.length).toBeGreaterThan(0);
+    expect(references.filter((label) => headings.includes(label))).toEqual(headings);
+  });
+
   it("resolves local Markdown fragments linked from the public README", () => {
     const readme = read("README.md");
     const links = [...readme.matchAll(/\]\(([^)#]+\.md)#([^)]+)\)/g)];

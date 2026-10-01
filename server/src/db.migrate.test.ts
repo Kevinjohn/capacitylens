@@ -536,9 +536,9 @@ const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
 ]);
 const FIXTURE_PASSWORD_ENV = {
   NODE_ENV: "test",
-  SMALLSASS_ACCOUNT_MODE: "password-only",
-  SMALLSASS_ACCOUNT_SECRET: "fixture-secret-0123456789abcdef-012345",
-  SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+  CAPACITYLENS_MODE: "password-only",
+  CAPACITYLENS_SECRET: "fixture-secret-0123456789abcdef-012345",
+  CAPACITYLENS_PUBLIC_URL: "http://localhost:8787",
 } as const;
 
 function createFixtureAuth(db: Db): Auth {

@@ -164,7 +164,7 @@ function createContext(openSignup: string | undefined): ContextFixture {
     identity,
     administration,
     resolvedEnvironment: {
-      env: { SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: openSignup },
+      env: { CAPACITYLENS_ALLOW_OPEN_SIGNUP: openSignup },
       profile: "self-hosted-mixed",
     },
   };

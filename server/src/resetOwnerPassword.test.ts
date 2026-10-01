@@ -12,7 +12,7 @@ import { PASSWORD_ENV, call, signUp, registerServerFixtureCleanup } from "./test
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { resetOwnerPassword } from "./resetOwnerPassword";
 
-// Sole-Owner credential recovery (family playbook _sole-owner-recovery-playbook-2026-08-05.md).
+// Sole-Owner credential recovery (playbook _sole-owner-recovery-playbook-2026-08-05.md).
 // The tool under test is an operator CLI ceremony, so every fixture is a real on-disk database:
 // the interlock is actual SQLite locking, and the happy path proves the minted link round-trips
 // through the ordinary Better Auth reset page semantics (single-use, session revocation).
@@ -109,15 +109,15 @@ describe("resetOwnerPassword guards", () => {
 
   it("refuses sso and off modes and an unset public URL, naming canonical keys", async () => {
     const { databasePath } = await seededInstance();
-    await expect(run(databasePath, { env: { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_MODE: "sso-only" } })).rejects.toThrow(
-      /SMALLSASS_ACCOUNT_MODE must be password/,
+    await expect(run(databasePath, { env: { ...PASSWORD_ENV, CAPACITYLENS_MODE: "sso-only" } })).rejects.toThrow(
+      /CAPACITYLENS_MODE must be password/,
     );
-    await expect(run(databasePath, { env: { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_MODE: "off" } })).rejects.toThrow(
-      /SMALLSASS_ACCOUNT_MODE must be password/,
+    await expect(run(databasePath, { env: { ...PASSWORD_ENV, CAPACITYLENS_MODE: "off" } })).rejects.toThrow(
+      /CAPACITYLENS_MODE must be password/,
     );
-    await expect(
-      run(databasePath, { env: { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_PUBLIC_URL: undefined } }),
-    ).rejects.toThrow(/SMALLSASS_ACCOUNT_PUBLIC_URL/);
+    await expect(run(databasePath, { env: { ...PASSWORD_ENV, CAPACITYLENS_PUBLIC_URL: undefined } })).rejects.toThrow(
+      /CAPACITYLENS_PUBLIC_URL/,
+    );
   });
 
   it("refuses while another connection holds the database, then proceeds once released", async () => {

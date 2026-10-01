@@ -242,8 +242,7 @@ bottom keeps the logo + collapse toggle as the first item in both the open menu 
 its identity row, the avatar has its own unlabeled visible column, followed by Name, Email and
 Actions. The row scrolls horizontally on narrow screens. Long email
 addresses truncate like Team & access rows and reveal in full on pointer hover or keyboard focus.
-In password-capable modes it offers password change in a dialog for local-password identities and shows MFA
-status only when the operator requires it; in SSO mode it shows the provider identity without password controls.
+In password-capable modes it offers password change in a dialog for local-password identities; in SSO mode it shows the provider identity without password controls.
 The page hides active-session details. Demo and auth-off modes
 never invent credential controls. Company Settings contains
 company and device configuration only. The avatar is the signed-in user's own picture when the identity provider supplied one, initials
@@ -916,7 +915,7 @@ When SMTP is configured in a password-capable mode, `forgot-password` reveals th
 `forgot-password-confirmation`: **If an account uses that address, we've emailed a reset link.**
 
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
-server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `SMALLSASS_ACCOUNT_MODE=password-only`, `password-and-sso` or
+server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `CAPACITYLENS_MODE=password-only`, `password-and-sso` or
 `sso-only`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
@@ -926,12 +925,11 @@ show an inline alert. Starting an external sign-in clears an earlier provider er
 the browser hands off to the provider). If a mid-session 401 arrives while server writes are still unsaved, the
 sign-in wall also warns **Some changes could not be saved before your session expired. They will
 not be restored after you sign in again.** On a fresh server-mode boot, company persistence starts
-only after `/api/auth/me` has admitted the session: a signed-out visitor or an identity awaiting
-mandatory MFA makes no tenant-data request and cannot receive a misleading save-failure banner.
+only after `/api/auth/me` has admitted the session: a signed-out visitor makes no tenant-data request and cannot receive a misleading save-failure banner.
 Because session cookies are shared across tabs, a server-mode tab also rechecks the session when it
 returns to the foreground. A sign-out or revocation completed in another tab therefore replaces its
 stale authenticated shell with the sign-in wall before the user resumes work.
-The sign-in, mandatory MFA and session-verification failure walls set page-specific document titles;
+The sign-in and session-verification failure walls set page-specific document titles;
 the failure detail is announced as an alert when it replaces the checking state.
 While signed in, the sidebar's **Account** destination shows who is signed in and the available
 personal security controls. **Account** contains the single **Sign out** action for real and demo
@@ -967,24 +965,10 @@ character even though browser `maxlength` uses two UTF-16 code units. Email admi
 254 limit to UTF-8 bytes. Passwords independently use the documented 15–128 Unicode-code-point
 policy.
 
-**Password MFA and account security.** When an operator sets `SMALLSASS_ACCOUNT_REQUIRE_MFA=1`, after
-first-owner setup or after an existing pre-MFA user signs in, the app shows **Secure your account**
-before any company data. MFA is optional by default. The user enters their current password
-(`data-testid="mfa-enroll-password"`), records the authenticator URI and one-time recovery codes,
-enters the six-digit code (`data-testid="mfa-enroll-code"`), confirms the codes were saved, and
-chooses **Enable MFA** (`data-testid="mfa-enroll-submit"`). A user who already enrolled sees an
-**Authentication code** challenge after email/password sign-in (`data-testid="mfa-code"`, submit
-`data-testid="mfa-submit"`), with a recovery-code alternative. The in-place **Confirm it's you**
-challenge for sensitive actions offers the same **Use a recovery code** alternative, so a stored
-one-time code can restore freshness without signing out or losing the current form. The enrollment
-wall deliberately outranks public-entry links for a signed-in identity: an invitation explains that
-MFA must be finished before it can be accepted, while a password-reset link explains that the user
-may finish enrollment or choose **Sign out** to redeem the link without the current session.
-On Account, local-password users open **Change password** from the identity row and supply their
-current password in the dialog. The **Security** section (`data-testid="security-section"`) appears
-when required MFA status or a configured company-provider connection is available. Recovery codes and session
-tokens are never displayed after their one-time setup/use. Disabling MFA is deliberately not offered
-when the deployment requires it.
+**Account security.** On Account, local-password users open **Change password** from the identity
+row and supply their current password in the dialog. The **Security** section
+(`data-testid="security-section"`) appears when a configured company-provider connection is
+available. Session tokens are never displayed after their one-time use.
 
 On a mixed deployment, Account's Security section shows **Company sign-in**
 (`data-testid="sso-connection"`) for each configured company provider. **Connect _provider_**
@@ -1032,7 +1016,7 @@ itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
 On a mixed deployment, every configured external provider remains available below
 the setup form. Google uses the branded **Sign in with Google** action; other providers use
 their branded sign-in action. Named Google/Microsoft bootstrap uses
-`SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. Microsoft asks for the intended email before starting
+`CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`. Microsoft asks for the intended email before starting
 and proves it during first connection; provider-required setup does not ask for a password. The
 operator does not need a temporary password identity.
 
@@ -1225,8 +1209,7 @@ presented before the member directory, matching the action-first pattern of the 
   the company's name and available sign-in methods. Eligible Google, Microsoft and GitHub
   choices appear above the existing-password option in mixed mode; GitHub remains unavailable
   in company-sign-in-only mode. Microsoft uses its same-browser mailbox ceremony when needed.
-  A person with an existing password account signs in, completes any required second factor,
-  then chooses **Join company**. The server admits only a currently proven email that meets the
+  A person with an existing password account signs in, then chooses **Join company**. The server admits only a currently proven email that meets the
   live policy. A password identity without trusted email proof gets recovery guidance to use an
   eligible verified provider or an addressed invitation, or choose **Email me a verification link**
   (`data-testid="joining-verify-email"`); successful delivery shows an inbox status
@@ -1803,7 +1786,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   It can request a raw-copy download before a confirmed reset; reset attempts clear both local
   CapacityLens keys and offline snapshots, report partial failures precisely, and only reload once
   the unreadable local data is gone.
-- Failed SSO hand-off, MFA enrollment, reauthentication and invitation acceptance remain visible
+- Failed SSO hand-off, reauthentication and invitation acceptance remain visible
   and actionable. A successful invitation keeps the newly selected company active while its account
   list refreshes.
 - Company management data is fetched only for members who may manage it. Removing a client or

@@ -22,9 +22,9 @@ describe("operator documentation", () => {
 
   it("distinguishes password and SSO first-owner bootstrap settings", () => {
     const configuration = page("self-hosting/configuration.md");
-    const setupTokenRow = configuration.match(/\| `SMALLSASS_ACCOUNT_SETUP_TOKEN` \| ([^|]+)/u)?.[1];
+    const setupTokenRow = configuration.match(/\| `CAPACITYLENS_SETUP_TOKEN` \| ([^|]+)/u)?.[1];
     expect(setupTokenRow).toContain("fresh password-mode instance");
-    expect(setupTokenRow).toContain("SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS");
+    expect(setupTokenRow).toContain("CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS");
   });
 
   it("includes an executable Compose named-volume restore path", () => {

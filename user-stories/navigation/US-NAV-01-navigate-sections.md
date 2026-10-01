@@ -46,7 +46,7 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
     controls show independently of the active company. The table has separate avatar, Name, Email and Actions
     columns. A long email is truncated, with its full address available on pointer
     hover or keyboard focus. On narrow screens the row scrolls horizontally. Local-password users can open **Change password** from the identity row;
-    **Sign out** ends the session immediately. Required MFA status appears below the row.
+    **Sign out** ends the session immediately.
     See the [Account guide](../../docs-src/using/account.md).
 
 ## Acceptance criteria

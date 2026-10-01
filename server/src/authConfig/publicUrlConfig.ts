@@ -14,7 +14,7 @@ function assertProductionTls(
     !isLoopbackHostname(publicUrl.hostname)
   ) {
     throw new AuthConfigError(
-      "SMALLSASS_ACCOUNT_PUBLIC_URL must use https:// for a non-loopback production origin; credentials and session cookies must not cross plaintext HTTP.",
+      "CAPACITYLENS_PUBLIC_URL must use https:// for a non-loopback production origin; credentials and session cookies must not cross plaintext HTTP.",
     );
   }
 }
@@ -28,18 +28,18 @@ export function parsePublicUrl(
   try {
     publicUrl = new URL(baseURL);
   } catch (cause) {
-    throw new AuthConfigError("SMALLSASS_ACCOUNT_PUBLIC_URL must be an absolute http:// or https:// URL.", { cause });
+    throw new AuthConfigError("CAPACITYLENS_PUBLIC_URL must be an absolute http:// or https:// URL.", { cause });
   }
   if (publicUrl.protocol !== "http:" && publicUrl.protocol !== "https:") {
-    throw new AuthConfigError("SMALLSASS_ACCOUNT_PUBLIC_URL must use http:// or https://.");
+    throw new AuthConfigError("CAPACITYLENS_PUBLIC_URL must use http:// or https://.");
   }
   if (publicUrl.username || publicUrl.password || publicUrl.search || publicUrl.hash) {
     throw new AuthConfigError(
-      "SMALLSASS_ACCOUNT_PUBLIC_URL must be an origin without credentials, a query string, or a fragment.",
+      "CAPACITYLENS_PUBLIC_URL must be an origin without credentials, a query string, or a fragment.",
     );
   }
   if (publicUrl.pathname !== "/" && publicUrl.pathname !== "") {
-    throw new AuthConfigError("SMALLSASS_ACCOUNT_PUBLIC_URL must be an origin without a path.");
+    throw new AuthConfigError("CAPACITYLENS_PUBLIC_URL must be an origin without a path.");
   }
   assertProductionTls(publicUrl, runtimeEnvironment, AuthConfigError);
   return publicUrl;

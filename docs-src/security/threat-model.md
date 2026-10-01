@@ -32,7 +32,7 @@ priority over keeping a misconfigured production process running.
 | Identity, password, MFA and provider-link state   | Better Auth, versioned scrypt, encrypted recovery/tokens, explicit verified linking    | Auth/provider/API and database boundary    |
 | Session, reset and invite bearer values           | HttpOnly cookies or one-time values; hashes where supported; expiry/revocation        | Browser/API and operator delivery boundary |
 | Offline snapshot                                  | Opt-in, role-filtered, AES-256-GCM, seven-day expiry, viewer-only                     | Browser-origin/device boundary             |
-| Database, WAL, audit and snapshots                | `0600` files, `0700` backup directory, optional encrypted-volume attestation          | Process/host boundary                      |
+| Database, WAL, audit and snapshots                | `0600` files, `0700` backup directory, operator-provided encrypted volumes            | Process/host boundary                      |
 | Audit and security events                         | Data-minimised JSON, local restrictive file plus optional separately forwarded stream | Process/log-collector boundary             |
 | Build and release inputs                          | Lockfile, pinned images/actions, dependency review, SBOM, scans and provenance        | Contributor/CI/registry boundary           |
 

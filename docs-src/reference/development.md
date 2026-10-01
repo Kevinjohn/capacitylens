@@ -90,11 +90,28 @@ Owner/Admin/Editor/Viewer flows against the password-auth server, use the isolat
 lab described below. It documents the local-only credentials, the prebuilt Wayne
 Enterprises fixture, and the expected visibility matrix.
 
+### Development-only variables {#development-environment}
+
+These server variables exist for development and tests. They are not operator configuration, so
+`.env.example` and the [configuration guide](/self-hosting/configuration) leave them out, and
+Compose does not pass `CAPACITYLENS_ALLOW_RESET` or `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` into
+the production API container. Production refuses each of the first three.
+
+| Variable | What it does |
+| --- | --- |
+| `CAPACITYLENS_ALLOW_RESET` | Set `1` to expose the destructive `POST /api/test/reset` route for development and tests with sign-in off. |
+| `CAPACITYLENS_CREATE_ADMIN_ADMIN` | First-owner helper, also available as `--create-owner-admin-admin`. Creates `admin@admin.admin` only when the password user table is empty. |
+| `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` | Required password for that owner helper. Keep it in a secret manager; the server never generates or prints it. |
+| `CAPACITYLENS_DEV_API_PORT` | API port used by `scripts/dev-fullstack.mjs`. Default `8787`. |
+
+Browser-test and rehearsal controls (`API_PORT`, `CAPACITYLENS_E2E_PHASE` and the browser
+selectors) are described under [Browser upgrade rehearsal](#browser-upgrade-rehearsal).
+
 ## The access lab
 
 The lab is destructive only to the fixed local file `server/.access-lab.db`, which is
 recreated on every run. Its launcher and setup boundary remove inherited
-`SMALLSASS_ACCOUNT_*`, `CAPACITYLENS_*`, `BETTER_AUTH_*` and `VITE_CAPACITYLENS_*`
+`CAPACITYLENS_*`, `BETTER_AUTH_*` and `VITE_CAPACITYLENS_*`
 configuration, then pin the API to `127.0.0.1`, password auth, the lab database and the
 local Vite origin. The setup script also refuses every path except that exact
 non-symlink repository fixture, including a same-named database in another directory.
@@ -477,6 +494,18 @@ JavaScript and TypeScript files, so small commits stay fast. Each push runs the 
 lint to catch configuration and cross-file effects. Set `SKIP_SIMPLE_GIT_HOOKS=1` for a single Git
 operation only when diagnosing a hook problem; pull-request checks remain authoritative.
 
+### Account-security versioning
+
+When account-security behavior changes, update the version at the boundary that owns the rule:
+
+- portable identity behavior: the account contract and every `IdentityPort` conformance fixture;
+- database/auth-library behavior: the minimum-security or schema version and its migration/rehearsal evidence;
+- browser/server propagation: the shared command version and the tests proving every implementation accepts it.
+
+The pull-request description should name the changed version and link the conformance, migration,
+or propagation test that proves all implementations moved together. If no version changes, explain
+why the change preserves the existing contract.
+
 ### What `gate` checks
 
 `gate` compiles translations, type-checks, lints with zero warnings, runs Vitest with
@@ -820,7 +849,7 @@ server archive and its checksum, generates its SBOM, creates GitHub build attest
 the artifacts plus the recognized
 `.intoto.jsonl` provenance bundle to the GitHub Release. It is manually runnable with an existing
 release tag for deliberate rebuilds and backfills. The blocking ZAP scan boots the hardened posture
-— password authentication, required MFA, scheduled backups and operator attestations, with
+— password authentication and scheduled backups, with
 credentials minted and masked per run — so a finding there is a regression in the
 recommended configuration. A second, non-blocking job scans the explicit no-login posture
 (sign-in mode `off`) weekly and uploads its report as an artifact. Reviewed secret-scan fixtures are
@@ -860,6 +889,9 @@ gates nothing.
 The version pull request described in `AGENTS.md` → "Version and CI policy" ends when it merges.
 Publishing is a separate maintainer task. Nothing in `.github/` or `scripts/` creates tags or
 releases.
+
+There is one version bump per batch of changes, and every bump is published as a GitHub release.
+Releases before 0.41.0-alpha.3 are kept in `CHANGELOG-ARCHIVE.md`.
 
 1. Find the merged release commit and build the release package from it once, as the
    `release-provenance` workflow will after publication:
@@ -930,9 +962,9 @@ releases.
    tar -xzf capacitylens-X.Y.Z.tar.gz
    ```
 
-   Repeat the steps of the gate's `release-package-smoke` job against that folder: copy
-   `capacitylens.env.example`, fill in its three empty lines with a loopback address and two
-   `openssl rand -base64 48` values, set `CAPACITYLENS_DB` to a writable path, and start
+   Repeat the checks of the gate's `release-package-smoke` job against that folder: write an
+   environment file with `node server/dist/index.mjs init`, giving `--public-url` a loopback
+   address, `--db` a writable path and `--out` the file, and start
    `node --env-file=<file> dist/index.mjs` from its `server/` folder. Expect deep health with
    `"db":true`, `"audit":"ok"` and a backup `status` of `"ok"`, HTML at `/` with a
    `Content-Security-Policy` header, and, after stopping the server,
@@ -1022,7 +1054,7 @@ definitions and use the checked-in fixture ledger when rehearsing a later schema
 
 Sign-in mode controls the authentication methods people may use. Enabled providers determine
 which SSO options are available. The access policy determines who may join the company.
-`SMALLSASS_ACCOUNT_MODE` accepts `off`, `password-only`, `sso-only` and `password-and-sso`;
+`CAPACITYLENS_MODE` accepts `off`, `password-only`, `sso-only` and `password-and-sso`;
 the old `password` and `sso` values fail startup with migration guidance. The shared
 `AccountMode` contract owns these values, while the server keeps the existing `authMode` wire
 field. Password-only ignores retained provider credentials and links; mixed mode needs at least

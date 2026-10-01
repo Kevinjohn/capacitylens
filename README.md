@@ -66,13 +66,22 @@ If you need Jira, use Jira. This is the thing you look at _before_ you open Jira
 Agency owners, studio and operations leads, resource planners and project leads: the people who get
 asked "can we take this on?" and need a shared, honest answer.
 
+## Project status
+
+CapacityLens is alpha software with a single maintainer. Database upgrades are tested from thirteen
+released database snapshots, the oldest from 0.20.0-alpha.1, so a database created by that release
+or any later one is expected to upgrade in place. Beta will mean the upgrade path and the settings are stable.
+
+Details: [how it is tested](docs-src/reference/how-it-is-tested.md) ·
+[philosophy](docs-src/reference/philosophy.md)
+
 ## Run it for real
 
 Every release from 0.73.0-alpha.1 carries a server archive. Node 24 is the only prerequisite.
 
 1. **Download** `capacitylens-X.Y.Z.tar.gz` from the [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
 2. **Pick a folder** for the database; its file is created there on first start.
-3. **Configure:** copy `capacitylens.env.example` and fill in its three empty lines: the address, and two values from `openssl rand -base64 48`. Set `CAPACITYLENS_DB` to a file in step 2's folder.
+3. **Configure:** in the unpacked folder, run `node server/dist/index.mjs init --public-url <address> --db <file in step 2's folder>`. It prints the environment file with both secrets generated: paste it into your host's environment editor, or add `--out /etc/capacitylens.env` to write the file.
 4. **Start it** with `node --env-file=<your env file> server/dist/index.mjs`, or as a service.
 5. **Open the address** and create your company with the setup token from step 3.
 
@@ -81,8 +90,8 @@ or a Linux host. Docker is [another way to install](docs-src/self-hosting/instal
 
 ## Sign-in, in short
 
-Password sign-in is the stable self-hosted default, with breached-password screening, optional
-required TOTP MFA and user-controlled session revocation. Google Workspace and Microsoft Entra ID
+Password sign-in is the stable self-hosted default, with breached-password screening and
+user-controlled session revocation. Google Workspace and Microsoft Entra ID
 are the supported company sign-in providers; GitHub remains experimental in mixed mode. Optional offline access keeps a
 read-only snapshot for up to seven days — it never queues or syncs edits, and SQLite stays the
 source of truth.
