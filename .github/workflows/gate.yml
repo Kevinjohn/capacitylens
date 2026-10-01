@@ -63,10 +63,9 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
-          PR_AUTHOR: ${{ github.actor }}
         run: |
           node --test scripts/check-dco.test.mjs
-          node scripts/check-dco.mjs "$BASE_SHA" "$HEAD_SHA" "$PR_AUTHOR"
+          node scripts/check-dco.mjs "$BASE_SHA" "$HEAD_SHA"
 
   application:
     name: Application typecheck · lint · unit · build

@@ -122,7 +122,7 @@ exempt; every commit on the feature branch still requires a sign-off:
 git commit -s -m "Describe the change"
 ```
 
-Delegated or unrelated sign-offs are not accepted. Pull requests opened by Dependabot are exempt;
+Delegated or unrelated sign-offs are not accepted. Commits authored by Dependabot are exempt;
 other automated contributors must use an attributable author or committer sign-off.
 
 By contributing, you agree that your contribution is licensed under AGPL-3.0-only. The project
