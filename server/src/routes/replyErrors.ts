@@ -29,7 +29,9 @@ export const REPLY_ERRORS = {
 
   // Authentication and authorization.
   forbidden: "Forbidden.",
-  notFound: "Not found.",
+  /** 404 for a route that is switched off or not offered in this mode. Distinct from the frozen
+   * `FROZEN_REPLY_MESSAGES.notFound`, which the client matches by text. */
+  routeUnavailable: "Not found.",
   signInRequired: "Sign in to continue.",
   signInUnavailable: "Sign-in is temporarily unavailable.",
   freshSignInRequired: "Sign in again before performing this security-sensitive action.",

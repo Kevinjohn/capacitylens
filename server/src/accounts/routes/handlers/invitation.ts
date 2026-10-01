@@ -206,7 +206,7 @@ export async function signupInvitation(
 ) {
   const { authMode, authenticationConfigured, flows, command, fail, auditUnlessReplayed } = context;
   if (!allowsPasswordSignIn(authMode) || !authenticationConfigured) {
-    return reply.code(404).send({ error: REPLY_ERRORS.notFound });
+    return reply.code(404).send({ error: REPLY_ERRORS.routeUnavailable });
   }
   const { token } = req.params;
   const input = parseSignupInvitationInput(req);

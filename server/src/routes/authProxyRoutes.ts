@@ -347,12 +347,12 @@ async function forwardAuthenticationRequest(
   dependencies: ProxyRouteDependencies,
 ) {
   const { auth, authMode, logOn, masquerades, resolveIncomingSession, toWebHeaders } = dependencies;
-  if (authMode === "off" || !auth) return reply.code(404).send({ error: REPLY_ERRORS.notFound });
+  if (authMode === "off" || !auth) return reply.code(404).send({ error: REPLY_ERRORS.routeUnavailable });
   const url = parseAuthenticationRequestUrl(req);
   if (!url) return reply.code(400).send({ error: REPLY_ERRORS.invalidRequestAuthority });
   const authPath = url.pathname.slice("/api/auth".length);
   if (!isBetterAuthProxyRouteAllowed({ authMode, mailEnabled: auth.mail != null }, req.method, authPath)) {
-    return reply.code(404).send({ error: REPLY_ERRORS.notFound });
+    return reply.code(404).send({ error: REPLY_ERRORS.routeUnavailable });
   }
   const socialError = socialSignInError({ req, authPath, auth, authMode });
   if (socialError) return reply.code(socialError.status).send({ error: socialError.error, code: socialError.code });
