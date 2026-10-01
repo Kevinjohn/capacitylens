@@ -1,18 +1,18 @@
-import { useActiveScopedData } from "../../store/useScopedData";
-import { useEntityListState } from "../../hooks/useEntityListState";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { useEntityListState } from "@/hooks/useEntityListState";
 import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
-import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
+import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "@/components/common/ui";
 import { ClientForm } from "./ClientForm";
 import type { AppData, Client } from "@capacitylens/shared/types/entities";
-import { useLifecycleActions } from "../../hooks/useLifecycleActions";
+import { useLifecycleActions } from "@/hooks/useLifecycleActions";
 import { m } from "@/i18n";
 import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
 import { Fragment, useMemo } from "react";
 import { Briefcase, Plus } from "lucide-react";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { buildClientArchiveImpactCopy, safeArchiveImpact } from "../../lib/archiveImpactCopy";
-import { byName } from "../../lib/displayOrder";
-import { ArchivedEntitySection } from "../common/ArchivedEntitySection";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
+import { buildClientArchiveImpactCopy, safeArchiveImpact } from "@/lib/archiveImpactCopy";
+import { byName } from "@/lib/displayOrder";
+import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
 
 /** Build the archive-confirm message for a client, appending the descendant-count cascade warning
  *  ("this also hides N projects and M allocations") when the client has active work beneath it — so

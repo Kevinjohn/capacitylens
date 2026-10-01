@@ -4,13 +4,13 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
-import type { TeamInvitation } from "../../account/teamAccessClient";
+import type { TeamInvitation } from "@/account/teamAccessClient";
 import type { InvitationPersonOption } from "./useMemberInvites";
 import { formatInviteExpiryDate } from "@/components/invites/inviteExpiry";
-import { resolveRoleLabel, resolveRoleSummary } from "../../lib/accessCopy";
-import { Modal, SelectField, TextField } from "../common/ui";
-import { Button } from "../ui/button";
-import { FieldError, FieldSet } from "../ui/field";
+import { resolveRoleLabel, resolveRoleSummary } from "@/lib/accessCopy";
+import { Modal, SelectField, TextField } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
+import { FieldError, FieldSet } from "@/components/ui/field";
 import { sortInvitationsForPresentation } from "./buildMemberDirectoryPresentation";
 
 /**

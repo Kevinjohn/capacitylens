@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";
 import { eachDayISO, addDaysISO } from "@capacitylens/shared/lib/dateMath";
-import { resolveColumnFit } from "../../lib/schedulerConfig";
+import { resolveColumnFit } from "@/lib/schedulerConfig";
 
 // A full week: 2026-06-01 (Mon) … 2026-06-07 (Sun). 06-06 = Sat, 06-07 = Sun.
 const WEEK = eachDayISO("2026-06-01", "2026-06-07");

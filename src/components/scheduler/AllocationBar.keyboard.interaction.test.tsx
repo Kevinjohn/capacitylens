@@ -3,10 +3,10 @@ import { screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { m } from "@/i18n";
 import { AllocationBar } from "./AllocationBar";
-import { PermissionContext } from "../../auth/permissionContext";
-import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount } from "../../test/fixtures";
-import { buildVisibleRange } from "../../store/selectors";
+import { PermissionContext } from "@/auth/permissionContext";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount } from "@/test/fixtures";
+import { buildVisibleRange } from "@/store/selectors";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
 
 import { barFor, getStoredAllocation, seedAllocation } from "./__tests__/allocationBarInteractionTestKit";

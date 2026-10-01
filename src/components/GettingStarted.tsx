@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Check } from "lucide-react";
-import { useRole } from "../auth/permissionContext";
-import { isDemoMode } from "../data/apiConfig";
-import { gettingStartedClient } from "../account/gettingStartedClient";
-import { buildGettingStartedSteps } from "../lib/gettingStarted";
-import { startTour } from "../lib/tour";
-import { useActiveScopedData } from "../store/useScopedData";
-import { useStore } from "../store/useStore";
+import { useRole } from "@/auth/permissionContext";
+import { isDemoMode } from "@/data/apiConfig";
+import { gettingStartedClient } from "@/account/gettingStartedClient";
+import { buildGettingStartedSteps } from "@/lib/gettingStarted";
+import { startTour } from "@/lib/tour";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { useStore } from "@/store/useStore";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { diffOps } from "../data/syncOps";
+import { diffOps } from "@/data/syncOps";
 import { useStore } from "./useStore";
 import {
   DEFAULT_ACCOUNT_ID,
@@ -8,7 +8,7 @@ import {
   requireValue,
   resetStoreWithAccount,
   WORKDAYS,
-} from "../test/fixtures";
+} from "@/test/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
 const T = "2026-01-01T00:00:00.000Z";

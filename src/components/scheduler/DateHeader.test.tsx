@@ -2,9 +2,9 @@ import { describe, it, expect, afterEach } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import { DateHeader } from "./DateHeader";
 import { buildColumnGeometry } from "./columnGeometry";
-import type { WeeksZoom } from "../../lib/schedulerConfig";
-import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
+import type { WeeksZoom } from "@/lib/schedulerConfig";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 
 const DAYS = ["2026-06-01", "2026-06-02", "2026-06-06"];
 const DEFAULT_PROPS = { weekStartsOn: 1 as 0 | 1, today: "2026-06-01" };

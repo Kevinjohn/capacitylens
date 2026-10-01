@@ -1,6 +1,6 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { beforeEach, describe, expect, it } from "vitest";
-import { makeResourceDraft, resetStoreWithAccount } from "../test/fixtures";
+import { makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "./useStore";
 
 const s = () => useStore.getState();

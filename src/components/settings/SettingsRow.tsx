@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { SectionHelp } from "../common/ui";
+import { SectionHelp } from "@/components/common/ui";
 
 /** Compact presentation of an existing section inside a Settings group. */
 export function SettingsRow({

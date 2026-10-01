@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { SettingsView } from "./SettingsView";
-import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount } from "../../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount } from "@/test/fixtures";
 
-vi.mock("../../data/offlineCache", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../data/offlineCache")>()),
+vi.mock("@/data/offlineCache", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/data/offlineCache")>()),
   isOfflineReadEnabled: () => false,
 }));
 

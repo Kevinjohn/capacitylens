@@ -1,7 +1,7 @@
 import type { SliceRewriteResult } from "./state";
 import { isAccountRole } from "@capacitylens/shared/account/types";
-import { parseAuthUser } from "../../auth/validateAuthUser";
-import { isAuthMode } from "../../auth/authStatus";
+import { parseAuthUser } from "@/auth/validateAuthUser";
+import { isAuthMode } from "@/auth/authStatus";
 import { STORE_NAME, MAX_AGE_MS } from "./constants";
 import { awaitRequest, awaitTx, openOfflineDb } from "./idb";
 import {

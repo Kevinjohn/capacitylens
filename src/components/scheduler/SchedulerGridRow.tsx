@@ -1,20 +1,20 @@
 import type { ComponentProps, Dispatch, SetStateAction } from "react";
 import { Plus } from "lucide-react";
 import { m } from "@/i18n";
-import { formatUtilizationPercent } from "../../lib/formatUtilizationPercent";
-import { UTILIZATION_WINDOW_DAYS } from "../../lib/schedulerConfig";
-import { resolveResourceDisplayName } from "../../lib/metadata";
+import { formatUtilizationPercent } from "@/lib/formatUtilizationPercent";
+import { UTILIZATION_WINDOW_DAYS } from "@/lib/schedulerConfig";
+import { resolveResourceDisplayName } from "@/lib/metadata";
 import { LAYOUT, buildSchedulerDensity } from "./layout";
 import { ResourceLane } from "./ResourceLane";
 import { buildRowScreenReaderSummary } from "./buildRowScreenReaderSummary";
 import type { GroupModel, RowModel } from "./schedulerModel";
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate } from "@capacitylens/shared/types/entities";
-import { Button } from "../ui/button";
-import { PersonScheduleTrigger } from "../person-schedule/PersonScheduleTrigger";
-import { resolveResourceAvatarUrl } from "../../account/resolveResourceAvatarUrl";
+import { Button } from "@/components/ui/button";
+import { PersonScheduleTrigger } from "@/components/person-schedule/PersonScheduleTrigger";
+import { resolveResourceAvatarUrl } from "@/account/resolveResourceAvatarUrl";
 import type { ModalState } from "./schedulerGridModal";
-import type { SchedulerUI, StoreState } from "../../store/useStore";
+import type { SchedulerUI, StoreState } from "@/store/useStore";
 
 type LaneProps = ComponentProps<typeof ResourceLane>;
 export interface SchedulerGridRowProps {

@@ -1,5 +1,5 @@
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
-import { resolveSharedActiveData, resolveSharedScopedData } from "../../store/useScopedData";
+import { resolveSharedActiveData, resolveSharedScopedData } from "@/store/useScopedData";
 
 export interface LaneSnapshot {
   id: string;

@@ -4,13 +4,13 @@ const mocks = vi.hoisted(() => ({
   apiFetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(),
 }));
 
-vi.mock("../data/apiConfig", () => ({ API_BASE: "https://app.example" }));
-vi.mock("../data/requestTimeout", () => ({
+vi.mock("@/data/apiConfig", () => ({ API_BASE: "https://app.example" }));
+vi.mock("@/data/requestTimeout", () => ({
   apiFetch: mocks.apiFetch,
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
-vi.mock("../auth/apiFetchReauth", () => ({ apiFetchReauth: vi.fn() }));
+vi.mock("@/auth/apiFetchReauth", () => ({ apiFetchReauth: vi.fn() }));
 
 import { accountClient, bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from "./accountClient";
 

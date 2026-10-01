@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { ServerSyncAdapter, LifecycleRestoreError, KeepaliveNotDispatchedError } from "./ServerSyncAdapter";
 import type { Discipline } from "@capacitylens/shared/types/entities";
-import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
+import { AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
 import {
   TS1,
   TS2,

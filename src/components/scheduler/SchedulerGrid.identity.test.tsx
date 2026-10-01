@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { PermissionContext } from "../../auth/permissionContext";
-import { DEFAULT_ACCOUNT_ID, makeResource } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
+import { PermissionContext } from "@/auth/permissionContext";
+import { DEFAULT_ACCOUNT_ID, makeResource } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
 import { schedulerDataset } from "./__tests__/schedulerTestKit";
-import { useResourceAvatars } from "../../account/useResourceAvatars";
+import { useResourceAvatars } from "@/account/useResourceAvatars";
 import { SchedulerGrid } from "./SchedulerGrid";
 
-vi.mock("../../account/useResourceAvatars", () => ({ useResourceAvatars: vi.fn() }));
+vi.mock("@/account/useResourceAvatars", () => ({ useResourceAvatars: vi.fn() }));
 
 beforeEach(() => {
   vi.mocked(useResourceAvatars).mockReturnValue(new Map());

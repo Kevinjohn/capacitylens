@@ -2,12 +2,12 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsView } from "./SettingsView";
-import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
-import { PermissionContext } from "../../auth/permissionContext";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { PermissionContext } from "@/auth/permissionContext";
 
-vi.mock("../../data/offlineCache", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../data/offlineCache")>()),
+vi.mock("@/data/offlineCache", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/data/offlineCache")>()),
   isOfflineReadEnabled: () => false,
 }));
 

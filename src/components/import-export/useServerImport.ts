@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { API_BASE } from "../../data/apiConfig";
+import { API_BASE } from "@/data/apiConfig";
 import {
   flushPendingWrites,
   refreshActiveAccountSlice,
   suspendServerWrites,
   type RefreshOutcome,
-} from "../../data/persist";
-import { apiFetch, API_BULK_TIMEOUT_MS } from "../../data/requestTimeout";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { readApiError } from "../../lib/readApiError";
-import { useStore } from "../../store/useStore";
+} from "@/data/persist";
+import { apiFetch, API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { readApiError } from "@/lib/readApiError";
+import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 

@@ -2,18 +2,18 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthContext } from "../../auth/authContext";
-import { useStore } from "../../store/useStore";
+import { AuthContext } from "@/auth/authContext";
+import { useStore } from "@/store/useStore";
 import { AccountPicker } from "./AccountPicker";
 
 const serverFlag = vi.hoisted(() => ({ on: false }));
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isDemoMode: () => !serverFlag.on,
   isServerConfigured: () => serverFlag.on,
 }));
 
-vi.mock("../../auth/accountTransition", () => ({
+vi.mock("@/auth/accountTransition", () => ({
   transitionAccount: vi.fn(async (id: string | null) => {
     useStore.getState().setActiveAccount(id);
     return true;

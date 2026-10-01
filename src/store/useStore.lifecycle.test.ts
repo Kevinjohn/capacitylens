@@ -1,11 +1,11 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
 import { activeOnly, lifecycleStatus, PURGE_MIN_AGE_DAYS } from "@capacitylens/shared/domain/lifecycle";
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
 import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import type { Resource } from "@capacitylens/shared/types/entities";
-import { makeResourceDraft, requireValue, resetStoreWithAccount } from "../test/fixtures";
+import { makeResourceDraft, requireValue, resetStoreWithAccount } from "@/test/fixtures";
 
 // Store-level coverage for the P2.5b data-lifecycle actions (the DEMO-build / OFF path): archiveEntity /
 // unarchiveEntity / softDeleteEntity / purgeEntity. They COMPOSE the pure shared lifecycle helpers and

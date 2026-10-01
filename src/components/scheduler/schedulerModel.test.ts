@@ -2,12 +2,12 @@ import { describe, it, expect, vi } from "vitest";
 import { buildSchedulerModel, applyVisibleUtilization, type GroupModel } from "./schedulerModel";
 import { buildColumnGeometry } from "./columnGeometry";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
-import { buildEmptyFilters } from "../../store/useStore";
+import { buildEmptyFilters } from "@/store/useStore";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData, ISODate, Weekday } from "@capacitylens/shared/types/entities";
 import { hasRenderableDateRange } from "./schedulerModelIndexing";
-import { makeActivity, makeAllocation, makeClient, makeProject, makeResource, requireValue } from "../../test/fixtures";
+import { makeActivity, makeAllocation, makeClient, makeProject, makeResource, requireValue } from "@/test/fixtures";
 import {
   DEFAULT_ACCOUNT_WORKING_DAYS,
   allBars,

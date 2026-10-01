@@ -1,7 +1,7 @@
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { type AllocationRewriteRevision } from "../PersistenceAdapter";
-import { API_REQUEST_TIMEOUT_MS, createRequestSignal } from "../requestTimeout";
+import { type AllocationRewriteRevision } from "@/data/PersistenceAdapter";
+import { API_REQUEST_TIMEOUT_MS, createRequestSignal } from "@/data/requestTimeout";
 import { type AcknowledgedRevision } from "./revisions";
 
 // One live owner per adapter. Async operations always read this object after awaits;

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { useCan } from "../auth/permissionContext";
-import { isServerConfigured } from "../data/apiConfig";
-import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "../data/fetchInactiveSlice";
-import { resolveErrorMessage } from "../lib/errorMessage";
-import { useInactiveScopedData } from "../store/useScopedData";
-import { useStore } from "../store/useStore";
+import { useCan } from "@/auth/permissionContext";
+import { isServerConfigured } from "@/data/apiConfig";
+import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "@/data/fetchInactiveSlice";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { useInactiveScopedData } from "@/store/useScopedData";
+import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";
-import { subscribeToInactiveDataChanges } from "../data/inactiveDataEvents";
+import { subscribeToInactiveDataChanges } from "@/data/inactiveDataEvents";
 
 /** Keeps inactive data outside the ordinary hydrated store in server mode. */
 export function useInactiveAccountData(): {

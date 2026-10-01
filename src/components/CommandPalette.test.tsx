@@ -1,10 +1,10 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, within, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
-import { PermissionContext } from "../auth/permissionContext";
-import { useStore, buildEmptyFilters } from "../store/useStore";
+import { PermissionContext } from "@/auth/permissionContext";
+import { useStore, buildEmptyFilters } from "@/store/useStore";
 import {
   makeAppData,
   makeAccount,
@@ -12,7 +12,7 @@ import {
   DEFAULT_ACCOUNT_ID,
   setExternalEnabled,
   setPlaceholdersEnabled,
-} from "../test/fixtures";
+} from "@/test/fixtures";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { m } from "@/i18n";
 

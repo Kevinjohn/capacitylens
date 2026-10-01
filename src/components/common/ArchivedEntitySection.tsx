@@ -7,16 +7,16 @@ import {
 import type { Activity, AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import type { AppDataKey } from "@capacitylens/shared/types/entities";
 import { Link } from "react-router-dom";
-import { useInactiveAccountData } from "../../hooks/useInactiveAccountData";
-import { useLifecycleActions } from "../../hooks/useLifecycleActions";
-import type { LifecycleEntity } from "../../store/useStore";
-import { Button } from "../ui/button";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
+import { useInactiveAccountData } from "@/hooks/useInactiveAccountData";
+import { useLifecycleActions } from "@/hooks/useLifecycleActions";
+import type { LifecycleEntity } from "@/store/useStore";
+import { Button } from "@/components/ui/button";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
 import { ConfirmDialog } from "./dialogs";
 import { m } from "@/i18n";
-import { useExclusiveAction } from "../../hooks/useExclusiveAction";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { useStore } from "../../store/useStore";
+import { useExclusiveAction } from "@/hooks/useExclusiveAction";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { useStore } from "@/store/useStore";
 import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
 
 type LifecycleRow = Resource | Client | Project | Activity;

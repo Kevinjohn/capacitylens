@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { m } from "@/i18n";
-import { buildUndoShortcut } from "../../lib/keyboardShortcuts";
+import { buildUndoShortcut } from "@/lib/keyboardShortcuts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,7 +10,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "../ui/alert-dialog";
+} from "@/components/ui/alert-dialog";
 
 export function RepeatedAllocationDeleteDialog({
   onDeleteOne,

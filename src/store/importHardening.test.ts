@@ -3,7 +3,7 @@ import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { FALLBACK_PRESET_COLOR } from "@capacitylens/shared/lib/color";
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, requireValue } from "../test/fixtures";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, requireValue } from "@/test/fixtures";
 
 const s = () => useStore.getState();
 

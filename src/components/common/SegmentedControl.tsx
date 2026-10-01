@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { useMarkFormDirty } from "./formDirty";
-import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 /** One selectable segment: the value it sets and the label shown on its button. */
 export type SegmentedOption<T> = { value: T; label: ReactNode; title?: string };

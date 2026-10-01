@@ -7,10 +7,10 @@ import {
   switchAndAwaitHydration,
 } from "./persist";
 import { BatchCommitUncertainError, BatchConflictError } from "./ServerSyncAdapter";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { resetStoreWithAccount } from "../test/fixtures";
+import { resetStoreWithAccount } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import { a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 

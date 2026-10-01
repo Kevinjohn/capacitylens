@@ -1,13 +1,13 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ClientList } from "./ClientList";
-import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount, requireValue } from "../../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount, requireValue } from "@/test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
-import { PermissionContext } from "../../auth/permissionContext";
+import { PermissionContext } from "@/auth/permissionContext";
 
 beforeEach(() => resetStoreWithAccount());
 

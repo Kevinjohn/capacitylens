@@ -3,9 +3,9 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { PermissionProvider } from "./PermissionProvider";
 import { AuthContext, type AuthContextValue } from "./authContext";
 import { useCanEdit, usePermissionStatus, useRole } from "./permissionContext";
-import { makeAccount, makeAppData, resetStoreWithAccount } from "../test/fixtures";
-import { useStore } from "../store/useStore";
-import { setOfflineReadState } from "../data/offlineCache";
+import { makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
+import { setOfflineReadState } from "@/data/offlineCache";
 import { useAccountSummaries } from "./useAccountSummaries";
 import * as accountTransition from "./accountTransition";
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import { useSchedulerViewport } from "./useSchedulerViewport";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 
 // resolveWeekStartSnapTarget uses resolveLeftEdgeDate, which delegates rounding to indexAtScroll
 // (see resolveWeekStartSnapTarget.ts's "SUB-PIXEL ROUNDING" note and its corresponding test file).

@@ -1,9 +1,9 @@
-import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity } from "../../lib/capacity";
+import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity } from "@/lib/capacity";
 import { addDaysISO, eachDayISO, rangesOverlap } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from "../../lib/metadata";
-import { buildExternalBand, buildDisciplineGroups, hasSupplementaryResources } from "../../store/selectors";
+import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from "@/lib/metadata";
+import { buildExternalBand, buildDisciplineGroups, hasSupplementaryResources } from "@/store/selectors";
 import {
   isCapacityTracked,
   isExternalResource,
@@ -12,14 +12,14 @@ import {
   type Resource,
   type Weekday,
 } from "@capacitylens/shared/types/entities";
-import { NEUTRAL_COLOR } from "../../lib/palette";
-import { packLanes, resolveLaneTop, resolveRowHeightForLanes, type LaneLayout } from "../../lib/lanePacking";
+import { NEUTRAL_COLOR } from "@/lib/palette";
+import { packLanes, resolveLaneTop, resolveRowHeightForLanes, type LaneLayout } from "@/lib/lanePacking";
 import { laneLayout as compactLaneLayout } from "./layout";
 import {
   createDisplayNameComparator,
   createEngagementFavouriteDisplayNameComparator,
   createFavouriteDisplayNameComparator,
-} from "../../lib/displayOrder";
+} from "@/lib/displayOrder";
 import {
   bucketByCoveredDate,
   groupByResourceId,

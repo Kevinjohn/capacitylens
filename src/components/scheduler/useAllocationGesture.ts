@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { carriesHourlyLoad, type ID } from "@capacitylens/shared/types/entities";
 import type { Weekday } from "@capacitylens/shared/types/entities";
-import { resolveSchedulingMode } from "../../store/selectors";
-import { useStore } from "../../store/useStore";
+import { resolveSchedulingMode } from "@/store/selectors";
+import { useStore } from "@/store/useStore";
 import type { ColumnGeometry } from "./columnGeometry";
 import { buildGesturePreviewGeometry } from "./gestureGeometry";
 import { readLaneSnapshots, type LaneSnapshot } from "./gestureLanes";

@@ -1,9 +1,9 @@
 import { m } from "@/i18n";
-import { teamAccessClient } from "../../account/teamAccessClient";
-import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
-import { readOfflineStateSnapshot } from "../../data/offlineCache";
-import { refreshActiveAccountSlice } from "../../data/persist";
-import { resolveErrorMessage } from "../../lib/errorMessage";
+import { teamAccessClient } from "@/account/teamAccessClient";
+import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
+import { readOfflineStateSnapshot } from "@/data/offlineCache";
+import { refreshActiveAccountSlice } from "@/data/persist";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { useTeamDirectory } from "./useTeamDirectory";
 import type { useMemberInvites } from "./useMemberInvites";

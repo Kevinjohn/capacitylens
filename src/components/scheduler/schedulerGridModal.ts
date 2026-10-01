@@ -1,4 +1,4 @@
-import { formatUtilizationPercent } from "../../lib/formatUtilizationPercent";
+import { formatUtilizationPercent } from "@/lib/formatUtilizationPercent";
 import type { RowModel } from "./schedulerModel";
 import { isCapacityTracked } from "@capacitylens/shared/types/entities";
 import type { ID, ISODate } from "@capacitylens/shared/types/entities";

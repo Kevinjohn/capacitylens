@@ -1,9 +1,9 @@
 import type { StoreApi } from "zustand";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import type { StoreState } from "../../store/useStore";
-import type { PersistenceAdapter } from "../PersistenceAdapter";
-import { BatchTooLargeError } from "../ServerSyncAdapter";
-import { incrementPersistenceDiagnostic } from "../persistenceDiagnostics";
+import type { StoreState } from "@/store/useStore";
+import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
+import { BatchTooLargeError } from "@/data/ServerSyncAdapter";
+import { incrementPersistenceDiagnostic } from "@/data/persistenceDiagnostics";
 import type { AttachmentState } from "./attachmentState";
 
 interface CreateWriteQueueInput {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, within, fireEvent } from "@testing-library/react";
-import { resetStoreWithAccount, makeResource } from "../../test/fixtures";
+import { resetStoreWithAccount, makeResource } from "@/test/fixtures";
 import { ExternalResourceSection } from "./ExternalResourceSection";
 
 beforeEach(() => resetStoreWithAccount());

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { m } from "@/i18n";
-import { Button } from "../ui/button";
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function AccountLoadRecovery({
   accountName,

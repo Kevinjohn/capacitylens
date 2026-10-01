@@ -5,7 +5,7 @@
 
 import { createAuthClient } from "better-auth/react";
 import { twoFactorClient } from "better-auth/client/plugins";
-import { API_BASE } from "../data/apiConfig";
+import { API_BASE } from "@/data/apiConfig";
 
 // Same-origin by default: an empty API_BASE is now the NORMAL case (server persistence defaults to
 // the same origin), so fall back to window.location.origin rather than leaving a bare `/api/auth`

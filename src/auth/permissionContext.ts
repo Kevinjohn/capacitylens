@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import { can, type Action, type Role } from "@capacitylens/shared/domain/access";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 
 // Client permission context, kept separate from PermissionProvider so this
 // file exports only the context + hooks (react-refresh clean) and consumers (affordance hubs:

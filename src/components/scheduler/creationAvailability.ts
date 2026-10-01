@@ -2,7 +2,7 @@ import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWeekIncludes, effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { isOnClosure, isOnTimeOff } from "../../lib/capacity";
+import { isOnClosure, isOnTimeOff } from "@/lib/capacity";
 import type { Closure, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
 interface ResolveCreationBlockReasonInput {

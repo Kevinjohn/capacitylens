@@ -1,10 +1,10 @@
 import { allowsPasswordSignIn, allowsProviderSignIn } from "@capacitylens/shared/account/types";
-import { accountClient } from "../account/accountClient";
-import { cacheAuthSnapshot, readCachedAuthSnapshot, setOfflineReadState } from "../data/offlineCache";
-import { hasUnsavedPersistenceWrites } from "../data/persist";
-import { isTransportFailure } from "../data/requestTimeout";
-import { readApiError } from "../lib/readApiError";
-import { useStore } from "../store/useStore";
+import { accountClient } from "@/account/accountClient";
+import { cacheAuthSnapshot, readCachedAuthSnapshot, setOfflineReadState } from "@/data/offlineCache";
+import { hasUnsavedPersistenceWrites } from "@/data/persist";
+import { isTransportFailure } from "@/data/requestTimeout";
+import { readApiError } from "@/lib/readApiError";
+import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";
 import { isAuthMode, parseAuthProviders, resolveBooleanField, type AuthStatusResult } from "./authStatus";
 import { parseAuthUser } from "./validateAuthUser";

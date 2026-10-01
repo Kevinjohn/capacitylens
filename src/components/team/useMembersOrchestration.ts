@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
-import type { TeamInvitation, TeamMember as Member } from "../../account/teamAccessClient";
-import { useAuth } from "../../auth/authContext";
-import { isServerConfigured } from "../../data/apiConfig";
-import { useOfflineState } from "../../data/useOfflineState";
-import { useDeadlineClock } from "../../hooks/useDeadlineClock";
-import { useFieldError } from "../../hooks/useFieldError";
-import { useStore } from "../../store/useStore";
-import type { StoreState } from "../../store/types";
+import type { TeamInvitation, TeamMember as Member } from "@/account/teamAccessClient";
+import { useAuth } from "@/auth/authContext";
+import { isServerConfigured } from "@/data/apiConfig";
+import { useOfflineState } from "@/data/useOfflineState";
+import { useDeadlineClock } from "@/hooks/useDeadlineClock";
+import { useFieldError } from "@/hooks/useFieldError";
+import { useStore } from "@/store/useStore";
+import type { StoreState } from "@/store/types";
 import { useTeamDirectory } from "./useTeamDirectory";
 import { useMemberInvites, type InvitationPersonOption } from "./useMemberInvites";
 import { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 import { createMemberMutations } from "./createMemberMutations";
-import { startMasquerade } from "../../auth/accountTransition";
+import { startMasquerade } from "@/auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
-import { useResourceListModel } from "../resources/useResourceListModel";
+import { useResourceListModel } from "@/components/resources/useResourceListModel";
 
 const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
 

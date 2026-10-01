@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { buildEmptyFilters } from "../../store/useStore";
-import { makeResource, requireValue } from "../../test/fixtures";
+import { buildEmptyFilters } from "@/store/useStore";
+import { makeResource, requireValue } from "@/test/fixtures";
 import { buildSchedulerModel, type GroupModel } from "./schedulerModel";
 import { allBars, dataset, days, end, geom, start, withExternal } from "./schedulerModel.testSupport";
 

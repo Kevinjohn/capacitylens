@@ -15,7 +15,7 @@ import {
   hasVisibleTaskFieldInSchedule,
 } from "./selectors";
 import { buildEmptyFilters } from "./useStore";
-import { DEFAULT_ACCOUNT_ID, makeAccount, makeResource } from "../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAccount, makeResource } from "@/test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, AppData, ID } from "@capacitylens/shared/types/entities";
 

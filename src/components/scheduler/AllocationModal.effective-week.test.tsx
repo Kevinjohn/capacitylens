@@ -1,16 +1,16 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
 import { AllocationBar } from "./AllocationBar";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import { chooseOption, GEOM, indexAtClientX, renderWithTooltip } from "./__tests__/schedulerTestKit";
 import { required, ACC, resetAllocationModalStore, person, enableDays } from "./__tests__/allocationModalTestKit";
 
 type CapacityAdvisoryMockInput =
-  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisory>[0]
-  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisoryFromLoad>[0];
+  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisory>[0]
+  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisoryFromLoad>[0];
 const capacityAdvisoryMock = vi.hoisted(() =>
   vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
     overDays: 0,
@@ -20,8 +20,8 @@ const capacityAdvisoryMock = vi.hoisted(() =>
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
 // care only about the advisory VERDICTS the modal renders.
-vi.mock("../../lib/capacity", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../lib/capacity")>()),
+vi.mock("@/lib/capacity", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));

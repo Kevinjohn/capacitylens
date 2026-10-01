@@ -10,7 +10,7 @@ import {
 import type { Discipline } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { DEFAULT_ACCOUNT_ID, makeResource } from "../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeResource } from "@/test/fixtures";
 
 const data: AppData = {
   ...emptyAppData(),

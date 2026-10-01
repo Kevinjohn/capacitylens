@@ -1,8 +1,8 @@
 import { ACCOUNT_ROLES } from "@capacitylens/shared/account/types";
 import { can, type Role } from "@capacitylens/shared/domain/access";
-import type { TeamMember as Member } from "../../account/teamAccessClient";
-import type { TeamInvitation } from "../../account/teamAccessClient";
-import { resolveRoleLabel } from "../../lib/accessCopy";
+import type { TeamMember as Member } from "@/account/teamAccessClient";
+import type { TeamInvitation } from "@/account/teamAccessClient";
+import { resolveRoleLabel } from "@/lib/accessCopy";
 
 // The roles a member can be given here, in the shared vocabulary's own order. Owner is deliberately
 // absent: ownership can change only through the explicit atomic transfer. Values only — no labels at

@@ -1,5 +1,5 @@
-import type { FieldError } from "../../hooks/useFieldError";
-import type { useStore } from "../../store/useStore";
+import type { FieldError } from "@/hooks/useFieldError";
+import type { useStore } from "@/store/useStore";
 
 export interface MemberActionDependencies {
   requestAccountId: () => string;

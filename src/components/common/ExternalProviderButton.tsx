@@ -1,9 +1,9 @@
 import type { ComponentProps } from "react";
-import { hasGoogleProviderBrand, type AuthProviderInfo } from "../../auth/authContext";
+import { hasGoogleProviderBrand, type AuthProviderInfo } from "@/auth/authContext";
 import { cn } from "@/lib/cn";
-import googleSignInDark from "../../assets/google-sign-in-dark.png";
-import googleSignInLight from "../../assets/google-sign-in-light.png";
-import { Button } from "../ui/button";
+import googleSignInDark from "@/assets/google-sign-in-dark.png";
+import googleSignInLight from "@/assets/google-sign-in-light.png";
+import { Button } from "@/components/ui/button";
 
 type ExternalProviderButtonProps = Omit<ComponentProps<typeof Button>, "children"> & {
   provider: Pick<AuthProviderInfo, "id" | "kind" | "brand">;

@@ -4,7 +4,7 @@ import { fireEvent } from "@testing-library/react";
 import { ResourceLane } from "./ResourceLane";
 import { buildColumnGeometry } from "./columnGeometry";
 import type { BarLayout, DayState, TimeOffBlock } from "./schedulerModel";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { renderWithTooltip as render } from "./__tests__/schedulerTestKit";
 

@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { useStore } from "../../store/useStore";
-import { useCanEdit } from "../../auth/permissionContext";
+import { useStore } from "@/store/useStore";
+import { useCanEdit } from "@/auth/permissionContext";
 import { m } from "@/i18n";
 import { Pencil, Plus, Trash2, type LucideIcon } from "lucide-react";
-import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +22,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "../ui/alert-dialog";
+} from "@/components/ui/alert-dialog";
 import { restoreFocus } from "./focus";
 import { FormDirtyContext } from "./formDirty";
 

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { PHONE_MAX_WIDTH_PX } from "../lib/displayPrefs";
+import { PHONE_MAX_WIDTH_PX } from "@/lib/displayPrefs";
 
 const MOBILE_QUERY = `(max-width: ${PHONE_MAX_WIDTH_PX}px)`;
 

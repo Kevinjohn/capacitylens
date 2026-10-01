@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvatarUrl";
 import { accountClient } from "./accountClient";
-import { isServerConfigured } from "../data/apiConfig";
-import { useStore } from "../store/useStore";
-import { useOfflineState } from "../data/useOfflineState";
-import { useAuth } from "../auth/authContext";
+import { isServerConfigured } from "@/data/apiConfig";
+import { useStore } from "@/store/useStore";
+import { useOfflineState } from "@/data/useOfflineState";
+import { useAuth } from "@/auth/authContext";
 
 const EMPTY_AVATARS = new Map<string, string>();
 /** Page-local event emitted when the authoritative member/resource association may have changed. */

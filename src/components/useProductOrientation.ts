@@ -4,7 +4,7 @@ import {
   hasDismissedProductOrientation,
   NO_ACTIVE_COMPANY_SEGMENT,
   resolveProductOrientationSubject,
-} from "../lib/productOrientation";
+} from "@/lib/productOrientation";
 
 export function useProductOrientation(input: { userId: string | null; demo: boolean; accountId: string | null }) {
   const subjectId = resolveProductOrientationSubject(input);

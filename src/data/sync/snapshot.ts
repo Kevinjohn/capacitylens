@@ -1,6 +1,6 @@
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
-import { type AllocationRewriteRevision } from "../PersistenceAdapter";
-import { type Op } from "../syncOps";
+import { type AllocationRewriteRevision } from "@/data/PersistenceAdapter";
+import { type Op } from "@/data/syncOps";
 import {
   applyCommittedRevision,
   buildRowKey,

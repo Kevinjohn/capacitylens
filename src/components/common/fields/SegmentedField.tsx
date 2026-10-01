@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { Field, FieldLabel } from "../../ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
   SegmentedControl,
   type SegmentedDensity,
@@ -7,7 +7,7 @@ import {
   type SegmentedOption,
   type SegmentedSize,
   type SegmentedVariant,
-} from "../SegmentedControl";
+} from "@/components/common/SegmentedControl";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
 

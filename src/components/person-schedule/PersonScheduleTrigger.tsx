@@ -1,8 +1,8 @@
 import { Eye } from "lucide-react";
 import type { ID } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { Avatar } from "../common/ui";
-import { Button } from "../ui/button";
+import { Avatar } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
 
 export interface PersonScheduleTriggerProps {
   resourceId: ID;

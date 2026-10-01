@@ -2,10 +2,10 @@ import type { StateCreator } from "zustand";
 import { addDaysISO, startOfWeekISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { lifecycleStatus } from "@capacitylens/shared/domain/lifecycle";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
-import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from "../../lib/schedulerConfig";
+import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from "@/lib/schedulerConfig";
 import type { AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
-import type { Filters, SchedulerUI, StoreState } from "../types";
-import { resolveTimeZone, resolveWeekStart } from "../selectors";
+import type { Filters, SchedulerUI, StoreState } from "@/store/types";
+import { resolveTimeZone, resolveWeekStart } from "@/store/selectors";
 
 type SchedulerSliceKeys =
   | "ui"

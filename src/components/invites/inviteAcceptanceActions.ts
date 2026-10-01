@@ -5,13 +5,13 @@ import {
   readUnknownAccountCommandOutcome,
   createBrowserAccountCommand,
   type BrowserAccountCommand,
-} from "../../account/accountClient";
+} from "@/account/accountClient";
 import { m } from "@/i18n";
 import { readAccountFailure, resolveMessageForStatus } from "./inviteResponses";
-import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
+import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
 import { isAccountRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 
 interface Dependencies {
   token: string | undefined;

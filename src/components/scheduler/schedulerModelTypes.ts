@@ -1,8 +1,8 @@
-import type { LaneLayout } from "../../lib/lanePacking";
-import type { DayCapacity } from "../../lib/capacity";
-import type { DisciplineGroup } from "../../store/selectors";
+import type { LaneLayout } from "@/lib/lanePacking";
+import type { DayCapacity } from "@/lib/capacity";
+import type { DisciplineGroup } from "@/store/selectors";
 import type { ColumnGeometry } from "./columnGeometry";
-import type { Filters } from "../../store/useStore";
+import type { Filters } from "@/store/useStore";
 import type { Allocation, AppData, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
 /** A positioned allocation bar. */

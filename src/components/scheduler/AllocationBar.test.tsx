@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { act, screen, fireEvent } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
-import { PermissionContext } from "../../auth/permissionContext";
+import { PermissionContext } from "@/auth/permissionContext";
 import type { BarLayout } from "./schedulerModel";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation } from "@capacitylens/shared/types/entities";
-import { makeAccount, makeAllocation as makeAllocationBase, makeBar as makeBarBase } from "../../test/fixtures";
+import { makeAccount, makeAllocation as makeAllocationBase, makeBar as makeBarBase } from "@/test/fixtures";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
 import { buildAllocationBarInset } from "./layout";
 import { buildVisibleSpanInsets } from "./visibleSpanInsets";

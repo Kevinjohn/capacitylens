@@ -2,9 +2,9 @@ import { useId, useState, type FormEvent } from "react";
 import { m } from "@/i18n";
 import type { JoiningPolicy, JoiningPolicySettings } from "@capacitylens/shared/account/types";
 import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";
-import { Button } from "../ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import { FieldError } from "../ui/field";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldError } from "@/components/ui/field";
 
 type JoiningPolicySectionProps =
   | {

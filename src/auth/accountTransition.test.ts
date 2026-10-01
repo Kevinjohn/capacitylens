@@ -11,11 +11,11 @@ const mocks = vi.hoisted(() => ({
   setActiveAccount: vi.fn(),
 }));
 
-vi.mock("../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   isServerConfigured: () => mocks.serverConfigured,
 }));
 
-vi.mock("../store/useStore", () => ({
+vi.mock("@/store/useStore", () => ({
   useStore: { getState: () => ({ setActiveAccount: mocks.setActiveAccount }) },
 }));
 

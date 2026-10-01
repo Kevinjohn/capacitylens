@@ -1,18 +1,18 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TimeOffList } from "./TimeOffList";
 import { TimeOffForm } from "./TimeOffForm";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import {
   DEFAULT_ACCOUNT_ID,
   WORKDAYS,
   requireValue,
   resetStoreWithAccount,
   setPlaceholdersEnabled,
-} from "../../test/fixtures";
-import { PermissionContext } from "../../auth/permissionContext";
+} from "@/test/fixtures";
+import { PermissionContext } from "@/auth/permissionContext";
 
 const resourceDraft = {
   kind: "person" as const,

@@ -3,10 +3,10 @@ import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { accountClient } from "../../account/accountClient";
-import { PermissionContext } from "../../auth/permissionContext";
-import { refreshActiveAccountSlice } from "../../data/persist";
-import { useStore } from "../../store/useStore";
+import { accountClient } from "@/account/accountClient";
+import { PermissionContext } from "@/auth/permissionContext";
+import { refreshActiveAccountSlice } from "@/data/persist";
+import { useStore } from "@/store/useStore";
 import {
   DEFAULT_ACCOUNT_ID,
   jsonResponse,
@@ -14,10 +14,10 @@ import {
   makeClient,
   makeResource,
   resetStoreWithAccount,
-} from "../../test/fixtures";
+} from "@/test/fixtures";
 import { SettingsDataSection } from "./SettingsDataSection";
 
-vi.mock("../../data/persist", () => ({
+vi.mock("@/data/persist", () => ({
   refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
   flushPendingWrites: vi.fn(),
   suspendServerWrites: vi.fn(),

@@ -1,4 +1,4 @@
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { FilterOption } from "./toolbarFilterOptions";
 
 /**

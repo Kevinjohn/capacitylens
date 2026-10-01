@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { PermissionContext } from "../auth/permissionContext";
-import { notifyInactiveDataChanged } from "../data/inactiveDataEvents";
-import { useStore } from "../store/useStore";
+import { PermissionContext } from "@/auth/permissionContext";
+import { notifyInactiveDataChanged } from "@/data/inactiveDataEvents";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { makeAccount, makeClient } from "../test/fixtures";
+import { makeAccount, makeClient } from "@/test/fixtures";
 import { useInactiveAccountData } from "./useInactiveAccountData";
 
-vi.mock("../data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
+vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
 
 function payload(accountId: string, name: string) {
   return {

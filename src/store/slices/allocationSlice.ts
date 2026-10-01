@@ -3,8 +3,8 @@ import { assertAllocationWithinResourceAvailability, assertDateRange } from "@ca
 import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { Allocation, AppData, ID } from "@capacitylens/shared/types/entities";
-import type { StoreInternals } from "../storeInternal";
-import type { Patch, StoreState } from "../types";
+import type { StoreInternals } from "@/store/storeInternal";
+import type { Patch, StoreState } from "@/store/types";
 
 type AllocationSlice = Pick<
   StoreState,

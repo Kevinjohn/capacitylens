@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { useStore } from "../../store/useStore";
-import { useActiveScopedData } from "../../store/useScopedData";
-import { useFieldError } from "../../hooks/useFieldError";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { validatePresetColor, parseName } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/isStaleEdit";
+import { useStore } from "@/store/useStore";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { useFieldError } from "@/hooks/useFieldError";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { validatePresetColor, parseName } from "@/lib/validation";
+import { isStaleEdit } from "@/lib/isStaleEdit";
 import { m } from "@/i18n";
-import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
-import { FieldError } from "../ui/field";
-import { DEFAULT_COLORS } from "../../lib/palette";
+import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
+import { FieldError } from "@/components/ui/field";
+import { DEFAULT_COLORS } from "@/lib/palette";
 import type { Discipline } from "@capacitylens/shared/types/entities";
 
 /** Add (no `discipline`) or edit a discipline: name + colour. `sortOrder` is auto-assigned (one past

@@ -1,6 +1,14 @@
 import type { Activity } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface ToolbarActivityFilterProps {
   activityId: string | null;

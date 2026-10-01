@@ -20,15 +20,15 @@ import {
   CheckboxField,
   FormActions,
 } from "./ui";
-import { Button } from "../ui/button";
-import { Toggle } from "../ui/toggle";
-import { EmptyDescription } from "../ui/empty";
-import { Alert, AlertDescription } from "../ui/alert";
-import { FieldError } from "../ui/field";
-import { Item } from "../ui/item";
-import { Switch } from "../ui/switch";
-import { useStore } from "../../store/useStore";
-import { resolveColorName, SWATCHES } from "../../lib/palette";
+import { Button } from "@/components/ui/button";
+import { Toggle } from "@/components/ui/toggle";
+import { EmptyDescription } from "@/components/ui/empty";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FieldError } from "@/components/ui/field";
+import { Item } from "@/components/ui/item";
+import { Switch } from "@/components/ui/switch";
+import { useStore } from "@/store/useStore";
+import { resolveColorName, SWATCHES } from "@/lib/palette";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 
 beforeEach(() => {
