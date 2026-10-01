@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
-import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
 import {
@@ -11,28 +10,10 @@ import {
   SESSION_INACTIVITY_TTL_SECONDS,
 } from "./auth";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
-import { call, PASSWORD_ENV } from "./testHelpers";
+import { call, PASSWORD_ENV, cookiesOf } from "./testHelpers/passwordAuth";
+import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 import { tx } from "./txn";
 import { authTransactionGateFor, type GateSlot } from "./authTransactionGate";
-
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function headerValues(value: string | string[] | undefined): string[] {
-  if (Array.isArray(value)) return value;
-  if (value === undefined) return [];
-  return [value];
-}
-
-// This suite keeps its own cookie reader rather than testHelpers' readCookies. readCookies models
-// a browser cookie jar: it de-duplicates by name and drops expired cookies. This one reports every
-// Set-Cookie the server actually sent. The difference is load-bearing in app.auth.bootstrap.test.ts,
-// whose assertions require that a rejected sign-up set no session cookie at all — a cleared cookie
-// must still be visible to fail them. Kept in every file of the suite so the reader is consistent.
-function cookiesOf(res: LightMyRequestResponse): string {
-  const raw = res.headers["set-cookie"];
-  return headerValues(raw)
-    .map((c) => String(c).split(";")[0])
-    .join("; ");
-}
 
 const TS = "2026-01-01T00:00:00.000Z";
 
@@ -41,18 +22,6 @@ const TS = "2026-01-01T00:00:00.000Z";
 // by running unchanged — these tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
-
-function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
-  if (auth === null) throw new Error("Expected authentication to be configured.");
-  return auth;
-}
-
-async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, env);
-  await runAuthMigrations(parseConfiguredAuth(auth));
-  return createApp(db, { authMode: mode, auth });
-}
 
 async function createSessionManagementFixture() {
   const db = openDb(":memory:");
@@ -352,7 +321,7 @@ describe("CAPACITYLENS_MODE password", () => {
 
 describe("CAPACITYLENS_MODE password", () => {
   it("sign-out invalidates the session again", async () => {
-    const app = await appWithAuth(PASSWORD_ENV);
+    const { app } = await appWithAuth({ env: PASSWORD_ENV });
     const signUp = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -428,7 +397,7 @@ describe("CAPACITYLENS_MODE password", () => {
 
 describe("CAPACITYLENS_MODE password", () => {
   it("propagates sign-out cookie clearing through the neutral account route", async () => {
-    const app = await appWithAuth(PASSWORD_ENV);
+    const { app } = await appWithAuth({ env: PASSWORD_ENV });
     const signUp = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",

@@ -1,11 +1,9 @@
-import { afterEach, expect } from "vitest";
+import { expect } from "vitest";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
-import type { Db } from "./db";
 
-// Shared scaffolding for the auth-backed server test suites (app.*.test.ts). The inject wrapper,
-// Set-Cookie collapse, sign-up-and-resolve-userId flow, and the password-mode env were duplicated
-// byte-for-byte across nine suites; centralising them here stops that growth. Suite-specific fixtures
-// (entity builders, seedTwo/seedAccount, appWithAuth, env variants) deliberately stay in each suite.
+// Password-mode request helpers shared by the auth-backed server suites (app.*.test.ts): the
+// password env, the typed inject wrapper, the two Set-Cookie readers and the sign-up flow.
+// The auth-backed app itself is built by fixtures/appWithAuth.ts.
 
 /** Password-auth env for `authFromEnv`. Open signup is CLOSED by default (P1.7 disableSignUp); these
  *  fixtures create users via sign-up/email, so it is re-opened here until the invite flow is the only
@@ -17,55 +15,28 @@ export const PASSWORD_ENV = {
   CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
 };
 
-/** Own every Fastify/SQLite fixture created by one test file and close it after each test. */
-export function registerServerFixtureCleanup(): {
-  trackApp: <T extends FastifyInstance>(app: T) => T;
-  trackDb: <T extends Db>(db: T) => T;
-} {
-  const apps = new Set<FastifyInstance>();
-  const databases = new Set<Db>();
-
-  afterEach(async () => {
-    const errors: unknown[] = [];
-    for (const app of apps) {
-      try {
-        await app.close();
-      } catch (error) {
-        errors.push(error);
-      }
-    }
-    for (const db of databases) {
-      if (!db.isOpen) continue;
-      try {
-        db.close();
-      } catch (error) {
-        errors.push(error);
-      }
-    }
-    apps.clear();
-    databases.clear();
-    if (errors.length > 0) {
-      throw new AggregateError(errors, "Server fixture cleanup failed.");
-    }
-  });
-
-  return {
-    trackApp: <T extends FastifyInstance>(app: T): T => {
-      apps.add(app);
-      return app;
-    },
-    trackDb: <T extends Db>(db: T): T => {
-      databases.add(db);
-      return db;
-    },
-  };
-}
-
 /** `app.inject` typed as the light response the suites assert against. */
 export const call = (app: FastifyInstance, options: InjectOptions): Promise<LightMyRequestResponse> =>
   app.inject(options);
 
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
+/** Normalise a possibly-repeated response header to a list of its values. */
+export function headerValues(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value;
+  if (value === undefined) return [];
+  return [value];
+}
+
+/** Report every Set-Cookie pair the server sent, in order, as one request Cookie header. Unlike
+ *  readCookies this keeps duplicates and cleared cookies: app.auth.bootstrap.test.ts asserts that a
+ *  rejected sign-up set no session cookie at all, so a cleared cookie must remain visible there. */
+export function cookiesOf(res: LightMyRequestResponse): string {
+  return headerValues(res.headers["set-cookie"])
+    .map((cookie) => String(cookie).split(";")[0])
+    .join("; ");
+}
+
+/** Collapse a response's Set-Cookie header(s) into one request Cookie header, as a browser cookie
+ *  jar would: the last value per name wins and expired cookies are dropped. */
 export function readCookies(res: LightMyRequestResponse): string {
   const raw = res.headers["set-cookie"];
   let list: readonly string[] = [];

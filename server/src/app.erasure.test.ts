@@ -3,8 +3,9 @@ import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
 import { upsertMember, createInvite } from "./controlTables";
-import { createAuthFromEnvironment, countUsers, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
+import { countUsers } from "./auth";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
@@ -29,15 +30,6 @@ const client = (id: string, accountId: string) => ({
   color: "#3b82f6",
   ...meta(),
 });
-
-/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!configured.auth) throw new Error("Password test auth was not configured");
-  await runAuthMigrations(configured.auth);
-  return { app: createApp(db, { authMode: configured.mode, auth: configured.auth }), db };
-}
 
 interface DeleteAccountRouteInput {
   app: FastifyInstance;

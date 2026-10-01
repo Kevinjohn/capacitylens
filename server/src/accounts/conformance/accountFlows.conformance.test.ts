@@ -17,6 +17,7 @@ import { KeyedOperationLock } from "../KeyedOperationLock";
 import type { LocalAccountAdminPort } from "../sqliteAccountAdminPort";
 import { finishAccountCommand, reserveAccountCommand } from "../state";
 import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS } from "../WriteOnceSecretReplay";
+import { deferred } from "../../testHelpers/deferred";
 
 const command = { commandId: "command-1", idempotencyKey: "idempotency-1" };
 const actor: ActorContext = {
@@ -52,15 +53,6 @@ const session: ApplicationSession = {
 
 function contractError(code: ConstructorParameters<typeof AccountContractError>[0]["code"]) {
   return new AccountContractError({ code, message: code, retryable: false });
-}
-
-/** A promise paired with the callback that resolves it, for coordinating a side effect with its release. */
-function deferred(): { promise: Promise<void>; resolve: () => void } {
-  let resolve!: () => void;
-  const promise = new Promise<void>((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
 }
 
 function reserveTestCommand(db: Db, overrides: Partial<Parameters<typeof reserveAccountCommand>[1]> = {}): void {

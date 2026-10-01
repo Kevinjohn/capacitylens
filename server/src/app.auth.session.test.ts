@@ -12,26 +12,8 @@ import {
 } from "./auth";
 import { recordSessionAssurance } from "./accounts/state";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
-import { call, PASSWORD_ENV } from "./testHelpers";
-
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function headerValues(value: string | string[] | undefined): string[] {
-  if (Array.isArray(value)) return value;
-  if (value === undefined) return [];
-  return [value];
-}
-
-// This suite keeps its own cookie reader rather than testHelpers' readCookies. readCookies models
-// a browser cookie jar: it de-duplicates by name and drops expired cookies. This one reports every
-// Set-Cookie the server actually sent. The difference is load-bearing in app.auth.bootstrap.test.ts,
-// whose assertions require that a rejected sign-up set no session cookie at all — a cleared cookie
-// must still be visible to fail them. Kept in every file of the suite so the reader is consistent.
-function cookiesOf(res: LightMyRequestResponse): string {
-  const raw = res.headers["set-cookie"];
-  return headerValues(raw)
-    .map((c) => String(c).split(";")[0])
-    .join("; ");
-}
+import { call, PASSWORD_ENV, cookiesOf, headerValues } from "./testHelpers/passwordAuth";
+import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
 // P3.1/P3.2/P3.5 (flag CAPACITYLENS_MODE → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
@@ -123,11 +105,6 @@ function parseTotpSecret(res: LightMyRequestResponse): string {
   return secret;
 }
 
-function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
-  if (auth === null) throw new Error("Expected authentication to be configured.");
-  return auth;
-}
-
 function totpCode(secret: string, at = Date.now()): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = "";
@@ -157,13 +134,6 @@ const SSO_ENV = {
 
   CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
 };
-
-async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, env);
-  await runAuthMigrations(parseConfiguredAuth(auth));
-  return createApp(db, { authMode: mode, auth });
-}
 
 /* c8 ignore start */
 async function createSessionManagementFixture() {
@@ -483,7 +453,7 @@ describe("CAPACITYLENS_MODE password", () => {
 
 describe("CAPACITYLENS_MODE password", () => {
   it("sign-up → session cookie → the session authenticates and /api/auth/me reports the user", async () => {
-    const app = await appWithAuth(PASSWORD_ENV);
+    const { app } = await appWithAuth({ env: PASSWORD_ENV });
     const signUp = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -545,9 +515,11 @@ describe("CAPACITYLENS_MODE password", () => {
 
 describe("CAPACITYLENS_MODE password", () => {
   it("emits a valid __Host session cookie for an HTTPS public origin", async () => {
-    const app = await appWithAuth({
-      ...PASSWORD_ENV,
-      CAPACITYLENS_PUBLIC_URL: "https://capacity.example",
+    const { app } = await appWithAuth({
+      env: {
+        ...PASSWORD_ENV,
+        CAPACITYLENS_PUBLIC_URL: "https://capacity.example",
+      },
     });
     const signUp = await call(app, {
       method: "POST",

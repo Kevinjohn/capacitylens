@@ -12,7 +12,7 @@ const serverPackage = JSON.parse(readFileSync(new URL("../package.json", import.
 };
 const verifierArgs = ["scripts/verify-tls-renewal.mjs"];
 const root = fileURLToPath(new URL("../", import.meta.url));
-const redirect = fileURLToPath(new URL("./__tests__/renewalProbeRedirect.mjs", import.meta.url));
+const redirect = fileURLToPath(new URL("./fixtures/renewalProbeRedirect.mjs", import.meta.url));
 const fingerprint = "a".repeat(64);
 let directory: string;
 let server: Server | undefined;

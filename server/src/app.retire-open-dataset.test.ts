@@ -3,7 +3,7 @@ import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fas
 import { createApp } from "./app";
 import { DB_SCHEMA_VERSION, openDb, type Db } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { signUp } from "./testHelpers";
+import { signUp } from "./testHelpers/passwordAuth";
 
 // P1.17 — the Phase-1 CAPSTONE. "Retire the open shared dataset": in the HOSTED (auth-on) posture
 // there must be ZERO unauthenticated /api access. The requireUser preHandler (app.ts) is the single

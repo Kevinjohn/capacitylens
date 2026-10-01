@@ -1,12 +1,13 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
+import { openDb, type Db } from "./db";
 import { upsertMember, getMemberRole, getInvite } from "./controlTables";
-import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import type { Auth } from "./auth";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
 import { recordSessionAssurance } from "./accounts/state";
+import { seedTwo } from "./app.members.testSupport";
 
 // P1.11 — Owner/Admin member-management endpoints. Mirrors app.invites.test.ts: drives sign-up →
 // membership → the five new routes (GET/PATCH/DELETE members, GET/DELETE invites) plus the Owner
@@ -17,28 +18,6 @@ import { recordSessionAssurance } from "./accounts/state";
 // admin of one account cannot read another account's members (cross-tenant member leak → 403).
 
 const TS = "2026-01-01T00:00:00.000Z";
-const meta = () => ({ createdAt: TS, updatedAt: TS });
-const account = (id: string) => ({
-  id,
-  name: `Studio ${id}`,
-  color: "#3b82f6",
-  ...meta(),
-});
-
-/** Seed two pre-existing accounts directly (a1 + a2, for the cross-tenant cases). */
-function seedTwo(db: Db): void {
-  const d = emptyAppData() as unknown as Record<string, unknown[]>;
-  d.accounts = [account("a1"), account("a2")];
-  insertAll(db, d as unknown as AppData);
-}
-
-async function appWithAuth(options: { rateLimit?: number } = {}): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!auth) throw new Error("Expected auth configuration.");
-  await runAuthMigrations(auth);
-  return { app: createApp(db, { authMode: mode, auth, ...options }), db };
-}
 
 const membersReq = (app: FastifyInstance, accountId: string, headers: Record<string, string> = {}) =>
   call(app, {

@@ -6,9 +6,9 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { createApp } from "./app";
 import { openDb, insertAll, type CompleteAccountSlice, type Db, type ProjectedAccountSlice } from "./db";
 import { upsertMember } from "./controlTables";
-import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { createFileAuditSink, type AuditRecord } from "./audit";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import {
   emptyAppData,
@@ -21,7 +21,7 @@ import {
 import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import type { TenantStore } from "./tenantStore";
-import { seedMemberResourceLink } from "./fixtures/memberResourceTestSupport";
+import { seedMemberResourceLink } from "./fixtures/seedMemberResourceLink";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // P2.5a entity-lifecycle routes — the SERVER half of the Active→Archived→Soft-deleted→Purged machine.
@@ -188,20 +188,6 @@ it("rolls a lifecycle transition back when response redaction fails", async () =
   expect(data.resources[0]).not.toHaveProperty("archivedAt");
   await app.close();
 });
-
-/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
-async function appWithAuth(
-  securityLog?: (event: Record<string, unknown>) => void,
-): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!auth) throw new Error("Expected password authentication to be configured.");
-  await runAuthMigrations(auth);
-  return {
-    app: createApp(db, { authMode: mode, auth, ...(securityLog === undefined ? {} : { securityLog }) }),
-    db,
-  };
-}
 
 interface LifecycleActionInput {
   app: FastifyInstance;
@@ -653,7 +639,7 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
 describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it("requires a fresh admin session for read-inactive while ordinary state remains readable", async () => {
     const events: Array<Record<string, unknown>> = [];
-    const { app, db } = await appWithAuth((event) => events.push(event));
+    const { app, db } = await appWithAuth({ securityLog: (event) => events.push(event) });
     seedStates(db);
     const { cookie, userId } = await signUp(app, "stale-admin-lc@capacitylens.dev");
     upsertMember(db, {

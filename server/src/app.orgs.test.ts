@@ -3,8 +3,9 @@ import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb, insertAll, readState, type Db } from "./db";
 import { getMemberRole, upsertMember } from "./controlTables";
-import { createAuthFromEnvironment, runAuthMigrations, DEMO_USER } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
+import { DEMO_USER } from "./auth";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuditSink } from "./audit";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
@@ -26,29 +27,6 @@ function seedOne(db: Db): void {
   const d = emptyAppData() as unknown as Record<string, unknown[]>;
   d.accounts = [account("a1")];
   insertAll(db, d as unknown as AppData);
-}
-
-/** Build an auth-on (password) app over a fresh in-memory DB. `bootstrapToken` is optional.
- *  `multiAccount` defaults to the single-company-cap OFF default (false); pass `true` for a test
- *  that deliberately provisions a 2nd/3rd org on the SAME instance — the cap otherwise 403s any
- *  create once ≥1 account exists, regardless of `allowed`'s authz outcome (see app.ts's GATE 0). */
-async function appWithAuth(
-  opts: { bootstrapToken?: string; multiAccount?: boolean; audit?: AuditSink } = {},
-): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (auth === null) throw new Error("Password authentication fixture did not create an auth instance.");
-  await runAuthMigrations(auth);
-  return {
-    app: createApp(db, {
-      authMode: mode,
-      auth,
-      ...(opts.bootstrapToken === undefined ? {} : { bootstrapToken: opts.bootstrapToken }),
-      ...(opts.multiAccount === undefined ? {} : { multiAccount: opts.multiAccount }),
-      ...(opts.audit === undefined ? {} : { audit: opts.audit }),
-    }),
-    db,
-  };
 }
 
 const createOrg = (app: FastifyInstance, payload: Record<string, unknown>, headers: Record<string, string> = {}) =>

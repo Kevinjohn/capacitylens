@@ -1,35 +1,13 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { createApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
+import type { Db } from "./db";
 import { upsertMember, getMemberRole, getInvite, isAccessRestricted } from "./controlTables";
-import { seedMemberResourceLink } from "./fixtures/memberResourceTestSupport";
-import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, call, readCookies, signUp } from "./testHelpers";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { seedMemberResourceLink } from "./fixtures/seedMemberResourceLink";
+import { call, readCookies, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
+import { seedTwo } from "./app.members.testSupport";
 
 const TS = "2026-01-01T00:00:00.000Z";
-const meta = () => ({ createdAt: TS, updatedAt: TS });
-const account = (id: string) => ({
-  id,
-  name: `Studio ${id}`,
-  color: "#3b82f6",
-  ...meta(),
-});
-
-function seedTwo(db: Db): void {
-  const d = emptyAppData() as unknown as Record<string, unknown[]>;
-  d.accounts = [account("a1"), account("a2")];
-  insertAll(db, d as unknown as AppData);
-}
-
-async function appWithAuth(options: { rateLimit?: number } = {}): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!auth) throw new Error("Expected auth configuration.");
-  await runAuthMigrations(auth);
-  return { app: createApp(db, { authMode: mode, auth, ...options }), db };
-}
 
 const membersReq = (app: FastifyInstance, accountId: string, headers: Record<string, string> = {}) =>
   call(app, {

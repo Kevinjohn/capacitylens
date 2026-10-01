@@ -3,8 +3,8 @@ import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb, insertAll, getRow, type Db } from "./db";
 import { upsertMember } from "./controlTables";
-import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
 import { can, type Role } from "@capacitylens/shared/domain/access";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";
@@ -246,27 +246,6 @@ function seedPrivateNames(db: Db): void {
   );
 }
 
-/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed.
- *  `multiAccount` defaults to the single-company-cap OFF default (false) — pass `true` for a test
- *  that deliberately exercises a multi-company instance. */
-async function appWithAuth(
-  opts: { multiAccount?: boolean; optimisticConcurrency?: boolean } = {},
-): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (auth === null) throw new TypeError("Expected password mode to create an auth instance.");
-  await runAuthMigrations(auth);
-  return {
-    app: createApp(db, {
-      authMode: mode,
-      auth,
-      ...(opts.multiAccount === undefined ? {} : { multiAccount: opts.multiAccount }),
-      optimisticConcurrency: opts.optimisticConcurrency ?? false,
-    }),
-    db,
-  };
-}
-
 // ---- Per-verb requests against a1's seeded rows (cookie carries the session in auth-on). ----
 // Each returns the status of ONE write/read so a test can assert allow (2xx) vs deny (403).
 
@@ -441,7 +420,7 @@ async function accountExists(app: FastifyInstance, id: string, cookie: string): 
 
 describe("P1.5 authorize — auth-on 403 matrix", () => {
   it.each([false, true])("keeps closures at the editor+ write tier (batched=%s)", async (batched) => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
 
     for (const role of ["viewer", "editor", "admin", "owner"] as const) {
@@ -462,7 +441,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
   });
 
   it("non-member: account-asserted operations are 403 while row-addressed PATCH conceals as 404", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie } = await signUp(app, "stranger@capacitylens.dev"); // NO membership upserted
 
@@ -476,7 +455,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
   });
 
   it("cross-account: asserted a2 operations are 403 while row-addressed PATCH conceals as 404", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "a1member@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
@@ -493,7 +472,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
 
 describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("cross-account batch (one a1 op + one a2 op) → 403 AND the a1 op is NOT applied", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "mixed@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
@@ -524,7 +503,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
   });
 
   it("viewer of a1: read → 200; any write to a1 → 403", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "viewer@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "viewer", status: "active", createdAt: TS });
@@ -540,7 +519,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
   });
 
   it("editor of a1: read → 200; every row-level write to a1 → 2xx; import → 403 (owner-only)", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "editor@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
@@ -566,7 +545,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
   ] as const)(
     "requires admin authority to replace the generated Internal client through %s",
     async (_path, batched) => {
-      const { app, db } = await appWithAuth();
+      const { app, db } = await appWithAuth({ optimisticConcurrency: false });
       insertAll(db, {
         ...emptyAppData(),
         accounts: [account("a1")],
@@ -615,7 +594,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
 
 describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("resolves the membership role once for a scoped state read", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "state-role-resolution@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
@@ -646,7 +625,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
 
 describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("resolves one membership role per account/action in each batch authorization pass", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "batch-role-cache@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
@@ -705,7 +684,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
 
 describe("P1.5 authorize — auth-on 403 matrix", () => {
   it.each(["admin", "owner"] as const)("%s of a1: row writes succeed; only owner may import", async (role) => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, `${role}@capacitylens.dev`);
     upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
@@ -724,7 +703,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
 
 describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("generic account create is CLOSED auth-on: POST /api/accounts → 403 directing to /api/orgs", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     const { cookie } = await signUp(app, "onboarding@capacitylens.dev"); // no membership → no account yet
     const res = await call(app, {
       method: "POST",
@@ -846,7 +825,7 @@ function scopedWriteFixture() {
 describe("scoped generic writes conceal foreign row existence", () => {
   const { foreignIds, scopedEntities, seedOracleRows, responseShape, patch, put, remove } = scopedWriteFixture();
   it("gives a membership-less principal byte-identical absent/foreign responses for every scoped verb and entity", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedOracleRows(db);
     const { cookie } = await signUp(app, "row-oracle-stranger@capacitylens.dev");
 
@@ -870,7 +849,7 @@ describe("scoped generic writes conceal foreign row existence", () => {
 describe("scoped generic writes conceal foreign row existence", () => {
   const { responseShape, patch } = scopedWriteFixture();
   it("conceals a foreign account whose built-in client has its deterministic account-derived id", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     const accountId = "derived-account";
     insertAll(db, {
       ...emptyAppData(),
@@ -909,7 +888,7 @@ describe("scoped generic writes conceal foreign row existence", () => {
 describe("scoped generic writes conceal foreign row existence", () => {
   const { foreignIds, scopedEntities, seedOracleRows, responseShape, patch, remove } = scopedWriteFixture();
   it("gives a member byte-identical absent/foreign PATCH and DELETE responses across every scoped entity", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedOracleRows(db);
     const { cookie, userId } = await signUp(app, "row-oracle-member@capacitylens.dev");
     upsertMember(db, {
@@ -943,7 +922,7 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
     ["owner", true],
     ["editor", false],
   ] as const)("applies the %s note projection without dropping the resource reference", async (role, canSeeNote) => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, `${role}-company-note@capacitylens.dev`);
     upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
@@ -960,7 +939,7 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
   });
 
   it.each(["owner", "admin"] as const)("%s of a1: scoped read INCLUDES the note", async (role) => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, `${role}-note@capacitylens.dev`);
     upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
@@ -972,7 +951,7 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
   });
 
   it.each(["editor", "viewer"] as const)("%s of a1: note ABSENT and sentinel not in the raw body", async (role) => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, `${role}-note@capacitylens.dev`);
     upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
@@ -1014,7 +993,7 @@ function timeOffWriteFixture() {
 
   /** Auth-on app + seed + a signed-up member of a1 with `role`. */
   async function memberApp(role: Role, opts: { optimisticConcurrency?: boolean } = {}) {
-    const { app, db } = await appWithAuth(opts);
+    const { app, db } = await appWithAuth({ optimisticConcurrency: opts.optimisticConcurrency ?? false });
     seedTwo(db);
     const { cookie, userId } = await signUp(
       app,
@@ -1228,7 +1207,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
   // account's own id; admin-tier record purge remains a separate action.
 
   it("non-member: direct DELETE is 403 and generic batch DELETE is 400; a1 survives", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie } = await signUp(app, "stranger-del@capacitylens.dev"); // NO membership
     // A separate ADMIN of a1 so we can read a1 back afterwards (the stranger can't read it).
@@ -1246,7 +1225,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
   it.each(["viewer", "editor", "admin"] as const)(
     "%s of a1: route is 403 and generic batch DELETE is 400",
     async (role) => {
-      const { app, db } = await appWithAuth();
+      const { app, db } = await appWithAuth({ optimisticConcurrency: false });
       seedTwo(db);
       const { cookie, userId } = await signUp(app, `${role}-del@capacitylens.dev`);
       upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
@@ -1261,7 +1240,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
   );
 
   it("owner of an account: DELETE /api/accounts/:id → 204 (account gone)", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     insertAll(db, { ...emptyAppData(), accounts: [account("purgeMe")] } as unknown as AppData);
     const { cookie, userId } = await signUp(app, "owner-delete@capacitylens.dev");
     upsertMember(db, { accountId: "purgeMe", userId, role: "owner", status: "active", createdAt: TS });
@@ -1280,7 +1259,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
   });
 
   it("owner of an account: generic batch DELETE is rejected without erasing account or identity", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     insertAll(db, { ...emptyAppData(), accounts: [account("purgeBatch")] } as unknown as AppData);
     const { cookie, userId } = await signUp(app, "owner-delete-batch@capacitylens.dev");
     upsertMember(db, { accountId: "purgeBatch", userId, role: "owner", status: "active", createdAt: TS });
@@ -1319,7 +1298,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
   it.each(["viewer", "editor", "admin"] as const)(
     "%s of a1 → 403 and the slice (sentinel note included) survives",
     async (role) => {
-      const { app, db } = await appWithAuth();
+      const { app, db } = await appWithAuth({ optimisticConcurrency: false });
       seedTwo(db);
       const { cookie, userId } = await signUp(app, `${role}-import@capacitylens.dev`);
       upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
@@ -1333,7 +1312,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
   );
 
   it("owner of a1 → 200 (the full-fidelity role may replace the slice)", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "owner-import@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "owner", status: "active", createdAt: TS });
@@ -1344,7 +1323,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
   });
 
   it("refuses an admin re-import of their redacted export without changing private database names", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedPrivateNames(db);
     const { cookie, userId } = await signUp(app, "admin-redacted-import@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "admin", status: "active", createdAt: TS });
@@ -1404,7 +1383,7 @@ function accountWriteFixture() {
 describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
   const { putAccount, patchAccount, batchPutAccount } = accountWriteFixture();
   it("non-member (signed in): PUT / PATCH / batch-PUT updating a1 → 403", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie } = await signUp(app, "acct-stranger@capacitylens.dev"); // NO membership
     expect((await putAccount(app, "a1", cookie)).statusCode).toBe(403);
@@ -1413,7 +1392,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   });
 
   it("cross-account: a member of a1 only, updating a2 → 403 (all three vectors)", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "acct-a1only@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "admin", status: "active", createdAt: TS });
@@ -1426,7 +1405,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
   const { putAccount, patchAccount, batchPutAccount } = accountWriteFixture();
   it("viewer of a1: account update → 403 (write tier); editor of a1: → 2xx", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const viewer = await signUp(app, "acct-viewer@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: viewer.userId, role: "viewer", status: "active", createdAt: TS });
@@ -1448,14 +1427,14 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   // auth-on: it fires ahead of the single-company cap, at zero accounts (the bootstrap case now
   // belongs to /api/orgs too), and regardless of multiAccount. Three cases pin the full behaviour:
   it("(a) zero-account instance, auth-on: a non-member PUT / batch-PUT of the FIRST account → 403 → /api/orgs (bootstrap moved there)", async () => {
-    const put = await appWithAuth(); // fresh db, zero accounts
+    const put = await appWithAuth({ optimisticConcurrency: false }); // fresh db, zero accounts
     const { cookie: putCookie } = await signUp(put.app, "acct-onboard-put@capacitylens.dev"); // no membership
     const putRes = await putAccount(put.app, "brandNew1", putCookie);
     expect(putRes.statusCode).toBe(403);
     expect(readErrorMessage(putRes)).toContain("/api/orgs");
     expect((put.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
 
-    const batch = await appWithAuth(); // separate fresh instance — also zero accounts
+    const batch = await appWithAuth({ optimisticConcurrency: false }); // separate fresh instance — also zero accounts
     const { cookie: batchCookie } = await signUp(batch.app, "acct-onboard-batch@capacitylens.dev");
     const batchRes = await batchPutAccount(batch.app, "brandNew2", batchCookie);
     expect(batchRes.statusCode).toBe(403);
@@ -1464,7 +1443,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   });
 
   it("(b) instance with ≥1 account, default opts: a non-member PUT / batch-PUT of a NEW account → 403 → /api/orgs (the auth-on closure outranks the cap message)", async () => {
-    const { app, db } = await appWithAuth(); // multiAccount defaults to false
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false }); // multiAccount defaults to false
     seedTwo(db); // a1 + a2 already exist
     const { cookie } = await signUp(app, "acct-onboard-cap@capacitylens.dev"); // no membership
 
@@ -1482,7 +1461,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
   const { putAccount, patchAccount, batchPutAccount } = accountWriteFixture();
   it("(c) multiAccount: true does NOT reopen the generic vectors auth-on — creation still goes through /api/orgs", async () => {
-    const { app, db } = await appWithAuth({ multiAccount: true });
+    const { app, db } = await appWithAuth({ multiAccount: true, optimisticConcurrency: false });
     seedTwo(db);
     const { cookie } = await signUp(app, "acct-onboard-multi@capacitylens.dev"); // no membership
     expect((await putAccount(app, "brandNew5", cookie)).statusCode).toBe(403);
@@ -1518,7 +1497,7 @@ describe("private client/project names — owner-only server projection", () => 
   ] satisfies PrivateIdentityProjectionInput[])(
     "$role receives the correct client/project identity fields",
     async ({ role, clientName, projectName, seesCodeNameField }: PrivateIdentityProjectionInput) => {
-      const { app, db } = await appWithAuth();
+      const { app, db } = await appWithAuth({ optimisticConcurrency: false });
       seedPrivateNames(db);
       const { cookie, userId } = await signUp(app, `private-read-${role}@capacitylens.dev`);
       upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
@@ -1540,7 +1519,7 @@ describe("private client/project names — owner-only server projection", () => 
 
 describe("private client/project names — owner-only server projection", () => {
   it("pins real names and privacy settings when an editor PATCHes or batch-round-trips redacted rows", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedPrivateNames(db);
     const { cookie, userId } = await signUp(app, "private-editor@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
@@ -1588,7 +1567,7 @@ describe("private client/project names — owner-only server projection", () => 
 
 describe("private client/project names — owner-only server projection", () => {
   it("redacts a private lifecycle response while retaining the real database name", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedPrivateNames(db);
     const { cookie, userId } = await signUp(app, "private-archive-editor@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
@@ -1628,7 +1607,7 @@ describe("private client/project names — owner-only server projection", () => 
 
 describe("private client/project names — owner-only server projection", () => {
   it("strips attempted privacy fields from a non-owner create, while an owner may update them", async () => {
-    const editorSetup = await appWithAuth();
+    const editorSetup = await appWithAuth({ optimisticConcurrency: false });
     seedPrivateNames(editorSetup.db);
     const editor = await signUp(editorSetup.app, "private-create-editor@capacitylens.dev");
     upsertMember(editorSetup.db, {
@@ -1649,7 +1628,7 @@ describe("private client/project names — owner-only server projection", () => 
     expect(created.json()).not.toHaveProperty("isPrivate");
     expect(created.json()).not.toHaveProperty("codeName");
 
-    const ownerSetup = await appWithAuth();
+    const ownerSetup = await appWithAuth({ optimisticConcurrency: false });
     seedPrivateNames(ownerSetup.db);
     const owner = await signUp(ownerSetup.app, "private-update-owner@capacitylens.dev");
     upsertMember(ownerSetup.db, {
@@ -1751,7 +1730,7 @@ describe("batch ownership checks after authorization", () => {
       op: { method: "DELETE", table: "timeOff", id: "to-a2", accountId: "a1" },
     },
   ])("returns NOT_FOUND for a $name targeting another account's row", async ({ op }) => {
-    const { app, db } = await appWithAuth({ multiAccount: true });
+    const { app, db } = await appWithAuth({ multiAccount: true, optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, `batch-owned-${op.method.toLowerCase()}@capacitylens.dev`);
     upsertMember(db, {
@@ -1789,7 +1768,7 @@ describe("high-impact actions keep the fresh-sign-in gate", () => {
   };
 
   it("refuses whole-company deletion from a stale owner session", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "stale-delete-owner@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "owner", status: "active", createdAt: TS });
@@ -1802,7 +1781,7 @@ describe("high-impact actions keep the fresh-sign-in gate", () => {
   });
 
   it("refuses import from a stale owner session", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "stale-import-owner@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "owner", status: "active", createdAt: TS });

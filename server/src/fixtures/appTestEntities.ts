@@ -18,14 +18,6 @@ export const withoutRevision = <T extends object>(row: T) => {
   return copy;
 };
 
-export function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
-
 type FreshAppOptions = { allowReset?: boolean; extra?: Partial<AppOptions> };
 export function freshApp({ allowReset = true, extra = {} }: FreshAppOptions = {}) {
   const db = openDb(":memory:");

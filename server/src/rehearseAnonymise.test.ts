@@ -5,7 +5,7 @@ import { remapIds, scrubDanglingReferences } from "../scripts/rehearse/anonymise
 import { KNOWN_COLUMNS, KNOWN_TABLES } from "../scripts/rehearse/knownColumns";
 import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "./auth";
 import { openDb } from "./db";
-import { PASSWORD_ENV } from "./testHelpers";
+import { PASSWORD_ENV } from "./testHelpers/passwordAuth";
 
 function assertAuth(auth: Auth | null): Auth {
   if (!auth) throw new Error("Password auth fixture was not created.");

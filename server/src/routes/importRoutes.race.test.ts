@@ -5,15 +5,8 @@ import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities"
 import { KeyedOperationLock } from "../accounts/KeyedOperationLock";
 import type { Db } from "../db";
 import type { TenantStore } from "../tenantStore";
+import { deferred } from "../testHelpers/deferred";
 import { registerImportRoutes, type ImportRouteDependencies } from "./importRoutes";
-
-function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
 
 const apps: FastifyInstance[] = [];
 

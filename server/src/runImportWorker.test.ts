@@ -4,6 +4,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { ImportWorkerRequest, ImportWorkerResult } from "./importWorker";
 import { runWithRequestAbortSignal } from "./requestAbort";
 import { createImportWorkerRunner } from "./runImportWorker";
+import { deferred } from "./testHelpers/deferred";
 
 const request: ImportWorkerRequest = {
   current: emptyAppData(),
@@ -13,14 +14,6 @@ const request: ImportWorkerRequest = {
 };
 
 const result: ImportWorkerResult = { data: emptyAppData(), imported: 0, skipped: 0, resourceIdMap: new Map() };
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
 
 function readWorker(workers: readonly FakeWorker[], index: number): FakeWorker {
   const worker = workers[index];
