@@ -53,10 +53,35 @@ file in the archive names the one you have.
        proxy_set_header X-Forwarded-Proto $scheme;
        proxy_read_timeout 130s;
    }
+   # These request lines carry single-use invitation, sign-in and password-reset secrets.
+   location ~ ^/api/invites/[^/]+/(accept|signup|preview)$ {
+       access_log off;
+       proxy_pass http://127.0.0.1:8787;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $remote_addr;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_read_timeout 130s;
+   }
+   location ~ ^/api/auth/(callback|oauth2/callback)/ {
+       access_log off;
+       proxy_pass http://127.0.0.1:8787;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $remote_addr;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_read_timeout 130s;
+   }
+   location ~ ^/(invite|reset-password)/ {
+       access_log off;
+       proxy_pass http://127.0.0.1:8787;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $remote_addr;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_read_timeout 130s;
+   }
    ```
 
-   `capacitylens.nginx.conf` in this archive also keeps invitation and password-reset links out
-   of nginx's access log. Copy its `access_log off` locations if your host lets you edit them.
+   Keep the three `access_log off` locations: without them, the host's access log records links
+   that anyone reading it could use to accept an invitation or reset a password.
 
 5. **Open the address** and create your company with the setup token from step 3.
 

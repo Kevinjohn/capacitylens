@@ -263,6 +263,9 @@ test("keeps the shipped nginx site's headers and log suppression in step with th
   const silenced = (conf) => [...conf.matchAll(/location\s+(~[^{]*)\{\s*access_log off;/g)].map((match) => match[1]);
   assert.equal(silenced(edge).length, 3);
   assert.deepEqual(silenced(site), silenced(edge));
+  const guide = await readFile(join(repositoryRoot, "packaging", "release", "INSTALL.md"), "utf8");
+  const managedHostSite = guide.match(/```nginx\n([\s\S]*?)```/)?.[1] ?? "";
+  assert.deepEqual(silenced(managedHostSite), silenced(site));
   assert.match(site, /client_max_body_size 6m;/);
   assert.match(site, /proxy_read_timeout 130s;/);
   assert.match(site, /return 301 https:\/\/\$host\$request_uri;/);
