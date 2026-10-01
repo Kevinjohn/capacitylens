@@ -4,7 +4,8 @@ import { createApp as buildAppRaw } from "./app";
 import { openDb as openDbRaw, insertAll, type Db } from "./db";
 import { upsertMember } from "./controlTables";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, call, signUp, registerServerFixtureCleanup } from "./testHelpers";
+import { PASSWORD_ENV, call, signUp } from "./testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { createApp } from "./app";
 import { openDb } from "./db";
-import { PASSWORD_ENV } from "./testHelpers";
+import { PASSWORD_ENV } from "./testHelpers/passwordAuth";
 
 let events: Record<string, unknown>[];
 

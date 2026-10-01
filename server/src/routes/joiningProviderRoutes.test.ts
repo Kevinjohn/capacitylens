@@ -9,7 +9,8 @@ import {
   createJoiningProviderCallbacks,
   currentJoiningProviderFacts,
 } from "../accounts/adminPort/joiningProviderCallbacks";
-import { PASSWORD_ENV, readCookies, registerServerFixtureCleanup, signUp } from "../testHelpers";
+import { PASSWORD_ENV, readCookies, signUp } from "../testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "../testHelpers/registerServerFixtureCleanup";
 
 const fixtures = registerServerFixtureCleanup();
 const origin = PASSWORD_ENV.CAPACITYLENS_PUBLIC_URL;

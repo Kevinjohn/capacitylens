@@ -14,7 +14,7 @@ import type {
 import { isIsoInstant } from "@capacitylens/shared/account/types";
 import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "../../auth";
 import { openDb } from "../../db";
-import { PASSWORD_ENV } from "../../testHelpers";
+import { PASSWORD_ENV } from "../../testHelpers/passwordAuth";
 import { createBetterAuthIdentityPort } from "../betterAuthIdentityPort";
 import { buildApplicationSessionHandle } from "../buildApplicationSessionHandle";
 import { recordSessionAssurance } from "../state";

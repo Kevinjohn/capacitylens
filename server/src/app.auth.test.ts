@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { FastifyInstance, LightMyRequestResponse } from "fastify";
+import type { LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb, type Db } from "./db";
 import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
@@ -13,26 +13,8 @@ import {
   buildSessionUser,
 } from "./auth";
 import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
-import { call, PASSWORD_ENV } from "./testHelpers";
-
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function headerValues(value: string | string[] | undefined): string[] {
-  if (Array.isArray(value)) return value;
-  if (value === undefined) return [];
-  return [value];
-}
-
-// This suite keeps its own cookie reader rather than testHelpers' readCookies. readCookies models
-// a browser cookie jar: it de-duplicates by name and drops expired cookies. This one reports every
-// Set-Cookie the server actually sent. The difference is load-bearing in app.auth.bootstrap.test.ts,
-// whose assertions require that a rejected sign-up set no session cookie at all — a cleared cookie
-// must still be visible to fail them. Kept in every file of the suite so the reader is consistent.
-function cookiesOf(res: LightMyRequestResponse): string {
-  const raw = res.headers["set-cookie"];
-  return headerValues(raw)
-    .map((c) => String(c).split(";")[0])
-    .join("; ");
-}
+import { call, PASSWORD_ENV, cookiesOf } from "./testHelpers/passwordAuth";
+import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
 // P3.1/P3.2/P3.5 (flag CAPACITYLENS_MODE → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
@@ -109,11 +91,6 @@ function parseResponseUrl(res: LightMyRequestResponse): string {
   return value.url;
 }
 
-function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
-  if (auth === null) throw new Error("Expected authentication to be configured.");
-  return auth;
-}
-
 function parseFederatedLink(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
   const configuredAuth = parseConfiguredAuth(auth);
   if (configuredAuth.beginFederatedLink === undefined) {
@@ -128,13 +105,6 @@ const SSO_ENV = {
   CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
   CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
 };
-
-async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, env);
-  await runAuthMigrations(parseConfiguredAuth(auth));
-  return createApp(db, { authMode: mode, auth });
-}
 
 function registerAuthOffSurfaceTests(): void {
   it("reports the demo identity from /api/auth/me and gates nothing", async () => {
@@ -380,7 +350,7 @@ describe("CAPACITYLENS_MODE off (default)", () => {
 
 describe("authentication request authority", () => {
   it("returns a bounded 400 for a malformed Host instead of throwing a 500", async () => {
-    const app = await appWithAuth(PASSWORD_ENV);
+    const { app } = await appWithAuth({ env: PASSWORD_ENV });
 
     const res = await call(app, {
       method: "GET",
@@ -440,7 +410,7 @@ describe("normalizeSessionUser (P1.7a)", () => {
 
 describe("CAPACITYLENS_MODE password", () => {
   it("401s data routes without a session; /api/health stays open", async () => {
-    const app = await appWithAuth(PASSWORD_ENV);
+    const { app } = await appWithAuth({ env: PASSWORD_ENV });
     expect((await call(app, { method: "GET", url: "/api/state" })).statusCode).toBe(401);
     expect(
       (
@@ -458,7 +428,7 @@ describe("CAPACITYLENS_MODE password", () => {
   });
 
   it("allowlists the Better Auth proxy surface so unclassified account mutations stay closed", async () => {
-    const app = await appWithAuth(PASSWORD_ENV);
+    const { app } = await appWithAuth({ env: PASSWORD_ENV });
     for (const url of [
       "/api/auth/oauth2/link",
       "/api/auth/link-social",

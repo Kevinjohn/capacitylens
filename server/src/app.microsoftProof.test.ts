@@ -3,7 +3,8 @@ import { createApp } from "./app";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { insertRow, openDb } from "./db";
 import { createInvite } from "./controlTables";
-import { PASSWORD_ENV, readCookies, registerServerFixtureCleanup } from "./testHelpers";
+import { PASSWORD_ENV, readCookies } from "./testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 
 const fixtures = registerServerFixtureCleanup();
 const origin = "http://localhost:8787";

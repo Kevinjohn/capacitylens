@@ -3,7 +3,8 @@ import { createApp } from "./app";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { insertRow, openDb } from "./db";
 import { upsertMember } from "./controlTables";
-import { PASSWORD_ENV, call, registerServerFixtureCleanup, signUp } from "./testHelpers";
+import { PASSWORD_ENV, call, signUp } from "./testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 
 const { sendMail } = vi.hoisted(() => ({ sendMail: vi.fn() }));
 vi.mock("nodemailer", () => ({ default: { createTransport: () => ({ sendMail }) } }));

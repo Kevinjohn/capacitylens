@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LightMyRequestResponse } from "fastify";
-import { readCookies } from "./testHelpers";
+import { readCookies } from "./passwordAuth";
 
 function responseWithCookies(...cookies: string[]): LightMyRequestResponse {
   return { headers: { "set-cookie": cookies } } as LightMyRequestResponse;

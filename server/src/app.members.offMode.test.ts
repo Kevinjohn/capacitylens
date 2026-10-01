@@ -1,25 +1,12 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
+import { openDb } from "./db";
 import { upsertMember, getMemberRole } from "./controlTables";
-import { call } from "./testHelpers";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { call } from "./testHelpers/passwordAuth";
+import { seedTwo } from "./app.members.testSupport";
 
 const TS = "2026-01-01T00:00:00.000Z";
-const meta = () => ({ createdAt: TS, updatedAt: TS });
-const account = (id: string) => ({
-  id,
-  name: `Studio ${id}`,
-  color: "#3b82f6",
-  ...meta(),
-});
-
-function seedTwo(db: Db): void {
-  const d = emptyAppData() as unknown as Record<string, unknown[]>;
-  d.accounts = [account("a1"), account("a2")];
-  insertAll(db, d as unknown as AppData);
-}
 
 const membersReq = (app: FastifyInstance, accountId: string, headers: Record<string, string> = {}) =>
   call(app, {

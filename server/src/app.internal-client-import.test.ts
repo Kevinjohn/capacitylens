@@ -7,7 +7,6 @@ import { emptyAppData, EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/
 import {
   TS,
   meta,
-  deferred,
   freshApp,
   account,
   client,
@@ -18,6 +17,7 @@ import {
   timeOff,
   closure,
 } from "./fixtures/appTestEntities";
+import { deferred } from "./testHelpers/deferred";
 import { call, readErrorResponse, post, put, batch } from "./fixtures/appTestHttp";
 import { readFirstProject } from "./fixtures/appTestSnapshotSchedule";
 import { readOnlyTimeOff, readFirstResource } from "./fixtures/appTestSnapshotAccount";

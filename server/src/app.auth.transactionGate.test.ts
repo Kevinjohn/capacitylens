@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createApp } from "./app";
 import { openDb } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { call, PASSWORD_ENV } from "./testHelpers";
+import { call, PASSWORD_ENV } from "./testHelpers/passwordAuth";
 
 describe("CAPACITYLENS_MODE password", () => {
   // Better Auth locks a verification token before opening its consume transaction; the gate must not

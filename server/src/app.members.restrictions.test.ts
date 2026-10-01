@@ -4,7 +4,7 @@ import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
 import { upsertMember, getMemberRole, getInvite, isAccessRestricted } from "./controlTables";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
+import { PASSWORD_ENV, call, signUp } from "./testHelpers/passwordAuth";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 
 const TS = "2026-01-01T00:00:00.000Z";

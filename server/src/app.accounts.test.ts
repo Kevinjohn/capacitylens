@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import type { FastifyInstance, LightMyRequestResponse } from "fastify";
+import type { LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
 import { upsertMember } from "./controlTables";
-import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord, AuditSink } from "./audit";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
@@ -122,15 +122,6 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
     expect(res.statusCode).toBe(400);
   });
 });
-
-/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!auth) throw new Error("Expected password mode to create an auth instance.");
-  await runAuthMigrations(auth);
-  return { app: createApp(db, { authMode: mode, auth }), db };
-}
 
 describe("auth-on (password) — membership-existence guard", () => {
   it("a member reads their account slice (200); a non-member is 403; /api/accounts lists only memberships", async () => {
