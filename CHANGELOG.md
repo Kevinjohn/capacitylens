@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- The README states the project's status, and the documentation gains three pages: how
+  CapacityLens compares with other tools, how it is tested, and the product philosophy.
 - A new company can start with example data: a **Start with example data** box on the create-company
   form (ticked for a first company), or **Settings, Example data** while the company is empty. It adds
   two people, a client, a project and a few bookings across this week and next, as ordinary rows. An
