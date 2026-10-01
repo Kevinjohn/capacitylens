@@ -13,6 +13,8 @@ returns them to the schedule. When sign-in is off, as in the demo, everyone can 
 
 ## Copy a support report
 
+![Diagnostics: the Support report in the demo, with the report text above Copy diagnostics](../screenshots/flows/diagnostics.png)
+
 Select **Copy diagnostics** and paste the report into your support request. The page shows the
 same text that is copied. A short message confirms the copy, or says that the browser blocked the
 clipboard.
