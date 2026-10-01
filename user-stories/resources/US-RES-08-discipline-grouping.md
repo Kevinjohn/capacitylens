@@ -29,5 +29,6 @@ legible; an unassigned resource still has a home in a catch-all bucket.
   **Schedule** (`data-testid="discipline-group"`).
 - ✅ With **Discipline** = _— None —_, the resource appears after the assigned discipline bands in
   **Studio** or **Supplementary** according to engagement. If the company has no active
-  Supplementary person, it appears in **Unassigned** instead.
+  Supplementary person, it appears in **Unassigned**, the band for people without a discipline,
+  instead.
 - ✅ The grouping reflects the saved discipline immediately on returning to the schedule.

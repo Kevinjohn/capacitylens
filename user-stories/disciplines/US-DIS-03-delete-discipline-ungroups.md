@@ -25,7 +25,7 @@ Reorganising the team should never cost you people. Deleting a discipline is int
 - ✅ The confirmation dialog is titled **Delete discipline?** and clearly states the resources will be **ungrouped, not deleted**.
 - ✅ After confirming, the **Design** discipline is gone from the Disciplines list and from the schedule grouping (no Design group header).
 - ✅ **Bruce Wayne** and the **Senior Designer** placeholder still exist as resources — they now
-  appear under **Unassigned** on the seeded Studio-only schedule (or **Studio** once the company
-  has a Supplementary person), not removed.
+  appear under **Unassigned**, the band for people without a discipline, on the seeded Studio-only
+  schedule (or **Studio** once the company has a Supplementary person), not removed.
 - ✅ Bruce's existing allocations and the placeholder's binding are untouched (only the grouping changed).
 - ✅ Pressing **⌘Z** restores the **Design** discipline and re-groups Bruce and the placeholder under it.

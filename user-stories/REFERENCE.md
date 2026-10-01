@@ -751,7 +751,10 @@ dialogs rather than depending on hidden help copy.
 **Company features (per-account).** Settings → **Scheduling features** holds one **Company features**
 section with five independent switches, in order: **Use disciplines**, **Show placeholders**, **Show
 external resources**, **Inline activity creation** and **Show task field in schedule**. Its help
-action (`About Company features`) explains each one. A new company starts with every switch off.
+action (`About Company features`) explains each one. **Use disciplines** is on by default
+(`disciplinesEnabled` absent reads as on; the temporary in-memory demo creates new companies with it
+off). **Show placeholders**, **Show external resources**, **Inline activity creation** and **Show task
+field in schedule** are off by default (absent reads as off).
 
 **Placeholders and external resources (per-account, default OFF).** The **Show placeholders** and
 **Show external resources** switches in **Company features** are independently configurable.
@@ -823,13 +826,14 @@ Unattributed All-projects allocations retain their resource-derived colours; att
 their effective project's colour.
 
 **Disciplines (account-level).** Settings → **Company features** has the switch **Use disciplines**.
-It is off for a newly created company. Turning it off hides disciplines across the whole app — the **Disciplines** nav
+It is on for a company created on the server (absent reads as on); the temporary in-memory demo
+creates new companies with it off. Turning it off hides disciplines across the whole app — the **Disciplines** nav
 link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline** field in the
 resource form, the **Filter by discipline** control, the discipline part of each Resources-list
 row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle. The
 resource form also hides its **Discipline** field when the company has no disciplines to choose from.
 schedule then groups capacity-tracked resources by **Studio** and **Supplementary** engagement
-(or one **Unassigned** band when nobody is Supplementary), followed by External / 3rd party.
+(or one **Resources** band when nobody is Supplementary), followed by External / 3rd party.
 It's stored on the account
 (`disciplinesEnabled`, syncs but is omitted from the scoped planning-data export), so it applies to everyone on that company; the discipline
 data itself is kept and reappears if switched back on. Both seed companies leave it on.
@@ -841,8 +845,9 @@ External / 3rd parties do not count). Then Resources renders people in separate 
 the schedule, assigned resources stay in canonical discipline order and unassigned resources follow
 in separate **Studio** then **Supplementary** bands. With disciplines off, those engagement bands
 become the primary schedule grouping. Empty bands never render and External / 3rd party remains
-last. A Studio-only company sees one People list in Resources and one **Unassigned** fallback band on
-the schedule for resources outside a discipline. Placeholders remain after people inside the
+last. A Studio-only company sees one People list in Resources and one fallback band on the schedule:
+**Unassigned** for resources outside a discipline while disciplines are on, or **Resources** for
+everyone when disciplines are off. Placeholders remain after people inside the
 applicable band. Settings has no control for it.
 
 **Example data (Settings → Example data).** Shown to an Owner or Admin
@@ -1545,7 +1550,8 @@ multiple).
   first and alphabetical inside each engagement partition, followed by placeholders. Unassigned
   resources follow the assigned discipline bands as separate Studio and Supplementary bands; those
   engagement bands become the complete capacity grouping when disciplines are off. A company with
-  no active Supplementary person gets one **Unassigned** band instead, while retaining
+  no active Supplementary person gets one band instead (**Unassigned** with disciplines on,
+  **Resources** with disciplines off), while retaining
   favourites-first alphabetical order. Favourite external parties similarly lead the
   final External band. Favourites are company data shared by every account member, not per-user
   view preferences.

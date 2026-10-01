@@ -26,8 +26,8 @@ new features and **patch** versions carry fixes.
   external resources**, **Inline activity creation** and **Show task field in schedule**) in one
   **Company features** section (#1408).
 - People are grouped into Studio and Supplementary only while the company has an active
-  Supplementary person; a Studio-only team sees one list on Resources and one Unassigned band on the
-  schedule (#1408).
+  Supplementary person. A Studio-only team sees one list on Resources and one schedule band, titled
+  Resources when disciplines are off and Unassigned for people without a discipline (#1408).
 - Internal projects and activities are always shown and always use neutral grey (#1408).
 - The schedule always snaps a free scroll back to the week start and always uses the roomier row
   spacing (#1408).
