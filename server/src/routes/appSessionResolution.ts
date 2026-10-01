@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AccountAuditPort, IdentityPort } from "@capacitylens/shared/account/ports";
 import type { ApplicationSession } from "@capacitylens/shared/account/types";
@@ -76,8 +77,18 @@ function isMasqueradeWriteExempt(method: string, path: string): boolean {
   );
 }
 
+function isPublicJoiningPath(method: string, path: string): boolean {
+  return (
+    (method === "GET" && /^\/api\/accounts\/[^/]+\/join\/metadata$/.test(path)) ||
+    (method === "POST" && /^\/api\/accounts\/[^/]+\/join\/provider\/start$/.test(path)) ||
+    (method === "GET" && path === "/api/company-join/status") ||
+    (method === "POST" && path === "/api/company-join/cancel")
+  );
+}
+
 function isUnauthenticatedApplicationPath(method: string, path: string): boolean {
   return (
+    isPublicJoiningPath(method, path) ||
     ((method === "GET" || method === "POST") &&
       /^\/api\/account\/microsoft\/(start|status|confirm|resend|cancel)$/.test(path)) ||
     /^\/api\/invites\/[^/]+\/signup$/.test(path) ||
@@ -196,7 +207,11 @@ async function requireApplicationSession(input: RequireApplicationSessionInput):
     return;
   }
   const user = buildSessionUser(resolution.session);
-  if (dependencies.authMode === "password" && dependencies.requireMfa && !hasRequiredSessionMfa(resolution.session)) {
+  if (
+    allowsPasswordSignIn(dependencies.authMode) &&
+    dependencies.requireMfa &&
+    !hasRequiredSessionMfa(resolution.session)
+  ) {
     dependencies.securityEvent({
       event: "mfa_required",
       outcome: "blocked",

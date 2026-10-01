@@ -45,12 +45,16 @@ const EXPECTED_OFF_ROUTES = [
   "GET /api/accounts/:accountId/getting-started",
   "HEAD /api/accounts/:accountId/getting-started",
   "PUT /api/accounts/:accountId/getting-started",
+  "POST /api/accounts/:accountId/example-data",
   "POST /api/account-commands/reconcile",
   "POST /api/account/sign-out",
   "GET /api/account/sessions",
   "HEAD /api/account/sessions",
   "DELETE /api/account/sessions/:sessionId",
   "POST /api/invites",
+  "GET /api/accounts/:accountId/joining-policy",
+  "HEAD /api/accounts/:accountId/joining-policy",
+  "PUT /api/accounts/:accountId/joining-policy",
   "GET /api/invites/:token/preview",
   "HEAD /api/invites/:token/preview",
   "POST /api/invites/:token/accept",
@@ -65,6 +69,7 @@ const EXPECTED_OFF_ROUTES = [
   "PUT /api/accounts/:accountId/member-sign-in-tracking",
   "PATCH /api/accounts/:accountId/members/:userId",
   "PATCH /api/accounts/:accountId/members/:userId/status",
+  "POST /api/accounts/:accountId/members/:userId/enable-access",
   "DELETE /api/accounts/:accountId/members/:userId",
   "GET /api/accounts/:accountId/ownership-transfer",
   "HEAD /api/accounts/:accountId/ownership-transfer",
@@ -126,12 +131,16 @@ const EXPECTED_AUTH_ROUTES = [
   "GET /api/accounts/:accountId/getting-started",
   "HEAD /api/accounts/:accountId/getting-started",
   "PUT /api/accounts/:accountId/getting-started",
+  "POST /api/accounts/:accountId/example-data",
   "POST /api/account-commands/reconcile",
   "POST /api/account/sign-out",
   "GET /api/account/sessions",
   "HEAD /api/account/sessions",
   "DELETE /api/account/sessions/:sessionId",
   "POST /api/invites",
+  "GET /api/accounts/:accountId/joining-policy",
+  "HEAD /api/accounts/:accountId/joining-policy",
+  "PUT /api/accounts/:accountId/joining-policy",
   "GET /api/invites/:token/preview",
   "HEAD /api/invites/:token/preview",
   "POST /api/invites/:token/accept",
@@ -146,6 +155,7 @@ const EXPECTED_AUTH_ROUTES = [
   "PUT /api/accounts/:accountId/member-sign-in-tracking",
   "PATCH /api/accounts/:accountId/members/:userId",
   "PATCH /api/accounts/:accountId/members/:userId/status",
+  "POST /api/accounts/:accountId/members/:userId/enable-access",
   "DELETE /api/accounts/:accountId/members/:userId",
   "GET /api/accounts/:accountId/ownership-transfer",
   "HEAD /api/accounts/:accountId/ownership-transfer",
@@ -182,7 +192,14 @@ const EXPECTED_AUTH_ROUTES = [
 ];
 
 const EXPECTED_ROOT_HOOKS = {
-  onRequest: ["abortOnClientDisconnect", "helmetConfigureReply", "helmetApplyHeaders", "enforceOriginPolicy"],
+  onRequest: [
+    "stampAuthClientIp",
+    "abortOnClientDisconnect",
+    "holdAuthTransactionGate",
+    "helmetConfigureReply",
+    "helmetApplyHeaders",
+    "enforceOriginPolicy",
+  ],
   preHandler: [""],
   onSend: [""],
   onResponse: [""],
@@ -195,6 +212,8 @@ function methods(method: HTTPMethods | HTTPMethods[]): HTTPMethods[] {
 
 function stubAuth(): Auth {
   return {
+    mail: null,
+    publicUrl: new URL("http://localhost:8787"),
     handler: async () => new Response(null),
     api: {
       getSession: async () => null,
@@ -216,7 +235,7 @@ function buildTrackedApp(auth: Auth | null = null): { app: FastifyInstance; regi
     allowReset: true,
     optimisticConcurrency: false,
     rateLimit: 2,
-    ...(auth ? { authMode: "password", auth } : {}),
+    ...(auth ? { authMode: "password-only", auth } : {}),
   });
   app.addHook("onRoute", (routeOptions: RouteOptions) => {
     for (const method of methods(routeOptions.method)) {

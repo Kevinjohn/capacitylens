@@ -51,7 +51,7 @@ const account = (id: string) => ({
 const client = (id: string, accountId: string) => ({
   id,
   accountId,
-  name: "Acme",
+  name: "Ferris",
   color: "#3b82f6",
   ...meta(),
 });

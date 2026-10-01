@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp } from "./browserTestSupport";
 import { MAX_IMPORT_RECORDS } from "@capacitylens/shared/data/transfer";
 import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 
@@ -116,14 +116,14 @@ const openSchedule = (page: Page) => page.getByRole("link", { name: "Schedule", 
 
 // Covers US-DAT-02..04 and the canonical demo seed. Export round-trip and reset-on-reload
 // are covered in e2e/crud.spec.ts; server persistence lives in persistence.db.spec.ts.
-function registerSuiteScenario1() {
+function registerSeedsDemoDatasetFirstLoadTest() {
   test("seeds a demo dataset on first load", async ({ page }) => {
     await openApp(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
 }
 
-function registerSuiteScenario2() {
+function registerImportShowsConfirmationReplacesAllTest() {
   test("import shows a confirmation that replaces all data; Cancel keeps the data", async ({ page }) => {
     await openApp(page);
     await importFile(page, "incoming.json", NONEMPTY_CAPACITYLENS);
@@ -146,7 +146,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerConfirmingImportReplacesDatasetRestoresTest() {
   test("confirming an import replaces the dataset and ⌘Z restores it", async ({ page }) => {
     await openApp(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
@@ -180,7 +180,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerRejectsNonCapacitylensFileNoticeTest() {
   test("rejects a non-CapacityLens file with a notice and preserves existing data", async ({ page }) => {
     await openApp(page);
     await importFile(page, "random.json", JSON.stringify({ hello: "world" }));
@@ -194,7 +194,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerRejectsEMPTYCapacitylensFileWouldTest() {
   test("rejects an EMPTY CapacityLens file (would silently wipe the account) with a notice", async ({ page }) => {
     await openApp(page);
     await importFile(page, "empty.json", EMPTY_CAPACITYLENS);
@@ -258,7 +258,7 @@ const refusalCases: Array<{
   },
 ];
 
-function registerSuiteScenario6() {
+function registerRejectsRefusalNamePreciseNoticeTests() {
   for (const refusal of refusalCases) {
     test(`rejects ${refusal.name} with its precise notice and preserves existing data`, async ({ page }) => {
       await openApp(page);
@@ -273,10 +273,10 @@ function registerSuiteScenario6() {
 }
 
 test.describe("Data import/export", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
+  registerSeedsDemoDatasetFirstLoadTest();
+  registerImportShowsConfirmationReplacesAllTest();
+  registerConfirmingImportReplacesDatasetRestoresTest();
+  registerRejectsNonCapacitylensFileNoticeTest();
+  registerRejectsEMPTYCapacitylensFileWouldTest();
+  registerRejectsRefusalNamePreciseNoticeTests();
 });

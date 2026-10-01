@@ -7,6 +7,7 @@
 import { spawn } from "node:child_process";
 import { rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { mirrorChildExit } from "../../scripts/devProcesses.mjs";
 import { ports } from "../../scripts/ports.mjs";
 
 const flavour = process.argv[2];
@@ -25,7 +26,7 @@ const FLAVOURS = {
     wipe: true,
     env: {
       PORT: String(lanePorts.authApi),
-      SMALLSASS_ACCOUNT_MODE: "password",
+      SMALLSASS_ACCOUNT_MODE: "password-only",
       CAPACITYLENS_CREATE_ADMIN_ADMIN: "1",
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: "auth-e2e-password-2026",
       SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off",
@@ -61,15 +62,4 @@ const child = spawn("tsx", ["src/index.ts"], {
   env: { ...process.env, CAPACITYLENS_DB: database, ...env },
 });
 
-for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => child.kill(signal));
-child.on("error", (error) => {
-  console.error(`e2e-server: could not start tsx: ${error.message}`);
-  process.exit(1);
-});
-child.on("exit", (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
-  }
-  process.exit(code ?? 1);
-});
+mirrorChildExit(child, { label: "e2e-server: tsx" });

@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -75,20 +76,22 @@ describe("Getting started", () => {
   it("keeps the completed bar until dismissal and skips the warning at 5/5", async () => {
     resetStoreWithAccount("acct-complete-checklist");
     const store = useStore.getState();
-    const person = store.addResource({
-      kind: "person",
-      name: "Bruce Wayne",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio",
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#2d75da",
-    });
-    const client = store.addClient({ name: "Wayne Enterprises", color: "#2d75da" });
+    const person = requireCreated(
+      store.addResource({
+        kind: "person",
+        name: "Bruce Wayne",
+        role: "Designer",
+        employmentType: "permanent",
+        engagement: "studio",
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#2d75da",
+      }),
+    );
+    const client = requireCreated(store.addClient({ name: "Wayne Enterprises", color: "#2d75da" }));
     store.addProject({ name: "Wayne redesign", clientId: client.id, color: "#2d75da" });
-    const activity = store.addActivity({ name: "Planning", kind: "internal" });
+    const activity = requireCreated(store.addActivity({ name: "Planning", kind: "internal" }));
     store.addAllocation({
       resourceId: person.id,
       activityId: activity.id,

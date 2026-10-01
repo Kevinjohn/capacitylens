@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
 import { scopeData } from "./selectors";
@@ -30,7 +31,7 @@ function twoAccountData(): AppData {
 
 const invalidImportedData: AppData = {
   ...emptyAppData(),
-  clients: [{ id: "old-c1", accountId: "foreign", createdAt: "t", updatedAt: "t", name: "Acme", color: "#ef4444" }],
+  clients: [{ id: "old-c1", accountId: "foreign", createdAt: "t", updatedAt: "t", name: "Ferris", color: "#ef4444" }],
   projects: [
     {
       id: "old-p1",
@@ -168,7 +169,7 @@ describe("account CRUD", () => {
 
   it("addAccount works with no active account (bootstraps the first tenant)", () => {
     expect(s().activeAccountId).toBeNull();
-    const a = present(s().addAccount({ name: "Acme Co", color: "#6366f1" }));
+    const a = present(s().addAccount({ name: "Ferris Co", color: "#6366f1" }));
     expect(a.id).toBeTruthy();
     expect(s().data.accounts).toHaveLength(1);
   });
@@ -199,7 +200,7 @@ describe("account CRUD", () => {
   });
 
   it("scoped add* throws without an active account", () => {
-    expect(() => s().addClient({ name: "X", color: "#1" })).toThrow(/no active account/i);
+    expect(() => requireCreated(s().addClient({ name: "X", color: "#1" }))).toThrow(/no active account/i);
   });
 
   it("deleteAccount cascade-drops all of that account’s scoped data and clears it if active", () => {

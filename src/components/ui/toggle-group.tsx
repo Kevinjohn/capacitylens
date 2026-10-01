@@ -2,7 +2,7 @@ import * as React from "react";
 import { type VariantProps } from "class-variance-authority";
 import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 import { toggleVariants } from "@/components/ui/toggle";
 
 // Local shadcn deviation: omit the registry's connected-item geometry because SegmentedControl

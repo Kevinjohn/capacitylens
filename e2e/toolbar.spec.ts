@@ -1,9 +1,15 @@
 import { test, expect } from "./fixtures";
-import { boundingBoxOrThrow as box, openApp, resetSchedulerScroll, setZoom, showScheduleFilters } from "./helpers";
+import {
+  boundingBoxOrThrow as box,
+  openApp,
+  resetSchedulerScroll,
+  setZoom,
+  showScheduleFilters,
+} from "./browserTestSupport";
 
 // Covers US-TBR-01..07 and the toolbar-owned week-snap cases from US-TBR-08; scheduler.spec.ts
 // covers the remaining US-TBR-08 navigation paths.
-function registerSuiteScenario1() {
+function registerZoomsTimelineTracksActiveLevelTest() {
   test("zooms the timeline and tracks the active level", async ({ page }) => {
     await openApp(page);
     // #173: the weeks dropdown replaced the 1w..8w segments — the current span is the closed
@@ -21,7 +27,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerShowsZoomLevelDropdownOpensTest() {
   test("shows every zoom level when the dropdown opens", async ({ page }) => {
     await openApp(page);
     const weeks = page.getByRole("combobox", { name: "Weeks visible" });
@@ -37,7 +43,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerPansWindowWeekPrevNextTest() {
   test("pans the window a week with Prev and Next", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -57,7 +63,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerReCentresTodayScrollingAwayTest() {
   test("re-centres on Today after scrolling away", async ({ page }) => {
     await openApp(page);
     const grid = page.getByTestId("scheduler-grid");
@@ -73,7 +79,7 @@ function registerSuiteScenario4() {
 // Its coverage lives at the two levels that still exercise it: the component
 // (src/components/scheduler/JumpToDateInput.test.tsx) and the week-start snap it triggers
 // (goToDate in src/store/useStore.test.ts). This test asserts only that it is gone from the bar.
-function registerSuiteScenario5() {
+function registerDoesExposeJumpDatePickerTest() {
   test("does not expose the jump-to-date picker", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-toolbar")).toBeVisible();
@@ -81,7 +87,7 @@ function registerSuiteScenario5() {
   });
 }
 
-function registerSuiteScenario6() {
+function registerShowsResponsiveFilterRowSearchTest() {
   test("shows a responsive filter row with search left and the remaining controls grouped right", async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await openApp(page);
@@ -136,7 +142,7 @@ function registerSuiteScenario6() {
   });
 }
 
-function registerSuiteScenario7() {
+function registerSwitchesDrawModeBetweenWorkTest() {
   test("switches draw mode between Work and Time off", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -181,7 +187,7 @@ function registerSuiteScenario7() {
 // Undo/redo now has BOTH a visible affordance (the toolbar buttons) and the global
 // ⌘Z / ⌘⇧Z shortcut (handled in AppShell). This test drives the buttons + their
 // disabled states; the keyboard test below covers the shortcut path + the typing guard.
-function registerSuiteScenario8() {
+function registerUndoesRedoesToolbarButtonsDisabledTest() {
   test("undoes and redoes with the toolbar buttons, disabled when the stack is empty", async ({ page }) => {
     await openApp(page);
     const undoBtn = page.getByTestId("undo-button");
@@ -212,7 +218,7 @@ function registerSuiteScenario8() {
   });
 }
 
-function registerSuiteScenario9() {
+function registerUndoesRedoesKeyboardIgnoresShortcutTests() {
   test("undoes/redoes with the keyboard and ignores the shortcut while typing", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -240,13 +246,13 @@ function registerSuiteScenario9() {
 }
 
 test.describe("Toolbar", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
-  registerSuiteScenario7();
-  registerSuiteScenario8();
-  registerSuiteScenario9();
+  registerZoomsTimelineTracksActiveLevelTest();
+  registerShowsZoomLevelDropdownOpensTest();
+  registerPansWindowWeekPrevNextTest();
+  registerReCentresTodayScrollingAwayTest();
+  registerDoesExposeJumpDatePickerTest();
+  registerShowsResponsiveFilterRowSearchTest();
+  registerSwitchesDrawModeBetweenWorkTest();
+  registerUndoesRedoesToolbarButtonsDisabledTest();
+  registerUndoesRedoesKeyboardIgnoresShortcutTests();
 });

@@ -12,6 +12,8 @@ import { OverviewLegend } from "./OverviewLegend";
 import { OverviewToolbar } from "./OverviewToolbar";
 import type { PersonScheduleTriggerHandlers } from "./CapacityOverviewTableGrid";
 import type { CapacityOverviewModel } from "./capacityOverviewModel";
+import { useResourceAvatars } from "../../account/useResourceAvatars";
+import { useStore } from "../../store/useStore";
 
 export interface CapacityOverviewTableProps {
   model: CapacityOverviewModel;
@@ -35,6 +37,8 @@ interface CapacityOverviewTableWithScheduleProps extends CapacityOverviewTablePr
 }
 
 export function CapacityOverviewTable(props: CapacityOverviewTableWithScheduleProps) {
+  const activeAccountId = useStore((state) => state.activeAccountId);
+  const resourceAvatars = useResourceAvatars(activeAccountId);
   const internalFallbackRef = useRef<HTMLDivElement>(null);
   const fallbackRef = props.fallbackRef ?? internalFallbackRef;
   const personScheduleDrawer = usePersonScheduleDrawer({ data: props.data, fallbackRef });
@@ -68,6 +72,7 @@ export function CapacityOverviewTable(props: CapacityOverviewTableWithSchedulePr
           <section className="overflow-hidden rounded-[14px] border border-line bg-surface shadow-[0_1px_2px_rgba(20,22,26,0.05),0_8px_24px_-16px_rgba(20,22,26,0.18)]">
             <CapacityTable
               model={props.model}
+              resourceAvatars={resourceAvatars}
               showTotals={props.showTotals}
               capacityDisplayMode={props.capacityDisplayMode}
               {...triggerHandlers}

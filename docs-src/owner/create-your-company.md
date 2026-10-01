@@ -29,6 +29,8 @@ Choose Week starts on and Timezone. These apply to everyone and cannot be change
 
 Language is a select with **English** as its only option. It is fixed for this installation.
 
+**Start with example data** adds two people, a client, a project and a few bookings across this week and next, so the schedule is not empty. It is ticked by default for a first company; untick it to start empty. If the example data cannot be added, the company is still created and you can add it later under Settings.
+
 Select Create company to open Schedule.
 
 [Appoint an Admin](/owner/appoint-an-admin)

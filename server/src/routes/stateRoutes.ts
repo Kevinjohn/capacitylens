@@ -12,12 +12,13 @@ import { insertRow, listAccountSummaries, readState } from "../db";
 import type { LocalAccountFlows } from "../accounts/createLocalAccountFlows";
 import type { MasqueradeRegistry } from "../MasqueradeRegistry";
 import type { TenantStore } from "../tenantStore";
-import { listAcceptedFieldNames, sanitizeWrite, assertValidWrite } from "../validate";
+import { listAcceptedFieldNames, sanitizeWrite, assertValidWrite, ValidationError } from "../validate";
 import { buildReadSliceVisibility, resolveVisibilityForRole } from "../fieldPolicy";
 import { enqueueAudit } from "../auditOutbox";
 import { buildCanonicalAccountProductPayload } from "./accountEntityRoutes";
 import { ALL_FIELDS_VISIBLE, type AuthorizeRoute } from "./routeShared";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 type StateAccountAdministration = AccountAdminPort & {
   roleForPrincipalInWorkspace(principalId: string, workspaceId: string): Role | null;
@@ -33,12 +34,8 @@ function buildWorkspaceId(commandId: string): string {
     .slice(0, 21)}`;
 }
 
-function isUnknownRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function resolveWorkspaceId(body: unknown, commandId: string): string {
-  if (isUnknownRecord(body) && typeof body.id === "string" && body.id.trim() !== "") return body.id;
+  if (isRecord(body) && typeof body.id === "string" && body.id.trim() !== "") return body.id;
   return buildWorkspaceId(commandId);
 }
 
@@ -178,7 +175,7 @@ function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDepend
     // via ?accountId= (the client picker
     // → GET /api/accounts → GET /api/state?accountId=). Returning the whole DB to any authed user
     // was a tenant-isolation leak; 400 it. OFF mode is trusted-local, so it RETAINS the whole read
-    // (db-helpers, the OFF db-backed e2e, and the OFF app.accounts tests all rely on it). The client
+    // (serverTestState, the OFF db-backed e2e, and the OFF app.accounts tests all rely on it). The client
     // adapter treats this 400 on the NO-ARG read as "hydrate empty, show the picker" (see
     // ServerSyncAdapter.loadAll), so a no-arg bootstrap in auth-on lands on the picker, not an error.
     // OFF retains its trusted-local whole read. This whole read does not redact the
@@ -276,12 +273,14 @@ async function createOrganisation(
   // exists, absent a bootstrap token. The gate runs in auth-on AND off; in off mode (1)/(2) already
   // allow, so the token/membership branches are moot there.
   try {
+    if (!isRecord(req.body)) throw new ValidationError("Company details must be an object.");
+
     // Build a VALID account row from the body (name required; colour repaired; junk schedulingMode
     // dropped) via the SAME sanitize/validate the generic account create uses — so /api/orgs can't
     // persist a row the generic path would reject. The id is generated server-side when the body
     // omits one (the org-create caller need not mint it, unlike the entity sync path); a provided id
     // is accepted and validated like any other write.
-    if (authMode === "sso" && !isPermittedCompanyProvider(auth, req.authenticationProviderId)) {
+    if (authMode === "sso-only" && !isPermittedCompanyProvider(auth, req.authenticationProviderId)) {
       return accountFail(
         reply,
         new AccountContractError({
@@ -298,9 +297,9 @@ async function createOrganisation(
     const accountRow = sanitizeWrite({
       table: "accounts",
       row: {
-        ...(req.body as Record<string, unknown>),
-        schedulingMode: (req.body as Record<string, unknown>).schedulingMode ?? "days",
-        inlineActivityCreateEnabled: (req.body as Record<string, unknown>).inlineActivityCreateEnabled ?? false,
+        ...req.body,
+        schedulingMode: req.body.schedulingMode ?? "days",
+        inlineActivityCreateEnabled: req.body.inlineActivityCreateEnabled ?? false,
         id,
         createdAt: now,
         updatedAt: now,

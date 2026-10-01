@@ -38,6 +38,7 @@ export function isOwnershipTransferExpired(expiresAt: string, now: number): bool
   return deadline === null || now >= deadline;
 }
 
+/** The caller's current relationship to one request, re-read inside the transaction. */
 export interface OwnershipTransferActorStanding {
   /** The caller's CURRENT active role in the company, re-read inside the transaction. */
   callerRole: Role;

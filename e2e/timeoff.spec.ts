@@ -1,8 +1,8 @@
 import { test, expect } from "./fixtures";
-import { goToSeedWeek, openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./helpers";
+import { goToSeedWeek, openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./browserTestSupport";
 
 // Covers US-TOF-01..05.
-function registerSuiteScenario1() {
+function registerBooksTimeOffShowsLabelledTest() {
   test("books time off and shows it as a labelled block on the schedule", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     await page.getByRole("button", { name: "Add time off" }).click();
@@ -33,7 +33,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerGroupsCurrentFutureEntriesResourceTest() {
   test("groups current and future entries by resource and orders groups and dates", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
 
@@ -71,7 +71,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerKeepsListRowTerseStartTest() {
   test("keeps the list row terse (start date + day count); the type label stays on the timeline", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     const row = page
@@ -94,7 +94,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerEditsTimeOffEntryListTest() {
   test("edits a time-off entry and the list reflects the change", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     const row = page
@@ -119,7 +119,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerDeletesTimeOffEntryConfirmationTest() {
   test("deletes a time-off entry after confirmation and restores it with undo", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     const bruceGroup = page
@@ -154,7 +154,7 @@ function registerSuiteScenario5() {
   });
 }
 
-function registerSuiteScenario6() {
+function registerCreatesRepeatedTimeOffIndependentTests() {
   test("creates repeated time off as independent entries with one undo", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     await page.getByRole("button", { name: "Add time off" }).click();
@@ -197,10 +197,10 @@ function registerSuiteScenario6() {
 }
 
 test.describe("Time off", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
+  registerBooksTimeOffShowsLabelledTest();
+  registerGroupsCurrentFutureEntriesResourceTest();
+  registerKeepsListRowTerseStartTest();
+  registerEditsTimeOffEntryListTest();
+  registerDeletesTimeOffEntryConfirmationTest();
+  registerCreatesRepeatedTimeOffIndependentTests();
 });

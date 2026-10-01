@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Separator as SeparatorPrimitive } from "radix-ui";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 
 // shadcn Separator on the `radix-ui` umbrella. Stock uses bg-border — capacitylens maps --color-border
 // to its own --border token (the slate hairline), so it's the correct hairline in both themes;

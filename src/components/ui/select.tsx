@@ -2,7 +2,7 @@ import * as React from "react";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 
 function Select({
   ...props
@@ -104,7 +104,7 @@ function SelectLabel({
 }
 
 // CapacityLens additions over the registry primitive: `data-value` is the stable value-level hook
-// used by e2e/helpers.ts (visible labels are localized). SelectField overrides it through `props`
+// used by e2e/browserTestSupport.ts (visible labels are localized). SelectField overrides it through `props`
 // with the unencoded domain value while Radix receives its collision-safe internal value. The
 // indicator slot keeps component anatomy inspectable. Preserve both on a shadcn Select refresh.
 function SelectItem({

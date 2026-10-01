@@ -1,21 +1,7 @@
-import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isAccountSessionId } from "@capacitylens/shared/account/validation";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountRouteContext } from "../createReplyHelpers";
-
-function createAuthenticationRequiredError() {
-  return new AccountContractError({
-    code: "AUTHENTICATION_REQUIRED",
-    message: "Sign in to continue.",
-    retryable: false,
-  });
-}
-
-function assertAccountActor(req: FastifyRequest) {
-  const actor = req.accountActor;
-  if (!actor) throw createAuthenticationRequiredError();
-  return actor;
-}
+import { requireAccountActor } from "./authenticatedPrincipal";
 
 function createRequestHeaders(headers: FastifyRequest["headers"]): Headers {
   const requestHeaders = new Headers();
@@ -29,7 +15,11 @@ function createRequestHeaders(headers: FastifyRequest["headers"]): Headers {
   return requestHeaders;
 }
 
-export async function signOut(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function signOut(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "fail" | "identity">,
+) {
   const { identity: identityPort, fail: accountFail } = context;
 
   try {
@@ -43,17 +33,25 @@ export async function signOut(req: FastifyRequest, reply: FastifyReply, context:
   }
 }
 
-export async function listSessions(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function listSessions(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "fail" | "identity">,
+) {
   const { identity: identityPort, fail: accountFail } = context;
 
   try {
-    return reply.code(200).send({ sessions: await identityPort.listSessions({ actor: assertAccountActor(req) }) });
+    return reply.code(200).send({ sessions: await identityPort.listSessions({ actor: requireAccountActor(req) }) });
   } catch (error) {
     return accountFail(reply, error);
   }
 }
 
-export async function revokeSession(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function revokeSession(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: Pick<AccountRouteContext, "command" | "fail" | "identity">,
+) {
   const { identity: identityPort, command: accountCommand, fail: accountFail } = context;
 
   const params: unknown = req.params;
@@ -66,7 +64,7 @@ export async function revokeSession(req: FastifyRequest, reply: FastifyReply, co
   }
   try {
     await identityPort.revokeOwnSession({
-      actor: assertAccountActor(req),
+      actor: requireAccountActor(req),
       sessionId,
       command: accountCommand(req),
     });

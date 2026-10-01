@@ -1,27 +1,15 @@
-import type { Draft, Patch, LifecycleEntity } from "./entityDrafts";
+import type { Draft, Patch } from "./entityDrafts";
 import type { Filters } from "./filters";
+import type { StoreEntityActions } from "./StoreEntityActions";
 export * from "./entityDrafts";
 export * from "./filters";
+export * from "./StoreEntityActions";
 import type { WeeksZoom } from "../lib/schedulerConfig";
 import type { BarLabelPreferences, UtilizationPreferences } from "../lib/displayPrefs";
 import type { ThemePreference } from "../lib/theme";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
-import type {
-  Account,
-  Activity,
-  Allocation,
-  AppData,
-  Client,
-  Closure,
-  Discipline,
-  ID,
-  ISODate,
-  Phase,
-  Project,
-  Resource,
-  TimeOff,
-} from "@capacitylens/shared/types/entities";
+import type { Account, AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
 
 export type MasqueradeRuntimeState =
   | { kind: "inactive" }
@@ -103,7 +91,7 @@ export interface SchedulerUI {
   scrollToResource: { id: ID; token: number; consumed: boolean } | null;
 }
 
-export interface StoreState {
+export interface StoreState extends StoreEntityActions {
   data: AppData;
   ui: SchedulerUI;
   hydrated: boolean;
@@ -215,9 +203,17 @@ export interface StoreState {
    * controller establishes or removes the authoritative server projection. */
   masquerade: MasqueradeRuntimeState;
 
+  /** Create a company with its built-in Internal client and list it for the picker. Null when a Viewer is blocked. */
   addAccount: (input: Draft<Account>) => Account | null;
+  /** Patch a company's settings; undoable. Throws a display-safe `Error` on invalid working days. */
   updateAccount: (id: ID, patch: Patch<Account>) => void;
+  /**
+   * Delete a company and everything it owns, clearing undo history. With a company active, only that
+   * company may be deleted and any other id throws; from the picker (no active company) any existing
+   * company may be deleted. An unknown id is ignored.
+   */
   deleteAccount: (id: ID) => void;
+  /** Enter a company, or pass null for the picker. Clears undo history; an unknown id returns to the picker with a notice. */
   setActiveAccount: (id: ID | null) => void;
   /** Start one server-directory read and return its monotonic identity. */
   beginAccountSummariesRequest: () => number;
@@ -225,20 +221,27 @@ export interface StoreState {
    *  an unbound direct mutation invalidates every in-flight request. Returns whether it applied. */
   setAccountSummaries: (list: AccountSummary[], requestId?: number, complete?: boolean) => boolean;
 
+  /** Publish freshly loaded data. Leaves the company, with a notice, when the active one is no longer present. */
   replaceAll: (data: AppData) => void;
   /** Replace the active account's slice from an import; undoable via ⌘Z. Returns a
    *  summary of how many records were brought in vs. dropped as invalid. */
   importData: (data: AppData) => ImportSummary;
+  /** Record whether the initial load has finished. */
   setHydrated: (value: boolean) => void;
+  /** Record whether the latest save failed. */
   setPersistError: (value: boolean) => void;
+  /** Record whether stored local data could not be read. */
   setLoadError: (value: boolean) => void;
+  /** Record whether the server could not be reached. */
   setConnectionError: (value: boolean) => void;
+  /** Show a notice with the given tone (default `info`), or clear it with null. */
   setNotice: (message: string | null, tone?: "info" | "warning" | "error") => void;
   /** Announce a capacity outcome to the grid's polite aria-live region (WCAG 4.1.3). Bumps `seq`
    *  so the SAME text re-announces (an aria-live region re-reads only on a content change). Call
    *  ONLY after a successful KEYBOARD-committed allocation edit — pointer drags give sighted
    *  feedback and must not announce. Transient, never persisted/undone. */
   announceCapacity: (text: string) => void;
+  /** Set the unsaved-work flag directly; prefer `setDirtyFormSource` for per-component ownership. */
   setDirtyForm: (value: boolean) => void;
   /** Publish or clear one component's dirty contribution without disturbing another owner. */
   setDirtyFormSource: (source: symbol, dirty: boolean) => void;
@@ -256,6 +259,7 @@ export interface StoreState {
   setMinimiseWeekends: (value: boolean) => void;
   /** Toggle the snap-to-week-start preference: persist and update state. */
   setSnapToWeekStart: (value: boolean) => void;
+  /** Toggle the compact schedule density: persist and update state. */
   setCompactView: (value: boolean) => void;
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void;
@@ -265,107 +269,38 @@ export interface StoreState {
   setActiveRole: (role: Role | null, status?: "not-applicable" | "pending" | "resolved" | "unavailable") => void;
   /** Invalidate all client projections derived from account membership. */
   invalidateMemberships: () => void;
+  /** Replace the view-as-member runtime state. */
   setMasquerade: (state: MasqueradeRuntimeState) => void;
+  /** Empty both undo and redo stacks. */
   clearUndoHistory: () => void;
   /** Sign out of the cosmetic demo: drop the active company AND the "back" breadcrumb, then
    *  clear the device-global flag so the demo sign-in shows again. Cosmetic only — never
    *  touches the real auth seam (`src/auth/`); both call sites are guarded by `authMode === 'off'`. */
   signOutDemo: () => void;
+  /** Restore the previous data snapshot, if any. */
   undo: () => void;
+  /** Re-apply the most recently undone snapshot, if any. */
   redo: () => void;
 
-  // --- Scoped entity CRUD (disciplines / resources / clients / projects / phases / activities /
-  // allocations / time off). CONTRACT — identical for every add*/update*/delete* below, and
-  // invisible in the signatures, so it lives here:
-  //  • Runs against the ACTIVE account and is undoable (⌘Z).
-  //  • THROWS an Error whose message is SAFE TO DISPLAY on a tenancy/integrity violation (a
-  //    cross-account id, a dangling required FK, a reversed date range, an empty working-day set,
-  //    or no active account). The store is the LAST line of defence ("forms reject; store
-  //    backstops"), so these MUST throw — do not wrap them to swallow.
-  //  • Silently NO-OPS on a STALE id (update/delete of a row not owned by the active account — e.g.
-  //    a drag committed after an undo removed the row). That's a benign race, not corruption.
-  //  • Callers that take USER INPUT must wrap the call in try/catch and surface e.message (see
-  //    TimeOffForm / AllocationModal). A throw left uncaught surfaces only as a React error.
-  addDiscipline: (input: Draft<Discipline>) => Discipline;
-  updateDiscipline: (id: ID, patch: Patch<Discipline>) => void;
-  deleteDiscipline: (id: ID) => void;
-
-  addResource: (input: Draft<Resource>) => Resource;
-  updateResource: (id: ID, patch: Patch<Resource>) => void;
-
-  addClient: (input: Draft<Client>) => Client;
-  updateClient: (id: ID, patch: Patch<Client>) => void;
-
-  addProject: (input: Draft<Project>) => Project;
-  updateProject: (id: ID, patch: Patch<Project>) => void;
-
-  addPhase: (input: Draft<Phase>) => Phase;
-  updatePhase: (id: ID, patch: Patch<Phase>) => void;
-  deletePhase: (id: ID) => void;
-
-  addActivity: (input: Draft<Activity>) => Activity;
-  updateActivity: (id: ID, patch: Patch<Activity>) => void;
-  deleteActivity: (id: ID) => void;
-
-  /** Create one allocation through the same atomic validation/write path as `addAllocations`. */
-  addAllocation: (input: Draft<Allocation>) => Allocation;
-  /** Create a non-empty allocation batch in one mutation/history step. Every draft is validated before
-   * anything commits; a tenancy, reference or date-range failure throws and leaves state untouched. */
-  addAllocations: (inputs: readonly Draft<Allocation>[]) => Allocation[];
-  /** Apply an allocation patch. False means the write was deliberately refused as a Viewer or the
-   * target disappeared before commit; validation/tenancy violations still throw. */
-  updateAllocation: (id: ID, patch: Patch<Allocation>) => boolean;
-  deleteAllocation: (id: ID) => void;
-  /** Atomically delete one linked occurrence and every same-series occurrence starting on/after it. */
-  deleteAllocationSeriesFrom: (id: ID) => void;
-
-  addTimeOff: (input: Draft<TimeOff>) => TimeOff;
-  /** Create a non-empty time-off batch in one mutation/history step. Every draft is validated before
-   * anything commits; a tenancy, resource or date-range failure throws and leaves state untouched. */
-  addTimeOffs: (inputs: readonly Draft<TimeOff>[]) => TimeOff[];
-  updateTimeOff: (id: ID, patch: Patch<TimeOff>) => void;
-  deleteTimeOff: (id: ID) => void;
-
-  addClosure: (input: Draft<Closure>) => Closure;
-  updateClosure: (id: ID, patch: Patch<Closure>) => void;
-  deleteClosure: (id: ID) => void;
-
-  // --- Data-lifecycle (P2.5b): the Active → Archived → Soft-deleted → Purged machine for the
-  // tombstone-carrying tables (resources / clients / projects / activities). These are the DEMO-build / OFF path —
-  // they mutate the local `data` blob through the same mutate()/undo machinery as the CRUD above. In
-  // SERVER mode the UI instead calls the dedicated routes (POST /api/:entity/:id/{archive,unarchive,
-  // delete,purge}, P2.5a) directly, so the admin view only invokes these in the demo build. They COMPOSE
-  // the pure shared lifecycle helpers (shared/src/domain/lifecycle.ts) — the transition logic and the
-  // soft-delete obfuscation string are NEVER re-derived here. Archive/unarchive are undoable;
-  // soft-delete/purge clear both history stacks so erased data cannot be recovered from memory.
-  // All four are viewer-no-op and stale-id-no-op, and invalid transitions throw a display-safe Error
-  // (the UI gates with the can* predicates first; the throw is the defense-in-depth backstop).
-  /** Archive an entity (active → archived). DEMO-build path; surface-not-swallow — `archive` throws
-   *  if the row isn't active. @param entity which tombstone table. @param id the row to archive. */
-  archiveEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Un-archive an entity (archived → active). DEMO-build path; `unarchive` throws if the row isn't
-   *  archived. @param entity which tombstone table. @param id the row to restore. */
-  unarchiveEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Soft-delete an entity (archived → deleted tombstone). DEMO-build path; `softDelete` throws unless
-   *  the row is archived first (the lifecycle requires prior archival). For a `resources` row the
-   *  tombstone's `name` is ALSO scrubbed via the shared `obfuscateResource` — the local copy retains
-   *  no original PII while it awaits purge. @param entity which tombstone table. @param id the row. */
-  softDeleteEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Hard-purge a soft-deleted tombstone (physically remove + cascade its children). DEMO-build path.
-   *  Enforces the {@link PURGE_MIN_AGE_DAYS} grace window via `canPurge`: if the tombstone is too young
-   *  it does NOT mutate and surfaces an error notice instead of throwing (a refused affordance, not a
-   *  bug). @param entity which tombstone table. @param id the tombstone to purge. */
-  purgeEntity: (entity: LifecycleEntity, id: ID) => void;
-
+  /** Set how many weeks the schedule shows. */
   setZoom: (zoom: WeeksZoom) => void;
+  /** Set the first date in view without snapping to a week start. */
   setOriginDate: (date: ISODate) => void;
+  /** Move the first date in view by `delta` days; negative moves back. */
   panDays: (delta: number) => void;
+  /** Bring the current week into view. */
   goToToday: () => void;
+  /** Bring the week containing `date` into view, using the company's week start. */
   goToDate: (date: ISODate) => void;
+  /** Choose whether drawing on a lane creates work or time off. */
   setDrawMode: (mode: DrawMode) => void;
+  /** Select an allocation, or clear the selection with null. */
   selectAllocation: (id: ID | null) => void;
+  /** Merge a partial patch into the schedule filters. */
   setFilters: (patch: Partial<Filters>) => void;
+  /** Reset every schedule filter. */
   clearFilters: () => void;
+  /** Collapse or expand the schedule group with this key. */
   toggleGroup: (key: string) => void;
   /** Clear schedule filters (so the resource row is visible) then set
    *  scrollToResource — SchedulerGrid watches this to scroll the row into view.

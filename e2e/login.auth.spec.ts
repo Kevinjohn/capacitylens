@@ -1,7 +1,13 @@
 import { test, expect } from "./fixtures";
 import type { APIRequestContext } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_ADMIN, bootstrapOrg, signUpUser } from "./auth-helpers";
+import {
+  AUTH_API as API,
+  AUTH_PASSWORD as PASSWORD,
+  BOOTSTRAP_ADMIN,
+  bootstrapOrg,
+  signUpUser,
+} from "./authTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -10,7 +16,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // auth off, so this is the ONLY place the login screen exists; the rest of the suite
 // running unchanged in the other two projects is the off-guarantee.
 
-// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUpUser) comes from ./auth-helpers. P1.13: a fresh
+// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUpUser) comes from ./authTestSupport. P1.13: a fresh
 // user has NO membership, so GET /api/accounts is empty and the picker would have nothing to pick. The
 // org-bootstrap test provisions this login its own org via POST /api/orgs (BOOTSTRAP_TOKEN → Owner) so
 // the picker then lists it — account_members is a server-only control table excluded from the shared
@@ -29,7 +35,7 @@ async function seedUser(request: APIRequestContext, email = EMAIL) {
   if (!res.ok()) expect(res.status()).toBe(422);
 }
 
-function registerSuiteScenario1() {
+function registerUnauthenticatedVisitShowsLoginScreenTest() {
   test("unauthenticated visit shows the login screen, not the app — and the API 401s", async ({ page, request }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
@@ -60,7 +66,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerSigningRevealsAppSigningOutTest() {
   test("signing in reveals the app; signing out from Account via the sidebar returns to the login screen", async ({
     page,
     request,
@@ -110,7 +116,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerCreateOwnerAdminAdminBootstrapTest() {
   test("the --create-owner-admin-admin bootstrap credential signs in through the real form", async ({
     page,
     request,
@@ -136,7 +142,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerLoginMembershipsSeesEMPTYPickerTests() {
   test("a login with NO memberships sees an EMPTY picker (tenant isolation — no cross-tenant leak)", async ({
     page,
     request,
@@ -169,8 +175,8 @@ function registerSuiteScenario4() {
 }
 
 test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
+  registerUnauthenticatedVisitShowsLoginScreenTest();
+  registerSigningRevealsAppSigningOutTest();
+  registerCreateOwnerAdminAdminBootstrapTest();
+  registerLoginMembershipsSeesEMPTYPickerTests();
 });

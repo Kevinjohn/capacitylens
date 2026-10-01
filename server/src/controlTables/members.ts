@@ -1,10 +1,11 @@
 import type { Role } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import { terminaliseLiveRequestsForAccount, terminaliseLiveRequestsForMember } from "./ownershipTransfers";
-import { revokeResetTokensForUser } from "../auth";
+import { revokeResetTokensForUser } from "../authConfig/tableAccess";
 import { bumpSecurityRevision } from "../accounts/state";
 import { removeMemberSignInTrackingForAccount } from "../accounts/memberSignInTracking";
 import { cachedStatement } from "./preparedStatement";
+import { isAccessRestricted } from "./accessRestrictions";
 import { removeAccountMemberResourceForMember, removeAccountMemberResourcesForAccount } from "./accountMemberResources";
 import {
   isKnownRole,
@@ -38,6 +39,13 @@ function terminaliseMemberTransfers(db: Db, accountId: string, userId: string): 
     reason: "participant_membership_changed",
     now: new Date().toISOString(),
   });
+}
+
+/** Administrative restriction writes share membership's revocation and transfer lifecycle. */
+export function invalidateRestrictedPrincipal(db: Db, accountId: string, principalId: string): string[] {
+  revokeResetTokensForUser(db, principalId);
+  bumpSecurityRevision(db, principalId);
+  return terminaliseMemberTransfers(db, accountId, principalId);
 }
 
 /**
@@ -209,6 +217,7 @@ export function getMemberRole(db: Db, accountId: string, userId: string): Role |
 /** Security-sensitive role lookup. Legacy control rows may carry a non-active status; those rows
  * never confer application or administrative authority and must be indistinguishable from absence. */
 export function getActiveMemberRole(db: Db, accountId: string, userId: string): Role | null {
+  if (isAccessRestricted(db, accountId, userId)) return null;
   const row = activeMemberRoleStatement(db).get(accountId, userId) as { role?: string } | undefined;
   // Same distinction as getMemberRole: legacy NON-ACTIVE status is filtered out by the statement
   // itself and stays indistinguishable from absence, but a returned row whose role cannot be read

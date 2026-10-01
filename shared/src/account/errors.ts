@@ -1,5 +1,6 @@
 import type { CommandId } from "./types";
 
+/** Every failure code an account operation may report. */
 export type AccountErrorCode =
   | "AUTHENTICATION_REQUIRED"
   | "MFA_REQUIRED"
@@ -35,12 +36,16 @@ declare const retryAfterSecondsBrand: unique symbol;
  * transport adapters may round them up when emitting whole-second Retry-After headers. */
 export type RetryAfterSeconds = number & { readonly [retryAfterSecondsBrand]: true };
 
-export function retryAfterSeconds(value: number): RetryAfterSeconds {
+/** Brand a retry delay. Throws `RangeError` unless it is finite and non-negative. */
+export function assertRetryAfterSeconds(value: number): RetryAfterSeconds {
   if (!Number.isFinite(value) || value < 0) {
     throw new RangeError("retryAfterSeconds must be a finite, non-negative number.");
   }
   return value as RetryAfterSeconds;
 }
+
+/** Compatibility alias for the published account contract. */
+export const retryAfterSeconds = assertRetryAfterSeconds;
 
 /** A normalized boundary failure. A retry delay is meaningful only when retrying is permitted;
  * the union makes the contradictory `retryable: false` plus delay shape unrepresentable. Codes do
@@ -59,7 +64,7 @@ export class AccountContractError extends Error {
     this.name = "AccountContractError";
     this.failure =
       failure.retryable && failure.retryAfterSeconds !== undefined
-        ? { ...failure, retryAfterSeconds: retryAfterSeconds(failure.retryAfterSeconds) }
+        ? { ...failure, retryAfterSeconds: assertRetryAfterSeconds(failure.retryAfterSeconds) }
         : failure;
   }
 }
@@ -88,6 +93,7 @@ const ACCOUNT_FAILURE_STATUS = {
   UNSUPPORTED_CAPABILITY: 400,
 } as const satisfies Record<AccountErrorCode, number>;
 
+/** The HTTP status for an account failure's code. Pure. */
 export function statusForAccountFailure(failure: AccountFailure): number {
   return ACCOUNT_FAILURE_STATUS[failure.code];
 }

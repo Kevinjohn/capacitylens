@@ -6,9 +6,13 @@ import { PermissionContext } from "../../auth/permissionContext";
 import { DEFAULT_ACCOUNT_ID, makeResource } from "../../test/fixtures";
 import { useStore } from "../../store/useStore";
 import { schedulerDataset } from "./__tests__/schedulerTestKit";
+import { useResourceAvatars } from "../../account/useResourceAvatars";
 import { SchedulerGrid } from "./SchedulerGrid";
 
+vi.mock("../../account/useResourceAvatars", () => ({ useResourceAvatars: vi.fn() }));
+
 beforeEach(() => {
+  vi.mocked(useResourceAvatars).mockReturnValue(new Map());
   useStore.getState().replaceAll(schedulerDataset());
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().setOriginDate("2026-06-01");
@@ -20,31 +24,35 @@ beforeEach(() => {
 });
 
 describe("SchedulerGrid component identity and row variants", () => {
-  it("threads a person's remote avatar into the schedule trigger", () => {
-    class LoadedImage {
-      complete = true;
-      naturalWidth = 1;
-      crossOrigin: string | null = null;
-      referrerPolicy = "";
-      src = "";
-      addEventListener() {}
-      removeEventListener() {}
-    }
-    vi.stubGlobal("Image", LoadedImage);
-    const bruce = useStore.getState().data.resources.find(({ name }) => name === "Bruce");
-    if (!bruce) throw new Error("Expected Bruce in the scheduler fixture");
-    useStore.getState().updateResource(bruce.id, { avatarUrl: "https://images.example/bruce.png" });
+  it.each([undefined, "https://images.example/bruce.png"])(
+    "uses the linked avatar fallback unless stored URL %s is present",
+    (avatarUrl) => {
+      class LoadedImage {
+        complete = true;
+        naturalWidth = 1;
+        crossOrigin: string | null = null;
+        referrerPolicy = "";
+        src = "";
+        addEventListener() {}
+        removeEventListener() {}
+      }
+      vi.stubGlobal("Image", LoadedImage);
+      const bruce = useStore.getState().data.resources.find(({ name }) => name === "Bruce");
+      if (!bruce) throw new Error("Expected Bruce in the scheduler fixture");
+      useStore.getState().updateResource(bruce.id, { avatarUrl });
+      vi.mocked(useResourceAvatars).mockReturnValue(new Map([[bruce.id, "https://images.example/linked.png"]]));
 
-    try {
-      const { container } = render(<SchedulerGrid />, { wrapper: MemoryRouter });
+      try {
+        const { container } = render(<SchedulerGrid />, { wrapper: MemoryRouter });
 
-      const avatar = container.querySelector('button[aria-label="View Bruce\'s schedule"] img');
-      expect(avatar).toHaveAttribute("src", "https://images.example/bruce.png");
-      expect(avatar).toHaveAttribute("referrerpolicy", "no-referrer");
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  });
+        const avatar = container.querySelector('button[aria-label="View Bruce\'s schedule"] img');
+        expect(avatar).toHaveAttribute("src", avatarUrl ?? "https://images.example/linked.png");
+        expect(avatar).toHaveAttribute("referrerpolicy", "no-referrer");
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    },
+  );
 
   it("retains the focused bar and group DOM nodes when the utilisation display changes", () => {
     render(<SchedulerGrid />, { wrapper: MemoryRouter });

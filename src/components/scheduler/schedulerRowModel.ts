@@ -116,7 +116,7 @@ function buildDayStates(input: {
   let conflictDayCount = 0;
   let partialCapacityDayCount = 0;
   for (const date of input.days) {
-    const dayCapacity = input.capacity.getCapacityOnDay(date);
+    const dayCapacity = input.capacity.resolveCapacityOnDay(date);
     const creationBlocked = isCreationStartBlockedForEffectiveWeek({
       resource: input.resource,
       date,
@@ -126,9 +126,9 @@ function buildDayStates(input: {
     });
     const unavailable = (input.capacity.tracked && dayCapacity.available === 0) || creationBlocked;
     const partialCapacity = input.capacity.tracked && !unavailable && isHalfDay(input.resource, weekdayOf(date));
-    const hasTimeOff = input.capacity.getTimeOffCountOn(date) > 0;
+    const hasTimeOff = input.capacity.countTimeOffOn(date) > 0;
     const timeOffConflict =
-      hasTimeOff && (input.blocksMode ? input.capacity.getAllocationCountOn(date) > 0 : dayCapacity.over);
+      hasTimeOff && (input.blocksMode ? input.capacity.countAllocationsOn(date) > 0 : dayCapacity.over);
     if (dayCapacity.over || timeOffConflict) conflictDayCount++;
     if (partialCapacity) partialCapacityDayCount++;
     dayStates.push({

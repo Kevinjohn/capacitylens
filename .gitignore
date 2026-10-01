@@ -11,7 +11,12 @@ node_modules
 dist
 dist-ssr
 /production/
+/release/
 *.local
+# Install secrets (session-signing secret, setup token); only the template is tracked
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -51,6 +56,7 @@ src/paraglide/
 !server/src/fixtures/databases/*.db
 *.db-wal
 *.db-shm
+server/.auth-e2e-mailbox.jsonl
 # Server audit log (P1.15, ON by default beside the DB; a runtime artifact, never committed)
 *-audit.jsonl
 

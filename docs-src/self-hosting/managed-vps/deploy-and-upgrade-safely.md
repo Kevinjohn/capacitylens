@@ -5,6 +5,10 @@ description: Promote, deploy and roll back CapacityLens releases without running
 
 # Deploy and upgrade safely
 
+This page belongs to the long-form route, which builds CapacityLens from a source checkout.
+To install from the release archive with nothing to build, follow the
+[five steps](/self-hosting/managed-vps/) instead.
+
 This page turns the initial build into a repeatable manual deployment with a safe API handover.
 It prevents two CapacityLens versions from writing to the same SQLite database. Allow about thirty
 minutes to configure and test the first time; later deployments take only a few minutes plus your

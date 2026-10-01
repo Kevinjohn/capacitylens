@@ -1,0 +1,25 @@
+# CapacityLens as a systemd service. Install with:
+#   sudo cp /opt/capacitylens/current/capacitylens.service /etc/systemd/system/
+#   sudo systemctl enable --now capacitylens
+# Node 24 must be on the system path and runnable by the capacitylens user.
+[Unit]
+Description=CapacityLens
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=capacitylens
+Group=capacitylens
+WorkingDirectory=/opt/capacitylens/current/server
+EnvironmentFile=/etc/capacitylens.env
+Environment=NODE_ENV=production
+ExecStartPre=/usr/bin/env node /opt/capacitylens/current/server/scripts/check-node.mjs
+ExecStart=/usr/bin/env node /opt/capacitylens/current/server/dist/index.mjs
+# The server drains in-flight requests on SIGTERM before it exits.
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

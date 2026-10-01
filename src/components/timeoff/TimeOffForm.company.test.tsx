@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { TimeOffForm } from "./TimeOffForm";
@@ -50,12 +51,14 @@ describe("TimeOffForm personal assignee", () => {
   });
 
   it("still rejects an external resource seeded outside the picker", () => {
-    const external = useStore.getState().addResource({
-      ...personDraft,
-      kind: "external",
-      name: "Kord Industries",
-      role: "Partner studio",
-    });
+    const external = requireCreated(
+      useStore.getState().addResource({
+        ...personDraft,
+        kind: "external",
+        name: "Kord Industries",
+        role: "Partner studio",
+      }),
+    );
     render(<TimeOffForm defaults={{ resourceId: external.id }} onClose={() => {}} />);
 
     fireEvent.keyDown(screen.getByLabelText("Resource"), { key: "ArrowDown" });

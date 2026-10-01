@@ -13,6 +13,7 @@ import { TooltipContent, TooltipRoot, TooltipTrigger } from "../ui/tooltip";
 import { LAYOUT } from "./layout";
 import type { BarLayout } from "./schedulerModel";
 import { buildVisibleSpanInsets } from "./visibleSpanInsets";
+import { roundToHundredths } from "@/lib/roundToHundredths";
 
 interface AllocationBarViewProps {
   bar: BarLayout;
@@ -40,8 +41,6 @@ interface AllocationBarViewProps {
 }
 
 /** Keep the display rounding local so this view has no import cycle with its orchestrator. */
-const roundDisplayHours = (hours: number) => Math.round(hours * 100) / 100;
-
 /** Constant per axis, so the clamp strings are built once rather than per bar per render. */
 const BAR_LABEL_INSETS = buildVisibleSpanInsets("x", "var(--bar-left)", "var(--bar-width)");
 
@@ -91,7 +90,7 @@ function BarContents({
         <span className="truncate">
           {bar.allocation.status === "completed" ? "✓ " : ""}
           {labelText}
-          {hideHours ? "" : m.scheduler_bar_hours_suffix({ hours: roundDisplayHours(bar.allocation.hoursPerDay) })}
+          {hideHours ? "" : m.scheduler_bar_hours_suffix({ hours: roundToHundredths(bar.allocation.hoursPerDay) })}
           {bar.allocation.note ? " •" : ""}
         </span>
       </span>
@@ -191,7 +190,7 @@ function BarPopover({
       )}
       <div className="text-muted-foreground">
         {formatDayMonthRange(bar.allocation.startDate, bar.allocation.endDate)}
-        {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) })}
+        {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: roundToHundredths(bar.allocation.hoursPerDay) })}
         {statusAnnotation ? m.scheduler_bar_pop_status({ status: statusAnnotation }) : ""}
       </div>
       {bar.seriesEnd && (

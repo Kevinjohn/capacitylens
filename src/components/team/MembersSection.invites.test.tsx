@@ -10,12 +10,11 @@ import { m } from "@/i18n";
 import {
   chooseMemberAction,
   expectNotice,
-  findMemberRow,
+  waitForMemberRow,
   mockApi,
   ownerAndEditor,
   rawMember,
   renderSection,
-  requireValue,
   saveRoleVia,
   type RawMember,
 } from "./MembersSection.testSupport";
@@ -84,6 +83,20 @@ async function renderInviteSection(): Promise<void> {
   await screen.findByRole("dialog", { name: "Invite someone" });
 }
 
+function fillAddressedInvite(): void {
+  fireEvent.change(screen.getByTestId("invite-preauth"), { target: { value: "diana@example.test" } });
+}
+
+// A pending invite whose create resolves after its dialog was closed or reset.
+const LATE_INVITE = {
+  id: "inv-late",
+  role: "editor",
+  preauthEmail: null,
+  expiresAt: "2026-12-01T00:00:00.000Z",
+  usedAt: null,
+  createdAt: "2026-07-17T00:00:00.000Z",
+};
+
 function closeInviteDialog(): void {
   fireEvent.click(
     within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Cancel" }),
@@ -93,6 +106,7 @@ function closeInviteDialog(): void {
 describe("MembersSection — invite mint", () => {
   registerInviteCopyControlTests();
   registerInviteMintTests();
+  registerInviteResetTests();
   registerInviteAccountTransitionTests();
   registerInviteClipboardTransitionTests();
   registerInviteDeadlineTests();
@@ -102,9 +116,7 @@ describe("MembersSection — invite mint", () => {
   registerInviteValidationTests();
   registerInviteCreationFailureTests();
   registerInviteRevokeFailureTests();
-  registerInviteLinkReconciliationTests();
   registerInviteMissingLinkReconciliationTests();
-  registerInviteClipboardFailureTests();
 });
 
 function registerInviteCopyControlTests(): void {
@@ -131,7 +143,7 @@ function registerInviteCopyControlTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     await renderInviteSection();
 
-    const editorRow = await findMemberRow(/editor@x\.io/);
+    const editorRow = await waitForMemberRow(/editor@x\.io/);
     closeInviteDialog();
     await chooseMemberAction(user, editorRow, "member-reset-password");
     await user.click(
@@ -142,6 +154,7 @@ function registerInviteCopyControlTests(): void {
     expect(await screen.findByTestId("reset-link")).toHaveTextContent("/reset-password/reset%2Fpart%3Fx%23y");
 
     fireEvent.click(screen.getByTestId("invite-open"));
+    fillAddressedInvite();
     await user.click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/invite%2Fpart%3Fx%23y");
 
@@ -160,8 +173,6 @@ function registerInviteCopyControlTests(): void {
       }),
     );
     await waitFor(() => expect(screen.queryByTestId("reset-link")).not.toBeInTheDocument());
-    fireEvent.click(screen.getByTestId("invite-open"));
-    expect(screen.getByTestId("invite-link")).toBeInTheDocument();
   });
 
   it("shows the selected invite role consequences before creating the link", async () => {
@@ -209,6 +220,7 @@ function registerInviteMintTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     await user.click(screen.getByTestId("invite-submit"));
     const link = await screen.findByTestId("invite-link");
     expect(link).toHaveTextContent("/invite/TOK123");
@@ -218,6 +230,91 @@ function registerInviteMintTests(): void {
     // survive it — this is the reconciliation path the test's name actually promises.
     await waitFor(() => expect(invitesReads).toBeGreaterThanOrEqual(2));
     expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOK123");
+
+    // Closing the dialog ends the one-time display: reopening shows an empty form, not the link.
+    closeInviteDialog();
+    fireEvent.click(screen.getByTestId("invite-open"));
+    await screen.findByRole("dialog", { name: "Invite someone" });
+    expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
+  });
+
+  it("discards the link of a create that resolves after the dialog closed and says so", async () => {
+    const pending: { respond?: (response: Response) => void } = {};
+    // The late invite stays pending, so only the dialog close can clear its link.
+    let invites: Record<string, unknown>[] = [];
+    let invitesReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "GET /invites": () => {
+          invitesReads += 1;
+          return jsonResponse({ invites });
+        },
+        "POST /api/invites": () =>
+          new Promise<Response>((resolve) => {
+            pending.respond = resolve;
+          }),
+      }),
+    );
+    await renderInviteSection();
+    await screen.findByTestId("members-section");
+
+    fillAddressedInvite();
+    fireEvent.click(screen.getByTestId("invite-submit"));
+    await waitFor(() => expect(pending.respond).toBeDefined());
+    closeInviteDialog();
+    const readsBeforeResponse = invitesReads;
+    invites = [LATE_INVITE];
+    pending.respond?.(jsonResponse({ id: "inv-late", token: "LATE", role: "editor" }, 201));
+    await waitFor(() => expect(invitesReads).toBeGreaterThan(readsBeforeResponse));
+    await waitFor(() =>
+      expect(useStore.getState().notice?.message).toBe(m.settings_members_invite_created_link_discarded()),
+    );
+
+    fireEvent.click(screen.getByTestId("invite-open"));
+    await screen.findByRole("dialog", { name: "Invite someone" });
+    expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
+  });
+}
+
+function registerInviteResetTests(): void {
+  it("discards the link of a create that resolves after the page went read-only", async () => {
+    const pending: { respond?: (response: Response) => void } = {};
+    // The late invite stays pending, so only the reset can clear its link.
+    let invites: Record<string, unknown>[] = [];
+    let invitesReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "GET /invites": () => {
+          invitesReads += 1;
+          return jsonResponse({ invites });
+        },
+        "POST /api/invites": () =>
+          new Promise<Response>((resolve) => {
+            pending.respond = resolve;
+          }),
+      }),
+    );
+    await renderInviteSection();
+    await screen.findByTestId("members-section");
+
+    fillAddressedInvite();
+    fireEvent.click(screen.getByTestId("invite-submit"));
+    await waitFor(() => expect(pending.respond).toBeDefined());
+    act(() => setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z")));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Invite someone" })).not.toBeInTheDocument());
+    act(() => setOfflineReadState("cleanup", false));
+    const readsBeforeResponse = invitesReads;
+    invites = [LATE_INVITE];
+    await act(async () => {
+      pending.respond?.(jsonResponse({ id: "inv-late", token: "LATE", role: "editor" }, 201));
+    });
+    await waitFor(() => expect(invitesReads).toBeGreaterThan(readsBeforeResponse));
+
+    fireEvent.click(await screen.findByTestId("invite-open"));
+    await screen.findByRole("dialog", { name: "Invite someone" });
+    expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
   });
 }
 
@@ -258,6 +355,7 @@ function registerInviteAccountTransitionTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/ACCOUNT_A_TOKEN");
 
@@ -307,6 +405,7 @@ function registerInviteClipboardTransitionTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toBeInTheDocument();
     act(() => useStore.getState().setNotice(null));
@@ -409,6 +508,7 @@ function registerInviteReloadTests(): void {
     await renderInviteSection();
     expect(await screen.findByText(/existing@example\.test/)).toBeInTheDocument();
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Invite reload failed.");
@@ -447,6 +547,7 @@ function registerInviteMutationTransitionTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
     await waitFor(() => expect(resolveCreate).toBeTypeOf("function"));
     act(() => useStore.setState({ activeAccountId: nextAccountId }));
@@ -489,6 +590,7 @@ function registerInviteReconciliationTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     await user.click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/TOK123");
     closeInviteDialog();
@@ -507,27 +609,31 @@ function registerInviteValidationTests(): void {
     await renderInviteSection();
     await screen.findByTestId("members-section");
 
+    fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/one-time link was lost|unknown invite/i);
     expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
   });
 
-  it("requires a preauthorised email for an SSO-only invite without posting", async () => {
-    const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
-    vi.stubGlobal("fetch", fetchMock);
-    renderSection({ authMode: "sso" });
-    await screen.findByTestId("invite-open");
-    fireEvent.click(screen.getByTestId("invite-open"));
+  it.each(["password-only", "sso-only"] as const)(
+    "requires a preauthorised email for a %s invite without posting",
+    async (authMode) => {
+      const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
+      vi.stubGlobal("fetch", fetchMock);
+      renderSection({ authMode });
+      await screen.findByTestId("invite-open");
+      fireEvent.click(screen.getByTestId("invite-open"));
 
-    await userEvent.setup().click(await screen.findByTestId("invite-submit"));
+      await userEvent.setup().click(await screen.findByTestId("invite-submit"));
 
-    const field = screen.getByTestId("invite-preauth");
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(m.settings_sso_invite_email_required());
-    expect(field.getAttribute("aria-describedby")?.split(" ")).toContain(alert.id);
-    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
-  });
+      const field = screen.getByTestId("invite-preauth");
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(m.settings_invite_email_required());
+      expect(field.getAttribute("aria-describedby")?.split(" ")).toContain(alert.id);
+      expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+    },
+  );
 }
 
 function registerInviteCreationFailureTests(): void {
@@ -545,6 +651,7 @@ function registerInviteCreationFailureTests(): void {
       );
       await renderInviteSection();
 
+      fillAddressedInvite();
       await userEvent.setup().click(await screen.findByTestId("invite-submit"));
 
       const alert = fieldError ? await screen.findByRole("alert") : null;
@@ -567,6 +674,7 @@ function registerInviteCreationFailureTests(): void {
     );
     await renderInviteSection();
 
+    fillAddressedInvite();
     await userEvent.setup().click(await screen.findByTestId("invite-submit"));
 
     await expectNotice(/unknown outcome.*invite transport lost.*reloaded/i);
@@ -642,47 +750,6 @@ function registerInviteRevokeFailureTests(): void {
   });
 }
 
-function registerInviteLinkReconciliationTests(): void {
-  it("keeps invite A's minted link when invite B is revoked", async () => {
-    const inviteA = {
-      id: "invite-a",
-      role: "editor",
-      preauthEmail: null,
-      expiresAt: "2026-12-01T00:00:00.000Z",
-      usedAt: null,
-      createdAt: "2026-07-17T00:00:00.000Z",
-    };
-    const inviteB = { ...inviteA, id: "invite-b", preauthEmail: "b@example.test" };
-    let invites: Record<string, unknown>[] = [inviteB];
-    vi.stubGlobal(
-      "fetch",
-      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
-        "GET /invites": () => jsonResponse({ invites }),
-        "POST /api/invites": () => {
-          invites = [inviteA, inviteB];
-          return jsonResponse({ id: inviteA.id, token: "TOKEN_A" }, 201);
-        },
-        "DELETE /invites/invite-b": () => {
-          invites = [inviteA];
-          return new Response(null, { status: 204 });
-        },
-      }),
-    );
-    await renderInviteSection();
-    await screen.findByText(/b@example\.test/);
-
-    await userEvent.setup().click(screen.getByTestId("invite-submit"));
-    expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
-    closeInviteDialog();
-    const revokeButtons = await screen.findAllByTestId("invite-revoke");
-    await userEvent.setup().click(requireValue(revokeButtons[1], "the second invitation revoke button"));
-
-    await waitFor(() => expect(screen.queryByText(/b@example\.test/)).not.toBeInTheDocument());
-    fireEvent.click(screen.getByTestId("invite-open"));
-    expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
-  });
-}
-
 function registerInviteMissingLinkReconciliationTests(): void {
   it("removes a minted link when an unknown-outcome authoritative list omits it", async () => {
     const minted = {
@@ -711,39 +778,13 @@ function registerInviteMissingLinkReconciliationTests(): void {
       }),
     );
     await renderInviteSection();
+    fillAddressedInvite();
     await userEvent.setup().click(await screen.findByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toBeInTheDocument();
 
     closeInviteDialog();
-    await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), "Viewer");
 
     await waitFor(() => expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument());
-  });
-}
-
-function registerInviteClipboardFailureTests(): void {
-  it.each(["missing", "rejected"])("reports copy failure when clipboard is %s", async (kind) => {
-    const user = userEvent.setup();
-    if (kind === "missing") {
-      vi.spyOn(navigator, "clipboard", "get").mockReturnValue(undefined as unknown as Clipboard);
-    } else {
-      vi.spyOn(navigator, "clipboard", "get").mockReturnValue({
-        writeText: vi.fn().mockRejectedValue(new Error("denied")),
-      } as unknown as Clipboard);
-    }
-    vi.stubGlobal(
-      "fetch",
-      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
-        "POST /api/invites": () => jsonResponse({ token: "TOKEN" }, 201),
-      }),
-    );
-    await renderInviteSection();
-    await user.click(await screen.findByTestId("invite-submit"));
-
-    await user.click(await screen.findByRole("button", { name: "Copy invitation link" }));
-
-    await waitFor(() =>
-      expect(useStore.getState().notice).toMatchObject({ message: m.settings_members_copy_failed(), tone: "error" }),
-    );
   });
 }

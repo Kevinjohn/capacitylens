@@ -9,6 +9,7 @@
   },
   "exports": {
     "./account/audit": "./src/account/audit.ts",
+    "./account/approvedDomains": "./src/account/approvedDomains.ts",
     "./account/conformance": "./src/account/conformance.ts",
     "./account/errors": "./src/account/errors.ts",
     "./account/ownershipTransfer": "./src/account/ownershipTransfer.ts",
@@ -20,6 +21,7 @@
     "./account/types": "./src/account/types.ts",
     "./account/validation": "./src/account/validation.ts",
     "./brand": "./src/brand.ts",
+    "./data/exampleCompany": "./src/data/exampleCompany.ts",
     "./data/fixtures": "./src/data/fixtures.ts",
     "./data/internalClient": "./src/data/internalClient.ts",
     "./data/migrate": "./src/data/migrate.ts",
@@ -40,6 +42,7 @@
     "./lib/effectiveWorkingWeek": "./src/lib/effectiveWorkingWeek.ts",
     "./lib/id": "./src/lib/id.ts",
     "./lib/integrity": "./src/lib/integrity.ts",
+    "./lib/isRecord": "./src/lib/isRecord.ts",
     "./lib/repeatingDates": "./src/lib/repeatingDates.ts",
     "./lib/sanitizeImport": "./src/lib/sanitizeImport.ts",
     "./lib/schedulingDays": "./src/lib/schedulingDays.ts",
@@ -47,7 +50,8 @@
     "./types/entities": "./src/types/entities.ts"
   },
   "dependencies": {
-    "date-fns": "^4.3.0"
+    "date-fns": "^4.3.0",
+    "tr46": "6.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

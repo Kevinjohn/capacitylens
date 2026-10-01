@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -12,7 +13,7 @@ import {
   accessibleNameMembers,
   chooseMemberAction,
   expectAccessibleMemberControls,
-  findMemberRow,
+  waitForMemberRow,
   mockApi,
   openMemberMenu,
   renderSection,
@@ -152,7 +153,7 @@ function registerAdminInviteLinkTests(members: RawMember[]): void {
                 {
                   id: "invite-1",
                   role: "editor",
-                  preauthEmail: null,
+                  preauthEmail: "diana@example.com",
                   expiresAt: "2026-12-01T00:00:00.000Z",
                   usedAt: null,
                   createdAt: "2026-07-29T00:00:00.000Z",
@@ -165,7 +166,8 @@ function registerAdminInviteLinkTests(members: RawMember[]): void {
     renderSection();
     await openInviteDialog();
 
-    await user.click(await screen.findByTestId("invite-submit"));
+    await user.type(await screen.findByTestId("invite-preauth"), "diana@example.com");
+    await user.click(screen.getByTestId("invite-submit"));
     const link = await screen.findByTestId("invite-link");
     expect(link).toHaveTextContent("/invite/WRITE_ONCE_TOKEN");
 
@@ -188,7 +190,7 @@ function registerAdminMemberControlTests(members: RawMember[]): void {
     renderSection();
     await screen.findByTestId("members-section");
 
-    const ownerRow = await findMemberRow(/theowner@x\.io/);
+    const ownerRow = await waitForMemberRow(/theowner@x\.io/);
     expect(ownerRow).toBeTruthy();
     // No pencil on the owner row for an admin, and no gear either: with reset/revoke/status/remove
     // all forbidden against an Owner the menu has nothing left to offer, so it is not rendered.
@@ -196,7 +198,7 @@ function registerAdminMemberControlTests(members: RawMember[]): void {
     expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
 
     // The editor row, by contrast, IS manageable by the admin.
-    const editorRow = await findMemberRow(/theeditor@x\.io/);
+    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
     expect(within(editorRow).getByTestId("member-edit")).toBeInTheDocument();
     await chooseMemberAction(userEvent.setup(), editorRow, "member-remove");
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
@@ -206,9 +208,9 @@ function registerAdminMemberControlTests(members: RawMember[]): void {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", mockApi(members));
     renderSection();
-    const selfRow = await findMemberRow(/me@x\.io/);
-    const ownerRow = await findMemberRow(/theowner@x\.io/);
-    const editorRow = await findMemberRow(/theeditor@x\.io/);
+    const selfRow = await waitForMemberRow(/me@x\.io/);
+    const ownerRow = await waitForMemberRow(/theowner@x\.io/);
+    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
     expect(within(selfRow).queryByTestId("member-masquerade")).not.toBeInTheDocument();
     expect(within(ownerRow).getByTestId("member-masquerade")).toBeInTheDocument();
@@ -228,7 +230,7 @@ function registerAdminConfirmationTests(members: RawMember[]): void {
     const fetchMock = mockApi(members);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const editorRow = await findMemberRow(/theeditor@x\.io/);
+    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
     await chooseMemberAction(user, editorRow, "member-remove");
 
@@ -258,7 +260,7 @@ function registerAdminConfirmationTests(members: RawMember[]): void {
     const fetchMock = mockApi(actionableMembers);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const editorRow = await findMemberRow(/theeditor@x\.io/);
+    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
     await chooseMemberAction(user, editorRow, testId);
 
@@ -277,7 +279,7 @@ function registerAdminSessionTests(members: RawMember[]): void {
     );
     vi.stubGlobal("fetch", mockApi(actionableMembers));
     renderSection();
-    const editorRow = await findMemberRow(/theeditor@x\.io/);
+    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
     await openMemberMenu(user, editorRow);
     const revokeButton = screen.getByTestId("member-revoke-sessions");
 
@@ -304,7 +306,7 @@ function registerAdminSessionTests(members: RawMember[]): void {
       }),
     );
     renderSection();
-    const editorRow = await findMemberRow(/theeditor@x\.io/);
+    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
     await chooseMemberAction(user, editorRow, "member-revoke-sessions");
     await user.click(
@@ -326,7 +328,7 @@ function registerAdminSelfActionTests(): void {
     ];
     vi.stubGlobal("fetch", mockApi(selfMembers));
     renderSection();
-    const selfRow = await findMemberRow(/me@x\.io/);
+    const selfRow = await waitForMemberRow(/me@x\.io/);
 
     await chooseMemberAction(user, selfRow, "member-remove");
     expect(within(screen.getByRole("alertdialog")).getByText(/return to the company picker/i)).toBeInTheDocument();
@@ -348,7 +350,7 @@ function registerAdminRoleChangeTests(members: RawMember[]): void {
     vi.stubGlobal("fetch", fetchMock);
     const revisionBefore = useStore.getState().membershipRevision;
     renderSection();
-    const editorRow = await findMemberRow(/theeditor@x\.io/);
+    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
     await user.click(within(editorRow).getByTestId("member-edit"));
     const dialog = await screen.findByRole("dialog");
@@ -383,7 +385,7 @@ function registerAdminProjectionTests(members: RawMember[]): void {
     });
     vi.stubGlobal("fetch", mockApi(members, { "PATCH /members/theeditor": () => patchResponse }));
     renderSection();
-    const editorRow = await findMemberRow(/theeditor@x\.io/);
+    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
     await saveRoleVia(user, editorRow, "Viewer");
 
@@ -404,7 +406,7 @@ function registerAdminProjectionTests(members: RawMember[]): void {
     const revisionBefore = useStore.getState().membershipRevision;
     renderSection({ refreshAuth });
 
-    const selfRow = await findMemberRow(/me@x\.io/);
+    const selfRow = await waitForMemberRow(/me@x\.io/);
     await saveRoleVia(user, selfRow, "Editor");
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
@@ -421,7 +423,7 @@ function registerAdminProjectionTests(members: RawMember[]): void {
     });
     renderSection();
 
-    const selfRow = await findMemberRow(/me@x\.io/);
+    const selfRow = await waitForMemberRow(/me@x\.io/);
     await saveRoleVia(user, selfRow, "Editor");
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
@@ -457,7 +459,7 @@ describe("MembersSection — owner affordances", () => {
       within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Cancel" }),
     );
 
-    const editorRow = await findMemberRow(/ed@x\.io/);
+    const editorRow = await waitForMemberRow(/ed@x\.io/);
     await user.click(within(editorRow).getByTestId("member-edit"));
     const dialog = await screen.findByRole("dialog");
     fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
@@ -469,7 +471,7 @@ describe("MembersSection — owner affordances", () => {
     renderSection();
     await screen.findByTestId("members-section");
 
-    const soleOwnerRow = await findMemberRow(/me@x\.io/);
+    const soleOwnerRow = await waitForMemberRow(/me@x\.io/);
     expect(within(soleOwnerRow).getByTestId("member-role")).toHaveTextContent(m.settings_member_sole_owner_protected());
     // No pencil (the role is not editable) and no gear: nothing in it would be permitted.
     expect(within(soleOwnerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
@@ -487,7 +489,7 @@ describe("MembersSection — owner affordances", () => {
     );
     renderSection();
 
-    const editorRow = await findMemberRow(/ed@x\.io/);
+    const editorRow = await waitForMemberRow(/ed@x\.io/);
     await user.click(within(editorRow).getByTestId("member-menu"));
 
     const dialog = await screen.findByRole("dialog");
@@ -509,7 +511,7 @@ describe("MembersSection — owner affordances", () => {
 
   it("exposes the current Resource link and eligible choices from its resource dialog", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     vi.stubGlobal(
       "fetch",
       mockApi([
@@ -519,7 +521,7 @@ describe("MembersSection — owner affordances", () => {
     );
     renderSection();
 
-    const editorRow = await findMemberRow(/ed@x\.io/);
+    const editorRow = await waitForMemberRow(/ed@x\.io/);
     expect(within(editorRow).queryByRole("button", { name: /change Resource/i })).not.toBeInTheDocument();
     expect(within(editorRow).queryByRole("button", { name: /remove Resource link/i })).not.toBeInTheDocument();
     expect(within(editorRow).queryByRole("combobox", { name: /choose Resource/i })).not.toBeInTheDocument();

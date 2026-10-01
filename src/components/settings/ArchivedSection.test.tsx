@@ -33,7 +33,7 @@ describe("Settings deleted items", () => {
     render(<ArchivedSection />);
     expect(screen.getByRole("heading", { name: "Deleted items" })).toBeInTheDocument();
     expect(screen.getByText("Nothing deleted.")).toBeInTheDocument();
-    expect(screen.queryByText("Acme")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ferris")).not.toBeInTheDocument();
   });
 
   it("lists deleted resources and activities for permanent deletion", () => {

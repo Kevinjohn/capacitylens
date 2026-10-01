@@ -1,14 +1,16 @@
 import { formatUtilizationPercent } from "../../lib/formatUtilizationPercent";
 import type { RowModel } from "./schedulerModel";
+import { isCapacityTracked } from "@capacitylens/shared/types/entities";
 import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 
-/** The mean of the rows' visible-window utilisation, formatted for display — "0" for no rows.
- *  Shared by the headline and per-group figures, which select their rows DIFFERENTLY (see the
- *  call sites); only the arithmetic and formatting are common. */
-export function buildAverageUtilizationLabel(rows: RowModel[]): string {
-  return rows.length
-    ? formatUtilizationPercent(rows.reduce((sum, row) => sum + row.utilization, 0) / rows.length)
-    : "0";
+/** The mean visible-window utilisation of the capacity-tracked rows, formatted for display — null
+ *  when there are none. External rows carry no capacity, so the headline and per-group figures
+ *  both exclude them here. */
+export function buildAverageUtilizationLabel(rows: RowModel[]): string | null {
+  const trackedRows = rows.filter((row) => isCapacityTracked(row.resource));
+  return trackedRows.length
+    ? formatUtilizationPercent(trackedRows.reduce((sum, row) => sum + row.utilization, 0) / trackedRows.length)
+    : null;
 }
 
 export type ModalState =

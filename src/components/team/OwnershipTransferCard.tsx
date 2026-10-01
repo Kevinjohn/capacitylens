@@ -7,7 +7,7 @@ import type {
 import type { OwnershipTransferView, TeamMember } from "../../account/teamAccessClient";
 import { useAuth } from "../../auth/authContext";
 import { useStore } from "../../store/useStore";
-import { formatInstant } from "@/lib/dateDisplay";
+import { formatInstant, formatInstantDate } from "@/lib/dateDisplay";
 import { Modal } from "../common/ui";
 import { SelectField } from "../common/fields/SelectField";
 import { Alert, AlertDescription } from "../ui/alert";
@@ -65,6 +65,9 @@ function CeremonyAlerts({ controller }: { controller: OwnershipTransferControlle
       {controller.error !== null && (
         <Alert variant="destructive">
           <AlertDescription>{controller.error}</AlertDescription>
+          <Button type="button" size="sm" variant="outline" onClick={() => void controller.refresh()}>
+            {m.ownership_transfer_retry()}
+          </Button>
         </Alert>
       )}
     </>
@@ -282,7 +285,7 @@ function LastOutcome({ outcome }: { outcome: OwnershipTransferView | null }) {
     <p className="text-sm text-muted-foreground" data-testid="ownership-transfer-outcome">
       {outcome.terminalAt === null
         ? said
-        : m.ownership_transfer_outcome_on({ outcome: said, date: new Date(outcome.terminalAt).toLocaleDateString() })}
+        : m.ownership_transfer_outcome_on({ outcome: said, date: formatInstantDate(outcome.terminalAt) })}
     </p>
   );
 }
@@ -323,7 +326,14 @@ export function OwnershipTransferCard() {
         <h2 className="font-semibold">{m.ownership_transfer_heading()}</h2>
         <p className="text-sm text-muted-foreground">{m.ownership_transfer_intro()}</p>
       </div>
-      <Button type="button" data-testid="ownership-transfer-open" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        data-testid="ownership-transfer-open"
+        onClick={() => {
+          setOpen(true);
+          void controller.refresh();
+        }}
+      >
         {m.ownership_transfer_open()}
       </Button>
       {open && (

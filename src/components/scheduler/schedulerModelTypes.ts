@@ -162,9 +162,9 @@ export interface CapacitySource {
   tracked: boolean;
   /** The row's applicable personal time off covering one date. */
   listTimeOffOn: (date: ISODate) => TimeOff[];
-  getCapacityOnDay: (date: ISODate) => DayCapacity;
-  getAllocationCountOn: (date: ISODate) => number;
-  getTimeOffCountOn: (date: ISODate) => number;
+  resolveCapacityOnDay: (date: ISODate) => DayCapacity;
+  countAllocationsOn: (date: ISODate) => number;
+  countTimeOffOn: (date: ISODate) => number;
   resolveUtilizationOver: (dates: ISODate[]) => number;
   isOverOn: (dates: ISODate[]) => boolean;
 }

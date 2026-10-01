@@ -5,7 +5,7 @@ import { insertRow, openDb } from "../db";
 import { createInvite, getInvite, upsertMember } from "../controlTables";
 import { canAdmitLocalExternalIdentity } from "../accounts/externalIdentityAdmission";
 import { hasLivePreauthorizedInvitation } from "../accounts/sqliteAccountAdminPort";
-import { PASSWORD_ENV, readCookies, registerServerFixtureCleanup } from "../testHelpers";
+import { PASSWORD_ENV, readCookies, registerServerFixtureCleanup, signUp } from "../testHelpers";
 
 const fixtures = registerServerFixtureCleanup();
 const origin = "http://localhost:8787";
@@ -41,7 +41,7 @@ function mockGoogle(profile: GoogleProfile): void {
 
 afterEach(() => vi.unstubAllGlobals());
 
-async function configured(mode: "password" | "sso" = "sso") {
+async function configured(mode: "password-and-sso" | "sso-only" = "sso-only") {
   const db = fixtures.trackDb(openDb(":memory:"));
   const { auth } = createAuthFromEnvironment(
     db,
@@ -134,6 +134,10 @@ it("admits the allowlisted first owner and returns to the same principal without
   const first = await signInGoogle(fixture, owner);
   expect(first.statusCode, first.body).toBe(302);
   const id = principalId(fixture, ownerEmail);
+  expect(fixture.db.prepare("SELECT email, source FROM identity_email_proofs WHERE principalId = ?").get(id)).toEqual({
+    email: ownerEmail,
+    source: "google",
+  });
   const returned = await signInGoogle(fixture, owner);
   expect(returned.statusCode, returned.body).toBe(302);
   expect(countUsers(fixture.db)).toBe(1);
@@ -152,6 +156,7 @@ it.each([
   expect(countUsers(fixture.db)).toBe(0);
   expect(fixture.db.prepare("SELECT id FROM session").all()).toEqual([]);
   expect(fixture.db.prepare("SELECT id FROM account").all()).toEqual([]);
+  expect(fixture.db.prepare("SELECT principalId FROM identity_email_proofs").all()).toEqual([]);
 });
 
 it("admits an addressed invite without claiming membership until explicit acceptance", async () => {
@@ -197,7 +202,7 @@ it("rejects an uninvited new identity once an owner exists", async () => {
 });
 
 it("requires explicit linking for a matching password identity, then returns as that same principal", async () => {
-  const fixture = await configured("password");
+  const fixture = await configured("password-and-sso");
   const local = await fixture.app.inject({
     method: "POST",
     url: "/api/auth/sign-up/email",
@@ -223,8 +228,55 @@ it("requires explicit linking for a matching password identity, then returns as 
   });
   expect(completed.statusCode, completed.body).toBe(302);
   expect(fixture.db.prepare("SELECT userId FROM account WHERE providerId = 'google'").get()).toEqual({ userId: id });
+  expect(fixture.db.prepare("SELECT email, source FROM identity_email_proofs WHERE principalId = ?").get(id)).toEqual({
+    email: ownerEmail,
+    source: "google",
+  });
   const returned = await signInGoogle(fixture, owner);
   expect(returned.statusCode, returned.body).toBe(302);
   expect(countUsers(fixture.db)).toBe(1);
   expect(principalId(fixture, ownerEmail)).toBe(id);
+});
+
+it("rolls back proof and provider linking when a new verified alias would restrict an Owner", async () => {
+  const fixture = await configured("password-and-sso");
+  const local = await signUp(fixture.app, ownerEmail);
+  fixture.db.prepare("UPDATE user SET emailVerified = 1 WHERE id = ?").run(local.userId);
+  insertRow(fixture.db, "accounts", {
+    id: "a-studio",
+    name: "Wayne Enterprises",
+    color: "#6366f1",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  upsertMember(fixture.db, {
+    accountId: "a-studio",
+    userId: local.userId,
+    role: "owner",
+    status: "active",
+    createdAt: new Date().toISOString(),
+  });
+  fixture.db
+    .prepare(
+      `INSERT INTO account_access_restrictions
+    (accountId, principalId, verifiedEmail, role, createdAt)
+    VALUES ('a-studio', 'erased-principal', ?, 'editor', ?)`,
+    )
+    .run(ownerEmail, new Date().toISOString());
+  const linked = await fixture.app.inject({
+    method: "POST",
+    url: "/api/identity/link-provider",
+    headers: { cookie: local.cookie },
+    payload: { providerId: "google", callbackURL: `${origin}/account`, errorCallbackURL: `${origin}/account` },
+  });
+  expect(linked.statusCode).toBe(200);
+  await finishGoogle(fixture, {
+    url: linked.json<{ url: string }>().url,
+    cookie: `${local.cookie}; ${readCookies(linked)}`,
+    profile: owner,
+  });
+  expect(fixture.db.prepare("SELECT 1 FROM account WHERE providerId = 'google'").get()).toBeUndefined();
+  expect(
+    fixture.db.prepare("SELECT 1 FROM identity_email_proofs WHERE principalId = ?").get(local.userId),
+  ).toBeUndefined();
 });

@@ -5,7 +5,7 @@ import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { resolveResourceDisplayName } from "../../lib/metadata";
-import { validateText } from "../../lib/validation";
+import { parseText } from "../../lib/validation";
 import type { useStore } from "../../store/useStore";
 import type { Option } from "../common/ui";
 import {
@@ -25,8 +25,11 @@ import {
   resolveAttributedProject,
   INTERNAL_PROJECT_SELECTION,
 } from "./allocationModalSelection";
+/** Tables the resource, project and activity pickers read. */
+type TargetData = Pick<AppData, "activities" | "clients" | "phases" | "projects" | "resources">;
+
 interface TargetInput {
-  data: AppData;
+  data: TargetData;
   seed: AllocationModalSeed;
   resourceById: Map<string, Resource>;
   canEdit: boolean;
@@ -64,7 +67,10 @@ function buildResourceOptions({
     .map((resource) => ({ value: resource.id, label: describeResource(resource) }));
 }
 
-function buildProjectOptions(data: AppData, lockedProjectId: string | undefined): Option[] {
+function buildProjectOptions(
+  data: Pick<TargetData, "clients" | "projects">,
+  lockedProjectId: string | undefined,
+): Option[] {
   const clientNamesById = new Map(data.clients.map((client) => [client.id, client.name]));
   const projects = data.projects
     .filter((project) => lockedProjectId === undefined || project.id === lockedProjectId)
@@ -213,22 +219,23 @@ function useAddInlineActivity({
 }) {
   return () => {
     if (!canEdit) return;
-    const cleanActivityName = validateText(newActivityName, fail, {
+    const cleanActivityName = parseText(newActivityName, fail, {
       field: "newactivity",
       requiredMessage: m.form_allocation_err_new_activity_name(),
     });
     if (cleanActivityName === null) return;
     try {
       const activity = addActivity({ name: cleanActivityName, ...activityScope });
+      if (activity.kind === "blocked") return;
       flushSync(() => {
         setInlineActivityOption({
-          value: activity.id,
-          label: activity.name,
-          kind: activity.kind,
-          ...(activity.projectId ? { projectId: activity.projectId } : {}),
+          value: activity.value.id,
+          label: activity.value.name,
+          kind: activity.value.kind,
+          ...(activity.value.projectId ? { projectId: activity.value.projectId } : {}),
         });
       });
-      setActivityId(activity.id);
+      setActivityId(activity.value.id);
       setNewActivityName("");
     } catch (error) {
       fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed());

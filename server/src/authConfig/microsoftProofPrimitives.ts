@@ -1,3 +1,4 @@
+import type { MailSender } from "./mailSender";
 import {
   createCipheriv,
   createDecipheriv,
@@ -7,11 +8,10 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
-import nodemailer from "nodemailer";
-import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
+import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
 
-export type MicrosoftProofPurpose = "bootstrap" | "invite" | "link";
+export type MicrosoftProofPurpose = "bootstrap" | "invite" | "link" | "join";
 export type MicrosoftProofState = "started" | "mail-sent" | "approved" | "completed" | "cancelled";
 export type MicrosoftProofIntent = {
   id: string;
@@ -31,6 +31,7 @@ export type MicrosoftProofIntent = {
   sentCount: number;
   lastSentAt: number | null;
   sourceIpHash: string;
+  browserHash: string | null;
   oauthStateHash: string | null;
   oauthStateHistory: string;
   callbackUrl: string;
@@ -46,8 +47,9 @@ export class MicrosoftProofError extends Error {
   constructor(
     readonly code: string,
     readonly status: number,
+    options?: ErrorOptions,
   ) {
-    super(code);
+    super(code, options);
   }
 }
 
@@ -106,8 +108,8 @@ export function assertMicrosoftReturnUrl(value: string, origins: ReadonlySet<str
   let parsed: URL;
   try {
     parsed = new URL(value);
-  } catch {
-    throw new MicrosoftProofError("INVALID_CALLBACK_URL", 400);
+  } catch (error) {
+    throw new MicrosoftProofError("INVALID_CALLBACK_URL", 400, { cause: error });
   }
   if (!origins.has(parsed.origin) || parsed.username || parsed.password) {
     throw new MicrosoftProofError("INVALID_CALLBACK_URL", 400);
@@ -138,39 +140,11 @@ export function createMicrosoftReturnUrlCipher(secret: string) {
   };
 }
 
-export function createMicrosoftProofMailer(environment: Record<string, string | undefined>, publicUrl: URL) {
-  const host = environment.SMALLSASS_ACCOUNT_MAIL_HOST?.trim();
-  const from = environment.SMALLSASS_ACCOUNT_MAIL_FROM?.trim();
-  const user = environment.SMALLSASS_ACCOUNT_MAIL_USER?.trim();
-  const password = environment.SMALLSASS_ACCOUNT_MAIL_PASSWORD;
-  const port = Number(environment.SMALLSASS_ACCOUNT_MAIL_PORT);
-  if (
-    !host ||
-    !from ||
-    !isAccountEmail(from) ||
-    !user ||
-    !password ||
-    !Number.isInteger(port) ||
-    port < 1 ||
-    port > 65535
-  ) {
-    throw new Error(
-      "Microsoft sign-in requires complete SMALLSASS_ACCOUNT_MAIL_HOST, PORT, USER, PASSWORD and FROM settings.",
-    );
-  }
-  const transport = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    requireTLS: port !== 465,
-    auth: { user, pass: password },
-    tls: { rejectUnauthorized: true },
-  });
+export function createMicrosoftProofMailer(mail: MailSender, publicUrl: URL) {
   return async (targetEmail: string, token: string) => {
     const target = new URL("/verify-microsoft", publicUrl);
     target.hash = `token=${encodeURIComponent(token)}`;
-    await transport.sendMail({
-      from,
+    await mail.send({
       to: targetEmail,
       subject: "Verify your Microsoft connection",
       text: `Open this link and confirm your Microsoft connection: ${target.href}\n\nThis link expires in 15 minutes.`,

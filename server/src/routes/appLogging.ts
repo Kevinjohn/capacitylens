@@ -10,26 +10,27 @@ import type { AppOptions } from "../app";
 // serializer is ever added, extend this list to cover any new path it surfaces.
 const LOG_REDACT_PATHS = ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'];
 
-// Mask the bearer token in every token-scoped invite URL before it reaches the access log. The token
-// is the ONLY path-borne secret in the API; every other URL passes through unchanged. Anchored to
-// the exact `/api/invites/<token>/accept` shape (optionally with a query string) so a normal path
-// is never mangled. The match is on the path-with-query string pino logs (req.url).
+// Keep only the path in access logs so query and fragment data cannot expose one-time credentials.
+// The invite token is carried in the path, so mask that exact route segment before taking its pathname.
 const INVITE_OPERATION_URL_RE = /^(\/api\/invites\/)[^/?#]+(\/(?:accept|signup|preview))(.*)$/;
+
+// /invite/<token> and /reset-password/<token> are web-app routes whose path carries a single-use
+// bearer secret; mask everything after the prefix (the packaged nginx edge drops these log lines entirely).
+const WEB_TOKEN_PATH_RE = /^(\/(?:invite|reset-password)\/).*$/;
 
 // `url` is typed unknown because the serializer may also run over a hand-built `{ req: {...} }`
 // record (e.g. app.log.info(...)) whose url is absent; a non-string passes through untouched.
 export const redactSecretUrl = (url: unknown): string | undefined => {
   if (typeof url !== "string") return undefined;
   const inviteSafe = url.replace(INVITE_OPERATION_URL_RE, "$1[redacted]$2$3");
+  let pathname: string;
   try {
-    const parsed = new URL(inviteSafe, "http://capacitylens.invalid");
-    for (const key of ["token", "code", "state"]) {
-      if (parsed.searchParams.has(key)) parsed.searchParams.set(key, "[redacted]");
-    }
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    pathname = new URL(inviteSafe, "http://capacitylens.invalid").pathname;
   } catch {
-    return inviteSafe;
+    const suffixIndex = inviteSafe.search(/[?#]/u);
+    pathname = suffixIndex < 0 ? inviteSafe : inviteSafe.slice(0, suffixIndex);
   }
+  return pathname.replace(WEB_TOKEN_PATH_RE, "$1[redacted]");
 };
 
 /** Build the exact structured logger policy consumed by Fastify.

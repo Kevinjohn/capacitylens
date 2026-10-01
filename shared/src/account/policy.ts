@@ -6,6 +6,7 @@ import { isAccountRole, type IdentityAdminAction, type Role } from "./types";
 export const SINGLE_COMPANY_CAP_MESSAGE =
   "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
 
+/** Company administration actions the role policy authorizes. */
 export type AccountAdminAction =
   | "list-members"
   | "manage-members"
@@ -47,12 +48,17 @@ const IDENTITY_ADMIN_ACTIONS: ReadonlySet<IdentityAdminAction> = new Set([
   "remove-federated-link",
 ]);
 
+/** Whether `role` ranks at or above `minimum` in the owner > admin > editor > viewer order. Pure. */
 export function isAtLeast(role: Role, minimum: Role): boolean {
   const actualRank = ROLE_RANK[role];
   const requiredRank = ROLE_RANK[minimum];
   return actualRank >= requiredRank;
 }
 
+/**
+ * Whether `role` meets the minimum tier for one account administration `action`. This is the role
+ * check only; the server still applies session, MFA and fresh-session policy separately.
+ */
 export function canAdministerAccount(role: Role, action: AccountAdminAction): boolean {
   const minimum = MIN_ADMIN_TIER[action];
   return isAtLeast(role, minimum);
@@ -80,6 +86,7 @@ export function canEditAnyMemberRole(actorRole: Role, targetRole: Role): boolean
   return targetRole !== "owner";
 }
 
+/** Whether the actor may change the target's role to `nextRole`. Promotion to Owner is never allowed here. Pure. */
 export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
   // Standing over this target first, then the destination-specific rule: promoting anyone TO Owner
   // is likewise reserved to the ownership transfer.
@@ -87,6 +94,7 @@ export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole:
   return nextRole !== "owner";
 }
 
+/** Whether the actor may remove the target. An Owner cannot be removed. Pure. */
 export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
   return isAccountRole(targetRole) && canAdministerAccount(actorRole, "manage-members") && targetRole !== "owner";
 }
@@ -110,6 +118,12 @@ export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf:
   return canRemoveMember(actorRole, targetRole);
 }
 
+/**
+ * Whether `actorRole` may run identity security operations (password reset, session revocation and
+ * similar) against a member holding `targetRole` in one workspace. Requires admin tier; only an
+ * Owner may act on an Owner. Fails closed on an unrecognised target role. Callers acting on an
+ * identity that spans workspaces use {@link canAdministerIdentityAcrossWorkspaces}.
+ */
 export function canAdministerIdentity(actorRole: Role, targetRole: Role): boolean {
   if (!canAdministerAccount(actorRole, "manage-members") || !isAccountRole(targetRole)) return false;
   return targetRole !== "owner" || actorRole === "owner";

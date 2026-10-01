@@ -1,4 +1,4 @@
-import { AccountContractError, retryAfterSeconds } from "@capacitylens/shared/account/errors";
+import { AccountContractError, assertRetryAfterSeconds } from "@capacitylens/shared/account/errors";
 
 function authorityDenialMessage(reason: string, action: "issue-password-reset" | "revoke-sessions"): string {
   if (reason === "target-not-member") return "The target is not a member of this installation.";
@@ -42,7 +42,7 @@ export function createReplayCapacityError(commandId: string, retryAfterMs: numbe
     code: "RATE_LIMITED",
     message: "One-time link issuance is temporarily busy. Retry after the indicated interval.",
     retryable: true,
-    retryAfterSeconds: retryAfterSeconds(Math.ceil(retryAfterMs / 1_000)),
+    retryAfterSeconds: assertRetryAfterSeconds(Math.ceil(retryAfterMs / 1_000)),
     commandId,
   });
 }

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -177,8 +177,15 @@ function registerMarkerTests() {
 }
 
 describe("TLS renewal generation verification", () => {
-  it("includes the deployed verifier script in the production server package", () => {
-    expect(serverPackage.files).toContain("scripts/verify-tls-renewal.mjs");
+  it("packages the verifier script the renewal runbook invokes", () => {
+    const invoked = /docker compose exec -T api node (\S+)/.exec(shell)?.[1];
+    expect(invoked).toBe("scripts/verify-tls-renewal.mjs");
+    const files = serverPackage.files ?? [];
+    expect(files).toContain(invoked);
+    // `dist` is produced by the release build; every other packaged entry is checked in.
+    for (const entry of files.filter((file) => file !== "dist")) {
+      expect(existsSync(join(root, entry)), entry).toBe(true);
+    }
   });
 
   registerDeploymentTest();

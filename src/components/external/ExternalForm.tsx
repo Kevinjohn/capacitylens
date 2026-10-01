@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useStore } from "../../store/useStore";
 import { useFieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
-import { validateText } from "../../lib/validation";
+import { parseText } from "../../lib/validation";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
 import { FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
@@ -63,13 +63,13 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
   const { error, errorField, errorId, fail } = useFieldError();
 
   const submit = () => {
-    const cleanName = validateText(name, fail, {
+    const cleanName = parseText(name, fail, {
       field: "name",
       required: true,
       requiredMessage: m.form_external_err_company_required(),
     });
     if (cleanName === null) return;
-    const cleanRole = validateText(role, fail, { field: "role", required: false });
+    const cleanRole = parseText(role, fail, { field: "role", required: false });
     if (cleanRole === null) return;
     const patch = {
       kind: "external" as const,
@@ -88,7 +88,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
           return;
         }
         update(resource.id, patch);
-      } else add(patch);
+      } else if (add(patch).kind === "blocked") return;
       onClose();
     } catch (e) {
       fail(null, resolveErrorMessage(e));

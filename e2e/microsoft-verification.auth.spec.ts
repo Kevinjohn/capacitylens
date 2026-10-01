@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures";
 
 const SSO_BOOTSTRAP = {
-  authMode: "sso",
+  authMode: "sso-only",
   needsSetup: true,
   providers: [{ id: "microsoft", kind: "social", label: "Microsoft", experimental: false }],
 };

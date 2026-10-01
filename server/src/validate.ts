@@ -84,7 +84,7 @@ function parseAncestryRow(row: Record<string, unknown>): LifecycleAncestryRow {
   return { ...row, id, ...(accountId === undefined ? {} : { accountId }) };
 }
 
-function findAncestryRow(state: AppData, table: AppDataKey, id: string): LifecycleAncestryRow | undefined {
+function getAncestryRow(state: AppData, table: AppDataKey, id: string): LifecycleAncestryRow | undefined {
   for (const row of state[table]) {
     if (row.id === id) return { ...row };
   }
@@ -94,7 +94,7 @@ function findAncestryRow(state: AppData, table: AppDataKey, id: string): Lifecyc
 function createAncestryLookup(state: AppData, lookup: ValidationDataLookup | undefined): LifecycleAncestryLookup {
   return (table, id) => {
     const row = lookup?.row(table, id);
-    return row ? parseAncestryRow(row) : findAncestryRow(state, table, id);
+    return row ? parseAncestryRow(row) : getAncestryRow(state, table, id);
   };
 }
 
@@ -238,7 +238,7 @@ function assertResourceWrite(input: AssertValidWriteInput, accountId: string): v
   const availability = validateResourceAvailabilityPair(resource.firstAvailableDate, resource.lastAvailableDate);
   if (!availability.ok) {
     throw new ValidationError(
-      availability.code === "date_reversed"
+      availability.codes[0] === "date_reversed"
         ? "First available date cannot be after last available date."
         : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
     );
@@ -355,7 +355,7 @@ function assertLifecycleWrite(
 function assertActiveAncestry({ state, table, row, lookup }: AssertValidWriteInput): void {
   if (isAppDataKey(table)) {
     const ancestry = inspectLifecycleAncestry(table, parseAncestryRow(row), createAncestryLookup(state, lookup));
-    if (ancestry.inactiveAncestor) {
+    if (ancestry.kind === "hidden") {
       throw new ValidationError(
         "Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.",
       );

@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
 import { cleanText } from "@capacitylens/shared/lib/strings";
@@ -10,7 +11,7 @@ import { sqliteTableExists } from "./federatedIdentitySchema";
 
 interface HookOptions {
   db: Db;
-  mode: "password" | "sso";
+  mode: "password-only" | "sso-only" | "password-and-sso";
   application: BoundApplication;
   configuredFederatedIssuers: Map<string, string>;
   permittedCompanyProviderIds: ReadonlySet<string>;
@@ -21,6 +22,7 @@ interface HookOptions {
     emailVerified?: boolean;
     providerId: string | null;
   }) => boolean | Promise<boolean>;
+  onFederatedSession?: (principalId: string, providerId: string) => void;
   providerIdFromExternalContext: (
     context: { path?: string; params?: Record<string, unknown> } | null | undefined,
   ) => string | null;
@@ -55,7 +57,7 @@ async function admitExternalIdentity(
     path: context.path,
     ...(context.params === undefined ? {} : { params: context.params }),
   });
-  if (options.mode === "sso" && (providerId === null || !options.permittedCompanyProviderIds.has(providerId))) {
+  if (options.mode === "sso-only" && (providerId === null || !options.permittedCompanyProviderIds.has(providerId))) {
     throw APIError.from("FORBIDDEN", {
       message: "New SSO-only identities must sign in through a configured company provider.",
       code: "STRICT_PROVIDER_REQUIRED",
@@ -127,7 +129,7 @@ function resolveProviderId(options: HookOptions, assurance: Assurance, context: 
 
 function readEnrolledMfa(options: HookOptions, principalId: string): unknown {
   // Strict-SSO schemas omit Better Auth's password/MFA columns, so never query them in SSO mode.
-  if (options.mode !== "password") return false;
+  if (!allowsPasswordSignIn(options.mode)) return false;
   return (
     options.twoFactorEnabledLookupStatement(options.db).get(principalId) as { twoFactorEnabled?: unknown } | undefined
   )?.twoFactorEnabled;
@@ -138,6 +140,7 @@ function buildSessionAfter(options: HookOptions): SessionAfter {
     const assurance = resolveAssurance(options, context?.path);
     const providerId = resolveProviderId(options, assurance, context);
     const principalId = String(session.userId);
+    if (providerId) options.onFederatedSession?.(principalId, providerId);
     recordSessionAssurance({
       db: options.db,
       sessionId: buildApplicationSessionHandle(options.application.applicationId, String(session.token)),
@@ -177,6 +180,7 @@ export function buildDatabaseHooks({
   allowOpenSignup,
   requirePasswordMfa,
   externalIdentityAdmission,
+  onFederatedSession,
   providerIdFromExternalContext,
   countUsers,
   twoFactorEnabledLookupStatement,
@@ -191,6 +195,7 @@ export function buildDatabaseHooks({
     allowOpenSignup,
     requirePasswordMfa,
     ...(externalIdentityAdmission === undefined ? {} : { externalIdentityAdmission }),
+    ...(onFederatedSession === undefined ? {} : { onFederatedSession }),
     providerIdFromExternalContext,
     countUsers,
     twoFactorEnabledLookupStatement,

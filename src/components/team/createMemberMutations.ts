@@ -4,7 +4,7 @@ import type { MembershipStatus } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { resolveRejectionMessage, teamAccessClient, type TeamMember as Member } from "../../account/teamAccessClient";
 import { resolveErrorMessage } from "../../lib/errorMessage";
-import type { MemberActionDependencies } from "./memberActionDependencies";
+import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 import { createMemberCredentialMutations } from "./createMemberCredentialMutations";
 
@@ -126,7 +126,7 @@ function createRemoveMemberMutation(dependencies: MemberMutationDependencies) {
 
 function createStatusMutation(dependencies: MemberMutationDependencies) {
   return async (member: Member, nextStatus: MembershipStatus) => {
-    if (nextStatus === member.status) return;
+    if (nextStatus === member.status && nextStatus !== "disabled") return;
     await dependencies.withMemberAction(`status:${member.userId}`, async (accountId) => {
       try {
         const result = await teamAccessClient.changeMemberStatus(accountId, member.userId, nextStatus);
@@ -157,12 +157,43 @@ function createStatusMutation(dependencies: MemberMutationDependencies) {
   };
 }
 
+function createEnableAccessMutation(dependencies: MemberMutationDependencies) {
+  return (member: Member) =>
+    dependencies.withMemberAction(`enable:${member.userId}`, async (accountId) => {
+      try {
+        const result = await teamAccessClient.enableMemberAccess(accountId, member.userId);
+        if (!dependencies.isActiveAccount(accountId)) return;
+        if (result.kind !== "ok") {
+          if (result.kind === "unknown") {
+            await dependencies.reconcileUnknownMutation(m.settings_members_unknown_status_change());
+            return;
+          }
+          dependencies.fail(
+            null,
+            resolveRejectionMessage(result, m.settings_members_err_change_status({ status: result.status })),
+          );
+          return;
+        }
+        dependencies.setNotice(m.settings_members_access_enabled());
+        dependencies.refreshDirectory();
+      } catch (cause) {
+        await dependencies.reconcileUnknownMutation(
+          m.settings_members_error_detail({
+            message: m.settings_members_unknown_status_change(),
+            error: resolveErrorMessage(cause),
+          }),
+        );
+      }
+    });
+}
+
 export function createMemberMutations(dependencies: MemberMutationDependencies) {
   return {
     changeSignInTracking: createSignInTrackingMutation(dependencies),
     changeRole: createRoleMutation(dependencies),
     removeMember: createRemoveMemberMutation(dependencies),
     changeStatus: createStatusMutation(dependencies),
+    enableAccess: createEnableAccessMutation(dependencies),
     ...createMemberCredentialMutations(dependencies),
   };
 }

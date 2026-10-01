@@ -3,11 +3,14 @@ import type { FastifyInstance } from "fastify";
 import { type SsoCutoverIdentityPort } from "../accounts/betterAuthIdentityPort";
 import { registerFederatedIdentityRoutes } from "../accounts/federatedIdentityRoutes";
 import { registerAccountRoutes } from "../accounts/accountRoutes";
+import { registerExampleDataRoutes } from "./exampleDataRoutes";
 import { registerGettingStartedRoutes } from "./gettingStartedRoutes";
 import { readMemberSignInTrackingSnapshot, setMemberSignInTracking } from "../accounts/memberSignInTracking";
 import { registerLifecycleRoutes } from "./lifecycleRoutes";
 import { registerAuthProxyRoutes } from "./authProxyRoutes";
 import { registerMicrosoftProofRoutes } from "./microsoftProofRoutes";
+import { registerJoiningProofRoutes } from "./joiningProofRoutes";
+import { withSendBudget, type MailSender } from "../authConfig/mailSender";
 import { registerBatchRoutes } from "./batchRoutes";
 import { registerEntityRoutes } from "./entityRoutes";
 import { registerImportRoutes } from "./importRoutes";
@@ -45,6 +48,8 @@ interface RegisterApiRoutesInput {
 
 interface RegisterRouteGroupInput extends RegisterApiRoutesInput {
   childApp: FastifyInstance;
+  /** Invitation and joining-verification mail, under one shared send budget. */
+  budgetedMail: MailSender | null;
 }
 
 function registerImportRouteGroup(input: RegisterRouteGroupInput): void {
@@ -118,8 +123,22 @@ function registerDataRoutes(input: RegisterRouteGroupInput): void {
   registerImportRouteGroup(input);
 }
 
-function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
+function registerExampleDataRouteGroup(input: RegisterRouteGroupInput): void {
   const { childApp: app, db, runtime, config, rootHelpers, authorization } = input;
+  registerExampleDataRoutes(app, {
+    db,
+    store: runtime.store,
+    authMode: config.authMode,
+    accountAdminPort: runtime.accountAdminPort,
+    accountLock: runtime.accountLock,
+    authorize: authorization.authorizeAllowed,
+    commitProductAudit: runtime.commitProductAudit,
+    fail: rootHelpers.sendFail,
+  });
+}
+
+function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
+  const { childApp: app, db, runtime, config, rootHelpers, authorization, budgetedMail } = input;
   const { accountAdminPort, accountAudit, accountFlows, audit, identityPort, masquerades, store, commitProductAudit } =
     runtime;
   const { application, auth, authMode } = config;
@@ -127,11 +146,13 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
   const { authorizeAllowed, fieldVisibilityFor, memberReadProjection, redactWriteEcho, resolveEffectiveRole } =
     authorization;
   registerGettingStartedRoutes(app, { db, authorize: authorizeAllowed });
+  registerExampleDataRouteGroup(input);
   registerAccountRoutes(app, {
     memberResources: runtime.memberResources,
     authMode,
     authenticationConfigured: auth !== null,
-    requiredSsoProviderId: authMode === "sso" ? (auth?.defaultCompanyProvider?.id ?? null) : null,
+    invitationMail: auth && budgetedMail ? { sender: budgetedMail, publicUrl: auth.publicUrl } : null,
+    requiredSsoProviderId: authMode === "sso-only" ? (auth?.defaultCompanyProvider?.id ?? null) : null,
     ...(auth?.permittedCompanyProviderIds === undefined
       ? {}
       : { permittedCompanyProviderIds: auth.permittedCompanyProviderIds }),
@@ -230,7 +251,7 @@ function buildPlatformRouteDependencies(input: RegisterApiRoutesInput) {
 }
 
 function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
-  const { childApp: app, runtime, config, options, rootHelpers, authorization } = input;
+  const { childApp: app, db, runtime, config, options, rootHelpers, authorization } = input;
   const dependencies = buildPlatformRouteDependencies(input);
   const { accountAdminPort, identityPort } = runtime;
   const { application, auth, authMode } = config;
@@ -238,6 +259,19 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
   registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "identity" });
   if (authMode !== "off" && auth) {
     registerMicrosoftProofRoutes(app, auth, options.trustProxyHeaders === true);
+    if (options.joiningProof)
+      registerJoiningProofRoutes(app, {
+        db,
+        auth,
+        mail: input.budgetedMail,
+        applicationId: application.applicationId,
+        authMode,
+        requireMfa: options.requireMfa === true,
+        trustProxyHeaders: options.trustProxyHeaders === true,
+        secret: options.joiningProof.secret,
+        publicUrl: options.joiningProof.publicUrl,
+        fail: rootHelpers.accountFail,
+      });
     registerFederatedIdentityRoutes(app, {
       auth,
       authMode,
@@ -265,9 +299,11 @@ export function registerApiRoutes(input: RegisterApiRoutesInput): void {
   // so its routes are seen, and it inherits the root CORS hook + error handler. The
   // callback shadows `app` deliberately: the route code is identical without the wrapper.
   void app.register(async (app) => {
-    registerPlatformRoutes({ ...input, childApp: app });
+    const mail = input.config.auth?.mail;
+    const groupInput = { ...input, childApp: app, budgetedMail: mail ? withSendBudget(mail) : null };
+    registerPlatformRoutes(groupInput);
 
-    registerAccountControlRoutes({ ...input, childApp: app });
-    registerDataRoutes({ ...input, childApp: app });
+    registerAccountControlRoutes(groupInput);
+    registerDataRoutes(groupInput);
   });
 }

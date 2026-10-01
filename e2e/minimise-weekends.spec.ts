@@ -7,7 +7,7 @@ import {
   settledSchedulerLeftDate as settledLeftDate,
   setZoom,
   waitForWeekSnap,
-} from "./helpers";
+} from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -28,7 +28,7 @@ async function openWithFreeScrollSnapOff(page: import("@playwright/test").Page) 
 // Sat/Sun columns to a sliver and labels both "S"; off restores full-width Sat/Sun columns.
 // All label assertions are scoped to the date header (role=columnheader "Dates") so a stray
 // "S" elsewhere (e.g. an avatar initial) can't match. 1w zoom = the widest, clearest columns.
-function registerSuiteScenario1() {
+function registerDefaultWeekendColumnsNarrowLabelledTest() {
   test('ON by default: weekend columns are narrow and labelled "S"', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 1);
@@ -50,7 +50,7 @@ function registerSuiteScenario1() {
 // WCAG 2.5.8 (Target Size, AA): the preference switch must be ≥24×24px. The unit test in
 // SettingsView.test.tsx can only assert the h-6 class (jsdom runs no layout), so this measures the
 // REAL rendered geometry the build ships — a class rename that drops below 24px is caught here.
-function registerSuiteScenario2() {
+function registerPreferenceSwitchRendersLeast24pxTest() {
   test("the preference switch renders at least 24px tall (WCAG 2.5.8 target size)", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     const sw = page.getByRole("switch", { name: "Minimise weekends" });
@@ -60,7 +60,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerTogglingOffSettingsRestoresFullTest() {
   test("toggling it off in Settings restores full-width Sat/Sun columns", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Minimise weekends" });
@@ -85,7 +85,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerChoiceSurvivesReloadDeviceGlobalTest() {
   test("the choice survives a reload (device-global pref)", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Minimise weekends" }).click(); // → off
@@ -97,7 +97,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerZoomFitsSelectedWeeksExposingTest() {
   test("every zoom fits its selected weeks without exposing a trailing day", async ({ page }) => {
     // Keep even the 8-week zoom above the per-day-column threshold so the probe can count the
     // same date cells shown in the wide-screen reproduction screenshots.
@@ -111,7 +111,7 @@ function registerSuiteScenario5() {
   });
 }
 
-function registerSuiteScenario6() {
+function registerZoomFlipsPreserveLeftEdgeTest() {
   test("zoom flips preserve the left-edge date (no drift onto the weekend)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 1);
@@ -130,7 +130,7 @@ function registerSuiteScenario6() {
   });
 }
 
-function registerSuiteScenario7() {
+function registerBarDraggedAcrossNarrowedWeekendTest() {
   test("a bar dragged across the narrowed weekend commits a later date (no crash)", async ({ page }) => {
     await openApp(page); // minimise on by default
     await setZoom(page, 1);
@@ -162,7 +162,7 @@ function registerSuiteScenario7() {
 // floored to a Monday. We turn the F2 free-scroll snap OFF first so its idle snap can't masquerade
 // as a navigation snap and mask a regression. The nudge lands on a mid-week WEEKDAY ("…Wed"/"…Thu")
 // so a (wrong) Monday-snap would be plainly visible as a changed date.
-function registerSuiteScenario8() {
+function registerPureResizePreservesMidWeekTest() {
   test("a pure resize preserves the mid-week left-edge date (no navigation snap)", async ({ page }) => {
     await openWithFreeScrollSnapOff(page);
 
@@ -186,7 +186,7 @@ function registerSuiteScenario8() {
 // (a Settings round-trip remounts the grid and recentres it to the focus Monday — that's mount
 // behaviour, separate from the snap branch under test), THEN nudge to a mid-week WEEKDAY and do a
 // pure in-component RESIZE: a refit that is neither a zoom nor a pan must preserve the exact date.
-function registerSuiteScenario9() {
+function registerMinimiseOFFPureResizeStillTests() {
   test("with minimise OFF, a pure resize still preserves the mid-week left-edge date (no snap)", async ({ page }) => {
     await openWithFreeScrollSnapOff(page);
 
@@ -212,13 +212,13 @@ function registerSuiteScenario9() {
 }
 
 test.describe("Minimise weekends", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
-  registerSuiteScenario7();
-  registerSuiteScenario8();
-  registerSuiteScenario9();
+  registerDefaultWeekendColumnsNarrowLabelledTest();
+  registerPreferenceSwitchRendersLeast24pxTest();
+  registerTogglingOffSettingsRestoresFullTest();
+  registerChoiceSurvivesReloadDeviceGlobalTest();
+  registerZoomFitsSelectedWeeksExposingTest();
+  registerZoomFlipsPreserveLeftEdgeTest();
+  registerBarDraggedAcrossNarrowedWeekendTest();
+  registerPureResizePreservesMidWeekTest();
+  registerMinimiseOFFPureResizeStillTests();
 });

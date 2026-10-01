@@ -54,6 +54,10 @@
       "purpose": "Domain-separated SHA-256 application-local handles that prevent session bearer tokens crossing the account boundary"
     },
     {
+      "path": "server/src/accounts/adminPort/joiningIntentSecrets.ts",
+      "purpose": "Random 256-bit browser and mailbox secrets, domain-separated SHA-256 hashes, HMAC-SHA-256 source-IP rate-limit keys and expiring current-address proof tokens with constant-time verification, and random non-secret intent identifiers for company-bound joining"
+    },
+    {
       "path": "server/src/auth.ts",
       "purpose": "Constant-time setup token comparison"
     },
@@ -138,7 +142,7 @@
       "purpose": "CSPRNG installation identifiers that isolate staged service-worker shell caches until activation"
     },
     {
-      "path": "src/data/sync/state.ts",
+      "path": "src/data/sync/SyncState.ts",
       "purpose": "CSPRNG non-secret browser sync-session identifiers for server-side request ordering"
     },
     {
@@ -150,8 +154,20 @@
       "purpose": "SHA-256 semantic payload fingerprints for non-secret account-command correlation and safe unknown-outcome reconciliation"
     },
     {
+      "path": ".github/workflows/docker.yml",
+      "purpose": "OpenSSL generation of disposable signing, first-owner setup and password secrets for the isolated authenticated Compose smoke job"
+    },
+    {
       "path": ".github/workflows/security.yml",
       "purpose": "OpenSSL generation of ephemeral authentication secrets and bootstrap tokens for isolated CI security checks"
+    },
+    {
+      "path": ".github/workflows/gate.yml",
+      "purpose": "OpenSSL generation of ephemeral authentication secrets and setup tokens, and a throwaway self-signed certificate, for the release package smoke check"
+    },
+    {
+      "path": "scripts/package-managed-release.mjs",
+      "purpose": "SHA-256 checksum of the release archive for download verification"
     },
     {
       "path": "docker-compose.yml",

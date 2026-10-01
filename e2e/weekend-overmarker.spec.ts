@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./fixtures";
-import { enableInlineActivityCreation, openApp, selectShadOption, setZoom } from "./helpers";
+import { enableInlineActivityCreation, openApp, selectShadOption, setZoom } from "./browserTestSupport";
 
 // Covers US-SCH-09 (weekend criteria): the per-day over-marker is weekend-aware. A bar that merely
 // SPANS a weekend adds no over-marker; ignoring its working pattern turns those days red; and
@@ -24,7 +24,7 @@ async function openScheduleWithInlineActivityCreation(page: Page) {
   await setZoom(page, 2);
 }
 
-function registerSuiteScenario1() {
+function registerSpannedWeekendOverIgnoredWorkingTests() {
   test("a spanned weekend is not over; ignored working days and time off are", async ({ page }) => {
     await openScheduleWithInlineActivityCreation(page);
 
@@ -111,5 +111,5 @@ function registerSuiteScenario1() {
 }
 
 test.describe("Weekend over-marker", () => {
-  registerSuiteScenario1();
+  registerSpannedWeekendOverIgnoredWorkingTests();
 });

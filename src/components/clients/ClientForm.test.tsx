@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -97,7 +98,7 @@ it("saves a colour chosen from the swatch picker", async () => {
   const onClose = vi.fn();
   render(<ClientForm onClose={onClose} />);
 
-  await user.type(screen.getByLabelText("Name"), "Acme");
+  await user.type(screen.getByLabelText("Name"), "Ferris");
   // Open the colour popup (trigger is labelled "<label> (<value>)") and pick a swatch.
   await user.click(screen.getByRole("button", { name: /^Colour \(/ }));
   await user.click(screen.getByRole("radio", { name: resolveColorName("#e02727") }));
@@ -127,13 +128,13 @@ it("adds a client and calls onClose when a valid name is provided", async () => 
   const onClose = vi.fn();
   render(<ClientForm onClose={onClose} />);
 
-  await user.type(screen.getByLabelText("Name"), "Acme Corp");
+  await user.type(screen.getByLabelText("Name"), "Ferris Corp");
   await user.click(screen.getByRole("button", { name: "Save" }));
 
   expect(onClose).toHaveBeenCalledOnce();
   const clients = useStore.getState().data.clients;
   expect(clients).toHaveLength(1);
-  expect(clients[0]?.name).toBe("Acme Corp");
+  expect(clients[0]?.name).toBe("Ferris Corp");
 });
 
 it("trims leading and trailing whitespace from the name", async () => {
@@ -170,11 +171,11 @@ describe("ClientForm – Enter key submission", () => {
     const onClose = vi.fn();
     render(<ClientForm onClose={onClose} />);
 
-    await user.type(screen.getByLabelText("Name"), "Acme Corp");
+    await user.type(screen.getByLabelText("Name"), "Ferris Corp");
     await user.keyboard("{Enter}");
 
     expect(onClose).toHaveBeenCalledOnce();
-    expect(useStore.getState().data.clients[0]?.name).toBe("Acme Corp");
+    expect(useStore.getState().data.clients[0]?.name).toBe("Ferris Corp");
   });
 
   it("shows validation error when pressing Enter with a blank name", async () => {
@@ -190,7 +191,7 @@ describe("ClientForm – Enter key submission", () => {
 });
 
 it("hides owner-only privacy controls and locks the redacted name for a non-owner", () => {
-  const created = useStore.getState().addClient({ name: "Real client", color: "#ff0000" });
+  const created = requireCreated(useStore.getState().addClient({ name: "Real client", color: "#ff0000" }));
   const client = { ...created, name: '"Nightwing"', isPrivate: true };
   useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
   render(
@@ -205,14 +206,14 @@ it("hides owner-only privacy controls and locks the redacted name for a non-owne
 });
 
 it("pre-fills the name field with the existing client name", () => {
-  const client = useStore.getState().addClient({ name: "Old Name", color: "#ff0000" });
+  const client = requireCreated(useStore.getState().addClient({ name: "Old Name", color: "#ff0000" }));
   render(<ClientForm client={client} onClose={vi.fn()} />);
 
   expect(screen.getByLabelText("Name")).toHaveValue("Old Name");
 });
 
 it("renders the dialog with the Edit client title", () => {
-  const client = useStore.getState().addClient({ name: "Old Name", color: "#ff0000" });
+  const client = requireCreated(useStore.getState().addClient({ name: "Old Name", color: "#ff0000" }));
   render(<ClientForm client={client} onClose={vi.fn()} />);
 
   expect(screen.getByRole("dialog", { name: "Edit client" })).toBeInTheDocument();
@@ -221,7 +222,7 @@ it("renders the dialog with the Edit client title", () => {
 it("updates the client name in the store and calls onClose", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const client = useStore.getState().addClient({ name: "Old Name", color: "#ff0000" });
+  const client = requireCreated(useStore.getState().addClient({ name: "Old Name", color: "#ff0000" }));
   render(<ClientForm client={client} onClose={onClose} />);
 
   const nameInput = screen.getByLabelText("Name");
@@ -239,7 +240,7 @@ it("updates the client name in the store and calls onClose", async () => {
 it("shows an error and does not close when clearing the name in edit mode", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const client = useStore.getState().addClient({ name: "Existing", color: "#aabbcc" });
+  const client = requireCreated(useStore.getState().addClient({ name: "Existing", color: "#aabbcc" }));
   render(<ClientForm client={client} onClose={onClose} />);
 
   await user.clear(screen.getByLabelText("Name"));
@@ -253,7 +254,7 @@ it("shows an error and does not close when clearing the name in edit mode", asyn
 
 it("does not create a new client when editing", async () => {
   const user = userEvent.setup();
-  const client = useStore.getState().addClient({ name: "Solo", color: "#123456" });
+  const client = requireCreated(useStore.getState().addClient({ name: "Solo", color: "#123456" }));
   render(<ClientForm client={client} onClose={vi.fn()} />);
 
   const nameInput = screen.getByLabelText("Name");
@@ -267,23 +268,23 @@ it("does not create a new client when editing", async () => {
 it("rejects a stale edit instead of overwriting a concurrently changed client", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const client = useStore.getState().addClient({ name: "Acme", color: "#2d75da" });
+  const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
   render(<ClientForm client={client} onClose={onClose} />);
 
   useStore.getState().updateClient(client.id, { color: "#e02727" });
   await user.clear(screen.getByLabelText("Name"));
-  await user.type(screen.getByLabelText("Name"), "Acme renamed");
+  await user.type(screen.getByLabelText("Name"), "Ferris renamed");
   await user.click(screen.getByRole("button", { name: "Save" }));
 
   expect(screen.getByRole("alert")).toHaveTextContent(/client changed while you were editing/i);
   expect(onClose).not.toHaveBeenCalled();
-  expect(useStore.getState().data.clients[0]).toMatchObject({ name: "Acme", color: "#e02727" });
+  expect(useStore.getState().data.clients[0]).toMatchObject({ name: "Ferris", color: "#e02727" });
 });
 
 it("keeps the form open when the client vanished during editing", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const client = useStore.getState().addClient({ name: "Acme", color: "#2d75da" });
+  const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
   render(<ClientForm client={client} onClose={onClose} />);
 
   const data = useStore.getState().data;
@@ -292,7 +293,7 @@ it("keeps the form open when the client vanished during editing", async () => {
     clients: data.clients.filter((candidate) => candidate.id !== client.id),
   });
   await user.clear(screen.getByLabelText("Name"));
-  await user.type(screen.getByLabelText("Name"), "Acme renamed");
+  await user.type(screen.getByLabelText("Name"), "Ferris renamed");
   await user.click(screen.getByRole("button", { name: "Save" }));
 
   expect(screen.getByRole("alert")).toHaveTextContent(/client changed while you were editing/i);

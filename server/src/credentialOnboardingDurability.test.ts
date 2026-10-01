@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { openDb, type Db } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import type { Auth } from "./authConfig/authTypes";
-import { getAccountCommand, getAccountCommandByIdForReconciliation, reserveAccountCommand } from "./accounts/state";
+import { getAccountCommand, readAccountCommandAndFlagStalePending, reserveAccountCommand } from "./accounts/state";
 
 const serverDirectory = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 const fixture = fileURLToPath(new URL("./fixtures/credentialOnboardingCrashFixture.ts", import.meta.url));
@@ -22,7 +22,7 @@ afterEach(() => {
 function createPasswordAuth(db: Db): Auth {
   const configured = createAuthFromEnvironment(db, {
     NODE_ENV: "test",
-    SMALLSASS_ACCOUNT_MODE: "password",
+    SMALLSASS_ACCOUNT_MODE: "password-only",
     SMALLSASS_ACCOUNT_SECRET: "correlation-test-secret-0123456789abcdef",
     SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
     SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off",
@@ -121,7 +121,7 @@ function registerCrashRecoveryTests(): void {
       { accountId: user.id, providerId: "credential", userId: user.id },
     ]);
 
-    const reconciled = getAccountCommandByIdForReconciliation({
+    const reconciled = readAccountCommandAndFlagStalePending({
       db,
       applicationId: "crash-fixture",
       commandId: "crash-command",

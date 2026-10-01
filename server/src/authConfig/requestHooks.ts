@@ -22,6 +22,7 @@ type RequestHookOptions = {
   sessionDeletionLifecycleRef: SessionDeletionLifecycleRef;
   acquireBootstrapClaim: () => string;
   assertAuthRequestPasswordLength: (path: string, body: unknown) => void;
+  prepareSignUpPasswordHash: (path: string, body: unknown) => Promise<void>;
   countUsers: (db: Db) => number;
   enforceSessionActivity: <Session extends { session: { token: string; updatedAt: Date | string } }>(
     session: Session,
@@ -83,6 +84,7 @@ function createBeforeRequestHook(options: RequestHookOptions) {
     allowOpenSignup,
     acquireBootstrapClaim,
     assertAuthRequestPasswordLength,
+    prepareSignUpPasswordHash,
     countUsers,
     externalIdentityPath,
   } = options;
@@ -114,6 +116,7 @@ function createBeforeRequestHook(options: RequestHookOptions) {
     }
     if (allowOpenSignup) {
       assertAuthRequestPasswordLength(context.path, context.body);
+      await prepareSignUpPasswordHash(context.path, context.body);
       return continuingContext;
     }
     if (context.path !== "/sign-up/email") {
@@ -127,6 +130,7 @@ function createBeforeRequestHook(options: RequestHookOptions) {
       // Validate before acquiring the one-at-a-time bootstrap claim: a malformed password must not
       // strand setup waiting for an after-hook that this before-hook failure never reaches.
       assertAuthRequestPasswordLength(context.path, context.body);
+      await prepareSignUpPasswordHash(context.path, context.body);
       return {
         context: {
           ...continuingContext?.context,

@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp } from "./browserTestSupport";
 
 // Covers US-DIS-01..04.
 test.describe("Disciplines", () => {

@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openNewCompanyForm, createCompany } from "./helpers";
+import { openNewCompanyForm, createCompany } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce", timezoneId: "Europe/London" } });
 
@@ -10,7 +10,7 @@ test.use({ contextOptions: { reducedMotion: "reduce", timezoneId: "Europe/London
 
 test.describe("onboarding: capture-then-freeze language / week-start / time zone", () => {
   test("create a company capturing week-start + timezone → Settings shows the read-only summary", async ({ page }) => {
-    // Same frozen-clock + fake-sign-in + "New company" walk as helpers.ts's `openApp`/
+    // Same frozen-clock + fake-sign-in + "New company" walk as browserTestSupport.ts's `openApp`/
     // `openNewCompany`, stopping short so this spec can inspect and change the open form's
     // fields before submitting it.
     await openNewCompanyForm(page);
@@ -36,6 +36,8 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
     await expect(tz).toContainText("America/New_York");
     await expect(tz).toBeFocused();
     await expect(page.getByTestId("create-language")).toHaveText("English");
+    // Example data is added by the server, so the in-memory demo does not offer it.
+    await expect(page.getByRole("checkbox", { name: "Start with example data" })).toHaveCount(0);
 
     // Capture a non-default week-start and time zone, then create.
     await page.getByRole("radio", { name: "Sunday" }).click();

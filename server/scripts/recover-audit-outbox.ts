@@ -7,8 +7,10 @@ import {
   writeAuditOutboxEvidence,
 } from "../src/auditOutboxRecovery";
 import { openDbConnection, planDatabaseMigrations } from "../src/db";
+import { restrictIdentifiedDatabasePermissions } from "../src/db/filePermissions";
 
-const [action, databasePath, expectedId, evidencePath] = process.argv.slice(2);
+const args = process.argv.slice(2).filter((argument, index) => !(index === 0 && argument === "--"));
+const [action, databasePath, expectedId, evidencePath] = args;
 const usage =
   "Usage: pnpm --filter capacitylens-server recover:audit-outbox -- " +
   "inspect <database> | quarantine <database> <expected-head-id> <evidence-file>";
@@ -55,6 +57,8 @@ function quarantine(databasePath: string, expectedId: string, evidencePath: stri
       );
     }
     assertAuditOutboxCurrent(db);
+    // Inspection stays read-only; quarantine writes, so harden the identified file first.
+    restrictIdentifiedDatabasePermissions(db);
     const outputPath = resolve(evidencePath);
     const quarantined = quarantineMalformedAuditOutboxHead(db, expectedId, (head) => {
       writeAuditOutboxEvidence(outputPath, head);

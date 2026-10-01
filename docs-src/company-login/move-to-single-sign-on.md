@@ -5,7 +5,7 @@ description: Configure Google or Microsoft company sign-in, connect existing acc
 
 # Require company sign-in
 
-![Company-sign-in-only screen with Google configured and no password form](../screenshots/company_sign_in_only.png)
+![Company-sign-in-only screen with Google and Microsoft provider buttons and no password form](../screenshots/company_sign_in_only.png)
 
 CapacityLens supports Google Workspace and Microsoft Entra ID as company sign-in
 providers. You can run them alongside passwords, or require people to use a
@@ -20,7 +20,7 @@ register its exact callback address, and set its server credentials. Microsoft
 also requires a tenant-specific Entra registration and working SMTP settings for
 first connections that need mailbox proof.
 
-Set `SMALLSASS_ACCOUNT_MODE=password` while both password and company sign-in
+Set `SMALLSASS_ACCOUNT_MODE=password-and-sso` while both password and company sign-in
 should remain available. Restart CapacityLens and check that the expected
 provider buttons appear. Complete a sign-in with an allowed account before
 asking teammates to connect.
@@ -35,10 +35,32 @@ open and confirm it in the browser that started the connection within 15
 minutes. Returning Microsoft sign-in uses the saved identity and does not repeat
 mailbox proof.
 
+If CapacityLens reports that the local account email is unverified, the server
+operator must first confirm which mailbox the person controls. In mixed mode,
+an authorised administrator can use the existing guarded repair request:
+
+```http
+PATCH /api/accounts/{accountId}/members/{principalId}/email
+Content-Type: application/json
+
+{"email":"verified-address@example.com"}
+```
+
+Use the target member's company and principal IDs from the member directory.
+The request needs an authenticated, fresh session with any required MFA,
+membership-management permission in that company, and identity-wide authority
+over the target across their companies. The server checks those rules again in
+the write transaction. The repair marks the corrected address verified and
+revokes the target's sessions; the person signs in again before connecting.
+There is no email-correction control in Account settings. A joining verification
+link does not satisfy the local-account verification check for provider linking.
+
 CapacityLens never combines accounts just because their email addresses match.
 Explicitly connecting the provider preserves the existing person's memberships,
-role and scheduled work. New people still need an unused, addressed invitation;
-provider sign-in alone does not admit them to a company.
+role and scheduled work. A company may allow a verified new person to join as
+a Viewer through its [joining policy](/company-login/#invitations-and-the-first-owner),
+or grant another role through an addressed invitation. Provider sign-in alone
+does not admit anyone to a company.
 
 ## Require a company provider
 
@@ -51,13 +73,19 @@ pnpm --filter capacitylens-server cutover:preflight -- /path/to/capacitylens.db
 ```
 
 The check accepts a verified connection through either configured company
-provider, including when both Google and Microsoft are enabled. It reports
-whether every active member has a usable provider identity and each company
-has an active Owner. It checks provider readiness against the same full set of
-configured providers used by the server's startup guard, and separately refuses
-while open signup is enabled. With both providers configured, the result is an
-all-company readiness summary rather than a per-member list. Resolve missing
-links while still in mixed mode, then rerun the check before changing the profile.
+provider, including when both Google and Microsoft are enabled. Every existing
+sign-in account needs a verified company-provider connection, and each company
+needs active members and an active Owner. Open password signup must be disabled.
+
+Read the top-level `ready` result and `issues` list to decide whether you can
+switch off passwords. Each issue includes a stable reason code and an explanation.
+The same provider-connection and company checks run when the server starts.
+The `diagnostics` list contains repair details for each configured company
+provider, whether you have one or several. These provider-specific details may
+flag a missing connection to one provider even when another provider satisfies
+the overall check; they do not add restrictions to the top-level decision.
+Resolve the blocking issues while still in mixed mode, then rerun the check
+before changing the profile.
 
 The preflight result is evidence for the operator; it does not switch modes.
 If a finding needs identity or membership repair, the guarded
@@ -76,7 +104,7 @@ schema; it refuses ambiguous identities and unsafe targets.
 After preflight reports ready, set:
 
 ```dotenv
-SMALLSASS_ACCOUNT_MODE=sso
+SMALLSASS_ACCOUNT_MODE=sso-only
 SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-sso-only
 ```
 
@@ -93,7 +121,7 @@ If a provider becomes unavailable or a person cannot use their connected
 identity, set both values and restart the server:
 
 ```dotenv
-SMALLSASS_ACCOUNT_MODE=password
+SMALLSASS_ACCOUNT_MODE=password-and-sso
 SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-mixed
 ```
 

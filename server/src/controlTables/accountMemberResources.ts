@@ -4,6 +4,7 @@ import { ACCOUNT_MEMBER_RESOURCES_SCHEMA_VERSION, INVITATION_PERSON_PROPOSALS_SC
 import { tx } from "../txn";
 import { newInviteId } from "./inviteTokens";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
+import { isAccessRestricted } from "./accessRestrictions";
 
 /** Resource-write invariant installed alongside the v43 association table. */
 export const ACCOUNT_MEMBER_RESOURCE_KIND_CLEANUP_TRIGGER = {
@@ -81,7 +82,7 @@ function projectAvatarRow(row: ResourceAvatarRow, accountId: string): ResourceAv
     throw new Error(`Corrupt member/resource link detected for account ${accountId}.`);
   if (row.status !== "active" || row.archivedAt || row.deletedAt) return [];
   const parsed = parseResourceAvatarUrl(row.image);
-  return parsed.ok && parsed.value ? [{ resourceId: row.resourceId, imageUrl: parsed.value }] : [];
+  return parsed === null || parsed === undefined ? [] : [{ resourceId: row.resourceId, imageUrl: parsed }];
 }
 
 function associationTableExists(db: Db): boolean {
@@ -154,10 +155,22 @@ export function listAccountMemberResourceLinks(db: Db, accountId: string): Accou
     .all(accountId) as unknown as AccountMemberResourceLink[];
 }
 
-function conflict(message: string, options?: ErrorOptions): Error {
-  const error = new Error(message, options);
+// A recoverable conflict carries a stable code so callers never branch on its wording.
+type AccountMemberResourceConflictCode = "resource_already_linked";
+
+function conflict(message: string, options?: ErrorOptions, code?: AccountMemberResourceConflictCode): Error {
+  const error = Object.assign(new Error(message, options), code ? { code } : {});
   error.name = "AccountMemberResourceConflict";
   return error;
+}
+
+/** Any member-link conflict, or only the one with `code` when given. */
+export function isAccountMemberResourceConflict(
+  error: unknown,
+  code?: AccountMemberResourceConflictCode,
+): error is Error {
+  if (!(error instanceof Error) || error.name !== "AccountMemberResourceConflict") return false;
+  return code === undefined || (error as Error & { code?: unknown }).code === code;
 }
 
 type SetLinkInput = {
@@ -174,11 +187,15 @@ export interface AccountMemberResourceMutation {
   changed: boolean;
 }
 
-function requireLinkTargets(input: SetLinkInput): void {
+function assertLinkTargets(input: SetLinkInput): void {
   const member = input.db
     .prepare(`SELECT status FROM account_members WHERE accountId = ? AND userId = ?`)
     .get(input.accountId, input.userId);
-  if (!member || (member as { status?: unknown }).status !== "active")
+  if (
+    !member ||
+    (member as { status?: unknown }).status !== "active" ||
+    isAccessRestricted(input.db, input.accountId, input.userId)
+  )
     throw conflict("Only an active member in this account can be linked.");
   const resource = input.db
     .prepare(`SELECT kind, archivedAt, deletedAt FROM resources WHERE accountId = ? AND id = ?`)
@@ -215,7 +232,11 @@ function persistLink(input: SetLinkInput, revision: string): void {
         "UNIQUE constraint failed: account_member_resources.accountId, account_member_resources.resourceId",
       )
     )
-      throw conflict("That scheduled person is already linked to another member.", { cause });
+      throw conflict(
+        "That scheduled person is already linked to another member.",
+        { cause },
+        "resource_already_linked",
+      );
     throw cause;
   }
 }
@@ -233,7 +254,7 @@ export function setAccountMemberResourceLinkInTransaction(input: SetLinkInput): 
     return { link: { accountId: input.accountId, userId: input.userId, ...current }, changed: false };
   }
   if (current) assertCurrentLinkCanChange(input, current);
-  requireLinkTargets(input);
+  assertLinkTargets(input);
   const revision = newInviteId();
   persistLink(input, revision);
   removeMemberResourceLinkExceptionState(input.db, input.accountId, input.userId);
@@ -287,7 +308,9 @@ export function listResourceAvatarProjection(db: Db, accountId: string): Resourc
         WHERE l.accountId = ?`,
     )
     .all(accountId) as unknown as ResourceAvatarRow[];
-  return rows.flatMap((row) => projectAvatarRow(row, accountId));
+  return rows.flatMap((row) =>
+    isAccessRestricted(db, accountId, String(row.userId)) ? [] : projectAvatarRow(row, accountId),
+  );
 }
 
 /** Explicit cleanup for a permanently removed membership. */

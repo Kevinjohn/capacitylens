@@ -7,7 +7,7 @@ import {
   settledSchedulerLeftDate as settledLeftDate,
   setZoom,
   waitForWeekSnap,
-} from "./helpers";
+} from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" }, viewport: { width: 1440, height: 800 } });
 

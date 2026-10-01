@@ -43,7 +43,7 @@ function seedCatalog(data: Record<string, unknown[]>): void {
     { id: OTHER_ACCOUNT, name: "Neighbour", color: "#f97316", ...meta },
   ];
   data.clients = [
-    { id: "c1", accountId: ACCOUNT, name: "Acme", color: "#3b82f6", ...meta },
+    { id: "c1", accountId: ACCOUNT, name: "Ferris", color: "#3b82f6", ...meta },
     { id: "c2", accountId: ACCOUNT, name: "Other", color: "#22c55e", ...meta },
     { id: "c9", accountId: OTHER_ACCOUNT, name: "Neighbour co", color: "#f97316", ...meta },
   ];

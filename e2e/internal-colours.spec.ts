@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { openApp, selectShadOption } from "./browserTestSupport";
 
 // Covers US-SET-14: Internal work is neutral by default without discarding saved project colours.
 test("Internal work defaults grey and palette mode restores the project picker and colour", async ({ page }) => {

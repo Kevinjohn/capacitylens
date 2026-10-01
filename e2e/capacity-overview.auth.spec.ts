@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { waitForAppLanding } from "./helpers";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
+import { waitForAppLanding } from "./browserTestSupport";
 
 const STAMP = Date.now();
 const OWNER = `overview-owner-${STAMP}@capacitylens.dev`;
@@ -20,16 +20,7 @@ test("the account access setting gates viewer navigation and direct routes", asy
   const viewer = await signUpUser(VIEWER);
   const accountName = `Overview Studio ${STAMP}`;
   const accountId = await bootstrapOrg(request, owner.cookie, accountName);
-  const invitation = await request.post(`${AUTH_API}/api/invites`, {
-    headers: { cookie: owner.cookie },
-    data: { accountId, role: "viewer" },
-  });
-  expect(invitation.status()).toBe(201);
-  const token = (await invitation.json()).token as string;
-  const accepted = await request.post(`${AUTH_API}/api/invites/${token}/accept`, {
-    headers: { cookie: viewer.cookie },
-  });
-  expect(accepted.status()).toBe(200);
+  seedFixtureMember(accountId, viewer.email, "viewer");
 
   await signIn(page, VIEWER, accountName);
   await expect(page.getByRole("link", { name: "Overview" })).toHaveCount(0);

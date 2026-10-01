@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -5,9 +6,25 @@ import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { InviteMemberPanel } from "./InviteMemberPanel";
 
-function renderInvite(overrides: Partial<React.ComponentProps<typeof InviteMemberPanel>> = {}) {
-  const props: React.ComponentProps<typeof InviteMemberPanel> = {
-    authMode: "password",
+type InvitePanelProps = React.ComponentProps<typeof InviteMemberPanel>;
+type DialogProps = "inviteDialogOpen" | "openInviteDialog" | "closeInviteDialog";
+
+// The dialog's open state is owned by the caller; hold it here as MembersSection's hook does.
+function InvitePanelHarness(props: Omit<InvitePanelProps, DialogProps>) {
+  const [open, setOpen] = useState(false);
+  return (
+    <InviteMemberPanel
+      {...props}
+      inviteDialogOpen={open}
+      openInviteDialog={() => setOpen(true)}
+      closeInviteDialog={() => setOpen(false)}
+    />
+  );
+}
+
+function renderInvite(overrides: Partial<Omit<InvitePanelProps, DialogProps>> = {}) {
+  const props: Omit<InvitePanelProps, DialogProps> = {
+    authMode: "password-only",
     busy: false,
     inviteRole: "editor" satisfies InvitationRole,
     setInviteRole: vi.fn(),
@@ -29,7 +46,7 @@ function renderInvite(overrides: Partial<React.ComponentProps<typeof InviteMembe
     setInvitationResourceId: vi.fn(),
     ...overrides,
   };
-  return render(<InviteMemberPanel {...props} />);
+  return render(<InvitePanelHarness {...props} />);
 }
 
 describe("InviteMemberPanel creation guidance", () => {
@@ -44,7 +61,7 @@ describe("InviteMemberPanel creation guidance", () => {
 
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveAccessibleName("Invite someone");
-    expect(dialog).toHaveAccessibleDescription(/CapacityLens does not send invitation emails/);
+    expect(dialog).toHaveAccessibleDescription(/When SMTP is configured and email sending is available/);
     expect(dialog.querySelector('[data-slot="dialog-header"]')).toHaveClass("border-b");
     expect(dialog.querySelector("form > div.p-4")).toBeInTheDocument();
     expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass("border-t");
@@ -84,18 +101,19 @@ describe("InviteMemberPanel creation guidance", () => {
     fireEvent.click(screen.getByTestId("invite-open"));
 
     expect(screen.getByTestId("invites-section")).toHaveTextContent(
-      "CapacityLens does not send invitation emails. After creating an invite, copy the link and send it yourself.",
+      /When SMTP is configured and email sending is available, CapacityLens emails addressed invitations\./,
     );
     expect(screen.getByLabelText("Email")).toBe(screen.getByTestId("invite-preauth"));
-    expect(screen.getByTestId("invite-preauth")).not.toHaveAttribute("aria-required");
+    expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-required", "true");
     expect(screen.getByTestId("invite-preauth")).not.toHaveAttribute("aria-describedby");
     expect(screen.queryByText(/Supply an email to restrict this invite/)).not.toBeInTheDocument();
   });
 
-  it("marks Email as required for SSO invitations without adding helper copy", () => {
-    renderInvite({ authMode: "sso" });
+  it("marks Email as required for invitations without adding helper copy", () => {
+    renderInvite({ authMode: "sso-only" });
     fireEvent.click(screen.getByTestId("invite-open"));
 
+    expect(screen.getByTestId("invites-section")).toHaveTextContent(/If email is unavailable or sending fails/);
     expect(screen.getByLabelText("Email")).toBe(screen.getByTestId("invite-preauth"));
     expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-required", "true");
     expect(screen.getByTestId("invite-preauth")).not.toHaveAttribute("aria-describedby");
@@ -111,13 +129,14 @@ describe("InviteMemberPanel creation guidance", () => {
 
   it("keeps the minted link and its recovery instructions in an inline status", () => {
     renderInvite({
-      mintedLink: { inviteId: "invite-1", link: "https://app.example/invite/secret" },
+      mintedLink: { inviteId: "invite-1", link: "https://app.example/invite/secret", emailedTo: "diana@example.test" },
     });
     fireEvent.click(screen.getByTestId("invite-open"));
 
     const status = screen.getByTestId("invite-created-status");
     expect(status).toHaveAttribute("role", "status");
-    expect(status).toHaveTextContent("Invite created. Copy this link and send it yourself.");
+    expect(status).toHaveTextContent("Invitation emailed to diana@example.test");
+    expect(status).toHaveTextContent("Invite created. Its one-time link is available below.");
     expect(status).toHaveTextContent("If you lose it, revoke this invite and create a new one.");
     expect(status).toContainElement(screen.getByRole("button", { name: "Copy invitation link" }));
   });

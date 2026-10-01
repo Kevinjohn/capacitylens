@@ -18,6 +18,8 @@ export interface RawMember {
   userId: string;
   role: "owner" | "admin" | "editor" | "viewer";
   status?: string;
+  accessDisabled?: boolean;
+  membershipPresent?: boolean;
   createdAt?: string;
   signInConfirmed?: boolean | null;
   name?: string | null;
@@ -127,7 +129,7 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
 }
 
 export const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
-  authMode: "password",
+  authMode: "password-only",
   user: { id: "me", email: "me@x.io" },
   canCreateAccount: true,
   multiAccount: true,
@@ -186,7 +188,7 @@ export async function saveRoleVia(user: User, row: HTMLElement, option: string):
   await user.click(within(dialog).getByTestId("member-role-save"));
 }
 
-export async function findMemberRow(email: RegExp): Promise<HTMLElement> {
+export async function waitForMemberRow(email: RegExp): Promise<HTMLElement> {
   return requireValue(
     (await screen.findAllByTestId("member-row")).find((candidate) => within(candidate).queryByText(email)),
     `a member row matching ${email}`,
@@ -264,7 +266,7 @@ export async function expectAccessibleMemberControls({
   for (const action of [
     `Reset password for ${member}`,
     `Revoke sessions for ${member}`,
-    `Disable ${member}`,
+    `Disable Access for ${member}`,
     `Archive ${member}`,
     `Remove ${member}`,
   ]) {

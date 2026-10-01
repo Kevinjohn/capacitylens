@@ -78,6 +78,7 @@ function hasAllowedScryptResources(input: StoredScryptHash): boolean {
   // A malformed or hostile stored hash must not allocate arbitrary amounts of memory.
   return (
     input.n <= SCRYPT_N &&
+    (input.n & (input.n - 1)) === 0 &&
     input.r <= SCRYPT_R &&
     input.p <= SCRYPT_P &&
     input.salt.length === SALT_BYTES &&
@@ -269,7 +270,18 @@ export async function assertPasswordNotBreached(password: string, fetcher: typeo
       { cause },
     );
   }
-  const found = responseText.split(/\r?\n/).some((line) => line.split(":", 1)[0]?.toUpperCase() === suffix);
+  // The range contract is a 35-character SHA-1 suffix and a decimal occurrence count.
+  // Zero-count records are privacy padding, not breached passwords. Validate the entire body
+  // before trusting a clean result; never include service content in dependency diagnostics.
+  const lines = responseText.replace(/\r?\n$/, "").split(/\r?\n/);
+  let found = false;
+  for (const line of lines) {
+    const record = /^([A-Fa-f0-9]{35}):([0-9]+)$/.exec(line);
+    if (!record) {
+      throw new PasswordPolicyDependencyError("The breached-password response was invalid; try again later.");
+    }
+    if (record[1]?.toUpperCase() === suffix && /[1-9]/.test(record[2] ?? "")) found = true;
+  }
   if (found)
     throw new PasswordPolicyError(
       "This password appears in a known breach. Choose a different password.",

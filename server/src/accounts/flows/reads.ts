@@ -4,7 +4,7 @@ import { resolveDirectorySortName } from "./actorContext";
 import type { LocalAccountFlowContext } from "./context";
 
 export function createAccountReadFlows(
-  context: LocalAccountFlowContext,
+  context: Pick<LocalAccountFlowContext, "identity" | "administration">,
 ): Pick<LocalAccountFlows, "resolveRequestAccess" | "listMemberDirectory"> {
   const { identity, administration } = context;
   return {
@@ -38,7 +38,7 @@ export function createAccountReadFlows(
             membership: entry,
             principal: byId.get(entry.principalId) ?? null,
           }))
-          // Join date first, then name (#175). Founders stay at the top in the order they arrived,
+          // Join date first, then name. Founders stay at the top in the order they arrived,
           // which is how an administrator remembers the team; the name is the tie-break, because a
           // bulk import gives everyone the same joinedAt to the millisecond and an arbitrary id
           // order there reads as random. principalId last so the sort is total and the listing is

@@ -4,7 +4,7 @@ import { BatchReconciliationError, BatchValidationError } from "../../data/sync/
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { DEFAULT_COLORS } from "../../lib/palette";
-import { validateText, validateWorkingDays } from "../../lib/validation";
+import { parseText, validateWorkingDays } from "../../lib/validation";
 import type { StoreState } from "../../store/types";
 import { m } from "@/i18n";
 import {
@@ -66,13 +66,13 @@ function parseFormFields(input: {
   fail: Fail;
 }): ValidatedFields | null {
   const { name: rawName, role: rawRole, projectId, workingDays, isPlaceholder, fail } = input;
-  const name = validateText(rawName, fail, {
+  const name = parseText(rawName, fail, {
     field: "name",
     required: !isPlaceholder,
     requiredMessage: m.form_resource_err_name_required(),
   });
   if (name === null) return null;
-  const role = validateText(rawRole, fail, { field: "role", required: false });
+  const role = parseText(rawRole, fail, { field: "role", required: false });
   if (role === null) return null;
   if (isPlaceholder && !projectId) {
     fail("projectId", m.form_resource_err_placeholder_project());
@@ -186,7 +186,7 @@ function refreshPendingResource(input: SubmitInput, resource: Resource | undefin
 
 type FlushResult = Awaited<ReturnType<typeof flushPendingWrites>>;
 
-function handleResourceFlushResult(input: SubmitInput, result: FlushResult, submittedAccountId: string | null) {
+function completeResourceSubmit(input: SubmitInput, result: FlushResult, submittedAccountId: string | null) {
   if (!input.mountedRef.current || input.readActiveAccountId() !== submittedAccountId) return;
   if (result.kind === "clean") {
     input.pendingResourceRef.current = undefined;
@@ -205,7 +205,7 @@ function resolveFlushFailureMessage(error: unknown): string {
   return error instanceof BatchReconciliationError ? m.app_persist_error() : resolveErrorMessage(error);
 }
 
-function handleResourceFlushError(input: SubmitInput, error: unknown, submittedAccountId: string | null) {
+function reportResourceFlushError(input: SubmitInput, error: unknown, submittedAccountId: string | null) {
   if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId) {
     input.fail(null, resolveErrorMessage(error));
   }
@@ -237,10 +237,15 @@ function createSubmit(input: SubmitInput) {
       input.submittingRef.current = true;
       input.setSubmitting(true);
       const saved = saveResource({ resource, patch, add: input.add, update: input.update });
-      refreshPendingResource(input, resource, saved);
+      if (saved?.kind === "blocked") {
+        input.submittingRef.current = false;
+        input.setSubmitting(false);
+        return;
+      }
+      refreshPendingResource(input, resource, saved?.value);
       void flushPendingWrites()
-        .then((result) => handleResourceFlushResult(input, result, submittedAccountId))
-        .catch((error: unknown) => handleResourceFlushError(input, error, submittedAccountId))
+        .then((result) => completeResourceSubmit(input, result, submittedAccountId))
+        .catch((error: unknown) => reportResourceFlushError(input, error, submittedAccountId))
         .finally(() => finishResourceSubmit(input));
     } catch (e) {
       input.submittingRef.current = false;

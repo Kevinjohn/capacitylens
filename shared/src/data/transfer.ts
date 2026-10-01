@@ -9,24 +9,46 @@ import type { AppData, PersistedState } from "../types/entities";
 // snapshot to a friend before the shared backend exists. Import reuses migrate()
 // so legacy / partial / slightly-off files are tolerated rather than rejected.
 
+/** Serialize data as a versioned, pretty-printed export document. Pure. */
 export function serializeData(data: AppData): string {
   const state: PersistedState = { schemaVersion: EXPORT_SCHEMA_VERSION, data };
   return JSON.stringify(state, null, 2);
 }
 
-// Guard against a JSON bomb / runaway file: a real agency dataset is thousands of
-// rows, not millions. Refuse anything wildly out of range rather than locking the
-// main thread (client import) or the server event loop trying to remap it.
-//
-// NOT redundant with the 5 MiB byte caps (ImportExport's client file-size check and
-// the server's request BODY_LIMIT): those bound the payload SIZE, this bounds the
-// record COUNT — a different axis. Real exports run ~100–400 bytes/record, so a 5 MiB
-// file holds well under this cap and the byte cap fires first there. But `parseData`
-// also runs on the server's POST /api/import, where a HOSTILE body of many near-empty
-// records (`{}` compacts to ~3 bytes) fits well over a million inside the 5 MiB
-// BODY_LIMIT — so this count cap is the live backstop that actually bites on that path.
-// (I.e. the error is reachable, not dead code; keep it.)
+/** Guard against a JSON bomb / runaway file: a real agency dataset is thousands of
+ * rows, not millions. Refuse anything wildly out of range rather than locking the
+ * main thread (client import) or the server event loop trying to remap it.
+ *
+ * NOT redundant with the 5 MiB byte caps (ImportExport's client file-size check and
+ * the server's request BODY_LIMIT): those bound the payload SIZE, this bounds the
+ * record COUNT — a different axis. Real exports run ~100–400 bytes/record, so a 5 MiB
+ * file holds well under this cap and the byte cap fires first there. But `parseData`
+ * also runs on the server's POST /api/import, where a HOSTILE body of many near-empty
+ * records (`{}` compacts to ~3 bytes) fits well over a million inside the 5 MiB
+ * BODY_LIMIT — so this count cap is the live backstop that actually bites on that path.
+ * (I.e. the error is reachable, not dead code; keep it.) */
 export const MAX_IMPORT_RECORDS = 200_000;
+
+/**
+ * Most operations one POST /api/batch request may carry, inclusive. One protocol limit: the client
+ * refuses an over-cap diff and the server rejects one, both importing it from here.
+ *
+ * The MAX_IMPORT_RECORDS precedent, applied to the sync path. BODY_LIMIT bounds request BYTES, not
+ * request WORK: every operation is sanitized, authorized, validated and applied to the in-memory
+ * projection. The transaction reads each affected account slice once, then indexed point/reverse
+ * lookups keep per-op validation and projection updates proportional to each operation's
+ * referenced/affected rows rather than the whole tenant. Op COUNT is therefore the remaining
+ * request-controlled multiplier. 5 000 is generous headroom over the largest realistic full-slice
+ * diff the client sync adapter produces (a whole busy agency's slice is low-thousands of rows)
+ * while bounding a crafted/looping flood.
+ *
+ * The inclusive boundary integration test applies 5 000 real existing-row updates and enforces a
+ * four-second handler budget under the supported Node 24 gate, leaving headroom below the packaged
+ * five-second container healthcheck timeout. Keep that budget and this cap in lockstep; an
+ * in-process queue cannot shorten one synchronous SQLite turn. The server checks the cap before
+ * its pre-scan and transaction, so an over-cap batch writes nothing.
+ */
+export const MAX_BATCH_OPS = 5000;
 
 function parseJson(json: string): unknown {
   return JSON.parse(json) as unknown;
@@ -40,6 +62,11 @@ function countRecords(value: unknown): number {
   return isUnknownArray(value) ? value.length : 0;
 }
 
+/**
+ * Parse, structurally validate and migrate an export document. Field values are not sanitised here:
+ * callers must still pass the result through the import remapper before storing it. Throws a
+ * display-safe `Error` on unreadable, unrecognised, damaged or oversized input.
+ */
 export function parseData(json: string): AppData {
   let raw: unknown;
   try {

@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleFilters } from "./helpers";
+import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleFilters } from "./browserTestSupport";
 
 // Covers US-SET-07. External / 3rd parties are a PER-ACCOUNT view pref (`externalEnabled` on the
 // active Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is
@@ -17,7 +17,7 @@ async function enableExternal(page: import("@playwright/test").Page): Promise<vo
   await expect(toggle).toHaveAttribute("aria-checked", "true");
 }
 
-function registerSuiteScenario1() {
+function registerHiddenDefaultSeededExternalAbsentTest() {
   test("hidden by default: the seeded external is absent from the schedule and the Resources tab", async ({ page }) => {
     await openApp(page);
     // No External band on the schedule, no external lane.
@@ -32,7 +32,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerOldExternalURLRedirectsResourcesTest() {
   test("the old /external URL redirects to the Resources tab", async ({ page }) => {
     // External no longer has its own tab — a saved bookmark must not 404; it redirects to /resources.
     await openApp(page, "Wayne Enterprises", "/external");
@@ -41,7 +41,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerTurningRevealsExternalSectionHelpTest() {
   test("turning it on reveals the External section with help in Resources and the band on the schedule", async ({
     page,
   }) => {
@@ -90,7 +90,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerChoiceSurvivesNavigationCurrentDemoTest() {
   test("the choice survives navigation in the current demo session", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show external resources" }).click(); // → on
@@ -100,7 +100,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerAddsExternalPartyResourcesTabTest() {
   test("adds an external party in the Resources tab External section", async ({ page }) => {
     await openApp(page);
     await enableExternal(page);
@@ -116,7 +116,7 @@ function registerSuiteScenario5() {
   });
 }
 
-function registerSuiteScenario6() {
+function registerAssignsActivityRowModalHasTest() {
   test('assigns an activity from the row "+": the modal has no Hours field and saves a span-only bar', async ({
     page,
   }) => {
@@ -151,7 +151,7 @@ function registerSuiteScenario6() {
   });
 }
 
-function registerSuiteScenario7() {
+function registerExternalPartiesExcludedTimeOffTest() {
   test("external parties are excluded from the Time off resource picker", async ({ page }) => {
     // Time off excludes externals unconditionally (no capacity), regardless of the view pref — but
     // enable the pref so the seeded external could otherwise be a candidate.
@@ -167,7 +167,7 @@ function registerSuiteScenario7() {
   });
 }
 
-function registerSuiteScenario8() {
+function registerTimeOffDrawModeOpTest() {
   test("time-off draw mode is a no-op on an external lane (no orphan time-off)", async ({ page }) => {
     // Enable External first so the lane is visible (default off), then go to the schedule.
     await openApp(page);
@@ -199,7 +199,7 @@ function registerSuiteScenario8() {
 
 // P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
 // a hard delete). Archiving is undoable via the local store.
-function registerSuiteScenario9() {
+function registerArchivingExternalPartyUndoableTests() {
   test("archiving an external party is undoable", async ({ page }) => {
     await openApp(page);
     await enableExternal(page);
@@ -222,13 +222,13 @@ function registerSuiteScenario9() {
 }
 
 test.describe("External / 3rd parties (per-account pref, default off)", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
-  registerSuiteScenario7();
-  registerSuiteScenario8();
-  registerSuiteScenario9();
+  registerHiddenDefaultSeededExternalAbsentTest();
+  registerOldExternalURLRedirectsResourcesTest();
+  registerTurningRevealsExternalSectionHelpTest();
+  registerChoiceSurvivesNavigationCurrentDemoTest();
+  registerAddsExternalPartyResourcesTabTest();
+  registerAssignsActivityRowModalHasTest();
+  registerExternalPartiesExcludedTimeOffTest();
+  registerTimeOffDrawModeOpTest();
+  registerArchivingExternalPartyUndoableTests();
 });

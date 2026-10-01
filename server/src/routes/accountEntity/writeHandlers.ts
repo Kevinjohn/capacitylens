@@ -6,9 +6,10 @@ import type { AuditRecord } from "../../audit";
 import { getRow, upsertRow } from "../../db";
 import { listAppliedRequestedFieldNames, sanitizeWrite, assertValidWrite } from "../../validate";
 import { checkEntityWriteBody, prepareScopedWrite, stampServerRevision, type PreparedWrite } from "../../writePipeline";
-import type { AccountEntityRouteDependencies } from "./dependencies";
+import type { AccountEntityRouteDependencies } from "./AccountEntityRouteDependencies";
 import { sendAccountRouteFailure, enforceAccountWriteGuards } from "./guards";
 import { ACCOUNT_CREATE_CLOSED_MESSAGE, isAccountCreateCapped, buildCanonicalAccountProductPayload } from "./policy";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 type AccountActor = NonNullable<FastifyRequest["accountActor"]>;
 
@@ -33,19 +34,15 @@ type AccountWriteDependencies = Pick<
   | "accountFail"
 >;
 
-function isUnknownRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function readRouteId(req: FastifyRequest): string {
-  if (!isUnknownRecord(req.params) || typeof req.params.id !== "string") {
+  if (!isRecord(req.params) || typeof req.params.id !== "string") {
     throw new Error("Expected the account route to provide a string id.");
   }
   return req.params.id;
 }
 
 function readWriteBody(body: unknown): Record<string, unknown> {
-  if (!isUnknownRecord(body)) throw new Error("Expected a checked account write body.");
+  if (!isRecord(body)) throw new Error("Expected a checked account write body.");
   return body;
 }
 

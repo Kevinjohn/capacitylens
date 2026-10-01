@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { openApp, selectShadOption } from "./browserTestSupport";
 
 // Covers US-PRJ-01..03. US-PRJ-04 remains manual while phase management is hidden.
 test.describe("Projects", () => {

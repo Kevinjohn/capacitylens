@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -65,7 +66,7 @@ describe("AllocationModal inline activity creation pref", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await user.type(screen.getByLabelText("New activity name"), "Alpha delivery");
     await user.click(screen.getByRole("button", { name: "Add activity" }));
     fireEvent.keyDown(screen.getByRole("combobox", { name: "Activity" }), { key: "ArrowDown" });
@@ -155,22 +156,24 @@ describe("AllocationModal task field", () => {
       />,
     );
     await user.type(screen.getByLabelText("Task"), "Launch review");
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(useStore.getState().data.allocations[0]?.task).toBe("Launch review");
   });
   it("allows an existing task to be cleared", async () => {
     const resourceId = addInlineActivityTestPerson();
-    const allocation = useStore.getState().addAllocation({
-      resourceId,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-      task: "Original task",
-    });
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+        task: "Original task",
+      }),
+    );
     useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
@@ -180,23 +183,27 @@ describe("AllocationModal task field", () => {
   });
   it("preserves a hidden task while an unrelated allocation is edited and restores it when enabled", async () => {
     const resourceId = addInlineActivityTestPerson();
-    const taskAllocation = useStore.getState().addAllocation({
-      resourceId,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-      task: "Keep this task",
-    });
-    const unrelated = useStore.getState().addAllocation({
-      resourceId,
-      activityId: "t1",
-      startDate: "2026-06-08",
-      endDate: "2026-06-10",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const taskAllocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+        task: "Keep this task",
+      }),
+    );
+    const unrelated = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId,
+        activityId: "t1",
+        startDate: "2026-06-08",
+        endDate: "2026-06-10",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: false });
     const user = userEvent.setup();
     const view = render(<AllocationModal kind="edit" allocationId={unrelated.id} onClose={vi.fn()} />);

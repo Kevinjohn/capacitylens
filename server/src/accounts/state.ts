@@ -21,7 +21,7 @@ export {
   getAccountCommandById,
 } from "./state/commandLedgerReads";
 export {
-  getAccountCommandByIdForReconciliation,
+  readAccountCommandAndFlagStalePending,
   type ReserveAccountCommandResult,
   reserveAccountCommand,
   correlatePendingAccountCommand,

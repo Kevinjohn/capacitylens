@@ -1,5 +1,5 @@
 import { isIsoInstant } from "@capacitylens/shared/account/types";
-import { readUnknownAccountCommandOutcome } from "./accountClient";
+import { commandOutcomeDecisions, readUnknownAccountCommandOutcome } from "./commandOutcome";
 import { extractApiErrorMessage, readApiError } from "../lib/readApiError";
 
 /**
@@ -34,9 +34,6 @@ export function resolveRejectionMessage<T>(result: TeamAccessResult<T>, fallback
   return result.kind === "rejected" && result.message ? result.message : fallback;
 }
 
-export const isRecord = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === "object" && !Array.isArray(value);
-
 export const isTimestamp = isIsoInstant;
 
 export const isNullableString = (value: unknown): value is string | null => value === null || typeof value === "string";
@@ -62,7 +59,8 @@ export async function readCommandResult<T>(
     const clonedMessage = typeof response.clone === "function" ? await readApiError(response) : undefined;
     const body: unknown = await response.json().catch(() => null);
     const message = clonedMessage ?? extractApiErrorMessage(body) ?? null;
-    return (await readUnknownAccountCommandOutcome(response, body))
+    const unknown = commandOutcomeDecisions.get(response) ?? (await readUnknownAccountCommandOutcome(response, body));
+    return unknown
       ? { kind: "unknown", status: response.status, message }
       : { kind: "rejected", status: response.status, message };
   }

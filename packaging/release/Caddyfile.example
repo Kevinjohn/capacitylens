@@ -1,0 +1,12 @@
+# CapacityLens behind Caddy. Add this block to /etc/caddy/Caddyfile, use your own hostname, then
+# run: sudo systemctl reload caddy
+# Caddy obtains and renews the certificate itself and overwrites the forwarded headers the server
+# trusts. The server serves the web app, so one reverse_proxy line covers the whole site.
+#
+# Caddy writes no access log unless a `log` directive is added. If you add one, exclude
+# /invite/*, /reset-password/*, /api/invites/*, /api/auth/callback/* and
+# /api/auth/oauth2/callback/*: those request lines carry single-use sign-in secrets.
+capacity.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8787
+}

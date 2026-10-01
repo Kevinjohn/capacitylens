@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DOMAIN_ERROR_CODES, DomainError, domainError, isDomainErrorCode } from "./errors";
+import { DOMAIN_ERROR_CODES, DomainError, domainError, throwDomainError, isDomainErrorCode } from "./errors";
 
 describe("isDomainErrorCode", () => {
   it("accepts every declared domain error code", () => {
@@ -19,11 +19,12 @@ describe("isDomainErrorCode", () => {
   });
 });
 
-describe("domainError", () => {
+describe("throwDomainError", () => {
   it("throws a DomainError carrying the code and message", () => {
+    expect(() => throwDomainError("date_invalid", "That date is invalid.")).toThrow(DomainError);
     expect(() => domainError("date_invalid", "That date is invalid.")).toThrow(DomainError);
     try {
-      domainError("date_invalid", "That date is invalid.");
+      throwDomainError("date_invalid", "That date is invalid.");
       expect.unreachable();
     } catch (err) {
       expect(err).toBeInstanceOf(DomainError);

@@ -10,7 +10,8 @@ see, and how they accept it. It takes about ten seconds on your side and roughly
 seconds on theirs. It's optional — a solo [Owner](/reference/glossary) can finish setting
 up the schedule without inviting anyone, and can come back to this page later.
 
-CapacityLens sends no invitation emails. You create a single-use link and paste it
+When SMTP is configured and email sending is available, CapacityLens emails an addressed
+invitation. If email is unavailable or sending fails, copy the single-use link and send it
 wherever your team already talks — Slack, a text message, whatever's fastest.
 
 ::: tip
@@ -35,7 +36,7 @@ permissions](/getting-started/roles-and-permissions) for why.
 
 2. Select **Invite someone**, above the member table, to open the centered invite dialog. Choose a
    role in the dialog. The consequences of that role are spelled out in plain language underneath
-   it. **Email** is optional for password sign-in and required on company-login-only installs.
+   it. **Email** is required: every invitation belongs to the named mailbox.
 
 3. Optionally choose **Link to Resource**, or leave **No Resource linked** selected.
    This proposes an existing person Resource without reserving it. The recipient cannot see this
@@ -45,10 +46,12 @@ permissions](/getting-started/roles-and-permissions) for why.
 
    ![Invite someone dialog with the optional Link to Resource selection](../screenshots/flows/invitation_created.png)
 
-4. Select **Create invite**, then **Copy** the one-time link. It's shown exactly once — the server keeps only a hash of it —
-   so copy it now and send it to the [person](/reference/glossary). The confirmation stays beside
-   the link. CapacityLens does not send it for you. If you lose it, revoke the invite and create
-   another one.
+4. Select **Create invite**. The one-time link is shown once — the server keeps only a hash of it —
+   and the confirmation stays beside it. When SMTP is configured and email sending is available,
+   CapacityLens emails the addressed invitation. If email is unavailable or sending fails, select
+   **Copy** and send the link to the [person](/reference/glossary). Closing the dialog clears the
+   link; if you close it before the invite finishes creating, a notice says the link was not shown.
+   If you lose it, revoke the invite and create another one.
 
 ## What the invitee sees
 
@@ -57,16 +60,14 @@ preview what they're joining before anything happens: your company name, the pro
 role, what that role can and can't do, and when the link expires. Just opening the link
 never changes [membership](/reference/glossary).
 
-![Accept invite screen showing complete permissions and separate Sign in and Create account choices](../screenshots/flows/invitation_accept.png)
-
 From there:
 
-- Already have a sign-in? Choose **Sign in**, enter your email and password, then check the
-  signed-in identity and select **Accept invite**. Choose **Use a different account** if needed;
-  the invitation stays open.
-- New to this install? Choose **Create account**, enter your name, email and a new password,
-  then select **Create account and accept**. Only this choice asks for your name.
-- Use company login? Choose your configured provider, then review and accept the invitation.
+- Already have a password sign-in? Enter the invited email and password, review the
+  invitation, then choose **Accept invite**. Complete any required second factor.
+- New to this install? Use the invitation's **Create account** option. Account
+  creation and invitation acceptance happen together.
+- Use company login? Choose an available provider, return to the invitation,
+  then select **Accept invite**.
 
 The role description is shown in full. Expiry uses your local date and time, without seconds.
 An email-bound invitation shows the part before `@`, followed by `@…` (for example,
@@ -97,7 +98,7 @@ the native hover label.
 - The **pencil** changes that person's role, with the consequences spelled out before you
   save.
 - **More actions** opens a centered dialog with the remaining permitted actions: reset their
-  password, sign them out everywhere, disable or archive them, or remove them from the company.
+  password, sign them out everywhere, Disable Access, archive their membership, or remove them from the company.
 
 The **Link to Resource** column shows the member's association. Select the member's link icon
 to open the centered Resource selector directly. Choosing a person saves immediately. If a link
@@ -106,11 +107,18 @@ reverses a completed change. See [Link a person to a member](/guide/people-and-p
 
 ![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/remove_resource_link.png)
 
-**Disable** and **archive** both stop someone opening the company immediately while
-keeping their role and history — use them when someone leaves, goes on long-term leave, or
-you need access shut off right now. They stay in the list with a badge, and **Restore
-access** in the same dialog puts them back exactly as they were. Removing someone, by
-contrast, is permanent: they'd need a fresh invitation to return.
+**Disable Access** stops this person opening the company immediately, including through an
+existing session or a later invitation. It follows a recreated identity at the same address only
+when both identities have durable proof of mailbox ownership. An addressed invitation or an
+older verified-email flag alone does not establish that link. **Enable Access** removes that restriction. A retained active member then keeps
+their existing role; an archived or removed person still needs the ordinary restore or invitation
+process. Only an Owner or Admin can enable access, including for a removed person listed under
+**No longer active**.
+
+**Archive user** stops current membership access and retains the inactive record. **Restore
+membership** reactivates that record, but does not clear Disable Access. **Remove** ends the
+membership. Archive or removal alone permits a later invitation; a returning person receives the
+invitation's role. Other company memberships remain usable throughout.
 
 ## Common questions
 

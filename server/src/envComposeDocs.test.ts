@@ -18,6 +18,10 @@ const bareMetalInstall = readFileSync(
   "utf8",
 );
 const nginxConf = readFileSync(fileURLToPath(new URL("../../nginx.conf", import.meta.url)), "utf8");
+const clientNginxConf = readFileSync(
+  fileURLToPath(new URL("../../nginx.client.conf.template", import.meta.url)),
+  "utf8",
+);
 const dockerIgnore = readFileSync(fileURLToPath(new URL("../../.dockerignore", import.meta.url)), "utf8");
 const appSource = readFileSync(fileURLToPath(new URL("./routes/appLogging.ts", import.meta.url)), "utf8");
 
@@ -29,7 +33,7 @@ const inviteActionsAt = (source: string, anchor: RegExp): string[] => {
 };
 
 const registerNamedProviderComposeTest = (): void => {
-  it("passes company-provider bootstrap and mailbox settings without retired OIDC settings", () => {
+  it("passes company-provider settings and marks configured retired OIDC names for refusal", () => {
     const apiService = compose.split("\n  api:\n")[1]?.split("\n  web:\n")[0];
     expect(apiService).toBeDefined();
     const apiLines = apiService?.split("\n").map((line) => line.trim());
@@ -48,10 +52,36 @@ const registerNamedProviderComposeTest = (): void => {
     ]) {
       expect(apiLines).toContain(`${name}: ${"${"}${name}:-}`);
     }
-    expect(apiService).not.toMatch(/SMALLSASS_ACCOUNT_OIDC_/);
-    expect(apiService).not.toMatch(/CAPACITYLENS_SSO_(?!MFA_ENFORCED)/);
+    for (const key of [
+      "CLIENT_ID",
+      "CLIENT_SECRET",
+      "DISCOVERY_URL",
+      "ISSUER",
+      "AUTHORIZATION_URL",
+      "TOKEN_URL",
+      "SCOPES",
+      "PROVIDER_ID",
+      "LABEL",
+      "BRAND",
+      "BOOTSTRAP_EMAILS",
+    ]) {
+      for (const prefix of ["SMALLSASS_ACCOUNT_OIDC_", "CAPACITYLENS_SSO_"]) {
+        const name = `${prefix}${key}`;
+        expect(apiLines).toContain(`${name}: ${"${"}${name}:+configured}`);
+      }
+    }
   });
 };
+
+describe("Compose TLS initializer", () => {
+  it("lets only the one-shot TLS initializer read the existing API key on repeat starts", () => {
+    const initializer = compose.split("\n  internal-tls:\n")[1]?.split("\n  api:\n")[0];
+    expect(initializer).toMatch(/cap_drop:\s*\n\s*- ALL/);
+    expect(initializer).toMatch(/cap_add:\s*\n\s*- CHOWN\s*\n\s*- DAC_READ_SEARCH\s*\n\s*- FOWNER/);
+    expect(compose.split("\n  api:\n")[1]?.split("\n  web:\n")[0]).not.toMatch(/DAC_READ_SEARCH/);
+    expect(compose.split("\n  web:\n")[1]?.split("\n  web-client:\n")[0]).not.toMatch(/DAC_READ_SEARCH/);
+  });
+});
 
 describe("Compose exceptions in the environment register", () => {
   it("documents runtime values that Compose pins to its private network and durable volume", () => {
@@ -122,5 +152,22 @@ describe("Compose exceptions in the environment register", () => {
     for (const path of ["/_input/", "/to-my-siblings/"]) {
       expect(ignoredLines, path).toContain(path);
     }
+  });
+});
+
+describe("Packaged nginx client address", () => {
+  it("keeps directory-route redirects relative on both web targets", () => {
+    for (const config of [nginxConf, clientNginxConf]) {
+      expect(config).toMatch(/^\s*absolute_redirect off;/m);
+    }
+  });
+
+  it("takes the client address from the edge's X-Forwarded-For only for a private-network peer", () => {
+    // The API keys per-client limits on the address this nginx forwards. Behind the host's public
+    // proxy that is the edge's client; trusting a public peer would let any client choose its own.
+    const trusted = [...nginxConf.matchAll(/^\s*set_real_ip_from\s+(\S+);/gm)].map((match) => match[1]);
+    expect(trusted).toEqual(["127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]);
+    expect(nginxConf).toMatch(/^\s*real_ip_header X-Forwarded-For;/m);
+    expect(nginxConf).not.toMatch(/real_ip_recursive\s+on/);
   });
 });

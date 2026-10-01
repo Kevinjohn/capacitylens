@@ -15,7 +15,7 @@ import {
   resolveBrowserTimeZone,
   resolveTimeZoneOptionLabel,
 } from "../../lib/timezones";
-import { validateName } from "../../lib/validation";
+import { parseName } from "../../lib/validation";
 import { useStore } from "../../store/useStore";
 import type { StoreState } from "../../store/types";
 
@@ -28,6 +28,7 @@ import {
 
 interface CreateServerAccountInput {
   trimmedName: string;
+  exampleData: boolean;
   weekStartsOn: 0 | 1;
   timezone: string;
   refreshAuth: ReturnType<typeof useAuth>["refreshAuth"];
@@ -48,8 +49,21 @@ async function reconcileUnknownCreate(
   return list !== null;
 }
 
+/** Add the example rows to a company that was just created. Returns why it failed, or null. The
+ * company stays usable either way, so a failure is reported rather than rolled back. */
+async function addExampleDataTo(accountId: string): Promise<string | null> {
+  try {
+    const response = await accountClient.addExampleData(accountId);
+    if (response.ok) return null;
+    return (await readApiError(response)) ?? m.settings_example_data_failed({ status: response.status });
+  } catch (cause) {
+    return resolveErrorMessage(cause);
+  }
+}
+
 async function createServerAccount({
   trimmedName,
+  exampleData,
   weekStartsOn,
   timezone,
   refreshAuth,
@@ -93,8 +107,10 @@ async function createServerAccount({
     if (!summaries.some((account) => account.id === created.id)) {
       setAccountSummaries([...summaries, { id: created.id, name: created.name, role: "owner" as const }]);
     }
+    const exampleDataFailure = exampleData ? await addExampleDataTo(created.id) : null;
     resetForm();
     await transitionAccount(created.id);
+    if (exampleDataFailure !== null) setNotice(m.picker_example_data_failed({ reason: exampleDataFailure }), "error");
     void refreshAuth();
   } catch (cause) {
     const reconciled = await reconcileUnknownCreate({ refreshAuth, setCreateUnresolved });
@@ -119,7 +135,7 @@ function createAccountSubmit(input: CreateAccountSubmitInput): () => void {
   return () => {
     if (input.submitting || input.createUnresolved) return;
     input.clear();
-    const trimmedName = validateName(input.name, input.fail);
+    const trimmedName = parseName(input.name, input.fail);
     if (!trimmedName) return;
     if (isServerConfigured()) {
       void createServerAccount({ ...input, trimmedName });
@@ -167,24 +183,37 @@ function useAccountSelectOptions() {
   return { timeZoneSelectOptions, weekStartSelectOptions };
 }
 
-function resetCreateAccountForm({
-  clear,
-  setCreating,
-  setName,
-  setWeekStartsOn,
-  setTimezone,
-}: {
-  clear: () => void;
-  setCreating: Dispatch<SetStateAction<boolean>>;
-  setName: Dispatch<SetStateAction<string>>;
-  setWeekStartsOn: Dispatch<SetStateAction<0 | 1>>;
-  setTimezone: Dispatch<SetStateAction<string>>;
-}) {
-  clear();
-  setCreating(false);
-  setName("");
-  setWeekStartsOn(DEFAULT_WEEK_STARTS_ON);
-  setTimezone(resolveBrowserTimeZone());
+function resetCreateAccountForm(
+  form: {
+    clear: () => void;
+    setCreating: Dispatch<SetStateAction<boolean>>;
+    setName: Dispatch<SetStateAction<string>>;
+    setWeekStartsOn: Dispatch<SetStateAction<0 | 1>>;
+    setTimezone: Dispatch<SetStateAction<string>>;
+  },
+  resetExampleData: () => void,
+) {
+  form.clear();
+  form.setCreating(false);
+  form.setName("");
+  form.setWeekStartsOn(DEFAULT_WEEK_STARTS_ON);
+  form.setTimezone(resolveBrowserTimeZone());
+  resetExampleData();
+}
+
+export interface ExampleDataChoice {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+/** Example data is offered only where a server can add it. The box starts ticked for a person's
+ * first company and unticked after that; until they touch it, the default follows that rule. */
+function useExampleDataChoice() {
+  const isFirstCompany = useStore((state) => state.accountSummaries.length === 0);
+  const [touched, setTouched] = useState<boolean | null>(null);
+  const checked = touched ?? isFirstCompany;
+  const choice: ExampleDataChoice | null = isServerConfigured() ? { checked, onChange: setTouched } : null;
+  return { checked, choice, reset: () => setTouched(null) };
 }
 
 export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<typeof useAuth>["refreshAuth"] }) {
@@ -201,11 +230,14 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
   // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON);
   const [timezone, setTimezone] = useState<string>(() => resolveBrowserTimeZone());
+  const exampleData = useExampleDataChoice();
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const { timeZoneSelectOptions, weekStartSelectOptions } = useAccountSelectOptions();
-  const resetForm = () => resetCreateAccountForm({ clear, setCreating, setName, setWeekStartsOn, setTimezone });
+  const resetForm = () =>
+    resetCreateAccountForm({ clear, setCreating, setName, setWeekStartsOn, setTimezone }, exampleData.reset);
   const submit = createAccountSubmit({
     name,
+    exampleData: exampleData.checked,
     submitting,
     createUnresolved,
     clear,
@@ -234,6 +266,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
       setWeekStartsOn,
       timezone,
       setTimezone,
+      exampleData: exampleData.choice,
       error,
       errorField,
       errorId,

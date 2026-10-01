@@ -1,3 +1,4 @@
+/** Every stable code a domain rule violation may carry. */
 export const DOMAIN_ERROR_CODES = [
   "record_wrong_account",
   "reference_wrong_account",
@@ -36,10 +37,12 @@ export const DOMAIN_ERROR_CODES = [
   "project_client_required",
 ] as const;
 
+/** A domain rule violation code; see {@link DOMAIN_ERROR_CODES}. */
 export type DomainErrorCode = (typeof DOMAIN_ERROR_CODES)[number];
 
 const DOMAIN_ERROR_CODE_SET = new Set<string>(DOMAIN_ERROR_CODES);
 
+/** Narrow an untrusted value to a known {@link DomainErrorCode}. Pure. */
 export function isDomainErrorCode(value: unknown): value is DomainErrorCode {
   return typeof value === "string" && DOMAIN_ERROR_CODE_SET.has(value);
 }
@@ -55,6 +58,10 @@ export class DomainError extends Error {
   }
 }
 
-export function domainError(code: DomainErrorCode, message: string): never {
+/** Throw a `DomainError` with a stable code and a display-safe message. */
+export function throwDomainError(code: DomainErrorCode, message: string): never {
   throw new DomainError(code, message);
 }
+
+/** Compatibility alias for the published domain contract. */
+export const domainError = throwDomainError;

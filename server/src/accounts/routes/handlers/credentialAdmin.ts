@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountRouteContext } from "../createReplyHelpers";
 
@@ -8,7 +9,12 @@ function assertAuthenticatedRequestContext(req: FastifyRequest) {
   return { actor, userId: user.id };
 }
 
-export async function resetPassword(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+type ResetPasswordContext = Pick<
+  AccountRouteContext,
+  "auditUnlessReplayed" | "authMode" | "authorize" | "command" | "fail" | "flows" | "requireMembership"
+>;
+
+export async function resetPassword(req: FastifyRequest, reply: FastifyReply, context: ResetPasswordContext) {
   const {
     authMode,
     flows: accountFlows,
@@ -24,7 +30,7 @@ export async function resetPassword(req: FastifyRequest, reply: FastifyReply, co
     userId: string;
   };
   if (!authorize({ req, reply, accountId, action: "manageMembers" })) return;
-  if (authMode !== "password") {
+  if (!allowsPasswordSignIn(authMode)) {
     // 'sso': the IdP owns sign-in — resetting a local password is meaningless there. 'off':
     // trusted-local, no credential model (and no UI shows the button) — a clear 400 either way.
     return reply.code(400).send({
@@ -60,7 +66,23 @@ export async function resetPassword(req: FastifyRequest, reply: FastifyReply, co
   }
 }
 
-export async function revokeMemberSessions(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+type RevokeMemberSessionsContext = Pick<
+  AccountRouteContext,
+  | "auditUnlessReplayed"
+  | "authMode"
+  | "authenticationConfigured"
+  | "authorize"
+  | "command"
+  | "fail"
+  | "flows"
+  | "requireMembership"
+>;
+
+export async function revokeMemberSessions(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: RevokeMemberSessionsContext,
+) {
   const {
     authMode,
     authenticationConfigured,

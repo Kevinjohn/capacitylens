@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -44,17 +45,19 @@ describe("ExternalForm", () => {
 
   it("prefills and updates an existing external party", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource({
-      kind: "external",
-      name: "Kord Industries",
-      role: "Visual design",
-      employmentType: "contractor",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#737373",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({
+        kind: "external",
+        name: "Kord Industries",
+        role: "Visual design",
+        employmentType: "contractor",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#737373",
+      }),
+    );
     const onClose = vi.fn();
     render(<ExternalForm resource={resource} onClose={onClose} />);
 
@@ -78,17 +81,19 @@ describe("ExternalForm", () => {
 
   it("rejects a stale edit instead of overwriting a concurrent change", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource({
-      kind: "external",
-      name: "Kord Industries",
-      role: "Visual design",
-      employmentType: "contractor",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#737373",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({
+        kind: "external",
+        name: "Kord Industries",
+        role: "Visual design",
+        employmentType: "contractor",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#737373",
+      }),
+    );
     const onClose = vi.fn();
     render(<ExternalForm resource={resource} onClose={onClose} />);
 

@@ -33,7 +33,7 @@ class WriteQueueOwner {
       () => {
         if (!owner.current.disposed) owner.acknowledge(data);
       },
-      (error: unknown) => this.handleSaveFailure(data, error),
+      (error: unknown) => this.recordSaveFailure(data, error),
     );
     owner.update({ inFlightSave: round });
     void round.finally(() => {
@@ -52,7 +52,7 @@ class WriteQueueOwner {
     return true;
   }
 
-  private handleSaveFailure(data: AppData, error: unknown): void {
+  private recordSaveFailure(data: AppData, error: unknown): void {
     const { owner, serverMode, onError } = this.input;
     if (owner.current.disposed) return;
     owner.update({ failedSinceSuccess: true, lastError: error });
@@ -120,7 +120,7 @@ class WriteQueueOwner {
       () => {
         if (!owner.current.disposed) owner.acknowledge(data);
       },
-      (error: unknown) => this.handleUnloadFailure(error),
+      (error: unknown) => this.recordUnloadFailure(error),
     );
   };
 
@@ -133,7 +133,7 @@ class WriteQueueOwner {
     );
   }
 
-  private handleUnloadFailure(error: unknown): void {
+  private recordUnloadFailure(error: unknown): void {
     const { owner, onError } = this.input;
     if (owner.current.disposed) return;
     owner.update({ failedSinceSuccess: true });

@@ -117,6 +117,7 @@ const ALLOCATIONS: AppData["allocations"] = [
   },
 ];
 
+/** Fresh copies of the seed allocations. */
 export function createAllocations(): AppData["allocations"] {
   return ALLOCATIONS.map((allocation) => ({ ...allocation }));
 }

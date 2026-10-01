@@ -8,6 +8,15 @@ All member linking and invitations are managed in **Team & access**. Owners and 
 member's actions there to link, change, or remove an eligible person Resource; the Resources page
 does not provide a separate team-link workflow.
 
+**Disable Access** is a company restriction separate from archiving or removing membership. It
+denies current requests and later invitations. It also follows a recreated identity at the same
+address when both identities have durable mailbox proof from a verified provider sign-in or a
+completed mailbox ceremony. This includes a verified GitHub address in mixed mode; a legacy
+email-verified flag or addressed invitation is not proof.
+**Enable Access** clears the restriction; a removed or archived person still needs the
+ordinary invitation or restore path. Removed restrictions remain visible to administrators in
+the inactive member directory. Owner and self protections apply to both actions.
+
 Invitation administration may carry an optional `proposedResourceId` for an active person in the
 selected account. The value is an admin-only, non-reserving proposal: invite previews, signup and
 accept responses never include it.
@@ -47,15 +56,21 @@ accept responses never include it.
    the browser's IANA zone, puts local/common choices first, and shows a friendly name, current
    abbreviation and numeric UTC offset for every option), and **Language** (read-only **English** —
    `data-testid="create-language"`; English-only until Paraglide). Company colour uses the default
-   preset automatically rather than asking for a one-off choice during onboarding. These three are set ONCE here and are then **disabled** in
+   preset automatically rather than asking for a one-off choice during onboarding. On a
+   server-backed deploy the form also shows a **Start with example data** checkbox, ticked when it
+   is the user's first company and unticked otherwise; the in-memory demo does not offer it. These three are set ONCE here and are then **disabled** in
    Settings; the server rejects a later change with **409**.
    When there are no companies and the caller may create one, the picker presents only two next
    steps: **New company** or **Ask an admin for an invite**. A caller without create permission sees
    only the invite step. With one or more companies already listed, the subtitle says
    _"Choose a company to plan, or create another one."_
-   If a refresh or account switch returns a slice that no longer contains the selected company,
-   CapacityLens installs no active workspace: it returns atomically to this picker, shows the
-   company-not-found notification, and rejects scoped edits until a real company is selected.
+   If the app is asked to select an unknown company while another company is active, it returns to
+   this picker, clears the leaving company's dirty-form, drag and screen-reader announcement state,
+   keeps the prior-company breadcrumb, shows the company-not-found notification, and rejects scoped
+   edits until a real company is selected. If a refresh or account switch publishes a slice that no
+   longer contains the selected company, CapacityLens returns atomically to this picker, clears the
+   same transient state and the prior-company breadcrumb, shows the company-not-found notification,
+   and rejects scoped edits until a real company is selected.
    If switching companies fails before a slice can be loaded, the previous company's data stays
    hidden behind the recovery stage (`data-testid="account-load-recovery"`). **Retry** loads the
    selected company again; **Choose another company** returns to the picker.
@@ -226,7 +241,7 @@ bottom keeps the logo + collapse toggle as the first item in both the open menu 
 its identity row, the avatar has its own unlabeled visible column, followed by Name, Email and
 Actions. The row scrolls horizontally on narrow screens. Long email
 addresses truncate like Team & access rows and reveal in full on pointer hover or keyboard focus.
-In password mode it offers password change in a dialog for local-password identities and shows MFA
+In password-capable modes it offers password change in a dialog for local-password identities and shows MFA
 status only when the operator requires it; in SSO mode it shows the provider identity without password controls.
 The page hides active-session details. Demo and auth-off modes
 never invent credential controls. Company Settings contains
@@ -260,7 +275,8 @@ portrait or phone landscape).
 
 An icon button directly below **Settings** switches between explicit light and dark modes without
 opening Settings. Its accessible name describes the next action (**Switch to dark mode** or
-**Switch to light mode**) and it remains available on the collapsed icon rail. The full
+**Switch to light mode**), follows the scheme actually shown (with **Match system**, the OS scheme)
+and it remains available on the collapsed icon rail. The full
 **Light** / **Dark** / **Match system** choice remains in Settings.
 
 **Rotate hint (portrait phones only).** On a portrait viewport ≤ 767px wide, a dismissable
@@ -306,7 +322,7 @@ success for the rebase never hides the independent loss.
 > instance would otherwise trip its own single-company cap on first boot). The two-company seed
 > described below happens only in: the demo build (`pnpm run dev:demo`, what these stories run
 > against), local dev tooling that opts in explicitly, and the db-backed E2E server's explicit
-> `POST /api/test/reset {seed:true}` (used by `e2e/db-helpers.ts`'s `resetServer()` — exempt from
+> `POST /api/test/reset {seed:true}` (used by `e2e/serverTestState.ts`'s `resetServer()` — exempt from
 > the single-company cap so tests can still exercise a two-company picker). The reset route exists
 > only in trusted-local/auth-off mode; an auth-enabled server refuses it even when the development
 > flag is set because a browser session carries no installation-wide erasure authority.
@@ -343,7 +359,7 @@ The canonical `seed()` fixture remains fixed to June 2026 for repeatable tests, 
 exact dates in these stories. Runtime demo, access-lab and opt-in server seeding shift the same
 relative scenario onto the current Monday: Bruce's overlap remains Wednesday–Thursday and his time
 off remains the following Wednesday–Friday, so a new session opens populated without a date jump.
-The Playwright suite freezes the browser clock to **2026-06-03** in `e2e/helpers.ts` `openApp()`, so
+The Playwright suite freezes the browser clock to **2026-06-03** in `e2e/browserTestSupport.ts` `openApp()`, so
 its runtime seed resolves to the canonical 1 June week and the literal story dates remain executable.
 
 **Allocation drag transactions.** A diagonal drag that changes both dates and assignee is one
@@ -828,6 +844,15 @@ remain after people inside the applicable band. The preference is
 stored on the account (`groupResourcesByEngagement`, absent = on), so every member of the company
 sees the same grouping.
 
+**Example data (Settings → Example data).** Shown to an Owner or Admin
+(`data-testid="settings-example-data"`) only on a server-backed deploy, and only while the company has
+no people, clients (other than the built-in Internal client), projects or allocations. Its
+`Add example data` button (`data-testid="add-example-data"`) calls
+`POST /api/accounts/:accountId/example-data`, then reloads the company and shows **Example data
+added.** The server independently refuses anyone below Admin with **403** and a company that holds
+any of those rows with **409**. The rows are ordinary rows with no sample flag, so deleting them
+leaves no trace.
+
 **Clear device data (Settings → Device data).** A closed-by-default maintenance disclosure near the
 bottom of Settings contains a `Clear device data` button
 (`data-testid="clear-local-storage"`). Clicking it opens the standard confirm dialog (title
@@ -874,12 +899,16 @@ constants are never presented as the server's database schema. The projection co
 identifiers, paths, hostnames, secrets, invite or session values, raw errors or arbitrary response
 fields. The button reports a generic success or clipboard failure message.
 
+When SMTP is configured in a password-capable mode, `forgot-password` reveals the inline
+`forgot-password-email` field and `forgot-password-submit` button. A successful request shows
+`forgot-password-confirmation`: **If an account uses that address, we've emailed a reset link.**
+
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
-server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `SMALLSASS_ACCOUNT_MODE=password` or
-`sso`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
+server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `SMALLSASS_ACCOUNT_MODE=password-only`, `password-and-sso` or
+`sso-only`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
-and a `Sign in` button in password mode; configured company-provider buttons in sso mode; failures
+and a `Sign in` button in password-capable modes; configured company-provider buttons in sso-only mode; failures
 show an inline alert. Starting an external sign-in clears an earlier provider error, announces
 **Redirecting to _provider_…** as a neutral status, and keeps the provider controls disabled while
 the browser hands off to the provider). If a mid-session 401 arrives while server writes are still unsaved, the
@@ -899,20 +928,27 @@ local mode, no login screen exists, Account has no credential controls, and loca
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
-**External provider action labels (login, invitation acceptance and reauthentication).** The
+**External provider action labels (login, invitation acceptance and reauthentication).** Provider
+reauthentication explains before redirect that returning does not complete the original action;
+the person must submit it again. The
 configured Google provider uses the
 exact branded action **Sign in with Google** and the
 recognisable Google mark on the sign-in wall, the invite acceptance sign-in form and the
 reauthentication dialog. The action stays visibly busy/disabled during hand-off. Other external
 providers use their branded accessible action, including **Sign in with Microsoft**.
 Provider presentation is server-owned and is never inferred from a user-editable provider label.
-On a password-mode installation with Google
-configured, the sign-in wall puts that Google action
-first, rendered sharply on high-density displays without an outer wrapper shadow and with breathing
-room from helper copy above and the explicit **or use your password** separator below. The password
-form follows at the standard spacing. Microsoft is presented alongside the primary Google action,
-above the password fallback, including when Microsoft is the only company provider. SSO-only
-still omits password controls. Additional provider actions retain their existing order.
+On an ordinary sign-in screen, every configured provider appears once in the server-supplied order
+in one vertical stack above the password form. Google keeps its sharp, undistorted artwork without
+an outer wrapper shadow; Microsoft and other providers retain their branded, accessible actions.
+When providers and password sign-in are both available, the localized **or use your password**
+separator appears once between the stack and form. Provider-only sign-in has no password separator,
+and password-only sign-in has no empty provider area. First-owner setup keeps its separate field
+order and provider bootstrap flow, including Microsoft's mailbox-proof requirements. SSO-only still
+omits password controls.
+
+See [Passwords and company sign-in](../docs-src/company-login/index.md#passwords-and-company-sign-in)
+for the sign-in layout and [Set up Google or Microsoft sign-in](../docs-src/company-login/set-up-company-login.md)
+for provider setup.
 
 Identity display-name and label limits count Unicode code points, so an astral CJK character is one
 character even though browser `maxlength` uses two UTF-16 code units. Email admission applies the
@@ -946,6 +982,11 @@ ask for the one-time mailbox verification below. A conflicting identity is rejec
 accounts. A successful callback shows **Connected to _provider_**. The same verified provider identity
 is used for subsequent sign-in. GitHub retains its existing experimental sign-in behavior.
 
+If the session is stale, **Connect _provider_** opens **Confirm it's you**. Cancelling does not start a
+provider connection; success continues the request once, and another freshness refusal directs the
+person to sign out and back in. An unverified local email directs the person to ask the server
+operator for sign-in email correction through the guarded repair route, then sign in again.
+
 **Microsoft mailbox verification (`/verify-microsoft`, with an optional trailing slash).** This is a
 public entry before auth or company-data hydration. If the first connection needs email proof, the
 person opens the emailed link in the browser that started the request and chooses **Confirm and
@@ -957,8 +998,8 @@ are shown honestly; **Resend verification email**, retry and cancellation provid
 returning sign-in uses the established identity and does not repeat this mailbox check. See
 [Set up company login](../docs-src/company-login/set-up-company-login.md).
 
-**First-run Owner setup (password mode, zero users).** When the server reports `needsSetup: true`
-on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
+**First-run Owner setup (password-capable mode, zero users).** When the server reports `needsSetup: true`
+on the 401 (password-only or password-and-sso with an **empty** user table — sign-up is open for exactly one
 bootstrap account and closes the moment it exists), the login wall shows **Setup the account Owner**
 instead of sign-in. Fields are **name** (`data-testid="owner-setup-name"`), **email**
 (`data-testid="owner-setup-email"`), **Create a password** (`data-testid="owner-setup-password"`)
@@ -973,7 +1014,7 @@ by the app. On a populated server the
 flag is absent and the ordinary `Sign in` form renders — the auth-backed E2E server is never
 zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential `admin@admin.admin`
 / `auth-e2e-password-2026` — PINNED for the e2e server via `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`, since
-production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2e/auth-helpers.ts`),
+production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2e/authTestSupport.ts`),
 so the setup form
 itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
 On a mixed deployment, every configured external provider remains available below
@@ -990,42 +1031,22 @@ previews the company name, proposed role, role summary and expiry before accepta
 `GET /api/invites/:token/preview`. Possession of the bearer link is required to read that limited
 metadata, including whether it is email-bound and a hint showing only the part before `@`,
 followed by `@…`. The domain, full address, company data, membership list and unrelated identity
-facts are never revealed. A bound invite explains that only the intended email address can accept it,
-while a generic link explains that it is transferable and single-use.
-An older preview without binding metadata makes neither claim. Merely
-opening or previewing the URL never changes membership. In a server deploy with auth on, an
-unauthenticated invitee gets the page's own onboarding form with equally prominent **Sign in** and
-**Create account** tabs. Only the selected journey's fields appear; **Name** and a new-password field
-belong to account creation, while sign-in uses Email and the current password. Permission and
-existing-role consequences wrap in full. Expiry uses the viewer's local date and time without seconds;
-the year appears when it differs from the current year. An existing user chooses **Sign in**, reloads onto the same `/invite/<token>` URL, reviews the invitation
-under that identity, sees the signed-in email/name, then chooses **Accept invite**. **Use a different
-account** signs out without discarding the bearer URL. If a pre-authorised invite rejects the current
-identity, the page explains the mismatch and retains that same recovery action instead of suggesting
-a retry as the wrong identity. In SSO-only mode the accepting session must come from the required
-company provider. GitHub cannot enter a provider-required deployment, including through an
-older session. Google and Microsoft sign-in do not themselves claim the invitation: the signed-in
-person still explicitly accepts it, with its address and expiry checked again. A brand-new invitee chooses **Create account and
-accept** (POST `/invite/:token/signup`), which creates the identity and claims the invite atomically,
-then refreshes the authenticated company list, activates that company and enters it directly.
-A fresh authenticated boot is required because the pre-session invite page deliberately starts
-without tenant persistence attached; the signup handoff carries only the joined company id in a
-one-use query parameter, removes it from the URL, verifies it against the authenticated company
-list, and activates it. It never persists `activeAccountId` or trusts the URL as membership proof.
-If the signup response is lost, a successful credential sign-in reloads the same invite URL instead
-of guessing which company was joined: an unused token can then be explicitly accepted, while a used
-token directs the person to their authenticated company list.
-A **valid** accept binds the signed-in user to that company and shows the effective role returned by
-the mutation in a _"You've joined this company as `<role>`"_ success with a **Continue** link (which
-opens the joined company directly after refetching the account list so the brand-new membership is
-activatable). Leaving the invitation route while that refresh is pending does not later switch the
-active company; the refreshed company directory remains available for normal account selection. A
-single polite status announces checking, readiness, joining and completion; accepting moves focus
-to that status, and completed activation moves focus to **Continue**.
-An accept by someone whose membership in that company is **disabled or archived** is refused
-(403) with _"This membership is no longer active. An Owner or Admin must restore it before you can
-rejoin."_ — redemption must never be a route back in for a member an administrator turned off, and
-the invite is left unused so it still works once the membership is restored. A
+facts are never revealed. An addressed invite explains that only the intended email can use it.
+Merely opening or previewing the URL never changes membership. Permission and existing-role
+consequences wrap in full. Expiry uses the viewer's local date and time without seconds; the year
+appears when it differs from the current year. An addressed invite can be accepted with an existing password sign-in, or used to create a
+password account where invitation signup is allowed. The invitation stays bound to its exact
+address and company. Eligible providers return to `/invite/:token` after sign-in, then explicitly accept the
+invitation under the current policy. A new or restored member receives
+the invitation role; an already-active member keeps the current role. The server rechecks the
+address, current policy, invitation, access restrictions and session at acceptance. Completion
+refreshes the authenticated company list and activates the joined company without persisting
+`activeAccountId` or treating the URL as membership proof.
+An accept is refused (403) while **Disable Access** applies, including after removal or identity
+recreation at the same address when both identities have durable mailbox proof; an addressed
+invitation or legacy verified-email flag alone does not establish that link. The invitation remains
+unused. An archived member without the restriction can rejoin through a valid invitation at the
+invitation's role. A
 **used** link shows _"This invite has already been used."_; an
 **expired** link shows _"This invite has expired."_ (expiry is evaluated as an instant, including
 explicit UTC offsets, and malformed stored values fail closed); an **unknown** token shows _"Invite not
@@ -1040,7 +1061,7 @@ Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory'
 Resource** column to see the resource name or **None**, then use the row's separate link icon to link, change,
 or remove one active person per member. This association changes neither
 permissions nor schedule ownership. Explicit person avatar URLs take precedence over a
-validated sign-in picture; inactive endpoints suppress the derived picture while retaining the
+validated sign-in picture on Schedule and Overview; inactive endpoints suppress the derived picture while retaining the
 association. Its **Your access** panel (`data-testid="current-access"`) shows the
 active role in a plain-language summary sentence. The full allowed/not-allowed capability list —
 schedule writes, member administration, time-off-note visibility and private client/project-name
@@ -1087,10 +1108,10 @@ presented before the member directory, matching the action-first pattern of the 
   available row action is grouped at the right in the same outlined-button treatment as the
   Resources list.
   The role has its own column. The caller's own row is marked **(you)** and a
-  non-active member's row carries a **Disabled** or **Archived** badge
+  non-active member's row carries an **Access disabled**, **Archived**, or **Removed** badge
   (`data-testid="member-status"`). Members are ordered by role priority **Owner**, **Admin**,
   **Editor**, **Viewer**, then display name and stable member ID. The table itself lists only
-  **active** members; disabled and archived memberships are grouped below it behind a
+  **active, unrestricted** members; restricted, archived, and removed-with-restriction entries are grouped below it behind a
   collapsed **No longer active (_count_)** disclosure (`data-testid="members-inactive-toggle"`,
   reporting its state through `aria-expanded`) which reveals a second table with the same columns
   (`data-testid="members-inactive-table"`). The disclosure is absent when no membership is in that
@@ -1123,15 +1144,15 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="member-role-save"`) — and a gear
   (`data-testid="member-menu"`) opening the centered **Member actions** dialog naming the selected member: **Reset password**
   (`data-testid="member-reset-password"`), **Revoke sessions**
-  (`data-testid="member-revoke-sessions"`), **Disable user** (`data-testid="member-disable"`),
+  (`data-testid="member-revoke-sessions"`), **Disable Access** (`data-testid="member-disable"`),
   **Archive user** (`data-testid="member-archive"`) and **Remove**
-  (`data-testid="member-remove"`), with **Restore access** (`data-testid="member-restore"`)
-  replacing disable/archive once the member is no longer active. The pencil is offered on **active
-  rows only** — a role change must not be a back door that reinstates a disabled member, so such a
-  row is restored first — while the gear, including **Remove**, stays available on those rows so
+  (`data-testid="member-remove"`), with **Enable Access** (`data-testid="member-enable"`)
+  replacing Disable Access while restricted, and **Restore membership**
+  (`data-testid="member-restore"`) offered for archived rows. The pencil is offered on active,
+  unrestricted rows only. The gear, including **Remove**, stays available on inactive rows so
   a membership can be ended without first handing its access back. Every control has a member-scoped
   accessible name — **Edit _member_**, **More actions for _member_**, **Remove _member_**, **Reset
-  password for _member_**, **Revoke sessions for _member_**, **Disable _member_** — so non-linear
+  password for _member_**, **Revoke sessions for _member_**, **Disable Access for _member_** — so non-linear
   assistive-technology navigation cannot detach an action from its target. Each menu action opens a
   confirmation naming the affected member before sending its destructive or security-sensitive
   request. While any member action is in flight, the management section is marked busy, politely
@@ -1141,7 +1162,7 @@ presented before the member directory, matching the action-first pattern of the 
   reload into sign-in. Disable and archive are offered only where the target is neither the Owner nor
   yourself; a disabled or archived membership keeps its role and history but authorizes nothing, and
   the member stays listed under **No longer active** so the change is visible and reversible. No row
-  carries an ownership-transfer control for anyone. In **password mode only**, the menu's **Reset password** mints a
+  carries an ownership-transfer control for anyone. In **password-capable modes only**, the menu's **Reset password** mints a
   **single-use, 24-hour** reset link
   shown **once** (`data-testid="reset-link"`, `<origin>/reset-password/<token>`) with a **Copy**
   button named **Copy reset link for _member_** and a note naming the member and the expiry date — nothing is emailed; the admin hands the
@@ -1156,9 +1177,11 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button named **Copy invitation link** — the token is write-once and never
-  shown again. The panel explicitly says CapacityLens does not send invitation emails: the creator
-  copies and sends the link. The field has no explanatory helper copy; it is optional in password
-  mode and required in SSO-only mode. Creation confirmation stays beside the link, with instructions to
+  shown again; closing the dialog clears it, so reopening shows an empty form. The panel says
+  CapacityLens emails addressed invitations when SMTP is configured and sending is available; if
+  email is unavailable or sending fails, the creator copies and sends the link. The field has no
+  explanatory helper copy and is required in every
+  server-auth mode. Creation confirmation stays beside the link, with instructions to
   revoke and recreate it if lost, rather than overlaying the panel in a toast.
   If any membership, invite or reset-token mutation loses its response after dispatch,
   the section reloads memberships, invites and authentication before enabling a retry. A lost invite
@@ -1168,8 +1191,36 @@ presented before the member directory, matching the action-first pattern of the 
   execution to record its actual completed, compensated or repair-required outcome first. An
   unreadable or unrecognised conflict response also keeps the original browser command identity;
   only a successfully decoded terminal rejection permits a later retry to mint a new identity.
-  In SSO-only mode **Email** is required by both the UI and server because a
-  bearer-only invitation cannot admit a brand-new external identity.
+  **Email** is required by both the UI and server because a bearer-only invitation
+  cannot establish mailbox ownership for company joining.
+- **Joining policy (Team & access; Owner/Admin)** — **Who can join** (`data-testid="joining-policy-section"`)
+  shows the company's current **Invitation only**, **Open registration**, **Approved domains**, or
+  **Approved domains or invitation** policy and every approved domain. Policy-only joins always
+  receive Viewer. Under the combined policy, matching staff domains or an addressed invitation
+  can admit a person; the invitation can grant its specified role. Only the Owner can edit the
+  policy (`data-testid="joining-policy-select"`) and the one-domain-per-line **Approved domains**
+  field (`data-testid="joining-policy-domains"`) and select **Save joining policy**
+  (`data-testid="joining-policy-save"`). The Admin sees the same settings with guidance to speak
+  to the Owner, without edit controls. Invalid domains and a domain policy with no domains are
+  explained beside the field before a save is sent.
+  The section loads the current company’s policy before showing controls; a failed read shows
+  **Could not load the joining policy.** and a **Try again** action. Switching companies discards
+  the previous company’s draft and loads its new settings.
+  Owner and Admin can select the company-specific **Joining link**
+  (`data-testid="joining-policy-link"`) and choose **Copy joining link**
+  (`data-testid="joining-policy-copy-link"`) to share `/join/:accountId`.
+  `/join/:accountId` is a public company-bound entry outside the app's account picker. It shows
+  the company's name and available sign-in methods. Eligible Google, Microsoft and GitHub
+  choices appear above the existing-password option in mixed mode; GitHub remains unavailable
+  in company-sign-in-only mode. Microsoft uses its same-browser mailbox ceremony when needed.
+  A person with an existing password account signs in, completes any required second factor,
+  then chooses **Join company**. The server admits only a currently proven email that meets the
+  live policy. A password identity without trusted email proof gets recovery guidance to use an
+  eligible verified provider or an addressed invitation, or choose **Email me a verification link**
+  (`data-testid="joining-verify-email"`); successful delivery shows an inbox status
+  (`data-testid="joining-verify-email-status"`). Open/domain policy joining does not
+  create a new password account. On completion the normal authenticated company list verifies
+  the destination before activation.
 - **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) using the
   same five-column bordered table as Members, with a row per invite (`data-testid="invite-row"`).
   **Name** is an em dash, **Role** is the invited role, **Email** is the pre-authorised address or
@@ -1215,7 +1266,7 @@ while the administrative directory keeps listing them),
 `DELETE /api/accounts/:accountId/invites/:id` (204, idempotent, cross-tenant-safe),
 `POST /api/invites` rejects `owner` for
 every caller — ownership is transferred, never invited — and
-`POST /api/accounts/:accountId/members/:userId/reset-password` (gated manageMembers; password mode
+`POST /api/accounts/:accountId/members/:userId/reset-password` (gated manageMembers; password-capable mode
 only — sso/OFF → 400; admin resetting an owner → 403; 404 non-member; 201 `{token, expiresAt}`,
 write-once) mints the reset link. The management UI is
 `src/components/team/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;
@@ -1407,6 +1458,8 @@ frozen, P1.14),
 `new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —
 whenever `GET /api/auth/me` reports `canCreateAccount: false`: the single-company cap is reached,
 or under auth-on the caller lacks owner/admin standing on any account),
+`settings-example-data` and `add-example-data` (Settings → Example data row and its button; shown only
+to an Owner or Admin of an empty company on a server-backed deploy),
 `clear-local-storage` (Settings → Device data danger button; opens a destructive confirm),
 `archived-resources-section`, `archived-clients-section`, `archived-projects-section` and
 `archived-activities-section` (expanded sections below their active management lists; shown in local

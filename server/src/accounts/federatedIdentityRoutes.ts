@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { AuthorizeRouteInput } from "../routes/routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
@@ -8,26 +9,9 @@ import type { SsoCutoverIdentityPort } from "./betterAuthIdentityPort";
 import type { SsoCutoverAccountAdminPort } from "./sqliteAccountAdminPort";
 import { providerLinkBodyError, sendProviderLinkFailure } from "./providerLinkFailure";
 import { startMicrosoftProviderLink } from "./microsoftProviderLink";
+import { requireAccountActor, requireAuthenticatedUser } from "./routes/handlers/authenticatedPrincipal";
 
 type AuthorizeMemberManagementInput = Omit<AuthorizeRouteInput, "action"> & { action: "manageMembers" };
-
-function createAuthenticationRequiredError(): AccountContractError {
-  return new AccountContractError({
-    code: "AUTHENTICATION_REQUIRED",
-    message: "Sign in to continue.",
-    retryable: false,
-  });
-}
-
-function requireAccountActor(req: FastifyRequest): NonNullable<FastifyRequest["accountActor"]> {
-  if (!req.accountActor) throw createAuthenticationRequiredError();
-  return req.accountActor;
-}
-
-function requireAuthenticatedUser(req: FastifyRequest): NonNullable<FastifyRequest["user"]> {
-  if (!req.user) throw createAuthenticationRequiredError();
-  return req.user;
-}
 
 function requireFederatedLink(auth: Auth): NonNullable<Auth["beginFederatedLink"]> {
   if (!auth.beginFederatedLink) throw new Error("Federated identity linking is not configured.");
@@ -152,7 +136,7 @@ function registerRepairRoutes(app: FastifyInstance, dependencies: FederatedIdent
 async function correctEmail(req: RouteRequest, reply: FastifyReply, dependencies: FederatedIdentityRouteDependencies) {
   const { accountId, userId } = req.params as { accountId: string; userId: string };
   if (!dependencies.authorize({ req, reply, accountId, action: "manageMembers" })) return;
-  if (dependencies.authMode !== "password") {
+  if (!allowsPasswordSignIn(dependencies.authMode)) {
     return reply.code(409).send({
       error: "Sign-in email correction is available only during mixed-mode SSO staging.",
       code: "CONFLICT",
@@ -249,7 +233,7 @@ async function removeFederatedLink(
 ) {
   const { accountId, userId } = req.params as { accountId: string; userId: string };
   if (!dependencies.authorize({ req, reply, accountId, action: "manageMembers" })) return;
-  if (dependencies.authMode !== "password") {
+  if (!allowsPasswordSignIn(dependencies.authMode)) {
     return reply.code(409).send({
       error: "The required provider cannot be removed while SSO-only mode is active.",
       code: "CONFLICT",

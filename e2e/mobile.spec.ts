@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { openApp } from "./helpers";
+import { openApp } from "./browserTestSupport";
 
 // Light mobile affordances: portrait phones use the ShadCN off-canvas Sidebar,
 // compact landscape layouts use its icon mode, and portrait phones get a

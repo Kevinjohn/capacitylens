@@ -84,6 +84,7 @@ export function parseISOTimestamp(value: unknown): number | null {
   return Number.isFinite(parsed) && parsed === expected ? parsed : null;
 }
 
+/** Outcome of a validation: `ok`, display-safe `errors`, and their stable `codes`. */
 export interface ValidationResult {
   ok: boolean;
   errors: string[];
@@ -180,6 +181,7 @@ export function withoutAllocationAttribution<T extends object>(row: T, updatedAt
   return cleared;
 }
 
+/** Check that a placeholder is assigned only to its own project; people and externals are unrestricted. Pure. */
 export function validateAllocationAssignment(resource: Resource, projectId: ID | undefined): ValidationResult {
   const issues: ValidationIssue[] = [];
   // Only PLACEHOLDERS are project-restricted. `person` and `external` are intentionally

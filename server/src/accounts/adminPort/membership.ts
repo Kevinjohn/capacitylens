@@ -1,23 +1,31 @@
 import { canChangeMemberStatus, canManageMemberRole, canRemoveMember } from "@capacitylens/shared/account/policy";
 import {
+  disableAccess,
+  captureRestrictionEmail,
+  enableAccess,
+  getAccessRestriction,
   getActiveMemberRole,
   getMembershipRow,
+  isAccessRestricted,
+  invalidateRestrictedPrincipal,
   listMembersForAccount,
   listMembershipsForUser,
+  provenEmail,
   removeMember as removeMemberRow,
   setMemberStatus,
   upsertMember,
   type AccountMember,
 } from "../../controlTables";
-import { getRow, type Db } from "../../db";
+import type { Db } from "../../db";
 import type { AccountAuditInput } from "../accountFlowRuntime";
 import { createOperationReceipt } from "../accountFlowRuntime";
-import { readSecurityRevision } from "../state";
+import { bumpSecurityRevision } from "../state";
 import { assertAccountAuthority, assertAdministrativeAssurance } from "./authority";
 import type { AdminPortContext } from "./contracts";
 import { ACCOUNT_POLICY_VERSION, SsoCutoverAccountAdminPort } from "./contracts";
 import { assertInvitationRole, createAccountFailure } from "./failures";
-import { readMembership, readSecurityRevisionsByPrincipalId } from "./mappers";
+import { readMembership } from "./mappers";
+import { createMembershipReads } from "./memberReads";
 
 type MembershipContext = Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa" | "runMutation" | "audit">;
 type MembershipPort = Pick<
@@ -27,6 +35,7 @@ type MembershipPort = Pick<
   | "listMemberships"
   | "changeMemberRole"
   | "changeMemberStatus"
+  | "enableMemberAccess"
   | "removeMember"
 >;
 
@@ -36,62 +45,6 @@ function readRequiredMembership(db: Db, principalId: string, workspaceId: string
     throw new Error(`Membership write did not produce ${workspaceId}/${principalId}.`);
   }
   return row;
-}
-
-function createMembershipReads({
-  db,
-  trustedLocal,
-  requireMfa,
-}: MembershipContext): Pick<MembershipPort, "listWorkspacesForPrincipal" | "getMembership" | "listMemberships"> {
-  return {
-    async listWorkspacesForPrincipal({ principalId }) {
-      return listMembershipsForUser(db, principalId)
-        .filter((row) => row.status === "active")
-        .flatMap((row) => {
-          const workspace = getRow(db, "accounts", row.accountId);
-          return workspace
-            ? [
-                {
-                  workspaceId: row.accountId,
-                  workspaceName: String(workspace.name),
-                  role: row.role,
-                  membershipRevision: String(readSecurityRevision(db, principalId)),
-                  policyVersion: ACCOUNT_POLICY_VERSION,
-                },
-              ]
-            : [];
-        })
-        .sort(
-          (left, right) =>
-            left.workspaceName.localeCompare(right.workspaceName) || left.workspaceId.localeCompare(right.workspaceId),
-        );
-    },
-    async getMembership({ principalId, workspaceId, includeInactive = false }) {
-      if (!getRow(db, "accounts", workspaceId)) return null;
-      const row = listMembershipsForUser(db, principalId).find(
-        (candidate) => candidate.accountId === workspaceId && (includeInactive || candidate.status === "active"),
-      );
-      return row ? readMembership(db, row) : null;
-    },
-    async listMemberships({ actor, workspaceId, includeInactive = false, requireFresh = true }) {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, requireFresh });
-      assertAccountAuthority({ db, actor, workspaceId, action: "list-members", trustedLocal });
-      // `includeInactive` widens the administrative listing, never authorization: the read is
-      // already gated above and every returned row retains its real status.
-      const rows = listMembersForAccount(db, workspaceId).filter((row) => includeInactive || row.status === "active");
-      // One chunked bulk revision query avoids an N+1 read while preserving readMembership's shape.
-      const revisions = readSecurityRevisionsByPrincipalId(db, [...new Set(rows.map((row) => row.userId))]);
-      return rows.map((row) => ({
-        workspaceId: row.accountId,
-        principalId: row.userId,
-        role: row.role,
-        status: row.status,
-        joinedAt: row.createdAt,
-        membershipRevision: String(revisions.get(row.userId) ?? 0),
-        policyVersion: ACCOUNT_POLICY_VERSION,
-      }));
-    },
-  };
 }
 
 function createRoleChange({
@@ -146,14 +99,18 @@ function createRoleChange({
   };
 }
 
+// Both commands share the same administrative mutation and audit boundary.
+// eslint-disable-next-line max-lines-per-function
 function createStatusChange({
   db,
   trustedLocal,
   requireMfa,
   runMutation,
   audit,
-}: MembershipContext): Pick<MembershipPort, "changeMemberStatus"> {
+}: MembershipContext): Pick<MembershipPort, "changeMemberStatus" | "enableMemberAccess"> {
   return {
+    // The transaction keeps authority, alias checks, restriction, and audit writes together.
+    // eslint-disable-next-line max-lines-per-function
     async changeMemberStatus({ actor, workspaceId, targetPrincipalId, nextStatus, command }) {
       return runMutation({
         operation: "change-member-status",
@@ -163,7 +120,12 @@ function createStatusChange({
         command,
         payload: { workspaceId, targetPrincipalId, nextStatus },
         lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
-        audit: { action: "member.status_changed", changedFields: ["status"] },
+        audit: {
+          action: nextStatus === "disabled" ? "member.access_disabled" : "member.status_changed",
+          changedFields: [nextStatus === "disabled" ? "accessRestriction" : "status"],
+        },
+        // The write and all newly restricted aliases share one transaction and audit boundary.
+        // eslint-disable-next-line max-lines-per-function
         execute: () => {
           assertAdministrativeAssurance({
             actor,
@@ -178,7 +140,41 @@ function createStatusChange({
           if (!target) throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
           if (!canChangeMemberStatus(acting, target.role, targetPrincipalId === actor.principalId))
             throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
-          // "unchanged" is success: the requested state already holds and no reset link is burned.
+          // Repeat Disable can widen a principal-only restriction after fresh mailbox proof.
+          if (nextStatus === "disabled") {
+            const targetEmail = provenEmail(db, targetPrincipalId);
+            const matched =
+              targetEmail === null
+                ? []
+                : listMembersForAccount(db, workspaceId).filter(
+                    (member) => provenEmail(db, member.userId) === targetEmail,
+                  );
+            if (matched.some((member) => member.userId === actor.principalId || member.role === "owner"))
+              throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
+            const newlyAffected = [...new Set([targetPrincipalId, ...matched.map((member) => member.userId)])].filter(
+              (principalId) => !isAccessRestricted(db, workspaceId, principalId),
+            );
+            if (!getAccessRestriction(db, workspaceId, targetPrincipalId)) {
+              disableAccess(db, {
+                accountId: workspaceId,
+                principalId: targetPrincipalId,
+                role: target.role,
+              });
+            } else {
+              captureRestrictionEmail(db, workspaceId, targetPrincipalId);
+            }
+            for (const principalId of newlyAffected) {
+              if (!isAccessRestricted(db, workspaceId, principalId)) continue;
+              const invalidatedTransferIds = invalidateRestrictedPrincipal(db, workspaceId, principalId);
+              writeInvalidatedTransferAudits(audit, invalidatedTransferIds, {
+                actorPrincipalId: actor.principalId,
+                targetPrincipalId: principalId,
+                workspaceId,
+                command,
+              });
+            }
+            return { ...readMembership(db, target), accessDisabled: true };
+          }
           const result = setMemberStatus({ db, accountId: workspaceId, userId: targetPrincipalId, status: nextStatus });
           if (result.outcome === "missing")
             throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
@@ -189,7 +185,64 @@ function createStatusChange({
             command,
           });
           // The write changes only status; re-reading would re-derive the row already held here.
-          return readMembership(db, { ...target, status: nextStatus });
+          return {
+            ...readMembership(db, { ...target, status: nextStatus }),
+            accessDisabled: isAccessRestricted(db, workspaceId, targetPrincipalId),
+          };
+        },
+      });
+    },
+    async enableMemberAccess({ actor, workspaceId, targetPrincipalId, command }) {
+      return runMutation({
+        operation: "enable-member-access",
+        actorPrincipalId: actor.principalId,
+        targetPrincipalId,
+        workspaceId,
+        command,
+        payload: { workspaceId, targetPrincipalId },
+        lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
+        audit: { action: "member.access_enabled", changedFields: ["accessRestriction"] },
+        execute: () => {
+          assertAdministrativeAssurance({
+            actor,
+            requireMfa,
+            trustedLocal,
+            commandId: command.commandId,
+            requireFresh: false,
+          });
+          const acting = assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
+          const restriction = getAccessRestriction(db, workspaceId, targetPrincipalId);
+          if (!restriction) throw createAccountFailure("NOT_FOUND", "Access restriction not found.", command.commandId);
+          const target = getMembershipRow(db, workspaceId, targetPrincipalId);
+          const targetRole = target?.role ?? restriction.role;
+          if (!canChangeMemberStatus(acting, targetRole, targetPrincipalId === actor.principalId))
+            throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
+          const matchingMembers = listMembersForAccount(db, workspaceId).filter((member) => {
+            if (member.userId === targetPrincipalId) return true;
+            if (restriction.verifiedEmail === null) return false;
+            return provenEmail(db, member.userId) === restriction.verifiedEmail;
+          });
+          if (
+            matchingMembers.some(
+              (member) => !canChangeMemberStatus(acting, member.role, member.userId === actor.principalId),
+            )
+          )
+            throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
+          if (enableAccess(db, workspaceId, targetPrincipalId)) bumpSecurityRevision(db, targetPrincipalId);
+          const accessDisabled = isAccessRestricted(db, workspaceId, targetPrincipalId);
+          return target
+            ? { ...readMembership(db, target), accessDisabled }
+            : {
+                workspaceId,
+                principalId: targetPrincipalId,
+                role: targetRole,
+                status: "disabled" as const,
+                accessDisabled,
+                membershipPresent: false,
+                joinedAt: restriction.createdAt,
+                membershipRevision: "0",
+                policyVersion: ACCOUNT_POLICY_VERSION,
+              };
         },
       });
     },

@@ -1,7 +1,8 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { IdentityPort } from "@capacitylens/shared/account/ports";
 import type { OperationReceipt, ProvisionalPrincipal } from "@capacitylens/shared/account/types";
-import { validateCredentialInput } from "@capacitylens/shared/account/validation";
+import { inspectCredentialInput } from "@capacitylens/shared/account/validation";
 import { createHash } from "node:crypto";
 import { RESET_LINK_TTL_SECONDS, mintPasswordResetToken, revokeResetTokensForUser } from "../../auth";
 import { tx } from "../../txn";
@@ -25,7 +26,7 @@ type CredentialsPort = Pick<
 type CredentialPrincipalInput = Parameters<IdentityPort["createProvisionalCredentialPrincipal"]>[0];
 
 function resolveCredentialValidationMessage(
-  validation: NonNullable<ReturnType<typeof validateCredentialInput>>,
+  validation: NonNullable<ReturnType<typeof inspectCredentialInput>>,
 ): string {
   switch (validation) {
     case "password-length":
@@ -41,7 +42,7 @@ function assertCredentialInput(
   authMode: IdentityPortContext["input"]["authMode"],
   input: CredentialPrincipalInput,
 ): void {
-  if (authMode !== "password") {
+  if (!allowsPasswordSignIn(authMode)) {
     throw new AccountContractError({
       code: "UNSUPPORTED_CAPABILITY",
       message: "Credential identities are disabled for this installation.",
@@ -49,7 +50,7 @@ function assertCredentialInput(
       commandId: input.command.commandId,
     });
   }
-  const validation = validateCredentialInput(input);
+  const validation = inspectCredentialInput(input);
   if (validation) {
     throw new AccountContractError({
       code: "VALIDATION_FAILED",
@@ -63,7 +64,7 @@ function assertCredentialInput(
 async function createCredentialPrincipal(
   dependencies: {
     input: Pick<IdentityPortContext["input"], "auth" | "authMode">;
-    makeCompensationHandle: IdentityPortContext["makeCompensationHandle"];
+    createCompensationHandle: IdentityPortContext["createCompensationHandle"];
   },
   input: CredentialPrincipalInput,
   correlateInTransaction?: (principalId: string) => void,
@@ -80,7 +81,7 @@ async function createCredentialPrincipal(
     });
     return {
       principalId: created.id,
-      compensationHandle: dependencies.makeCompensationHandle(created.id, input.command.commandId),
+      compensationHandle: dependencies.createCompensationHandle(created.id, input.command.commandId),
     };
   } catch (error) {
     if (["PASSWORD_COMPROMISED", "PASSWORD_CONTEXT_REJECTED"].includes(parseProviderErrorCode(error) ?? "")) {
@@ -159,7 +160,7 @@ function createPasswordReset(
 ): Pick<CredentialsPort, "issuePasswordReset" | "revokePasswordResetCeremony"> {
   return {
     async issuePasswordReset({ targetPrincipalId, command }) {
-      if (input.authMode !== "password") {
+      if (!allowsPasswordSignIn(input.authMode)) {
         throw new AccountContractError({
           code: "UNSUPPORTED_CAPABILITY",
           message: "Password reset is unavailable for an SSO-only installation.",
@@ -215,7 +216,7 @@ function createPasswordReset(
 export function createCredentials(
   context: Pick<
     IdentityPortContext,
-    "input" | "makeCompensationHandle" | "assertCompensationHandle" | "eraseLocalPrincipalsInTx"
+    "input" | "createCompensationHandle" | "assertCompensationHandle" | "eraseLocalPrincipalsInTx"
   >,
 ): CredentialsPort {
   return {

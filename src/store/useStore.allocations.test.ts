@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Allocation } from "@capacitylens/shared/types/entities";
 import { DEFAULT_ACCOUNT_ID, makeResourceDraft, requireValue, resetStoreWithAccount, WORKDAYS } from "../test/fixtures";
@@ -8,8 +9,8 @@ const state = () => useStore.getState();
 beforeEach(() => resetStoreWithAccount());
 
 function allocationSetup() {
-  const resource = state().addResource(makeResourceDraft());
-  const activity = state().addActivity({ name: "Admin", kind: "repeatable" });
+  const resource = requireCreated(state().addResource(makeResourceDraft()));
+  const activity = requireCreated(state().addActivity({ name: "Admin", kind: "repeatable" }));
   const draft = (overrides: Partial<Draft<Allocation>> = {}): Draft<Allocation> => ({
     resourceId: resource.id,
     activityId: activity.id,
@@ -30,10 +31,9 @@ function registerAtomicAllocationPart1(): void {
     const unsubscribe = useStore.subscribe(() => {
       publications += 1;
     });
-    const created = state().addAllocations([
-      draft({ hoursPerDay: 99 }),
-      draft({ startDate: "2026-06-08", endDate: "2026-06-10" }),
-    ]);
+    const created = requireCreated(
+      state().addAllocations([draft({ hoursPerDay: 99 }), draft({ startDate: "2026-06-08", endDate: "2026-06-10" })]),
+    );
     unsubscribe();
 
     expect(publications).toBe(1);
@@ -44,7 +44,7 @@ function registerAtomicAllocationPart1(): void {
     expect(state().data.allocations).toEqual(created);
     expect(state().past).toHaveLength(1);
 
-    const single = state().addAllocation(draft({ startDate: "2026-06-15", endDate: "2026-06-15" }));
+    const single = requireCreated(state().addAllocation(draft({ startDate: "2026-06-15", endDate: "2026-06-15" })));
     expect(state().data.allocations.at(-1)).toEqual(single);
     expect(state().past).toHaveLength(2);
   });
@@ -52,7 +52,7 @@ function registerAtomicAllocationPart1(): void {
 
 function registerAtomicAllocationPart2(): void {
   it("rejects an empty batch", () => {
-    expect(() => state().addAllocations([])).toThrow(/at least one allocation/i);
+    expect(() => requireCreated(state().addAllocations([]))).toThrow(/at least one allocation/i);
     expect(state().data.allocations).toHaveLength(0);
   });
 
@@ -63,11 +63,13 @@ function registerAtomicAllocationPart2(): void {
       publications += 1;
     });
     expect(() =>
-      state().addAllocations([
-        draft(),
-        draft({ startDate: "2026-07-10", endDate: "2026-07-01" }),
-        draft({ startDate: "2026-08-01", endDate: "2026-08-02" }),
-      ]),
+      requireCreated(
+        state().addAllocations([
+          draft(),
+          draft({ startDate: "2026-07-10", endDate: "2026-07-01" }),
+          draft({ startDate: "2026-08-01", endDate: "2026-08-02" }),
+        ]),
+      ),
     ).toThrow(/end date cannot be before/i);
     unsubscribe();
     expect(publications).toBe(0);
@@ -83,44 +85,52 @@ function registerAtomicAllocationPart3(): void {
     expect(secondAccount).not.toBeNull();
     if (!secondAccount) throw new Error("Expected second account");
     state().setActiveAccount(secondAccount.id);
-    const otherResource = state().addResource(makeResourceDraft({ name: "Other person" }));
-    const otherActivity = state().addActivity({ name: "Other work", kind: "repeatable" });
+    const otherResource = requireCreated(state().addResource(makeResourceDraft({ name: "Other person" })));
+    const otherActivity = requireCreated(state().addActivity({ name: "Other work", kind: "repeatable" }));
     state().setActiveAccount(DEFAULT_ACCOUNT_ID);
     useStore.setState({ past: [], future: [] });
     expect(() =>
-      state().addAllocations([
-        first.draft(),
-        first.draft({ resourceId: otherResource.id, activityId: otherActivity.id }),
-      ]),
+      requireCreated(
+        state().addAllocations([
+          first.draft(),
+          first.draft({ resourceId: otherResource.id, activityId: otherActivity.id }),
+        ]),
+      ),
     ).toThrow(/active company|existing resource and activity/i);
     expect(state().data.allocations).toHaveLength(0);
     expect(state().past).toHaveLength(0);
 
-    const client = state().addClient({ name: "Client", color: "#111111" });
-    const boundProject = state().addProject({ name: "Bound", clientId: client.id, color: "#222222" });
-    const otherProject = state().addProject({ name: "Other", clientId: client.id, color: "#333333" });
-    const placeholder = state().addResource({
-      kind: "placeholder",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: WORKDAYS,
-      halfDays: [],
-      color: "#444444",
-      projectId: boundProject.id,
-    });
-    const mismatchedActivity = state().addActivity({
-      name: "Wrong project",
-      kind: "project",
-      projectId: otherProject.id,
-    });
+    const client = requireCreated(state().addClient({ name: "Client", color: "#111111" }));
+    const boundProject = requireCreated(state().addProject({ name: "Bound", clientId: client.id, color: "#222222" }));
+    const otherProject = requireCreated(state().addProject({ name: "Other", clientId: client.id, color: "#333333" }));
+    const placeholder = requireCreated(
+      state().addResource({
+        kind: "placeholder",
+        role: "Designer",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: WORKDAYS,
+        halfDays: [],
+        color: "#444444",
+        projectId: boundProject.id,
+      }),
+    );
+    const mismatchedActivity = requireCreated(
+      state().addActivity({
+        name: "Wrong project",
+        kind: "project",
+        projectId: otherProject.id,
+      }),
+    );
     useStore.setState({ past: [], future: [] });
     expect(() =>
-      state().addAllocations([
-        first.draft(),
-        first.draft({ resourceId: placeholder.id, activityId: mismatchedActivity.id }),
-      ]),
+      requireCreated(
+        state().addAllocations([
+          first.draft(),
+          first.draft({ resourceId: placeholder.id, activityId: mismatchedActivity.id }),
+        ]),
+      ),
     ).toThrow(/placeholder.*bound project/i);
     expect(state().data.allocations).toHaveLength(0);
     expect(state().past).toHaveLength(0);
@@ -130,11 +140,13 @@ function registerAtomicAllocationPart3(): void {
 function registerAtomicAllocationPart4(): void {
   it("creates one undo/redo unit for the complete batch", () => {
     const { draft } = allocationSetup();
-    const created = state().addAllocations([
-      draft(),
-      draft({ startDate: "2026-06-08", endDate: "2026-06-10" }),
-      draft({ startDate: "2026-06-15", endDate: "2026-06-17" }),
-    ]);
+    const created = requireCreated(
+      state().addAllocations([
+        draft(),
+        draft({ startDate: "2026-06-08", endDate: "2026-06-10" }),
+        draft({ startDate: "2026-06-15", endDate: "2026-06-17" }),
+      ]),
+    );
     expect(state().data.allocations).toEqual(created);
     state().undo();
     expect(state().data.allocations).toHaveLength(0);
@@ -144,12 +156,14 @@ function registerAtomicAllocationPart4(): void {
 
   it("copies attribution across a repeat batch and isolates a single-occurrence clear", () => {
     const { draft } = allocationSetup();
-    const client = state().addClient({ name: "Client", color: "#111111" });
-    const project = state().addProject({ name: "Project", clientId: client.id, color: "#222222" });
-    const created = state().addAllocations([
-      draft({ projectId: project.id, seriesId: "series-attributed" }),
-      draft({ projectId: project.id, seriesId: "series-attributed", startDate: "2026-06-08", endDate: "2026-06-10" }),
-    ]);
+    const client = requireCreated(state().addClient({ name: "Client", color: "#111111" }));
+    const project = requireCreated(state().addProject({ name: "Project", clientId: client.id, color: "#222222" }));
+    const created = requireCreated(
+      state().addAllocations([
+        draft({ projectId: project.id, seriesId: "series-attributed" }),
+        draft({ projectId: project.id, seriesId: "series-attributed", startDate: "2026-06-08", endDate: "2026-06-10" }),
+      ]),
+    );
 
     expect(created.map((allocation) => allocation.projectId)).toEqual([project.id, project.id]);
     const first = requireValue(created[0], "first repeated allocation");
@@ -163,7 +177,7 @@ function registerAtomicAllocationPart4(): void {
     const { draft } = allocationSetup();
     state().setActiveRole("viewer");
     const returned = state().addAllocations([draft(), draft({ startDate: "2026-06-08", endDate: "2026-06-10" })]);
-    expect(returned).toHaveLength(2);
+    expect(returned).toEqual({ kind: "blocked" });
     expect(state().data.allocations).toHaveLength(0);
     expect(state().past).toHaveLength(0);
     expect(state().notice).toMatchObject({ tone: "error" });
@@ -184,10 +198,12 @@ function registerAvailabilityCreationTests(): void {
     useStore.setState({ past: [], future: [] });
 
     expect(() =>
-      state().addAllocations([
-        draft({ startDate: "2026-06-08", endDate: "2026-06-10" }),
-        draft({ startDate: "2026-06-01", endDate: "2026-06-03" }),
-      ]),
+      requireCreated(
+        state().addAllocations([
+          draft({ startDate: "2026-06-08", endDate: "2026-06-10" }),
+          draft({ startDate: "2026-06-01", endDate: "2026-06-03" }),
+        ]),
+      ),
     ).toThrow(/before.*available/i);
     expect(state().data.allocations).toHaveLength(0);
     expect(state().past).toHaveLength(0);
@@ -197,9 +213,13 @@ function registerAvailabilityCreationTests(): void {
     const { resource, draft } = allocationSetup();
     state().updateResource(resource.id, { workingDays: [2, 3, 4, 5], firstAvailableDate: "2026-06-02" });
 
-    expect(() => state().addAllocation(draft({ startDate: "2026-06-01", endDate: "2026-06-02" }))).not.toThrow();
     expect(() =>
-      state().addAllocation(draft({ startDate: "2026-06-01", endDate: "2026-06-02", ignoreWeekends: true })),
+      requireCreated(state().addAllocation(draft({ startDate: "2026-06-01", endDate: "2026-06-02" }))),
+    ).not.toThrow();
+    expect(() =>
+      requireCreated(
+        state().addAllocation(draft({ startDate: "2026-06-01", endDate: "2026-06-02", ignoreWeekends: true })),
+      ),
     ).toThrow(/before.*available/i);
   });
 
@@ -208,9 +228,13 @@ function registerAvailabilityCreationTests(): void {
     state().updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
     state().updateResource(resource.id, { workingDays: [1, 2, 3, 4, 5], lastAvailableDate: "2026-06-04" });
 
-    expect(() => state().addAllocation(draft({ startDate: "2026-06-04", endDate: "2026-06-05" }))).not.toThrow();
     expect(() =>
-      state().addAllocation(draft({ startDate: "2026-06-04", endDate: "2026-06-05", ignoreWeekends: true })),
+      requireCreated(state().addAllocation(draft({ startDate: "2026-06-04", endDate: "2026-06-05" }))),
+    ).not.toThrow();
+    expect(() =>
+      requireCreated(
+        state().addAllocation(draft({ startDate: "2026-06-04", endDate: "2026-06-05", ignoreWeekends: true })),
+      ),
     ).toThrow(/after.*available/i);
   });
 }
@@ -218,7 +242,7 @@ function registerAvailabilityCreationTests(): void {
 function registerAvailabilityMutationTests(): void {
   it("retains conflicts after boundary changes and allows metadata-only edits", () => {
     const { resource, draft } = allocationSetup();
-    const allocation = state().addAllocation(draft());
+    const allocation = requireCreated(state().addAllocation(draft()));
 
     expect(() => state().updateResource(resource.id, { firstAvailableDate: "2026-06-08" })).not.toThrow();
     expect(state().data.allocations).toContainEqual(allocation);
@@ -243,10 +267,12 @@ function registerAvailabilityMutationTests(): void {
 
   it("rejects moving an allocation after the last date and reassigning into a bounded person", () => {
     const { resource, draft } = allocationSetup();
-    const bounded = state().addResource(
-      makeResourceDraft({ name: "Victor Stone", firstAvailableDate: "2026-06-01", lastAvailableDate: "2026-06-03" }),
+    const bounded = requireCreated(
+      state().addResource(
+        makeResourceDraft({ name: "Victor Stone", firstAvailableDate: "2026-06-01", lastAvailableDate: "2026-06-03" }),
+      ),
     );
-    const allocation = state().addAllocation(draft({ resourceId: bounded.id }));
+    const allocation = requireCreated(state().addAllocation(draft({ resourceId: bounded.id })));
 
     expect(() => state().updateAllocation(allocation.id, { startDate: "2026-06-08", endDate: "2026-06-08" })).toThrow(
       /after.*available/i,
@@ -266,12 +292,14 @@ describe("repeat-series allocation mutations", () => {
   it("deletes the selected and future occurrences as one undoable mutation", () => {
     const { draft } = allocationSetup();
     const seriesId = "series-weekly";
-    const [earlier, selected, later, unrelated] = state().addAllocations([
-      draft({ seriesId, startDate: "2026-06-01", endDate: "2026-06-03" }),
-      draft({ seriesId, startDate: "2026-06-08", endDate: "2026-06-10" }),
-      draft({ seriesId, startDate: "2026-06-15", endDate: "2026-06-17" }),
-      draft({ seriesId: "another-series", startDate: "2026-06-22", endDate: "2026-06-24" }),
-    ]);
+    const [earlier, selected, later, unrelated] = requireCreated(
+      state().addAllocations([
+        draft({ seriesId, startDate: "2026-06-01", endDate: "2026-06-03" }),
+        draft({ seriesId, startDate: "2026-06-08", endDate: "2026-06-10" }),
+        draft({ seriesId, startDate: "2026-06-15", endDate: "2026-06-17" }),
+        draft({ seriesId: "another-series", startDate: "2026-06-22", endDate: "2026-06-24" }),
+      ]),
+    );
     if (!earlier || !selected || !later || !unrelated) throw new Error("Expected four repeated allocations");
     useStore.setState({ past: [], future: [] });
 
@@ -288,8 +316,8 @@ describe("repeat-series allocation mutations", () => {
 
   it("keeps series membership system-owned while editing linked and one-off allocations", () => {
     const { draft } = allocationSetup();
-    const linked = state().addAllocation(draft({ seriesId: "series-weekly" }));
-    const oneOff = state().addAllocation(draft({ startDate: "2026-07-01", endDate: "2026-07-01" }));
+    const linked = requireCreated(state().addAllocation(draft({ seriesId: "series-weekly" })));
+    const oneOff = requireCreated(state().addAllocation(draft({ startDate: "2026-07-01", endDate: "2026-07-01" })));
 
     state().updateAllocation(linked.id, { note: "Retained", seriesId: "other-series" });
     state().updateAllocation(oneOff.id, { note: "Still one-off", seriesId: "invented-series" });
@@ -305,7 +333,7 @@ describe("repeat-series allocation mutations", () => {
 
   it("rejects a series-tail operation for an unlinked allocation without publishing history", () => {
     const { draft } = allocationSetup();
-    const oneOff = state().addAllocation(draft());
+    const oneOff = requireCreated(state().addAllocation(draft()));
     useStore.setState({ past: [], future: [] });
 
     expect(() => state().deleteAllocationSeriesFrom(oneOff.id)).toThrow(/not part of a repeat series/i);
@@ -317,7 +345,7 @@ describe("repeat-series allocation mutations", () => {
 describe("updateAllocation clamp ordering", () => {
   it("clamps an over-day hours patch before validation instead of rejecting it", () => {
     const { draft } = allocationSetup();
-    const allocation = state().addAllocation(draft({}));
+    const allocation = requireCreated(state().addAllocation(draft({})));
 
     state().updateAllocation(allocation.id, { hoursPerDay: 99 });
 
@@ -329,7 +357,7 @@ describe("updateAllocation clamp ordering", () => {
 
   it("still rejects a non-zero-hours write onto an external resource after clamping", () => {
     const { draft } = allocationSetup();
-    const allocation = state().addAllocation(draft({}));
+    const allocation = requireCreated(state().addAllocation(draft({})));
     // Flip the resource to external behind the store's back (legacy data path):
     useStore.setState((s) => ({
       data: {

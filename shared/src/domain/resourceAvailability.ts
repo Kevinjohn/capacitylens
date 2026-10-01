@@ -1,10 +1,12 @@
 import { eachDayISO, weekdayOf } from "../lib/dateMath";
 import { effectiveWorkingWeek, effectiveWeekIncludes } from "../lib/effectiveWorkingWeek";
 import { isValidISODate } from "../lib/integrity";
+import type { ValidationResult } from "../lib/integrity";
 import { isExternalResource, isPlaceholderResource } from "../types/entities";
 import type { Allocation, ISODate, Resource, Weekday } from "../types/entities";
-import { domainError } from "./errors";
+import { throwDomainError } from "./errors";
 
+/** The allocation span, resource and company working days an availability check needs. */
 export interface ResourceAvailabilityInput {
   allocation: Pick<Allocation, "startDate" | "endDate" | "ignoreWeekends">;
   resource: Pick<Resource, "kind" | "workingDays" | "firstAvailableDate" | "lastAvailableDate">;
@@ -29,13 +31,13 @@ export function assertAllocationWithinResourceAvailability({
   );
   for (const date of scheduledDates) {
     if (first !== undefined && date < first) {
-      domainError(
+      throwDomainError(
         "allocation_before_resource_availability",
         "Allocation includes a scheduled working day before this person is available.",
       );
     }
     if (last !== undefined && date > last) {
-      domainError(
+      throwDomainError(
         "allocation_after_resource_availability",
         "Allocation includes a scheduled working day after this person is available.",
       );
@@ -47,15 +49,23 @@ export function assertAllocationWithinResourceAvailability({
 export function validateResourceAvailabilityPair(
   firstAvailableDate?: ISODate,
   lastAvailableDate?: ISODate,
-): { ok: true } | { ok: false; code: "date_invalid" | "date_reversed" } {
+): ValidationResult {
   if (
     (firstAvailableDate !== undefined && !isValidISODate(firstAvailableDate)) ||
     (lastAvailableDate !== undefined && !isValidISODate(lastAvailableDate))
   ) {
-    return { ok: false, code: "date_invalid" };
+    return {
+      ok: false,
+      errors: ["Availability dates must be valid calendar dates (YYYY-MM-DD)."],
+      codes: ["date_invalid"],
+    };
   }
   if (firstAvailableDate !== undefined && lastAvailableDate !== undefined && firstAvailableDate > lastAvailableDate) {
-    return { ok: false, code: "date_reversed" };
+    return {
+      ok: false,
+      errors: ["First available date cannot be after last available date."],
+      codes: ["date_reversed"],
+    };
   }
-  return { ok: true };
+  return { ok: true, errors: [], codes: [] };
 }

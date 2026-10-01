@@ -1,6 +1,6 @@
 ---
 title: Install CapacityLens
-description: Choose an installation route, configure the service, verify it, and hand it over to the first Owner.
+description: Install CapacityLens from the release archive, configure the service, verify it, and hand it over to the first Owner.
 prev: false
 ---
 
@@ -11,8 +11,9 @@ when the service works and the first Owner has everything needed to create their
 
 ## Your route
 
-1. [Choose how to install](/getting-started/install) for Docker, direct Node, or a managed VPS.
-2. Follow the complete procedure for that route.
+1. [Install CapacityLens](/getting-started/install): five steps from the release archive, on a
+   managed VPS platform or a Linux host. Docker is another way to install.
+2. Follow the complete procedure for your host.
 3. [Configure the service](/installation/configure-the-service), including sign-in and storage.
 4. [Secure the connection](/installation/secure-the-connection) with TLS and the intended
    network boundary.
@@ -28,4 +29,4 @@ storage, the first Owner can sign in, and an operator owns backups and upgrades.
 
 ## What's next
 
-[Choose how to install](/getting-started/install).
+[Install CapacityLens](/getting-started/install).

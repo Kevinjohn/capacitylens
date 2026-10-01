@@ -13,7 +13,13 @@ type AllocationSlice = Pick<
 
 export type AllocationSliceInternals = Pick<
   StoreInternals,
-  "createGuardedAction" | "createAllocations" | "updateOwned" | "assertAllocation" | "resolveOwnedRow" | "mutate"
+  | "createGuardedAction"
+  | "createGuardedValueAction"
+  | "createAllocations"
+  | "updateOwned"
+  | "assertAllocation"
+  | "resolveOwnedRow"
+  | "mutate"
 >;
 
 function assertAvailabilityAfterPlacementChange(data: AppData, effective: Allocation, existing: Allocation): void {
@@ -35,15 +41,17 @@ export function createAllocationSlice(
   internals: AllocationSliceInternals,
 ): StateCreator<StoreState, [], [], AllocationSlice> {
   return (_set, get) => {
-    const { createGuardedAction, createAllocations, updateOwned, assertAllocation } = internals;
+    const { createGuardedValueAction, createAllocations, updateOwned, assertAllocation } = internals;
     return {
       addAllocation: (input) => {
-        const allocation = createAllocations([input])[0];
+        const result = createAllocations([input]);
+        if (result.kind === "blocked") return result;
+        const allocation = result.value[0];
         if (!allocation) throw new Error("Allocation creation produced no row.");
-        return allocation;
+        return { kind: "created", value: allocation };
       },
       addAllocations: createAllocations,
-      updateAllocation: createGuardedAction(
+      updateAllocation: createGuardedValueAction(
         (id: ID, patch: Patch<Allocation>) =>
           updateOwned({
             key: "allocations",

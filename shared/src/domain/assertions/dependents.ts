@@ -9,7 +9,7 @@ import {
 import { isExternalResource } from "../../types/entities";
 import type { Activity, Allocation, AppData, ID, ISODate, Resource, TimeOff } from "../../types/entities";
 import { belongsToAccount } from "../tenancy";
-import { domainError, type DomainErrorCode } from "../errors";
+import { throwDomainError, type DomainErrorCode } from "../errors";
 import {
   resolveOwnedRow,
   listValidationAllocations,
@@ -102,7 +102,7 @@ function assertResourceKindAllowsDependentsWithOptions({
     ? lookup.resourceHasTimeOff(accountId, resourceId)
     : data.timeOff.some((timeOff) => owns(timeOff));
   if (hasLoadedAllocation || hasTimeOff) {
-    domainError(
+    throwDomainError(
       "resource_external_dependents",
       "Reassign or remove this resource’s work and time off before making it external.",
     );
@@ -229,7 +229,7 @@ function assertAllocationPairStaysValid({
       after = validateAllocationAssignment(resource, effectiveProjectId(allocationAfter, edit.merged));
     }
     // An absent `existing` (a create) counts as "was valid", exactly as each caller's own check did.
-    if ((before === undefined || before.ok) && !after.ok) domainError(code, message);
+    if ((before === undefined || before.ok) && !after.ok) throwDomainError(code, message);
   }
 }
 
@@ -305,16 +305,16 @@ function assertResourceExistsWithOptions({
   const lookupOptions = lookup === undefined ? {} : { lookup };
   const resource = resolveOwnedRow<Resource>({ data, table: "resources", id: resourceId, accountId, ...lookupOptions });
   if (!resource) {
-    domainError("time_off_resource_invalid", "Time off must reference an existing resource in this company.");
+    throwDomainError("time_off_resource_invalid", "Time off must reference an existing resource in this company.");
   }
   if (
     existing?.resourceId !== resourceId &&
     !isEffectivelyActive({ data, table: "resources", row: resource, ...lookupOptions })
   ) {
-    domainError("time_off_resource_inactive", "Time off must reference an active resource in this company.");
+    throwDomainError("time_off_resource_inactive", "Time off must reference an active resource in this company.");
   }
   if (isExternalResource(resource)) {
-    domainError("time_off_external_resource", "Time off can’t be recorded for an external / 3rd-party resource.");
+    throwDomainError("time_off_external_resource", "Time off can’t be recorded for an external / 3rd-party resource.");
   }
 }
 

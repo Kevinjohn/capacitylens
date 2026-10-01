@@ -13,12 +13,38 @@ function readIdentityProviderStatus(body: unknown): { connected: boolean } {
   return { connected: status.connected };
 }
 
-function readIdentityLinkResult(body: unknown): { url?: unknown; code?: unknown } | null {
+function readIdentityLinkResult(
+  body: unknown,
+): { url?: unknown; code?: unknown; reauthenticationAttempted?: unknown } | null {
   return body && typeof body === "object" ? body : null;
 }
 
 function isAlreadyLinked(result: { code?: unknown } | null): boolean {
   return result?.code === "PROVIDER_ALREADY_LINKED" || result?.code === "MULTIPLE_PROVIDER_LINKS";
+}
+
+function readIdentityLinkFailure(
+  response: Response,
+  result: { code?: unknown; reauthenticationAttempted?: unknown } | null,
+): string | null {
+  if (response.status !== 403) return null;
+  if (result?.code === "LOCAL_EMAIL_NOT_VERIFIED") return m.settings_sso_local_email_not_verified();
+  if (result?.code === "SESSION_NOT_FRESH") {
+    return result.reauthenticationAttempted === true ? m.reauth_still_not_fresh() : m.settings_sso_reauth_cancelled();
+  }
+  return null;
+}
+
+async function readConnectionStatus(providerId: string): Promise<boolean> {
+  const response = await accountClient.readIdentityProvider(providerId);
+  if (!response.ok) throw new Error("Identity-provider status request failed.");
+  return readIdentityProviderStatus(await response.json().catch(() => null)).connected;
+}
+
+function buildIdentityLinkCallback(providerId: string): string {
+  const callback = new URL(window.location.href);
+  callback.searchParams.set("capacitylensIdentityProvider", providerId);
+  return callback.toString();
 }
 
 function clearIdentityLinkParams(url: URL) {
@@ -54,15 +80,11 @@ export function useProviderConnection(
     const requestGeneration = ++generation.current;
     const url = new URL(window.location.href);
     const { isProviderReturn, linkFailed } = readIdentityCallbackStatus(url, provider.id, failedCallbackProvider);
-    void accountClient
-      .getIdentityProvider(provider.id)
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Identity-provider status request failed.");
-        const status = readIdentityProviderStatus(await response.json().catch(() => null));
-        if (requestGeneration === generation.current) {
-          setConnected(status.connected);
-          setError(linkFailed ? m.settings_sso_connect_error() : null);
-        }
+    void readConnectionStatus(provider.id)
+      .then((connected) => {
+        if (requestGeneration !== generation.current) return;
+        setConnected(connected);
+        setError(linkFailed ? m.settings_sso_connect_error() : null);
       })
       .catch((cause: unknown) => {
         console.error("SecuritySection: identity-provider status failed", cause);
@@ -81,13 +103,17 @@ export function useProviderConnection(
     setBusy(true);
     setError(null);
     try {
-      const callback = new URL(window.location.href);
-      callback.searchParams.set("capacitylensIdentityProvider", provider.id);
-      const response = await accountClient.linkIdentityProvider(callback.toString(), provider.id);
+      const response = await accountClient.linkIdentityProvider(buildIdentityLinkCallback(provider.id), provider.id);
       const result = readIdentityLinkResult(await response.json().catch(() => null));
       if (response.status === 409 && isAlreadyLinked(result)) {
         setConnected(true);
         setError(result?.code === "MULTIPLE_PROVIDER_LINKS" ? m.settings_sso_status_error() : null);
+        setBusy(false);
+        return;
+      }
+      const failure = readIdentityLinkFailure(response, result);
+      if (failure) {
+        setError(failure);
         setBusy(false);
         return;
       }

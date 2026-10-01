@@ -15,7 +15,7 @@ Clients are the top of the work hierarchy: every project belongs to one. Onboard
 **Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). The list shows _Queen Consolidated_ and _LexCorp_.
 
 1. Click **Add client**. The "Add client" dialog opens.
-2. Fill **Name** = `Initech`.
+2. Fill **Name** = `Kord Industries`.
 3. Open **Colour** and pick a swatch from the preset grid.
 4. Click **Save**. The dialog closes.
 5. Click **Projects** in the sidebar, click **Add project**, and open the **Client** picker.
@@ -23,8 +23,8 @@ Clients are the top of the work hierarchy: every project belongs to one. Onboard
 
 ## Acceptance criteria
 
-- ✅ After Save, the dialog closes and a row for **Initech** appears in the Clients list with its colour swatch.
-- ✅ When creating a project, **Initech** is selectable in the **Client** picker.
-- ✅ On the **Schedule**, **Initech** is an option in **Filter by client**.
+- ✅ After Save, the dialog closes and a row for **Kord Industries** appears in the Clients list with its colour swatch.
+- ✅ When creating a project, **Kord Industries** is selectable in the **Client** picker.
+- ✅ On the **Schedule**, **Kord Industries** is an option in **Filter by client**.
 - ✅ Saving with an empty **Name** keeps the dialog open and shows an inline required-field error (`aria-invalid` on Name).
 - ✅ The **Colour** picker offers only preset swatches, so a saved colour is always a valid 6-digit `#rrggbb`.

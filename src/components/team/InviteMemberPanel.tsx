@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
@@ -75,7 +75,10 @@ export function InviteMemberPanel(props: {
   errorField: string | null;
   errorId: string;
   clear(): void;
-  mintedLink: { inviteId: string | null; link: string } | null;
+  mintedLink: { inviteId: string | null; link: string; emailedTo?: string | null } | null;
+  inviteDialogOpen: boolean;
+  openInviteDialog(): void;
+  closeInviteDialog(): void;
   copyLink(link: string, copiedNotice: string): void;
   submitInvite(): Promise<void>;
   invites: readonly TeamInvitation[];
@@ -86,19 +89,18 @@ export function InviteMemberPanel(props: {
   invitationResourceId: string;
   setInvitationResourceId(value: string): void;
 }) {
-  const [open, setOpen] = useState(false);
   return (
     <section data-testid="invites-section" aria-busy={props.busy} className="flex flex-col gap-4">
-      <InviteHeader onOpen={() => setOpen(true)} />
-      {open && (
+      <InviteHeader onOpen={props.openInviteDialog} />
+      {props.inviteDialogOpen && (
         <Modal
           title={m.settings_invite_heading()}
           description={m.settings_invite_intro({ app: APP_NAME })}
-          onClose={() => setOpen(false)}
+          onClose={props.closeInviteDialog}
           onSubmit={() => void props.submitInvite()}
           footer={
             <>
-              <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" size="sm" onClick={props.closeInviteDialog}>
                 {m.form_cancel()}
               </Button>
               <Button type="submit" size="sm" data-testid="invite-submit" disabled={props.busy}>
@@ -229,6 +231,9 @@ function MintedInviteLink({ mintedLink, copyLink }: Pick<InviteFormProps, "minte
       className="flex flex-col gap-2 rounded border border-ok/40 bg-ok/5 p-3"
     >
       <p className="text-sm font-medium text-ok">{m.settings_members_invite_created()}</p>
+      {mintedLink.emailedTo && (
+        <p className="text-sm">{m.settings_invite_emailed({ address: mintedLink.emailedTo })}</p>
+      )}
       <CopyableLinkBlock
         link={mintedLink.link}
         testId="invite-link"
@@ -269,7 +274,7 @@ function InviteEmailField(props: InviteEmailFieldProps) {
       disabled={busy}
       invalid={errorField === "invite"}
       layout="label-control"
-      required={authMode === "sso"}
+      required={authMode !== "off"}
       describedById={errorId}
       placeholder={m.settings_invite_preauth_placeholder()}
       testId="invite-preauth"

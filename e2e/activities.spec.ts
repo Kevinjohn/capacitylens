@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { dismissLandscapeHint, openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./helpers";
+import { dismissLandscapeHint, openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./browserTestSupport";
 
 // Covers the runnable US-ACT-01, US-ACT-03 and US-ACT-04 flows. US-ACT-02 remains manual while
 // phase management is hidden.

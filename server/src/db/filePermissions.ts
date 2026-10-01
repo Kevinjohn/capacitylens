@@ -1,7 +1,7 @@
 import type { Db } from "../db";
 import { chmodSync } from "node:fs";
 // DatabaseSync does not expose its filename. Retain it only for handles opened through this module
-// so successful identity planning can harden the file without touching a database we then refuse.
+// so mutating initialization/recovery can harden an identified file; read-only planning never does.
 export const databasePaths = new WeakMap<Db, string>();
 
 export function restrictIdentifiedDatabasePermissions(db: Db): void {

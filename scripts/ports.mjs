@@ -3,7 +3,7 @@
 // used by CI, documentation, and a single checkout.
 //
 // This module is PURE: it maps a lane to ports and reads already-resolved environment values.
-// Claiming a lane (and the CPU reservation that rides with it) lives in scripts/lane-claim.mjs,
+// Claiming a lane (and the CPU reservation that rides with it) lives in scripts/laneClaims.mjs,
 // and scripts/with-lane.mjs is the launcher that owns both for the lifetime of a command.
 // Configuration files must only ever READ: see the note on LANE_ENVIRONMENT_KEY below.
 import { availableParallelism } from "node:os";
@@ -16,6 +16,7 @@ export const LANE_CEILING = 10;
 // file that tried to CLAIM a lane instead of reading this would claim too late to matter:
 // playwright.config.ts has already materialised its ports by the time its globalSetup runs.
 export const LANE_ENVIRONMENT_KEY = "CAPACITYLENS_PORT_LANE";
+export const LANE_CLAIM_ENVIRONMENT_KEY = "CAPACITYLENS_LANE_CLAIM";
 export const SHARE_ENVIRONMENT_KEY = "CAPACITYLENS_TEST_SHARE";
 
 // Lane 0 of each base is the port this repository bound before lanes existed. Keep it that way:
@@ -73,7 +74,7 @@ export function ports(environment = process.env) {
 }
 
 /**
- * A run's own CPU reservation: how many test workers it may start. scripts/lane-claim.mjs reserves
+ * A run's own CPU reservation: how many test workers it may start. scripts/laneClaims.mjs reserves
  * this from a machine-wide pool and exports it. A suite run by hand, outside a lane, gets the same
  * ceiling a solo claim would — half the available cores (see reservationCeiling).
  */

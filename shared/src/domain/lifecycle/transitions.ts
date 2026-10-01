@@ -63,6 +63,7 @@ export function canPurge(entity: LifecycleFields, nowISO: ISOTimestamp): boolean
   return nowMs - deletedMs >= PURGE_MIN_AGE_MS;
 }
 
+/** Why a lifecycle transition was refused. */
 export type LifecycleTransitionErrorCode = "already_inactive" | "invalid_transition";
 
 /** A lifecycle precondition failure that API adapters may classify without inspecting prose. */

@@ -13,8 +13,8 @@ import { m } from "@/i18n";
 import { createRequestSignal } from "../data/requestTimeout";
 
 // Password-reset page for /reset-password/:token. The token arrives out-of-band — an
-// Owner/Admin minted it in Team & access and handed the link over directly (the app has no
-// email infrastructure, a standing non-goal). This page collects the new password and POSTs Better
+// Owner/Admin shared it from Team & access, or optional SMTP delivered a self-service reset.
+// This page collects the new password and POSTs Better
 // Auth's PUBLIC redeem endpoint, `${API_BASE}/api/auth/reset-password` — a plain fetch, not the
 // better-auth client, so this lazy chunk stays free of the auth bundle (the endpoint is one JSON
 // POST; the client library adds nothing here). The server is the authority: single-use consumption,
@@ -47,7 +47,7 @@ function useResetPasswordTitle() {
   }, []);
 }
 
-function validatePasswords(token: string | undefined, password: string, confirm: string) {
+function resolvePasswordValidationError(token: string | undefined, password: string, confirm: string) {
   if (!token) return m.reset_err_missing_token();
   const lengthFailure = passwordLengthFailure(password);
   if (lengthFailure === "too-short") return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
@@ -166,7 +166,7 @@ export function ResetPassword() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const validationError = validatePasswords(token, password, confirm);
+    const validationError = resolvePasswordValidationError(token, password, confirm);
     if (validationError) {
       setError(validationError);
       return;

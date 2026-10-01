@@ -6,7 +6,7 @@ import {
   openApp,
   setTheme,
   showScheduleFilters,
-} from "./helpers";
+} from "./browserTestSupport";
 
 function luminance(cssColor: string): number {
   const channels = cssColor

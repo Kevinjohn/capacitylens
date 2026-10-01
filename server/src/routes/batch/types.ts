@@ -6,34 +6,45 @@ import { BatchStateProjection } from "../../BatchStateProjection";
 import { type Db } from "../../db";
 import { type SanitizeWriteOptions } from "../../fieldPolicy";
 import { type SyncOrder } from "../../syncOrdering";
+import type { TableName } from "../../tables";
 import type { TenantStore } from "../../tenantStore";
 
 import type { BatchRouteDependencies } from "../batchRoutes";
 
-// Cap on ops per POST /api/batch request (the MAX_IMPORT_RECORDS precedent, applied to the sync
-// path). BODY_LIMIT bounds request BYTES, but not request WORK: every operation is sanitized,
-// authorized, validated and applied to the in-memory projection. The transaction reads each
-// affected account slice once, then indexed point/reverse lookups keep per-op validation and
-// projection updates proportional to each operation's referenced/affected rows rather than the
-// whole tenant. Op COUNT is therefore the remaining request-controlled multiplier. 5 000 is
-// generous headroom over the largest realistic full-slice diff the client sync adapter produces
-// (a whole busy agency's slice is low-thousands of rows) while bounding a crafted/looping flood.
-// The inclusive boundary integration test applies 5 000 real existing-row updates and enforces a
-// four-second handler budget under the supported Node 24 gate, leaving headroom below the packaged
-// five-second container healthcheck timeout. Keep that budget, this cap and the client's matching
-// MAX_OPS_PER_BATCH in lockstep; an in-process queue cannot shorten one synchronous SQLite turn.
-// Checked BEFORE the pre-scan and tx, so an over-cap batch writes nothing.
-// Exported for the test that pins the boundary.
-export const MAX_BATCH_OPS = 5000;
+// The op-count cap is a client/server protocol limit; its rationale lives with the constant.
+export { MAX_BATCH_OPS } from "@capacitylens/shared/data/transfer";
 
-export interface BatchOp {
-  method: "PUT" | "DELETE" | "ARCHIVE";
-  table: string;
+interface BatchOperationBase {
+  table: TableName;
   id: string;
-  row?: Record<string, unknown>;
+}
+
+/** A validated PUT: its row is a record, whose id is checked against the op id when applied. */
+export interface BatchPutOp extends BatchOperationBase {
+  method: "PUT";
+  row: Record<string, unknown>;
+  accountId?: never;
+}
+
+/** A validated DELETE; scoped tables also carry the owning accountId. */
+export interface BatchDeleteOp extends BatchOperationBase {
+  method: "DELETE";
   accountId?: string;
   updatedAt?: string;
 }
+
+/** A validated ARCHIVE of a lifecycle entity in its owning account. */
+export interface BatchArchiveOp extends BatchOperationBase {
+  method: "ARCHIVE";
+  accountId: string;
+  updatedAt?: string;
+}
+
+/**
+ * One operation after `validateRequest` has checked it. Handlers rely on these shapes instead of
+ * re-checking them; untrusted request bodies never take this type.
+ */
+export type BatchOp = BatchPutOp | BatchDeleteOp | BatchArchiveOp;
 
 export interface ParsedBatchRequest {
   ops: BatchOp[];

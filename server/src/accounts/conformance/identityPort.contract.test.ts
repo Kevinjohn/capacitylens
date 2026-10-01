@@ -125,7 +125,7 @@ function registerIdentityReadTests(setup: () => Promise<Harness>): void {
   it("does not correlate an unknown upstream identity by email", async () => {
     const current = await setup();
     await expect(
-      current.port.findPrincipalByFederatedSubject({
+      current.port.getPrincipalByFederatedSubject({
         subject: { issuer: "https://unknown-issuer.example", subject: current.knownPrincipal.email ?? "" },
       }),
     ).resolves.toBeNull();
@@ -342,7 +342,7 @@ async function betterAuthHarness(): Promise<Harness> {
     port: createBetterAuthIdentityPort({
       applicationId: APPLICATION_ID,
       auth,
-      authMode: "password",
+      authMode: "password-only",
       db,
     }),
     session,
@@ -401,7 +401,7 @@ function createFakeIdentityPort(state: FakeIdentityState): IdentityPort {
         return summary ? [summary] : [];
       });
     },
-    async findPrincipalByFederatedSubject() {
+    async getPrincipalByFederatedSubject() {
       return null;
     },
     async signOut() {
@@ -532,7 +532,7 @@ describe("revocation window race", () => {
     const port = createBetterAuthIdentityPort({
       applicationId: APPLICATION_ID,
       auth: realAuth,
-      authMode: "password",
+      authMode: "password-only",
       db,
     });
     const operation = command("principal-sessions-race");

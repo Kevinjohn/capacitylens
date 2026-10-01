@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp } from "./browserTestSupport";
 
 test("reviews the four-week capacity ledger and filters available rows", async ({ page }) => {
   await openApp(page, "Wayne Enterprises");

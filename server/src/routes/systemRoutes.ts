@@ -1,12 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import type { AuditSink } from "../audit";
 import { buildInternalTlsHealth } from "../internalTls";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 export const CSP_REPORT_BODY_LIMIT = 64 * 1024;
 const MAX_CSP_REPORTS_PER_REQUEST = 1;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const parseCspDirective = (value: unknown): string | undefined =>
   typeof value === "string" && /^[a-z][a-z0-9-]{0,63}$/i.test(value) ? value : undefined;

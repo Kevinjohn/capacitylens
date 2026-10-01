@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -42,11 +43,11 @@ it("sorts visible clients alphabetically after hiding Internal without changing 
 });
 
 it("gives repeated client edit controls distinct contextual names", () => {
-  useStore.getState().addClient({ name: "Acme", color: "#111" });
+  useStore.getState().addClient({ name: "Ferris", color: "#111" });
   useStore.getState().addClient({ name: "Globex", color: "#222" });
   render(<ClientList />);
 
-  expect(screen.getByRole("button", { name: "Edit Acme" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Edit Ferris" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Edit Globex" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
 });
@@ -62,16 +63,16 @@ describe("ClientList archive flow", () => {
 
   it("confirms before archiving and keeps the client + its children in the data", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "P", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
+    const project = requireCreated(useStore.getState().addProject({ name: "P", clientId: client.id, color: "#222" }));
     useStore.getState().addPhase({ name: "Discovery", projectId: project.id });
     useStore.getState().addActivity({ name: "T", kind: "project", projectId: project.id });
     render(<ClientList />);
 
-    expect(screen.getByText("Acme")).toBeInTheDocument();
+    expect(screen.getByText("Ferris")).toBeInTheDocument();
 
     // Open the row's archive -> a confirm dialog appears.
-    await user.click(screen.getByRole("button", { name: "Archive Acme" }));
+    await user.click(screen.getByRole("button", { name: "Archive Ferris" }));
     const dialog = screen.getByRole("alertdialog");
     expect(dialog).toHaveTextContent(/Archive client\?/i);
     expect(dialog).toHaveTextContent(
@@ -83,7 +84,7 @@ describe("ClientList archive flow", () => {
     expect(requireValue(useStore.getState().data.clients[0], "active client")).not.toHaveProperty("archivedAt");
 
     // Confirm archives it (children retained — archiving is reversible, not a cascade-delete).
-    await user.click(screen.getByRole("button", { name: "Archive Acme" }));
+    await user.click(screen.getByRole("button", { name: "Archive Ferris" }));
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
         name: "Archive",
@@ -96,7 +97,7 @@ describe("ClientList archive flow", () => {
     expect(useStore.getState().data.phases).toHaveLength(1);
     expect(useStore.getState().data.activities).toHaveLength(1);
     expect(screen.queryByTestId("client-row")).not.toBeInTheDocument();
-    expect(within(screen.getByTestId("archived-clients-section")).getByText("Acme")).toBeInTheDocument();
+    expect(within(screen.getByTestId("archived-clients-section")).getByText("Ferris")).toBeInTheDocument();
   });
 
   it("omits the cascade warning for a client without projects or allocations", async () => {
@@ -112,14 +113,14 @@ describe("ClientList archive flow", () => {
 
   it("tells editors that an owner or admin manages the archived client", async () => {
     const user = userEvent.setup();
-    useStore.getState().addClient({ name: "Acme", color: "#111" });
+    useStore.getState().addClient({ name: "Ferris", color: "#111" });
     render(
       <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
         <ClientList />
       </PermissionContext.Provider>,
     );
 
-    await user.click(screen.getByRole("button", { name: "Archive Acme" }));
+    await user.click(screen.getByRole("button", { name: "Archive Ferris" }));
 
     expect(screen.getByRole("alertdialog")).toHaveTextContent(
       "An owner or admin can restore or delete it from Archived clients.",
@@ -128,7 +129,7 @@ describe("ClientList archive flow", () => {
 
   it("keeps exactly one quote pair around a redacted private code name in confirmation copy", async () => {
     const user = userEvent.setup();
-    const created = useStore.getState().addClient({ name: "Real client", color: "#111111" });
+    const created = requireCreated(useStore.getState().addClient({ name: "Real client", color: "#111111" }));
     const client = { ...created, name: '"Nightwing"', isPrivate: true };
     useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
     render(<ClientList />);
@@ -140,7 +141,7 @@ describe("ClientList archive flow", () => {
   });
 
   it.each(["editor", "viewer"] as const)("hides archived clients from a %s", (role) => {
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     useStore.getState().archiveEntity("clients", client.id);
 
     render(
@@ -149,28 +150,28 @@ describe("ClientList archive flow", () => {
       </PermissionContext.Provider>,
     );
 
-    expect(screen.queryByText("Acme")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ferris")).not.toBeInTheDocument();
     expect(screen.queryByTestId("archived-clients-section")).not.toBeInTheDocument();
   });
 
   it("restores an archived client from the expanded section", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     useStore.getState().archiveEntity("clients", client.id);
     render(<ClientList />);
 
-    await user.click(screen.getByRole("button", { name: "Restore Acme" }));
+    await user.click(screen.getByRole("button", { name: "Restore Ferris" }));
 
     expect(useStore.getState().data.clients[0]).not.toHaveProperty("archivedAt");
-    expect(screen.getByTestId("client-row")).toHaveTextContent("Acme");
+    expect(screen.getByTestId("client-row")).toHaveTextContent("Ferris");
     expect(screen.queryByTestId("archived-clients-section")).not.toBeInTheDocument();
   });
 
   it("uses one quote pair around a private display name in delete confirmation", async () => {
     const user = userEvent.setup();
-    const client = useStore
-      .getState()
-      .addClient({ name: '"Nightwing"', color: "#111", isPrivate: true, codeName: "Nightwing" });
+    const client = requireCreated(
+      useStore.getState().addClient({ name: '"Nightwing"', color: "#111", isPrivate: true, codeName: "Nightwing" }),
+    );
     useStore.getState().archiveEntity("clients", client.id);
     render(<ClientList />);
 
@@ -189,7 +190,7 @@ describe("ClientList withholds the Archive affordance for the built-in Internal 
     // Mint the one builtin Internal via addAccount (the privileged path), then add a normal client so
     // the list isn't empty — matching internalClient.test.ts / the lifecycle suite's seeding.
     useStore.getState().replaceAll(emptyAppData());
-    const a = useStore.getState().addAccount({ name: "Acme Co", color: "#6366f1" });
+    const a = useStore.getState().addAccount({ name: "Ferris Co", color: "#6366f1" });
     if (!a) throw new Error("Expected account");
     useStore.getState().setActiveAccount(a.id);
     const internal = requireValue(internalClientFor(useStore.getState().data.clients, a.id), "internal client");

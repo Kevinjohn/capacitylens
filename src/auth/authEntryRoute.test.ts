@@ -9,6 +9,8 @@ describe("publicAuthEntryForPath", () => {
     ["/invite/token", "invitation"],
     ["/invite/token/", "invitation"],
     ["/Invite/token", "invitation"],
+    ["/join/a-studio", "company-join"],
+    ["/join/a-studio/extra", null],
     ["/reset-password/", null],
     ["/invite/", null],
     ["/invite/token/extra", null],

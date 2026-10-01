@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { RequiredFieldLabel } from "../common/fields/fieldLayout";
 import type { Option } from "../common/ui";
 import { m } from "@/i18n";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 
 interface TimeZoneFieldProps {
   label: string;
@@ -80,7 +80,7 @@ export function TimeZoneField({ label, value, onChange, options }: TimeZoneField
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
 
-  const handleOpenChange = (nextOpen: boolean) => {
+  const changeOpen = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (!nextOpen) triggerRef.current?.focus();
   };
@@ -88,7 +88,7 @@ export function TimeZoneField({ label, value, onChange, options }: TimeZoneField
   return (
     <Field>
       <RequiredFieldLabel htmlFor={id} label={label} />
-      <Popover open={open} onOpenChange={handleOpenChange}>
+      <Popover open={open} onOpenChange={changeOpen}>
         <PopoverTrigger asChild>
           <Button
             ref={triggerRef}
@@ -118,7 +118,7 @@ export function TimeZoneField({ label, value, onChange, options }: TimeZoneField
           options={options}
           onSelect={(nextValue) => {
             onChange(nextValue);
-            handleOpenChange(false);
+            changeOpen(false);
           }}
         />
       </Popover>

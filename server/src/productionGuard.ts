@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { parseAuthMode, BOOTSTRAP_ADMIN_EMAIL } from "./auth";
 import { parseRateLimit, MAX_RATE_LIMIT } from "./rateLimit";
 
@@ -35,7 +36,6 @@ export interface ProductionPostureResult {
 interface ProductionEnvironment {
   NODE_ENV?: string;
   SMALLSASS_ACCOUNT_MODE?: string;
-  CAPACITYLENS_HTTPS?: string;
   SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP?: string;
   CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION?: string;
   CAPACITYLENS_CREATE_ADMIN_ADMIN?: string;
@@ -64,11 +64,11 @@ function inspectAuthentication(
   }
   if (mode === "off" && environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === "1") {
     warnings.push(
-      "auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set SMALLSASS_ACCOUNT_MODE=password|sso to require login.",
+      "auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set SMALLSASS_ACCOUNT_MODE=password-only, password-and-sso or sso-only to require login.",
     );
   } else if (mode === "off") {
     refusals.push(
-      'auth is OFF (SMALLSASS_ACCOUNT_MODE unset or "off") under NODE_ENV=production — the open/demo dataset (DEMO_USER, no login) would be world-readable and world-writable. Set SMALLSASS_ACCOUNT_MODE=password or sso to require login, or set CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 to deliberately run the open/demo posture.',
+      "auth is OFF (SMALLSASS_ACCOUNT_MODE=off) under NODE_ENV=production — the open/demo dataset (DEMO_USER, no login) would be world-readable and world-writable. Set SMALLSASS_ACCOUNT_MODE=password-only, password-and-sso or sso-only to require login, or set CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 to deliberately run the open/demo posture.",
     );
   }
   return mode;
@@ -79,17 +79,17 @@ function inspectAuthenticationHardening(
   mode: ReturnType<typeof parseAuthMode> | null,
   warnings: string[],
 ): void {
-  if (mode === "password" && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA !== "1") {
+  if (mode && allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA !== "1") {
     warnings.push(
       "SMALLSASS_ACCOUNT_REQUIRE_MFA is not 1, so password users are not required to enroll TOTP MFA. MFA is optional for self-hosting but strongly recommended for internet-facing deployments.",
     );
   }
-  if (mode === "sso" && environment.SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED !== "1") {
+  if (mode === "sso-only" && environment.SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED !== "1") {
     warnings.push(
       "SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED is not 1, so CapacityLens has no operator assurance that the configured identity provider requires MFA. This is optional for self-hosting but strongly recommended.",
     );
   }
-  if (mode === "password" && environment.SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK === "off") {
+  if (mode && allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK === "off") {
     warnings.push(
       "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.",
     );
@@ -108,33 +108,24 @@ function inspectOperationalHardening(
   if (environment.CAPACITYLENS_AUDIT === "off") {
     refusals.push("CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production.");
   }
-  const warningChecks: Array<[boolean, string]> = [
-    [
-      environment.CAPACITYLENS_AUDIT_STDOUT !== "1",
-      "CAPACITYLENS_AUDIT_STDOUT is not 1, so mutation audit records remain only in the local audit file and are unavailable to a process-log collector.",
-    ],
-    [
-      environment.CAPACITYLENS_STORAGE_ENCRYPTED !== "1",
-      "CAPACITYLENS_STORAGE_ENCRYPTED is not 1, so encrypted-at-rest storage for the database, audit log and backups has not been attested. Startup continues for simple self-hosting; protect the host and storage appropriately.",
-    ],
-    [
-      environment.CAPACITYLENS_SECURITY_LOG_FORWARDING !== "1",
-      "CAPACITYLENS_SECURITY_LOG_FORWARDING is not 1, so security/audit logs have not been attested as forwarded to a separate monitoring system. Local logs remain supported.",
-    ],
-  ];
-  for (const [applies, warning] of warningChecks) if (applies) warnings.push(warning);
-}
-
-function inspectDeploymentPosture(environment: ProductionEnvironment, { warnings }: ProductionPostureResult): void {
-  if (!environment.CAPACITYLENS_INTERNAL_TLS_CERT?.trim() && !environment.CAPACITYLENS_INTERNAL_TLS_KEY?.trim()) {
+  if (environment.CAPACITYLENS_AUDIT_STDOUT !== "1") {
     warnings.push(
-      "CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY are not configured, so the API uses HTTP. This is supported only behind a trusted same-host loopback reverse proxy; configure both paths to encrypt the internal hop.",
+      "CAPACITYLENS_AUDIT_STDOUT is not 1, so mutation audit records remain only in the local audit file and are unavailable to a process-log collector.",
     );
   }
-  if (environment.CAPACITYLENS_HTTPS !== "1")
+  // Three operator attestations share one line: none is checkable by the server, none blocks boot.
+  const unattested: string[] = [];
+  if (environment.CAPACITYLENS_STORAGE_ENCRYPTED !== "1")
+    unattested.push("CAPACITYLENS_STORAGE_ENCRYPTED (encrypted-at-rest storage)");
+  if (environment.CAPACITYLENS_SECURITY_LOG_FORWARDING !== "1")
+    unattested.push("CAPACITYLENS_SECURITY_LOG_FORWARDING (logs forwarded to a separate monitoring system)");
+  if (!environment.CAPACITYLENS_INTERNAL_TLS_CERT?.trim() && !environment.CAPACITYLENS_INTERNAL_TLS_KEY?.trim())
+    unattested.push("CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY (TLS on the API hop)");
+  if (unattested.length > 0) {
     warnings.push(
-      "CAPACITYLENS_HTTPS is not 1 under NODE_ENV=production, so HSTS is not enabled. If TLS terminates at a reverse proxy this is expected; if this process serves HTTPS directly, set CAPACITYLENS_HTTPS=1.",
+      `Unattested hardening: ${unattested.join("; ")}. Startup continues for simple self-hosting; protect the host and storage appropriately, and use a trusted same-host loopback reverse proxy if the API serves plain HTTP.`,
     );
+  }
 }
 
 /**
@@ -157,11 +148,9 @@ function inspectDeploymentPosture(environment: ProductionEnvironment, { warnings
  *   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1'`, in which case it is DOWNGRADED to a warning
  *   (the open posture is then run on purpose, but still surfaced). The escape never silences the
  *   concern — it only changes its severity.
- * - **Warning — HTTPS/HSTS off:** `CAPACITYLENS_HTTPS !== '1'` means HSTS is not enabled.
- *   Expected when TLS terminates at a reverse proxy; flagged so a direct-HTTPS deploy notices.
- * - **Warning — optional hardening absent:** MFA, breached-password screening, audit streaming,
- *   encrypted-storage/log-forwarding attestations and internal TLS remain recommended, but a
- *   small self-hosted installation can deliberately operate without external infrastructure.
+ * - **Warning — optional hardening absent:** MFA, breached-password screening and audit streaming
+ *   each warn; the encrypted-storage, log-forwarding and internal-TLS attestations share one line.
+ *   A small self-hosted installation can deliberately operate without external infrastructure.
  * - **Warning — open signup on:** `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
  *   registration, which should normally stay closed/invite-only in production.
  * - **Refusal — bootstrap password:** the headless bootstrap flags are development-only because
@@ -169,7 +158,7 @@ function inspectDeploymentPosture(environment: ProductionEnvironment, { warnings
  *   setup-token owner flow, where the owner chooses the final credential directly.
  *
  * The remaining warnings are evaluated independently of the auth mode — they are production concerns in
- * their own right (HSTS and signup posture matter whether auth is on, off, or deliberately open).
+ * their own right (signup posture matters whether auth is on, off, or deliberately open).
  *
  * `parseAuthMode` is reused (not a hardcoded string compare) so "off" means exactly what it
  * means everywhere else in the server. Its invalid-value error is converted into a fatal posture
@@ -197,7 +186,6 @@ export function evaluateProductionPosture(environment: ProductionEnvironment): P
   // disabled. Any value the parser resolves to 0 (unset, '0', a sign/decimal/whitespace/exponent, or a
   // value over the cap) is a refusal; the message states the exact accepted shape so the operator can fix it.
   inspectOperationalHardening(environment, result);
-  inspectDeploymentPosture(environment, result);
 
   // Production concerns are evaluated regardless of auth mode by the helper above.
   if (environment.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1") {

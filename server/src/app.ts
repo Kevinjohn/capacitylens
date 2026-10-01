@@ -14,6 +14,7 @@ import { installRootHooks } from "./routes/appRootHooks";
 import { installSessionResolution } from "./routes/appSessionResolution";
 import { createAuthorization } from "./routes/appAuthorization";
 import { registerApiRoutes } from "./routes/appRouteTree";
+import { registerStaticWeb } from "./routes/staticWeb";
 export { MAX_BATCH_OPS } from "./routes/batchRoutes";
 export { MAX_RATE_LIMIT, parseRateLimit } from "./rateLimit";
 export { resolveErrorStatus, resolveRequestClientIp } from "./routes/appErrors";
@@ -87,6 +88,11 @@ export interface AppOptions {
   authMode?: AccountMode;
   /** The Better Auth instance — required exactly when authMode ≠ 'off'. */
   auth?: Auth | null;
+  /** Company joining provider state, supplied by the entrypoint after auth configuration. */
+  joiningProof?: {
+    secret: string;
+    publicUrl: URL;
+  };
   /** Require an enrolled and completed TOTP second factor before password users may access tenant
    * data. Auth endpoints and /api/auth/me remain available so an existing user can enroll. */
   requireMfa?: boolean;
@@ -126,12 +132,12 @@ export interface AppOptions {
    *  also true, since the single-company cap above denies EVERY create (token or not)
    *  while the instance is capped to one company. */
   bootstrapToken?: string;
-  /** CAPACITYLENS_HTTPS=1 — the API is reached over HTTPS, so HSTS is safe to emit.
-   *  Default false: HSTS (Strict-Transport-Security) is ONLY valid over HTTPS and is
-   *  actively HARMFUL over plain HTTP — a browser that caches an HSTS directive received
-   *  on http:// would force https:// on a host that has no TLS, breaking it. This server
-   *  typically runs HTTP behind a TLS-terminating proxy (Nginx), so the operator must
-   *  OPT IN once TLS truly fronts the public origin. Off ⇒ helmet emits no HSTS header;
+  /** The API is reached over HTTPS, so host-only HSTS is safe to emit. Default false here:
+   *  HSTS (Strict-Transport-Security) is ONLY valid over HTTPS and is actively HARMFUL over
+   *  plain HTTP — a browser that caches an HSTS directive received on http:// would force
+   *  https:// on a host that has no TLS, breaking it. The entrypoint (index.ts) derives it:
+   *  CAPACITYLENS_HTTPS=1/0 decides explicitly, otherwise an https public URL turns it on,
+   *  because that URL means TLS fronts the public origin. Off ⇒ helmet emits no HSTS header;
    *  all other helmet baseline headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
    *  are on regardless, as they are pure improvements with no HTTPS precondition. */
   https?: boolean;
@@ -145,6 +151,9 @@ export interface AppOptions {
   /** Test seam for deterministically pausing import preparation around concurrent writes. The
    * production default always uses the worker-thread implementation. */
   importWorker?: typeof runImportWorker;
+  /** Directory holding the built web app. When given, the server also serves it (assets, SPA
+   * fallback and the web security headers, mirroring the packaged nginx edge). Omitted = API only. */
+  webDir?: string;
 }
 
 export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
@@ -158,7 +167,7 @@ export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
     // CAPACITYLENS_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
     // ON always attaches the redact config (both branches) so a secret can never reach the
     // logs — see LOG_REDACT_PATHS. Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
-    // requestLoggerOptions also owns invite/query URL masking and reconstructs Fastify's request
+    // requestLoggerOptions also owns invite-token masking and URL query/fragment removal and reconstructs Fastify's request
     // serializer so method/hostname/remote address remain available without emitting headers.
     logger: config.logOn ? createRequestLoggerOptions(options.logStream) : false,
   });
@@ -172,5 +181,7 @@ export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
   });
   const authorization = createAuthorization({ app, runtime, config, options, rootHelpers });
   registerApiRoutes({ app, db, runtime, config, options, rootHelpers, sessionResolution, authorization });
+  // Registered last so every API route wins over the web app's catch-all.
+  if (options.webDir) registerStaticWeb(app, { webDir: options.webDir });
   return app;
 }

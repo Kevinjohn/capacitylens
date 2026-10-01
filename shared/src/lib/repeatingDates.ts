@@ -57,6 +57,7 @@ export const TIME_OFF_REPEAT_POLICY: RepeatingDatePolicy = {
   occurrenceNoun: "entry",
 };
 
+/** Why a repeating-date request cannot produce dates. */
 export type RepeatingDateErrorCode =
   | "invalid-date"
   | "cutoff-before-start"

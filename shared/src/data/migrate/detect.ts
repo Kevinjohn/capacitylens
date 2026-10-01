@@ -1,7 +1,7 @@
 import { APP_DATA_KEYS, emptyAppData, EXPORT_SCHEMA_VERSION } from "../../types/entities";
 import type { AppData } from "../../types/entities";
 
-// The known portable data tables. APP_DATA_KEYS is the shared structural source of truth.
+/** The known portable data tables. APP_DATA_KEYS is the shared structural source of truth. */
 export const KNOWN_KEYS: readonly string[] = APP_DATA_KEYS;
 
 // Legacy table keys that a pre-rename export/blob may carry. `activities` was once `tasks`
@@ -31,6 +31,7 @@ export class InvalidSchemaVersionError extends Error {
   }
 }
 
+/** The record's `schemaVersion`, or 0 when absent. Throws on a present value that is not a non-negative safe integer. */
 export function parseSchemaVersion(record: Record<string, unknown>): number {
   if (!Object.hasOwn(record, "schemaVersion")) return 0;
   const value = record.schemaVersion;
@@ -40,8 +41,8 @@ export function parseSchemaVersion(record: Record<string, unknown>): number {
   return value;
 }
 
-// Unwrap the object the import shape-guards inspect: either the bare AppData map, or
-// the `data` field of a { schemaVersion, data } export. Returns null if not a plain object.
+/** Unwrap the object the import shape-guards inspect: either the bare AppData map, or
+ * the `data` field of a { schemaVersion, data } export. Returns null if not a plain object. */
 export function importCandidate(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
@@ -51,11 +52,11 @@ export function importCandidate(value: unknown): Record<string, unknown> | null 
     : null;
 }
 
-// Recognisable-CapacityLens guard for the IMPORT path: any JSON that parses but isn't
-// shaped like CapacityLens data would otherwise be migrated to an EMPTY dataset and
-// silently wipe the user's data. (The load path stays lenient on purpose.) Lives in
-// migrate.ts so the shape guard and the migrate it gates can't drift — mirrors how
-// schedule/diary keep their `looksLike…` guard next to migrate().
+/** Recognisable-CapacityLens guard for the IMPORT path: any JSON that parses but isn't
+ * shaped like CapacityLens data would otherwise be migrated to an EMPTY dataset and
+ * silently wipe the user's data. (The load path stays lenient on purpose.) Lives in
+ * migrate.ts so the shape guard and the migrate it gates can't drift — mirrors how
+ * schedule/diary keep their `looksLike…` guard next to migrate(). */
 export function looksLikeCapacityLens(value: unknown): boolean {
   const candidate = importCandidate(value);
   // Accept legacy keys too (e.g. pre-rename `tasks`) so a valid older export — even one
@@ -63,12 +64,12 @@ export function looksLikeCapacityLens(value: unknown): boolean {
   return !!candidate && RECOGNISED_KEYS.some((key) => Array.isArray(candidate[key]));
 }
 
-// A KNOWN table PRESENT but not an array (e.g. `resources: {…}` from a truncated or
-// hand-edited export) is structural damage. migrate()'s resolveArray() would silently coerce
-// it to [], and the "imported N" count — computed post-migrate — would report the lost
-// table as success. So REJECT it, matching every other load path,
-// which routes the same blob to recovery. Principle: repair within a record, reject a
-// structurally broken file. (An ABSENT table is fine — migrate fills it empty.)
+/** A KNOWN table PRESENT but not an array (e.g. `resources: {…}` from a truncated or
+ * hand-edited export) is structural damage. migrate()'s resolveArray() would silently coerce
+ * it to [], and the "imported N" count — computed post-migrate — would report the lost
+ * table as success. So REJECT it, matching every other load path,
+ * which routes the same blob to recovery. Principle: repair within a record, reject a
+ * structurally broken file. (An ABSENT table is fine — migrate fills it empty.) */
 export function hasNonArrayKnownTable(value: unknown): boolean {
   const candidate = importCandidate(value);
   // Legacy keys count too: a pre-rename `tasks: {…}` (object, not array) is the same
@@ -80,6 +81,7 @@ function resolveArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
+/** Fill every missing table with an empty array; returns empty data for a non-object. Pure. */
 export function normalize(data: Partial<AppData> | undefined): AppData {
   if (!data || typeof data !== "object") return emptyAppData();
   return {

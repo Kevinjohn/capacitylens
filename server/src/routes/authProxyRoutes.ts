@@ -1,7 +1,11 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
-import type { ApplicationSession } from "@capacitylens/shared/account/types";
+import {
+  allowsPasswordSignIn,
+  allowsProviderSignIn,
+  type ApplicationSession,
+} from "@capacitylens/shared/account/types";
 import { can } from "@capacitylens/shared/domain/access";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 
@@ -16,8 +20,7 @@ type SessionResolutionResult =
   | { kind: "verified"; session: ApplicationSession }
   | { kind: "backend_failure"; error: unknown };
 
-/** Build the absolute URL Better Auth requires from Fastify's relative request URL. Host is
- * proxy/client input, so malformed authority syntax is a bounded caller error, not an exception. */
+/** Build Better Auth's absolute URL; malformed client/proxy Host input returns null. */
 function parseAuthenticationRequestUrl(req: FastifyRequest): URL | null {
   try {
     return new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
@@ -26,19 +29,22 @@ function parseAuthenticationRequestUrl(req: FastifyRequest): URL | null {
   }
 }
 
-/** CapacityLens's complete public seam into Better Auth. New dependency routes remain closed until
- * they are deliberately classified here and covered by the application's own policy surface. */
+/** Complete public allowlist: new Better Auth routes stay closed until classified and tested here. */
 function isBetterAuthProxyRouteAllowed(
-  authMode: Exclude<AccountMode, "off">,
+  policy: { authMode: Exclude<AccountMode, "off">; mailEnabled: boolean },
   method: string,
   pathname: string,
 ): boolean {
+  const { authMode, mailEnabled } = policy;
   const common = new Set(["GET /get-session", "POST /sign-out", "POST /sign-in/social"]);
-  if (common.has(`${method} ${pathname}`)) return true;
-  if ((method === "GET" || method === "POST") && /^\/callback\/[a-z0-9_-]+$/.test(pathname)) {
-    return true;
+  if (common.has(`${method} ${pathname}`)) {
+    return pathname !== "/sign-in/social" || allowsProviderSignIn(authMode);
   }
-  if (authMode !== "password") return false;
+  if ((method === "GET" || method === "POST") && /^\/callback\/[a-z0-9_-]+$/.test(pathname)) {
+    return allowsProviderSignIn(authMode);
+  }
+  if (!allowsPasswordSignIn(authMode)) return false;
+  if (method === "POST" && pathname === "/request-password-reset") return mailEnabled;
   return new Set([
     "POST /sign-up/email",
     "POST /sign-in/email",
@@ -59,8 +65,7 @@ interface ResolveAuthenticationUserIdInput {
   logOn: boolean;
 }
 
-/** Resolve only an already-issued, verified session for security-event attribution. Submitted
- * identifiers are intentionally never used: a failed sign-in must not be able to claim a user. */
+/** Attribute security events only to verified sessions, never to submitted user identifiers. */
 async function resolveAuthenticationUserId({
   auth,
   headers,
@@ -76,9 +81,7 @@ async function resolveAuthenticationUserId({
   }
 }
 
-/** Turn Set-Cookie response fields into the Cookie header used to verify a newly issued session.
- * Response values replace request values with the same name (for example an MFA challenge cookie
- * replaced by the final session cookie); attributes never cross into the request header. */
+/** Convert Set-Cookie to Cookie: new values replace existing names, excluding response attributes. */
 function withResponseCookies(requestHeaders: Headers, setCookies: readonly string[]): Headers {
   const cookies = new Map<string, string>();
   for (const pair of (requestHeaders.get("cookie") ?? "").split(";")) {
@@ -182,7 +185,7 @@ async function canAuthenticatedUserCreateAccount({
   // The capability mirrors POST /api/orgs: masquerades and untrusted SSO sessions fail closed,
   // then both the account cap and workspace authority must allow creation.
   const trustedSsoSession =
-    authMode !== "sso" ||
+    authMode !== "sso-only" ||
     (session.assurance === "federated" &&
       (auth?.permittedCompanyProviderIds?.has(session.providerId) ??
         session.providerId === auth?.defaultCompanyProvider?.id));
@@ -211,8 +214,8 @@ async function readAuthenticatedIdentity(
   return {
     authMode,
     user,
-    mfaRequired: authMode === "password" && requireMfa && !dependencies.sessionSatisfiesRequiredMfa(session),
-    requireMfa: authMode === "password" && requireMfa,
+    mfaRequired: allowsPasswordSignIn(authMode) && requireMfa && !dependencies.sessionSatisfiesRequiredMfa(session),
+    requireMfa: allowsPasswordSignIn(authMode) && requireMfa,
     reauthMethod: session.assurance === "federated" ? "provider" : "password",
     reauthProviderId: session.providerId ?? null,
     providers: auth?.providers ?? [],
@@ -220,6 +223,9 @@ async function readAuthenticatedIdentity(
     canCreateAccount,
   };
 }
+
+const canEmailPasswordReset = (authMode: AccountMode, auth: Auth | null): boolean =>
+  allowsPasswordSignIn(authMode) && auth?.mail != null;
 
 async function sendIdentity(req: FastifyRequest, reply: FastifyReply, dependencies: IdentityRouteDependencies) {
   const { auth, authMode, db, multiAccount, resolveIncomingSession } = dependencies;
@@ -232,11 +238,12 @@ async function sendIdentity(req: FastifyRequest, reply: FastifyReply, dependenci
     // Zero users is only a bootstrap-availability signal; no tenant facts enter the 401 response.
     const needsSetup =
       countUsers(db) === 0 &&
-      (authMode === "password" || auth?.providers.some((provider) => provider.id === "microsoft"));
+      (allowsPasswordSignIn(authMode) || auth?.providers.some((provider) => provider.id === "microsoft"));
     return reply.code(401).send({
       authMode,
       providers: auth?.providers ?? [],
       error: "Sign in to continue.",
+      passwordResetEmail: canEmailPasswordReset(authMode, auth),
       ...(needsSetup ? { needsSetup: true } : {}),
     });
   }
@@ -300,7 +307,7 @@ function rejectsNonCompanySocialSignIn(input: {
   authMode: AccountMode;
 }): boolean {
   const { req, authPath, auth, authMode } = input;
-  if (authMode !== "sso" || authPath !== "/sign-in/social" || req.method !== "POST") return false;
+  if (authMode !== "sso-only" || authPath !== "/sign-in/social" || req.method !== "POST") return false;
   const body = req.body;
   if (!body || typeof body !== "object" || Array.isArray(body)) return true;
   const providerId = (body as Record<string, unknown>).provider;
@@ -343,7 +350,7 @@ async function forwardAuthenticationRequest(
   const url = parseAuthenticationRequestUrl(req);
   if (!url) return reply.code(400).send({ error: "Invalid request authority." });
   const authPath = url.pathname.slice("/api/auth".length);
-  if (!isBetterAuthProxyRouteAllowed(authMode, req.method, authPath)) {
+  if (!isBetterAuthProxyRouteAllowed({ authMode, mailEnabled: auth.mail != null }, req.method, authPath)) {
     return reply.code(404).send({ error: "Not found." });
   }
   const socialError = socialSignInError({ req, authPath, auth, authMode });

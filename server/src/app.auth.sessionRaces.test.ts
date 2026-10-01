@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
+import { request as httpRequest } from "node:http";
+import type { AddressInfo } from "node:net";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
@@ -10,6 +12,8 @@ import {
 } from "./auth";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
 import { call, PASSWORD_ENV } from "./testHelpers";
+import { tx } from "./txn";
+import { authTransactionGateFor, type GateSlot } from "./authTransactionGate";
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
 function headerValues(value: string | string[] | undefined): string[] {
@@ -452,4 +456,166 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
       ).statusCode,
     ).toBe(401);
   });
+});
+
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
+  it("never nests a concurrent write in an in-flight sign-up", async () => {
+    const db = openDb(":memory:");
+    const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
+    const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
+    db.exec("CREATE TABLE concurrent_writes (turn INTEGER NOT NULL) STRICT");
+
+    const signUpState = { settled: false };
+    const signUp = call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email: "diana@capacitylens.dev", password: "password-123456", name: "Diana Prince" },
+    }).finally(() => (signUpState.settled = true));
+    // Write on every turn the sign-up yields. A write that finds the sign-up's transaction open is
+    // refused; every acknowledged write must survive whatever the sign-up does.
+    let acknowledged = 0;
+    for (let turn = 0; !signUpState.settled; turn++) {
+      const write = () => tx(db, () => db.prepare("INSERT INTO concurrent_writes (turn) VALUES (?)").run(turn));
+      if (db.isTransaction) expect(write).toThrow(/did not open/);
+      else {
+        write();
+        acknowledged++;
+      }
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    expect((await signUp).statusCode).toBe(200);
+    expect(acknowledged).toBeGreaterThan(0);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM user").get()).toEqual({ count: 1 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM concurrent_writes").get()).toEqual({ count: acknowledged });
+  });
+});
+
+async function gatedWriteFixture() {
+  const db = openDb(":memory:");
+  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+  await runAuthMigrations(parseConfiguredAuth(configured.auth));
+  const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
+  db.exec("CREATE TABLE concurrent_writes (name TEXT NOT NULL) STRICT");
+  app.post("/api/test-concurrent-write", async (request) => {
+    const { name } = request.body as { name: string };
+    tx(db, () => db.prepare("INSERT INTO concurrent_writes (name) VALUES (?)").run(name));
+    return { ok: true };
+  });
+  const writer = await call(app, {
+    method: "POST",
+    url: "/api/auth/sign-up/email",
+    payload: { email: "selina@capacitylens.dev", password: "password-123456", name: "Selina Kyle" },
+  });
+  const write = (name: string) =>
+    app.inject({
+      method: "POST",
+      url: "/api/test-concurrent-write",
+      headers: { cookie: cookiesOf(writer) },
+      payload: { name },
+    });
+  const names = () =>
+    db
+      .prepare("SELECT name FROM concurrent_writes")
+      .all()
+      .map((row) => row.name);
+  return { db, app, write, names, gate: authTransactionGateFor(db) };
+}
+
+async function turns(count: number) {
+  for (let index = 0; index < count; index++) await new Promise((resolve) => setImmediate(resolve));
+}
+
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
+  it("holds an API write until a library transaction finishes, then commits it on its own", async () => {
+    const { db, write, names, gate } = await gatedWriteFixture();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const library = gate.runExclusive(async () => {
+      db.exec("BEGIN");
+      db.prepare("INSERT INTO concurrent_writes (name) VALUES ('library')").run();
+      await held;
+      db.exec("ROLLBACK");
+    });
+
+    let responded = false;
+    const pending = write("api").finally(() => (responded = true));
+    await turns(20);
+    expect(responded).toBe(false);
+    release();
+    await library;
+
+    expect((await pending).statusCode).toBe(200);
+    expect(names()).toEqual(["api"]);
+  });
+});
+
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
+  it("opens Better Auth's sign-up transaction only after in-flight writers finish", async () => {
+    const { app, db, gate } = await gatedWriteFixture();
+    const writer: GateSlot = { held: false, closed: false };
+    await gate.enter(writer);
+
+    let responded = false;
+    const signUp = call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email: "barbara@capacitylens.dev", password: "password-123456", name: "Barbara Gordon" },
+    }).finally(() => (responded = true));
+    // An ungated sign-up finishes well inside this window; a gated one waits for the writer.
+    const deadline = Date.now() + 500;
+    while (Date.now() < deadline) {
+      await turns(1);
+      expect(db.isTransaction).toBe(false);
+    }
+    expect(responded).toBe(false);
+    gate.release(writer);
+
+    expect((await signUp).statusCode).toBe(200);
+  });
+});
+
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
+  // The gate finds a request's slot through async context. inject() always keeps that context, so
+  // prove it also survives a real socket whose body arrives after the headers.
+  it("completes a sign-up whose body arrives after its headers", async () => {
+    const db = openDb(":memory:");
+    const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
+    const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    try {
+      const { port } = app.server.address() as AddressInfo;
+      const body = JSON.stringify({
+        email: "cassandra@capacitylens.dev",
+        password: "password-123456",
+        name: "Cassandra Cain",
+      });
+      const status = await new Promise<number>((resolve, reject) => {
+        const request = httpRequest(
+          {
+            host: "127.0.0.1",
+            port,
+            method: "POST",
+            path: "/api/auth/sign-up/email",
+            headers: {
+              "content-type": "application/json",
+              "content-length": Buffer.byteLength(body),
+            },
+          },
+          (response) => {
+            response.resume();
+            resolve(response.statusCode ?? 0);
+          },
+        );
+        request.on("error", reject);
+        request.flushHeaders();
+        setTimeout(() => request.end(body), 100);
+      });
+      expect(status).toBe(200);
+    } finally {
+      await app.close();
+    }
+  }, 10_000);
 });

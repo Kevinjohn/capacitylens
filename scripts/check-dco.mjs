@@ -34,7 +34,7 @@ export function evaluateDcoCommit({ authorEmail, committerEmail, message }) {
   };
 }
 
-export function validateDcoRatifications(ratifications) {
+export function parseDcoRatifications(ratifications) {
   if (!ratifications || typeof ratifications !== "object" || Array.isArray(ratifications)) {
     throw new TypeError("DCO ratifications must be an object keyed by full commit SHA");
   }
@@ -71,7 +71,7 @@ export function evaluateDcoRatification(target, ratification, attestation) {
 }
 
 function loadDcoRatifications() {
-  return validateDcoRatifications(JSON.parse(readFileSync(RATIFICATIONS_URL, "utf8")));
+  return parseDcoRatifications(JSON.parse(readFileSync(RATIFICATIONS_URL, "utf8")));
 }
 
 function git(args) {

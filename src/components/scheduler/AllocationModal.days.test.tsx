@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -50,7 +51,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -62,7 +63,9 @@ describe("AllocationModal days mode", () => {
 
   it("counts and derives spans through a company-narrowed effective week", async () => {
     enableDays([1, 2, 3, 4]);
-    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -74,7 +77,7 @@ describe("AllocationModal days mode", () => {
 
     expect(screen.getByLabelText("Days over")).toHaveValue(4);
     expect(screen.getByLabelText("Days of work")).toHaveValue(4);
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "5" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -88,7 +91,9 @@ describe("AllocationModal days mode", () => {
 
   it("validates the maximum working span against the narrowed company week", async () => {
     enableDays([1, 2, 3, 4]);
-    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -97,7 +102,7 @@ describe("AllocationModal days mode", () => {
         onClose={vi.fn()}
       />,
     );
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
     const daysOver = screen.getByLabelText("Days over");
@@ -114,7 +119,7 @@ describe("AllocationModal days mode", () => {
 
   it("keeps zero-overlap date math finite but rejects creating a normal allocation", async () => {
     enableDays([2]);
-    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
+    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] }));
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -127,7 +132,7 @@ describe("AllocationModal days mode", () => {
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "5" } });
     expect(screen.getByText("Ends Wed 3 Jun 2026 · 1.6h/day")).toBeInTheDocument();
     expect(screen.queryByText(/9999/)).not.toBeInTheDocument();
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -139,7 +144,7 @@ describe("AllocationModal days mode", () => {
 
   it("rejects even an ignored creation for a zero-overlap person (no escape hatch, decision 6)", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [2] });
-    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
+    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] }));
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -149,7 +154,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("checkbox", { name: "Ignore working days" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -162,7 +167,7 @@ describe("AllocationModal days mode", () => {
 
   it("leaves Ignore working days unchecked and skips personal non-working weekdays", async () => {
     enableDays();
-    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] });
+    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] }));
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -174,7 +179,7 @@ describe("AllocationModal days mode", () => {
 
     const ignoreWorkingDays = screen.getByRole("checkbox", { name: "Ignore working days" });
     expect(ignoreWorkingDays).not.toBeChecked();
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "3" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -188,7 +193,7 @@ describe("AllocationModal days mode", () => {
 
   it("includes every calendar day when Ignore working days is checked", async () => {
     enableDays();
-    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] });
+    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] }));
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -201,7 +206,7 @@ describe("AllocationModal days mode", () => {
     const ignoreWorkingDays = screen.getByRole("checkbox", { name: "Ignore working days" });
     await user.click(ignoreWorkingDays);
     expect(ignoreWorkingDays).toBeChecked();
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "3" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -215,16 +220,18 @@ describe("AllocationModal days mode", () => {
 
   it("reopens and resaves an existing checked allocation without changing its span or semantics", async () => {
     enableDays();
-    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] });
-    const allocation = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-      ignoreWeekends: true,
-    });
+    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] }));
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+        ignoreWeekends: true,
+      }),
+    );
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
@@ -240,9 +247,9 @@ describe("AllocationModal days mode", () => {
 
   it("derives end date + hours/day from start, days of work and days over", async () => {
     enableDays();
-    const r = useStore
-      .getState()
-      .addResource({ ...person("Bruce"), workingHoursPerDay: 6, workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingHoursPerDay: 6, workingDays: [1, 2, 3, 4, 5] }),
+    );
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -261,7 +268,7 @@ describe("AllocationModal days mode", () => {
     expect(screen.queryByLabelText("End")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Hours / day")).not.toBeInTheDocument();
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days of work"), {
       target: { value: "5" },
@@ -284,7 +291,7 @@ describe("AllocationModal days mode", () => {
 
   it("rejects zero days of work", async () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -298,7 +305,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days of work"), {
       target: { value: "0" },
@@ -311,7 +318,7 @@ describe("AllocationModal days mode", () => {
 
   it("rejects a derived span that would leave the four-digit-year date domain", async () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -326,7 +333,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days over"), {
       target: { value: "2" },
@@ -342,7 +349,7 @@ describe("AllocationModal days mode", () => {
     // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24 —
     // silently discarding the entered volume. The modal must reject so preview === saved.
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -356,7 +363,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days of work"), {
       target: { value: "5" },
@@ -377,7 +384,7 @@ describe("AllocationModal days mode", () => {
     // Enter directly from the field skips the blur-clamp, exercising exactly that path. The load
     // guard must reject (NaN fails Number.isFinite) and persist nothing.
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     const onClose = vi.fn();
     const addAllocation = vi.spyOn(useStore.getState(), "addAllocation");
     const user = userEvent.setup();
@@ -393,7 +400,7 @@ describe("AllocationModal days mode", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     fireEvent.change(screen.getByLabelText("Days of work"), {
       target: { value: "5" },
@@ -413,7 +420,7 @@ describe("AllocationModal days mode", () => {
 
   it("honours the drawn span when creating (days over = the dragged-out length)", async () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     const user = userEvent.setup();
     // The grid hands the modal a 5-working-day span (Mon 06-01 … Fri 06-05).
     render(
@@ -431,7 +438,7 @@ describe("AllocationModal days mode", () => {
     expect(screen.getByLabelText("Days over")).toHaveValue(5);
     expect(screen.getByLabelText("Days of work")).toHaveValue(5); // full-time across the span
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -444,9 +451,9 @@ describe("AllocationModal days mode", () => {
 
   it("seeds a half day as half a day of work in days mode", () => {
     enableDays();
-    const resource = useStore
-      .getState()
-      .addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
+    );
     render(
       <AllocationModal
         kind="create"
@@ -461,16 +468,18 @@ describe("AllocationModal days mode", () => {
 
   it("does not drift hours when an unevenly-dividing allocation is re-saved unchanged", async () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     // 5h/day over 3 working days = 1.875 days of work — a value 2-dp rounding would distort.
-    const alloc = useStore.getState().addAllocation({
-      resourceId: r.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 5,
-      status: "confirmed",
-    });
+    const alloc = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: r.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 5,
+        status: "confirmed",
+      }),
+    );
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
@@ -485,15 +494,19 @@ describe("AllocationModal days mode", () => {
 
   it("preserves a stored non-working end date when an existing allocation is saved unchanged", async () => {
     enableDays();
-    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
-    const allocation = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-07",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-07",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
@@ -506,16 +519,18 @@ describe("AllocationModal days mode", () => {
 
   it("seeds the days inputs by inverting an existing allocation", () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     // 4h/day over 2026-06-01..06-12 (10 working days) = 5 days of work.
-    const alloc = useStore.getState().addAllocation({
-      resourceId: r.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-12",
-      hoursPerDay: 4,
-      status: "confirmed",
-    });
+    const alloc = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: r.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-12",
+        hoursPerDay: 4,
+        status: "confirmed",
+      }),
+    );
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     expect(screen.getByLabelText("Days of work")).toHaveValue(5);

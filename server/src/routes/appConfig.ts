@@ -13,7 +13,7 @@ import type { AppOptions } from "../app";
 // CAPACITYLENS_CORS_ORIGIN override it for a deliberate deploy.
 export const DEFAULT_CORS = "http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273";
 
-function validateAppOptions(options: AppOptions, rateLimitMax: number): void {
+function assertAppOptions(options: AppOptions, rateLimitMax: number): void {
   const configuredRateLimit = options.rateLimit ?? 0;
   if (configuredRateLimit !== 0 && rateLimitMax === 0) {
     throw new RangeError(
@@ -34,7 +34,7 @@ export function resolveAppConfig(options: AppOptions) {
   const configuredRateLimit = options.rateLimit ?? 0;
   const rateLimitMax = normalizeRateLimit(configuredRateLimit);
   // Misconfiguration, not a request-time condition: fail at construction, loudly.
-  validateAppOptions(options, rateLimitMax);
+  assertAppOptions(options, rateLimitMax);
   const application = options.application ?? DEFAULT_ACCOUNT_APPLICATION;
   const applicationFailure = boundApplicationFailure(application);
   if (applicationFailure) throw new Error(`buildApp: ${applicationFailure}`);

@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, within, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
@@ -71,11 +72,13 @@ function addInternalSearchItems({
 function addOptionalResources() {
   const client = useStore.getState().data.clients.find((candidate) => candidate.name === "Queen Consolidated");
   if (!client) throw new Error("Expected Queen Consolidated client");
-  const project = useStore.getState().addProject({
-    name: "Placeholder Project",
-    clientId: client.id,
-    color: "#6366f1",
-  });
+  const project = requireCreated(
+    useStore.getState().addProject({
+      name: "Placeholder Project",
+      clientId: client.id,
+      color: "#6366f1",
+    }),
+  );
   useStore.getState().addResource(
     makeResourceDraft({
       kind: "placeholder",
@@ -506,7 +509,7 @@ describe("CommandPalette", () => {
 
 describe("CommandPalette", () => {
   it("carries the selected activity identity to the complete activity list", () => {
-    const activity = useStore.getState().addActivity({ name: "Kickoff", kind: "internal" });
+    const activity = requireCreated(useStore.getState().addActivity({ name: "Kickoff", kind: "internal" }));
     renderPalette();
 
     fireEvent.change(screen.getByTestId("command-palette-input"), { target: { value: "Kickoff" } });
@@ -534,11 +537,13 @@ describe("CommandPalette", () => {
     if (!client) throw new Error("Expected client");
     let projectId: string | undefined;
     act(() => {
-      const p = useStore.getState().addProject({
-        name: "Project Alpha",
-        clientId: client.id,
-        color: "#6366f1",
-      });
+      const p = requireCreated(
+        useStore.getState().addProject({
+          name: "Project Alpha",
+          clientId: client.id,
+          color: "#6366f1",
+        }),
+      );
       projectId = p.id;
     });
 
@@ -581,7 +586,7 @@ describe("CommandPalette", () => {
   it("client selection REPLACES stale filters with only clientId set", () => {
     let clientId: string | undefined;
     act(() => {
-      const c = useStore.getState().addClient({ name: "Client Zeta", color: "#6366f1" });
+      const c = requireCreated(useStore.getState().addClient({ name: "Client Zeta", color: "#6366f1" }));
       clientId = c.id;
     });
 

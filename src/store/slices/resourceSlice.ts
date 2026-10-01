@@ -8,7 +8,7 @@ import {
   assertScopedRefs,
   validateResourceAvailabilityPair,
 } from "@capacitylens/shared/domain/mutations";
-import { domainError } from "@capacitylens/shared/domain/errors";
+import { throwDomainError } from "@capacitylens/shared/domain/errors";
 import {
   clampWorkingHoursPerDay,
   isPlaceholderResource,
@@ -31,7 +31,23 @@ type ResourceSlice = Pick<
   | "deleteClosure"
 >;
 
-export function createResourceSlice(internals: StoreInternals): StateCreator<StoreState, [], [], ResourceSlice> {
+type ResourceSliceInternals = Pick<
+  StoreInternals,
+  | "createGuardedAction"
+  | "createGuardedAddAction"
+  | "createTimeOffs"
+  | "requireAccount"
+  | "assertWorkingDays"
+  | "assertHalfDays"
+  | "applySnappedColor"
+  | "mutate"
+  | "updateOwned"
+  | "resolveOwnedRow"
+>;
+
+export function createResourceSlice(
+  internals: ResourceSliceInternals,
+): StateCreator<StoreState, [], [], ResourceSlice> {
   return (_set, get) => {
     const { createGuardedAction, assertWorkingDays, assertHalfDays, applySnappedColor, updateOwned } = internals;
     return {
@@ -62,10 +78,11 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
               preparedResource.firstAvailableDate,
               preparedResource.lastAvailableDate,
             );
-            if (!availability.ok) {
-              domainError(
-                availability.code,
-                availability.code === "date_reversed"
+            const [availabilityCode] = availability.codes;
+            if (availabilityCode) {
+              throwDomainError(
+                availabilityCode,
+                availabilityCode === "date_reversed"
                   ? "End date cannot be before the start date."
                   : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
               );
@@ -93,7 +110,7 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
   };
 }
 
-function createResourceAddAction(internals: StoreInternals, get: StoreApi<StoreState>["getState"]) {
+function createResourceAddAction(internals: ResourceSliceInternals, get: StoreApi<StoreState>["getState"]) {
   const { createGuardedAddAction, requireAccount, assertWorkingDays, assertHalfDays, applySnappedColor, mutate } =
     internals;
   return createGuardedAddAction(
@@ -127,10 +144,11 @@ function createResourceAddAction(internals: StoreInternals, get: StoreApi<StoreS
         delete entity.lastAvailableDate;
       }
       const availability = validateResourceAvailabilityPair(entity.firstAvailableDate, entity.lastAvailableDate);
-      if (!availability.ok) {
-        domainError(
-          availability.code,
-          availability.code === "date_reversed"
+      const [availabilityCode] = availability.codes;
+      if (availabilityCode) {
+        throwDomainError(
+          availabilityCode,
+          availabilityCode === "date_reversed"
             ? "End date cannot be before the start date."
             : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
         );
@@ -145,15 +163,17 @@ function createResourceAddAction(internals: StoreInternals, get: StoreApi<StoreS
 }
 
 function createTimeOffActions(
-  internals: StoreInternals,
+  internals: ResourceSliceInternals,
   get: StoreApi<StoreState>["getState"],
 ): Pick<ResourceSlice, "addTimeOff" | "addTimeOffs" | "updateTimeOff" | "deleteTimeOff"> {
   const { createGuardedAction, createTimeOffs, mutate, updateOwned, resolveOwnedRow } = internals;
   return {
     addTimeOff: (input) => {
-      const timeOff = createTimeOffs([input])[0];
+      const result = createTimeOffs([input]);
+      if (result.kind === "blocked") return result;
+      const timeOff = result.value[0];
       if (!timeOff) throw new Error("Time-off creation produced no row.");
-      return timeOff;
+      return { kind: "created", value: timeOff };
     },
     addTimeOffs: createTimeOffs,
     updateTimeOff: createGuardedAction((id: ID, patch: Patch<TimeOff>) => {
@@ -179,7 +199,7 @@ function createTimeOffActions(
 }
 
 function createClosureActions(
-  internals: StoreInternals,
+  internals: ResourceSliceInternals,
   get: StoreApi<StoreState>["getState"],
 ): Pick<ResourceSlice, "addClosure" | "updateClosure" | "deleteClosure"> {
   const { createGuardedAction, createGuardedAddAction, requireAccount, mutate, updateOwned, resolveOwnedRow } =
@@ -188,7 +208,7 @@ function createClosureActions(
     addClosure: createGuardedAddAction(
       (input: Draft<Closure>): Closure => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
       (closure) => {
-        if (closure.name.trim().length === 0) domainError("closure_name_required", "Closure name is required.");
+        if (closure.name.trim().length === 0) throwDomainError("closure_name_required", "Closure name is required.");
         assertDateRange(closure.startDate, closure.endDate);
         mutate((data) => ({ ...data, closures: [...data.closures, closure] }));
         return closure;
@@ -200,7 +220,7 @@ function createClosureActions(
         id: id,
         patch: patch,
         prepare: (merged) => {
-          if (merged.name.trim().length === 0) domainError("closure_name_required", "Closure name is required.");
+          if (merged.name.trim().length === 0) throwDomainError("closure_name_required", "Closure name is required.");
           assertDateRange(merged.startDate, merged.endDate);
           return patch;
         },

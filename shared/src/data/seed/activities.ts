@@ -78,6 +78,7 @@ const ACTIVITIES: AppData["activities"] = [
   },
 ];
 
+/** Fresh copies of the seed activities. */
 export function createActivities(): AppData["activities"] {
   return ACTIVITIES.map((activity) => ({ ...activity }));
 }

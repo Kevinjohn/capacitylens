@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
-import { resetServer, serverState, stateRows } from "./db-helpers";
+import { openApp } from "./browserTestSupport";
+import { resetServer, serverState, requireStateRows } from "./serverTestState";
 
 // DB-backed flavour of the date-format preference (US-SET-17, issue #866). The demo project
 // cannot carry this assertion: its in-memory store restores the seed on every reload, so a
@@ -22,7 +22,7 @@ test.describe("Settings — date format is account data", () => {
     await expect
       .poll(
         async () =>
-          stateRows(await serverState(request), "accounts").some(
+          requireStateRows(await serverState(request), "accounts").some(
             (account) => (account as { dateStyle?: string }).dateStyle === "month-day",
           ),
         { timeout: 10_000 },

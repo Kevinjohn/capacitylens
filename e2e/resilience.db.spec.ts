@@ -1,17 +1,17 @@
 import { test, expect } from "./fixtures";
-import { resetServer, serverState, stateRows } from "./db-helpers";
-import { failRequestsUntilReleased } from "./fault-helpers";
-import { waitForAppLanding, freezeBrowserDate, openApp } from "./helpers";
+import { resetServer, serverState, requireStateRows } from "./serverTestState";
+import { failRequestsUntilReleased } from "./failRequestsUntilReleased";
+import { waitForAppLanding, freezeBrowserDate, openApp } from "./browserTestSupport";
 
 const PERSISTENCE_WARNING = "Changes aren’t being saved right now — we’ll keep retrying.";
 
-function registerSuiteScenario1() {
+function registerBeforeEachHooks() {
   test.beforeEach(async ({ request }) => {
     await resetServer(request, true);
   });
 }
 
-function registerSuiteScenario2() {
+function registerInitialStateFailurePreventsEditingTest() {
   test("an initial state failure prevents editing and Retry recovers the real server data", async ({ page }) => {
     const stateFailure = await failRequestsUntilReleased(page, "**/api/state", {
       status: 503,
@@ -36,7 +36,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerFailedSaveStaysVisiblyUnsavedTest() {
   test("a failed save stays visibly unsaved, retries, and persists exactly once", async ({ page, request }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     const batchFailure = await failRequestsUntilReleased(page, "**/api/batch", {
@@ -51,7 +51,7 @@ function registerSuiteScenario3() {
     await expect.poll(batchFailure.attempts).toBeGreaterThan(0);
     await expect(page.getByRole("alert").filter({ hasText: PERSISTENCE_WARNING })).toBeVisible();
     expect(
-      stateRows(await serverState(request), "clients").filter(({ name }) => name === "Retry Recovery Co"),
+      requireStateRows(await serverState(request), "clients").filter(({ name }) => name === "Retry Recovery Co"),
     ).toHaveLength(0);
 
     batchFailure.release();
@@ -60,7 +60,8 @@ function registerSuiteScenario3() {
     await expect
       .poll(
         async () =>
-          stateRows(await serverState(request), "clients").filter(({ name }) => name === "Retry Recovery Co").length,
+          requireStateRows(await serverState(request), "clients").filter(({ name }) => name === "Retry Recovery Co")
+            .length,
       )
       .toBe(1);
     await expect(page.getByRole("alert").filter({ hasText: PERSISTENCE_WARNING })).toHaveCount(0);
@@ -70,7 +71,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerStaleConcurrentEditRejectedExplainedTests() {
   test("a stale concurrent edit is rejected, explained, and replaced by server truth", async ({
     page,
     request,
@@ -94,7 +95,7 @@ function registerSuiteScenario4() {
 
     await page.getByRole("button", { name: "Save" }).click();
     await expect
-      .poll(async () => stateRows(await serverState(request), "clients").find(({ id }) => id === "c-acme")?.name)
+      .poll(async () => requireStateRows(await serverState(request), "clients").find(({ id }) => id === "c-acme")?.name)
       .toBe("First Editor Co");
 
     await secondPage.getByRole("button", { name: "Save" }).click();
@@ -103,7 +104,7 @@ function registerSuiteScenario4() {
     await expect(secondPage.getByTestId("client-row").filter({ hasText: "Stale Second Editor Co" })).toHaveCount(0);
     await expect(secondPage.getByRole("alert").filter({ hasText: PERSISTENCE_WARNING })).toHaveCount(0);
 
-    expect(stateRows(await serverState(request), "clients").find(({ id }) => id === "c-acme")?.name).toBe(
+    expect(requireStateRows(await serverState(request), "clients").find(({ id }) => id === "c-acme")?.name).toBe(
       "First Editor Co",
     );
     await secondContext.close();
@@ -111,8 +112,8 @@ function registerSuiteScenario4() {
 }
 
 test.describe("database-backed resilience", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
+  registerBeforeEachHooks();
+  registerInitialStateFailurePreventsEditingTest();
+  registerFailedSaveStaysVisiblyUnsavedTest();
+  registerStaleConcurrentEditRejectedExplainedTests();
 });

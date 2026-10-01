@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
-import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "./scripts/playwright-server-scope";
-import { resolvePlaywrightRunMode } from "./scripts/playwright-run-mode.mjs";
+import { coreSpecPattern, parseReportPhaseName, selectsOnlyExplicitCoreSpecs } from "./scripts/playwrightServerScope";
+import { resolvePlaywrightRunMode } from "./scripts/playwrightRunMode.mjs";
 import { ports, testShare } from "./scripts/ports.mjs";
 
 // Playwright drives the real app via Vite. Three project flavours:
@@ -8,7 +8,7 @@ import { ports, testShare } from "./scripts/ports.mjs";
 //   db-backed   — the SQLite server (lane db API, reset enabled, temp DB) + a second Vite
 //                 dev server (lane db web) whose same-origin /api proxy targets that server
 //                 through the entity-level ServerSyncAdapter. *.db.spec.ts run here.
-//   auth-backed — a third server (lane auth API) booted with SMALLSASS_ACCOUNT_MODE=password (fresh
+//   auth-backed — a third server (lane auth API) booted with SMALLSASS_ACCOUNT_MODE=password-only (fresh
 //                 DB per run) + a Vite dev server (lane auth web) proxying to it — the ONLY place the
 //                 flag-gated login screen exists (US-NAV-10). *.auth.spec.ts run here.
 // Lane-derived (scripts/ports.mjs). Lane 0 is the historical 5173/5273/5373/8787/8887, so a single
@@ -37,7 +37,7 @@ const flavourSpec = (flavour: "db" | "auth") => new RegExp(String.raw`\.${flavou
 // project exist; CAPACITYLENS_VITE_ONLY (or either *_ONLY) trims the webServer list to Vite-only.
 const runMode = resolvePlaywrightRunMode(process.env, process.argv, selectsOnlyExplicitCoreSpecs);
 const projectEnabled = (name: (typeof runMode.projects)[number]) => runMode.projects.includes(name);
-const reportPhase = reportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
+const reportPhase = parseReportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
 
 // The base app under Vite on the lane web port — the only server the core (and WebKit/Firefox) specs need.
 // Runs the in-memory DEMO build so the core specs stay backend-free now that server is the
@@ -60,7 +60,7 @@ export default defineConfig({
   // These are measured suite budgets, stated explicitly instead of inheriting Playwright defaults.
   timeout: 30_000,
   expect: { timeout: 5_000 },
-  // This run's CPU reservation (scripts/lane-claim.mjs). A solo run reserves half the cores, which
+  // This run's CPU reservation (scripts/laneClaims.mjs). A solo run reserves half the cores, which
   // is exactly Playwright's own default; concurrent runs divide the machine instead of each taking
   // that half. Every worker drives a browser, so the reservation is the right unit here.
   workers: testShare(),
@@ -151,10 +151,10 @@ export default defineConfig({
           },
         ]
       : []),
-    // Upgrade rehearsal (docs-src/self-hosting/upgrades.md): exists only when CAPACITYLENS_REHEARSAL_URL is set —
-    // the PRODUCTION build served behind a local /api proxy (scripts/serve-dist.mjs), with
-    // the droplet's flags ON in the daemon. Reuses the db-backed specs verbatim; the
-    // baseURL override is the only difference. Started by hand per the runbook, so the
+    // Browser upgrade rehearsal (docs-src/reference/development.md#browser-upgrade-rehearsal): exists only when CAPACITYLENS_REHEARSAL_URL is set —
+    // the production build served behind a local /api proxy (scripts/serve-dist.mjs), with
+    // test reset enabled on a disposable API. Reuses the db-backed specs verbatim; the
+    // baseURL override is the only difference. Started by the operator, so the
     // dev webServers below are skipped for these runs (see the webServer conditional).
     ...(projectEnabled("rehearsal")
       ? [
@@ -174,7 +174,7 @@ export default defineConfig({
         ]
       : []),
   ],
-  // Rehearsal runs bring their own production-shaped stack (runbook) — don't boot the dev
+  // Rehearsal runs bring their own production-shaped stack (development guide) — don't boot the dev
   // servers under them. A core-specs-only run (`e2e:webkit`/`e2e:firefox`/`e2e:browsers`, i.e.
   // viteOnly) needs only Vite on the lane web port. Every other run keeps the full list (the SQLite + auth
   // servers the db/auth specs depend on).
@@ -202,10 +202,10 @@ export default defineConfig({
               // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
               // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
               // cross-origin exception that the shipped app never has.
-              env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT) },
+              env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT), VITE_CAPACITYLENS_API: "" },
             },
             {
-              // SMALLSASS_ACCOUNT_MODE=password + a dev-only secret live in the pnpm script; the DB file is
+              // SMALLSASS_ACCOUNT_MODE=password-only + a dev-only secret live in the pnpm script; the DB file is
               // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
               // already-running auth API — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
               // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
@@ -222,7 +222,7 @@ export default defineConfig({
               url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
               reuseExistingServer: false,
               timeout: 120_000,
-              env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT) },
+              env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT), VITE_CAPACITYLENS_API: "" },
             },
           ],
 });

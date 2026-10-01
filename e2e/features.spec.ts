@@ -8,9 +8,9 @@ import {
   showPlaceholders,
   showScheduleFilters,
   waitForWeekSnap,
-} from "./helpers";
+} from "./browserTestSupport";
 
-function registerSuiteScenario1() {
+function registerFilteringProjectNarrowsScheduleProjectTest() {
   test("filtering by project narrows the schedule to that project", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -26,7 +26,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerUndoRestoresDeletedAllocationTest() {
   test("undo restores a deleted allocation", async ({ page }) => {
     await openApp(page);
     const bars = page.getByTestId("allocation-bar");
@@ -48,7 +48,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerBookingTimeOffGreysScheduleTest() {
   test("booking time off greys the schedule", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -71,7 +71,7 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerClickingDisciplineHeaderCollapsesRowsTest() {
   test("clicking a discipline header collapses its rows", async ({ page }, testInfo) => {
     await openApp(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
@@ -84,7 +84,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerDraggingAllocationOntoAnotherRowTest() {
   test("dragging an allocation onto another row reassigns it", async ({ page }, testInfo) => {
     await openApp(page);
     // Zoom keeps the left-edge date anchored (the frozen "today"'s Monday), so the
@@ -115,7 +115,7 @@ function registerSuiteScenario5() {
   });
 }
 
-function registerSuiteScenario6() {
+function registerRejectsVerticalReassignmentOntoNonTest() {
   test("rejects a vertical reassignment onto a non-working start date unless explicitly ignored", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -164,7 +164,7 @@ function registerSuiteScenario6() {
   });
 }
 
-function registerSuiteScenario7() {
+function registerDrawingTimeOffModeOpensTest() {
   test("drawing in Time off mode opens a prefilled time-off form", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -193,7 +193,7 @@ function registerSuiteScenario7() {
   });
 }
 
-function registerSuiteScenario8() {
+function registerDrawingPlaceholderLocksModalBoundTests() {
   test("drawing on a placeholder locks the modal to its bound project", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     // Placeholders are hidden by default (per-account pref) — enable them so the lane renders.
@@ -234,12 +234,12 @@ function registerSuiteScenario8() {
 }
 
 test.describe("Feature flows", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
-  registerSuiteScenario7();
-  registerSuiteScenario8();
+  registerFilteringProjectNarrowsScheduleProjectTest();
+  registerUndoRestoresDeletedAllocationTest();
+  registerBookingTimeOffGreysScheduleTest();
+  registerClickingDisciplineHeaderCollapsesRowsTest();
+  registerDraggingAllocationOntoAnotherRowTest();
+  registerRejectsVerticalReassignmentOntoNonTest();
+  registerDrawingTimeOffModeOpensTest();
+  registerDrawingPlaceholderLocksModalBoundTests();
 });

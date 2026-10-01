@@ -3,7 +3,6 @@ import type { DatabaseMigrationPlan } from "./migrationLedger";
 import { pragmaNumber, userTables, hasLegacyCapacityLensShape } from "./introspection";
 import { DB_SCHEMA_VERSION, CAPACITYLENS_APPLICATION_ID } from "./constants";
 import { assertMigrationHistory } from "./migrationHistory";
-import { restrictIdentifiedDatabasePermissions } from "./filePermissions";
 import { DATABASE_MIGRATIONS } from "./migrations/index";
 /** Read-only migration planning. It rejects future/wrong-application files before any schema DDL. */
 export function planDatabaseMigrations(db: Db): DatabaseMigrationPlan {
@@ -38,9 +37,6 @@ export function planDatabaseMigrations(db: Db): DatabaseMigrationPlan {
     );
   }
   assertMigrationHistory(db, fromVersion);
-  // Identity, supported version and immutable migration history are now established. Only at this
-  // point does the file belong to this application and become safe to harden.
-  restrictIdentifiedDatabasePermissions(db);
 
   return {
     fromVersion,

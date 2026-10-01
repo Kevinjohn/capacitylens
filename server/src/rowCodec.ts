@@ -23,12 +23,10 @@ export function toRow(spec: TableSpec, row: Row): SQLInputValue[] {
 /** SQL row → object: JSON-decode json columns, drop NULL optionals so the result
  *  deep-equals the client's object (which omits absent optionals).
  *
- *  @throws {Error} a typed "Corrupt JSON in <table>.<column> (id=…)" error if a json column on
- *    disk can't be parsed (corruption, a manual edit, or a value written by an older/buggy codec).
- *    We RETHROW with the exact location rather than swallowing: loadState() reads every row through
- *    here, so a silent fallback to the raw string would quietly poison the in-memory AppData tree
- *    (the data-corruption anti-goal), and a bare JSON.parse throw would surface only as
- *    an opaque 500 with no clue WHICH row is bad. Naming table.column.id makes it diagnosable. */
+ *  @throws {Error} a locator-only "Corrupt JSON in <table>.<column> (id=…)" error if a json column on
+ *    disk can't be parsed. The location lets an operator find the damaged row without exposing the
+ *    cell contents through the error message or cause. loadState() reads every row through here, so
+ *    a silent fallback to the raw string would quietly poison the in-memory AppData tree. */
 export function fromRow(spec: TableSpec, row: Row): Row {
   const decodedRow: Row = {};
   for (const c of spec.columns) {
@@ -40,12 +38,10 @@ export function fromRow(spec: TableSpec, row: Row): Row {
     if (c.json) {
       try {
         decodedRow[c.name] = JSON.parse(v as string);
-      } catch (e) {
+      } catch {
         const id = typeof row.id === "string" ? row.id : "?";
-        throw new Error(
-          `Corrupt JSON in ${spec.key}.${c.name} (id=${id}): ${e instanceof Error ? e.message : String(e)}`,
-          { cause: e },
-        );
+        // Unlike the usual preserve-cause rule, omit the cause because corrupt cells may contain user data.
+        throw new Error(`Corrupt JSON in ${spec.key}.${c.name} (id=${id})`);
       }
     } else {
       decodedRow[c.name] = v;

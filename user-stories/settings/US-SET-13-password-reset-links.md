@@ -1,4 +1,4 @@
-# US-SET-13 — Admin-issued password-reset links (password mode)
+# US-SET-13 — Password recovery (password-capable modes)
 
 **Area:** Team & access · **Persona:** Studio owner / admin + a locked-out member · **Linked E2E:**
 `e2e/reset-password.auth.spec.ts` → "admin mints a reset link in Team & access; the locked-out member
@@ -6,25 +6,29 @@ sets a new password with it"
 
 ## Goal
 
-Let an Owner or Admin get a locked-out member back into the app **without any email
-infrastructure**: mint a single-use, 24-hour password-reset link from Team & access, hand it
-over directly (chat, however), and let the member choose a new password on a page that works
-**without being signed in**.
+Let a locked-out password user recover access using a single-use, 24-hour link without being
+signed in. When SMTP is configured, they can request the link by email. An Owner or Admin can
+also copy a link from Team & access and share it directly, without email infrastructure.
 
 ## Why
 
-CapacityLens deliberately has no email delivery (no verification or reset mail — a standing
-non-goal), so `password` mode needs a human-scale reset path: for a 5–15 person agency, "ask your
-admin" is normal. The link reuses the invite posture — a write-once bearer secret shown exactly
-once, never listed or read back — and rides Better Auth's own single-use, expiring verification
-store. Because a reset link is an **account-takeover capability** (whoever holds it can sign in as
-the target), an Admin can never mint one for an Owner — the same escalation door the
-no-admin→owner-grant rule closes elsewhere. This is a **password-mode** feature only: in `sso` the
-identity provider owns credentials, and in auth-off there are none.
+Small agencies need password recovery with or without an SMTP service. A reset link grants
+access to the target identity, so administrative resets retain their role and freshness checks.
+Company-sign-in-only accounts recover credentials through their provider.
+
+See [Account email](../../docs-src/self-hosting/configuration.md#account-email) for setup and use.
+
+## Self-service email
+
+1. On the sign-in screen, choose **Forgot password?** (`forgot-password`).
+2. Enter your address (`forgot-password-email`) and choose **Email reset link** (`forgot-password-submit`).
+3. The neutral confirmation (`forgot-password-confirmation`) reads: **If an account uses that address,
+   we've emailed a reset link.**
+4. Open the emailed link, set a new password and sign in. Existing sessions are revoked.
 
 ## How (end-to-end)
 
-**Precondition:** Server mode with `SMALLSASS_ACCOUNT_MODE=password`. Owner A's company has member B
+**Precondition:** Server mode with `SMALLSASS_ACCOUNT_MODE=password-only`. Owner A's company has member B
 (editor). B has forgotten their password. Sign in as **A**, pick the company, open **Team & access**.
 
 1. In the **Members** table, A opens the gear on B's row (`data-testid="member-row"` →
@@ -34,7 +38,7 @@ identity provider owns credentials, and in auth-off there are none.
    (`data-testid="reset-link"`), a visible **Copy** button whose accessible name is
    **Copy reset link for B**, and a note naming **B** and the expiry date — the link is shown
    **once** and never again.
-3. A copies the link and sends it to B directly. Nothing is emailed by the app.
+3. A copies the link and sends it to B directly. This administrative operation sends no email.
 4. **As B, signed out** — open the link. The **Reset password** page renders (no login wall in
    front of it — B is exactly the person who cannot sign in): **New password**
    (`data-testid="reset-new-password"`), **Confirm new password**
@@ -60,5 +64,9 @@ identity provider owns credentials, and in auth-off there are none.
 - The server is the backstop regardless of the UI: minting below admin tier or cross-tenant is
   **403**, an Admin targeting an Owner is **403**, a non-member target is **404**, and `sso`/OFF
   modes answer **400** (`POST /api/accounts/:accountId/members/:userId/reset-password`).
-- The public `POST /api/auth/request-password-reset` endpoint stays anti-enumeration and never
-  leaks a token (no email is ever sent; a public call's token goes nowhere).
+- The public `POST /api/auth/request-password-reset` endpoint is available only when SMTP and
+  password sign-in are enabled; otherwise it returns 404. The response never includes a token.
+- Registered password users receive one email. Unknown addresses and provider-only accounts
+  receive no email and get the same response status and body. SMTP failures are logged without
+  an address, token or link; the public confirmation remains neutral.
+- Without SMTP, the sign-in screen shows no recovery-email controls. Admin copy-links remain available.

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { AccountContractError, retryAfterSeconds, statusForAccountFailure, type AccountErrorCode } from "./errors";
+import {
+  AccountContractError,
+  assertRetryAfterSeconds,
+  retryAfterSeconds,
+  statusForAccountFailure,
+  type AccountErrorCode,
+} from "./errors";
 
 describe("account failure status mapping", () => {
   const expected = {
@@ -32,11 +38,12 @@ describe("account failure status mapping", () => {
 
 describe("retry delay boundary", () => {
   it.each([0, 0.25, 12])("accepts %s seconds", (value) => {
+    expect(assertRetryAfterSeconds(value)).toBe(value);
     expect(retryAfterSeconds(value)).toBe(value);
   });
 
   it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])("rejects %s", (value) => {
-    expect(() => retryAfterSeconds(value)).toThrow(RangeError);
+    expect(() => assertRetryAfterSeconds(value)).toThrow(RangeError);
   });
 
   it("revalidates branded values when constructing a contract error", () => {

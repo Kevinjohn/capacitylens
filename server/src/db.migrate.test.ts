@@ -38,6 +38,8 @@ import {
 } from "./auth";
 import { TABLES } from "./tables";
 import { runAccountDateStyleV40 } from "./db/migrations/definitions";
+import { ensureMicrosoftProofGate } from "./authConfig/microsoftProofGate";
+import { MICROSOFT_PROOF_V46_SQL } from "./db/migrations/microsoftProofV46";
 import {
   assertMigrationValuesPreserved,
   captureMigrationValues,
@@ -165,8 +167,206 @@ const V46_MIGRATION = {
   name: "add-microsoft-identity-proof",
   checksum: "856bd5d5e8d0fc95182d2c2b0c37acb5ce5739fce5c679cf8b5f65270a76b02f",
 } as const;
+const V47_MIGRATION = {
+  version: 47,
+  name: "separate-company-access-restrictions",
+  checksum: "51fc2a05e998e8977afa01763afef6ad268bfe8e6149dd724d3aeddf0993d725",
+} as const;
+const V48_MIGRATION = {
+  version: 48,
+  name: "record-identity-email-proof",
+  checksum: "b465756a0369755a3aca9f9e5c84c2ed165f32128ae75c4ecdfb50ad6974bcf4",
+} as const;
+const V49_MIGRATION = {
+  version: 49,
+  name: "add-company-joining-policies",
+  checksum: "ed8f1716cf04b873aba98677f906bb060d1c46bc459d0fb703dcacb3fe775f69",
+} as const;
+const V50_MIGRATION = {
+  version: 50,
+  name: "add-microsoft-company-joining-purpose",
+  checksum: "f8a8c22bf5ec3e802278893eedb001f458718d1449a2407fc800d2da2ec8679b",
+} as const;
+const V51_MIGRATION = {
+  version: 51,
+  name: "bind-microsoft-company-joining-browser",
+  checksum: "07d02c213db96189e3b8feec9b2920802cd585ee626c9a77771463d6b6d73117",
+} as const;
+
+// eslint-disable-next-line max-lines-per-function -- The rehearsal builds and checks the complete pre-v50 proof row.
+it("v50 preserves a pending Microsoft ceremony while adding the explicit company joining purpose", () => {
+  const db = openDb(":memory:");
+  try {
+    db.exec(`DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_before;
+      DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_after;
+      DROP TABLE microsoft_identity_proofs;
+      ${MICROSOFT_PROOF_V46_SQL}
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 50;
+      PRAGMA user_version = 49;`);
+    db.prepare(
+      `INSERT INTO microsoft_identity_proofs
+      (id,nonceHash,purpose,targetEmail,tenantId,state,expiresAt,sourceIpHash,oauthStateHash,
+       callbackUrl,errorCallbackUrl,createdAt,updatedAt)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    ).run(
+      "pending-proof",
+      "nonce-hash",
+      "bootstrap",
+      "bruce@example.com",
+      "tenant-id",
+      "started",
+      Date.now() + 600_000,
+      "ip-hash",
+      "native-state-hash",
+      "encrypted-success",
+      "encrypted-failure",
+      Date.now(),
+      Date.now(),
+    );
+    expect(planDatabaseMigrations(db).migrations).toEqual([V50_MIGRATION, V51_MIGRATION]);
+    initializeOpenDb(db, ":memory:");
+    expect(
+      db
+        .prepare(
+          `SELECT id,nonceHash,oauthStateHash,callbackUrl,errorCallbackUrl,state
+      FROM microsoft_identity_proofs WHERE id = 'pending-proof'`,
+        )
+        .get(),
+    ).toEqual({
+      id: "pending-proof",
+      nonceHash: "nonce-hash",
+      oauthStateHash: "native-state-hash",
+      callbackUrl: "encrypted-success",
+      errorCallbackUrl: "encrypted-failure",
+      state: "started",
+    });
+    db.prepare(
+      `INSERT INTO microsoft_identity_proofs
+      (id,nonceHash,purpose,targetEmail,accountId,tenantId,state,expiresAt,sourceIpHash,
+       callbackUrl,errorCallbackUrl,createdAt,updatedAt)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    ).run(
+      "joining-proof",
+      "joining-nonce",
+      "join",
+      "diana@example.com",
+      "a-studio",
+      "tenant-id",
+      "started",
+      Date.now() + 600_000,
+      "ip-hash",
+      "encrypted-success",
+      "encrypted-failure",
+      Date.now(),
+      Date.now(),
+    );
+  } finally {
+    db.close();
+  }
+});
+
+describe("v47 company access restriction upgrade", () => {
+  it("keeps disabled members denied and archived members inactive without restricting them", () => {
+    const db = openDb(":memory:");
+    db.exec(`DROP TABLE company_join_intents;
+      DROP TABLE account_joining_policies;
+      DROP TABLE identity_email_proofs;
+      DROP TABLE account_access_restrictions;
+      DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_before;
+      DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_after;
+      DROP TABLE microsoft_identity_proofs;
+      ${MICROSOFT_PROOF_V46_SQL}
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version IN (47, 48, 49, 50, 51);
+      PRAGMA user_version = 46;
+      CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL, emailVerified INTEGER NOT NULL);`);
+    db.exec(`INSERT INTO user (id, email, emailVerified) VALUES
+      ('disabled-id', 'Diana@Example.invalid', 1),
+      ('archived-id', 'Jean@example.invalid', 1),
+      ('owner-id', 'Bruce@example.invalid', 1);`);
+    db.prepare("INSERT INTO account_members (accountId, userId, role, status, createdAt) VALUES (?, ?, ?, ?, ?)").run(
+      "a-studio",
+      "owner-id",
+      "owner",
+      "active",
+      TS,
+    );
+    db.prepare("INSERT INTO account_members (accountId, userId, role, status, createdAt) VALUES (?, ?, ?, ?, ?)").run(
+      "a-studio",
+      "disabled-id",
+      "editor",
+      "disabled",
+      TS,
+    );
+    db.prepare("INSERT INTO account_members (accountId, userId, role, status, createdAt) VALUES (?, ?, ?, ?, ?)").run(
+      "a-studio",
+      "archived-id",
+      "viewer",
+      "archived",
+      TS,
+    );
+    initializeOpenDb(db, ":memory:");
+    expect(db.prepare("SELECT status FROM account_members WHERE userId = 'disabled-id'").get()).toEqual({
+      status: "active",
+    });
+    expect(
+      db.prepare("SELECT verifiedEmail FROM account_access_restrictions WHERE principalId = 'disabled-id'").get(),
+    ).toEqual({ verifiedEmail: null });
+    expect(db.prepare("SELECT principalId FROM identity_email_proofs").all()).toEqual([]);
+    expect(db.prepare("SELECT status FROM account_members WHERE userId = 'archived-id'").get()).toEqual({
+      status: "archived",
+    });
+    expect(
+      db.prepare("SELECT 1 FROM account_access_restrictions WHERE principalId = 'archived-id'").get(),
+    ).toBeUndefined();
+    db.close();
+  });
+});
+
+it("replaces the installed v46 Microsoft completion trigger during the v48 upgrade", () => {
+  const db = openDb(":memory:");
+  try {
+    db.exec(`CREATE TABLE account (id TEXT PRIMARY KEY, providerId TEXT, accountId TEXT, userId TEXT);
+      DROP TABLE company_join_intents;
+      DROP TABLE account_joining_policies;
+      DROP TABLE identity_email_proofs;
+      DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_before;
+      DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_after;
+      DROP TABLE microsoft_identity_proofs;
+      ${MICROSOFT_PROOF_V46_SQL}
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version IN (48, 49, 50, 51);
+      PRAGMA user_version = 47;
+      CREATE TRIGGER capacitylens_microsoft_account_proof_after
+      AFTER INSERT ON account WHEN NEW.providerId = 'microsoft' BEGIN
+        UPDATE microsoft_identity_proofs SET state = 'completed'
+        WHERE id = capacitylens_current_microsoft_proof_id();
+      END;`);
+    initializeOpenDb(db, ":memory:");
+    expect(
+      db
+        .prepare(
+          `SELECT sql FROM sqlite_master WHERE type = 'trigger'
+      AND name = 'capacitylens_microsoft_account_proof_after'`,
+        )
+        .get(),
+    ).toBeUndefined();
+    ensureMicrosoftProofGate(db, "test-application");
+    const trigger = db
+      .prepare(
+        `SELECT sql FROM sqlite_master WHERE type = 'trigger'
+      AND name = 'capacitylens_microsoft_account_proof_after'`,
+      )
+      .get() as { sql: string };
+    expect(trigger.sql).toContain("INSERT INTO identity_email_proofs");
+  } finally {
+    db.close();
+  }
+});
 // Synthetic historical databases must not retain the new operational proof table or its runtime gates.
 const MICROSOFT_PROOF_ROLLBACK_SQL = `
+  DROP TABLE IF EXISTS company_join_intents;
+  DROP TABLE IF EXISTS account_joining_policies;
+  DROP TABLE IF EXISTS identity_email_proofs;
+  DROP TABLE IF EXISTS account_access_restrictions;
   DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_before;
   DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_after;
   DROP TABLE IF EXISTS microsoft_identity_proofs;
@@ -283,6 +483,11 @@ const RELEASED_MIGRATION_HISTORY = [
   V44_MIGRATION,
   V45_MIGRATION,
   V46_MIGRATION,
+  V47_MIGRATION,
+  V48_MIGRATION,
+  V49_MIGRATION,
+  V50_MIGRATION,
+  V51_MIGRATION,
 ] as const;
 const V25_TO_CURRENT_MIGRATIONS = [
   {
@@ -311,6 +516,11 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V44_MIGRATION,
   V45_MIGRATION,
   V46_MIGRATION,
+  V47_MIGRATION,
+  V48_MIGRATION,
+  V49_MIGRATION,
+  V50_MIGRATION,
+  V51_MIGRATION,
 ] as const;
 /** The same list without its v25 head — what a database rolled back to v25 still has pending. */
 const V26_TO_CURRENT_MIGRATIONS = V25_TO_CURRENT_MIGRATIONS.slice(1);
@@ -322,7 +532,7 @@ const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
 ]);
 const FIXTURE_PASSWORD_ENV = {
   NODE_ENV: "test",
-  SMALLSASS_ACCOUNT_MODE: "password",
+  SMALLSASS_ACCOUNT_MODE: "password-only",
   SMALLSASS_ACCOUNT_SECRET: "fixture-secret-0123456789abcdef-012345",
   SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
 } as const;
@@ -432,7 +642,7 @@ function writeOldDb(path: string): void {
   old.exec(OLD_SCHEMA);
   old.exec(`
     INSERT INTO accounts VALUES ('a1','Studio','#111','${TS}','${TS}');
-    INSERT INTO clients  VALUES ('c1','a1','Acme','#222','${TS}','${TS}');
+    INSERT INTO clients  VALUES ('c1','a1','Ferris','#222','${TS}','${TS}');
     INSERT INTO projects VALUES ('p1','a1','Web','c1','#333','${TS}','${TS}');
     INSERT INTO tasks    VALUES ('t1','a1','Existing task','p1',NULL,'${TS}','${TS}');
   `);
@@ -940,6 +1150,13 @@ describe("schema migration of an existing on-disk DB", () => {
       // Prove openDb repairs a permissive pre-existing database as well as creating secure files.
       chmodSync(path, 0o666);
       db.close();
+      const inspected = openDbConnection(path);
+      try {
+        expect(planDatabaseMigrations(inspected).migrations).toEqual([]);
+        expect(statSync(path).mode & 0o777).toBe(0o666);
+      } finally {
+        inspected.close();
+      }
       const reopened = openDb(path);
       const liveFiles = [path, `${path}-wal`, `${path}-shm`, `${path}-journal`].filter(existsSync);
       expect(liveFiles).toContain(`${path}-wal`);
@@ -1693,7 +1910,7 @@ describe("schema migration of an existing on-disk DB", () => {
     // accounts.schedulingMode is OPTIONAL in the spec (nullable), but here the on-disk column
     // exists as NOT NULL. It's present, so migrateSchema won't touch it and the missing-column
     // check passes — only the nullability check catches that the two sources of truth (TABLES'
-    // optional? flag vs SCHEMA_SQL's NOT NULL) have drifted. Without it, a write that legitimately
+    // optional? flag vs the migrated schema's NOT NULL) have drifted. Without it, a write that legitimately
     // omits schedulingMode would hit a confusing NOT NULL error instead.
     const path = join(tmpdir(), `capacitylens-migrate-null-${process.pid}-${Date.now()}.db`);
     const cleanup = () => {
@@ -1814,7 +2031,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
       expect(plannedBeforeWinner).toEqual([
         17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
-        45, 46,
+        45, 46, 47, 48, 49, 50, 51,
       ]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
@@ -1848,7 +2065,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
       17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
-      45, 46,
+      45, 46, 47, 48, 49, 50, 51,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -2166,7 +2383,8 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+      48, 49, 50, 51,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -2238,6 +2456,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V44_MIGRATION,
       V45_MIGRATION,
       V46_MIGRATION,
+      V47_MIGRATION,
+      V48_MIGRATION,
+      V49_MIGRATION,
+      V50_MIGRATION,
+      V51_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2300,6 +2523,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V44_MIGRATION,
       V45_MIGRATION,
       V46_MIGRATION,
+      V47_MIGRATION,
+      V48_MIGRATION,
+      V49_MIGRATION,
+      V50_MIGRATION,
+      V51_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2322,6 +2550,7 @@ describe("schema migration of an existing on-disk DB", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- The migration ledger lists every retained revision.
 describe("schema migration of an existing on-disk DB", () => {
   it("v23 adds every foreign-key child index through one explicit ledger step", () => {
     const db = openDb(":memory:");
@@ -2368,6 +2597,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V44_MIGRATION,
       V45_MIGRATION,
       V46_MIGRATION,
+      V47_MIGRATION,
+      V48_MIGRATION,
+      V49_MIGRATION,
+      V50_MIGRATION,
+      V51_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2418,6 +2652,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V44_MIGRATION,
       V45_MIGRATION,
       V46_MIGRATION,
+      V47_MIGRATION,
+      V48_MIGRATION,
+      V49_MIGRATION,
+      V50_MIGRATION,
+      V51_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2673,7 +2912,10 @@ describe("schema migration of an existing on-disk DB", () => {
   });
 });
 
+// The released-version fixture spans one statement beyond the suite line limit.
+// eslint-disable-next-line max-lines-per-function
 describe("schema migration of an existing on-disk DB", () => {
+  // eslint-disable-next-line max-lines-per-function
   it("v27 through v33 preserve legacy defaults and leave old allocations unlinked", () => {
     const db = openDb(":memory:");
     const resource = prepareV26LegacyDefaultEntities(db);
@@ -2722,6 +2964,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V44_MIGRATION,
       V45_MIGRATION,
       V46_MIGRATION,
+      V47_MIGRATION,
+      V48_MIGRATION,
+      V49_MIGRATION,
+      V50_MIGRATION,
+      V51_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2884,6 +3131,11 @@ function registerActivityLifecycleMigrationTest(): void {
       V44_MIGRATION,
       V45_MIGRATION,
       V46_MIGRATION,
+      V47_MIGRATION,
+      V48_MIGRATION,
+      V49_MIGRATION,
+      V50_MIGRATION,
+      V51_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(db.prepare("PRAGMA table_info(activities)").all()).toEqual(
@@ -2933,6 +3185,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V44_MIGRATION,
       V45_MIGRATION,
       V46_MIGRATION,
+      V47_MIGRATION,
+      V48_MIGRATION,
+      V49_MIGRATION,
+      V50_MIGRATION,
+      V51_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2976,6 +3233,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V44_MIGRATION,
       V45_MIGRATION,
       V46_MIGRATION,
+      V47_MIGRATION,
+      V48_MIGRATION,
+      V49_MIGRATION,
+      V50_MIGRATION,
+      V51_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -3024,6 +3286,11 @@ describe("schema migration of an existing on-disk DB", () => {
           V44_MIGRATION,
           V45_MIGRATION,
           V46_MIGRATION,
+          V47_MIGRATION,
+          V48_MIGRATION,
+          V49_MIGRATION,
+          V50_MIGRATION,
+          V51_MIGRATION,
         ]);
         initializeOpenDb(db, copied.path);
 
@@ -3234,7 +3501,9 @@ describe("schema migration of an existing on-disk DB", () => {
       const future = new DatabaseSync(path);
       future.exec(`PRAGMA user_version = ${DB_SCHEMA_VERSION + 1}`);
       future.close();
+      chmodSync(path, 0o640);
       expect(() => openDb(path)).toThrow(/newer than this server supports/i);
+      expect(statSync(path).mode & 0o777).toBe(0o640);
       const unchanged = new DatabaseSync(path, { readOnly: true });
       expect(
         (

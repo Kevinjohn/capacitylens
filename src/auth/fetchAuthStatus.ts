@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn, allowsProviderSignIn } from "@capacitylens/shared/account/types";
 import { accountClient } from "../account/accountClient";
 import { cacheAuthSnapshot, readCachedAuthSnapshot, setOfflineReadState } from "../data/offlineCache";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
@@ -15,6 +16,7 @@ interface AuthResponseFields {
   requireMfa: unknown;
   multiAccount: unknown;
   needsSetup: unknown;
+  passwordResetEmail: unknown;
   providers: unknown;
   reauthMethod: unknown;
   reauthProviderId: unknown;
@@ -34,6 +36,7 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
     requireMfa: readField(value, "requireMfa"),
     multiAccount: readField(value, "multiAccount"),
     needsSetup: readField(value, "needsSetup"),
+    passwordResetEmail: readField(value, "passwordResetEmail"),
     providers: readField(value, "providers"),
     reauthMethod: readField(value, "reauthMethod"),
     reauthProviderId: readField(value, "reauthProviderId"),
@@ -44,22 +47,23 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
 function parseLoginResult(body: unknown, acceptEffects: () => boolean): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
   const rawAuthMode = fields?.authMode;
-  const authMode = rawAuthMode === "sso" ? "sso" : "password";
+  const authMode = isAuthMode(rawAuthMode) && rawAuthMode !== "off" ? rawAuthMode : "password-only";
   const degraded =
-    fields === null || (rawAuthMode !== undefined && rawAuthMode !== "password" && rawAuthMode !== "sso");
+    fields === null || (rawAuthMode !== undefined && (!isAuthMode(rawAuthMode) || rawAuthMode === "off"));
   if (acceptEffects()) setOfflineReadState("identity", false);
   return {
     kind: "login",
     authMode,
     degraded,
     hadUnsavedChanges: hasUnsavedPersistenceWrites(),
-    providers: parseAuthProviders(fields?.providers),
+    providers: allowsProviderSignIn(authMode) ? parseAuthProviders(fields?.providers) : [],
     needsSetup: fields?.needsSetup === true,
+    passwordResetEmail: fields?.passwordResetEmail === true,
   };
 }
 
-function invalidResponse(body: unknown): AuthStatusResult {
-  console.warn("AuthProvider: /api/auth/me returned an unexpected authMode; nothing trustworthy learned", body);
+function invalidResponse(): AuthStatusResult {
+  console.warn("AuthProvider: /api/auth/me returned an unexpected authMode; nothing trustworthy learned");
   return { kind: "error", message: m.auth_service_invalid_response() };
 }
 
@@ -76,11 +80,11 @@ function updateLiveIdentityState(next: Extract<AuthStatusResult, { kind: "pass" 
 
 function parsePassResult(body: unknown, acceptEffects: () => boolean): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
-  if (!fields || !isAuthMode(fields.authMode)) return invalidResponse(body);
+  if (!fields || !isAuthMode(fields.authMode)) return invalidResponse();
   const authMode = fields.authMode;
   const user = parseAuthUser({ value: fields.user, requireEmail: authMode !== "off" });
   if (authMode !== "off" && !user) {
-    console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user", body);
+    console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user");
     return { kind: "error", message: m.auth_service_invalid_response() };
   }
   const next: Extract<AuthStatusResult, { kind: "pass" }> = {
@@ -89,10 +93,10 @@ function parsePassResult(body: unknown, acceptEffects: () => boolean): AuthStatu
     user,
     canCreateAccount: resolveBooleanField(fields.canCreateAccount, true),
     multiAccount: resolveBooleanField(fields.multiAccount, true),
-    mfaRequired: authMode === "password" && resolveBooleanField(fields.mfaRequired, false),
-    requireMfa: authMode === "password" && resolveBooleanField(fields.requireMfa, false),
-    providers: parseAuthProviders(fields.providers),
-    reauthMethod: fields.reauthMethod === "provider" || authMode === "sso" ? "provider" : "password",
+    mfaRequired: allowsPasswordSignIn(authMode) && resolveBooleanField(fields.mfaRequired, false),
+    requireMfa: allowsPasswordSignIn(authMode) && resolveBooleanField(fields.requireMfa, false),
+    providers: authMode === "password-only" ? [] : parseAuthProviders(fields.providers),
+    reauthMethod: fields.reauthMethod === "provider" || authMode === "sso-only" ? "provider" : "password",
     reauthProviderId: typeof fields.reauthProviderId === "string" ? fields.reauthProviderId : null,
   };
   updateLiveIdentityState(next, acceptEffects);

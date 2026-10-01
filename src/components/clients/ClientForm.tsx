@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useStore } from "../../store/useStore";
 import { useFieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
-import { validateHex, validateName } from "../../lib/validation";
+import { validatePresetColor, parseName } from "../../lib/validation";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
 import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
@@ -69,11 +69,11 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
   const privateNameFields = usePrivateNameFields(client, fail);
 
   const submit = () => {
-    const trimmed = validateName(name, fail);
+    const trimmed = parseName(name, fail);
     if (!trimmed) return;
-    const privacy = privateNameFields.validatePrivacy();
+    const privacy = privateNameFields.parsePrivacyPatch();
     if (!privacy) return;
-    if (!validateHex(color, fail)) return;
+    if (!validatePresetColor(color, fail)) return;
     // The store throws (with a display-safe message) on a tenancy/integrity rejection — surface it
     // as a form error rather than letting it escape as an uncaught React error. (See the store CRUD
     // contract.) Today the form's own validation precedes it, but the SQLite server seam adds real
@@ -86,13 +86,14 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
         }
         updateClient(client.id, { name: trimmed, color, ...privacy });
       } else {
-        addClient({
+        const result = addClient({
           name: trimmed,
           color,
           ...(privacy.isPrivate && privacy.codeName
             ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
             : {}),
         });
+        if (result.kind === "blocked") return;
       }
       onClose();
     } catch (e) {

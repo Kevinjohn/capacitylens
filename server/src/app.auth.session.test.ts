@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
+import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 import {
   createAuthFromEnvironment,
   enforceSessionActivity,
@@ -151,7 +152,7 @@ function totpCode(secret: string, at = Date.now()): string {
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
-  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_MODE: "sso-only",
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -367,17 +368,24 @@ const sessionActivityBoundaryCases: SessionActivityBoundaryInput[] = (
 describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("accepts federated assurance as MFA in mixed mode and advertises provider step-up", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
+    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password-and-sso" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const principalId = "federated-principal";
     db.prepare(
       `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
        VALUES (?, ?, ?, 1, ?, ?)`,
     ).run(principalId, "Federated Member", "federated@example.com", TS, TS);
-    db.prepare(
-      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("federated-link", "google", "subject-1", principalId, TS, TS);
+    withVerifiedFederatedProfile(
+      db,
+      { providerId: "google", subject: "subject-1", email: "federated@example.com" },
+      () =>
+        db
+          .prepare(
+            `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+          )
+          .run("federated-link", "google", "subject-1", principalId, TS, TS),
+    );
     recordSessionAssurance({
       db,
       sessionId: "federated-session",
@@ -403,7 +411,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
         })),
       },
     };
-    const app = createApp(db, { authMode: "password", auth, requireMfa: true });
+    const app = createApp(db, { authMode: "password-and-sso", auth, requireMfa: true });
 
     const data = await call(app, { method: "GET", url: "/api/accounts" });
     expect(data.statusCode).toBe(200);
@@ -495,7 +503,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
       headers: { cookie },
     });
     expect(me.statusCode).toBe(200);
-    expect(parseAuthMeResponse(me).authMode).toBe("password");
+    expect(parseAuthMeResponse(me).authMode).toBe("password-only");
     expect(parseAuthMeResponse(me).user.email).toBe("tester@capacitylens.dev");
     expect(parseAuthMeResponse(me).mfaRequired).toBe(false);
     expect(me.json()).toMatchObject({ requireMfa: false });

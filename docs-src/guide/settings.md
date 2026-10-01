@@ -193,7 +193,8 @@ Choose which utilisation figures appear on this browser's schedule: total, per-d
 
 Choose **Light**, **Dark** or **Match system** for this browser's colour scheme.
 For a quick explicit switch between light and dark, use the moon or sun button directly below
-**Settings** in the sidebar. The button remains available when the sidebar is collapsed.
+**Settings** in the sidebar. It switches to the opposite of the scheme shown, including when
+**Match system** follows a dark device, and remains available when the sidebar is collapsed.
 
 ## Data and support
 
@@ -213,6 +214,14 @@ See [Offline access](/guide/offline-access).
 
 Clear CapacityLens preferences and opt-in offline snapshots from this browser, leaving company
 data on the server unchanged.
+
+### Example data
+
+Owners and Admins see **Example data** only while the company shows no people, clients, projects or
+allocations. **Add example data** adds two people, a client, a project and a few bookings across this
+week and next. They are ordinary records, so delete them like any others. The server refuses the
+request if the company already holds any of these, including archived or deleted people, clients and
+projects.
 
 ### Deleted items
 

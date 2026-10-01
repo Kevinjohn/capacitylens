@@ -1,9 +1,12 @@
+import { createMailSender, type MailSender } from "./mailSender";
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { randomBytes } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
-import type { BoundApplication } from "@capacitylens/shared/account/types";
+import { allowsProviderSignIn, type BoundApplication } from "@capacitylens/shared/account/types";
 import { boundApplicationFailure } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
+import { gateLibraryTransactions } from "./gateLibraryTransactions";
 import type * as AuthFacade from "../auth";
 import { resolveAccountEnvironment } from "../accountConfig";
 import { buildProviders, companyProviderIds } from "./providers";
@@ -31,6 +34,10 @@ import type { createAuthAdapterFactory } from "./authAdapter";
 import type { MicrosoftProof } from "./microsoftProof";
 import { createConfiguredMicrosoftProof } from "./microsoftProofSetup";
 import { parsePublicUrl } from "./publicUrlConfig";
+import {
+  currentJoiningProviderFacts,
+  type createJoiningProviderCallbacks,
+} from "../accounts/adminPort/joiningProviderCallbacks";
 
 type Env = Record<string, string | undefined>;
 type AuthFromEnvOptions = {
@@ -44,6 +51,7 @@ type AuthFromEnvOptions = {
     emailVerified?: boolean;
     providerId: string | null;
   }) => boolean | Promise<boolean>;
+  joiningProviderCallbacks?: Pick<ReturnType<typeof createJoiningProviderCallbacks>, "preflight" | "bindSession">;
 };
 type FactoryDependencies = {
   AuthConfigError: typeof AuthFacade.AuthConfigError;
@@ -76,9 +84,10 @@ type EnabledAuthContext = {
   baseURL: string;
   publicUrl: URL;
   sessionDeletionLifecycleRef: SessionDeletionLifecycleRef;
+  mail: MailSender | null;
 };
 
-function requireApplication(
+function assertApplication(
   application: BoundApplication,
   AuthConfigError: FactoryDependencies["AuthConfigError"],
 ): void {
@@ -132,7 +141,7 @@ function requireSetupToken(
 ) {
   const configuredSetupToken = environment.SMALLSASS_ACCOUNT_SETUP_TOKEN;
   const setupToken = configuredSetupToken === "" ? undefined : configuredSetupToken;
-  if (mode === "password" && setupToken && Buffer.byteLength(setupToken, "utf8") < 32) {
+  if (allowsPasswordSignIn(mode) && setupToken && Buffer.byteLength(setupToken, "utf8") < 32) {
     throw new AuthConfigError("SMALLSASS_ACCOUNT_SETUP_TOKEN must be at least 32 bytes.");
   }
   return setupToken;
@@ -147,7 +156,7 @@ function createEnabledAuthContext(input: {
   dependencies: FactoryDependencies;
 }): EnabledAuthContext {
   const application = input.options.application ?? DEFAULT_ACCOUNT_APPLICATION;
-  requireApplication(application, input.dependencies.AuthConfigError);
+  assertApplication(application, input.dependencies.AuthConfigError);
   const secret = requireSecret(input.environment, input.mode, input.dependencies);
   const baseURL = input.dependencies.required(
     input.environment,
@@ -161,6 +170,7 @@ function createEnabledAuthContext(input: {
     secret,
     baseURL,
     publicUrl,
+    mail: input.environment.SMALLSASS_ACCOUNT_MAIL_HOST ? createMailSender(input.environment) : null,
     sessionDeletionLifecycleRef: { current: null },
   };
 }
@@ -202,26 +212,30 @@ function buildProviderPolicies(context: EnabledAuthContext, microsoftProof: Micr
     mode,
     totpIssuer: application.branding.totpIssuer,
   });
-  // SECURE DEFAULT (P1.7) + FIRST-RUN SETUP: self-service signup is closed / invite-only by
-  // design (Decisions — social SSO is the primary path; email+password a secondary fallback),
-  // with EXACTLY ONE bootstrap exception: an EMPTY user table plus the operator-configured setup
-  // token. The first sign-up creates the owner; the token prevents an arbitrary network visitor
-  // from claiming that seat. The gate is enforced LIVE, per request, by the hooks.before below —
-  // NOT by Better Auth's static
-  // disableSignUp, because a boot-time boolean cannot express "open while zero users, closed the
-  // moment the first user exists": a still-running server would keep signup open until a restart
-  // (a hole). SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 keeps its meaning — an INTERIM trusted-instance/dev
-  // escape that re-opens signup unconditionally. With neither condition, POST
-  // /api/auth/sign-up/email returns the same 400 EMAIL_PASSWORD_SIGN_UP_DISABLED as before.
+  // Signup is invite-only by default. The before hook checks the live user count and
+  // setup token, allowing exactly one first-owner bootstrap; static disableSignUp would
+  // leave signup open after that owner existed. ALLOW_OPEN_SIGNUP remains the explicit
+  // trusted-instance/dev override. External principals still require provider admission.
   const allowOpenSignup = environment.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1";
   const setupToken = requireSetupToken(environment, mode, dependencies.AuthConfigError);
   const providerConfig = buildProviders({
     env: environment,
+    enabled: allowsProviderSignIn(mode),
     trustedOrigins: options.trustedOrigins,
     AuthConfigError: dependencies.AuthConfigError,
     db,
     microsoftProof,
   });
+  if (allowsProviderSignIn(mode) && providerConfig.configuredProviderInfo.length === 0) {
+    throw new dependencies.AuthConfigError(
+      `SMALLSASS_ACCOUNT_MODE=${mode} requires at least one configured sign-in provider.`,
+    );
+  }
+  if (mode === "sso-only" && companyProviderIds(providerConfig.configuredProviderInfo).size === 0) {
+    throw new dependencies.AuthConfigError(
+      "SMALLSASS_ACCOUNT_MODE=sso-only requires Google or tenant-specific Microsoft; GitHub is experimental.",
+    );
+  }
   return { pluginOptions, allowOpenSignup, setupToken, providerConfig };
 }
 
@@ -231,7 +245,12 @@ function browserAuthErrorTarget(publicUrl: URL): URL {
   return target;
 }
 
-function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<typeof buildProviderPolicies>) {
+// eslint-disable-next-line max-lines-per-function -- All Better Auth policy hooks remain assembled at this existing boundary.
+function buildAuthPolicies(
+  context: EnabledAuthContext,
+  providers: ReturnType<typeof buildProviderPolicies>,
+  microsoftProof: MicrosoftProof | null,
+) {
   const { db, environment, runtimeEnvironment, mode, application, secret, baseURL, publicUrl, options, dependencies } =
     context;
   const passwordPolicy = buildPasswordPolicy({
@@ -241,7 +260,7 @@ function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<ty
     passwordContextWords: application.branding.passwordContextWords,
     passwordResetSessionCapture,
     sessionDeletionLifecycleRef: context.sessionDeletionLifecycleRef,
-    captureResetToken,
+    captureResetToken: (input) => captureResetToken(input, context),
     hashPasswordWithBackpressure,
     verifyPasswordWithBackpressure,
     resetLinkTtlSeconds: RESET_LINK_TTL_SECONDS,
@@ -266,10 +285,17 @@ function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<ty
     configuredFederatedIssuers: providers.providerConfig.configuredFederatedIssuers,
     permittedCompanyProviderIds: companyProviderIds(providers.providerConfig.configuredProviderInfo),
     allowOpenSignup: providers.allowOpenSignup,
-    requirePasswordMfa: mode === "password" && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1",
-    ...(options.externalIdentityAdmission === undefined
-      ? {}
-      : { externalIdentityAdmission: options.externalIdentityAdmission }),
+    requirePasswordMfa: allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1",
+    externalIdentityAdmission: async (candidate) =>
+      microsoftProof?.admitsNewJoiningIdentity(candidate) === true ||
+      (await options.externalIdentityAdmission?.(candidate)) === true,
+    onFederatedSession: (principalId: string, providerId: string) => {
+      if (providerId === "microsoft") microsoftProof?.bindJoiningSession(principalId);
+      options.joiningProviderCallbacks?.bindSession({
+        principalId,
+        facts: currentJoiningProviderFacts(providerId),
+      });
+    },
     providerIdFromExternalContext: dependencies.providerIdFromExternalContext,
     countUsers: dependencies.countUsers,
     twoFactorEnabledLookupStatement: createTwoFactorEnabledLookupStatement,
@@ -284,6 +310,7 @@ function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<ty
     sessionDeletionLifecycleRef: context.sessionDeletionLifecycleRef,
     acquireBootstrapClaim: createBootstrapClaim(db, dependencies),
     assertAuthRequestPasswordLength: passwordPolicy.assertAuthRequestPasswordLength,
+    prepareSignUpPasswordHash: passwordPolicy.prepareSignUpPasswordHash,
     countUsers: dependencies.countUsers,
     enforceSessionActivity,
     secretTokenMatches: dependencies.secretTokenMatches,
@@ -319,23 +346,27 @@ function createBetterAuthInstance(
     session: sessionPolicy.session,
     telemetry: sessionPolicy.telemetry,
   });
+  gateLibraryTransactions(instance, db);
   return instance;
 }
 
 function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; auth: Auth } {
   let activeAuth: Auth | null = null;
-  const microsoftProof = createConfiguredMicrosoftProof({
-    db: context.db,
-    environment: context.environment,
-    secret: context.secret,
-    publicUrl: context.publicUrl,
-    applicationId: context.application.applicationId,
-    trustedOrigins: context.options.trustedOrigins ?? [],
-    AuthConfigError: context.dependencies.AuthConfigError,
-    getAuth: () => activeAuth,
-  });
+  const microsoftProof = allowsProviderSignIn(context.mode)
+    ? createConfiguredMicrosoftProof({
+        db: context.db,
+        environment: context.environment,
+        mail: context.mail,
+        secret: context.secret,
+        publicUrl: context.publicUrl,
+        applicationId: context.application.applicationId,
+        trustedOrigins: context.options.trustedOrigins ?? [],
+        AuthConfigError: context.dependencies.AuthConfigError,
+        getAuth: () => activeAuth,
+      })
+    : null;
   const providers = buildProviderPolicies(context, microsoftProof);
-  const policies = buildAuthPolicies(context, providers);
+  const policies = buildAuthPolicies(context, providers, microsoftProof);
   const instance = createBetterAuthInstance(providers, policies, context.db);
   // betterAuth construction validates its resolved options but does not own this app-specific
   // table. Verify and expire its leases only after configuration and app migrations have succeeded.
@@ -353,6 +384,12 @@ function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; aut
     trustedOrigins: providers.providerConfig.trustedOrigins,
     sessionDeletionLifecycleRef: context.sessionDeletionLifecycleRef,
     microsoftProof,
+    mail: context.mail,
+    ...(context.options.joiningProviderCallbacks === undefined
+      ? {}
+      : {
+          joiningProviderCallbacks: context.options.joiningProviderCallbacks,
+        }),
   });
   activeAuth = auth;
   if (!context.options.deferDatabaseSetup) auth.ensureProviderBindings();

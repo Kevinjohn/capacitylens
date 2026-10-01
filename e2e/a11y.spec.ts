@@ -8,7 +8,7 @@ import {
   setTheme,
   setZoom,
   showScheduleFilters,
-} from "./helpers";
+} from "./browserTestSupport";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 

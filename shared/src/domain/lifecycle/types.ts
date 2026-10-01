@@ -41,6 +41,7 @@ export interface LifecycleFields {
  * (phases/allocations/timeOff/disciplines/accounts) is deliberately OUT.
  */
 export const LIFECYCLE_ENTITY_KEYS = Object.freeze(["resources", "clients", "projects", "activities"] as const);
+/** A tombstone-carrying table; see {@link LIFECYCLE_ENTITY_KEYS}. */
 export type LifecycleEntityKey = (typeof LIFECYCLE_ENTITY_KEYS)[number];
 /** Narrowing guard: is `entityKey` one of the tombstone-carrying tables? */
 export const isLifecycleEntityKey = (entityKey: string): entityKey is LifecycleEntityKey =>
@@ -54,14 +55,14 @@ export const isLifecycleEntityKey = (entityKey: string): entityKey is LifecycleE
  */
 export const PURGE_MIN_AGE_DAYS = 30;
 
-// The purge grace window expressed in milliseconds (derived from PURGE_MIN_AGE_DAYS, NO magic
-// numbers) — the unit `Date.parse` works in, so {@link canPurge} can compare tombstone age directly.
+/** The purge grace window expressed in milliseconds (derived from PURGE_MIN_AGE_DAYS, NO magic
+ * numbers) — the unit `Date.parse` works in, so {@link canPurge} can compare tombstone age directly. */
 export const PURGE_MIN_AGE_MS = PURGE_MIN_AGE_DAYS * 24 * 60 * 60 * 1000;
 
-// Lifecycle state is derived only from a canonical, parseable tombstone. Import repair uses the
-// same nearest-valid-state rule; applying it at this read boundary prevents legacy/direct database
-// corruption from creating a hidden state with no legal transition. Purge remains independently
-// fail-closed below and never acts on an invalid deletion timestamp.
+/** Lifecycle state is derived only from a canonical, parseable tombstone. Import repair uses the
+ * same nearest-valid-state rule; applying it at this read boundary prevents legacy/direct database
+ * corruption from creating a hidden state with no legal transition. Purge remains independently
+ * fail-closed below and never acts on an invalid deletion timestamp. */
 export function isValidTombstone(value: ISOTimestamp | null | undefined): value is ISOTimestamp {
   return value != null && parseISOTimestamp(value) !== null;
 }

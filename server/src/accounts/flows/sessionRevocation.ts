@@ -145,7 +145,7 @@ function createLockedSessionRevocation(
 }
 
 export function createSessionRevocationFlows(
-  context: LocalAccountFlowContext,
+  context: SessionRevocationExecutionDependencies & SessionRevocationLockDependencies,
 ): Pick<LocalAccountFlows, "revokeMemberSessions"> {
   const revokeMemberSessionsUnlocked = createSessionRevocationExecutor({
     applicationId: context.applicationId,

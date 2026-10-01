@@ -34,14 +34,14 @@ vi.mock("./authClient", () => ({
 function Harness({
   user,
   providers = [],
-  authMode = "password",
+  authMode = "password-only",
   reauthMethod,
   reauthProviderId,
   action,
 }: {
   user: AuthUser | null;
   providers?: AuthProviderInfo[];
-  authMode?: "password" | "sso";
+  authMode?: "password-only" | "sso-only" | "password-and-sso";
   reauthMethod?: "password" | "provider";
   reauthProviderId?: string | null;
   action?: ReauthAction | null;
@@ -272,13 +272,14 @@ describe("ReauthDialog provider step-up", () => {
     window.history.replaceState({}, "", "/team?tab=access");
     render(
       <Harness
-        authMode="sso"
+        authMode="sso-only"
         user={user}
         providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
       />,
     );
     void requestReauth();
     await screen.findByRole("heading", { name: "Confirm it's you" });
+    expect(screen.getByText(m.reauth_body_sso())).toHaveTextContent(/repeat the original action/);
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in with Microsoft" }));
 
@@ -295,7 +296,7 @@ describe("ReauthDialog provider step-up", () => {
     signInSocial.mockResolvedValue({ data: {}, error: null });
     render(
       <Harness
-        authMode="password"
+        authMode="password-only"
         reauthMethod="provider"
         reauthProviderId="microsoft"
         user={user}
@@ -323,7 +324,7 @@ describe("ReauthDialog social-provider step-up", () => {
     window.history.replaceState({}, "", "/team?tab=access");
     render(
       <Harness
-        authMode="sso"
+        authMode="sso-only"
         user={user}
         providers={[{ id: "google", label: "Google", kind: "social", experimental: true }]}
       />,
@@ -348,7 +349,7 @@ describe("ReauthDialog social-provider step-up", () => {
     signInSocial.mockResolvedValue({ data: {}, error: null });
     render(
       <Harness
-        authMode="sso"
+        authMode="sso-only"
         user={user}
         providers={[{ id: "google", label: "Google", kind: "social", brand: "google", experimental: false }]}
       />,
@@ -366,7 +367,7 @@ describe("ReauthDialog social-provider step-up", () => {
     window.history.replaceState({}, "", "/team?tab=access");
     render(
       <Harness
-        authMode="sso"
+        authMode="sso-only"
         user={user}
         providers={[{ id: "github", label: "GitHub", kind: "social", experimental: true }]}
       />,
@@ -394,7 +395,7 @@ describe("ReauthDialog provider failures", () => {
     signInSocial.mockResolvedValue({ data: null, error });
     render(
       <Harness
-        authMode="sso"
+        authMode="sso-only"
         user={user}
         providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
       />,
@@ -414,7 +415,7 @@ describe("ReauthDialog provider failures", () => {
     signInSocial.mockResolvedValue({ data: {}, error: null });
     render(
       <Harness
-        authMode="sso"
+        authMode="sso-only"
         user={user}
         providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
       />,
@@ -435,7 +436,7 @@ describe("ReauthDialog provider failures", () => {
     signInSocial.mockRejectedValue(new TypeError("offline"));
     render(
       <Harness
-        authMode="sso"
+        authMode="sso-only"
         user={user}
         providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
       />,
@@ -450,7 +451,7 @@ describe("ReauthDialog provider failures", () => {
   });
 
   it("shows only Cancel when provider re-auth has no matching provider", async () => {
-    render(<Harness authMode="password" reauthMethod="provider" user={user} providers={[]} />);
+    render(<Harness authMode="password-only" reauthMethod="provider" user={user} providers={[]} />);
     void requestReauth();
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_sso_unavailable());
@@ -464,7 +465,7 @@ describe("ReauthDialog dismissal guards", () => {
     signInSocial.mockImplementation(() => new Promise(() => {}));
     render(
       <Harness
-        authMode="sso"
+        authMode="sso-only"
         user={user}
         providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
       />,

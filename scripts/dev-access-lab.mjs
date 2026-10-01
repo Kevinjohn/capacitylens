@@ -1,8 +1,8 @@
 import { rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { buildAccessLabEnv } from "./access-lab-env.mjs";
-import { spawnPnpm } from "./pnpm-spawn.mjs";
-import { acquireExclusiveFile, portInUse, requireNode24, terminateProcessTrees } from "./dev-processes.mjs";
+import { buildAccessLabEnv } from "./buildAccessLabEnv.mjs";
+import { spawnPnpm } from "./pnpmSpawn.mjs";
+import { acquireExclusiveFile, portInUse, requireNode24, terminateProcessTrees } from "./devProcesses.mjs";
 import { FIXED_PORTS_LOCK_FILE, ACCESS_LAB_FIXED_PORTS } from "./ports.mjs";
 
 requireNode24((version) => `dev:access needs Node 24+ — found ${version}. Run \`nvm use\` and retry.`);

@@ -1,7 +1,7 @@
 import type { Allocation, AppData, AppDataKey, ID, ScopedEntity, Weekday } from "../types/entities";
 import type { ValidationResult } from "../lib/integrity";
 import { belongsToAccount } from "./tenancy";
-import { domainError } from "./errors";
+import { throwDomainError } from "./errors";
 import {
   inspectLifecycleAncestry,
   lifecycleStatus,
@@ -54,6 +54,7 @@ export interface ValidationDataLookup {
   accountWorkingDays(accountId: ID): Weekday[];
 }
 
+/** Find a row by table and id through the lookup when given, otherwise by scanning `data`. Pure. */
 export const resolveValidationRow = ({
   data,
   table,
@@ -108,7 +109,7 @@ export const assertValid = (validation: ValidationResult): void => {
   if (code === undefined || message === undefined) {
     throw new Error("Invalid validation result must include a code and message.");
   }
-  domainError(code, message);
+  throwDomainError(code, message);
 };
 
 /** Match normal-read lifecycle closure at the shared active-write boundary. Indexed server batch
@@ -127,6 +128,6 @@ export const isEffectivelyActive = ({ data, table, row, lookup }: IsEffectivelyA
       // (id / accountId / tombstones / FK ids) is present on these rows.
       row as unknown as LifecycleAncestryRow,
       (parentTable, id) => resolveValidationRow({ data, table: parentTable, id, ...lookupOptions }),
-    ).visible
+    ).kind === "visible"
   );
 };

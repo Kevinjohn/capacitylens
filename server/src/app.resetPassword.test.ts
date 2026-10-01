@@ -39,7 +39,7 @@ const PASSWORD = "password-123456";
 // 'sso' mode without a real IdP: discovery is parsed but not fetched at construction time, so the
 // reset route can prove it refuses before touching the provider.
 const SSO_ENV = {
-  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_MODE: "sso-only",
   SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123",
   SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
@@ -498,7 +498,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
       method: "POST",
       url: "/api/invites",
       headers: { cookie: owner.cookie },
-      payload: { accountId: "a1", role: "admin" },
+      payload: { accountId: "a1", role: "admin", preauthEmail: "editor@capacitylens.dev" },
     });
     expect(inviteRes.statusCode).toBe(201);
     const inviteToken = (inviteRes.json() as { token: string }).token;
@@ -547,14 +547,14 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
 });
 
 describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
-  it("the public /api/auth/request-password-reset endpoint is SHADOWED (404) — no unauthenticated reset path", async () => {
+  it("the public /api/auth/request-password-reset endpoint returns 404 when mail is disabled", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
     await member({ app, db, accountId: "a1", email: "someone@capacitylens.dev", role: "editor" });
 
-    // Configuring sendResetPassword would otherwise expose Better Auth's public request endpoint; we
-    // shadow it with a 404 so there is no unauthenticated, rate-limit-off-by-default token-minting
-    // (DB-growth DoS) surface. A real and an unknown email alike get 404, and nothing is minted.
+    // Without SMTP, public reset requests remain closed for known and unknown addresses. Each open
+    // request mints a verification row and sends an email, so the route opens only with mail; the
+    // global limiter (required in production) and Better Auth's production 3-per-60 s rule bound it.
     for (const email of ["someone@capacitylens.dev", "nobody@capacitylens.dev"]) {
       const res = await call(app, {
         method: "POST",

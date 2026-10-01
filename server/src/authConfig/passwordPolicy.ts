@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { AsyncLocalStorage } from "node:async_hooks";
 import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
@@ -15,6 +16,7 @@ import {
   createScryptPasswordHasher,
   type PasswordHasher,
 } from "../passwordSecurity";
+import { preparedPasswordHashCapture } from "./captureContexts";
 
 type SessionDeletionLifecycleRef = {
   current: {
@@ -24,12 +26,12 @@ type SessionDeletionLifecycleRef = {
 
 interface BuildPasswordPolicyInput {
   env: Record<string, string | undefined>;
-  mode: "password" | "sso";
+  mode: "password-only" | "sso-only" | "password-and-sso";
   runtimeEnvironment: string | undefined;
   passwordContextWords: readonly string[];
   passwordResetSessionCapture: AsyncLocalStorage<{ sessionHandles: readonly string[] }>;
   sessionDeletionLifecycleRef: SessionDeletionLifecycleRef;
-  captureResetToken: (input: { token: string }) => Promise<void>;
+  captureResetToken: (input: { user: { id: string; email: string }; token: string }) => Promise<void>;
   hashPasswordWithBackpressure: (hasher: PasswordHasher, password: string) => Promise<string>;
   verifyPasswordWithBackpressure: (
     hasher: PasswordHasher,
@@ -78,6 +80,8 @@ function createPasswordHash({
   assertCredentialPasswordLength: (password: unknown) => void;
 }): (password: string) => Promise<string> {
   return async (password) => {
+    const prepared = preparedPasswordHashCapture.getStore();
+    if (prepared?.hash && prepared.password === password) return prepared.hash;
     assertCredentialPasswordLength(password);
     try {
       assertNoContextSpecificPassword(password, input.passwordContextWords);
@@ -96,7 +100,7 @@ function createPasswordHash({
 }
 
 function passwordResetOptions(input: BuildPasswordPolicyInput): Partial<BetterAuthOptions["emailAndPassword"]> {
-  if (input.mode !== "password") return {};
+  if (!allowsPasswordSignIn(input.mode)) return {};
   return {
     sendResetPassword: input.captureResetToken,
     onPasswordReset: async ({ user }: { user: { id: string } }) => {
@@ -113,6 +117,7 @@ function passwordResetOptions(input: BuildPasswordPolicyInput): Partial<BetterAu
 
 export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<BetterAuthOptions, "emailAndPassword"> & {
   assertAuthRequestPasswordLength: (path: string, body: unknown) => void;
+  prepareSignUpPasswordHash: (path: string, body: unknown) => Promise<void>;
 } {
   const { env, mode, runtimeEnvironment, verifyPasswordWithBackpressure } = input;
   const testRuntime = runtimeEnvironment === "test";
@@ -133,7 +138,7 @@ export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<Bette
 
   return {
     emailAndPassword: {
-      enabled: mode === "password",
+      enabled: allowsPasswordSignIn(mode),
       // The live before hook owns sign-up gating; the browser's first-run bootstrap uses this route.
       disableSignUp: false,
       // PIN the minimum length to the shared constant rather than inheriting Better Auth's default,
@@ -149,11 +154,18 @@ export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<Bette
         hash: passwordHash,
         verify: (input) => verifyPasswordWithBackpressure(baseHasher, input),
       },
-      // Admin-issued reset links (P1.18) — password mode ONLY: 'sso' delegates credentials to the
-      // IdP, and configuring sendResetPassword would needlessly enable Better Auth's public
-      // request-password-reset endpoint there. See captureResetToken/mintPasswordResetToken above.
+      // Password modes support admin copy-links and optional self-service reset email.
+      // SSO-only installations delegate password recovery to their identity provider.
       ...passwordResetOptions(input),
     },
     assertAuthRequestPasswordLength,
+    async prepareSignUpPasswordHash(path, body) {
+      const store = preparedPasswordHashCapture.getStore();
+      if (path !== "/sign-up/email" || !store || typeof body !== "object" || body === null) return;
+      const { password } = body as { password?: unknown };
+      if (typeof password !== "string") return;
+      store.hash = await passwordHash(password);
+      store.password = password;
+    },
   };
 }

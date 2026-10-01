@@ -5,15 +5,39 @@ description: How to upgrade a self-hosted CapacityLens instance safely, what hap
 
 # Upgrades
 
-CapacityLens upgrades in place: pull the new release, rebuild, and restart. Schema
-changes are handled automatically and safely, with an automatic rollback snapshot taken
-before anything changes. This page is the upgrade procedure and its rollback path.
+CapacityLens upgrades in place. A native install extracts the next release archive beside the
+current one, switches `current` to it and restarts; Docker Compose checks out the new release tag
+and rebuilds. Schema changes are handled automatically and safely, with an automatic rollback
+snapshot taken before anything changes. This page is the upgrade procedure and its rollback path.
 
 ::: warning
 Always take a fresh backup immediately before upgrading, even though the server also
 takes its own pre-migration snapshot automatically. See
 [Backups and restore](/self-hosting/backups-and-restore).
 :::
+
+## Upgrading to 0.71.0-alpha.1
+
+Before deploying this release, update `SMALLSASS_ACCOUNT_MODE` on every installation. The old
+`password` and `sso` values now stop startup with a migration error. Choose the replacement by
+the sign-in methods people actually use:
+
+| Previous value | Replacement |
+| --- | --- |
+| `password`, with no intended provider sign-in | `password-only` |
+| `password`, with Google, Microsoft or GitHub sign-in in use | `password-and-sso` |
+| `sso` | `sso-only` |
+| `off` | No change |
+
+`password-and-sso` needs at least one configured provider. `sso-only` needs Google or a
+tenant-specific Microsoft provider; GitHub alone cannot satisfy it. `password-only` leaves stored
+provider credentials and links in place but disables provider sign-in. Check each installation's
+provider use before choosing its value; do not map every old `password` setting to
+`password-only`.
+
+Deploy the application and matching environment change together, then verify sign-in with each
+intended method. If rolling back to the previous application version, restore its old `password`
+or `sso` value at the same time. Existing database migrations and provider links are unchanged.
 
 ## Upgrading to 0.70.1-alpha.1
 
@@ -96,14 +120,31 @@ rather than guessing.
 
 ## Upgrade procedure
 
-1. Take a fresh, explicit snapshot and keep it outside the release tree. A recent restore
+1. Confirm you have a recent, successful restore test on record.
+2. Read `CHANGELOG.md` for migrations or breaking changes in the target release.
+3. Take a fresh, explicit snapshot and keep it outside the release tree. A recent restore
    test proves the _procedure_ works — it isn't a current copy of live data, so keep an
    off-host copy too. See [Backups and restore](/self-hosting/backups-and-restore).
-2. Confirm you have a recent, successful restore test on record.
-3. Read `CHANGELOG.md` for migrations or breaking changes in the target release.
-4. Pull the target tag and rebuild all three targets. For Compose:
+
+   On a [native install](/self-hosting/install-without-docker), stop the service and copy the
+   database, its sidecars and the audit log into a new directory beside them:
 
    ```bash
+   sudo systemctl stop capacitylens
+   snapshot_dir="/var/lib/capacitylens/pre-upgrade-$(date -u +%Y%m%d-%H%M%S)"
+   sudo install -d -o capacitylens -g capacitylens -m 0700 "$snapshot_dir"
+   sudo sh -c 'cp -p /var/lib/capacitylens/capacitylens* "$1"' sh "$snapshot_dir"
+   sudo ls -l "$snapshot_dir"
+   ```
+
+   The service is stopped, so the copy is consistent. Any `-wal` or `-shm` file copied with the
+   database belongs to it; restore them together. Leave the service stopped for step 4.
+
+4. Switch to the target release. For Docker Compose, check out its tag and rebuild:
+
+   ```bash
+   git fetch --tags
+   git checkout vX.Y.Z
    docker compose up --build --force-recreate -d
    ```
 
@@ -119,16 +160,53 @@ rather than guessing.
    command. This step also reruns the internal certificate initializer and reloads the
    resulting identity into both long-running services.
 
+   For a native install, with the service still stopped from step 3, extract the next archive
+   beside the current one, switch `current` to it and start the service:
+
+   ```bash
+   curl -LO https://github.com/Kevinjohn/capacitylens/releases/download/vX.Y.Z/capacitylens-X.Y.Z.tar.gz
+   sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens && sudo ln -sfn /opt/capacitylens/capacitylens-X.Y.Z /opt/capacitylens/current
+   sudo systemctl start capacitylens
+   ```
+
+   Replace `vX.Y.Z` and `X.Y.Z` with the release you're deploying, not `main`. Change
+   `/etc/capacitylens.env` first if the release notes above ask for it. If they mention a change to
+   `capacitylens.service`, copy the new one from the archive into `/etc/systemd/system/` and run
+   `sudo systemctl daemon-reload` before the start. On a managed host, run the deploy script with
+   the new version instead and restart the background process, as described in
+   [Deploy on a managed VPS platform](/self-hosting/managed-vps/).
+
 5. On first start, if the database needs a schema upgrade, CapacityLens automatically
    creates and verifies a `capacitylens-pre-migration-vN-to-vM.db` snapshot before making
    any schema change. If that snapshot creation fails, startup refuses rather than
    proceeding — resolve the underlying storage or permissions problem rather than
    bypassing the snapshot.
 6. Check API health, sign in, confirm account access, and make one safe write.
-7. Keep the old container image and the recovery snapshot until you're satisfied the
-   upgrade is good.
+7. Keep the old container image, or on a native install the previous release folder, and the
+   recovery snapshot until you're satisfied the upgrade is good.
 
 ### Current schema changes
+
+Company access restrictions use schema v47 and identity email proof uses v48. A legacy disabled
+member becomes a principal-specific restriction; the upgrade does not infer mailbox ownership
+from an older verified flag or invitation. New verified company sign-ins can establish durable
+mailbox proof for later identity recreation. The automatic pre-migration snapshot remains the
+rollback boundary for both tables.
+Existing GitHub links are not backfilled from old email flags. A later GitHub callback records
+proof only when GitHub verifies the selected address and it still matches the local identity.
+
+Schema v49 removes outstanding invitations that were created without an intended email address.
+Their old links stop working after the upgrade. Before upgrading, tell an Owner or Admin to note
+who still needs access. After upgrading, use **Team & access → Invite someone** to create a new
+invitation for each person's exact email address, then send them the new one-time link. If someone
+opens an invalid old link, ask the inviter for a replacement; the old link cannot be repaired or
+reused. People who already belong to the company keep their existing access and role.
+
+Company joining now requires a proven address and a company-specific joining link or addressed
+invitation. Open and domain joining currently accepts existing identities with durable email proof;
+new password identities use addressed invitations where the policy permits. Schema v50 supports
+this joining journey for Microsoft sign-in; existing Microsoft sign-ins and their pending mailbox
+ceremonies remain intact.
 
 The release that adds Studio and Supplementary engagement advances the database through
 schema v29 (the required resource engagement column), v30 (the optional company-wide
@@ -151,8 +229,10 @@ this applies.
 ## Roll back
 
 Rollback means stopping the API, restoring the pre-migration snapshot this release
-created (or, if there wasn't one, the explicit snapshot from step 1) with no stale
-`-wal`/`-shm` files, then starting the old image again. An old image deliberately refuses
+created (or, if there wasn't one, the explicit snapshot from step 3) with no stale
+`-wal`/`-shm` files, then starting the old image again. On a native install, the old version is
+the previous release folder: point `current` back at it with `sudo ln -sfn` before starting the
+service. An old image deliberately refuses
 to start against an upgraded database — CapacityLens has no down migrations, so rollback
 always means restoring the matching snapshot, not just switching images back.
 

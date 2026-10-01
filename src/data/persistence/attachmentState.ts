@@ -40,7 +40,7 @@ interface AttachmentValues {
   lastActiveAccountId: string | null;
   lastRefreshAt: number;
   focusRefreshInFlight: boolean;
-  switchWaiters: Array<{ id: string | null; resolve: (outcome: RefreshOutcome) => void }>;
+  switchWaiters: Array<{ attempt: number; resolve: (outcome: RefreshOutcome) => void }>;
 }
 
 function createAttachmentValues(store: StoreApi<StoreState>): AttachmentValues {

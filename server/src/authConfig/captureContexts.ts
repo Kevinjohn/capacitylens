@@ -1,10 +1,9 @@
+import type { Db } from "../db";
+import { resolveMailDeliveryCause, type MailSender } from "./mailSender";
+import { hasPasswordCredential } from "./tableAccess";
 import { AsyncLocalStorage } from "node:async_hooks";
 
-/** Per-call capture context for {@link mintPasswordResetToken}. AsyncLocalStorage (not a module
- *  variable) so two concurrent admin resets can never swap tokens across their await chains, and
- *  so a PUBLIC call to POST /api/auth/request-password-reset — which Better Auth exposes once
- *  sendResetPassword is configured — finds NO store and the token goes nowhere (that public route
- *  is inert-by-design here: no email is ever sent, and its anti-enumeration response is unchanged). */
+/** Per-call admin token capture prevents concurrent copy-link requests from swapping tokens. */
 export const resetTokenCapture = new AsyncLocalStorage<{ token: string | null }>();
 export const passwordResetSessionCapture = new AsyncLocalStorage<{ sessionHandles: readonly string[] }>();
 
@@ -13,11 +12,24 @@ export const passwordResetSessionCapture = new AsyncLocalStorage<{ sessionHandle
  * two federated-account uniqueness races from unrelated provider or network failures. */
 export const authHandlerErrorCapture = new AsyncLocalStorage<{ error: unknown }>();
 
+/** A sign-up password hashed by the before hook. Better Auth hashes inside its sign-up transaction,
+ * which stays open on the shared handle across that await; hashing first keeps other requests'
+ * writes from running while the transaction is open. */
+export const preparedPasswordHashCapture = new AsyncLocalStorage<{ password: string | null; hash: string | null }>();
+
 export const microsoftCallbackCapture = new AsyncLocalStorage<{
   request: Request;
   proofId: string | null;
   bootstrapClaimToken: string | null;
   pending: boolean;
+}>();
+
+/** Verified provider profile facts exist only during the callback that received them. */
+export const federatedCallbackCapture = new AsyncLocalStorage<{
+  active: boolean;
+  providerId: "google" | "github";
+  subject: string | null;
+  email: string | null;
 }>();
 
 function isObject(value: unknown): value is object {
@@ -41,13 +53,24 @@ export function isFederatedAccountCoordinateConstraint(error: unknown): boolean 
   );
 }
 
-/** The `emailAndPassword.sendResetPassword` hook: deliver the token to the capturing admin route
- *  (if any) instead of emailing it. Never throws — a throw here would surface as a Better Auth
- *  background-task error log, not a useful signal. */
-export async function captureResetToken({ token }: { token: string }): Promise<void> {
+/** Capture admin copy-links, or email public resets only to existing password identities.
+ * Delivery runs in the background so SMTP latency does not expose registered addresses. */
+export async function captureResetToken(
+  { user, token }: { user: { id: string; email: string }; token: string },
+  { db, mail, publicUrl }: { db: Db; mail: MailSender | null; publicUrl: URL },
+): Promise<void> {
   const store = resetTokenCapture.getStore();
-  if (store) store.token = token;
-  // No store = a public /api/auth/request-password-reset call: no email infra exists, so the
-  // token is deliberately dropped (the endpoint's generic success reply is the anti-enumeration
-  // surface either way).
+  if (store) {
+    store.token = token;
+    return;
+  }
+  if (!mail || !hasPasswordCredential(db, user.id)) return;
+  const link = new URL("/reset-password/" + encodeURIComponent(token), publicUrl);
+  void mail
+    .send({
+      to: user.email,
+      subject: "Reset your password",
+      text: `Open this link to reset your password: ${link.href}\n\nThis link expires in 24 hours.`,
+    })
+    .catch((cause: unknown) => console.error("Password reset email delivery failed", resolveMailDeliveryCause(cause)));
 }

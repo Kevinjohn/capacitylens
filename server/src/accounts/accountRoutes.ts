@@ -12,14 +12,17 @@ import {
 import {
   changeMemberRole,
   changeMemberStatus,
+  enableMemberAccess,
   listMembers,
   removeMember,
   setMemberSignInTracking,
   listResourceAvatars,
-  setMemberResourceLink,
+} from "./routes/handlers/memberAdmin";
+import {
   clearMemberResourceLink,
   dismissMemberResourceLinkException,
-} from "./routes/handlers/memberAdmin";
+  setMemberResourceLink,
+} from "./routes/handlers/memberResourceLink";
 import {
   acceptOwnershipTransfer,
   cancelOwnershipTransfer,
@@ -32,6 +35,7 @@ import {
 import { reconcile } from "./routes/handlers/reconcile";
 import { listSessions, revokeSession, signOut } from "./routes/handlers/session";
 import { createReplyHelpers } from "./routes/createReplyHelpers";
+import { readJoiningPolicy, setJoiningPolicy } from "./routes/handlers/joiningPolicy";
 export type { AccountRouteDependencies } from "./routes/accountRouteDependencies";
 
 /**
@@ -54,7 +58,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
 
   app.delete("/api/account/sessions/:sessionId", async (req, reply) => revokeSession(req, reply, context));
 
-  // Invite CREATE (P1.9): mint a single-use, expiring link that pre-sets a role for `accountId`.
+  // Invite CREATE: mint a single-use, expiring link that pre-sets a role for `accountId`.
   // Body: { accountId, role, expiresAt? }. GATED 'manageInvites' (admin+ of THAT account) via the
   // same authorize seam every permissioned route uses — OFF mode is the allow-all no-op (the token
   // is minted as DEMO_USER's act), auth-on requires admin-tier membership of `accountId` (a
@@ -65,9 +69,11 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   // P1.10 — an optional `preauthEmail` may be attached: a non-empty, email-shaped value is stored
   // NORMALIZED (trim+lowercase) and turns this into a pre-authorised invite that the accept route
   // binds ONLY for a caller whose VERIFIED email matches it (see preauthInviteAllows). Absent/empty
-  // ⇒ stored as null ⇒ a P1.9 link invite (any signed-in caller may accept). Nothing is ever
-  // emailed — the admin still hands out the link; preauthEmail only narrows who may redeem it.
+  // ⇒ stored as null ⇒ a link invite in trusted-local mode. Addressed invitations are
+  // emailed when SMTP is configured; the copy-link flow remains available.
   app.post("/api/invites", async (req, reply) => createInvitation(req, reply, context));
+  app.get("/api/accounts/:accountId/joining-policy", async (req, reply) => readJoiningPolicy(req, reply, context));
+  app.put("/api/accounts/:accountId/joining-policy", async (req, reply) => setJoiningPolicy(req, reply, context));
 
   // Invite PREVIEW: public because a new invitee has no session yet, but still bearer-authorized —
   // only someone holding the unguessable token can read this deliberately small display shape.
@@ -128,6 +134,9 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   app.patch("/api/accounts/:accountId/members/:userId/status", async (req, reply) =>
     changeMemberStatus(req, reply, context),
   );
+  app.post("/api/accounts/:accountId/members/:userId/enable-access", async (req, reply) =>
+    enableMemberAccess(req, reply, context),
+  );
 
   // REVOKE a member. 404 non-member; 403 by the pure guard (the Owner is never removable here).
   // 204 on success.
@@ -179,8 +188,8 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     cancelOwnershipTransfer(req, reply, context),
   );
 
-  // RESET PASSWORD (P1.18): mint a single-use, 24h reset LINK token for a member — the app has
-  // no email infrastructure (a standing non-goal), so the admin hands the link over out-of-band,
+  // RESET PASSWORD (P1.18): mint a single-use, 24h reset LINK token for a member. The app supports
+  // optional self-service email, but this admin operation hands the link over out-of-band,
   // exactly like an invite. Gated 'manageMembers' + the account policy's identity-administration guard (an
   // admin must never reset an OWNER — a reset link is an account-takeover capability, so this is
   // the same escalation door the no-admin→owner-grant rule closes). Password mode ONLY: 'sso'

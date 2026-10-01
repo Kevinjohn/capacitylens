@@ -16,6 +16,7 @@ import {
   readCachedAuthSnapshot,
   readCachedAccountSlice,
   setOfflineReadEnabled,
+  setOfflineReadState,
 } from "./offlineCache";
 
 const DB_NAME = "capacitylens-offline-v1";
@@ -77,7 +78,7 @@ async function getRaw(key: string): Promise<unknown> {
 
 function authSnapshot(userId: string) {
   return {
-    authMode: "password" as const,
+    authMode: "password-only" as const,
     user: { id: userId, email: `${userId}@example.test`, name: userId },
     canCreateAccount: false,
     multiAccount: false,
@@ -142,6 +143,17 @@ describe("offline tenant cache sign-out failures", () => {
     });
 
     await expect(clearOfflineDataForCurrentUser()).rejects.toThrow("The offline cache could not be cleared");
+  });
+
+  it("drops page-local offline state when the offline database cannot open", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    setOfflineReadState("tenant", true, 123);
+    vi.spyOn(indexedDB, "open").mockImplementation(() => {
+      throw new Error("The offline database could not open.");
+    });
+
+    await expect(clearOfflineDataForCurrentUser()).rejects.toThrow("The offline database could not open.");
+    expect(readOfflineStateSnapshot().readOnly).toBe(false);
   });
 
   it("reports unavailable browser storage so sign-out can disable stale offline data", async () => {

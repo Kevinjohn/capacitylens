@@ -339,3 +339,27 @@ describe("nested rollback-failure diagnostics", () => {
     ).toThrow(original);
   });
 });
+
+describe("transactions opened by other code", () => {
+  it("refuses a write instead of nesting it in a transaction held open across an await", async () => {
+    const db = testDb();
+    const insert = (name: string) => () => {
+      db.prepare("INSERT INTO events (name) VALUES (?)").run(name);
+    };
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const owner = (async () => {
+      db.exec("BEGIN");
+      insert("owner")();
+      await held;
+      db.exec("ROLLBACK");
+    })();
+
+    expect(() => tx(db, insert("concurrent"))).toThrow(/did not open/);
+    release();
+    await owner;
+    expect(db.prepare("SELECT COUNT(*) AS count FROM events").get()).toEqual({ count: 0 });
+    tx(db, insert("after"));
+    expect(db.prepare("SELECT name FROM events").all()).toEqual([{ name: "after" }]);
+  });
+});

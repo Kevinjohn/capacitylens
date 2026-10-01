@@ -1,16 +1,20 @@
 import type { CommandIdentity, Membership } from "@capacitylens/shared/account/types";
 import { createHash } from "node:crypto";
+import { isApprovedEmailDomain } from "@capacitylens/shared/account/approvedDomains";
 import {
   getInvite,
   getMembershipRow,
+  isAccessRestricted,
   InviteAlreadyUsedError,
   inviteIsExpired,
   listMembershipsForUser,
   markInviteUsed,
   preauthInviteAllows,
+  provenEmail,
   pruneInvites,
   settleInvitationPersonProposal,
   upsertMember,
+  readJoiningPolicy,
 } from "../../controlTables";
 import { markAccountCommandReplay, resumeExistingCommand } from "../commands";
 import { confirmTrackedMemberSignIn } from "../memberSignInTracking";
@@ -40,7 +44,8 @@ type ClaimInvitationInput = {
 type AcceptInvitationInput = Parameters<SsoCutoverAccountAdminPort["acceptInvitation"]>[0];
 type PrincipalInvitationInput = Parameters<SsoCutoverAccountAdminPort["claimInvitationForPrincipal"]>[0];
 
-function getRedeemableInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput) {
+// eslint-disable-next-line complexity -- Invitation validity, addressed identity and domain-only proof are distinct gates.
+function requireRedeemableInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput) {
   const live = getInvite(context.db, input.token);
   if (!live) throw createAccountFailure("NOT_FOUND", "Invite not found.", input.command.commandId);
   if (live.usedAt !== null) {
@@ -51,43 +56,62 @@ function getRedeemableInvitation(context: InvitationRedemptionContext, input: Cl
   }
   assertRedeemableInvitationRole(live.role, input.command.commandId);
   assertWorkspaceExists(context.db, live.accountId);
-  if (
-    !context.trustedLocal &&
-    !preauthInviteAllows({
-      preauthEmail: live.preauthEmail,
-      user: { email: input.principalEmail, emailVerified: input.emailVerified },
-      passwordMode: input.passwordMode,
-    })
-  ) {
+  const establishedProof = context.trustedLocal ? null : provenEmail(context.db, input.principalId);
+  // The released invitation ceremony binds an addressed bearer token to an authenticated
+  // password identity or a provider-verified email. It does not create durable email proof.
+  const addressedIdentity = preauthInviteAllows({
+    preauthEmail: live.preauthEmail,
+    user: { email: input.principalEmail, emailVerified: input.emailVerified },
+    passwordMode: input.passwordMode,
+  });
+  if (!context.trustedLocal && (live.preauthEmail === null || !addressedIdentity)) {
     throw createAccountFailure(
       "INVITATION_EMAIL_MISMATCH",
-      "This invite is reserved for a different identity.",
+      "This invitation requires proof of its addressed mailbox.",
       input.command.commandId,
     );
+  }
+  if (!context.trustedLocal) {
+    const settings = readJoiningPolicy(context.db, live.accountId);
+    if (
+      settings.policy === "approved_domains" &&
+      (establishedProof !== live.preauthEmail ||
+        establishedProof === null ||
+        !isApprovedEmailDomain(establishedProof, settings.approvedDomains))
+    ) {
+      throw createAccountFailure(
+        "FORBIDDEN",
+        "This company only accepts approved email domains.",
+        input.command.commandId,
+      );
+    }
   }
   return live;
 }
 
+// Admission checks and the membership write share one invitation transaction.
 function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput): Membership {
-  const live = getRedeemableInvitation(context, input);
-  const now = new Date().toISOString();
-  // Status-AGNOSTIC on purpose. An active-only probe reports a disabled or archived member as a
-  // NON-member, and the branch below would then upsert them back to `status: "active"` at the
-  // invite's role — silently reversing an administrator's decision, with no member.status_changed
-  // audit record, for anyone who still holds (or is handed) a link-only invite. A non-active
-  // membership is restored by an administrator through changeMemberStatus, never by its holder.
-  const existing = getMembershipRow(context.db, live.accountId, input.principalId);
-  if (existing && existing.status !== "active") {
+  const live = requireRedeemableInvitation(context, input);
+  if (isAccessRestricted(context.db, live.accountId, input.principalId)) {
     throw createAccountFailure(
       "FORBIDDEN",
-      // Covers disabled AND archived, so it names neither: the person redeeming the link has no
-      // business knowing which, and an inaccurate "disabled" on an archived row would be worse.
+      "Access to this company is disabled. Ask an administrator to enable it.",
+      input.command.commandId,
+    );
+  }
+  const now = new Date().toISOString();
+  // A raw legacy disabled row remains denied. Archived members may rejoin with a valid invite,
+  // which deliberately adopts the invitation's role; an active member retains the current role.
+  const existing = getMembershipRow(context.db, live.accountId, input.principalId);
+  if (existing && existing.status === "disabled") {
+    throw createAccountFailure(
+      "FORBIDDEN",
       "This membership is no longer active. An Owner or Admin must restore it before you can rejoin.",
       input.command.commandId,
     );
   }
-  const effectiveRole = existing?.role ?? live.role;
-  if (!existing) {
+  const effectiveRole = existing?.status === "active" ? existing.role : live.role;
+  if (!existing || existing.status === "archived") {
     upsertMember(context.db, {
       accountId: live.accountId,
       userId: input.principalId,

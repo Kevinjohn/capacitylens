@@ -61,7 +61,7 @@ export class LifecycleRestoreError extends BatchReconciliationError {
 }
 
 /**
- * Thrown when a single logical diff exceeds {@link MAX_OPS_PER_BATCH}. The atomic design refuses to
+ * Thrown when a single logical diff exceeds {@link MAX_BATCH_OPS}. The atomic design refuses to
  * split it into separately-committed prefixes (that would reintroduce the reparent-before-delete
  * FK-order race the single transaction exists to prevent), so this is a TERMINAL, non-retryable
  * condition — re-sending the identical over-limit diff throws forever, unlike a transient network
@@ -83,10 +83,8 @@ export class KeepaliveNotDispatchedError extends Error {
   }
 }
 
-// One logical diff is always one server transaction. The client never slices this limit into
-// separately committed prefixes; an over-limit diff fails atomically. Server-mode imports use
-// their dedicated atomic endpoint.
-export const MAX_OPS_PER_BATCH = 5000;
+// The shared client/server limit; see shared/src/data/transfer.ts. An over-limit diff fails whole.
+export { MAX_BATCH_OPS } from "@capacitylens/shared/data/transfer";
 export const KEEPALIVE_BODY_BUDGET = 60 * 1024;
 // Fetch keepalive quotas are shared by every in-flight request in the page. Reserve a conservative
 // allowance for each request's method, URL and headers instead of spending the entire quota on

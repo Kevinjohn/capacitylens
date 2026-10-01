@@ -1,4 +1,8 @@
-import { AccountContractError, retryAfterSeconds, type AccountErrorCode } from "@capacitylens/shared/account/errors";
+import {
+  AccountContractError,
+  assertRetryAfterSeconds,
+  type AccountErrorCode,
+} from "@capacitylens/shared/account/errors";
 import type { InvitationRole, Role } from "@capacitylens/shared/account/types";
 
 export function createAccountFailure(
@@ -19,7 +23,7 @@ export function createReplayCapacityFailure(commandId: string, retryAfterMs: num
     code: "RATE_LIMITED",
     message: "One-time link issuance is temporarily busy. Retry after the indicated interval.",
     retryable: true,
-    retryAfterSeconds: retryAfterSeconds(Math.ceil(retryAfterMs / 1_000)),
+    retryAfterSeconds: assertRetryAfterSeconds(Math.ceil(retryAfterMs / 1_000)),
     commandId,
   });
 }

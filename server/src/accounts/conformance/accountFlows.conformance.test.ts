@@ -83,7 +83,7 @@ function identityPort(overrides: Partial<LocalIdentityPort> = {}): LocalIdentity
     commitMasqueradeSessionEnds: vi.fn(),
     verifyApplicationSession: vi.fn(async () => session),
     getPrincipalSummaries: vi.fn(async () => []),
-    findPrincipalByFederatedSubject: vi.fn(async () => null),
+    getPrincipalByFederatedSubject: vi.fn(async () => null),
     signOut: vi.fn(async () => ({ setCookies: [] })),
     listSessions: vi.fn(async () => []),
     revokeOwnSession: vi.fn<LocalIdentityPort["revokeOwnSession"]>(async ({ command: value }) => ({
@@ -174,6 +174,8 @@ type MembershipAdministrationMethods = Pick<
   | "getMembership"
   | "listMemberships"
   | "listInvitations"
+  | "readJoiningPolicy"
+  | "setJoiningPolicy"
   | "previewInvitation"
   | "preparePasswordInvitationClaim"
   | "createInvitation"
@@ -182,6 +184,7 @@ type MembershipAdministrationMethods = Pick<
   | "revokeInvitation"
   | "changeMemberRole"
   | "changeMemberStatus"
+  | "enableMemberAccess"
   | "removeMember"
   | "readOwnershipTransfer"
   | "initiateOwnershipTransfer"
@@ -223,7 +226,10 @@ function membershipAdministrationMethods(): MembershipAdministrationMethods {
     getMembership: vi.fn(async () => member),
     listMemberships: vi.fn(async () => [member]),
     listInvitations: vi.fn(async () => []),
+    readJoiningPolicy: vi.fn(async () => ({ policy: "invitation_only" as const, approvedDomains: [] })),
+    setJoiningPolicy: vi.fn(async ({ settings }) => settings),
     previewInvitation: vi.fn(async () => ({
+      workspaceId: "a-studio",
       workspaceName: "Workspace",
       role: "editor" as const,
       expiresAt: "2099-01-01T00:00:00.000Z",
@@ -255,6 +261,7 @@ function membershipAdministrationMethods(): MembershipAdministrationMethods {
       ...member,
       status: nextStatus,
     })),
+    enableMemberAccess: vi.fn(async () => ({ ...member, accessDisabled: false })),
     removeMember: vi.fn<LocalAccountAdminPort["removeMember"]>(async ({ command: value }) => ({
       commandId: value.commandId,
       completedAt: "2026-01-01T00:00:00.000Z",
@@ -1376,11 +1383,14 @@ it.each(corruptRepairMetadata)(
       .prepare(`SELECT status, resultJson FROM account_commands WHERE commandId = ?`)
       .get(command.commandId);
 
-    await expect(flows.reconcileCommand({ command, operation })).rejects.toMatchObject({
+    const failure: unknown = await flows.reconcileCommand({ command, operation }).catch((error: unknown) => error);
+    expect(failure).toMatchObject({
       name: "CorruptAccountCommandStateError",
       code: "ACCOUNT_COMMAND_STATE_CORRUPT",
       commandId: command.commandId,
     });
+    // The error is logged, so it must not carry a parser message quoting the stored bytes.
+    expect(failure).not.toHaveProperty("cause");
     expect(
       currentDb().prepare(`SELECT status, resultJson FROM account_commands WHERE commandId = ?`).get(command.commandId),
     ).toEqual(stored);

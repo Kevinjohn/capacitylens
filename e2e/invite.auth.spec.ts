@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { waitForAppLanding } from "./helpers";
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./authTestSupport";
+import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -14,15 +14,15 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // the same token is 409). Browser-agnostic (no UA branching).
 
 // The auth-e2e server is SEEDED (Wayne Enterprises + Stark Industries), so a fresh sign-up is not a first-run
-// bootstrap and holds no membership — /api/orgs would 403; the BOOTSTRAP_TOKEN (from ./auth-helpers)
+// bootstrap and holds no membership — /api/orgs would 403; the BOOTSTRAP_TOKEN (from ./authTestSupport)
 // is the documented operator path to provision an org on an already-populated instance. Shared
-// plumbing (API/BOOTSTRAP_TOKEN/signUp) comes from ./auth-helpers.
+// plumbing (API/BOOTSTRAP_TOKEN/signUp) comes from ./authTestSupport.
 const STAMP = Date.now();
 const OWNER = `owner-${STAMP}@capacitylens.dev`;
 const JOINER = `joiner-${STAMP}@capacitylens.dev`;
 const NEW_JOINER = `new-joiner-${STAMP}@capacitylens.dev`;
 
-function registerSuiteScenario1() {
+function registerSignedUserOpensValidInviteTest() {
   test("a signed-in user opens a valid invite link and joins; reusing the token is 409", async ({ page, request }) => {
     test.setTimeout(60_000);
     // Owner A: sign up (auto-signed-in → session cookie), bootstrap an org, mint an invite. The
@@ -35,7 +35,7 @@ function registerSuiteScenario1() {
 
     const inviteRes = await request.post(`${API}/api/invites`, {
       headers: { cookie: ownerCookie },
-      data: { accountId, role: "editor" },
+      data: { accountId, role: "editor", preauthEmail: JOINER },
     });
     expect(inviteRes.status()).toBe(201);
     const token = (await inviteRes.json()).token as string;
@@ -112,7 +112,7 @@ function registerSuiteScenario1() {
   });
 }
 
-function registerSuiteScenario2() {
+function registerNewPreAuthorizedIdentitySignsTests() {
   test("a new pre-authorized identity signs up and enters the invited company", async ({ page, request }) => {
     test.setTimeout(60_000);
 
@@ -124,7 +124,7 @@ function registerSuiteScenario2() {
     // the invite URL with the app route instead of dropping the user onto the company picker.
     const signupInvite = await request.post(`${API}/api/invites`, {
       headers: { cookie: ownerCookie },
-      data: { accountId, role: "viewer", preauthEmail: NEW_JOINER },
+      data: { accountId, role: "editor", preauthEmail: NEW_JOINER },
     });
     expect(signupInvite.status()).toBe(201);
     const signupToken = (await signupInvite.json()).token as string;
@@ -143,13 +143,13 @@ function registerSuiteScenario2() {
     // the sidebar. Team & access exposes the authoritative role projection.
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
     await page.getByRole("link", { name: "Team & access" }).click();
-    await expect(page.getByTestId("current-access")).toContainText("Viewer");
+    await expect(page.getByTestId("current-access")).toContainText("Editor");
   });
 }
 
 test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
+  registerSignedUserOpensValidInviteTest();
+  registerNewPreAuthorizedIdentitySignsTests();
 
   test("a maximum-length addressed hint wraps within a narrow invitation preview", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 1000 });

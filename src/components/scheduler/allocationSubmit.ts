@@ -5,13 +5,13 @@ import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingD
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strings";
 import { resolveDomainErrorMessage, resolveErrorMessage } from "../../lib/errorMessage";
 import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from "../../lib/repeatingAllocations";
-import { validateText } from "../../lib/validation";
+import { parseText } from "../../lib/validation";
 import type { useStore } from "../../store/useStore";
 import { resolveEndDate, validateAllocationDraft } from "./allocationDraft";
 import { resolveEffectiveWeekCreationBlockReason } from "./creationAvailability";
 
 import type { FieldError } from "../../hooks/useFieldError";
-import type { AllocationModalSnapshot } from "./allocationModalSnapshot";
+import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
 type CommandInput = Omit<AllocationModalSnapshot, "editId" | "repeatUntilMinimum"> &
   Pick<
     ReturnType<typeof useStore.getState>,
@@ -53,8 +53,8 @@ function resolveDraftEndDate(input: CommandInput) {
   });
 }
 
-function validateOptionalTask(input: CommandInput): string | undefined | null {
-  const task = validateText(input.task, input.fail, {
+function parseOptionalTask(input: CommandInput): string | undefined | null {
+  const task = parseText(input.task, input.fail, {
     field: "task",
     required: false,
     multiline: false,
@@ -64,7 +64,7 @@ function validateOptionalTask(input: CommandInput): string | undefined | null {
   return task === "" ? undefined : task;
 }
 
-function validateCommandDraft(input: CommandInput): ValidatedDraft | null {
+function parseAllocationCommandDraft(input: CommandInput): ValidatedDraft | null {
   const repeat =
     input.create && input.repeat !== "none"
       ? {
@@ -97,14 +97,14 @@ function validateCommandDraft(input: CommandInput): ValidatedDraft | null {
     input.fail,
   );
   if (!valid) return null;
-  const cleanNote = validateText(input.note, input.fail, {
+  const cleanNote = parseText(input.note, input.fail, {
     field: "note",
     required: false,
     multiline: !input.noteEdited,
     maxLength: MAX_NOTE_LENGTH,
   });
   if (cleanNote === null) return null;
-  const cleanTask = validateOptionalTask(input);
+  const cleanTask = parseOptionalTask(input);
   if (cleanTask === null) return null;
   const assignmentError = resolveAssignmentError(input);
   if (assignmentError) {
@@ -144,7 +144,7 @@ function rejectsNewPlacement({ command, draft, newPlacement }: RejectNewPlacemen
   return blocked !== null;
 }
 
-function saveDraft(input: CommandInput, draft: ValidatedDraft): void {
+function saveDraft(input: CommandInput, draft: ValidatedDraft): boolean {
   if (input.editing) {
     const { hoursPerDay, ...fields } = draft;
     input.updateAllocation(input.editing.id, {
@@ -152,11 +152,10 @@ function saveDraft(input: CommandInput, draft: ValidatedDraft): void {
       projectId: draft.projectId,
       ...(!input.isBlocks || input.isExternal ? { hoursPerDay } : {}),
     });
-    return;
+    return true;
   }
   if (input.repeat === "none") {
-    input.addAllocation(draft);
-    return;
+    return input.addAllocation(draft).kind === "created";
   }
   if (!input.selectedResource || input.selectedEffectiveWeek === undefined) {
     throw new Error("The selected resource could not be resolved for repeat projection.");
@@ -173,7 +172,7 @@ function saveDraft(input: CommandInput, draft: ValidatedDraft): void {
     effectiveWeek: input.selectedEffectiveWeek,
   });
   const seriesId = newId();
-  input.addAllocations(drafts.map((occurrence) => ({ ...occurrence, seriesId })));
+  return input.addAllocations(drafts.map((occurrence) => ({ ...occurrence, seriesId }))).kind === "created";
 }
 
 function reportSaveError(input: CommandInput, error: unknown): void {
@@ -185,7 +184,7 @@ function reportSaveError(input: CommandInput, error: unknown): void {
 }
 
 export function createAllocationCommands(input: CommandInput) {
-  const validateDraft = () => validateCommandDraft(input);
+  const validateDraft = () => parseAllocationCommandDraft(input);
   const submit = () => {
     if (!input.canEdit) return;
     const draft = validateDraft();
@@ -199,8 +198,7 @@ export function createAllocationCommands(input: CommandInput) {
     )
       return;
     try {
-      saveDraft(input, draft);
-      input.onClose();
+      if (saveDraft(input, draft)) input.onClose();
     } catch (e) {
       reportSaveError(input, e);
     }
@@ -210,8 +208,7 @@ export function createAllocationCommands(input: CommandInput) {
     const draft = validateDraft();
     if (!draft || rejectsNewPlacement({ command: input, draft, newPlacement: true })) return;
     try {
-      input.addAllocation(draft);
-      input.onClose();
+      if (input.addAllocation(draft).kind === "created") input.onClose();
     } catch (e) {
       input.fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_save_failed());
     }

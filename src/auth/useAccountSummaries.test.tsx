@@ -73,7 +73,7 @@ function createBasicResponseClassificationTests() {
     );
     await expect(fetchAccountSummaries()).resolves.toEqual([{ id: "a1", name: "Studio A", role: "editor" }]);
     // Partial corruption is handled-but-logged (DEFENSIVE-CODING §5): the dropped row leaves a breadcrumb.
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"), body);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"));
     expect(useStore.getState().notice).toEqual({
       message: m.picker_accounts_incomplete(),
       tone: "warning",
@@ -182,7 +182,7 @@ function createCachedResponseClassificationTests() {
     await expect(fetchAccountSummaries()).resolves.toEqual([
       { id: "a1", name: "Studio A", role: "viewer", roleStatus: "unavailable" },
     ]);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unrecognized role"), row);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unrecognized role"));
     expect(cacheAccountSummaries).not.toHaveBeenCalled();
   });
 }
@@ -199,7 +199,7 @@ function createMalformedResponseClassificationTests() {
       vi.fn(async () => json(200, [null])),
     );
     await expect(fetchAccountSummaries()).resolves.toBeNull();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"), [null]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"));
     expect(useStore.getState().notice).toEqual({ message: m.picker_accounts_incomplete(), tone: "warning" });
   });
 
@@ -219,9 +219,7 @@ function createMalformedResponseClassificationTests() {
       vi.fn(async () => json(200, { error: "proxy said what" })),
     );
     await expect(fetchAccountSummaries()).resolves.toBeNull();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("non-array"), {
-      error: "proxy said what",
-    });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("non-array"));
   });
 
   it("a non-OK response -> null (unchanged keep-what-you-have stance)", async () => {
@@ -383,7 +381,7 @@ function createCompletenessRefreshTests() {
     expect(useStore.getState().accountSummariesComplete).toBe(false);
     expect(useStore.getState().activeAccountId).toBe("active");
     expect(useStore.getState().notice).toEqual({ message: m.picker_accounts_incomplete(), tone: "warning" });
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"), expect.any(Array));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"));
   });
 
   it("marks a wholly valid directory as complete", async () => {

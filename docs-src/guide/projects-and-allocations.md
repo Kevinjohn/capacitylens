@@ -51,7 +51,7 @@ activities from the activities in that project's **Project-specific** group.
 4. Click **Add project**. Every project belongs to a client, so choose one from the
    list.
 
-![The Projects page ordered by client then project, with project names first, client names in grey and an Add project button](../screenshots/flows/projects-page.jpg)
+![The Projects page ordered by client then project, with project names first, client names in grey and an Add project button](../screenshots/flows/projects_by_client.jpg)
 
 The Clients page keeps its rows alphabetical. The Projects page sorts first by client,
 then by project within that client. A private client's or project's code name controls

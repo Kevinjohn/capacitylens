@@ -20,7 +20,9 @@ interface SchedulerGridGroupHeaderProps {
 function resolveGroupSummary(group: GroupModel, collapsed: boolean, showDisciplineUtilization: boolean): string {
   if (collapsed) return m.scheduler_group_hidden({ count: group.rows.length });
   if (group.external || !showDisciplineUtilization) return "";
-  return m.scheduler_group_avg_utilisation({ percent: buildAverageUtilizationLabel(group.rows) });
+  // A group with no capacity-tracked row shows no average rather than 0%.
+  const percent = buildAverageUtilizationLabel(group.rows);
+  return percent === null ? "" : m.scheduler_group_avg_utilisation({ percent });
 }
 
 export function SchedulerGridGroupHeader({

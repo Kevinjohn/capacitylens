@@ -1,9 +1,13 @@
-import { getIdentityProvider, linkIdentityProvider } from "./identityProviderClient";
+import { readIdentityProvider, linkIdentityProvider } from "./identityProviderClient";
+import { joiningPolicyClient } from "./joiningPolicyClient";
 import { apiFetchReauth } from "../auth/apiFetchReauth";
 import { API_BASE } from "../data/apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
+import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
+import type { EndMasqueradePayload, StartMasqueradePayload } from "@capacitylens/shared/domain/masquerade";
 import { buildPayloadOperationKey } from "./commandOutcome";
+import type { CreateInvitationBody, CreateWorkspaceBody, InvitationSignupBody } from "./accountRequestTypes";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
 import type { ReauthAction } from "../auth/reauthCoordinator";
 import {
@@ -16,7 +20,7 @@ import {
 interface ChangeMemberRoleInput {
   workspaceId: string;
   principalId: string;
-  role: string;
+  role: Role;
   command?: BrowserAccountCommand | undefined;
 }
 
@@ -43,7 +47,7 @@ interface OwnershipTransferCommandInput {
 interface ChangeMemberStatusInput {
   workspaceId: string;
   principalId: string;
-  status: string;
+  status: MembershipStatus;
   command?: BrowserAccountCommand | undefined;
 }
 
@@ -73,7 +77,7 @@ export const accountClient = {
     });
   },
 
-  getIdentityProvider,
+  readIdentityProvider,
   linkIdentityProvider,
 
   correctMemberEmail(workspaceId: string, principalId: string, email: string): Promise<Response> {
@@ -106,23 +110,19 @@ export const accountClient = {
     );
   },
 
-  revokeOwnSession(sessionId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand({
-      operationKey: `own-session:${sessionId}`,
-      explicit: command,
-      request: (resolved) =>
-        apiFetch(
-          `${API_BASE}/api/account/sessions/${encodeURIComponent(sessionId)}`,
-          buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
-        ),
-    });
-  },
-
-  async createWorkspace(body: unknown, command?: BrowserAccountCommand): Promise<Response> {
+  async createWorkspace(body: CreateWorkspaceBody, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand({
       operationKey: await buildPayloadOperationKey("workspace-create", body),
       explicit: command,
       request: (resolved) => apiFetch(`${API_BASE}/api/orgs`, buildJsonCommandRequestInit("POST", body, resolved)),
+    });
+  },
+
+  /** Add the small example company to an empty company. Not idempotent: a second call is refused. */
+  addExampleData(workspaceId: string): Promise<Response> {
+    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/example-data`, {
+      method: "POST",
+      credentials: "include",
     });
   },
 
@@ -170,7 +170,9 @@ export const accountClient = {
     });
   },
 
-  startMasquerade(workspaceId: string, body: unknown): Promise<Response> {
+  ...joiningPolicyClient,
+
+  startMasquerade(workspaceId: string, body: StartMasqueradePayload): Promise<Response> {
     return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/masquerade`, {
       method: "POST",
       credentials: "include",
@@ -183,7 +185,7 @@ export const accountClient = {
     return apiFetch(`${API_BASE}/api/masquerade`, { credentials: "include" });
   },
 
-  endMasquerade(body: unknown): Promise<Response> {
+  endMasquerade(body: EndMasqueradePayload): Promise<Response> {
     return apiFetch(`${API_BASE}/api/masquerade`, {
       method: "DELETE",
       credentials: "include",
@@ -213,6 +215,19 @@ export const accountClient = {
         apiFetchReauth(
           `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/status`,
           buildJsonCommandRequestInit("PATCH", { status }, resolved),
+          { action: "change-member-status" satisfies ReauthAction },
+        ),
+    });
+  },
+
+  enableMemberAccess(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
+    return runCommand({
+      operationKey: `member-enable-access:${workspaceId}:${principalId}`,
+      explicit: command,
+      request: (resolved) =>
+        apiFetchReauth(
+          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/enable-access`,
+          buildJsonCommandRequestInit("POST", {}, resolved),
           { action: "change-member-status" satisfies ReauthAction },
         ),
     });
@@ -310,9 +325,8 @@ export const accountClient = {
     });
   },
 
-  async createInvitation(body: unknown, command?: BrowserAccountCommand): Promise<Response> {
-    const accountId =
-      typeof body === "object" && body !== null && "accountId" in body ? String(body.accountId) : "unknown";
+  async createInvitation(body: CreateInvitationBody, command?: BrowserAccountCommand): Promise<Response> {
+    const accountId = body.accountId;
     return runCommand({
       operationKey: await buildPayloadOperationKey(`invitation-create:${accountId}`, body),
       explicit: command,
@@ -354,7 +368,7 @@ export const accountClient = {
     });
   },
 
-  signupWithInvitation(token: string, body: unknown, command?: BrowserAccountCommand): Promise<Response> {
+  signupWithInvitation(token: string, body: InvitationSignupBody, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand({
       operationKey: null,
       explicit: command,

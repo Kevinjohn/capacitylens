@@ -3,7 +3,7 @@ import { API_BASE } from "../data/apiConfig";
 import { apiFetch } from "../data/requestTimeout";
 import type { ReauthAction } from "../auth/reauthCoordinator";
 
-export function getIdentityProvider(providerId?: string): Promise<Response> {
+export function readIdentityProvider(providerId?: string): Promise<Response> {
   const query = providerId ? `?providerId=${encodeURIComponent(providerId)}` : "";
   return apiFetch(`${API_BASE}/api/identity/provider${query}`, { credentials: "include" });
 }
@@ -17,6 +17,7 @@ export function linkIdentityProvider(callbackURL: string, providerId?: string): 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ callbackURL, errorCallbackURL: callbackURL, ...(providerId ? { providerId } : {}) }),
     },
-    { action: "connect-provider" satisfies ReauthAction },
+    // The server rejects stale sessions before starting either provider flow or setting cookies.
+    { action: "connect-provider" satisfies ReauthAction, replayAfterFreshnessRefusal: true },
   );
 }

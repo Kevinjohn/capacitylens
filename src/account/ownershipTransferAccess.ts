@@ -6,14 +6,8 @@ import {
   type OwnershipTransferTerminalReason,
 } from "@capacitylens/shared/account/ownershipTransfer";
 import { accountClient, type OwnershipTransferStep } from "./accountClient";
-import {
-  isNullableString,
-  isRecord,
-  isTimestamp,
-  readCommandResult,
-  readResult,
-  type TeamAccessResult,
-} from "./accessResult";
+import { isNullableString, isTimestamp, readCommandResult, readResult, type TeamAccessResult } from "./accessResult";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 /**
  * The ownership transfer ceremony's typed boundary.

@@ -3,12 +3,9 @@ import { openDb, type Db } from "./db";
 import { CROSS_TENANT_ERASURE_EDGE_SQL, eraseWorkspaceProductDataInTx, TenantErasureIntegrityError } from "./erasure";
 import { tx } from "./txn";
 import { recordAppliedSyncBatch } from "./syncOrdering";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 const TS = "2026-01-01T00:00:00.000Z";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 function readRecord(value: unknown): Record<string, unknown> {
   if (!isRecord(value)) {

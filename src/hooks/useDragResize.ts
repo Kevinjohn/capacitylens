@@ -63,7 +63,7 @@ function isOtherPointer(event: PointerEvent, pointerId: number): boolean {
   return eventPointerId !== undefined && eventPointerId !== pointerId;
 }
 
-function getDragMode(target: EventTarget | null): DragMode {
+function resolveDragMode(target: EventTarget | null): DragMode {
   const handle = target instanceof HTMLElement ? target.dataset.handle : undefined;
   if (handle === "start") return "resize-start";
   if (handle === "end") return "resize-end";
@@ -172,7 +172,7 @@ export function useDragResize(args: UseDragResizeArgs) {
     // pointerup could commit twice.
     if (teardownRef.current) return false;
 
-    const mode = getDragMode(e.target);
+    const mode = resolveDragMode(e.target);
     const captureTarget = e.currentTarget;
     const pointerId = e.pointerId; // only react to THIS pointer's move/up/cancel
     const handlers = createGestureHandlers({

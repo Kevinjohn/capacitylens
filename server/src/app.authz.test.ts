@@ -20,7 +20,13 @@ const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
 
 const account = (id: string) => ({ id, name: `Studio ${id}`, color: "#3b82f6", ...meta() });
-const client = (id: string, accountId: string) => ({ id, accountId, name: "Acme", color: "#3b82f6", ...meta() });
+const client = (id: string, accountId: string) => ({
+  id,
+  accountId,
+  name: accountId === "a2" ? "Oscorp" : "Ferris",
+  color: "#3b82f6",
+  ...meta(),
+});
 const project = (id: string, accountId: string, clientId: string) => ({
   id,
   accountId,

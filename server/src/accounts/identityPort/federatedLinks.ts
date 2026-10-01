@@ -134,11 +134,11 @@ function createRemoveFederatedLink(context: FederatedLinksContext) {
   };
 }
 
-function createFindPrincipalByFederatedSubject(
+function createGetPrincipalByFederatedSubject(
   context: FederatedLinksContext,
-): SsoCutoverIdentityPort["findPrincipalByFederatedSubject"] {
+): SsoCutoverIdentityPort["getPrincipalByFederatedSubject"] {
   const { applicationId, db } = context.input;
-  return async ({ subject }: Parameters<SsoCutoverIdentityPort["findPrincipalByFederatedSubject"]>[0]) => {
+  return async ({ subject }: Parameters<SsoCutoverIdentityPort["getPrincipalByFederatedSubject"]>[0]) => {
     try {
       // The identity key excludes email so it can never correlate two product identities.
       const providerId = getProviderIdForIssuer(db, applicationId, subject.issuer);
@@ -176,6 +176,24 @@ function correctPrincipalEmailInTx(
     .prepare(`UPDATE user SET email = ?, emailVerified = 1, updatedAt = ? WHERE id = ?`)
     .run(email, Date.now(), principalId);
   if (changed.changes !== 1) throw identityNotFoundError();
+  db.prepare(`DELETE FROM identity_email_proofs WHERE principalId = ? AND email <> lower(trim(?))`).run(
+    principalId,
+    email,
+  );
+  // Email correction is transactional: a proven address must not make an active Owner subject
+  // to a retained company restriction and leave the company ownerless.
+  const owner = db
+    .prepare(
+      `SELECT 1 FROM account_members AS member
+    JOIN account_access_restrictions AS restriction ON restriction.accountId = member.accountId
+    WHERE member.userId = ? AND member.role = 'owner' AND member.status = 'active'
+      AND (restriction.principalId = ? OR (
+        restriction.verifiedEmail = lower(trim(?))
+        AND EXISTS (SELECT 1 FROM identity_email_proofs AS proof
+          WHERE proof.principalId = member.userId AND proof.email = lower(trim(?))))) LIMIT 1`,
+    )
+    .get(principalId, principalId, email, email);
+  if (owner) throw identityAlreadyExistsError();
   revokeResetTokensForUser(db, principalId);
   revokeFederatedLinkStateInTx(db, principalId);
   db.prepare(`DELETE FROM capacitylens_federated_link_ceremonies WHERE principalId = ?`).run(principalId);
@@ -208,7 +226,7 @@ export function createFederatedLinks(
   SsoCutoverIdentityPort,
   | "removeFederatedLink"
   | "removeFederatedLinkForStoppedRepair"
-  | "findPrincipalByFederatedSubject"
+  | "getPrincipalByFederatedSubject"
   | "correctPrincipalEmail"
 > {
   const removeFederatedLink = createRemoveFederatedLink(context);
@@ -220,7 +238,7 @@ export function createFederatedLinks(
         authorizeInTransaction: input.authorizeInTransaction,
       }),
     removeFederatedLinkForStoppedRepair: (input) => removeFederatedLink({ removal: input, preserveSignIn: false }),
-    findPrincipalByFederatedSubject: createFindPrincipalByFederatedSubject(context),
+    getPrincipalByFederatedSubject: createGetPrincipalByFederatedSubject(context),
     correctPrincipalEmail: createCorrectPrincipalEmail(context),
   };
 }

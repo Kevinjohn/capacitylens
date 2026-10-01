@@ -7,6 +7,7 @@ import { upsertMember } from "./controlTables";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { insertAll, openDb, type Db } from "./db";
 import { PASSWORD_ENV, call, registerServerFixtureCleanup, signUp } from "./testHelpers";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 const TS = "2026-09-01T10:00:00.000Z";
 const { trackApp, trackDb } = registerServerFixtureCleanup();
@@ -17,10 +18,6 @@ function readJsonObject(response: LightMyRequestResponse): Record<string, unknow
     throw new TypeError("Expected response body to be a JSON object.");
   }
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function readStringField(response: LightMyRequestResponse, field: string): string {

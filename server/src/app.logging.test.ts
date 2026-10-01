@@ -1,8 +1,12 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createApp, createRequestLoggerOptions } from "./app";
 import { openDb } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations, type AccountMode, type Auth } from "./auth";
 import { call, PASSWORD_ENV, signUp } from "./testHelpers";
+import { redactSecretUrl } from "./routes/appLogging";
 import type { Db } from "./db";
 
 // P1.3 (flag CAPACITYLENS_LOG → opts.log): ON gives structured per-request JSON via Fastify's
@@ -202,10 +206,12 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
       securityLog: (event) => events.push(event),
     });
     const TOKEN = "SENTINEL_SECURITY_EVENT_INVITE_TOKEN";
+    const QUERY_SECRET = "SENTINEL_SECURITY_EVENT_QUERY";
+    const FRAGMENT_SECRET = "SENTINEL_SECURITY_EVENT_FRAGMENT";
 
     const res = await app.inject({
       method: "POST",
-      url: `/api/invites/${TOKEN}/accept`,
+      url: `/api/invites/${TOKEN}/accept?state=${QUERY_SECRET}#${FRAGMENT_SECRET}`,
     });
     expect(res.statusCode).toBe(401);
     expect(events).toContainEqual(
@@ -215,28 +221,64 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
       }),
     );
     expect(JSON.stringify(events)).not.toContain(TOKEN);
+    expect(JSON.stringify(events)).not.toContain(QUERY_SECRET);
+    expect(JSON.stringify(events)).not.toContain(FRAGMENT_SECRET);
   });
 });
 
-describe("CAPACITYLENS_LOG query redaction", () => {
-  it("redacts secret query parameters while preserving ordinary query state", async () => {
+describe("CAPACITYLENS_LOG URL redaction", () => {
+  it("drops queries and fragments from logged URLs", async () => {
     const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     const CODE = "SENTINEL_CALLBACK_CODE";
     const STATE = "SENTINEL_CALLBACK_STATE";
 
+    const FRAGMENT = "SENTINEL_CALLBACK_FRAGMENT";
     await app.inject({
       method: "GET",
-      url: `/api/health?code=${CODE}&state=${STATE}&keep=1`,
+      url: `/api/health?code=${CODE}&state=${STATE}&keep=1#${FRAGMENT}`,
     });
 
     const out = lines.join("");
-    expect(out).toContain('"url":"/api/health?code=%5Bredacted%5D&state=%5Bredacted%5D&keep=1"');
+    expect(out).toContain('"url":"/api/health"');
     expect(out).not.toContain(CODE);
     expect(out).not.toContain(STATE);
+    expect(out).not.toContain(FRAGMENT);
   });
 
-  it("leaves every other URL intact", async () => {
+  it("strips query and fragment when URL parsing falls back", () => {
+    const secret = "SENTINEL_MALFORMED_URL";
+    expect(redactSecretUrl(`http://[::1?query=${secret}#fragment`)).toBe("http://[::1");
+  });
+
+  it.each([
+    ["/invite/SENTINEL_TOKEN", "/invite/[redacted]"],
+    ["/reset-password/SENTINEL_TOKEN?next=/x#frag", "/reset-password/[redacted]"],
+    ["/invite/SENTINEL_TOKEN/extra", "/invite/[redacted]"],
+    ["/invite", "/invite"],
+    ["/reset-password", "/reset-password"],
+  ])("masks the bearer token in web-app path %s", (url, expected) => {
+    expect(redactSecretUrl(url)).toBe(expected);
+  });
+
+  it.each(["invite", "reset-password"])("keeps the /%s token out of served access logs", async (route) => {
+    const webDir = mkdtempSync(path.join(tmpdir(), "capacitylens-log-web-"));
+    try {
+      writeFileSync(path.join(webDir, "index.html"), "<!doctype html>");
+      const { lines, stream } = createLogCapture();
+      const app = createApp(openDb(":memory:"), { log: true, logStream: stream, webDir });
+      const token = "SENTINEL_WEB_TOKEN";
+      const res = await app.inject({ method: "GET", url: `/${route}/${token}` });
+      expect(res.statusCode).toBe(200);
+      const out = lines.join("");
+      expect(out).toContain(`"url":"/${route}/[redacted]"`);
+      expect(out).not.toContain(token);
+    } finally {
+      rmSync(webDir, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves ordinary URL paths", async () => {
     const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     await app.inject({ method: "GET", url: "/api/health" });

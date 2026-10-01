@@ -134,7 +134,7 @@ export function isAccountEmail(value: string): boolean {
   return /^[^@\s]+@[^@\s]+$/.test(value);
 }
 
-/** Stable failure vocabulary returned by {@link validateCredentialInput}. */
+/** Stable failure vocabulary returned by {@link inspectCredentialInput}. */
 export type CredentialInputFailure = "email" | "display-name" | "password-length";
 
 /**
@@ -143,7 +143,7 @@ export type CredentialInputFailure = "email" | "display-name" | "password-length
  * @returns The first failing field category (`email`, `display-name`, or `password-length`), or
  * `null` when all three values meet their canonical form, character and length rules.
  */
-export function validateCredentialInput(input: {
+export function inspectCredentialInput(input: {
   email: string;
   displayName: string;
   password: string;
@@ -161,3 +161,6 @@ export function validateCredentialInput(input: {
   }
   return null;
 }
+
+/** Compatibility alias for the published shared contract. */
+export { inspectCredentialInput as validateCredentialInput };

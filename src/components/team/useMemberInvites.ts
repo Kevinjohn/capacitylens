@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
@@ -7,7 +7,7 @@ import { resolveRejectionMessage, teamAccessClient, type TeamInvitation } from "
 import type { useAuth } from "../../auth/authContext";
 import type { FieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
-import type { MemberActionDependencies } from "./memberActionDependencies";
+import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 
 interface MemberInviteDependencies extends MemberActionDependencies {
@@ -18,6 +18,7 @@ interface MemberInviteDependencies extends MemberActionDependencies {
 }
 
 interface MintedInviteLink {
+  emailedTo: string | null;
   inviteId: string | null;
   link: string;
 }
@@ -27,6 +28,8 @@ interface InviteMutationDependencies extends MemberInviteDependencies {
   inviteRole: InvitationRole;
   setInvitationPreauthorizedEmail: Dispatch<SetStateAction<string>>;
   setMintedLink: Dispatch<SetStateAction<MintedInviteLink | null>>;
+  /** Changes whenever the link is discarded; a create that resolves after that cannot show its link. */
+  readLinkGeneration: () => number;
   invitationResourceId: string;
   setInvitationResourceId: Dispatch<SetStateAction<string>>;
 }
@@ -43,8 +46,8 @@ function buildInviteEmailValidation(
   email: string,
 ): InviteEmailValidationResult {
   const trimmed = email.trim();
-  if (authMode === "sso" && trimmed.length === 0) {
-    return { kind: "invalid", message: m.settings_sso_invite_email_required() };
+  if (authMode !== "off" && trimmed.length === 0) {
+    return { kind: "invalid", message: m.settings_invite_email_required() };
   }
   if (trimmed.length > 0 && !isAccountEmail(trimmed)) {
     return { kind: "invalid", message: m.identity_err_email() };
@@ -64,17 +67,20 @@ function createSubmitInvite({
   isActiveAccount,
   withMemberAction,
   fail,
+  setNotice,
   reloadInvites,
   reconcileUnknownMutation,
   invitationPreauthorizedEmail,
   inviteRole,
   setInvitationPreauthorizedEmail,
   setMintedLink,
+  readLinkGeneration,
   invitationResourceId,
   setInvitationResourceId,
   invitationPeople,
 }: InviteMutationDependencies & { invitationPeople: readonly InvitationPersonOption[] }) {
   return async () => {
+    const linkGeneration = readLinkGeneration();
     clear();
     requestAccountId();
     const emailValidation = buildInviteEmailValidation(authMode, invitationPreauthorizedEmail);
@@ -109,10 +115,17 @@ function createSubmitInvite({
           fail("invite", result.message ?? m.settings_members_err_create_invite({ status: result.status }));
           return;
         }
-        setMintedLink({
-          inviteId: result.value.id ?? null,
-          link: `${window.location.origin}/invite/${encodeURIComponent(result.value.token)}`,
-        });
+        if (readLinkGeneration() === linkGeneration) {
+          setMintedLink({
+            inviteId: result.value.id ?? null,
+            emailedTo: result.value.emailed === true ? trimmed : null,
+            link: `${window.location.origin}/invite/${encodeURIComponent(result.value.token)}`,
+          });
+        } else {
+          // The dialog closed first, so the write-once link can no longer be shown. Say so rather
+          // than leave a live invite nobody can share.
+          setNotice(m.settings_members_invite_created_link_discarded());
+        }
         setInvitationPreauthorizedEmail("");
         setInvitationResourceId("");
         clear();
@@ -131,16 +144,9 @@ function createRevokeInvite({
   setNotice,
   reloadInvites,
   reconcileUnknownMutation,
-  setMintedLink,
 }: Pick<
   InviteMutationDependencies,
-  | "withMemberAction"
-  | "isActiveAccount"
-  | "fail"
-  | "setNotice"
-  | "reloadInvites"
-  | "reconcileUnknownMutation"
-  | "setMintedLink"
+  "withMemberAction" | "isActiveAccount" | "fail" | "setNotice" | "reloadInvites" | "reconcileUnknownMutation"
 >) {
   return (id: string) =>
     withMemberAction(`invite:revoke:${id}`, async (accountId) => {
@@ -156,7 +162,6 @@ function createRevokeInvite({
           return;
         }
         setNotice(m.settings_members_invite_revoked());
-        setMintedLink((current) => (current?.inviteId === id ? null : current));
         void reloadInvites();
       } catch (e) {
         await reconcileUnknownMutation(
@@ -197,7 +202,7 @@ export function useMemberInvites() {
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");
   const [invitationResourceId, setInvitationResourceId] = useState("");
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
-  // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
+  // its non-secret invite id so an authoritative list refresh can clear a now-dead link.
   const [mintedLink, setMintedLink] = useState<MintedInviteLink | null>(null);
   const reconcileMintedInvite = useCallback((nextInvites: TeamInvitation[]) => {
     setMintedLink((current) =>
@@ -206,11 +211,25 @@ export function useMemberInvites() {
         : current,
     );
   }, []);
+  // The link lives exactly as long as the dialog that shows it. Closing the dialog (or resetting the
+  // draft) ends the "shown once" moment, including for a create still in flight at that point.
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const linkGeneration = useRef(0);
+  const discardMintedLink = useCallback(() => {
+    linkGeneration.current += 1;
+    setMintedLink(null);
+  }, []);
+  const openInviteDialog = useCallback(() => setInviteDialogOpen(true), []);
+  const closeInviteDialog = useCallback(() => {
+    setInviteDialogOpen(false);
+    discardMintedLink();
+  }, [discardMintedLink]);
+  // Losing invite access hides the panel, so also close the dialog rather than reopen it later.
   const resetInviteDraft = useCallback(() => {
     setInvitationPreauthorizedEmail("");
     setInvitationResourceId("");
-    setMintedLink(null);
-  }, []);
+    closeInviteDialog();
+  }, [closeInviteDialog]);
 
   const createActions = ({
     authMode,
@@ -238,6 +257,7 @@ export function useMemberInvites() {
       inviteRole,
       setInvitationPreauthorizedEmail,
       setMintedLink,
+      readLinkGeneration: () => linkGeneration.current,
       invitationResourceId,
       setInvitationResourceId,
       invitationPeople,
@@ -249,7 +269,6 @@ export function useMemberInvites() {
       setNotice,
       reloadInvites,
       reconcileUnknownMutation,
-      setMintedLink,
     });
     const copyLink = createCopyLink({ requestAccountId, isActiveAccount, setNotice });
     return { submitInvite, revokeInvite, copyLink };
@@ -262,6 +281,9 @@ export function useMemberInvites() {
     invitationResourceId,
     setInvitationResourceId,
     mintedLink,
+    inviteDialogOpen,
+    openInviteDialog,
+    closeInviteDialog,
     resetInviteDraft,
     reconcileMintedInvite,
     createActions,

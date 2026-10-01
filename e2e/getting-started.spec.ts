@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openNewCompany, selectShadOption } from "./helpers";
+import { openNewCompany, selectShadOption } from "./browserTestSupport";
 import { TOUR_ANCHORS } from "../src/lib/tourAnchors";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });

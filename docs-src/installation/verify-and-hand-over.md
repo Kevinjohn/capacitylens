@@ -24,7 +24,10 @@ Use the check for your route:
   curl -fsS http://127.0.0.1:8787/api/health
   ```
 
-- Managed VPS, and the final public check for every route:
+- Managed VPS: open `https://capacity.example.com/api/health` in a browser, with your own
+  address.
+
+- The final public check for every other route:
 
   ```bash
   curl -fsS https://capacity.example.com/api/health
@@ -66,7 +69,7 @@ backup directory contains a verified dated snapshot.
 ## 3. Hand over
 
 Send the intended Owner the CapacityLens address, the correct sign-in route and the [Owner
-setup guide](/owner/). Transfer the one-time setup token privately in password mode; for
+setup guide](/owner/). Transfer the one-time setup token privately in password-capable mode; for
 company login, pre-authorise the Owner's exact verified email.
 
 After the Owner confirms they can sign in, remove `SMALLSASS_ACCOUNT_SETUP_TOKEN` from the

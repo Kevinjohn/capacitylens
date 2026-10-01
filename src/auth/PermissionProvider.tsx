@@ -95,7 +95,7 @@ async function refreshPermission(refresh: PermissionRefresh) {
   }
 }
 
-function getPermissionValue(input: PermissionValueInput): PermissionValue {
+function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
   if (input.offlineReadOnly) return { role: "viewer", status: "unavailable" };
   if (!input.enabled || !input.activeAccountId) return { role: null, status: "not-applicable" };
   if (input.fetched?.status === "resolved" && input.fetched.role) {
@@ -190,7 +190,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       : null;
   // Offline read-only is a safe capability projection, not a resolved membership fact. Keep the
   // status unavailable so explanatory consumers cannot present Viewer as the authoritative role.
-  const { role, status } = getPermissionValue({
+  const { role, status } = resolvePermissionValue({
     offlineReadOnly: offline.readOnly,
     enabled,
     activeAccountId,

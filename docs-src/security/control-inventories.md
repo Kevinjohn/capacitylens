@@ -138,7 +138,7 @@ review, but the operator must document retention, access groups, time synchroniz
   in `.gitleaks.toml`, whose scope is itself gated), CodeQL, SBOM generation, container vulnerability scanning, DAST and
   release provenance. Published releases attach their packaged build, SPDX SBOM and GitHub-issued
   `.intoto.jsonl` provenance bundle as release assets. DAST is two-tier: the blocking baseline validates the hardened posture — the
-  configuration the deployment guide recommends — while the out-of-the-box default posture is
+  configuration the deployment guide recommends — while the explicit no-login posture (sign-in mode `off`) is
   scanned weekly as a non-blocking published report, documenting rather than asserting its
   residual surface. The public-repository workflows run automatically on their documented events
   and remain manually runnable for deliberate reruns.

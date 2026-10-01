@@ -1,17 +1,12 @@
-import type { InvitationRole, MembershipStatus } from "@capacitylens/shared/account/types";
-import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
+import type { InvitationRole, JoiningPolicySettings, MembershipStatus } from "@capacitylens/shared/account/types";
+import { isAccountRole, isJoiningPolicy, isMembershipStatus } from "@capacitylens/shared/account/types";
+import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { accountClient } from "./accountClient";
 import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
-import {
-  isNullableString,
-  isRecord,
-  isTimestamp,
-  readCommandResult,
-  readResult,
-  type TeamAccessResult,
-} from "./accessResult";
+import { isNullableString, isTimestamp, readCommandResult, readResult, type TeamAccessResult } from "./accessResult";
 import { ownershipTransferAccess } from "./ownershipTransferAccess";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 export { resolveRejectionMessage, type TeamAccessResult } from "./accessResult";
 export type {
@@ -25,6 +20,8 @@ export interface TeamMember {
   userId: string;
   role: Role;
   status: MembershipStatus;
+  accessDisabled?: boolean;
+  membershipPresent?: boolean;
   createdAt: string;
   name: string | null;
   email: string | null;
@@ -63,6 +60,7 @@ export interface TeamInvitation {
 }
 
 export interface OneTimeToken {
+  emailed?: boolean;
   id?: string;
   token: string;
   expiresAt?: string;
@@ -117,6 +115,8 @@ function parseMember(row: unknown): TeamMember | null {
     isSelf: row.isSelf,
     mayResetPassword: row.mayResetPassword === true,
     mayRevokeSessions: row.mayRevokeSessions === true,
+    accessDisabled: row.accessDisabled === true,
+    membershipPresent: row.membershipPresent !== false,
     resourceLink,
     resourceLinkException,
   };
@@ -170,7 +170,7 @@ function parseDirectoryMembers(rows: readonly unknown[]): TeamMember[] | null {
   for (const row of rows) {
     const member = parseMember(row);
     if (member === null) {
-      console.warn("teamAccessClient: dropped an unsupported member-directory row", row);
+      console.warn("teamAccessClient: dropped an unsupported member-directory row");
       continue;
     }
     members.push(member);
@@ -241,7 +241,7 @@ function parseInvitations(value: unknown): TeamInvitation[] | null {
   for (const row of value.invites) {
     const invitation = parseInvitation(row);
     if (invitation === null) {
-      console.warn("teamAccessClient: dropped an unsupported invitation-directory row", row);
+      console.warn("teamAccessClient: dropped an unsupported invitation-directory row");
       continue;
     }
     invitations.push(invitation);
@@ -267,8 +267,7 @@ function hasValidOptionalTokenFields(
 
 function parseToken(value: unknown): OneTimeToken | null {
   if (!isRecord(value) || typeof value.token !== "string") return null;
-  // Both current issuers return compact opaque strings. Keep the provider-owned alphabet opaque,
-  // but reject values that cannot safely form one write-once URL segment or indicate a skewed body.
+  // Keep the token alphabet opaque, but reject unsafe URL segments or skewed bodies.
   if (value.token.length === 0 || value.token.length > 4_096) return null;
   if (value.token !== value.token.trim() || hasUnsafeTokenCharacter(value.token)) {
     return null;
@@ -277,13 +276,20 @@ function parseToken(value: unknown): OneTimeToken | null {
   return {
     ...(typeof value.id === "string" ? { id: value.id } : {}),
     token: value.token,
+    ...(typeof value.emailed === "boolean" ? { emailed: value.emailed } : {}),
     ...(typeof value.expiresAt === "string" ? { expiresAt: value.expiresAt } : {}),
   };
 }
 
-/** The decoder for an endpoint whose success carries no body: there is nothing to read, and the ok
- *  response itself is the whole answer. */
+/** A successful no-content response is the whole answer; there is no body to decode. */
 const noContent = (): true => true;
+
+function parseJoiningPolicy(value: unknown): JoiningPolicySettings | null {
+  if (!isRecord(value) || !isJoiningPolicy(value.policy)) return null;
+  const approvedDomains = parseApprovedDomains(value.approvedDomains);
+  if (approvedDomains === null) return null;
+  return { policy: value.policy, approvedDomains };
+}
 
 /** Typed account-administration boundary. Raw Response handling and untrusted payload codecs stay
  * here; the Team & access controller consumes semantic outcomes only. */
@@ -304,6 +310,17 @@ export const teamAccessClient = {
     return readResult(await accountClient.listInvitations(workspaceId), parseInvitations);
   },
 
+  async readJoiningPolicy(workspaceId: string): Promise<TeamAccessResult<JoiningPolicySettings>> {
+    return readResult(await accountClient.readJoiningPolicy(workspaceId), parseJoiningPolicy);
+  },
+
+  async setJoiningPolicy(
+    workspaceId: string,
+    settings: JoiningPolicySettings,
+  ): Promise<TeamAccessResult<JoiningPolicySettings>> {
+    return readCommandResult(await accountClient.setJoiningPolicy(workspaceId, settings), parseJoiningPolicy);
+  },
+
   async changeMemberRole(workspaceId: string, principalId: string, role: Role): Promise<TeamAccessResult<true>> {
     return readCommandResult(
       await accountClient.changeMemberRole({ workspaceId: workspaceId, principalId: principalId, role: role }),
@@ -322,6 +339,10 @@ export const teamAccessClient = {
     );
   },
 
+  async enableMemberAccess(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
+    return readCommandResult(await accountClient.enableMemberAccess(workspaceId, principalId), noContent);
+  },
+
   async removeMember(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
     return readCommandResult(await accountClient.removeMember(workspaceId, principalId), noContent);
   },
@@ -332,7 +353,7 @@ export const teamAccessClient = {
     resourceId: string;
     expectedRevision: string | null;
   }) {
-    return readResult(await accountClient.setMemberResourceLink(input), (body) =>
+    return readCommandResult(await accountClient.setMemberResourceLink(input), (body) =>
       isRecord(body) && typeof body.resourceId === "string" && typeof body.revision === "string"
         ? { resourceId: body.resourceId, revision: body.revision }
         : null,

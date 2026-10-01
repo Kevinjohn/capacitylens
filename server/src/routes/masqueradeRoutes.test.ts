@@ -40,7 +40,7 @@ function identity(summaries: readonly PrincipalSummary[] = []): IdentityPort {
   return {
     verifyApplicationSession: unavailable,
     getPrincipalSummaries: async () => summaries,
-    findPrincipalByFederatedSubject: unavailable,
+    getPrincipalByFederatedSubject: unavailable,
     signOut: unavailable,
     listSessions: unavailable,
     revokeOwnSession: unavailable,
@@ -80,7 +80,7 @@ function appFor(
     request.session = requestSession;
   });
   registerMasqueradeRoutes(app, {
-    authMode: "password",
+    authMode: "password-only",
     applicationId: "capacitylens",
     accountAudit: audit(),
     registry,

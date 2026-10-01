@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -7,9 +8,11 @@ import { useStore } from "../../store/useStore";
 import { refreshActiveAccountSlice } from "../../data/persist";
 import { setOfflineReadState } from "../../data/offlineCache";
 import { m } from "@/i18n";
+import { teamAccessClient } from "../../account/teamAccessClient";
+import * as resourceAvatars from "../../account/useResourceAvatars";
 import {
   chooseMemberAction,
-  findMemberRow,
+  waitForMemberRow,
   makeSignInTrackingApi,
   mockApi,
   openInactiveGroup,
@@ -85,6 +88,31 @@ describe("MembersSection — member lifecycle", () => {
 });
 
 function registerMemberResourceLinkTests(): void {
+  it("reconciles an uncertain Resource link and invalidates derived pictures", async () => {
+    const user = userEvent.setup();
+    requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
+    const fetchMock = mockApi([
+      { userId: "me", role: "owner", isSelf: true },
+      { userId: "ed", role: "editor", name: "Clark Kent" },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(teamAccessClient, "setMemberResourceLink").mockResolvedValue({
+      kind: "unknown",
+      status: 409,
+      message: "The operation may have completed.",
+    });
+    const invalidate = vi.spyOn(resourceAvatars, "invalidateResourceAvatars");
+    renderSection();
+    const row = await waitForMemberRow(/ed@x\.io/);
+    await user.click(within(row).getByTestId("member-resource-menu"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox", { name: /choose Resource/i }));
+    await user.click(screen.getByRole("option", { name: "Bruce Wayne" }));
+    expect(await within(dialog).findByText(m.settings_member_resource_unknown())).toBeInTheDocument();
+    await waitFor(() => expect(invalidate).toHaveBeenCalled());
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/members")).length).toBeGreaterThan(1);
+  });
+
   it("keeps member actions distinct and opens Resource linking from its own icon", async () => {
     const user = userEvent.setup();
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
@@ -97,7 +125,7 @@ function registerMemberResourceLinkTests(): void {
     );
     renderSection();
 
-    const row = await findMemberRow(/ed@x\.io/);
+    const row = await waitForMemberRow(/ed@x\.io/);
     expect(within(row).getByTestId("member-masquerade")).toBeInTheDocument();
     expect(within(row).getByTestId("member-edit")).toBeInTheDocument();
     expect(within(row).getByTestId("member-resource-menu")).toBeInTheDocument();
@@ -125,7 +153,7 @@ function registerMemberResourceLinkTests(): void {
 
   it("shows schedule attention and clears it through choose-another-person", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const members: RawMember[] = [
       { userId: "me", role: "owner", isSelf: true },
       {
@@ -140,7 +168,7 @@ function registerMemberResourceLinkTests(): void {
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const row = await findMemberRow(/ed@x\.io/);
+    const row = await waitForMemberRow(/ed@x\.io/);
     expect(row).toHaveTextContent("Resource link needs attention");
     expect(row).toHaveTextContent("That Resource is no longer available.");
 
@@ -157,7 +185,7 @@ function registerMemberResourceLinkTests(): void {
 
   it("announces a completed Resource-link save inside the open dialog", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     let linked = false;
     const fetchMock = mockApi(
       [
@@ -186,7 +214,7 @@ function registerMemberResourceLinkTests(): void {
     );
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const row = await findMemberRow(/ed@x\.io/);
+    const row = await waitForMemberRow(/ed@x\.io/);
     await user.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("combobox", { name: /choose Resource/i }));
@@ -195,7 +223,7 @@ function registerMemberResourceLinkTests(): void {
   });
 
   it("dismisses a schedule attention exception and refreshes the directory", async () => {
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const fetchMock = mockApi(
       [
         { userId: "me", role: "owner", isSelf: true },
@@ -210,7 +238,7 @@ function registerMemberResourceLinkTests(): void {
     );
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const row = await findMemberRow(/ed@x\.io/);
+    const row = await waitForMemberRow(/ed@x\.io/);
     await userEvent.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: "Dismiss" }));
@@ -223,7 +251,7 @@ function registerMemberResourceLinkTests(): void {
   });
 
   it("retains the current inactive person for direct unlink and reconciles after the write", async () => {
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     useStore.getState().updateResource(resource.id, { archivedAt: "2026-09-14T10:00:00.000Z" });
     const fetchMock = mockApi([
       { userId: "me", role: "owner", isSelf: true },
@@ -236,7 +264,7 @@ function registerMemberResourceLinkTests(): void {
     ]);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const row = await findMemberRow(/ed@x\.io/);
+    const row = await waitForMemberRow(/ed@x\.io/);
     expect(within(row).getByTestId("member-resource-status")).toHaveTextContent("Bruce Wayne");
     expect(within(row).queryByRole("button", { name: /change Resource/i })).not.toBeInTheDocument();
     await userEvent.click(within(row).getByTestId("member-resource-menu"));
@@ -255,8 +283,8 @@ function registerMemberResourceLinkTests(): void {
   // store has not loaded yet (a person created in another session, or a poll that has not landed)
   // must still be offered, and a live link to one must not be reported as inactive.
   it("offers a server candidate the Resources store has not loaded and orders the rest by Resources", async () => {
-    const diana = useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince" }));
-    const bruce = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const diana = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince" })));
+    const bruce = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const fetchMock = mockApi(
       [
         { userId: "me", role: "owner", isSelf: true },
@@ -289,7 +317,7 @@ function registerMemberResourceLinkTests(): void {
     );
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const row = await findMemberRow(/ed@x\.io/);
+    const row = await waitForMemberRow(/ed@x\.io/);
     expect(within(row).getByTestId("member-resource-status")).toHaveTextContent("Barry Allen");
     expect(within(row).queryByText(/inactive — unlink only/)).not.toBeInTheDocument();
     await userEvent.click(within(row).getByTestId("member-resource-menu"));
@@ -306,7 +334,7 @@ function registerMemberResourceLinkTests(): void {
 
   it("focuses the selector on open and restores focus to the trigger on close", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const fetchMock = mockApi(
       [
         { userId: "me", role: "owner", isSelf: true },
@@ -318,7 +346,7 @@ function registerMemberResourceLinkTests(): void {
     );
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const row = await findMemberRow(/ed@x\.io/);
+    const row = await waitForMemberRow(/ed@x\.io/);
     const trigger = within(row).getByTestId("member-resource-menu");
     await user.click(trigger);
     const dialog = await screen.findByRole("dialog");
@@ -340,21 +368,21 @@ function registerLifecycleStatusTests(lifecycleMembers: RawMember[]): void {
     renderSection();
     await screen.findByTestId("members-section");
 
-    const edRow = await findMemberRow(/ed@x\.io/);
+    const edRow = await waitForMemberRow(/ed@x\.io/);
     await openMemberMenu(userEvent.setup(), edRow);
     expect(screen.queryByTestId("member-make-owner")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /transfer ownership/i })).not.toBeInTheDocument();
   });
 
   it.each([
-    ["member-disable", "disabled", /cannot open this company until you restore them/i],
+    ["member-disable", "disabled", /cannot open this company or rejoin by invitation/i],
     ["member-archive", "archived", /filed away and cannot open this company/i],
   ])("confirms %s before PATCHing the new status", async (testId, status, consequence) => {
     const user = userEvent.setup();
     const fetchMock = mockApi(lifecycleMembers);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const edRow = await findMemberRow(/ed@x\.io/);
+    const edRow = await waitForMemberRow(/ed@x\.io/);
 
     await chooseMemberAction(user, edRow, testId);
     const dialog = screen.getByRole("alertdialog");
@@ -376,29 +404,29 @@ function registerLifecycleStatusTests(lifecycleMembers: RawMember[]): void {
 }
 
 function registerLifecycleVisibilityTests(): void {
-  it("badges a non-active member and offers restore INSTEAD of disable/archive", async () => {
+  it("badges restricted access and offers Enable Access separately", async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi([
       { userId: "me", role: "owner", isSelf: true },
-      { userId: "ed", role: "editor", status: "disabled" },
+      { userId: "ed", role: "editor", accessDisabled: true },
     ]);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     await openInactiveGroup(user);
-    const edRow = await findMemberRow(/ed@x\.io/);
+    const edRow = await waitForMemberRow(/ed@x\.io/);
     // A non-active member must stay REACHABLE and legible, or the state is unreversible.
     expect(within(edRow).getByTestId("member-status")).toHaveTextContent(m.settings_member_status_disabled());
 
     await openMemberMenu(user, edRow);
     expect(screen.queryByTestId("member-disable")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("member-archive")).not.toBeInTheDocument();
-    await user.click(screen.getByTestId("member-restore"));
-    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /restore/i }));
+    expect(screen.getByTestId("member-archive")).toBeInTheDocument();
+    await user.click(screen.getByTestId("member-enable"));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /enable access/i }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
-        expect.objectContaining({ method: "PATCH", body: JSON.stringify({ status: "active" }) }),
+        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/enable-access`,
+        expect.objectContaining({ method: "POST" }),
       ),
     );
   });
@@ -409,12 +437,12 @@ function registerLifecycleVisibilityTests(): void {
       "fetch",
       mockApi([
         { userId: "me", role: "owner", isSelf: true },
-        { userId: "ed", role: "editor", status: "disabled", mayResetPassword: true, mayRevokeSessions: true },
+        { userId: "ed", role: "editor", accessDisabled: true, mayResetPassword: true, mayRevokeSessions: true },
       ]),
     );
     renderSection();
     await openInactiveGroup(user);
-    const edRow = await findMemberRow(/ed@x\.io/);
+    const edRow = await waitForMemberRow(/ed@x\.io/);
 
     // A role change writes status: "active", so offering the pencil here would turn "edit their role"
     // into a silent reinstatement. Restore is the only way back, and it is its own audited action.
@@ -436,7 +464,7 @@ function registerLifecycleDisclosureTests(): void {
       "fetch",
       mockApi([
         { userId: "me", role: "owner", isSelf: true },
-        { userId: "ed", role: "editor", status: "disabled" },
+        { userId: "ed", role: "editor", accessDisabled: true },
         { userId: "vic", role: "viewer", status: "archived" },
       ]),
     );
@@ -503,7 +531,7 @@ function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
       ]),
     );
     renderSection();
-    const selfRow = await findMemberRow(/me@x\.io/);
+    const selfRow = await waitForMemberRow(/me@x\.io/);
 
     // Self-suspension would be an unrecoverable in-app lockout; the Owner is protected because the
     // single-active-Owner invariant keys on role='owner' AND status='active'.
@@ -512,7 +540,7 @@ function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
     expect(screen.queryByTestId("member-archive")).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
-    const ownerRow = await findMemberRow(/owner@x\.io/);
+    const ownerRow = await waitForMemberRow(/owner@x\.io/);
     expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
   });
 
@@ -525,7 +553,7 @@ function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
       }),
     );
     renderSection();
-    const edRow = await findMemberRow(/ed@x\.io/);
+    const edRow = await waitForMemberRow(/ed@x\.io/);
 
     await chooseMemberAction(user, edRow, "member-disable");
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /disable/i }));
@@ -545,10 +573,10 @@ function registerLifecycleTrackingTests(): void {
       ]),
     );
     renderSection();
-    const missing = within(await findMemberRow(/No email/i)).getByTestId("member-email");
+    const missing = within(await waitForMemberRow(/No email/i)).getByTestId("member-email");
     expect(missing).toHaveTextContent(m.settings_member_email_missing());
     expect(within(missing).getByText(m.settings_member_email_missing())).not.toHaveAttribute("title");
-    const malformed = within(await findMemberRow(/not an email value/i)).getByTestId("member-email");
+    const malformed = within(await waitForMemberRow(/not an email value/i)).getByTestId("member-email");
     const fullValue = within(malformed).getByText("not an email value");
     expect(fullValue).toHaveClass("truncate");
     expect(fullValue).toHaveAttribute("title", "not an email value");
@@ -563,8 +591,8 @@ function registerLifecycleTrackingTests(): void {
       ]),
     );
     renderSection();
-    const selfRow = await findMemberRow(/me@x\.io/);
-    const edRow = await findMemberRow(/ed@x\.io/);
+    const selfRow = await waitForMemberRow(/me@x\.io/);
+    const edRow = await waitForMemberRow(/ed@x\.io/);
 
     expect(within(selfRow).queryByTestId("member-sign-in-confirmed")).not.toBeInTheDocument();
     expect(within(edRow).queryByTestId("member-sign-in-confirmed")).not.toBeInTheDocument();
@@ -647,7 +675,7 @@ function registerLifecycleReconciliationTests(): void {
     renderSection({ refreshAuth });
     await screen.findByTestId("members-section");
 
-    const self = await findMemberRow(/me@x\.io/);
+    const self = await waitForMemberRow(/me@x\.io/);
     await saveRoleVia(user, self, "Editor");
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
@@ -676,7 +704,7 @@ function registerLifecycleConcurrencyTests(): void {
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const editorRow = await findMemberRow(/ed@x\.io/);
+    const editorRow = await waitForMemberRow(/ed@x\.io/);
 
     const user = userEvent.setup();
     await chooseMemberAction(user, editorRow, "member-disable");

@@ -19,6 +19,7 @@ import type {
 const TS1 = "2026-01-01T00:00:00.000Z";
 const TS2 = "2026-06-01T12:00:00.000Z";
 
+/** Complete account fixture with every optional field set. */
 export const FIXTURE_ACCOUNT: Account = {
   id: "fix-a1",
   name: "Fixture Studio",
@@ -49,6 +50,7 @@ export const FIXTURE_ACCOUNT: Account = {
   updatedAt: TS2,
 };
 
+/** Complete client fixture owned by {@link FIXTURE_ACCOUNT}. */
 export const FIXTURE_CLIENT: Client = {
   id: "fix-c1",
   accountId: "fix-a1",
@@ -66,6 +68,7 @@ export const FIXTURE_CLIENT: Client = {
   updatedAt: TS2,
 };
 
+/** Complete discipline fixture owned by {@link FIXTURE_ACCOUNT}. */
 export const FIXTURE_DISCIPLINE: Discipline = {
   id: "fix-d1",
   accountId: "fix-a1",
@@ -76,6 +79,7 @@ export const FIXTURE_DISCIPLINE: Discipline = {
   updatedAt: TS2,
 };
 
+/** Complete project fixture for {@link FIXTURE_CLIENT}. */
 export const FIXTURE_PROJECT: Project = {
   id: "fix-p1",
   accountId: "fix-a1",
@@ -92,6 +96,7 @@ export const FIXTURE_PROJECT: Project = {
   updatedAt: TS2,
 };
 
+/** Complete phase fixture for {@link FIXTURE_PROJECT}. */
 export const FIXTURE_PHASE: Phase = {
   id: "fix-ph1",
   accountId: "fix-a1",
@@ -101,6 +106,7 @@ export const FIXTURE_PHASE: Phase = {
   updatedAt: TS2,
 };
 
+/** Complete placeholder resource fixture. */
 export const FIXTURE_RESOURCE: Resource = {
   id: "fix-r1",
   accountId: "fix-a1",
@@ -164,6 +170,7 @@ export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
   updatedAt: TS2,
 };
 
+/** Complete project activity fixture. */
 export const FIXTURE_ACTIVITY: Activity = {
   id: "fix-t1",
   accountId: "fix-a1",
@@ -187,6 +194,7 @@ export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
   updatedAt: TS2,
 };
 
+/** Complete all-projects (repeatable) activity fixture. */
 export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
   id: "fix-t3",
   accountId: "fix-a1",
@@ -196,6 +204,7 @@ export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
   updatedAt: TS2,
 };
 
+/** Complete allocation fixture for {@link FIXTURE_RESOURCE}. */
 export const FIXTURE_ALLOCATION: Allocation = {
   id: "fix-al1",
   accountId: "fix-a1",
@@ -213,6 +222,7 @@ export const FIXTURE_ALLOCATION: Allocation = {
   updatedAt: TS2,
 };
 
+/** Allocation fixture on the repeatable activity, attributed to a project. */
 export const FIXTURE_ALLOCATION_ATTRIBUTED: Allocation = {
   ...FIXTURE_ALLOCATION,
   id: "fix-al2",
@@ -220,6 +230,7 @@ export const FIXTURE_ALLOCATION_ATTRIBUTED: Allocation = {
   projectId: "fix-p1",
 };
 
+/** Complete time-off fixture for {@link FIXTURE_RESOURCE}. */
 export const FIXTURE_TIMEOFF: TimeOff = {
   id: "fix-to1",
   accountId: "fix-a1",
@@ -232,6 +243,7 @@ export const FIXTURE_TIMEOFF: TimeOff = {
   updatedAt: TS2,
 };
 
+/** Complete company-closure fixture. */
 export const FIXTURE_CLOSURE: Closure = {
   id: "fix-cl1",
   accountId: "fix-a1",

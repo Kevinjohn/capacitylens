@@ -20,6 +20,7 @@ minutes; running the full check suite takes longer.
 
 - Node 24, pinned in `.nvmrc`.
 - pnpm, through Corepack — the version is pinned in `package.json`'s `packageManager` field.
+- `lsof`, which ships with macOS; install the `lsof` package on minimal Linux systems.
 - Docker, only if you plan to run the Docker Compose smoke tests.
 
 ## Set up the repository
@@ -115,7 +116,7 @@ after. Configuration files only read the resolved lane, so there is nothing to p
 
 ```bash
 pnpm run e2e              # claims the lowest free lane, prints which
-CAPACITYLENS_PORT_LANE=4 pnpm run e2e   # pin a lane (CI pins 0)
+CAPACITYLENS_PORT_LANE=4 pnpm run e2e   # pin a lane
 ```
 
 The claim also reserves a share of the machine's CPUs and passes it to Vitest and Playwright as a
@@ -127,9 +128,18 @@ Two deliberate exceptions:
 - `pnpm run dev:access` keeps fixed ports, so it is single-flight machine-wide.
 - Documentation screenshots are captured by hand on `:5199`, which no automated run binds.
 
-If a lane's port is still held when a run claims it, the launcher clears the process only when it
-belongs to this worktree. Anything else is reported by pid and the run stops, rather than killing
-another checkout's server.
+If a lane's port is still held when a run claims it, the launcher reports the process by pid and
+working directory, then stops. It never kills anything itself. To see what is holding the lanes, and
+to stop servers left behind by earlier runs:
+
+```bash
+pnpm run lanes                  # every lane port in use: pid, directory, and the run that owns it
+pnpm run lanes --stop-orphans   # stop listeners from this repository's worktrees that no live run owns
+```
+
+`--stop-orphans` leaves claimed lanes and other checkouts' processes alone. It also stops a server
+started directly in one of this repository's worktrees without the launcher, since nothing records
+that such a server is still wanted.
 
 An empty `VITE_CAPACITYLENS_API` means same-origin server mode. A non-empty value must be
 an absolute HTTP(S) origin with no credentials, path, query or fragment; surrounding
@@ -336,6 +346,23 @@ shell. The service worker lives at `public/offline-worker.js`.
 `src/data/ServerSyncAdapter.diff.test.ts` and
 `e2e/clear-local-storage.spec.ts` when cleanup or browser storage boundaries change.
 
+#### Installation package {#task-installation-package}
+
+**Start:** `scripts/package-managed-release.mjs` builds `production/` (web app, deployed server and
+the operator files from `packaging/release/`) and, with `--archive`, the release archive and its
+checksum under `release/`.
+
+**Follow through:** `packaging/release/` holds the environment example, systemd unit, nginx and
+Caddy site files and `INSTALL.md` exactly as operators receive them. `server/src/index.ts` decides
+whether the server serves the web app (`CAPACITYLENS_WEB_DIR` or the release marker) and
+`server/src/routes/staticWeb.ts` serves it. `server/package.json` → `build:runtime` bundles the
+server and the owner-password recovery tool. `.github/workflows/release-provenance.yml` publishes
+the archive and `.github/workflows/gate.yml` → `release-package-smoke` runs it.
+
+**Tests:** Start with `pnpm run package:managed-release:test` and
+`server/src/routes/staticWeb.test.ts`; the gate's `release-package-smoke` job is the end-to-end
+check, and its steps can be run locally against an extracted archive.
+
 Maintain an entry when its starting point or ownership changes. A task brief should link to the
 relevant entry and name the exact implementation and test paths it needs, rather than copy this
 whole section. For work not mapped here, use targeted source, caller and import searches. Import and
@@ -378,8 +405,8 @@ relevant area:
   container healthcheck's five-second timeout. Don't split the transaction or add an
   in-process queue as a latency workaround: splitting breaks ordered atomicity, and a queue
   can't preempt a synchronous SQLite turn. If the boundary test exceeds its budget, reduce
-  both `MAX_BATCH_OPS` and the client's `MAX_OPS_PER_BATCH` together, or move the database
-  work to a genuinely isolated execution model.
+  the shared `MAX_BATCH_OPS` (`shared/src/data/transfer.ts`, used by client and server), or
+  move the database work to a genuinely isolated execution model.
 
 ## Name modules and keep their contracts small
 
@@ -401,7 +428,7 @@ tracked debt. A green lint result does not yet prove that all these conventions 
 | Principal utility function | camelCase file and matching named export | `reloadPage.ts` exports `reloadPage`. |
 | Cohesive set of functions or types | camelCase capability name; name each export for its role | `gestureMath.ts`, `entities.ts`, `ports.ts`; keep a short ownership comment when the grouping is not obvious. |
 | Executable script | kebab-case filename | `check-import-cycles.mjs`, `rehearse-migrations.ts`. |
-| Constants | UPPER_SNAKE_CASE for fixed module policy values; camelCase for local values | `MAX_OPS_PER_BATCH`; a local `remainingAttempts`. |
+| Constants | UPPER_SNAKE_CASE for fixed module policy values; camelCase for local values | `MAX_BATCH_OPS`; a local `remainingAttempts`. |
 | Tests | Owner name plus `.test` or `.spec`, optionally a named behavior before the suffix | `ResourceLane.test.tsx`, `useStore.allocations.test.ts`. |
 
 Prefer named exports for application code. A framework-required default export, such as a
@@ -472,6 +499,13 @@ never apply a sorting fix that changes initialization behavior.
 | `server/src/routes`, `server/src/accounts/routes` | HTTP parsing, authorization and response mapping | Owned use cases and storage boundaries; UI visibility never authorizes an operation. |
 | `server/src/tenantStore.ts`, `server/src/tables` | Scoped product storage and column specifications | Explicit storage operations and immutable versioned migrations. |
 
+The company-joining client in `src/account/companyJoinClient.ts` owns its browser URLs alongside
+`accountClient.ts`. On the server, `accounts/adminPort/joiningProviderIntent.ts` checks the local
+identity and access restrictions when starting a provider journey.
+`accounts/adminPort/joiningProviderCallbacks.ts` reads the exact provider account, local identity
+and durable email proof at the callback boundary, then updates the company-bound intent. Invitation
+storage stays in `controlTables/invites.ts`; HTTP routes do not read these tables directly.
+
 `src/store/useStore.ts`, `server/src/app.ts` and the auth configuration entry points compose
 their owned capabilities. Their ability to connect implementations is an explicit composition
 responsibility, not permission for neighboring helpers to import those implementations.
@@ -483,16 +517,22 @@ Inside a module, function verbs, variable names, parameter style and result shap
 
 ## Checks
 
-Run these before proposing a change:
+Run these before proposing a change, on the Node version in `.nvmrc`:
 
 ```bash
 pnpm run gate:all
-pnpm run test:account-conformance
 pnpm run e2e
-pnpm run rehearse:migrations
-pnpm run coverage
-pnpm run mutation
 ```
+
+`gate:all` already includes coverage. `e2e` runs the demo, database-backed and password-auth flows
+in Chromium. A prose-only change needs formatting and a content and link review instead; rebuild the
+documentation when its sources change. Add these checks when their trigger applies:
+
+| Check | Run it when a change touches |
+| --- | --- |
+| `pnpm run test:account-conformance` | Authentication, accounts, invitations, membership, authorization, sessions or erasure. |
+| `pnpm run rehearse:migrations` | A database migration, the persisted authentication shape or the Better Auth version. |
+| `pnpm run mutation` | The pure logic it mutates (see [Mutation testing](#mutation-testing)), or before a release. |
 
 Installing dependencies configures lightweight Git hooks. Each commit lints only staged authored
 JavaScript and TypeScript files, so small commits stay fast. Each push runs the complete repository
@@ -514,7 +554,8 @@ Lint also holds the typed packages to the mechanical rules of the code conventio
 identifier casing, no negated boolean names, and at most three parameters. Existing violations
 are recorded per file and rule in `eslint-suppressions.json` at the repository root. A count
 that rises fails lint, and an entry that is no longer needed fails lint until
-`pnpm exec eslint . --prune-suppressions` removes it, so the baseline only shrinks.
+`pnpm exec eslint . --prune-suppressions` removes it, so the baseline only shrinks. Inline
+`eslint-disable` comments sit outside that per-file baseline, so the ratchet does not count them.
 
 Shared production compiles without Node types. Its standard web declarations preserve the existing
 `Headers` contract, UUID generation and UTF-8 encoding; lint permits ECMAScript globals except
@@ -532,8 +573,10 @@ than `tsc` at the repository root.
 
 Both gates verify the effective lint configuration against the authored source inventory and
 representative new files. The JavaScript and TypeScript recommended rules cover scripts and
-declarations too, including `.mts` and `.cts`. Vue documentation components receive the Vue
-essential rules for their scripts and templates. Generated output and prose are excluded.
+declarations too, including `.mts` and `.cts`. Lint does not cover the documentation: it
+excludes `docs/`, all of `docs-src/` (including the VitePress configuration, theme and Vue
+components), `scripts/docs-lightbox.js` and `scripts/docs-standalone.mjs`, as well as generated
+output.
 
 | Source | Promise linting | Environment and other checks |
 | --- | --- | --- |
@@ -541,8 +584,8 @@ essential rules for their scripts and templates. Generated output and prose are 
 | Server `.ts` files under `server/src/` and `server/scripts/`, including tests | Typed | Node compiler project and globals. |
 | Shared source and colocated tests | Typed | Separate pure production and Node test projects, as described above. |
 | E2E, root/package configuration and remaining scripts | Untyped | Recommended lint rules; compiler checks apply where a tool has its own TypeScript project. |
-| Public scripts and docs lightbox handler | Untyped | Browser globals; the offline worker receives service-worker globals instead. |
-| VitePress build modules and theme | Untyped | Node build-time globals, browser theme globals, and Vue template checks. |
+| Public scripts | Untyped | Browser globals; the offline worker receives service-worker globals instead. |
+| Documentation sources, VitePress, lightbox and standalone build | Not linted | Excluded in `eslint.config.js`. |
 
 “Untyped” means ESLint does not load a TypeScript project for promise analysis. It does not
 exempt the source from linting. Real temporary production and test files prove that floating
@@ -561,7 +604,7 @@ The enforced coverage floors:
 The build also enforces a raw and gzip byte budget on the main JavaScript entry chunk;
 route-level lazy chunks stay separate so authentication and settings code don't inflate
 first load unnoticed. The checked constants live beside the checker in
-`scripts/bundle-budget.mjs` — treat that file, not this page, as the authoritative size
+`scripts/bundleBudget.mjs` — treat that file, not this page, as the authoritative size
 limit. Vite's generic uncompressed chunk warning shares that raw boundary, while the
 post-build checker additionally enforces the gzip boundary. The checker requires exactly
 one JavaScript module entry in the built HTML and
@@ -616,7 +659,6 @@ destructive description text for the verified contrast boundary.
   instead of stranding the complete unit run. Migration regression subprocesses have a
   30-second execution limit and a 45-second Vitest assertion budget, leaving room to report
   a child timeout even when a shared runner is contended.
-- Default E2E runs demo, database-backed and password-auth flows in Chromium.
 - Both root and shared Vitest projects pin `TZ=UTC`; timezone-specific helper coverage
   must set its zone deliberately in an isolated child process rather than inheriting a
   maintainer's machine.
@@ -644,7 +686,7 @@ needs to control, then prove all four parts of the recovery contract:
 4. Releasing the failure restores a usable interface and the expected durable state.
 
 Use two independent browser contexts for concurrent-edit coverage so the server produces
-the stale-write conflict naturally. Use `e2e/fault-helpers.ts` for transport and HTTP
+the stale-write conflict naturally. Use `e2e/failRequestsUntilReleased.ts` for transport and HTTP
 failures that cannot be scheduled reliably against the real server. Do not mock unrelated
 requests or replace the persistence adapter in these tests.
 
@@ -717,8 +759,9 @@ pnpm run e2e:all
 Keep specs browser-agnostic. Screenshots and axe checks are the visual/accessibility
 oracles. `e2e:all` runs Chromium plus the server-backed projects first, then WebKit and
 Firefox in isolated Vite-only invocations; all three phases run even when an earlier phase
-fails. The pull-request workflow runs those same phases as independent matrix jobs, so the
-browser engines run in parallel and a failure in one engine can't suppress the others.
+fails. The `e2e` workflow runs those same phases as independent matrix jobs, so the browser
+engines run in parallel and a failure in one engine can't suppress the others. It runs on pushes
+to `main`, release tags, a monthly schedule and manual dispatch, not on pull requests.
 
 The production API image builds `server/dist/index.mjs` and `server/dist/importWorker.mjs`
 with `pnpm --filter capacitylens-server build:runtime`, then runs plain Node without the
@@ -745,9 +788,10 @@ recognize their category.
 
 ## GitHub Actions policy
 
-CapacityLens is a public repository. Pull requests, pushes to `main`, release tags and the
-documented scheduled canaries run automatically. `workflow_dispatch` stays available for
-deliberate reruns:
+CapacityLens is a public repository. Pull requests run static analysis and CodeQL, plus the docs
+build when documentation inputs change. The `gate`, `e2e`, `docker` and `security` workflows
+run on pushes to `main` and release tags; `gate`, `e2e` and `security` also run on schedules (see
+[When CI runs](#when-ci-runs)). `workflow_dispatch` stays available for deliberate reruns:
 
 ```bash
 gh workflow run gate.yml --ref main
@@ -793,10 +837,10 @@ thread-pool reuse or a larger outer timeout.
 ### When CI runs
 
 Static analysis and CodeQL analyze every pull request targeting `main`. The focused static-analysis
-workflow checks whole-repository formatting first, then compiles translations, type-checks the shared
-and application projects, and lints all authored sources. The heavier workflows run when the merge
-reaches `main`, plus their own weekly or monthly schedules. To see those gates green before merging,
-dispatch them against the branch:
+workflow checks whole-repository formatting first, then compiles translations, type-checks the
+shared and application projects, and lints all authored sources. The heavier workflows run when the
+merge reaches `main` and on release tags; `gate` and `e2e` also run monthly and `security` weekly.
+To see those gates green before merging, dispatch them against the branch:
 
 ```bash
 gh workflow run gate.yml --ref <branch>
@@ -833,14 +877,15 @@ CodeQL runs on pull requests targeting `main`, on `main` itself and on its weekl
 Its commit-specific concurrency key preserves analysis for each revision even when changes arrive
 quickly. OpenSSF Scorecard runs on `main` and weekly. The security workflow performs full-history secret scanning, dependency review,
 source SBOM generation, container vulnerability scanning and two OWASP ZAP
-baselines. A separate release-only workflow packages each published tag, generates its SBOM,
-creates GitHub build attestations and attaches the artifacts plus the recognized
+baselines. A separate release-only workflow packages each published tag, including the runnable
+server archive and its checksum, generates its SBOM, creates GitHub build attestations and attaches
+the artifacts plus the recognized
 `.intoto.jsonl` provenance bundle to the GitHub Release. It is manually runnable with an existing
 release tag for deliberate rebuilds and backfills. The blocking ZAP scan boots the hardened posture
 — password authentication, required MFA, scheduled backups and operator attestations, with
 credentials minted and masked per run — so a finding there is a regression in the
-recommended configuration. A second, non-blocking job scans the out-of-the-box default
-posture weekly and uploads its report as an artifact. Reviewed secret-scan fixtures are
+recommended configuration. A second, non-blocking job scans the explicit no-login posture
+(sign-in mode `off`) weekly and uploads its report as an artifact. Reviewed secret-scan fixtures are
 allowlisted by value in `.gitleaks.toml`, which `pnpm run security:gitleaks-config` checks
 on every gate run. Because a scheduled or `main` run has no reviewer watching it, a
 failure there — or a cancellation that leaves the run with nothing to read — opens or
@@ -854,6 +899,12 @@ request. The `Lint and type-check` status is required before merge; no approving
 while the project has one active maintainer. The heavier post-merge workflows still report complete
 suite results on `main`.
 
+The gate's `release-package-smoke` job builds the release archive on every `main` push, unpacks it,
+fills in the three empty lines of its `capacitylens.env.example`, and starts the server with Node's
+`--env-file`. It requires deep health with the database, audit and backup all good, the web app at
+`/` with its Content-Security-Policy header, no generated secret in the captured output, and the
+bundled owner-password recovery tool reaching its identity lookup.
+
 The coverage badge needs a Codecov project and a repository secret named `CODECOV_TOKEN`;
 uploads are deliberately skipped until that secret exists. Uploads are best-effort because
 the required local gate already enforces coverage thresholds and must not depend on
@@ -865,6 +916,90 @@ from `/` because the root workspace owns the shared lockfile. Because its pull-r
 quote registry metadata and a base-image digest carries none, `.github/workflows/dependabot-summary.yml`
 comments a plain-English summary of each update on the pull request. The comment is advisory and
 gates nothing.
+
+## Publish a release
+
+The version pull request described in `AGENTS.md` → "Version and CI policy" ends when it merges.
+Publishing is a separate maintainer task. Nothing in `.github/` or `scripts/` creates tags or
+releases.
+
+1. Find the merged release commit and build the release package from it once, as the
+   `release-provenance` workflow will after publication:
+
+   ```bash
+   git fetch origin main --tags
+   git log --oneline -5 origin/main
+   git switch --detach <release-commit>
+   pnpm install --frozen-lockfile
+   pnpm run build
+   pnpm --filter capacitylens-server run build:runtime
+   pnpm run package:managed-release
+   pnpm run package:release-archive
+   (cd release && sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256)
+   ```
+
+   The packager refuses to finish without the web app, the server bundles and the operator files,
+   and the archive step refuses environment files, databases, backups, audit logs and symlinks
+   that leave the release.
+
+2. Tag that commit and push the tag. Earlier releases use lightweight tags on the release merge
+   commit:
+
+   ```bash
+   git tag vX.Y.Z <release-commit>
+   git push origin vX.Y.Z
+   ```
+
+3. Wait for the tag's own `gate`, `e2e`, `security` and `docker` runs to succeed. A green run on
+   `main` is not enough: concurrency cancels superseded `main` runs, so the release commit may
+   have none of its own. The gate also re-runs the production dependency audit, so a new advisory
+   can fail a tag even without a code change.
+
+   ```bash
+   gh run list --branch vX.Y.Z
+   ```
+
+4. Publish the GitHub release with notes taken from the version's `CHANGELOG.md` section. Decide
+   whether it is a prerelease. Every alpha so far was published as a full release. A prerelease
+   is never marked Latest, so `https://github.com/Kevinjohn/capacitylens/releases/latest`, which
+   the README links to, keeps pointing at the previous full release.
+
+   ```bash
+   gh release create vX.Y.Z --verify-tag --title "CapacityLens <name>" --notes-file <notes.md>
+   ```
+
+   Add `--prerelease` if you decided on one.
+
+5. Confirm that `release-provenance` ran for the tag and attached its five files. Publishing also
+   triggers the `pages` workflow.
+
+   ```bash
+   gh run list --workflow release-provenance.yml --limit 1
+   gh release view vX.Y.Z --json assets --jq '.assets[].name'
+   ```
+
+   Expect `capacitylens-web.tar.gz`, `capacitylens.spdx.json`, `capacitylens-X.Y.Z.tar.gz`,
+   `capacitylens-X.Y.Z.tar.gz.sha256` and `capacitylens-release.intoto.jsonl`. If the run failed,
+   rerun it for the existing tag: `gh workflow run release-provenance.yml -f tag=vX.Y.Z`.
+
+   Then verify the published archive itself, not the local candidate. Download it into an empty
+   folder outside the checkout, check its checksum and attestation, and unpack it:
+
+   ```bash
+   gh release download vX.Y.Z --repo Kevinjohn/capacitylens --pattern 'capacitylens-X.Y.Z.tar.gz*'
+   sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
+   gh attestation verify capacitylens-X.Y.Z.tar.gz --repo Kevinjohn/capacitylens
+   tar -xzf capacitylens-X.Y.Z.tar.gz
+   ```
+
+   Repeat the steps of the gate's `release-package-smoke` job against that folder: copy
+   `capacitylens.env.example`, fill in its three empty lines with a loopback address and two
+   `openssl rand -base64 48` values, set `CAPACITYLENS_DB` to a writable path, and start
+   `node --env-file=<file> dist/index.mjs` from its `server/` folder. Expect deep health with
+   `"db":true`, `"audit":"ok"` and a backup `status` of `"ok"`, HTML at `/` with a
+   `Content-Security-Policy` header, and, after stopping the server,
+   `node --env-file=<file> dist/reset-owner-password.mjs <database> nobody@example.com --confirm-server-stopped`
+   failing with `No identity matches that address.`
 
 ## Database migrations
 
@@ -879,8 +1014,9 @@ version inside one `BEGIN IMMEDIATE` transaction and stamps `user_version` plus 
 CapacityLens `application_id` in that same commit. The same transaction inserts a row into
 `capacitylens_schema_migrations` containing the version, name, SHA-256 definition checksum
 and application timestamp. Startup validates the complete ledger before planning writes
-and refuses a missing, reordered, renamed or checksummed-different migration. `SCHEMA_SQL`
-creates fresh databases; already-released files advance through migrations. Shape
+and refuses a missing, reordered, renamed or checksummed-different migration. A fresh database
+runs the retained v8 baseline and then every migration, exactly as a released file advances
+through the migrations it has not yet applied. Shape
 introspection remains a post-migration assertion and a v0-v7 baseline repair, not the
 mechanism for silently applying new fields. That assertion verifies the TABLES write
 contract (declared types, nullability and id primary keys) and rejects unknown required
@@ -945,6 +1081,17 @@ and SSO activation-state tables, an atomic observation trigger, and Better Auth
 `UNIQUE(providerId, accountId)` plus `UNIQUE(userId, providerId)` concurrency backstops.
 Its migration and released database fixtures are historical records; preserve their exact
 definitions and use the checked-in fixture ledger when rehearsing a later schema version.
+
+Sign-in mode controls the authentication methods people may use. Enabled providers determine
+which SSO options are available. The access policy determines who may join the company.
+`SMALLSASS_ACCOUNT_MODE` accepts `off`, `password-only`, `sso-only` and `password-and-sso`;
+the old `password` and `sso` values fail startup with migration guidance. The shared
+`AccountMode` contract owns these values, while the server keeps the existing `authMode` wire
+field. Password-only ignores retained provider credentials and links; mixed mode needs at least
+one configured provider; SSO-only needs Google or tenant-specific Microsoft. The schema is
+selected from active authentication capabilities, and existing session assurance is checked
+against the current mode on every request. See [Upgrades](/self-hosting/upgrades#upgrading-to-0-71-0-alpha-1)
+for coordinated environment changes and rollback.
 
 App-owned control tables share the application migration stream. Better Auth stays pinned
 and owns its own tables; startup reruns its introspection migration and then verifies that
@@ -1054,6 +1201,34 @@ retain the complete server set unless an explicit scope
 flag selects a narrower supported matrix.
 
 The access lab reserves web/API 5473/8897 and is single-flight machine-wide.
+
+### Browser upgrade rehearsal {#browser-upgrade-rehearsal}
+
+The browser rehearsal runs the database-backed E2E specs against a staged production build. It is
+separate from the migration rehearsal in [Upgrades](/self-hosting/upgrades),
+which checks schema migration and rollback behavior.
+
+Build the release:
+
+```bash
+pnpm run build
+```
+
+Then prepare a disposable test deployment with the built `dist/` files served through
+`scripts/serve-dist.mjs`. Its same-origin `/api` proxy must point to an auth-off test API with a
+temporary database and `CAPACITYLENS_ALLOW_RESET=1` in a non-production environment. The E2E specs
+reset and reseed that API, so never point the browser rehearsal at production or data that must be
+kept. For the staged site's base URL, run:
+
+```bash
+CAPACITYLENS_REHEARSAL_URL=http://127.0.0.1:4173 \
+VITE_CAPACITYLENS_API=http://127.0.0.1:4173 \
+pnpm run e2e:rehearsal
+```
+
+`scripts/serve-dist.mjs` defaults to `http://127.0.0.1:4173` and proxies `/api` to the API port
+configured by `API_PORT` (default `8787`). Set those ports to match the staged test API. The
+rehearsal project supplies no web or API servers itself; both must be running before the command.
 
 Development/test environment controls are intentionally separate from production
 configuration. `API_PORT` belongs only to `scripts/serve-dist.mjs`; Playwright/package

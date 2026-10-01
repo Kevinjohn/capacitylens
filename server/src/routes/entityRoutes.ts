@@ -222,7 +222,7 @@ function registerCreateRoute(app: FastifyInstance, dependencies: EntityRouteDepe
   });
 }
 
-function handleReplaceRoute(
+function replaceEntity(
   req: FastifyRequest,
   reply: FastifyReply,
   dependencies: EntityRouteDependencies,
@@ -279,11 +279,11 @@ function handleReplaceRoute(
 }
 
 function registerUpdateRoutes(app: FastifyInstance, dependencies: EntityRouteDependencies): void {
-  app.put("/api/:entity/:id", (req, reply) => handleReplaceRoute(req, reply, dependencies));
-  app.patch("/api/:entity/:id", (req, reply) => handlePatchRoute(req, reply, dependencies));
+  app.put("/api/:entity/:id", (req, reply) => replaceEntity(req, reply, dependencies));
+  app.patch("/api/:entity/:id", (req, reply) => patchEntity(req, reply, dependencies));
 }
 
-function handlePatchRoute(
+function patchEntity(
   req: FastifyRequest,
   reply: FastifyReply,
   dependencies: EntityRouteDependencies,

@@ -1,6 +1,11 @@
 import type { BetterAuthOptions } from "better-auth";
 import type { Db } from "../db";
 
+/** Request header carrying the client address the server resolved (`resolveRequestClientIp`). The
+ * root request hook overwrites any client-supplied value, so it is the only address Better Auth
+ * trusts for rate limiting and session records. */
+export const AUTH_CLIENT_IP_HEADER = "x-capacitylens-client-ip";
+
 export function buildSessionPolicy({
   db,
   secret,
@@ -48,7 +53,15 @@ export function buildSessionPolicy({
     // drop the session cookie on the top-level OAuth redirect back from the IdP → broken sign-in;
     // 'lax' still sends the cookie on that GET callback and is safe. `httpOnly:true` keeps the token
     // out of document.cookie (no JS read).
+    // Better Auth would otherwise read a raw `X-Forwarded-For`: a client could spoof it past the
+    // credential rate limits, and without it every client would share one bucket per path.
     advanced: {
+      // Better Auth checks the schema as soon as it is constructed, which on a fresh database is
+      // before runAuthMigrations creates its tables: it logged a false "schema mismatch" error
+      // advising `npx auth migrate`, which would bypass the app's ledger and snapshot.
+      // runAuthMigrations verifies the same schema after migrating and refuses to start instead.
+      database: { validateSchema: false },
+      ipAddress: { ipAddressHeaders: [AUTH_CLIENT_IP_HEADER] },
       useSecureCookies: false,
       cookiePrefix,
       defaultCookieAttributes: {

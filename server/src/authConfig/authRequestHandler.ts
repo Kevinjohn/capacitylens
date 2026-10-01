@@ -2,10 +2,17 @@ import type { Auth } from "./authTypes";
 import {
   authHandlerErrorCapture,
   passwordResetSessionCapture,
+  preparedPasswordHashCapture,
   isFederatedAccountCoordinateConstraint,
   microsoftCallbackCapture,
+  federatedCallbackCapture,
 } from "./captureContexts";
 import { MicrosoftProofError, type MicrosoftProof } from "./microsoftProof";
+import {
+  joiningProviderCallbackCapture,
+  JoiningProviderCallbackError,
+  type createJoiningProviderCallbacks,
+} from "../accounts/adminPort/joiningProviderCallbacks";
 
 type CreateAuthRequestHandlerOptions = {
   rawHandler: Auth["handler"];
@@ -15,6 +22,7 @@ type CreateAuthRequestHandlerOptions = {
   commitResetSessions: (sessionHandles: readonly string[]) => void;
   reconcileFederatedLinks: () => void;
   microsoftProof: MicrosoftProof | null;
+  joiningProviderCallbacks?: Pick<ReturnType<typeof createJoiningProviderCallbacks>, "preflight">;
 };
 
 function redirectWithError(target: URL, error: string): Response {
@@ -32,6 +40,9 @@ function redirectCapturedCallbackError(options: {
   const target = options.failureTarget ?? new URL(options.browserAuthErrorUrl);
   if (isFederatedAccountCoordinateConstraint(options.capturedError)) {
     return redirectWithError(target, "account_already_linked_to_different_user");
+  }
+  if (options.capturedError instanceof JoiningProviderCallbackError) {
+    return redirectWithError(target, options.capturedError.code);
   }
   return null;
 }
@@ -114,18 +125,36 @@ async function runCapturedHandler(
       bootstrapClaimToken: string | null;
       pending: boolean;
     };
+    federatedCapture: {
+      active: boolean;
+      providerId: "google" | "github";
+      subject: string | null;
+      email: string | null;
+    };
+    joinCapture: ReturnType<NonNullable<CreateAuthRequestHandlerOptions["joiningProviderCallbacks"]>["preflight"]>;
   },
 ): Promise<Response> {
-  const { request, callbackProviderId, capture, resetCapture, microsoftCapture } = context;
+  const { request, callbackProviderId, capture, resetCapture, microsoftCapture, federatedCapture, joinCapture } =
+    context;
+  const raw = () => options.rawHandler(request);
+  const joined = () => (joinCapture ? joiningProviderCallbackCapture.run(joinCapture, raw) : raw());
+  const providerScoped = () => {
+    if (callbackProviderId === "microsoft" && options.microsoftProof)
+      return microsoftCallbackCapture.run(microsoftCapture, raw);
+    if (callbackProviderId === "google" || callbackProviderId === "github")
+      return federatedCallbackCapture.run(federatedCapture, joined);
+    return joined();
+  };
   try {
     return await authHandlerErrorCapture.run(capture, () =>
-      passwordResetSessionCapture.run(resetCapture, () =>
-        callbackProviderId === "microsoft" && options.microsoftProof
-          ? microsoftCallbackCapture.run(microsoftCapture, () => options.rawHandler(request))
-          : options.rawHandler(request),
+      preparedPasswordHashCapture.run({ password: null, hash: null }, () =>
+        passwordResetSessionCapture.run(resetCapture, providerScoped),
       ),
     );
   } finally {
+    federatedCapture.active = false;
+    federatedCapture.email = null;
+    federatedCapture.subject = null;
     if (microsoftCapture.bootstrapClaimToken)
       options.microsoftProof?.releaseBootstrapClaim(microsoftCapture.bootstrapClaimToken);
   }
@@ -150,6 +179,8 @@ function microsoftErrorRedirect(
   return redirectWithError(target, error.code);
 }
 
+// The callback response, captured failures, and proof-context cleanup share one request boundary.
+// eslint-disable-next-line max-lines-per-function, complexity -- Provider callback outcomes share one response and cleanup boundary.
 async function runAuthenticatedRequest(
   options: CreateAuthRequestHandlerOptions,
   context: {
@@ -161,6 +192,9 @@ async function runAuthenticatedRequest(
 ): Promise<Response> {
   const { request, requestUrl, callbackProviderId, failureTarget } = context;
   try {
+    const joinCapture = callbackProviderId
+      ? (options.joiningProviderCallbacks?.preflight(request, callbackProviderId) ?? null)
+      : null;
     const capture: { error: unknown } = { error: null };
     const resetCapture: { sessionHandles: readonly string[] } = { sessionHandles: [] };
     const microsoftCapture = {
@@ -169,12 +203,20 @@ async function runAuthenticatedRequest(
       bootstrapClaimToken: null as string | null,
       pending: false,
     };
+    const federatedCapture = {
+      active: true,
+      providerId: callbackProviderId === "github" ? ("github" as const) : ("google" as const),
+      subject: null as string | null,
+      email: null as string | null,
+    };
     const response = await runCapturedHandler(options, {
       request,
       callbackProviderId,
       capture,
       resetCapture,
       microsoftCapture,
+      federatedCapture,
+      joinCapture,
     });
     if (microsoftCapture.pending) {
       return Response.redirect(new URL("/verify-microsoft?state=check-email", requestUrl.origin), 302);
@@ -199,6 +241,9 @@ async function runAuthenticatedRequest(
     reconcileCallback(options, callbackProviderId);
     return resolveProviderRedirect(options, { request, providerId: callbackProviderId, response });
   } catch (error) {
+    if (error instanceof JoiningProviderCallbackError) {
+      return redirectWithError(failureTarget ?? new URL(options.browserAuthErrorUrl), error.code);
+    }
     const microsoftFailure = microsoftErrorRedirect(options, { request, providerId: callbackProviderId, error });
     if (microsoftFailure) return microsoftFailure;
     if (!isFederatedAccountCoordinateConstraint(error)) throw error;

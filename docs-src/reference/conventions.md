@@ -28,12 +28,13 @@ const actorRole = assertAccountAuthority(db, actor, workspaceId, "manage-invitat
 The first name says "this may be absent, check it"; the second says "if this returns, you are
 authorised". Neither caller needs to open the function. That is the whole standard: a function
 name starts with a verb, the verb tells the caller what comes back and whether anything happens
-on the way, and the verb comes from this table.
+on the way, and the verb comes from one of the two tables below.
 
 | Verb               | Promise                                                                                                                                                                                 | Example in the tree                                                                        |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `is`, `has`, `can` | Returns a boolean. No side effects.                                                                                                                                                     | `canArchive(entity)` in `shared/src/domain/lifecycle/transitions.ts`                       |
 | `assert`           | Throws when the condition fails. On success returns the value it established, or nothing.                                                                                               | `assertAccountAuthority` in `server/src/accounts/adminPort/authority.ts` returns the `Role` |
+| `require`          | Returns what the caller needs, or refuses: it throws, or, as a route guard, sends the refusal response. The throwing partner of `get`.                                                    | `requireAccountActor(req)` in `server/src/accounts/routes/handlers/authenticatedPrincipal.ts` |
 | `ensure`           | Makes a state true if it is not already, returns nothing. Safe to call twice.                                                                                                           | `ensureControlTables(db)` in `server/src/controlTables/retentionV24.ts`                    |
 | `get`              | Looks one thing up by key in storage. Returns it, or `null` when absent. Never throws for absence.                                                                                      | `getMemberRole(db, accountId, userId)` in `server/src/controlTables/members.ts`            |
 | `list`             | Returns an array of matches, empty when there are none.                                                                                                                                 | `listMembersForAccount(db, accountId)` in the same file                                    |
@@ -53,19 +54,36 @@ selectors already say "or nothing", and `handle`, because a callback is named fo
 does. A component prop is `onSubmit`; the function passed to it is `submit` or `saveDraft`,
 not `handleSubmit`.
 
+Functions that do something rather than answer something use a plain domain verb. These
+families are already in consistent use:
+
+| Verb or family | Promise | Example in the tree |
+| --- | --- | --- |
+| Command verbs: `remove`, `revoke`, `send`, `save`, `register`, `record`, `reset`, `mark` | Changes state or has an effect, and says which. The return value, if any, reports the outcome. | `revokeInvitation` in `server/src/accounts/adminPort/invitations.ts` |
+| `format` | Returns display text. | `formatDayFigure(days)` in `src/components/capacity-overview/capacityOverviewBar.ts` |
+| `to<Type>` | Converts a value to another representation of the same thing. | `toISODate(date)` in `shared/src/lib/dateMath.ts` |
+| `sanitize` | Repairs untrusted import or write input into a valid row, dropping what cannot be repaired. | `sanitizeAllocation` in `shared/src/lib/sanitizeImport.ts` |
+| `evaluate` | Returns a decision, such as an authority verdict, without changing state. | `evaluateAuthority` in `server/src/accounts/adminPort/authority.ts` |
+| `inspect` | Examines a structure and reports what it found, without repairing it. | `inspectColumn` in `server/src/schema/assert.ts` |
+| `verify` | Checks a credential, signature or artefact. | `verifyLegacyHash` in `server/src/passwordSecurity.ts` |
+
 Counterexamples that are now tracked debt:
 
-- `ensureInternalClients` exists twice with different contracts: the shared one in
-  `shared/src/data/internalClient.ts` returns a new `AppData`, the server one in
-  `server/src/db/repairs.ts` returns nothing. Under this table the shared one is an `apply`.
+- The shared `ensureInternalClients` export in `shared/src/data/internalClient.ts` is
+  a compatibility alias for `applyInternalClientRepairs`, which returns repaired `AppData`
+  or the same reference when no repair is needed. The separate server
+  `ensureInternalClients` in `server/src/db/repairs.ts` writes to SQLite.
 - `validateAuthUser(value: unknown, requireEmail = false)` returns `AuthUser | null`. It takes
   untrusted input and returns the typed value, so it is a `parse`, and its flag parameter is
   parameter debt too.
-- `validate*` functions return three shapes across the tree: `ValidationResult`, a boolean
-  (`validateHex`) and the typed value or `null`. The last group are parses; the audit decides
-  the rest. `validateAllocationDraft` reports its first problem through a `fail` callback and
-  returns a boolean, matching the validation convention.
-- `ensureBarColors(hex)` returns a colour pair. It derives a value, so it is a `resolve`.
+- `validate*` functions still have several result shapes: `ValidationResult`, a boolean
+  (`validatePresetColor`) and typed values or `null`. The last group are parses; the audit
+  decides the rest. `validateAllocationDraft` reports its first problem through a `fail`
+  callback and returns a boolean, matching the validation convention.
+- The shared `ensureBarColors` export is a compatibility alias for
+  `resolveAccessibleBarColors`, which returns a colour pair.
+- The shared `validateCredentialInput` export is a compatibility alias for
+  `inspectCredentialInput`, which returns a failure category or `null`.
 
 ## Variables
 
@@ -102,8 +120,8 @@ Counterexamples that are now tracked debt:
 ## Results
 
 - **A multi-outcome result is a discriminated union on `kind`**, each variant carrying only
-  its own data, named `<Thing>Result` or `<Thing>Outcome`. `SessionListResult` in
-  `src/account/sessionClient.ts` and `ReserveAccountCommandResult` in
+  its own data, named `<Thing>Result` or `<Thing>Outcome`. `PersonScheduleResult` in
+  `src/components/person-schedule/personScheduleTypes.ts` and `ReserveAccountCommandResult` in
   `server/src/accounts/state/commandLedgerWrites.ts` are the pattern. Callers `switch` on
   `kind`; there is no boolean to check first. UI state unions such as `ModalState` in
   `src/components/scheduler/schedulerGridModal.ts` use the same `kind` discriminant without
@@ -149,6 +167,10 @@ Playwright project does not enable the typed project-service rules:
   imports are exempt because many mirror wire fields, SQL columns and library names
 - negated names, through the same rule: a variable or parameter starting with `hasNo`,
   `not` followed by a capital, or `isNot` (other than `isNotNull`) fails
+- the two excluded verbs, through the same rule: a function, function-valued variable or class
+  method named `find…` or `handle…` fails
+- one record guard: a local `isRecord` or `isUnknownRecord` fails; import it from
+  `shared/src/lib/isRecord.ts`
 - `max-params` at three, so a fourth parameter fails
 - `complexity` at 12 and nesting depth at three
 - `max-lines-per-function` at 60 authored lines, excluding blank lines and comments

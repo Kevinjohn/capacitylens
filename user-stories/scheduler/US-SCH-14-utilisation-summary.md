@@ -14,8 +14,8 @@ Individual utilisation (US-SCH-13) answers "is _this_ person busy?"; the summari
 
 **Precondition:** Seeded app open at **Schedule** (`/`).
 
-1. In the **top-left** of the grid, read the overall utilisation figure under **"Utilisation · Nw"** (N = the current **Weeks visible** choice) — a **%** across all visible resources.
-2. In each **discipline group header** (Design, Development, Copywriting), read its **"N% avg utilisation"** — the average utilisation of the resources in that group.
+1. In the **top-left** of the grid, read the overall utilisation figure under **"Utilisation · Nw"** (N = the current **Weeks visible** choice) — a **%** across all visible capacity-tracked resources (external / 3rd-party people are excluded).
+2. In each **discipline group header** (Design, Development, Copywriting), read its **"N% avg utilisation"** — the average utilisation of the capacity-tracked resources in that group. External / 3rd-party people are left out, as they are from the overall figure, and a group with no capacity-tracked person shows no average.
 3. Collapse a discipline group (click its header — see US-SCH-16). Its header now shows **"N hidden"** (a count of the hidden rows) in place of the average-utilisation figure.
 4. Expand it again and confirm the **"N% avg utilisation"** returns.
 5. Open the **Weeks visible** dropdown and pick each span in turn — **1 week → 2 weeks → 4 weeks → 6 weeks → 8 weeks**. The top-left label updates to **"Utilisation · 1w/2w/4w/6w/8w"** and the **overall %** changes at each step — it now reflects the work in _exactly_ the visible span. With the seed (work concentrated in the opening week), a narrow span reads busier than a wide one that folds in the quieter later weeks.
@@ -23,7 +23,7 @@ Individual utilisation (US-SCH-13) answers "is _this_ person busy?"; the summari
 ## Acceptance criteria
 
 - ✅ The top-left shows an **overall-utilization** figure (`data-testid="overall-utilization"`) as a % under **"Utilisation · Nw"** (N = the current **Weeks visible** choice).
-- ✅ Each discipline group header shows **"N% avg utilisation"** while expanded.
+- ✅ Each discipline group header shows **"N% avg utilisation"** while expanded, averaged over its capacity-tracked resources only; external / 3rd-party people are excluded, and a group with none shows no figure rather than 0%.
 - ✅ When a group is collapsed, its header shows **"N hidden"** (the hidden-row count) instead.
 - ✅ Re-expanding the group restores its **"N% avg utilisation"** figure.
 - ✅ Switching the **Weeks visible** dropdown (1/2/4/6/8 weeks) recomputes the overall % (and per-person/per-discipline figures) to reflect the visible span — a wider span dilutes the dense opening week to a lower number.

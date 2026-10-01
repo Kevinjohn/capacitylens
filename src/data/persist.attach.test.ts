@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { it, expect, beforeEach, vi } from "vitest";
 import { attachPersistence, hasUnsavedPersistenceWrites } from "./persist";
 import { InMemoryDemoAdapter } from "./InMemoryDemoAdapter";
@@ -19,29 +20,35 @@ beforeEach(() => {
 });
 
 const addAllocationFixture = (projectName: string) => {
-  const resource = useStore.getState().addResource({
-    kind: "person",
-    name: "Bruce Wayne",
-    role: "Designer",
-    employmentType: "permanent",
-    engagement: "studio",
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#111111",
-  });
-  const client = useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
-  const project = useStore.getState().addProject({ name: projectName, clientId: client.id, color: "#222222" });
-  const activity = useStore.getState().addActivity({ name: "Shared", kind: "repeatable" });
-  const allocation = useStore.getState().addAllocation({
-    resourceId: resource.id,
-    activityId: activity.id,
-    projectId: project.id,
-    startDate: "2026-06-01",
-    endDate: "2026-06-01",
-    hoursPerDay: 8,
-    status: "confirmed",
-  });
+  const resource = requireCreated(
+    useStore.getState().addResource({
+      kind: "person",
+      name: "Bruce Wayne",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#111111",
+    }),
+  );
+  const client = requireCreated(useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" }));
+  const project = requireCreated(
+    useStore.getState().addProject({ name: projectName, clientId: client.id, color: "#222222" }),
+  );
+  const activity = requireCreated(useStore.getState().addActivity({ name: "Shared", kind: "repeatable" }));
+  const allocation = requireCreated(
+    useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      projectId: project.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    }),
+  );
   return { allocation, client };
 };
 it("attachPersistence publishes allocation rewrites into the visible Zustand row", async () => {
@@ -83,7 +90,9 @@ it("attachPersistence publishes allocation rewrites into the visible Zustand row
 
 it("attachPersistence keeps an allocation edit made while its rewrite receipt is in flight dirty", async () => {
   const { allocation, client } = addAllocationFixture("First");
-  const secondProject = useStore.getState().addProject({ name: "Second", clientId: client.id, color: "#333333" });
+  const secondProject = requireCreated(
+    useStore.getState().addProject({ name: "Second", clientId: client.id, color: "#333333" }),
+  );
   const rewrittenAt = "2030-01-02T00:00:00.000Z";
   let publish: ((revisions: readonly AllocationRewriteRevision[]) => void) | null = null;
   let releaseReceipt: (() => void) | null = null;
@@ -145,21 +154,29 @@ it("attachPersistence keeps an allocation edit made while its rewrite receipt is
   detach();
 });
 
-it("attachPersistence rejects a second live persistence owner", () => {
-  const detach = attachPersistence({ store: useStore, adapter: new InMemoryDemoAdapter(), debounceMs: 0 });
+it("attachPersistence rejects a second live persistence owner without leaving it able to save", async () => {
+  const firstAdapter = new InMemoryDemoAdapter();
+  const rejectedAdapter = new InMemoryDemoAdapter();
+  const rejectedSave = vi.spyOn(rejectedAdapter, "saveAll");
+  const detach = attachPersistence({ store: useStore, adapter: firstAdapter, debounceMs: 0 });
   try {
-    expect(() => attachPersistence({ store: useStore, adapter: new InMemoryDemoAdapter(), debounceMs: 0 })).toThrow(
+    expect(() => attachPersistence({ store: useStore, adapter: rejectedAdapter, debounceMs: 0 })).toThrow(
       "Persistence is already attached.",
     );
+    useStore.getState().addClient({ name: "Ferris", color: "#1" });
+    await vi.waitFor(async () => expect((await firstAdapter.loadAll()).clients).toHaveLength(1));
   } finally {
     detach();
   }
+  useStore.getState().addClient({ name: "Wayne", color: "#2" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(rejectedSave).not.toHaveBeenCalled();
 });
 
 it("attachPersistence persists data changes (immediate mode)", async () => {
   const adapter = new InMemoryDemoAdapter();
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
-  useStore.getState().addClient({ name: "Acme", color: "#1" });
+  useStore.getState().addClient({ name: "Ferris", color: "#1" });
   const loaded = await adapter.loadAll();
   expect(loaded.clients).toHaveLength(1);
   detach();
@@ -167,29 +184,35 @@ it("attachPersistence persists data changes (immediate mode)", async () => {
 
 it("attachPersistence persists the demo project cascade with attributed bookings unbound", async () => {
   const adapter = new InMemoryDemoAdapter();
-  const resource = useStore.getState().addResource({
-    kind: "person",
-    name: "Bruce Wayne",
-    role: "Designer",
-    employmentType: "permanent",
-    engagement: "studio",
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#111111",
-  });
-  const client = useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
-  const project = useStore.getState().addProject({ name: "Project", clientId: client.id, color: "#222222" });
-  const activity = useStore.getState().addActivity({ name: "Shared", kind: "repeatable" });
-  const allocation = useStore.getState().addAllocation({
-    resourceId: resource.id,
-    activityId: activity.id,
-    projectId: project.id,
-    startDate: "2026-06-01",
-    endDate: "2026-06-01",
-    hoursPerDay: 8,
-    status: "confirmed",
-  });
+  const resource = requireCreated(
+    useStore.getState().addResource({
+      kind: "person",
+      name: "Bruce Wayne",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#111111",
+    }),
+  );
+  const client = requireCreated(useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" }));
+  const project = requireCreated(
+    useStore.getState().addProject({ name: "Project", clientId: client.id, color: "#222222" }),
+  );
+  const activity = requireCreated(useStore.getState().addActivity({ name: "Shared", kind: "repeatable" }));
+  const allocation = requireCreated(
+    useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      projectId: project.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    }),
+  );
 
   await adapter.saveAll(deleteProjectCascade(useStore.getState().data, project.id, "2026-06-02T00:00:00.000Z"));
   const saved = await adapter.loadAll();
@@ -200,7 +223,7 @@ it("attachPersistence stops persisting after detach", async () => {
   const adapter = new InMemoryDemoAdapter();
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
   detach();
-  useStore.getState().addClient({ name: "Acme", color: "#1" });
+  useStore.getState().addClient({ name: "Ferris", color: "#1" });
   expect(await adapter.loadAll()).toEqual(emptyAppData());
 });
 
@@ -329,7 +352,7 @@ it("attachPersistence a successful save settling after detach cannot call the ol
 it("attachPersistence flushes a pending debounced write on pagehide (so a tab close does not lose it)", async () => {
   const adapter = new InMemoryDemoAdapter();
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 300 }); // debounced, NOT immediate
-  useStore.getState().addClient({ name: "Acme", color: "#1" });
+  useStore.getState().addClient({ name: "Ferris", color: "#1" });
   expect((await adapter.loadAll()).clients).toHaveLength(0); // still inside the debounce window
   window.dispatchEvent(new Event("pagehide"));
   expect((await adapter.loadAll()).clients).toHaveLength(1); // flushed synchronously

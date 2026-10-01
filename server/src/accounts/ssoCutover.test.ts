@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { AuthProviderInfo } from "../auth";
 import type { SsoCutoverIdentityFacts } from "./betterAuthIdentityPort";
 import type { SsoCutoverWorkspaceFact } from "./sqliteAccountAdminPort";
-import { assertCompanyProviderCutoverReady, evaluateSsoCutoverReadiness, formatSsoCutoverRefusal } from "./ssoCutover";
+import {
+  assertCompanyProviderCutoverReady,
+  CompanyProviderCutoverReadinessError,
+  evaluateCompanyProviderCutoverReadiness,
+} from "./companyProviderReadiness";
+import { evaluateSsoCutoverReadiness, formatSsoCutoverRefusal } from "./ssoCutover";
 
 const provider: AuthProviderInfo = {
   id: "google",
@@ -38,26 +43,102 @@ const identity: SsoCutoverIdentityFacts = {
   outstandingResetPrincipalIds: [],
 };
 
+// These cases share the existing company-provider identity fixture.
+// eslint-disable-next-line max-lines-per-function
 describe("company-provider cutover", () => {
-  it("accepts an owner connected through either configured provider and refuses a credential-only principal", () => {
+  it("accepts a principal linked through either configured provider", () => {
     const providerIds = new Set(["google", "microsoft"]);
     const google = { ...identity, requiredProviderLinks: [] };
     const microsoft = { ...identity, requiredProviderLinks: [{ ...requiredProviderLink, subject: "microsoft-oid" }] };
     const administration = { inspectSsoCutoverWorkspaces: () => [workspace] };
+    const identityPort = {
+      inspectSsoCutover: (providerId: string) => (providerId === "google" ? google : microsoft),
+      readSsoCutoverSnapshot: <Result>(read: () => Result) => read(),
+    };
     const ready = {
       providerIds,
-      administration: administration as never,
-      identity: {
-        inspectSsoCutover: (providerId: string) => (providerId === "google" ? google : microsoft),
-      } as never,
+      providerSnapshots: [...providerIds].map((providerId) => ({
+        providerId,
+        identity: identityPort.inspectSsoCutover(providerId),
+      })),
+      workspaces: [workspace],
     };
-    expect(() => assertCompanyProviderCutoverReady(ready)).not.toThrow();
+    expect(evaluateCompanyProviderCutoverReadiness(ready)).toMatchObject({ ready: true, issues: [] });
     expect(() =>
       assertCompanyProviderCutoverReady({
-        ...ready,
-        identity: { inspectSsoCutover: () => google } as never,
+        providerIds,
+        administration: administration as never,
+        identity: identityPort as never,
       }),
-    ).toThrow(/verified company-provider connection/);
+    ).not.toThrow();
+  });
+
+  it("returns stable findings for missing provider links and workspace safeguards", () => {
+    const providerIds = new Set(["google", "microsoft"]);
+    const result = evaluateCompanyProviderCutoverReadiness({
+      providerIds,
+      providerSnapshots: [...providerIds].map((providerId) => ({
+        providerId,
+        identity: { ...identity, requiredProviderLinks: [] },
+      })),
+      workspaces: [
+        { ...workspace, members: [] },
+        {
+          ...workspace,
+          workspaceId: "ownerless",
+          workspaceName: "Ownerless",
+          members: [{ principalId: "owner-1", role: "admin", status: "active" }],
+        },
+        {
+          ...workspace,
+          workspaceId: "unlinked",
+          workspaceName: "Unlinked",
+          members: [{ principalId: "member-1", role: "owner", status: "active" }],
+        },
+      ],
+    });
+
+    expect(result.ready).toBe(false);
+    expect(result.issues.map(({ reason }) => reason)).toEqual(
+      expect.arrayContaining([
+        "principal_not_connected",
+        "workspace_has_no_members",
+        "workspace_has_no_owner",
+        "workspace_member_not_connected",
+      ]),
+    );
+    expect(result.issues.every(({ message }) => message.length > 0)).toBe(true);
+    try {
+      assertCompanyProviderCutoverReady({
+        providerIds: new Set([provider.id]),
+        administration: { inspectSsoCutoverWorkspaces: () => [workspace] } as never,
+        identity: {
+          readSsoCutoverSnapshot: <Result>(read: () => Result) => read(),
+          inspectSsoCutover: () => ({ ...identity, requiredProviderLinks: [] }),
+        } as never,
+      });
+      throw new Error("Expected startup readiness assertion to reject missing provider links.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CompanyProviderCutoverReadinessError);
+      if (!(error instanceof CompanyProviderCutoverReadinessError)) throw error;
+      expect(error.issues.map(({ reason }) => reason)).toContain("principal_not_connected");
+    }
+  });
+
+  it("surfaces identity inspection failures instead of turning them into readiness findings", () => {
+    const failure = new Error("identity inspection failed");
+    expect(() =>
+      assertCompanyProviderCutoverReady({
+        providerIds: new Set([provider.id]),
+        identity: {
+          readSsoCutoverSnapshot: <Result>(read: () => Result) => read(),
+          inspectSsoCutover: () => {
+            throw failure;
+          },
+        } as never,
+        administration: { inspectSsoCutoverWorkspaces: () => [workspace] } as never,
+      }),
+    ).toThrow(failure);
   });
 });
 

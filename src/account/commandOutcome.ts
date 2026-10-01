@@ -1,5 +1,6 @@
 import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
 import { isOwnershipTransferTerminalOutcomeBody } from "@capacitylens/shared/account/ownershipTransfer";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // These currently defined 409 codes prove that the server reached a terminal rejection. A valid
 // ownership-transfer terminal response instead proves that ceremony committed; this classification
@@ -12,21 +13,18 @@ const TERMINAL_COMMAND_CONFLICT_CODES = new Set<string>([
   "AUTHORITY_CHANGED",
   "IDEMPOTENCY_CONFLICT",
 ] satisfies readonly AccountErrorCode[]);
-export const unknownCommandOutcomes = new WeakSet<Response>();
+/** The unknown-outcome decision `runCommand` made for each response it classified. */
+export const commandOutcomeDecisions = new WeakMap<Response, boolean>();
 
 /** Read the exact unknown-outcome decision made while retaining or closing the command identity. */
 export function hasUnknownAccountCommandOutcome(response: Response): boolean {
-  return unknownCommandOutcomes.has(response);
+  return commandOutcomeDecisions.get(response) === true;
 }
 
 function compareCanonicalKeys(left: string, right: string): number {
   if (left < right) return -1;
   if (left > right) return 1;
   return 0;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function readResponseBody(response: Response, parsedBody: unknown): Promise<unknown> {

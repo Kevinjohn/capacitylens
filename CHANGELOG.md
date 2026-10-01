@@ -9,14 +9,132 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- A new company can start with example data: a **Start with example data** box on the create-company
+  form (ticked for a first company), or **Settings, Example data** while the company is empty. It adds
+  two people, a client, a project and a few bookings across this week and next, as ordinary rows. An
+  Owner or Admin can add it, and the server refuses a company that already has people, clients,
+  projects or allocations (#1388).
+
+### Changed
+
+- Prepare experimental Node 26 compatibility checks while retaining Node 24 as the default;
+  official fixed-runtime acceptance remains pending (#710).
+
+## [0.73.0-alpha.1] - 2026-10-01
+
+### Added
+
+- Each release publishes a runnable server archive, `capacitylens-X.Y.Z.tar.gz`, with a `.sha256`
+  checksum. It holds the built web app, the server and its runtime dependencies, an environment
+  example with three lines to fill in, a systemd unit, nginx and Caddy site files and an
+  `INSTALL.md` with the five install steps. Node 24 is the only prerequisite (#1383).
+- Run from the archive, the server also serves the web app, with the same caching and security
+  headers as the packaged nginx, so one reverse-proxy line in front of it is enough. Request logs
+  hide the token in `/invite/` and `/reset-password/` links. `CAPACITYLENS_WEB_DIR` points the
+  server at another build, or turns serving off when set empty (#1383).
+- The archive includes the owner-password recovery tool, so recovering a sole Owner no longer needs
+  a source checkout (#1383).
+
+### Changed
+
+- Under `NODE_ENV=production`, unset settings take the recommended values: sign-in mode
+  `password-only`, a rate limit of 300 requests a minute, request logging, deep health checks,
+  audit records on stdout and hourly backups in `backups/` beside the database file. Explicit
+  values still win, and sign-in mode `off` still needs `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1`
+  (#1383).
+- The server's HSTS header, and the one in the archive's nginx site file, is host-only, without
+  `includeSubDomains`. The server sends it automatically when the public URL is `https`;
+  `CAPACITYLENS_HTTPS=0` turns it off. The Docker Compose nginx is unchanged (#1383).
+
+### Fixed
+
+- Docker installations now refuse retired generic company-login settings at startup instead of
+  silently omitting them. Repeat Compose starts now reuse the existing internal certificate
+  after an API restart or database restore, and the installation guide follows the current
+  password setup flow (#1387).
+- Docker web targets now keep account-route redirects on the public origin, and the documented
+  audit-outbox recovery command accepts pnpm's argument separator (#1387).
+- Stop warning logs from copying response payloads, omit corrupt cell contents from SQLite read errors, and strip query strings and fragments from request URLs.
+
+## [0.72.0-alpha.1] - 2026-09-30
+
+### Added
+
+- Password users can verify their email by link to join through an open or approved-domain
+  company policy when email delivery is enabled (#1300).
+
+- Optional SMTP delivery for addressed invitations and **Forgot password?** email recovery.
+  Admin password-reset copy-links remain available without email (#1312).
+
+### Fixed
+
+- Creating a company with a malformed request body now returns a validation error without creating partial company data (#1371).
+- Switching companies while a member view is waiting to save pending changes now cancels that
+  start before it can load the previous company's view (#1370).
+- Selecting a company that is no longer available returns to the picker and clears the previous
+  company's dirty form, drag and screen-reader announcement state while keeping the not-found notice.
+- The documentation 404 page now explains the missing page and returns hosted visitors
+  to the documentation home, including from nested routes (#1368).
+- Invitation guidance now reflects conditional SMTP delivery and the copy-link fallback, and
+  explains that Disable Access follows recreated identities only with durable mailbox proof (#1367).
+- Connecting a company sign-in provider now offers identity confirmation when a
+  session has aged and explains how to recover from an unverified local account
+  email (#1364).
+- A first start on an empty database no longer logs a "Database schema mismatch" error telling
+  the operator to run `npx auth migrate`. The server creates those tables itself, and still refuses
+  to start if they cannot be brought up to date (#1353).
+- Dev tooling now reserves explicitly selected port lanes, reports missing `lsof`, and stops with
+  instructions instead of terminating a process that occupies a lane (#1316, #1317, #1322).
+  `pnpm run lanes` lists what holds each lane, and `--stop-orphans` stops leftover servers.
+- Pending offline snapshots no longer restore data after offline access is disabled (#1320).
+- Offline cache warnings stay visible until the failed snapshot is saved successfully (#1321).
+- Offline snapshots can be retried immediately after a concurrent device-cache cleanup discards an earlier write (#1372).
+- Invitation emails are limited to five an hour per address from each company and fifty an hour
+  per company, and joining-verification emails to five an hour per address, so they cannot be
+  used to flood a mailbox or
+  exhaust the mail quota. Over the budget an invitation is still created with its copy link
+  (#1324).
+- A save made while someone else was signing up could be confirmed and then lost if that
+  sign-up failed. Sign-up now checks and hashes the password before it starts writing, and a save
+  that still overlaps a sign-in is refused instead of being tied to it (#1305).
+- A save that overlapped a sign-up or company sign-in could fail with a server error. It now waits
+  for the sign-in to finish and then saves (#1307).
+
+### Security
+
+- Git now ignores `.env` and `.env.*` (except `.env.example`), so the secret and setup token an
+  install writes to `.env` cannot be committed by `git add .` (#1358).
+- Sign-in and other credential limits now count each client by the address the server trusts.
+  A client could previously avoid them by sending its own forwarding header, and without one
+  every client shared a single allowance (#1308).
+- In the Docker deployment, three sign-in attempts by anyone locked every user out of signing in
+  for 10 seconds, because all requests reached the server from the host proxy's address. The
+  packaged nginx now passes on the browser's address from a proxy on the host or a private
+  network (#1311).
+- Updated the transitive `undici` dependency to 7.29.1, resolving two high-severity advisories
+  (a WebSocket denial of service and a TLS certificate validation bypass).
+
+## [0.71.0-alpha.1] - 2026-09-27
+
+### Added
+
+- Let each company's Owner choose invitation-only, open, approved-domain, or approved-domain-or-invitation joining in **Team & access**. Admins can review the policy. Existing identities with trusted address proof join as Viewers by policy; addressed invitations can grant another role. Google, Microsoft and eligible GitHub sign-in follow the same company-bound rules (#1291).
+- Let Owners and Admins Disable Access to one company and explicitly Enable it later. The
+  restriction survives membership removal and verified-email re-registration; ordinary archive
+  and removal still allow a later invitation. Verified GitHub addresses in mixed mode use the
+  same restriction, while GitHub remains experimental (#1290).
 - Use Google or Microsoft for company sign-in, including first-owner setup, invitations and
   explicit connection to an existing account. Microsoft verifies your company email once when
   needed, with retry and recovery for expired or undelivered verification links (#1216, #1240).
 
 ### Changed
 
-- Prepare experimental Node 26 compatibility checks while retaining Node 24 as the default;
-  official fixed-runtime acceptance remains pending (#710).
+- Make sign-in modes explicit: password only, company sign-in only, or both. Existing installations
+  must update `SMALLSASS_ACCOUNT_MODE` alongside the application; see the upgrade guide (#1288).
+- Place every configured sign-in provider in one consistent-width stack above the password form,
+  preserving provider order, branding and first-owner setup behavior (#1289).
+- Give consistent reasons when checking whether passwords can be disabled, with one or several
+  company sign-in providers configured. Keep existing sign-in and recovery safeguards (#1248).
 - Present Google and Microsoft together above the password fallback. Provider-required
   installations reject password and GitHub sign-in; mixed installations retain existing
   password and GitHub behavior. Microsoft live-tenant validation remains pending (#1219).
@@ -26,8 +144,37 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Close an enlarged documentation screenshot when Tab is pressed, so keyboard focus no longer moves
+  behind the overlay where its focus ring cannot be seen (#1278).
+- Keep company switches from leaving earlier attempts unresolved, reconcile uncertain member links
+  and ownership confirmations with the latest access, and offer a retry when the ownership request
+  cannot be read (#1253).
+- Show linked sign-in pictures consistently on Schedule and Overview when a person has no explicit
+  avatar, and explain that provider reauthentication requires resubmitting the original action
+  (#1253).
+- Reject malformed successful breach-check responses, retain safe Microsoft mail-delivery
+  diagnostics, and keep database inspection read-only while hardening files during initialization
+  (#1253).
+- Make validation launchers report interrupted children as failures and keep concurrent port-lane
+  claims distinct (#1253).
 - Keep failed company-sign-in connection messages visible after returning from the provider,
   and clear the previous failure when retrying (#1216).
+- Exclude external / 3rd-party people from a group's average utilisation, as the headline
+  figure already does (#1257).
+- Label the sidebar theme button by the scheme actually displayed, so with Match system on a
+  dark device it offers light mode and switches to it (#1260).
+- Clear a new invitation link when the invite dialog closes, so reopening it shows an empty
+  form instead of the previous link (#1262).
+- Show a notice when an invite finishes creating after its dialog was closed, since its
+  one-time link could not be shown (#1262).
+
+### Removed
+
+- Remove the list of active sessions from Account → Security. Individual sessions can no longer
+  be viewed or signed out from the app; changing your password still signs out other sessions
+  (#1234, #1255).
+- Report degraded backup health when the backup directory goes missing or becomes unwritable after
+  an earlier successful snapshot, instead of continuing to report ok (#1277).
 
 ## [0.70.1-alpha.1] - 2026-09-23
 
@@ -1012,7 +1159,7 @@ milestone into one supported prerelease, on top of a codebase-wide simplificatio
 
 - Simplified the account boundary (`server/src/accounts` + `server/src/routes`, ~15k lines) with
   no behaviour change (#351), applied findings-first with four independent review angles and
-  Codex arbitration on contested items:
+  independent arbitration on contested items:
   - `accountRoutes.ts`: an `auditUnlessReplayed` helper replaces ten copy-pasted
     audit-after-flow sites, and shared `authorizeMemberMutation` / `requireMembership` guards
     replace six duplicated role-check blocks; the account-flow operation list moved to the
@@ -1053,7 +1200,7 @@ milestone into one supported prerelease, on top of a codebase-wide simplificatio
 ### Changed
 
 - Simplified the flat `server/src` root directory (~42k lines) with no behaviour change (#350),
-  applied findings-first with four independent review angles and Codex arbitration:
+  applied findings-first with four independent review angles and a final arbitration:
   - Hot read/write helpers (`upsertRow`, `getRow`, `loadState`, `readSlice`, membership-role
     lookups, audit-outbox drain, sync-ordering checks) now reuse per-handle cached prepared
     statements instead of re-preparing identical SQL on every call, following the existing
@@ -1744,7 +1891,7 @@ import/export becomes a Settings card. No schema change.
 
 ## [0.35.4-alpha.1] — 2026-08-09
 
-Security hardening from a Codex CLI scan and a follow-up code review. No schema change.
+Security hardening from an automated scan and a follow-up code review. No schema change.
 
 ### Security
 
@@ -4624,7 +4771,10 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.70.1-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.73.0-alpha.1...HEAD
+[0.73.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.72.0-alpha.1...v0.73.0-alpha.1
+[0.72.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.71.0-alpha.1...v0.72.0-alpha.1
+[0.71.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.70.1-alpha.1...v0.71.0-alpha.1
 [0.70.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...v0.70.1-alpha.1
 [0.70.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.69.0-alpha.1...v0.70.0-alpha.1
 [0.69.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...v0.69.0-alpha.1

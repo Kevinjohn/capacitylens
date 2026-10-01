@@ -56,6 +56,9 @@ const AccountView = lazy(() =>
 const InviteAccept = lazy(() =>
   import("./components/invites/InviteAccept").then((module) => ({ default: module.InviteAccept })),
 );
+const JoinCompany = lazy(() =>
+  import("./components/join/JoinCompany").then((module) => ({ default: module.JoinCompany })),
+);
 // Password reset is a top-level route outside AppShell, like InviteAccept — but unlike
 // an invite it must render for a visitor with NO session (they're locked out; that's the point), so
 // AuthProvider carves /reset-password/ out of the login wall (see the status 'login' branch there).
@@ -141,6 +144,15 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={<RouteLoading />}>
         <InviteAccept />
+      </Suspense>
+    ),
+  },
+  {
+    path: PUBLIC_AUTH_ENTRY_PATHS.companyJoin,
+    errorElement: <RouteError />,
+    element: (
+      <Suspense fallback={<RouteLoading />}>
+        <JoinCompany />
       </Suspense>
     ),
   },

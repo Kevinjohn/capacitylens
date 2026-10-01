@@ -109,7 +109,7 @@ function readBranchTip({ refName, eventName }) {
   }
 }
 
-function findOpenIssue() {
+function readOpenWorkflowIssueNumber() {
   const found = gh([
     "issue",
     "list",
@@ -142,7 +142,7 @@ function main() {
     process.exit(1);
   }
 
-  const existingIssue = findOpenIssue();
+  const existingIssue = readOpenWorkflowIssueNumber();
   const needsTip = results.some((entry) => entry.result === "cancelled");
   const branchTip = needsTip ? readBranchTip(context) : null;
   const decision = decide({ results, headSha: context.headSha, branchTip, existingIssue });

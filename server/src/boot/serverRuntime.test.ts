@@ -12,7 +12,7 @@ import type {
 import type { AuditSink } from "../audit";
 import type { formatBackupStartupFailure, startBackups } from "../backup";
 import { openDb, type Db } from "../db";
-import type { createLastResortErrorHandler, createShutdownHandler, handleListenFailure } from "../shutdown";
+import type { createLastResortErrorHandler, createShutdownHandler, shutDownAfterListenFailure } from "../shutdown";
 import type { closeDbSafely, parseAuditMaxMb, refuseToStart } from "./refusals";
 import { startServerRuntime } from "./serverRuntime";
 
@@ -27,7 +27,7 @@ const runtime = vi.hoisted(() => ({
   formatBackupStartupFailure: vi.fn<typeof formatBackupStartupFailure>(),
   createShutdownHandler: vi.fn<typeof createShutdownHandler>(),
   createLastResortErrorHandler: vi.fn<typeof createLastResortErrorHandler>(),
-  handleListenFailure: vi.fn<typeof handleListenFailure>(),
+  shutDownAfterListenFailure: vi.fn<typeof shutDownAfterListenFailure>(),
   closeDbSafely: vi.fn<typeof closeDbSafely>(),
   parseAuditMaxMb: vi.fn<typeof parseAuditMaxMb>(),
   refuseToStart: vi.fn<typeof refuseToStart>(),
@@ -48,7 +48,7 @@ vi.mock("../backup", () => ({
 vi.mock("../shutdown", () => ({
   createShutdownHandler: runtime.createShutdownHandler,
   createLastResortErrorHandler: runtime.createLastResortErrorHandler,
-  handleListenFailure: runtime.handleListenFailure,
+  shutDownAfterListenFailure: runtime.shutDownAfterListenFailure,
 }));
 vi.mock("./refusals", () => ({
   closeDbSafely: runtime.closeDbSafely,
@@ -243,7 +243,7 @@ describe("startServerRuntime audit and backup composition", () => {
 
 describe("startServerRuntime startup and process forwarding", () => {
   it("warns when password setup is locked and forwards a successful listen address", async () => {
-    start({ applicationOptions: { authMode: "password", allowReset: false }, userCount: 0 });
+    start({ applicationOptions: { authMode: "password-only", allowReset: false }, userCount: 0 });
     await vi.waitFor(() => expect(logInfo).toHaveBeenCalled());
 
     expect(listen).toHaveBeenCalledWith({ host: "127.0.0.1", port: 8787 });
@@ -255,7 +255,7 @@ describe("startServerRuntime startup and process forwarding", () => {
 
   it("does not issue the setup warning outside a locked password installation", () => {
     start({ applicationOptions: { authMode: "off", allowReset: false }, userCount: 0 });
-    start({ applicationOptions: { authMode: "password", allowReset: false }, userCount: 1 });
+    start({ applicationOptions: { authMode: "password-only", allowReset: false }, userCount: 1 });
 
     expect(logWarning).not.toHaveBeenCalled();
   });
@@ -265,8 +265,8 @@ describe("startServerRuntime startup and process forwarding", () => {
     listen.mockRejectedValue(failure);
     start();
 
-    await vi.waitFor(() => expect(runtime.handleListenFailure).toHaveBeenCalled());
-    expect(runtime.handleListenFailure).toHaveBeenCalledWith(failure, shutdown);
+    await vi.waitFor(() => expect(runtime.shutDownAfterListenFailure).toHaveBeenCalled());
+    expect(runtime.shutDownAfterListenFailure).toHaveBeenCalledWith(failure, shutdown);
   });
 });
 

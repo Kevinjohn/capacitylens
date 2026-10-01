@@ -19,16 +19,17 @@ import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
 import { canAdmitLocalExternalIdentity } from "./accounts/externalIdentityAdmission";
 import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPort";
 import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
-import { assertCompanyProviderCutoverReady } from "./accounts/ssoCutover";
+import { assertCompanyProviderCutoverReady } from "./accounts/companyProviderReadiness";
 import { createFederatedLinkCeremony, reconcileObservedFederatedLinks } from "./federatedLinkLifecycle";
 import { readVerifiedMicrosoftProfile } from "./authConfig/socialProviders";
-import { CHECKSUM_PINNED_MIGRATIONS, MICROSOFT_PROOF_V46_PIN } from "./db/migrations/authPlanningPins.testSupport";
+import { CHECKSUM_PINNED_MIGRATIONS } from "./db/migrations/authPlanningPins.testSupport";
 const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
   identityHasAnyPrincipal: () => countUsers(db) !== 0,
   hasLivePreauthorizedInvitation: (email: string) => hasLivePreauthorizedInvitation(db, email),
 });
 import { TENANT_ENTITY_ACCOUNT_INDEXES_V21 } from "./tenantIndexes";
 import { registerServerFixtureCleanup } from "./testHelpers";
+import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 
 // P1.16 — session-cookie + session-lifetime hardening, asserted by INTROSPECTING the resolved
 // betterAuth options (auth.options is the exact object we passed; same robust point P1.7 uses for
@@ -36,7 +37,7 @@ import { registerServerFixtureCleanup } from "./testHelpers";
 // are no options to harden — authFromEnv returns { mode:'off', auth:null } untouched.
 
 const PASSWORD_ENV = {
-  SMALLSASS_ACCOUNT_MODE: "password",
+  SMALLSASS_ACCOUNT_MODE: "password-only",
   SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123", // 32+ chars (MIN_BETTER_AUTH_SECRET_LENGTH)
   SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
 };
@@ -104,10 +105,14 @@ const createCompletedFederatedLinkFixture = (db: ReturnType<typeof openDbRaw>) =
     `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
      VALUES (?, ?, ?, 1, ?, ?)`,
   ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
-  db.prepare(
-    `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run("link-1", "google", "subject-1", "principal-1", timestamp, timestamp);
+  withVerifiedFederatedProfile(db, { providerId: "google", subject: "subject-1", email: "member@example.com" }, () =>
+    db
+      .prepare(
+        `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run("link-1", "google", "subject-1", "principal-1", timestamp, timestamp),
+  );
   db.prepare(
     `INSERT INTO capacitylens_federated_link_ceremonies
       (id, principalId, providerId, createdAt, expiresAt, completedAt)
@@ -193,6 +198,7 @@ const registerFederatedAuditTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -205,13 +211,13 @@ const registerFederatedAuditTests = () => {
     const identity = createBetterAuthIdentityPort({
       applicationId: "capacitylens",
       auth,
-      authMode: "sso",
+      authMode: "sso-only",
       db,
-    }).inspectSsoCutover("google");
+    });
     expect(() =>
       assertCompanyProviderCutoverReady({
         providerIds: new Set(["google"]),
-        identity: { inspectSsoCutover: () => identity } as never,
+        identity,
         administration: {
           inspectSsoCutoverWorkspaces: () => [
             {
@@ -253,6 +259,7 @@ const registerFederatedReconciliationTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -303,6 +310,7 @@ const registerFederatedCeremonyConflictTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -343,6 +351,7 @@ const registerFederatedSubjectConflictTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -356,18 +365,27 @@ const registerFederatedSubjectConflictTests = () => {
        VALUES (?, ?, ?, 1, ?, ?)`,
     ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
     createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "google" });
-    db.prepare(
-      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("link-1", "google", "subject-1", "principal-1", timestamp, timestamp);
-
-    expect(() =>
+    withVerifiedFederatedProfile(db, { providerId: "google", subject: "subject-1", email: "member@example.com" }, () =>
       db
         .prepare(
           `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?)`,
         )
-        .run("link-2", "google", "subject-2", "principal-1", timestamp, timestamp),
+        .run("link-1", "google", "subject-1", "principal-1", timestamp, timestamp),
+    );
+
+    expect(() =>
+      withVerifiedFederatedProfile(
+        db,
+        { providerId: "google", subject: "subject-2", email: "member@example.com" },
+        () =>
+          db
+            .prepare(
+              `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            )
+            .run("link-2", "google", "subject-2", "principal-1", timestamp, timestamp),
+      ),
     ).toThrow(/unique constraint/i);
     reconcileFederatedLinks();
 
@@ -396,7 +414,9 @@ const registerStartupControlTests = () => {
     expect(configured.auth).not.toBeNull();
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(MICROSOFT_PROOF_V46_PIN));
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(
+      expect.objectContaining(CHECKSUM_PINNED_MIGRATIONS.at(-1)),
+    );
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -429,7 +449,11 @@ const registerStartupConfigurationRefusalTests = () => {
   it("leaves a bare database untouched when provider configuration is invalid", () => {
     const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
     expect(() =>
-      createAuthFromEnvironment(db, { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "id-without-secret" }),
+      createAuthFromEnvironment(db, {
+        ...PASSWORD_ENV,
+        SMALLSASS_ACCOUNT_MODE: "password-and-sso",
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "id-without-secret",
+      }),
     ).toThrow(/google/i);
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     db.close();
@@ -492,6 +516,7 @@ const registerStartupDiscoverySuccessTest = () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
@@ -522,6 +547,10 @@ const registerStartupMigrationPlanningTest = () => {
     db.exec(`
       DROP TABLE capacitylens_bootstrap_claim;
       DROP TABLE microsoft_identity_proofs;
+      DROP TABLE account_access_restrictions;
+      DROP TABLE identity_email_proofs;
+      DROP TABLE account_joining_policies;
+      DROP TABLE company_join_intents;
       DELETE FROM capacitylens_schema_migrations WHERE version >= 20;
       PRAGMA user_version = 19;
     `);
@@ -553,7 +582,7 @@ const registerStartupMigrationPlanningTest = () => {
     ensureAuthControlTables(db, PASSWORD_ENV);
     await runAuthMigrations(auth);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
-    await expect(planAuthSchemaMigrations(auth)).resolves.toEqual({ pending: false, tables: [] });
+    await expect(planAuthSchemaMigrations(auth)).resolves.toEqual({ pending: false, tables: [], problems: [] });
     db.close();
   });
 };
@@ -569,6 +598,45 @@ describe("startup configuration before database migration", () => {
   registerStartupDiscoverySuccessTest();
   registerStartupDiscoveryFailureTest();
   registerStartupMigrationPlanningTest();
+});
+
+describe("auth schema check at startup", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("starts a fresh database without the library's pre-migration schema error", async () => {
+    const logged: string[] = [];
+    for (const level of ["error", "warn"] as const) {
+      vi.spyOn(console, level).mockImplementation((...parts: unknown[]) => void logged.push(parts.join(" ")));
+    }
+    const db = openDb(":memory:");
+    const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV, { deferDatabaseSetup: true });
+    const passwordAuth = assertPresent(auth, "password auth");
+    // A library endpoint awaits any pending startup schema check, so an enabled check would reject here.
+    await expect(passwordAuth.api.getSession({ headers: new Headers() })).resolves.toBeNull();
+    initializeOpenDb(db, ":memory:");
+    ensureAuthControlTables(db, PASSWORD_ENV);
+    await runAuthMigrations(passwordAuth);
+
+    expect(logged.filter((line) => /ERROR|schema mismatch|npx auth migrate/.test(line))).toEqual([]);
+  });
+
+  it("refuses to start when an auth table has a required column the library never writes", async () => {
+    const db = openDb(":memory:");
+    const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
+    const passwordAuth = assertPresent(auth, "password auth");
+    await runAuthMigrations(passwordAuth);
+    // SQLite cannot add a NOT NULL column without a default, so rebuild the table with one.
+    db.exec("ALTER TABLE verification RENAME TO verification_old");
+    db.exec(
+      "CREATE TABLE verification (id TEXT PRIMARY KEY, identifier TEXT NOT NULL, value TEXT NOT NULL, " +
+        "expiresAt DATE NOT NULL, createdAt DATE NOT NULL, updatedAt DATE NOT NULL, tenant TEXT NOT NULL)",
+    );
+    db.exec("DROP TABLE verification_old");
+
+    await expect(runAuthMigrations(passwordAuth)).rejects.toThrow(
+      /did not converge; Column "tenant" on table "verification" is required/,
+    );
+  });
 });
 
 describe("first-owner database-hook races", () => {
@@ -639,7 +707,7 @@ describe("resolved auth options", () => {
     },
     {
       name: "sso",
-      env: { ...PASSWORD_ENV, ...companyProviderEnv, SMALLSASS_ACCOUNT_MODE: "sso" },
+      env: { ...PASSWORD_ENV, ...companyProviderEnv, SMALLSASS_ACCOUNT_MODE: "sso-only" },
       trustedOrigins: ["https://capacity.example"],
       pluginIds: [],
     },
@@ -768,6 +836,7 @@ const registerExternalProviderConfigurationTests = () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
@@ -812,7 +881,7 @@ const registerExternalSsoProviderTest = () => {
       db,
       {
         ...PASSWORD_ENV,
-        SMALLSASS_ACCOUNT_MODE: "sso",
+        SMALLSASS_ACCOUNT_MODE: "sso-only",
         SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
         SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
       },
@@ -848,7 +917,7 @@ const registerExternalSessionAssuranceTest = () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "sso",
+      SMALLSASS_ACCOUNT_MODE: "sso-only",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",

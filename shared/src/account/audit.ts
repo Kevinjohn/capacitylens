@@ -1,14 +1,18 @@
 import type { ApplicationId, CommandId, IsoInstant, PrincipalId, WorkspaceId } from "./types";
 import type { MasqueradeEndReason } from "../domain/masquerade";
 
+/** Every audit action the account subsystem records. */
 export type AccountAuditAction =
   | "workspace.provisioned"
   | "workspace.erased"
   | "invitation.created"
   | "invitation.accepted"
   | "invitation.revoked"
+  | "joining_policy.updated"
   | "member.role_changed"
   | "member.status_changed"
+  | "member.access_disabled"
+  | "member.access_enabled"
   | "member.removed"
   | "ownership.transferred"
   | "ownership_transfer.initiated"

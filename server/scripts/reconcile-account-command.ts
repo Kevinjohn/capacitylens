@@ -1,9 +1,10 @@
 import { existsSync } from "node:fs";
 import { openDbConnection, planDatabaseMigrations } from "../src/db";
+import { restrictIdentifiedDatabasePermissions } from "../src/db/filePermissions";
 import {
   assertAccountBoundaryStateCurrent,
   closeAccountCommandReconciliation,
-  getAccountCommandByIdForReconciliation,
+  readAccountCommandAndFlagStalePending,
 } from "../src/accounts/state";
 import { buildSecretDigest } from "../src/accounts/commands";
 
@@ -30,7 +31,7 @@ if (!databasePath || !applicationId || !commandId || !operatorReference) {
       );
     }
     assertAccountBoundaryStateCurrent(db);
-    const record = getAccountCommandByIdForReconciliation({ db, applicationId, commandId });
+    const record = readAccountCommandAndFlagStalePending({ db, applicationId, commandId });
     if (!record) throw new Error("No matching account command exists.");
     if (record.status !== "reconciliation_required") {
       throw new Error(`Command is ${record.status}; only reconciliation_required commands can be closed.`);
@@ -52,6 +53,8 @@ if (!databasePath || !applicationId || !commandId || !operatorReference) {
         repairKind,
       }),
     );
+    // Planning is read-only; closing the command writes, so harden the identified file first.
+    restrictIdentifiedDatabasePermissions(db);
     const referenceHash = buildSecretDigest("reconciliation-reference", operatorReference);
     if (!closeAccountCommandReconciliation({ db, applicationId, commandId, referenceHash })) {
       throw new Error("The command changed while reconciliation was being closed; inspect it again.");

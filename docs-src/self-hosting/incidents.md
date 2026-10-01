@@ -8,7 +8,8 @@ description: Symptom-led guidance for account compromise, corrupted records, a l
 This page is organised by what you're seeing, not by subsystem. Find the symptom closest
 to your situation, and follow its fix. Most of these procedures need the server stopped
 — stopping it early costs you a few minutes of downtime and prevents a repair from racing
-live traffic.
+live traffic. Resetting a lost Owner password is the exception to the checkout requirement
+below: the release archive carries its own tool for it.
 
 ::: warning Running these commands under Docker
 The recovery commands below (`pnpm --filter capacitylens-server ...`) are written for a
@@ -130,12 +131,29 @@ session revocation — and never writes a credential directly.
    to run if any other process still holds the database — the `--confirm-server-stopped`
    flag records your intent, the lock enforces it.
 3. Using the release that most recently started the database, with the instance's
-   account environment present (`SMALLSASS_ACCOUNT_MODE=password`,
-   `SMALLSASS_ACCOUNT_SECRET`, `SMALLSASS_ACCOUNT_PUBLIC_URL`), run:
+   environment present, run the tool bundled in the release archive. On a native install,
+   stop the service, then run it as the service user with the service's environment file. The
+   `--pipe` option prints the link to your terminal and keeps it out of the journal:
 
    ```bash
-   pnpm --filter capacitylens-server reset:owner-password -- /absolute/path/to/capacitylens.db owner@example.com --confirm-server-stopped
+   sudo systemctl stop capacitylens
+   sudo systemd-run --pipe --wait --quiet --uid=capacitylens -p EnvironmentFile=/etc/capacitylens.env /usr/bin/env node /opt/capacitylens/current/server/dist/reset-owner-password.mjs /var/lib/capacitylens/capacitylens.db owner@example.com --confirm-server-stopped; echo "exit status $?"
    ```
+
+   An exit status other than 0 means no link was issued; the message above it says why. On a
+   managed host, run this from the site's `current` folder, in the platform's command box or
+   a shell, after stopping the background process. The command box starts in the site's root
+   folder, so the line begins with `cd current`:
+
+   ```bash
+   cd current && node --env-file=../.env server/dist/reset-owner-password.mjs /home/forge/capacitylens-data/capacitylens.db owner@example.com --confirm-server-stopped
+   ```
+
+   From a source checkout, or a Docker install using the throwaway container above, the
+   equivalent is
+   `pnpm --filter capacitylens-server reset:owner-password -- /absolute/path/to/capacitylens.db owner@example.com --confirm-server-stopped`
+   with `SMALLSASS_ACCOUNT_MODE=password-only`, `SMALLSASS_ACCOUNT_SECRET` and
+   `SMALLSASS_ACCOUNT_PUBLIC_URL` set.
 
 4. The tool refuses to run for: a missing or ambiguous identity at that address; a target
    who isn't the sole active Owner of at least one company (anyone else has a normal
@@ -292,7 +310,7 @@ can assign an existing active member as Owner.
    [ownership transfer](/getting-started/roles-and-permissions#hand-the-company-to-someone-else).
 2. If the company remains ownerless, preserve the database and audit logs and stop the
    server. While the deployment remains in `self-hosted-mixed` with
-   `SMALLSASS_ACCOUNT_MODE=password` and a company provider configured, assign an existing
+   `SMALLSASS_ACCOUNT_MODE=password-and-sso` and a company provider configured, assign an existing
    active member using the guarded repair command:
 
    ```bash

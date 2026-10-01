@@ -3,7 +3,7 @@ import { useStore } from "../../store/useStore";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
-import { validateName } from "../../lib/validation";
+import { parseName } from "../../lib/validation";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
 import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
@@ -151,7 +151,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
   const projectOptions = useProjectOptions(activity);
 
   const submit = () => {
-    const trimmed = validateName(name, fail);
+    const trimmed = parseName(name, fail);
     if (!trimmed) return;
     // A project-specific activity MUST have a project; internal/all-projects are project-less (projectId/phaseId
     // undefined). Surface the project requirement as a field error rather than relying on the
@@ -176,7 +176,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
         }
         update(activity.id, patch);
       } else {
-        add(patch);
+        if (add(patch).kind === "blocked") return;
       }
       onClose();
     } catch (e) {

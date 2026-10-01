@@ -5,6 +5,10 @@ description: Add the production environment, supervised API process and same-ori
 
 # Configure the API and nginx
 
+This page belongs to the long-form route, which builds CapacityLens from a source checkout.
+To install from the release archive with nothing to build, follow the
+[five steps](/self-hosting/managed-vps/) instead.
+
 This page starts the CapacityLens API as the isolated site user and connects it to the public web
 app through nginx. It also enables scheduled backups, structured logs and deep health checks.
 Allow about twenty minutes, including verification.
@@ -56,7 +60,7 @@ CAPACITYLENS_HEALTH_DEEP=1
 CAPACITYLENS_RATE_LIMIT=300
 
 SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password
-SMALLSASS_ACCOUNT_MODE=password
+SMALLSASS_ACCOUNT_MODE=password-only
 SMALLSASS_ACCOUNT_SECRET=<session-signing-secret>
 SMALLSASS_ACCOUNT_PUBLIC_URL=https://your-current-domain.example
 SMALLSASS_ACCOUNT_SETUP_TOKEN=<one-time-owner-token>
@@ -87,8 +91,8 @@ SMALLSASS_ACCOUNT_REQUIRE_MFA
 Unset is different from `0` for some environment parsers. Remove the lines unless the
 [Configure the service](/installation/configure-the-service) page specifically says that an empty value has meaning.
 
-If the platform already emits an HSTS header, leave `CAPACITYLENS_HTTPS` unset to avoid duplicate
-headers. The public origin must still use HTTPS.
+If the platform already emits an HSTS header, set `CAPACITYLENS_HTTPS=0` to avoid duplicate
+headers; otherwise leave it unset and an `https` public URL makes the API emit host-only HSTS. The public origin must still use HTTPS.
 
 `CAPACITYLENS_HOST=127.0.0.1` does more than hide the API from the internet. A loopback listener
 automatically trusts the `X-Forwarded-For` and `X-Forwarded-Proto` headers that nginx sets on the

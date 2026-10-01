@@ -1,7 +1,7 @@
 {
   "name": "capacitylens-server",
   "private": true,
-  "version": "0.70.1-alpha.1",
+  "version": "0.73.0-alpha.1",
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "SQLite-backed REST API for CapacityLens. Imports the shared domain core so server and client validation cannot drift.",
@@ -15,7 +15,7 @@
     "scripts/verify-tls-renewal.mjs"
   ],
   "scripts": {
-    "build:runtime": "esbuild src/index.ts src/importWorker.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist --out-extension:.js=.mjs --external:fastify '--external:@fastify/*' --external:better-auth '--external:better-auth/*'",
+    "build:runtime": "esbuild src/index.ts src/importWorker.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist --out-extension:.js=.mjs --external:fastify '--external:@fastify/*' --external:better-auth '--external:better-auth/*' && esbuild scripts/reset-owner-password.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/reset-owner-password.mjs --external:fastify '--external:@fastify/*' --external:better-auth '--external:better-auth/*'",
     "start": "node scripts/check-node.mjs && tsx src/index.ts",
     "dev": "node scripts/check-node.mjs && tsx watch src/index.ts",
     "start:e2e": "node scripts/check-node.mjs && node scripts/e2e-server.mjs db",
@@ -41,6 +41,7 @@
     "@capacitylens/shared": "workspace:*",
     "@fastify/helmet": "^13.1.1",
     "@fastify/rate-limit": "^11.2.0",
+    "@fastify/static": "^10.1.5",
     "better-auth": "1.7.5",
     "fastify": "^5.12.5",
     "nodemailer": "^10.0.10"

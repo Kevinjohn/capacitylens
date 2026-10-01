@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
-import { API, resetServer, serverState, stateRows } from "./db-helpers";
+import { API, resetServer, serverState, requireStateRows } from "./serverTestState";
+import { createCompany } from "./browserTestSupport";
 
 // Server-backed half of the P1.14 onboarding-lock: a DIRECT API PATCH of a frozen account field
 // (language / weekStartsOn / timezone) is rejected with 409. This is the SECURITY backstop — the
@@ -14,7 +15,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
     request,
   }) => {
     const before = await serverState(request);
-    const account = stateRows(before, "accounts")[0];
+    const account = requireStateRows(before, "accounts")[0];
     if (account === undefined) throw new Error("Seeded server state must include an account");
 
     const changes = [
@@ -44,7 +45,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
 
     // All stored values must remain untouched after every refused request.
     const after = await serverState(request);
-    const updatedAccount = stateRows(after, "accounts")[0];
+    const updatedAccount = requireStateRows(after, "accounts")[0];
     if (updatedAccount === undefined) throw new Error("Server state must retain the seeded account");
     expect(updatedAccount.language).toBeUndefined();
     expect(updatedAccount).toMatchObject({
@@ -103,6 +104,33 @@ test.describe("single-company-per-instance policy (client-side affordance + serv
 
     // The rejected create must not have landed — still exactly the two seeded companies.
     const after = await serverState(request);
-    expect(stateRows(after, "accounts")).toHaveLength(2);
+    expect(requireStateRows(after, "accounts")).toHaveLength(2);
+  });
+});
+
+// Example data is added by the server, so this is the server-backed half of the first-company flow:
+// no companies exist, the create form offers the box ticked, and the new company opens on a schedule
+// that already shows the example people and their bookings in the current week.
+test.describe("first company with example data", () => {
+  test.beforeEach(async ({ request }) => {
+    await resetServer(request, false); // wipe without re-seeding: no companies at all
+  });
+
+  test("creating the first company with Start with example data ticked opens a populated schedule", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const signIn = page.getByTestId("fake-sign-in");
+    const companyName = page.getByLabel("Company name");
+    await signIn.or(companyName).first().waitFor();
+    if (await signIn.isVisible()) await signIn.click();
+
+    await expect(page.getByRole("checkbox", { name: "Start with example data" })).toBeChecked();
+    await createCompany(page, "Wayne Enterprises");
+
+    await expect(page.getByText("Dick Grayson", { exact: true })).toBeVisible();
+    await expect(page.getByText("Barbara Gordon", { exact: true })).toBeVisible();
+    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }).first()).toBeVisible();
+    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Build" }).first()).toBeVisible();
   });
 });

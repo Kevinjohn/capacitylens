@@ -58,12 +58,14 @@ function createCutoverInspection(
         workspaceId: workspace.id,
         workspaceName: workspace.name,
         members: listMembersForAccount(db, workspace.id)
-          .filter((member) => member.status === "active")
+          .filter((member) => getActiveMemberRole(db, workspace.id, member.userId) !== null)
           .map((member) => ({ principalId: member.userId, role: member.role, status: "active" as const })),
       }));
     },
     repairOwnerlessWorkspaceInTx(workspaceId, principalId) {
-      const members = listMembersForAccount(db, workspaceId).filter((member) => member.status === "active");
+      const members = listMembersForAccount(db, workspaceId).filter(
+        (member) => getActiveMemberRole(db, workspaceId, member.userId) !== null,
+      );
       const target = members.find((member) => member.userId === principalId);
       if (!target || members.some((member) => member.role === "owner")) return false;
       // Why: stopped-server repair has no request audit port. The retained terminal row is
@@ -120,6 +122,20 @@ function createCutoverAdministration(
       deleteRequestsForAccount(db, workspaceId);
       const principalIds = [...new Set(listMembersForAccount(db, workspaceId).map((row) => row.userId))];
       removeAllMembersForAccount(db, workspaceId);
+      const accessRestrictionTableExists = db
+        .prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'account_access_restrictions'`)
+        .get();
+      const schemaVersion = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
+      if (accessRestrictionTableExists || schemaVersion >= 47) {
+        db.prepare(`DELETE FROM account_access_restrictions WHERE accountId = ?`).run(workspaceId);
+      }
+      const joiningPolicyTableExists = db
+        .prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'account_joining_policies'`)
+        .get();
+      if (joiningPolicyTableExists || schemaVersion >= 49) {
+        db.prepare(`DELETE FROM account_joining_policies WHERE accountId = ?`).run(workspaceId);
+        db.prepare(`DELETE FROM company_join_intents WHERE accountId = ?`).run(workspaceId);
+      }
       removeAllInvitesForAccount(db, workspaceId);
       return principalIds.filter(
         (principalId) =>

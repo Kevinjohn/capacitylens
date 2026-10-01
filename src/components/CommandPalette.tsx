@@ -13,7 +13,7 @@ import { resolveCapacityOverviewAccessDecision } from "../auth/capacityOverviewA
 import { useActiveScopedData } from "../store/useScopedData";
 import { m } from "@/i18n";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "./ui/command";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { buildPaletteItems, type PaletteItem } from "./buildPaletteItems";
 

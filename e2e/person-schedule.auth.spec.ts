@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from "./helpers";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
+import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -98,16 +98,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
   });
   await seedPrivateScheduleEntities(request, owner.cookie, scoped);
 
-  const invitation = await request.post(`${AUTH_API}/api/invites`, {
-    headers: { cookie: owner.cookie },
-    data: { accountId, role: "viewer" },
-  });
-  expect(invitation.status()).toBe(201);
-  const token = ((await invitation.json()) as { token: string }).token;
-  const accepted = await request.post(`${AUTH_API}/api/invites/${token}/accept`, {
-    headers: { cookie: viewer.cookie },
-  });
-  expect(accepted.status()).toBe(200);
+  seedFixtureMember(accountId, viewer.email, "viewer");
   return { owner, viewer };
 }
 

@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp, resetSchedulerScroll, setZoom } from "./helpers";
+import { openApp, resetSchedulerScroll, setZoom } from "./browserTestSupport";
 
 // The hard colour invariant, end-to-end (Phase 9 verification). CapacityLens allows colour to be
 // set ONLY by picking a preset swatch (no hex/RGB entry — see ColorField + the "preset
@@ -11,7 +11,7 @@ import { openApp, resetSchedulerScroll, setZoom } from "./helpers";
 // unchanged under e2e:browsers / e2e:webkit / e2e:firefox.
 
 // "Blue dark" — flat index 47 in the 13×4 SWATCHES grid (swatchLabel(47) === 'Blue dark').
-// Chosen because it ALREADY clears WCAG AA against its ink, so ensureBarColors() (the
+// Chosen because it ALREADY clears WCAG AA against its ink, so resolveAccessibleBarColors() (the
 // contrast-nudge applied to bars + avatars) returns it UNCHANGED — the rendered background is
 // the picked hex exactly, which lets us assert the hex rather than an approximation. It also
 // differs from every seeded entity colour, so the change is genuinely observable.

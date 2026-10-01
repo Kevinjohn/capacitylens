@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -45,7 +46,9 @@ describe("AllocationModal create", () => {
     useStore.getState().addActivity({ name: "Strategy", kind: "repeatable" });
     useStore.getState().addActivity({ name: "Retrospective", kind: "repeatable" });
     const barbara = person("Barbara");
-    const resource = useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -61,8 +64,8 @@ describe("AllocationModal create", () => {
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
       "Internal",
       "No specific project",
-      "Acme / Lightning",
-      "Acme / Other",
+      "Ferris / Lightning",
+      "Ferris / Other",
       "Zeta / Alpha",
     ]);
     fireEvent.click(screen.getByRole("option", { name: "Internal" }));
@@ -90,9 +93,9 @@ describe("AllocationModal create", () => {
   });
 
   it("defaults hourly load to four hours when creation starts on a half day", () => {
-    const resource = useStore
-      .getState()
-      .addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
+    );
     render(
       <AllocationModal
         kind="create"
@@ -106,7 +109,9 @@ describe("AllocationModal create", () => {
 
   it("gives same-named activity options distinct accessible labels", async () => {
     useStore.getState().addActivity({ name: "Wireframes", kind: "project", projectId: "p1" });
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
+    const resource = requireCreated(
+      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -120,7 +125,7 @@ describe("AllocationModal create", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     const activity = screen.getByRole("combobox", { name: "Activity" });
     fireEvent.keyDown(activity, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Wireframes / Lightning (1)" })).toBeInTheDocument();
@@ -140,7 +145,7 @@ describe("AllocationModal create", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -159,11 +164,13 @@ describe("AllocationModal create", () => {
   it.each([
     ["Internal", "Operations", undefined],
     ["No specific project", "Planning", undefined],
-    ["Acme / Lightning", "Planning", "p1"],
+    ["Ferris / Lightning", "Planning", "p1"],
   ] as const)("derives create attribution for the %s scope", async (scope, activityName, expectedProjectId) => {
     useStore.getState().addActivity({ name: "Operations", kind: "internal" });
     useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
+    const resource = requireCreated(
+      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -175,7 +182,7 @@ describe("AllocationModal create", () => {
 
     await chooseOption(user, "Project", scope);
     await chooseOption(user, "Activity", activityName);
-    if (scope === "Acme / Lightning") {
+    if (scope === "Ferris / Lightning") {
       expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(scope);
     }
     if (expectedProjectId) expect(lastAdvisoryProposal()).toHaveProperty("projectId", expectedProjectId);
@@ -204,7 +211,7 @@ describe("AllocationModal create", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await chooseOption(user, "Hours / day", option);
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -225,7 +232,7 @@ describe("AllocationModal create", () => {
       />,
     );
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
     // Clearing a date must NOT produce a NaN-geometry allocation.
@@ -240,18 +247,20 @@ describe("AllocationModal create", () => {
   });
 
   it("books an All-projects activity for a bound placeholder under its locked project", async () => {
-    const planning = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const ph = useStore.getState().addResource({
-      kind: "placeholder",
-      role: "Senior Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#a855f7",
-      projectId: "p1",
-    });
+    const planning = requireCreated(useStore.getState().addActivity({ name: "Planning", kind: "repeatable" }));
+    const ph = requireCreated(
+      useStore.getState().addResource({
+        kind: "placeholder",
+        role: "Senior Designer",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#a855f7",
+        projectId: "p1",
+      }),
+    );
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -267,12 +276,12 @@ describe("AllocationModal create", () => {
     );
 
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
-    expect(projectSelect).toHaveTextContent("Acme / Lightning");
+    expect(projectSelect).toHaveTextContent("Ferris / Lightning");
     // Invalid scopes remain visible so the lock is explicit, but cannot be selected.
     fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Internal" })).toHaveAttribute("data-disabled");
     expect(screen.getByRole("option", { name: "No specific project" })).toHaveAttribute("data-disabled");
-    expect(screen.queryByRole("option", { name: "Acme / Other" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Ferris / Other" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
     const activitySelect = screen.getByRole("combobox", { name: "Activity" });
@@ -295,16 +304,18 @@ describe("AllocationModal create", () => {
 
   it("cannot attribute an All-projects activity for an unbound placeholder", async () => {
     useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const placeholder = useStore.getState().addResource({
-      kind: "placeholder",
-      role: "Senior Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#a855f7",
-    });
+    const placeholder = requireCreated(
+      useStore.getState().addResource({
+        kind: "placeholder",
+        role: "Senior Designer",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#a855f7",
+      }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -318,10 +329,10 @@ describe("AllocationModal create", () => {
     fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Internal" })).not.toHaveAttribute("data-disabled");
     expect(screen.getByRole("option", { name: "No specific project" })).not.toHaveAttribute("data-disabled");
-    expect(screen.getByRole("option", { name: "Acme / Lightning" })).not.toHaveAttribute("data-disabled");
+    expect(screen.getByRole("option", { name: "Ferris / Lightning" })).not.toHaveAttribute("data-disabled");
     await user.keyboard("{Escape}");
 
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Planning");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -332,7 +343,9 @@ describe("AllocationModal create", () => {
 
 describe("AllocationModal advisory work bounds", () => {
   it("does not recompute the advisory when only the note changes", () => {
-    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     render(
       <AllocationModal
         kind="create"
@@ -355,7 +368,9 @@ describe("AllocationModal advisory work bounds", () => {
   });
 
   it("skips the advisory and rejects an over-limit Hours-mode date span", async () => {
-    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -369,7 +384,7 @@ describe("AllocationModal advisory work bounds", () => {
         onClose={onClose}
       />,
     );
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     capacityAdvisoryMock.mockClear();
 
@@ -388,17 +403,19 @@ describe("AllocationModal advisory work bounds", () => {
   });
 
   it("rejects the same over-limit date span for an External resource", async () => {
-    const resource = useStore.getState().addResource({
-      kind: "external",
-      name: "Kord Industries",
-      role: "Partner studio",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#9ca3af",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({
+        kind: "external",
+        name: "Kord Industries",
+        role: "Partner studio",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#9ca3af",
+      }),
+    );
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -412,7 +429,7 @@ describe("AllocationModal advisory work bounds", () => {
         onClose={onClose}
       />,
     );
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
     fireEvent.change(screen.getByLabelText("End"), {
@@ -426,17 +443,19 @@ describe("AllocationModal advisory work bounds", () => {
   });
 
   it("keeps Ignore working days hidden for an External while preserving its literal calendar span", async () => {
-    const resource = useStore.getState().addResource({
-      kind: "external",
-      name: "Kord Industries",
-      role: "Partner studio",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 3, 5],
-      halfDays: [],
-      color: "#9ca3af",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({
+        kind: "external",
+        name: "Kord Industries",
+        role: "Partner studio",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 3, 5],
+        halfDays: [],
+        color: "#9ca3af",
+      }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -447,7 +466,7 @@ describe("AllocationModal advisory work bounds", () => {
     );
 
     expect(screen.queryByRole("checkbox", { name: "Ignore working days" })).not.toBeInTheDocument();
-    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 

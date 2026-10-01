@@ -61,13 +61,15 @@ describe("browser account client", () => {
   });
 
   it("selects the same named provider for status and fresh linking", async () => {
-    await accountClient.getIdentityProvider("microsoft");
+    await accountClient.readIdentityProvider("microsoft");
     expect(mocks.apiFetch).toHaveBeenCalledWith("https://app.example/api/identity/provider?providerId=microsoft", {
       credentials: "include",
     });
     await accountClient.linkIdentityProvider("https://app.example/account", "microsoft");
-    const [url, init] = mocks.apiFetchReauth.mock.calls[0] ?? [];
+    const [url, init, options] = mocks.apiFetchReauth.mock.calls[0] ?? [];
     expect(url).toBe("https://app.example/api/identity/link-provider");
+    expect(options).toMatchObject({ action: "connect-provider", replayAfterFreshnessRefusal: true });
+    expect(new Headers(init?.headers).has("Idempotency-Key")).toBe(false);
     expect(JSON.parse(String(init?.body))).toEqual({
       providerId: "microsoft",
       callbackURL: "https://app.example/account",
@@ -251,7 +253,11 @@ function registerMembershipRouteTests(): void {
     await accountClient.endMasquerade({ token: "token-1", reason: "explicit" });
     await accountClient.previewInvitation("token / one");
     await accountClient.acceptInvitation("token / one", command);
-    await accountClient.signupWithInvitation("token / one", { name: "New user" }, command);
+    await accountClient.signupWithInvitation(
+      "token / one",
+      { name: "New user", email: "new@wayne.test", password: "example-password" },
+      command,
+    );
 
     const directoryUrls = mocks.apiFetch.mock.calls
       .map((call) => String(call[0]))

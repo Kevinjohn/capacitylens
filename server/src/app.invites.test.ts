@@ -12,10 +12,12 @@ import {
 } from "./controlTables";
 import { createAuthFromEnvironment, runAuthMigrations, DEMO_USER } from "./auth";
 import { PASSWORD_ENV, call, readCookies, signUp, registerServerFixtureCleanup } from "./testHelpers";
+import { insertVerifiedFederatedAccount } from "./testHelpers/federatedAccount";
 import { recordSessionAssurance } from "./accounts/state";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // P1.9 — single-use, expiring invite links. POST /api/invites mints a token (gated 'manageInvites',
 // admin+ of the target account); POST /api/invites/:token/accept binds the invited role to the
@@ -36,10 +38,6 @@ function requireValue<T>(value: T | null | undefined, label: string): T {
     throw new Error(`Expected ${label}`);
   }
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function readObject(value: unknown, label: string): Record<string, unknown> {
@@ -113,6 +111,11 @@ const createInviteReq = (
   headers: Record<string, string> = {},
 ) => call(app, { method: "POST", url: "/api/invites", payload, headers });
 
+const addressedInviter =
+  (app: FastifyInstance, headers: Record<string, string> = {}) =>
+  (role: "admin" | "editor" | "viewer", preauthEmail: string) =>
+    createInviteReq(app, { accountId: "a1", role, preauthEmail }, headers);
+
 const acceptReq = (app: FastifyInstance, token: string, headers: Record<string, string> = {}) =>
   call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers });
 
@@ -132,7 +135,7 @@ function registerOwnerInviteCreationTest(): void {
       createdAt: TS,
     });
 
-    const res = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie });
+    const res = await addressedInviter(app, { cookie })("editor", "invitee@capacitylens.dev");
     expect(res.statusCode).toBe(201);
     const body = readResponseObject(res);
     const id = readString(body.id, "response body.id");
@@ -153,7 +156,7 @@ function registerOwnerInviteCreationTest(): void {
     expect(stored.accountId).toBe("a1");
     expect(stored.role).toBe("editor");
     expect(stored.usedAt).toBeNull();
-    expect(stored.preauthEmail).toBeNull(); // P1.9 always null
+    expect(stored.preauthEmail).toBe("invitee@capacitylens.dev");
     expect(Date.parse(stored.expiresAt)).toBeGreaterThan(Date.now());
   });
 }
@@ -176,8 +179,9 @@ function registerDefaultExpiryReplayTest(): void {
       "x-account-command-id": "invite-replay-command-000001",
     };
 
-    const first = await createInviteReq(app, { accountId: "a1", role: "editor" }, headers);
-    const replay = await createInviteReq(app, { accountId: "a1", role: "editor" }, headers);
+    const input = { accountId: "a1", role: "editor", preauthEmail: "invitee@capacitylens.dev" };
+    const first = await createInviteReq(app, input, headers);
+    const replay = await createInviteReq(app, input, headers);
 
     expect(first.statusCode).toBe(201);
     expect(replay.statusCode).toBe(201);
@@ -206,8 +210,9 @@ function registerInviteReplayConflictTest(): void {
       "x-account-command-id": "invite-conflict-command-000001",
     };
 
-    expect((await createInviteReq(app, { accountId: "a1", role: "editor" }, headers)).statusCode).toBe(201);
-    const conflict = await createInviteReq(app, { accountId: "a1", role: "viewer" }, headers);
+    const invite = addressedInviter(app, headers);
+    expect((await invite("editor", "invitee@capacitylens.dev")).statusCode).toBe(201);
+    const conflict = await invite("viewer", "invitee@capacitylens.dev");
 
     expect(conflict.statusCode).toBe(409);
     expect(conflict.json()).toMatchObject({
@@ -287,6 +292,7 @@ function registerExplicitExpiryReplayTest(): void {
     const input = {
       accountId: "a1",
       role: "editor",
+      preauthEmail: "invitee@capacitylens.dev",
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
     };
 
@@ -372,7 +378,11 @@ function registerFractionalExpiryTest(): void {
         createdAt: TS,
       });
 
-      const res = await createInviteReq(app, { accountId: "a1", role: "editor", expiresAt }, { cookie });
+      const res = await createInviteReq(
+        app,
+        { accountId: "a1", role: "editor", preauthEmail: "invitee@capacitylens.dev", expiresAt },
+        { cookie },
+      );
 
       expect(res.statusCode).toBe(201);
       expect(readResponseObject(res).expiresAt).toBe(canonical);
@@ -393,7 +403,7 @@ function registerInviteAuthorizationTests(): void {
       createdAt: TS,
     });
 
-    const res = await createInviteReq(app, { accountId: "a1", role: "viewer" }, { cookie });
+    const res = await addressedInviter(app, { cookie })("viewer", "invitee@capacitylens.dev");
     expect(res.statusCode).toBe(201);
   });
 
@@ -523,6 +533,7 @@ function registerInvitePreviewProjectionTests(): void {
       const res = await previewReq(app, "preview-token");
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({
+        accountId: "a1",
         accountName: "Studio a1",
         role: "editor",
         expiresAt: "2999-01-01T00:00:00.000Z",
@@ -574,7 +585,7 @@ function registerInviteConsumptionTests(): void {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: a.cookie });
+    const created = await addressedInviter(app, { cookie: a.cookie })("editor", "joiner@capacitylens.dev");
     const token = readResponseString(created, "token");
 
     // User B (no prior membership) accepts.
@@ -599,7 +610,7 @@ function registerInviteConsumptionTests(): void {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(app, { accountId: "a1", role: "viewer" }, { cookie: a.cookie });
+    const created = await addressedInviter(app, { cookie: a.cookie })("viewer", "reuser@capacitylens.dev");
     const token = readResponseString(created, "token");
 
     const b = await signUp(app, "reuser@capacitylens.dev");
@@ -628,7 +639,7 @@ function registerInviteExpiryTests(): void {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(app, { accountId: "a1", role: "viewer" }, { cookie: owner.cookie });
+    const created = await addressedInviter(app, { cookie: owner.cookie })("viewer", "sole-owner@capacitylens.dev");
     const token = readResponseString(created, "token");
 
     const accepted = await acceptReq(app, token, { cookie: owner.cookie });
@@ -731,14 +742,9 @@ async function createClosedSignupInviteContext() {
       password: "password-123456",
     },
   });
-  const created = await createInviteReq(
-    app,
-    {
-      accountId: "a1",
-      role: "editor",
-      preauthEmail: "new-person@capacitylens.dev",
-    },
-    { cookie: readCookies(signInInviter) },
+  const created = await addressedInviter(app, { cookie: readCookies(signInInviter) })(
+    "editor",
+    "new-person@capacitylens.dev",
   );
   return { app, db, token: readResponseString(created, "token") };
 }
@@ -977,15 +983,7 @@ function registerNormalizedPreauthCreationTest(): void {
       createdAt: TS,
     });
 
-    const res = await createInviteReq(
-      app,
-      {
-        accountId: "a1",
-        role: "editor",
-        preauthEmail: "  Friend@Example.COM ",
-      },
-      { cookie },
-    );
+    const res = await addressedInviter(app, { cookie })("editor", "  Friend@Example.COM ");
     expect(res.statusCode).toBe(201);
     const body = readResponseObject(res);
     const token = readString(body.token, "response body.token");
@@ -995,7 +993,7 @@ function registerNormalizedPreauthCreationTest(): void {
 }
 
 function registerPreauthInputTests(): void {
-  it("empty/whitespace preauthEmail → stored null (link invite, unchanged P1.9 behaviour)", async () => {
+  it("rejects an empty/whitespace preauthEmail without minting an invite", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
     const { cookie, userId } = await signUp(app, "owner2@capacitylens.dev");
@@ -1008,11 +1006,8 @@ function registerPreauthInputTests(): void {
     });
 
     const res = await createInviteReq(app, { accountId: "a1", role: "editor", preauthEmail: "   " }, { cookie });
-    expect(res.statusCode).toBe(201);
-    const body = readResponseObject(res);
-    const token = readString(body.token, "response body.token");
-    expect(body.preauthEmail).toBeNull();
-    expect(readInvite(db, token).preauthEmail).toBeNull();
+    expect(res.statusCode).toBe(400);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invites`).get()).toEqual({ count: 0 });
   });
 
   it("a malformed preauthEmail → 400 (no row minted)", async () => {
@@ -1055,6 +1050,7 @@ async function createSsoProviderInviteContext() {
   const db = openDb(":memory:");
   const configured = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
+    SMALLSASS_ACCOUNT_MODE: "password-and-sso",
     SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
     SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -1063,15 +1059,17 @@ async function createSsoProviderInviteContext() {
   });
   const configuredAuth = requireValue(configured.auth, "configured authentication");
   await runAuthMigrations(configuredAuth);
-  const passwordApp = buildApp(db, { authMode: "password", auth: configuredAuth });
+  const passwordApp = buildApp(db, { authMode: "password-and-sso", auth: configuredAuth });
   const joiner = await signUp(passwordApp, "social-only@capacitylens.dev");
   verifyUserEmail(db, "social-only@capacitylens.dev");
   await passwordApp.close();
-  const timestamp = new Date().toISOString();
-  db.prepare(
-    `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run("github-link", "github", "github-subject", joiner.userId, timestamp, timestamp);
+  insertVerifiedFederatedAccount(db, {
+    id: "github-link",
+    providerId: "github",
+    subject: "github-subject",
+    principalId: joiner.userId,
+    email: "social-only@capacitylens.dev",
+  });
   const session = db.prepare(`SELECT token FROM session WHERE userId = ?`).get(joiner.userId) as { token: string };
   const sessionHandle = buildApplicationSessionHandle("capacitylens", session.token);
   recordSessionAssurance({
@@ -1081,7 +1079,7 @@ async function createSsoProviderInviteContext() {
     assurance: "federated",
     providerId: "github",
   });
-  const ssoApp = buildApp(db, { authMode: "sso", auth: configuredAuth });
+  const ssoApp = buildApp(db, { authMode: "sso-only", auth: configuredAuth });
   const socialMe = await call(ssoApp, { method: "GET", url: "/api/auth/me", headers: { cookie: joiner.cookie } });
   expect(socialMe.statusCode).toBe(401);
   expect(readResponseObject(socialMe).error).toMatch(/sign in/i);
@@ -1092,17 +1090,19 @@ async function createSsoProviderInviteContext() {
     payload: { id: "founded", name: "Founded", color: "#3b82f6" },
   });
   expect(socialProvision.statusCode).toBe(401);
-  return { db, joiner, sessionHandle, ssoApp, timestamp };
+  return { db, joiner, sessionHandle, ssoApp };
 }
 
 function registerSsoProviderInviteTest(): void {
   it("requires the strict provider before an SSO-only session can create a membership", async () => {
-    const { db, joiner, sessionHandle, ssoApp, timestamp } = await createSsoProviderInviteContext();
-
-    db.prepare(
-      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("workforce-link", "google", "workforce-subject", joiner.userId, timestamp, timestamp);
+    const { db, joiner, sessionHandle, ssoApp } = await createSsoProviderInviteContext();
+    insertVerifiedFederatedAccount(db, {
+      id: "workforce-link",
+      providerId: "google",
+      subject: "workforce-subject",
+      principalId: joiner.userId,
+      email: "social-only@capacitylens.dev",
+    });
     recordSessionAssurance({
       db,
       sessionId: sessionHandle,
@@ -1118,7 +1118,6 @@ function registerSsoProviderInviteTest(): void {
     });
     expect(strictProvision.statusCode).toBe(201);
     expect(getMemberRole(db, "founded", joiner.userId)).toBe("owner");
-
     seedOne(db);
     createInvite(db, {
       token: "sso-provider-invite",
@@ -1137,13 +1136,11 @@ function registerSsoProviderInviteTest(): void {
       assurance: "federated",
       providerId: "github",
     });
-
     const refused = await acceptReq(ssoApp, "sso-provider-invite", { cookie: joiner.cookie });
     expect(refused.statusCode).toBe(401);
     expect(readResponseObject(refused).error).toMatch(/sign in/i);
     expect(getMemberRole(db, "a1", joiner.userId)).toBeNull();
     expect(readInvite(db, "sso-provider-invite").usedAt).toBeNull();
-
     recordSessionAssurance({
       db,
       sessionId: sessionHandle,
@@ -1158,7 +1155,7 @@ function registerSsoProviderInviteTest(): void {
 }
 
 function registerPreauthRefusalTests(): void {
-  it("a LINK invite (preauthEmail null) still binds any signed-in caller — P1.9 regression", async () => {
+  it("rejects an unaddressed legacy invite without admitting a signed-in caller", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
     const a = await signUp(app, "link-inviter@capacitylens.dev");
@@ -1169,14 +1166,21 @@ function registerPreauthRefusalTests(): void {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: a.cookie });
-    const token = readResponseString(created, "token");
-
-    // Joiner is an ordinary, unverified fresh sign-up — a link invite does not care.
+    createInvite(db, {
+      token: "legacy-link-token",
+      id: "legacy-link-id",
+      accountId: "a1",
+      role: "editor",
+      preauthEmail: null,
+      expiresAt: "2999-01-01T00:00:00.000Z",
+      usedAt: null,
+      createdAt: TS,
+    });
     const b = await signUp(app, "link-joiner@capacitylens.dev");
-    const res = await acceptReq(app, token, { cookie: b.cookie });
-    expect(res.statusCode).toBe(200);
-    expect(getMemberRole(db, "a1", b.userId)).toBe("editor");
+    const res = await acceptReq(app, "legacy-link-token", { cookie: b.cookie });
+    expect(res.statusCode).toBe(403);
+    expect(getMemberRole(db, "a1", b.userId)).toBeNull();
+    expect(readInvite(db, "legacy-link-token").usedAt).toBeNull();
   });
 
   it("preauth + WRONG email → 403; membership NOT created; invite NOT consumed (usedAt stays null)", async () => {
@@ -1190,15 +1194,7 @@ function registerPreauthRefusalTests(): void {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(
-      app,
-      {
-        accountId: "a1",
-        role: "editor",
-        preauthEmail: "expected@capacitylens.dev",
-      },
-      { cookie: a.cookie },
-    );
+    const created = await addressedInviter(app, { cookie: a.cookie })("editor", "expected@capacitylens.dev");
     const token = readResponseString(created, "token");
 
     // Wrong-email caller, even if verified, is rejected.
@@ -1223,15 +1219,7 @@ function registerPasswordPreauthAcceptanceTest(): void {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(
-      app,
-      {
-        accountId: "a1",
-        role: "editor",
-        preauthEmail: "newhire@capacitylens.dev",
-      },
-      { cookie: a.cookie },
-    );
+    const created = await addressedInviter(app, { cookie: a.cookie })("editor", "newhire@capacitylens.dev");
     const token = readResponseString(created, "token");
 
     // Password mode proves control of the identity by the signed-in local credential itself.
@@ -1255,15 +1243,7 @@ function registerVerifiedPreauthAcceptanceTest(): void {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(
-      app,
-      {
-        accountId: "a1",
-        role: "editor",
-        preauthEmail: "verified@capacitylens.dev",
-      },
-      { cookie: a.cookie },
-    );
+    const created = await addressedInviter(app, { cookie: a.cookie })("editor", "verified@capacitylens.dev");
     const token = readResponseString(created, "token");
 
     // Sign up, then flip emailVerified in the live user row; the NEXT getSession reads it fresh, so
@@ -1294,11 +1274,7 @@ function registerOffModePreauthAcceptanceTest(): void {
     seedOne(db);
 
     // Even a preauth invite for an unrelated email binds DEMO_USER in off (the gate is skipped).
-    const created = await createInviteReq(app, {
-      accountId: "a1",
-      role: "admin",
-      preauthEmail: "someone-else@capacitylens.dev",
-    });
+    const created = await addressedInviter(app)("admin", "someone-else@capacitylens.dev");
     expect(created.statusCode).toBe(201);
     const token = readResponseString(created, "token");
 

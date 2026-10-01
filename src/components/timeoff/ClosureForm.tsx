@@ -5,7 +5,7 @@ import { m } from "@/i18n";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import { isStaleEdit } from "../../lib/isStaleEdit";
-import { validateText } from "../../lib/validation";
+import { parseText } from "../../lib/validation";
 import { resolveTimeZone } from "../../store/selectors";
 import { useStore } from "../../store/useStore";
 import { DateField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
@@ -75,7 +75,7 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
   useFieldErrorFocus(fieldError);
 
   const submit = () => {
-    const cleanName = validateText(name, fail, { requiredMessage: m.form_closure_err_name_required() });
+    const cleanName = parseText(name, fail, { requiredMessage: m.form_closure_err_name_required() });
     if (!cleanName) return;
     if (!startDate || !endDate) {
       fail("dates", m.form_closure_err_dates_required());
@@ -95,7 +95,7 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
         }
         update(closure.id, patch);
       } else {
-        add(patch);
+        if (add(patch).kind === "blocked") return;
       }
       onClose();
     } catch (error) {

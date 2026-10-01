@@ -22,10 +22,8 @@ import {
 import { TABLES } from "./tables";
 export { hasColumn } from "./schema/introspection";
 export { migrateSchema, migrateSchemaV8, renameLegacyActivityTables } from "./schema/migrate";
-// Schema migration + assertion, extracted from db.ts. openDb() runs migrateSchema (bring
-// an existing file up to the current shape in place) and then assertSchemaCurrent (fail
-// loudly on drift it can't repair). Both introspect the live shape via PRAGMA and are a
-// no-op on any fresh / current / already-migrated DB.
+// Versioned migrations establish the released shape. These assertions verify historical steps
+// independently and check the complete current entity contract before startup accepts traffic.
 /** Assert the immutable v8 baseline while migration v8 is the active step. */
 export function assertSchemaV8(db: Db): void {
   assertSchemaVersion(db, V8_TABLES, false);

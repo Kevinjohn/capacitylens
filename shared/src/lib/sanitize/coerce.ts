@@ -4,42 +4,50 @@ import { normalizeCodeName, privateCodeNameFallback } from "../../domain/private
 import { defaultAccountWorkingDays } from "../accountWorkingDays";
 import { clampHoursPerDay, clampWorkingHoursPerDay, FULL_DAY_HOURS, type Weekday } from "../../types/entities";
 
+/** Allocation statuses import accepts. */
 export const VALID_STATUS = ["confirmed", "tentative", "completed"] as const;
+/** Resource kinds import accepts. */
 export const VALID_KIND = ["person", "placeholder", "external"] as const;
+/** Activity kinds import accepts. */
 export const VALID_ACTIVITY_KIND = ["project", "internal", "repeatable"] as const;
+/** Employment types import accepts. */
 export const VALID_EMPLOYMENT = ["permanent", "freelancer", "contractor"] as const;
+/** Resource engagements import accepts. */
 export const VALID_ENGAGEMENT = ["studio", "supplementary"] as const;
+/** Time-off types import accepts. */
 export const VALID_TIMEOFF = ["holiday", "sick", "unpaid", "other"] as const;
 
+/** The value when it is one of `allowed`, otherwise `fallback`. Pure. */
 export const oneOf = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T =>
   typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
 
-// A RESOURCE's working day must be POSITIVE (a 0-hour working day has no capacity) — route
-// it through the SHARED clampWorkingHoursPerDay so import and the store resource path agree
-// (a finite value clamps to (0,24]; junk / <= 0 / a non-number falls back to a normal 8h day).
+/** A RESOURCE's working day must be POSITIVE (a 0-hour working day has no capacity) — route
+ * it through the SHARED clampWorkingHoursPerDay so import and the store resource path agree
+ * (a finite value clamps to (0,24]; junk / <= 0 / a non-number falls back to a normal 8h day). */
 export const clampHours = (value: unknown): number =>
   typeof value === "number" ? clampWorkingHoursPerDay(value) : FULL_DAY_HOURS;
 
-// Allocation hours/day, unlike a resource's working day, may legitimately be 0 (a
-// "blocks"-mode booking persists hoursPerDay: 0 — the span counts but the load doesn't).
-// Route a finite value through the SHARED clampHoursPerDay so import and the store write
-// boundary can never drift (a negative clamps to 0, not the fallback); only a missing /
-// non-numeric / NaN value falls back to a normal 8h day.
+/** Allocation hours/day, unlike a resource's working day, may legitimately be 0 (a
+ * "blocks"-mode booking persists hoursPerDay: 0 — the span counts but the load doesn't).
+ * Route a finite value through the SHARED clampHoursPerDay so import and the store write
+ * boundary can never drift (a negative clamps to 0, not the fallback); only a missing /
+ * non-numeric / NaN value falls back to a normal 8h day. */
 export const clampAllocHours = (value: unknown, fallback: number): number =>
   typeof value === "number" && Number.isFinite(value) ? clampHoursPerDay(value) : fallback;
 
+/** The value when it is a safe integer, otherwise `fallback`. Pure. */
 export const safeInt = (value: unknown, fallback: number): number =>
   typeof value === "number" && Number.isSafeInteger(value) ? value : fallback;
 
 const isWeekday = (value: unknown): value is Weekday =>
   typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 6;
 
-// Repair a sloppily-formatted date to the canonical zero-padded "YYYY-MM-DD". The whole
-// app relies on dates being zero-padded so they sort chronologically as strings (see
-// isWithin), and the forms guarantee that — but a hand-edited import might carry
-// "2026-6-1". Pad it so the record is KEPT (the alternative — validateDateRange dropping
-// it — silently loses real data). A value that isn't a recognizable Y-M-D is left as-is
-// for validateDateRange to reject. Real-calendar validity (e.g. month 13) is still its job.
+/** Repair a sloppily-formatted date to the canonical zero-padded "YYYY-MM-DD". The whole
+ * app relies on dates being zero-padded so they sort chronologically as strings (see
+ * isWithin), and the forms guarantee that — but a hand-edited import might carry
+ * "2026-6-1". Pad it so the record is KEPT (the alternative — validateDateRange dropping
+ * it — silently loses real data). A value that isn't a recognizable Y-M-D is left as-is
+ * for validateDateRange to reject. Real-calendar validity (e.g. month 13) is still its job. */
 export const normalizeISODate = (value: unknown): unknown => {
   if (typeof value !== "string") return value;
   const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value.trim());
@@ -71,13 +79,13 @@ export const repairResourceAvailability = (record: Record<string, unknown>): voi
   }
 };
 
-// DE-DUPLICATE: the scheduling math keys weekend-awareness on workingDays.length (a
-// length-7 array means "works every calendar day"), so a duplicated set like
-// [1,1,1,1,1,1,1] would otherwise reach length 7 and model a Monday-only resource as a
-// 7-day worker. Collapse to the distinct sorted weekdays so length reflects real coverage.
-// NOTE this deliberately does NOT reuse normalizeAccountWorkingDays: that one REJECTS a whole
-// selection containing any junk, while a RESOURCE's week is repaired by FILTERING the junk out and
-// keeping whatever real weekdays remain. Only the default they fall back to is shared.
+/** DE-DUPLICATE: the scheduling math keys weekend-awareness on workingDays.length (a
+ * length-7 array means "works every calendar day"), so a duplicated set like
+ * [1,1,1,1,1,1,1] would otherwise reach length 7 and model a Monday-only resource as a
+ * 7-day worker. Collapse to the distinct sorted weekdays so length reflects real coverage.
+ * NOTE this deliberately does NOT reuse normalizeAccountWorkingDays: that one REJECTS a whole
+ * selection containing any junk, while a RESOURCE's week is repaired by FILTERING the junk out and
+ * keeping whatever real weekdays remain. Only the default they fall back to is shared. */
 export const safeWorkingDays = (value: unknown): Weekday[] => {
   if (!Array.isArray(value)) return defaultAccountWorkingDays();
   const days = value.filter(isWeekday);
@@ -98,8 +106,8 @@ interface CleanFieldOptions {
   multiline?: boolean;
 }
 
-// Strip emoji / control / zero-width junk from a free-text field in place (the forms
-// reject it; import can't, so it repairs). Leave undefined fields unchanged; delete non-string fields.
+/** Strip emoji / control / zero-width junk from a free-text field in place (the forms
+ * reject it; import can't, so it repairs). Leave undefined fields unchanged; delete non-string fields. */
 export const cleanField = ({ record, field, multiline = false }: CleanFieldOptions): void => {
   if (record[field] === undefined) return;
   if (typeof record[field] !== "string") {
@@ -109,11 +117,11 @@ export const cleanField = ({ record, field, multiline = false }: CleanFieldOptio
   record[field] = cleanText(record[field], { multiline });
 };
 
-// Like cleanField, but for a REQUIRED text column (the server schema marks these NOT NULL).
-// Cleaning a hand-edited value can collapse it to empty (e.g. an emoji-only name), and a
-// missing value is empty too — either would survive in memory (which has no NOT NULL constraint)
-// yet be REJECTED by the server, diverging the two import paths. Fall back to a placeholder
-// so a required column is never empty and both paths accept the record identically.
+/** Like cleanField, but for a REQUIRED text column (the server schema marks these NOT NULL).
+ * Cleaning a hand-edited value can collapse it to empty (e.g. an emoji-only name), and a
+ * missing value is empty too — either would survive in memory (which has no NOT NULL constraint)
+ * yet be REJECTED by the server, diverging the two import paths. Fall back to a placeholder
+ * so a required column is never empty and both paths accept the record identically. */
 export const cleanRequiredField = (record: Record<string, unknown>, field: string, fallback: string): void => {
   const cleaned = typeof record[field] === "string" ? cleanText(record[field]) : "";
   record[field] = cleaned.length > 0 ? cleaned : fallback;

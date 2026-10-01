@@ -11,7 +11,7 @@ import {
   setTheme,
   setZoom,
   showScheduleFilters,
-} from "./helpers";
+} from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

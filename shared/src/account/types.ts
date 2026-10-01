@@ -7,18 +7,25 @@
  */
 
 export type ApplicationId = string;
+/** Opaque company (workspace) identifier. */
 export type WorkspaceId = string;
+/** Opaque identity-global principal (user) identifier. */
 export type PrincipalId = string;
+/** Opaque application-session identifier. */
 export type SessionId = string;
 /** Identity-global security revision. It intentionally changes for every workspace summary when
  * any membership of the principal changes, invalidating all cached authority conservatively. */
 export type MembershipRevision = string;
+/** Opaque version of the authorization policy a membership was evaluated under. */
 export type PolicyVersion = string;
+/** Client-supplied identifier of one account command. */
 export type CommandId = string;
+/** Client-supplied key that makes a retried command replay its first outcome. */
 export type IdempotencyKey = string;
 /** Canonical UTC instant produced by `Date#toISOString()`, including exactly three millisecond
  * digits and a trailing `Z` (for example `2026-07-18T10:00:00.000Z`). */
 export type IsoInstant = string;
+/** True only for a string that round-trips exactly through `Date#toISOString()`. Pure. */
 export function isIsoInstant(value: unknown): value is IsoInstant {
   if (typeof value !== "string") return false;
   const milliseconds = Date.parse(value);
@@ -29,16 +36,50 @@ export function isIsoInstant(value: unknown): value is IsoInstant {
     return false;
   }
 }
-export type AccountMode = "off" | "password" | "sso";
+/** Sign-in mode controls authentication methods. Enabled providers determine available SSO
+ * options; the access policy separately determines who may join the company. */
+export type AccountMode = "off" | "password-only" | "sso-only" | "password-and-sso";
 
+/** Who may join a company without an administrator adding them. */
+export type JoiningPolicy = "invitation_only" | "open" | "approved_domains" | "approved_domains_or_invitation";
+/** Narrow an untrusted value to a known {@link JoiningPolicy}. Pure. */
+export function isJoiningPolicy(value: unknown): value is JoiningPolicy {
+  return (
+    value === "invitation_only" ||
+    value === "open" ||
+    value === "approved_domains" ||
+    value === "approved_domains_or_invitation"
+  );
+}
+
+/** A company's joining policy plus the email domains an approved-domain policy admits. */
+export interface JoiningPolicySettings {
+  policy: JoiningPolicy;
+  approvedDomains: readonly string[];
+}
+
+/** Whether the selected mode permits local password sign-in and password recovery. */
+export function allowsPasswordSignIn(mode: AccountMode): boolean {
+  return mode === "password-only" || mode === "password-and-sso";
+}
+
+/** Whether the selected mode permits configured external provider sign-in. */
+export function allowsProviderSignIn(mode: AccountMode): boolean {
+  return mode === "sso-only" || mode === "password-and-sso";
+}
+
+/** Product-specific wording an account adapter embeds in authenticator and password-screening flows. */
 export interface AccountBranding {
   totpIssuer: string;
   passwordContextWords: readonly string[];
   defaultProviderLabel: string;
 }
 
+/** Every membership role, most to least privileged. */
 export const ACCOUNT_ROLES = Object.freeze(["owner", "admin", "editor", "viewer"] as const);
+/** A membership role; see {@link ACCOUNT_ROLES}. */
 export type Role = (typeof ACCOUNT_ROLES)[number];
+/** Narrow an untrusted value to a known {@link Role}. Pure. */
 export function isAccountRole(value: unknown): value is Role {
   return typeof value === "string" && (ACCOUNT_ROLES as readonly string[]).includes(value);
 }
@@ -59,17 +100,21 @@ export function isAccountRole(value: unknown): value is Role {
  * state they applied.
  */
 export const MEMBERSHIP_STATUSES = Object.freeze(["active", "disabled", "archived"] as const);
+/** A membership lifecycle state; see {@link MEMBERSHIP_STATUSES}. */
 export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
+/** Narrow an untrusted value to a known {@link MembershipStatus}. Pure. */
 export function isMembershipStatus(value: unknown): value is MembershipStatus {
   return typeof value === "string" && (MEMBERSHIP_STATUSES as readonly string[]).includes(value);
 }
 
+/** The application an account adapter instance is bound to, with its display name and branding. */
 export interface BoundApplication {
   applicationId: ApplicationId;
   displayName: string;
   branding: AccountBranding;
 }
 
+/** The id and idempotency key every mutating account command carries. */
 export interface CommandIdentity {
   commandId: CommandId;
   idempotencyKey: IdempotencyKey;
@@ -90,6 +135,7 @@ export interface FederatedSubject {
   subject: string;
 }
 
+/** The signed-in principal as the identity adapter resolved it from a verified session. */
 export interface LocalPrincipal {
   id: PrincipalId;
   displayName: string;
@@ -102,6 +148,7 @@ export interface LocalPrincipal {
   image?: string | null;
 }
 
+/** Directory projection of another principal; either field is null when withheld or unknown. */
 export interface PrincipalSummary {
   id: PrincipalId;
   displayName: string | null;
@@ -131,6 +178,7 @@ export type ApplicationSession = ApplicationSessionBase &
       }
   );
 
+/** One company the principal may enter, for the company picker. */
 export interface WorkspaceMembershipSummary {
   workspaceId: WorkspaceId;
   workspaceName: string;
@@ -139,18 +187,27 @@ export interface WorkspaceMembershipSummary {
   policyVersion: PolicyVersion;
 }
 
+/** One principal's role and lifecycle state in one company. */
 export interface Membership {
   workspaceId: WorkspaceId;
   principalId: PrincipalId;
   role: Role;
   status: MembershipStatus;
+  /** Explicit company restriction, independent of the membership lifecycle. */
+  accessDisabled?: boolean;
+  /** False only for a retained restriction whose membership has been removed. */
+  membershipPresent?: boolean;
+  /** Administrator-only fallback when a removed restricted identity no longer exists. */
+  restrictionEmail?: string | null;
   joinedAt: IsoInstant;
   membershipRevision: MembershipRevision;
   policyVersion: PolicyVersion;
 }
 
+/** Roles an invitation may grant. Ownership moves only through an ownership transfer. */
 export type InvitationRole = Exclude<Role, "owner">;
 
+/** Administrator view of one invitation. Never carries the bearer token. */
 export interface InvitationSummary {
   id: string;
   workspaceId: WorkspaceId;
@@ -168,6 +225,7 @@ export interface InvitationSummary {
 /** Public bearer preview. Intentionally excludes the full address, domain, inviter, identity
  * existence, and token. `emailHint` contains only a bound address's local part plus `@…`. */
 export interface InvitationPreview {
+  workspaceId: WorkspaceId;
   workspaceName: string;
   role: InvitationRole;
   expiresAt: IsoInstant;
@@ -180,6 +238,7 @@ export interface CreatedInvitation extends InvitationSummary {
   token: string;
 }
 
+/** One of a principal's sessions, as listed for sign-out management. */
 export interface SessionSummary {
   id: SessionId;
   createdAt: IsoInstant;
@@ -192,6 +251,7 @@ export interface SignOutResult {
   setCookies: readonly string[];
 }
 
+/** Proof that a command completed, returned again when the same command is replayed. */
 export interface OperationReceipt {
   commandId: CommandId;
   completedAt: IsoInstant;
@@ -206,12 +266,14 @@ export interface PendingOperationReceipt {
   observedAt: IsoInstant;
 }
 
+/** A principal created ahead of a membership, compensated if the enclosing command fails. */
 export interface ProvisionalPrincipal {
   principalId: PrincipalId;
   /** Opaque, secret-bearing adapter handle. Never log, audit, or serialize to a browser. */
   compensationHandle: string;
 }
 
+/** One issued password-reset ceremony and its write-once bearer token. */
 export interface PasswordResetCeremony {
   ceremonyId: string;
   /** Write-once bearer. Never log, persist in audit, or expose from a list operation. */
@@ -219,14 +281,17 @@ export interface PasswordResetCeremony {
   expiresAt: IsoInstant;
 }
 
+/** The two memberships exchanged by a completed ownership transfer. */
 export interface OwnershipTransfer {
   previousOwner: Membership;
   nextOwner: Membership;
 }
 
+/** Identity-global administrative actions an administrator may take on another member. */
 export type IdentityAdminAction =
   "issue-password-reset" | "revoke-sessions" | "correct-email" | "remove-federated-link";
 
+/** Whether the actor may take an {@link IdentityAdminAction} on a target, with the revision it was decided against or the refusal reason. */
 export type IdentityAdminAuthorityDecision =
   | {
       allowed: true;

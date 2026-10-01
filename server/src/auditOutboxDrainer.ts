@@ -1,6 +1,7 @@
 import type { AuditSink } from "./audit";
 import { drainAuditOutbox, readPendingAuditCount } from "./auditOutbox";
 import type { Db } from "./db";
+import { authTransactionGateFor } from "./authTransactionGate";
 
 export interface AuditOutboxDrainer {
   /** Deliver at most one bounded page and schedule later pages between event-loop turns. */
@@ -22,11 +23,8 @@ export function createAuditOutboxDrainer(
     if (stopped || scheduled !== null || !db.isOpen) return;
     scheduled = setImmediate(() => {
       scheduled = null;
-      try {
-        drainOnce();
-      } catch (error) {
-        reportBackgroundFailure(error);
-      }
+      // Outside a request, wait out any authentication-library transaction before writing.
+      void authTransactionGateFor(db).runShared(drainOnce).catch(reportBackgroundFailure);
     });
     scheduled.unref();
   };

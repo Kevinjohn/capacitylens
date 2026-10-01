@@ -27,18 +27,28 @@ type AccountSlice = Pick<
 >;
 
 type AccountSliceCreator = StateCreator<StoreState, [], [], AccountSlice>;
+type AccountSliceInternals = Pick<
+  StoreInternals,
+  | "createGuardedAction"
+  | "createGuardedValueAction"
+  | "assertWorkingDays"
+  | "snapColor"
+  | "mutate"
+  | "updateById"
+  | "applySnappedColor"
+>;
 type AccountSliceSet = Parameters<AccountSliceCreator>[0];
 type AccountSliceGet = Parameters<AccountSliceCreator>[1];
 
 interface AccountActionContext {
-  internals: StoreInternals;
+  internals: AccountSliceInternals;
   set: AccountSliceSet;
   get: AccountSliceGet;
 }
 
 function createAddAccountAction({ internals, set }: AccountActionContext): StoreState["addAccount"] {
-  const { createGuardedAction, assertWorkingDays, snapColor, mutate } = internals;
-  return createGuardedAction((input: Draft<Account>): Account | null => {
+  const { createGuardedValueAction, assertWorkingDays, snapColor, mutate } = internals;
+  return createGuardedValueAction((input: Draft<Account>): Account | null => {
     const timestamps = stamp();
     const weekStartsOn = input.weekStartsOn ?? 1;
     if (input.workingDays !== undefined) assertWorkingDays(input.workingDays);
@@ -133,7 +143,7 @@ function resolveAccountSelection(rawId: ID | null, get: AccountSliceGet): { id: 
 
 function buildAccountNoticeTransition(switching: boolean, unknown: boolean): Partial<StoreState> {
   if (unknown) {
-    return { notice: { message: m.notice_company_not_found(), tone: "error" } };
+    return { ...buildClearedSession(), notice: { message: m.notice_company_not_found(), tone: "error" } };
   }
   return switching ? { notice: null, ...buildClearedSession() } : {};
 }
@@ -177,7 +187,7 @@ function createSetAccountSummariesAction({ set, get }: AccountActionContext): St
   };
 }
 
-export function createAccountSlice(internals: StoreInternals): StateCreator<StoreState, [], [], AccountSlice> {
+export function createAccountSlice(internals: AccountSliceInternals): StateCreator<StoreState, [], [], AccountSlice> {
   return (set, get) => {
     const context = { internals, set, get };
     return {

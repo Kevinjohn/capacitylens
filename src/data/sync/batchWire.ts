@@ -14,7 +14,7 @@ import {
   BatchValidationError,
   KEEPALIVE_BODY_BUDGET,
   KeepaliveNotDispatchedError,
-  MAX_OPS_PER_BATCH,
+  MAX_BATCH_OPS,
 } from "./batchErrors";
 import {
   buildRowKey,
@@ -23,12 +23,13 @@ import {
   type BatchCommitReceipt,
   type CommittedRevision,
 } from "./revisions";
-import type { SyncState } from "./state";
+import type { SyncState } from "./SyncState";
 import { addResourceAvailabilityClearMarkers } from "./resourceAvailabilityWire";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // Apply the complete ordered diff as ONE request and therefore ONE SQLite transaction. An
 // over-limit diff is never split into separately committed prefixes.
-export function applyBatch(
+export function commitBatch(
   state: SyncState,
   ops: Op[],
   options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
@@ -47,8 +48,8 @@ export function prepareBatchBody(
   ops: Op[],
   options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
 ): string {
-  if (ops.length > MAX_OPS_PER_BATCH) {
-    throw new BatchTooLargeError(`Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`);
+  if (ops.length > MAX_BATCH_OPS) {
+    throw new BatchTooLargeError(`Atomic sync exceeds the ${MAX_BATCH_OPS}-operation server limit.`);
   }
   // Rebase PUT preconditions, then serialize ONCE — the same body feeds both the keepalive
   // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
@@ -112,7 +113,7 @@ interface PostBatchInput {
   options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean };
 }
 
-// POST the complete ≤MAX_OPS_PER_BATCH diff to /api/batch; the server applies it in one
+// POST the complete ≤MAX_BATCH_OPS diff to /api/batch; the server applies it in one
 // transaction (upserts parent-first, then deletes child-first — see syncOps.diffOps), so a
 // mid-batch failure rolls the whole transaction back. keepalive (unload) lets the request outlive
 // the page. `body` is the already-serialized, PUT-rebased wire payload; `ops` supplies the exact
@@ -212,10 +213,6 @@ interface BatchReceiptWire {
   archives?: unknown;
   superseded?: unknown;
   auditWarning?: unknown;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
 function parseBatchReceipt(value: unknown, appliedCount: number): BatchReceiptWire {

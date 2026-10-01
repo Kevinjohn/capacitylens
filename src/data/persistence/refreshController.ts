@@ -180,7 +180,7 @@ async function flushBeforeLoad(
   return true;
 }
 
-async function handleInactiveRefresh(input: RefreshSequenceInput): Promise<boolean> {
+async function abandonInactiveRefresh(input: RefreshSequenceInput): Promise<boolean> {
   const { owner, myToken } = input;
   if (!isRefreshInactive(owner, myToken)) return false;
   if (owner.current.disposed) return true;
@@ -227,7 +227,7 @@ async function runRefresh(
       myToken,
       slice,
     };
-    if (await handleInactiveRefresh(sequence)) return { kind: "skipped" };
+    if (await abandonInactiveRefresh(sequence)) return { kind: "skipped" };
     installLoadedSlice(sequence);
     return { kind: "reloaded" };
   } catch (error) {

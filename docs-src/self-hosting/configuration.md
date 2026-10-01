@@ -19,14 +19,16 @@ everything specific to the app itself uses `CAPACITYLENS_`.
 
 ## Listener and development settings
 
-For a bare-metal run, use the default Node 24 runtime and run `pnpm --filter capacitylens-server start`.
+For a source checkout, use the default Node 24 runtime and run `pnpm --filter capacitylens-server start`.
 Newer versions allowed by the package engine range are not automatically validated for deployment.
+A release archive needs no pnpm: it starts with `node --env-file=<your env file> server/dist/index.mjs`.
 The server binds to localhost by default. Set the host explicitly to expose it on a network.
 
 | Variable | What it does |
 | --- | --- |
 | `PORT` | Listen port. Default `8787`; invalid values outside the integer range 1–65,535 refuse startup. |
 | `CAPACITYLENS_HOST` | Listen host. Default `127.0.0.1`; set `0.0.0.0` to expose the listener on the LAN or in a container. |
+| `CAPACITYLENS_WEB_DIR` | Folder holding the built web app, which the server then serves beside the API. Unset: a release archive serves its own `dist/` folder, and a source checkout serves the API only. Set it empty to serve the API only. A folder without `index.html` refuses startup. |
 | `CAPACITYLENS_ALLOW_RESET` | Set `1` to expose `POST /api/test/reset` for development and tests with sign-in off. Production refuses this setting. |
 | `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` | Enabled by default. Set `0` only to allow stale writes to overwrite newer changes. |
 | `CAPACITYLENS_CREATE_ADMIN_ADMIN` | Development-only first-owner helper, also available as `--create-owner-admin-admin`. Creates `admin@admin.admin` only when the password user table is empty. Production refuses this setting. |
@@ -36,13 +38,19 @@ The server binds to localhost by default. Set the host explicitly to expose it o
 
 | Variable                                | What it does                                                                                                                                                                                    |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SMALLSASS_ACCOUNT_MODE`                | `off`, `password` or `sso`. `off` creates no sign-in at all; production refuses to boot with it unset unless you explicitly opt in (see below).                                                 |
+| `SMALLSASS_ACCOUNT_MODE`                | `off`, `password-only`, `sso-only` or `password-and-sso`. `off` creates no sign-in at all. Under `NODE_ENV=production` an unset mode is `password-only`, and an explicit `off` refuses to boot unless you opt in (see below). Outside production, unset means `off`.                                                 |
 | `SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE`  | An optional named policy: `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` or `hosted-sso-only`. Enforced at startup.                                                       |
-| `SMALLSASS_ACCOUNT_SECRET`              | The session-signing secret. Required for `password` or `sso` mode. Generate with `openssl rand -base64 48` — anything 32 characters or longer is fine; the install guide's command produces 48. |
-| `SMALLSASS_ACCOUNT_PUBLIC_URL`          | The exact browser-facing origin, for example `https://capacity.example.com`. Required for `password` or `sso` mode.                                                                             |
+| `SMALLSASS_ACCOUNT_SECRET`              | The session-signing secret. Required for every authenticated mode. Generate with `openssl rand -base64 48` — anything 32 characters or longer is fine; the install guide's command produces 48. |
+| `SMALLSASS_ACCOUNT_PUBLIC_URL`          | The exact browser-facing origin, for example `https://capacity.example.com`. Required for every authenticated mode.                                                                             |
 | `SMALLSASS_ACCOUNT_SETUP_TOKEN`         | The one-time secret the first owner enters on a fresh password-mode instance. For Google/Microsoft setup, use `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS` for the first identity or a pre-authorised invitation after that. |
 | `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP`   | Re-opens self-service sign-up. Closed by default — CapacityLens is invite-only unless you set this. Leave it unset in production.                                                               |
 | `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` | Deliberately allows the auth-off (`off`) posture under production. Off by default; without it, a production instance with no sign-in refuses to start.                                          |
+
+The optional deployment profile must match the mode: `self-hosted-password` requires
+`password-only`, `self-hosted-mixed` requires `password-and-sso`, and both
+`self-hosted-sso-only` and `hosted-sso-only` require `sso-only`. The mixed and SSO-only
+profiles require Google or tenant-specific Microsoft. Without a profile, mixed mode can
+also use experimental GitHub as its configured provider.
 
 Treat `SMALLSASS_ACCOUNT_SETUP_TOKEN` as a short-lived bootstrap secret. Give the first owner the
 value through a secure channel; never paste it into chat, tickets, screenshots, command output or
@@ -66,8 +74,14 @@ handoff material instead of leaving it available to operators or future processe
 
 Use [Set up company login](/company-login/set-up-company-login) for the registration steps.
 Google and Microsoft are company providers. Configure either or both; a partial credential pair
-refuses startup. `password` mode retains the password form, while `sso` mode permits only configured
-company providers. GitHub remains experimental in mixed mode and cannot provide company-only access.
+refuses startup when provider sign-in is enabled. `password-only` ignores retained provider
+credentials, `password-and-sso` enables password and configured provider sign-in, and `sso-only`
+accepts only configured company providers. GitHub remains experimental in mixed mode and cannot
+provide company-only access. Sign-in mode selects authentication methods, configured providers
+select SSO options, and the current invitation policy determines who may join a company.
+
+The `self-hosted-password` profile is stricter than unprofiled `password-only`: it rejects
+external-provider settings at startup. Remove those settings before selecting that profile.
 
 | Variable | What it does |
 | --- | --- |
@@ -82,7 +96,20 @@ Register `https://your-capacitylens-address/api/auth/callback/google` for Google
 `https://your-capacitylens-address/api/auth/callback/microsoft` for Microsoft, using your actual
 HTTPS origin. These paths must match exactly. Restart after changing server settings.
 
-### Microsoft verification email
+### Account email
+
+Set `SMALLSASS_ACCOUNT_MAIL_HOST` and all the SMTP settings below to enable account email.
+Addressed invitations are emailed automatically. **Invitation emailed to {address}** confirms
+delivery to the SMTP service; the copyable invitation link remains available. If delivery fails,
+copy and send the link yourself.
+
+In password-capable modes, **Forgot password?** on the sign-in screen opens an email form.
+Choose **Email reset link**, then open the link in the email to set a new password. The link
+is single-use and expires after 24 hours. The confirmation is the same for every address;
+unknown addresses and accounts using only company sign-in receive no reset email. Admin-issued
+copy-links still send no email. With SMTP disabled, the sign-in form has no recovery-email control.
+
+#### Microsoft verification email
 
 Microsoft first connections may need a one-time email verification. All five SMTP settings are
 required whenever Microsoft is configured, even if a particular identity arrives with adequate
@@ -101,12 +128,14 @@ The verification link expires after 15 minutes and must be confirmed in the brow
 sign-in. See the [company-login guide](/company-login/set-up-company-login) for resend, expiry and
 account-connection recovery.
 
-`hosted-sso-only` is reserved for hosted deployments. It requires `mode=sso` and complete
+`hosted-sso-only` is reserved for hosted deployments. It requires `mode=sso-only` and complete
 Google and/or tenant-specific Microsoft configuration; it rejects passwords, GitHub, open signup
 and incomplete provider settings. Self-hosted installations that require company sign-in use
 `self-hosted-sso-only`. See [Require company sign-in](/company-login/move-to-single-sign-on).
 
-The retired generic OIDC settings and `hosted-oidc-only` profile are rejected at startup. Remove
+The retired generic OIDC settings and `hosted-oidc-only` profile are rejected at startup. In
+Docker Compose, a non-empty retired setting is forwarded only as a presence marker; its old
+secret value is not sent to the API container. Remove
 those settings and configure Google and/or Microsoft explicitly; CapacityLens does not fall back
 to password or sign-in-off mode.
 
@@ -115,7 +144,7 @@ to password or sign-in-off mode.
 | Variable                           | What it does                                                                                                                                                                                              |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CAPACITYLENS_DB`                  | Path to the SQLite file. Docker Compose pins this to `/data/capacitylens.db` inside a named volume; only change it for a bare-metal run.                                                                  |
-| `CAPACITYLENS_BACKUP_DIR`          | Directory for scheduled snapshots. On by default in Docker (`/backups`). Set it explicitly empty (`CAPACITYLENS_BACKUP_DIR=`) to turn scheduled backups off.                                              |
+| `CAPACITYLENS_BACKUP_DIR`          | Directory for scheduled snapshots. On by default in Docker (`/backups`), and in production with a file database (a `backups` folder beside the database file). Set it explicitly empty (`CAPACITYLENS_BACKUP_DIR=`) to turn scheduled backups off.                                              |
 | `CAPACITYLENS_BACKUP_INTERVAL_MIN` | Minutes between snapshots. Whole minutes, default 60; startup clamps over-maximum values to 35,000 with a warning.                                                                                        |
 | `CAPACITYLENS_BACKUP_KEEP`         | How many snapshots to retain. Default 48. Invalid and lower values use the safe default; over-maximum values clamp to 10,000 with a startup warning, so leave disk capacity for that many restore points. |
 | `CAPACITYLENS_AUDIT_FILE`          | Path to the audit log. Default `capacitylens-audit.jsonl` next to `CAPACITYLENS_DB`; Docker Compose pins it to `/data/capacitylens-audit.jsonl`. Only read when audit logging is on.                      |
@@ -127,7 +156,7 @@ the current one — a restore that only picks up the live file can miss recent a
 history still sitting in the rotated generation.
 
 For a bare-metal run, the database defaults to `./capacitylens.db`; `:memory:` is also
-accepted. Scheduled backups stay off unless `CAPACITYLENS_BACKUP_DIR` is set. Positive
+accepted. Outside production, scheduled backups stay off unless `CAPACITYLENS_BACKUP_DIR` is set. Positive
 fractional retention counts are rounded down.
 
 Audit logging is on by default. Set `CAPACITYLENS_AUDIT=off` only for development;
@@ -145,11 +174,11 @@ The size setting is only read when audit logging is enabled.
 | Variable                           | What it does                                                                                                                                                                                                                                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CAPACITYLENS_CORS_ORIGIN`         | Comma-separated browser origins to allow, only needed if the web app and API are on different origins. Defaults to local development origins. Wildcards are rejected because browser requests use cookie credentials.                                                                          |
-| `CAPACITYLENS_HTTPS`               | Set `1` when the public origin is genuinely HTTPS, to enable a two-year HSTS header. Leave unset if your proxy already emits HSTS.                                                                                                                                                             |
+| `CAPACITYLENS_HTTPS`               | Controls the two-year HSTS header. Unset, it is on when `SMALLSASS_ACCOUNT_PUBLIC_URL` is `https` and off otherwise. `1` forces it on; `0` forces it off, for a proxy that already emits its own HSTS. Any other value is treated as unset, so the URL scheme decides.                                                                                                                                                             |
 | `CAPACITYLENS_TRUST_PROXY_HEADERS` | Trusts `X-Forwarded-For`/`X-Forwarded-Proto` from a non-loopback listener. Docker Compose sets this to `1` because its API only accepts connections from the packaged nginx. Loopback listeners (`127.0.0.1`, `localhost`, `::1`) trust their same-host proxy automatically without this flag. |
 
-The HTTPS setting enables HSTS including subdomains. Leave it off for plain HTTP.
-The other baseline security headers are always enabled.
+HSTS is host-only: it never covers subdomains. It is never sent over a plain-HTTP public URL unless
+you force it on. The other baseline security headers are always enabled.
 
 | Variable | What it does |
 | --- | --- |
@@ -177,15 +206,33 @@ or admin.
 
 | Variable                               | What it does                                                                                                                       |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `CAPACITYLENS_LOG`                     | Set `1` for structured per-request JSON logs. Recommended for a real deployment.                                                   |
-| `CAPACITYLENS_HEALTH_DEEP`             | Set `1` to make `/api/health` run a readiness query and report audit, backup and certificate status. Compose sets this by default. |
-| `CAPACITYLENS_RATE_LIMIT`              | Requests per minute per IP across rate-limited routes. Accepts integers 1–1,000,000. Production refuses missing, zero or invalid values. `/api/health` is exempt.                          |
-| `CAPACITYLENS_AUDIT_STDOUT`            | Set `1` to also write each audit record to stdout as JSON, for a container log collector. Compose defaults this on.                |
+| `CAPACITYLENS_LOG`                     | Set `1` for structured per-request JSON logs. On by default in production.                                                         |
+| `CAPACITYLENS_HEALTH_DEEP`             | Set `1` to make `/api/health` run a readiness query and report audit, backup and certificate status. On by default in production. |
+| `CAPACITYLENS_RATE_LIMIT`              | Requests per minute per IP across rate-limited routes. Accepts integers 1–1,000,000. Production defaults to 300 when unset and refuses zero or invalid values. `/api/health` is exempt.                          |
+| `CAPACITYLENS_AUDIT_STDOUT`            | Set `1` to also write each audit record to stdout as JSON, for a container log collector. On by default in production.                |
 | `CAPACITYLENS_STORAGE_ENCRYPTED`       | Set `1` only after you have verified that the database, audit log and backup storage are encrypted at rest. This is an operator attestation; it does not encrypt storage itself. |
 | `CAPACITYLENS_SECURITY_LOG_FORWARDING` | An attestation that you're forwarding audit and security events to a separate collector. Doesn't create the collector itself.      |
 
+In production, an unset `CAPACITYLENS_STORAGE_ENCRYPTED`, `CAPACITYLENS_SECURITY_LOG_FORWARDING` or
+internal TLS identity is reported as one startup warning that names each missing control. It does not
+block startup.
+
+Sign-in, sign-up and password changes have a stricter built-in limit of three attempts per
+10 seconds per client, and reset and verification emails of three per minute. It is fixed and
+applies only in production. The server identifies each client the same way for every limit:
+by the connection address, or by the proxy's `X-Forwarded-For` when proxy headers are trusted
+(see `CAPACITYLENS_TRUST_PROXY_HEADERS`). A client cannot choose its own address.
+
+Invitation and joining-verification emails have a fixed send budget in every mode. A company can
+send five invitation emails an hour to any one address and fifty in total, and one address can
+receive five joining-verification emails an hour. One company's invitations never use up another
+company's budget or a person's own verification emails. Over the budget an
+invitation is still created and its link can be copied and shared by hand; a joining
+verification request is refused until the hour has passed. The budget resets when the server
+restarts.
+
 Without structured logging, the server prints its startup line and reports server errors
-to stderr. Deep health checks are off by default: `/api/health` returns `{ ok: true }`.
+to stderr. Deep health checks are off by default outside production (on under `NODE_ENV=production`): without them `/api/health` returns `{ ok: true }`.
 With deep checks enabled, the endpoint runs `SELECT 1`, reports audit state and pending
 records, and includes internal certificate expiry when configured. Failed readiness
 returns HTTP 503 with `{ ok: false }`.
@@ -202,8 +249,9 @@ See [Monitoring and health checks](/self-hosting/monitoring) for what to do with
 | `VITE_CAPACITYLENS_FEEDBACK_MAILTO` | Optional email address for the in-app feedback link. Leave empty to hide the link.                                                                                                                |
 
 Any of these needs a rebuild to take effect. Use `docker compose build web` for the
-packaged production stack, or `pnpm run build` for a direct Node installation, then
-redeploy the rebuilt web files. Setting them only in a running process does nothing.
+packaged production stack, or `pnpm run build` for a source build, then redeploy the rebuilt
+web files. A release archive's web app is already built with the same-origin defaults, so these
+settings do not apply to it. Setting them only in a running process does nothing.
 
 ## Removed account variable names
 

@@ -13,7 +13,7 @@ import { schedulerDataset } from "./__tests__/schedulerTestKit";
 //
 // Memoised exactly like the real bar (React.memo), so the counter re-renders IFF one of its props
 // changed identity — i.e. it is a faithful stand-in for the production bail condition. What this
-// test actually catches is the `handleDraw`/`onDraw` reference stability: on the round-1 code
+// test actually catches is the `onDraw` reference stability: on the round-1 code
 // `onDraw` closed over `ui.drawMode`, so a toggle re-rendered SchedulerGrid → new `onDraw` →
 // ResourceLane re-rendered → every bar re-rendered. With `onDraw` stabilised (getState-backed,
 // `[]` deps), ResourceLane's props no longer change, its memo bails, and the count holds. The test

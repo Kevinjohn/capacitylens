@@ -1,7 +1,7 @@
 [
   {
     "path": "docs-src/screenshots/flows/invitation_created.png",
-    "sha256": "6cc433d2a378817200f0e96a5642db44a5e588ace2d1b4683b22bfc3efb7a8b3"
+    "sha256": "d401f6bcca3a0af93cca4320e75af7a338fd996a4035bb46dc79333640f83357"
   },
   {
     "path": "docs-src/screenshots/flows/using_account_1.png",
@@ -10,14 +10,6 @@
   {
     "path": "docs-src/screenshots/flows/account.jpg",
     "sha256": "42f4f6e15b086b6648605a14634eb468e86fc2f09a6d1d2106d203379add20cb"
-  },
-  {
-    "path": "docs-src/screenshots/flows/using_join_your_team_1.png",
-    "sha256": "e81e19d0bdc9fc37551ace0e7403cb113cdf30f3393e2d1729bc676b66cd1364"
-  },
-  {
-    "path": "docs-src/screenshots/flows/using_join_your_team_2.png",
-    "sha256": "3cbaf4363d27b1d990a5e1d5c4943d9cc8a6f6e16c0c90d189e55162f2407f76"
   },
   {
     "path": "docs-src/screenshots/flows/using_team_access_1.png",
@@ -33,7 +25,7 @@
   },
   {
     "path": "docs-src/screenshots/flows/admin_invite_teammates_1.png",
-    "sha256": "af1a5d5882c17c3e12c950a3b6cec02879432ffa5fdbeb4a7c8d157c97d9a720"
+    "sha256": "c576e8898206255247bd9e6d5870274ae14b0b859db18093380718e1f9bcb689"
   },
   {
     "path": "docs-src/screenshots/flows/admin_invite_teammates_2.png",
@@ -41,11 +33,15 @@
   },
   {
     "path": "docs-src/screenshots/flows/admin_ongoing_administration_1.png",
-    "sha256": "83bf882f42cfb7272a55b2d780cd7578b0e56eab5d1585d4bd30cd37d74c9b6e"
+    "sha256": "23d1a5c1b035ffb68444f8db01cb0cf60d5b74d4e1e113d41ade24968b904354"
+  },
+  {
+    "path": "docs-src/screenshots/flows/owner_transfer_ownership.png",
+    "sha256": "c393d43aae200754269f7b1c3f7e9fd35c6909179b0a826287cf2b89bea1de9b"
   },
   {
     "path": "docs-src/screenshots/flows/owner_appoint_an_admin_1.png",
-    "sha256": "c393d43aae200754269f7b1c3f7e9fd35c6909179b0a826287cf2b89bea1de9b"
+    "sha256": "50583433e14b20d24bbddbd934395fb950fed13bb655d1bba1722730b941b0e1"
   },
   {
     "path": "docs-src/screenshots/flows/owner_create_your_company_1.png",

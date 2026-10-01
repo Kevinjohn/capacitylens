@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp } from "./browserTestSupport";
 
 // Covers US-SET-06. Placeholders are a PER-ACCOUNT view pref (`placeholdersEnabled` on the active
 // Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is

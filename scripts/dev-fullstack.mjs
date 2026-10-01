@@ -13,10 +13,10 @@
 //
 //   node scripts/dev-fullstack.mjs   # = pnpm run dev
 
-import { spawn } from "node:child_process";
-import { parsePort } from "./port.mjs";
+import { parsePort } from "./parsePort.mjs";
+import { spawnPnpm } from "./pnpmSpawn.mjs";
 import { ports } from "./ports.mjs";
-import { portInUse, requireNode24, terminateProcessTrees } from "./dev-processes.mjs";
+import { portInUse, requireNode24, terminateProcessTrees } from "./devProcesses.mjs";
 
 // Fail fast, in the launcher's own process, with the fix in the message. Without this, an old
 // Node surfaces as a raw "No such built-in module: node:sqlite" from inside the API child's tsx
@@ -65,13 +65,12 @@ if (await portInUse(WEB_PORT)) {
   process.exit(1);
 }
 
-// shell:true so `pnpm` resolves on Windows (pnpm is pnpm.cmd there); mirrors scripts/e2e-*.mjs.
 const children = [];
 let shuttingDown = false;
 
 /**
- * SIGTERM a child's WHOLE process group, not just the immediate `pnpm`. With `shell:true` each child
- * is a shell → pnpm → node(vite/tsx) tree; signalling only the shell leaves vite/tsx orphaned holding
+ * SIGTERM a child's WHOLE process group, not just the immediate `pnpm`. Each child
+ * is a pnpm → node(vite/tsx) tree; signalling only pnpm leaves vite/tsx orphaned holding
  * the lane's web/API ports. `detached:true` (below) makes each child a group leader, so a negative-pid kill
  * reaches the whole tree. ESRCH (group already gone) is fine; Windows has no POSIX groups, so fall
  * back to `taskkill /T` which walks the tree there.
@@ -88,13 +87,12 @@ async function shutdown(code) {
 }
 
 function start(label, args, env) {
-  const child = spawn("pnpm", args, {
+  const child = spawnPnpm(args, {
     // Ignore stdin (inherit stdout/stderr): with detached:true the child is outside the terminal's
     // foreground group, so handing it the TTY stdin risks SIGTTIN and trips Vite's stdin-EOF→SIGTERM
     // shortcut handler. Neither tsx-watch nor Vite needs interactive stdin under this launcher.
     stdio: ["ignore", "inherit", "inherit"],
-    shell: true,
-    // Own process group so shutdown() can SIGTERM the whole shell→pnpm→node tree (see killTree).
+    // Own process group so shutdown() can SIGTERM the whole pnpm→node tree (see killTree).
     detached: true,
     env: { ...process.env, ...env },
   });

@@ -143,7 +143,7 @@ function buildImportAuditRecord(userId: string, accountId: string): AuditRecord 
   };
 }
 
-async function handleImport(
+async function importState(
   req: FastifyRequest,
   reply: FastifyReply,
   dependencies: ImportRouteDependencies,
@@ -202,7 +202,7 @@ async function handleImport(
   }
 }
 
-function handleReset(req: FastifyRequest, reply: FastifyReply, dependencies: ImportRouteDependencies): unknown {
+function resetState(req: FastifyRequest, reply: FastifyReply, dependencies: ImportRouteDependencies): unknown {
   if (!dependencies.allowReset || dependencies.authMode !== "off") {
     return reply.code(403).send({ error: "reset disabled" });
   }
@@ -239,7 +239,7 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
     // the open behaviour (demo/e2e parity — authorize no-ops there).
     // remapAndValidateImport drops/repairs dangling refs before SQLite. The handler retains
     // defence-in-depth so any residual constraint failure is classified by fail rather than lost.
-    return handleImport(req, reply, dependencies);
+    return importState(req, reply, dependencies);
   });
 
   // Test-only, trusted-local only: wipe (and optionally re-seed) so E2E/integration runs start
@@ -251,5 +251,5 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
   // HTTP create vector the cap is meant to police. It's how e2e fixtures reach a known
   // multi-company state (the demo seed ships TWO companies) without threading multiAccount
   // through every spec.
-  app.post("/api/test/reset", (req, reply) => handleReset(req, reply, dependencies));
+  app.post("/api/test/reset", (req, reply) => resetState(req, reply, dependencies));
 }

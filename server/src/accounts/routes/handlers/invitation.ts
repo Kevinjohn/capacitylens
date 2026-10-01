@@ -1,117 +1,40 @@
+import { resolveMailDeliveryCause } from "../../../authConfig/mailSender";
+import { wasAccountCommandReplayed } from "../../commands";
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
-import type { Role } from "@capacitylens/shared/account/types";
-import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import { NO_REPROMPT } from "../../../routes/routeShared";
-import { parseStrictIsoInstant } from "../isoInstant";
-import type { AccountRouteContext } from "../createReplyHelpers";
+import { parseCreateInvitationAuthorizationInput, parseInvitationExpiry } from "./invitationCreateInput";
 import { parseSignupInvitationInput } from "./invitationSignupInput";
-
-function createAuthenticationRequiredError() {
-  return new AccountContractError({
-    code: "AUTHENTICATION_REQUIRED",
-    message: "Sign in to continue.",
-    retryable: false,
-  });
-}
-
-function requireAccountActor(req: FastifyRequest) {
-  if (!req.accountActor) throw createAuthenticationRequiredError();
-  return req.accountActor;
-}
-
-function requireAuthenticatedUser(req: FastifyRequest) {
-  if (!req.user) throw createAuthenticationRequiredError();
-  return req.user;
-}
-
-function requireAuthenticatedPrincipal(req: FastifyRequest) {
-  return { actor: requireAccountActor(req), user: requireAuthenticatedUser(req) };
-}
+import type { AccountRouteContext } from "../createReplyHelpers";
+import {
+  createAuthenticationRequiredError,
+  requireAccountActor,
+  requireAuthenticatedPrincipal,
+} from "./authenticatedPrincipal";
 
 const trustedLocalProposalFailure = () =>
   new AccountContractError({ code: "FORBIDDEN", message: "Forbidden.", retryable: false });
 
-type ParseResult<T, E> = { value: T; failure?: never } | { failure: E; value?: never };
+/** The account-route members the invitation handlers read. */
+type InvitationRouteContext = Pick<
+  AccountRouteContext,
+  | "administration"
+  | "auditUnlessReplayed"
+  | "authMode"
+  | "authenticationConfigured"
+  | "authorize"
+  | "command"
+  | "fail"
+  | "flows"
+  | "invitationMail"
+  | "isKnownRole"
+  | "permittedCompanyProviderIds"
+  | "requiredSsoProviderId"
+  | "validationFailed"
+>;
 
-function parsePreauthorizedEmail(
-  value: unknown,
-  createValidationFailure: AccountRouteContext["validationFailed"],
-): ParseResult<string | null, AccountContractError> {
-  if (value !== undefined && typeof value !== "string") {
-    return { failure: createValidationFailure("preauthEmail must be a valid email address.") };
-  }
-  if (typeof value !== "string" || value.trim().length === 0) return { value: null };
-  return { value: normalizeAccountEmail(value) };
-}
-
-function parseInvitationExpiry(
-  value: unknown,
-  createValidationFailure: AccountRouteContext["validationFailed"],
-): ParseResult<string | null, AccountContractError> {
-  if (value === undefined) return { value: null };
-  const parsed = typeof value === "string" ? parseStrictIsoInstant(value) : null;
-  if (parsed === null) {
-    return { failure: createValidationFailure("expiresAt must be a valid ISO-8601 timestamp.") };
-  }
-  return { value: new Date(parsed).toISOString() };
-}
-
-function parseCreateInvitationAuthorizationInput({
-  req,
-  authMode,
-  isKnownRole,
-  createValidationFailure,
-}: {
-  req: FastifyRequest;
-  authMode: AccountRouteContext["authMode"];
-  isKnownRole: AccountRouteContext["isKnownRole"];
-  createValidationFailure: AccountRouteContext["validationFailed"];
-}): ParseResult<
-  {
-    accountId: string;
-    role: Role;
-    preauthEmail: string | null;
-    proposedResourceId?: string;
-    requestedExpiry: unknown;
-  },
-  AccountContractError
-> {
-  const body = (req.body ?? {}) as {
-    accountId?: unknown;
-    role?: unknown;
-    expiresAt?: unknown;
-    preauthEmail?: unknown;
-    proposedResourceId?: unknown;
-  };
-  if (typeof body.accountId !== "string" || body.accountId.length === 0) {
-    return { failure: createValidationFailure("accountId must be a non-empty string.") };
-  }
-  if (!isKnownRole(body.role)) return { failure: createValidationFailure(INVALID_ROLE_MESSAGE) };
-
-  const emailResult = parsePreauthorizedEmail(body.preauthEmail, createValidationFailure);
-  if ("failure" in emailResult) return { failure: emailResult.failure };
-  if (authMode === "sso" && emailResult.value === null) {
-    return { failure: createValidationFailure("SSO-only onboarding requires an email-preauthorized invitation.") };
-  }
-
-  return {
-    value: {
-      accountId: body.accountId,
-      role: body.role,
-      preauthEmail: emailResult.value,
-      ...(body.proposedResourceId === undefined
-        ? {}
-        : {
-            proposedResourceId: typeof body.proposedResourceId === "string" ? body.proposedResourceId.trim() : "",
-          }),
-      requestedExpiry: body.expiresAt,
-    },
-  };
-}
-
-export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const {
     authMode,
     administration: accountAdminPort,
@@ -124,7 +47,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   } = context;
 
   const input = parseCreateInvitationAuthorizationInput({ req, authMode, isKnownRole, createValidationFailure });
-  if ("failure" in input) return accountFail(reply, input.failure);
+  if (input.kind === "invalid") return accountFail(reply, input.failure);
   const { value } = input;
   // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
   if (!authorize({ req, reply, accountId: value.accountId, action: "manageInvites", options: NO_REPROMPT })) return;
@@ -133,7 +56,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   if (authMode === "off" && value.proposedResourceId !== undefined)
     return accountFail(reply, trustedLocalProposalFailure());
   const expiryResult = parseInvitationExpiry(value.requestedExpiry, createValidationFailure);
-  if ("failure" in expiryResult) return accountFail(reply, expiryResult.failure);
+  if (expiryResult.kind === "invalid") return accountFail(reply, expiryResult.failure);
   try {
     const { actor, user } = requireAuthenticatedPrincipal(req);
     const invite = await accountAdminPort.createInvitation({
@@ -170,6 +93,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
       role: invite.role,
       expiresAt: invite.expiresAt,
       preauthEmail: invite.preauthorizedEmail,
+      emailed: await sendInvitationEmail({ req, context, invite }),
       ...(invite.proposedResourceId === undefined ? {} : { proposedResourceId: invite.proposedResourceId }),
     });
   } catch (error) {
@@ -177,13 +101,14 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   }
 }
 
-export async function previewInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function previewInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const { administration: accountAdminPort, fail: accountFail } = context;
 
   const { token } = req.params as { token: string };
   try {
     const invite = await accountAdminPort.previewInvitation({ token });
     return {
+      accountId: invite.workspaceId,
       accountName: invite.workspaceName,
       role: invite.role,
       expiresAt: invite.expiresAt,
@@ -195,8 +120,8 @@ export async function previewInvitation(req: FastifyRequest, reply: FastifyReply
   }
 }
 
-function permitsInvitationProvider(req: FastifyRequest, context: AccountRouteContext): boolean {
-  if (context.authMode !== "sso") return true;
+function permitsInvitationProvider(req: FastifyRequest, context: InvitationRouteContext): boolean {
+  if (context.authMode !== "sso-only") return true;
   const providerId = req.authenticationProviderId;
   return (
     providerId !== null &&
@@ -204,7 +129,7 @@ function permitsInvitationProvider(req: FastifyRequest, context: AccountRouteCon
   );
 }
 
-export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const {
     authMode,
     administration: accountAdminPort,
@@ -264,30 +189,21 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
   }
 }
 
-export async function signupInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
-  const {
-    authMode,
-    authenticationConfigured,
-    flows: accountFlows,
-    command: accountCommand,
-    fail: accountFail,
-    auditUnlessReplayed,
-  } = context;
-
-  if (authMode !== "password" || !authenticationConfigured) {
+export async function signupInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
+  const { authMode, authenticationConfigured, flows, command, fail, auditUnlessReplayed } = context;
+  if (!allowsPasswordSignIn(authMode) || !authenticationConfigured) {
     return reply.code(404).send({ error: "Not found." });
   }
   const { token } = req.params as { token: string };
   const input = parseSignupInvitationInput(req);
   if ("failure" in input) return reply.code(400).send({ error: input.failure });
-  const { value } = input;
   try {
-    const result = await accountFlows.acceptInviteWithPasswordSignup({
+    const result = await flows.acceptInviteWithPasswordSignup({
       token,
-      email: value.email,
-      displayName: value.name,
-      password: value.password,
-      command: accountCommand(req),
+      email: input.value.email,
+      displayName: input.value.name,
+      password: input.value.password,
+      command: command(req),
     });
     auditUnlessReplayed({
       reply,
@@ -302,17 +218,13 @@ export async function signupInvitation(req: FastifyRequest, reply: FastifyReply,
         changedFields: ["role", "status"],
       },
     });
-    return reply.code(201).send({
-      ok: true,
-      accountId: result.membership.workspaceId,
-      role: result.membership.role,
-    });
+    return reply.code(201).send({ ok: true, accountId: result.membership.workspaceId, role: result.membership.role });
   } catch (error) {
-    return accountFail(reply, error);
+    return fail(reply, error);
   }
 }
 
-export async function listInvitations(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function listInvitations(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const { authMode, administration: accountAdminPort, authorize, fail: accountFail } = context;
 
   const { accountId } = req.params as { accountId: string };
@@ -342,7 +254,7 @@ export async function listInvitations(req: FastifyRequest, reply: FastifyReply, 
   }
 }
 
-export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const {
     administration: accountAdminPort,
     authorize,
@@ -378,5 +290,32 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
     return reply.code(204).send();
   } catch (error) {
     return accountFail(reply, error);
+  }
+}
+
+/** Delivery failure preserves the created invitation and its copyable link. */
+async function sendInvitationEmail({
+  req,
+  context,
+  invite,
+}: {
+  req: FastifyRequest;
+  context: Pick<InvitationRouteContext, "invitationMail">;
+  invite: Awaited<ReturnType<AccountRouteContext["administration"]["createInvitation"]>>;
+}): Promise<boolean> {
+  const mail = context.invitationMail;
+  if (!mail || !invite.preauthorizedEmail || wasAccountCommandReplayed(invite)) return false;
+  try {
+    const link = new URL("/invite/" + encodeURIComponent(invite.token), mail.publicUrl);
+    await mail.sender.send({
+      accountId: invite.workspaceId,
+      to: invite.preauthorizedEmail,
+      subject: "Your invitation",
+      text: `Open this link to accept your invitation: ${link.href}`,
+    });
+    return true;
+  } catch (cause) {
+    req.log.error({ cause: resolveMailDeliveryCause(cause) }, "Invitation email delivery failed");
+    return false;
   }
 }

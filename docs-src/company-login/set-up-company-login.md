@@ -131,7 +131,7 @@ but receives it as inline image data, which CapacityLens does not accept as an
 avatar URL. Do not expect the Microsoft photo to appear automatically. Missing
 pictures do not prevent sign-in; CapacityLens uses its normal avatar fallback.
 An explicitly configured person avatar takes precedence over a linked sign-in
-picture on the schedule.
+picture on the Schedule and Overview pages.
 
 The final Microsoft consent screens and photo behaviour still need confirmation
 in the partner tenant. These permissions describe the installed integration,
@@ -139,9 +139,10 @@ not a completed live-tenant test.
 
 ## Allow the first person and invite teammates
 
-External sign-in does not make an account eligible by itself. New people need a
-verified matching email address and either the first-owner allowance on an
-empty installation or an unused CapacityLens invitation.
+External sign-in does not make an account eligible by itself. The first person
+on an empty installation needs the operator's exact-address allowance. After
+that, each company decides whether a verified address may join directly or
+needs an invitation. [See the joining policies](/company-login/#invitations-and-the-first-owner).
 
 For the first Owner on a new installation, set
 `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS` to the exact email address the
@@ -149,10 +150,11 @@ person will use at Google or Microsoft. This allowance only applies while there
 are no users. The first sign-in creates the first identity and closes bootstrap access.
 The person then follows **Set up your company** to create their company as Owner.
 
-For everyone else, an Owner or Admin creates an invitation in **Team & access**
-and copies its link to send to the intended person. CapacityLens does not email
-company invitations. The
-invited person opens that invitation and continues with the configured provider.
+For an invited person, an Owner or Admin creates an addressed invitation in
+**Team & access**. When SMTP is configured and sending is available, CapacityLens
+emails the invitation; the copyable link remains available if email is unavailable
+or sending fails. The invited person opens the email or shared link and continues
+with an eligible configured provider.
 The verified address must match the invitation. Google supplies verified-email
 evidence; Microsoft may need the mailbox proof below. A different address cannot
 use that invitation to create an identity.
@@ -187,11 +189,11 @@ the invited person can continue.
 
 ## Choose the sign-in mode
 
-On a self-hosted installation, `SMALLSASS_ACCOUNT_MODE=password` keeps password
+On a self-hosted installation, `SMALLSASS_ACCOUNT_MODE=password-and-sso` keeps password
 sign-in alongside configured providers. Google and Microsoft appear above the
 password form. GitHub remains an experimental additional option in this mode.
 
-`SMALLSASS_ACCOUNT_MODE=sso` requires a configured company provider and removes
+`SMALLSASS_ACCOUNT_MODE=sso-only` requires a configured company provider and removes
 password sign-in. GitHub cannot satisfy this requirement, including through an
 older GitHub session. Keep the Google or Microsoft credentials configured.
 Connect existing accounts and test the replacement before changing modes; see

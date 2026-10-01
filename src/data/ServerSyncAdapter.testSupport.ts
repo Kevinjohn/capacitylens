@@ -4,13 +4,14 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, Allocation, AppData, Client, Project, TimeOff } from "@capacitylens/shared/types/entities";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
 import { cacheAuthSnapshot, clearAllOfflineData, setOfflineReadState, type OfflineAuthSnapshot } from "./offlineCache";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 export const TS1 = "2026-01-01T00:00:00.000Z";
 export const TS2 = "2026-01-02T00:00:00.000Z";
 export const client = (id: string, updatedAt = TS1): Client => ({
   id,
   accountId: "a1",
-  name: "Acme",
+  name: "Ferris",
   color: "#3b82f6",
   createdAt: TS1,
   updatedAt,
@@ -90,9 +91,6 @@ export interface ReceiptOp {
   row?: object;
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 export const requiredRecord = (value: unknown, message: string): Record<string, unknown> => {
   if (!isRecord(value)) throw new Error(message);
   return value;
@@ -166,7 +164,7 @@ export const required = <T>(value: T | null | undefined, message = "expected tes
 
 /** The verified `/me` snapshot every offline scenario is cached against. */
 const OFFLINE_IDENTITY: OfflineAuthSnapshot = {
-  authMode: "password",
+  authMode: "password-only",
   user: {
     id: "offline-user",
     email: "offline@example.test",

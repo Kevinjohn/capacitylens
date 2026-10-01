@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { BoundApplication } from "@capacitylens/shared/account/types";
 import type { FastifyInstance } from "fastify";
 
@@ -13,7 +14,7 @@ import {
 import type { BackupConfig } from "../backup";
 import { formatBackupStartupFailure, startBackups } from "../backup";
 import type { Db } from "../db";
-import { createLastResortErrorHandler, createShutdownHandler, handleListenFailure } from "../shutdown";
+import { createLastResortErrorHandler, createShutdownHandler, shutDownAfterListenFailure } from "../shutdown";
 import type { StartupSignalController } from "../startupSignals";
 import { closeDbSafely, parseAuditMaxMb, refuseToStart } from "./refusals";
 
@@ -38,6 +39,7 @@ type ServerApplicationOptions = Pick<
   | "rateLimit"
   | "requireMfa"
   | "trustProxyHeaders"
+  | "webDir"
 >;
 
 interface ServerRuntimeInput {
@@ -88,7 +90,7 @@ function createServerApplication(input: ServerRuntimeInput): {
   let startingBackups = false;
   try {
     // A successful explicit admin bootstrap makes the captured count nonzero and skips this notice.
-    if (input.applicationOptions.authMode === "password" && input.userCount === 0) {
+    if (allowsPasswordSignIn(input.applicationOptions.authMode ?? "off") && input.userCount === 0) {
       input.logWarning(
         "capacitylens-server: SETUP LOCKED — no user accounts exist yet; owner creation requires the " +
           "configured SMALLSASS_ACCOUNT_SETUP_TOKEN.",
@@ -168,5 +170,5 @@ export function startServerRuntime(input: ServerRuntimeInput): void {
         `capacitylens-server listening on ${address} (db=${input.dbPath}, reset=${input.applicationOptions.allowReset})`,
       ),
     )
-    .catch((error) => void handleListenFailure(error, shutdown));
+    .catch((error) => void shutDownAfterListenFailure(error, shutdown));
 }

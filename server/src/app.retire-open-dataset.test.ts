@@ -18,12 +18,12 @@ import { signUp } from "./testHelpers";
 // without auth coverage is a one-line add to the matrix below (and a visible omission if forgotten).
 
 const TS = "2026-01-01T00:00:00.000Z";
-const client = { id: "c1", accountId: "a1", name: "Acme", color: "#3b82f6", createdAt: TS, updatedAt: TS };
+const client = { id: "c1", accountId: "a1", name: "Ferris", color: "#3b82f6", createdAt: TS, updatedAt: TS };
 
 const readResponse = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> => app.inject(opts);
 
 const PASSWORD_ENV = {
-  SMALLSASS_ACCOUNT_MODE: "password",
+  SMALLSASS_ACCOUNT_MODE: "password-only",
   SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123",
   SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
   SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
@@ -165,7 +165,7 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
     const { app } = await createAuthenticatedApp();
     const res = await readResponse(app, { method: "GET", url: "/api/auth/me" });
     expect(res.statusCode).toBe(401);
-    expect(res.json<{ authMode: string; error: string }>().authMode).toBe("password");
+    expect(res.json<{ authMode: string; error: string }>().authMode).toBe("password-only");
     expect(res.json<{ authMode: string; error: string }>().error).toBe("Sign in to continue.");
   });
 });

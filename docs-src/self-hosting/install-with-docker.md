@@ -2,7 +2,7 @@
 title: Install with Docker
 description: Install CapacityLens with Docker Compose, from cloning the repository to a running, health-checked instance.
 prev:
-  text: Choose how to install
+  text: Install CapacityLens
   link: /getting-started/install
 next:
   text: Configure the service
@@ -32,13 +32,21 @@ installed, most of it waiting for the first build.
 
 ## Steps
 
-1. Clone the repository and copy the example environment file:
+1. Clone the repository, check out the release you're deploying and copy the example
+   environment file:
 
    ```bash
    git clone https://github.com/Kevinjohn/capacitylens.git
    cd capacitylens
+   git checkout vX.Y.Z
    cp .env.example .env
+   chmod 600 .env
    ```
+
+   Replace `vX.Y.Z` with the release tag you're deploying. The newest is on the
+   [releases page](https://github.com/Kevinjohn/capacitylens/releases/latest). Don't deploy
+   `main`: it carries changes that haven't been released yet. `.env` will hold the signing
+   secret and setup token, so only your account may read it.
 
 2. Generate two secrets — one for signing sessions, one for the first-owner setup
    token:
@@ -54,7 +62,7 @@ installed, most of it waiting for the first build.
 
    ```dotenv
    SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password
-   SMALLSASS_ACCOUNT_MODE=password
+   SMALLSASS_ACCOUNT_MODE=password-only
    SMALLSASS_ACCOUNT_SECRET=<first generated value>
    SMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com
    SMALLSASS_ACCOUNT_SETUP_TOKEN=<second generated value>
@@ -82,8 +90,9 @@ installed, most of it waiting for the first build.
    docker compose logs -f api
    ```
 
-   Press `Ctrl-C` to stop following once the log settles — the API doesn't print a
-   single "ready" line, so a quiet log with no restart is what you're looking for.
+   Wait for `capacitylens-server listening on ...`, then press `Ctrl-C` to stop
+   following. Confirm health in the next step; the listening line alone does not
+   establish that backups or the audit sink are healthy.
 
 6. Check the app is serving and the API is healthy:
 
@@ -106,7 +115,11 @@ installed, most of it waiting for the first build.
    [Monitoring and health checks](/self-hosting/monitoring) for how to check the
    certificate it created.
 
-7. Put a TLS-terminating reverse proxy in front of port 8080, then continue to
+7. Put a TLS-terminating reverse proxy in front of port 8080, then open the public
+   HTTPS address. Enter the setup token from step 3 to create the first owner and
+   company. Once both exist, remove `SMALLSASS_ACCOUNT_SETUP_TOKEN` from `.env` and
+   run `docker compose up -d --force-recreate api` to discard the setup credential
+   from the running container. Continue to
    [verify and hand over the installation](/installation/verify-and-hand-over).
    See [Secure the connection](/installation/secure-the-connection) for the proxy and
    [Configure the service](/installation/configure-the-service#sign-in-mode) for the

@@ -16,8 +16,7 @@ import { buildAllocationStatusOptions } from "../../lib/metadata";
 import { formatShortDateEndpoint } from "../../lib/dateDisplay";
 import { AllocationControlColumn, AllocationSpanRow, DateRangeFields } from "./AllocationModalFieldLayout";
 import type { AllocationModalState } from "./useAllocationModalState";
-
-const roundDisplayHours = (numericValue: number) => Math.round(numericValue * 100) / 100;
+import { roundToHundredths } from "@/lib/roundToHundredths";
 
 const buildRepeatOptions = (): Option[] => [
   { value: "none", label: m.form_allocation_repeat_none() },
@@ -114,7 +113,7 @@ function countedSpanHint(props: CountedSpanProps) {
   const message = props.isDays
     ? m.form_allocation_ends_hint_hours({
         date: props.endDateHint,
-        hours: roundDisplayHours(props.effHoursPerDay),
+        hours: roundToHundredths(props.effHoursPerDay),
       })
     : m.form_allocation_ends_hint({ date: props.endDateHint });
   return <p className="text-xs text-muted-foreground">{message}</p>;

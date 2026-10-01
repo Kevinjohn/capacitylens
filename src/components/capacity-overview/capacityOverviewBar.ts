@@ -1,6 +1,7 @@
 import { m } from "@/i18n";
 import { HOURS_PER_DISPLAY_DAY, roundDownQuarterDays, roundUpQuarterDays } from "./capacityOverviewModel";
 import type { CapacityOverviewGroup, CapacityOverviewPeriodResult } from "./capacityOverviewTypes";
+import { roundToHundredths } from "@/lib/roundToHundredths";
 
 /** The two ways a week cell can present a person's capacity. */
 export type CapacityDisplayMode = "ledger" | "load-curve";
@@ -122,7 +123,7 @@ export function buildPeriodTotals(groups: CapacityOverviewGroup[], periodCount: 
 
 /** Day figures print bare integers and trimmed fractions: 5 → "5", 1.5 → "1.5", 1.25 → "1.25". */
 export function formatDayFigure(days: number): string {
-  return String(Math.round(days * 100) / 100);
+  return String(roundToHundredths(days));
 }
 
 export function formatDays(days: number, kind: "capacity" | "overbooked" | "unassigned" | "tentative"): string {

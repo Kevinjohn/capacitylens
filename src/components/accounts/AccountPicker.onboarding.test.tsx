@@ -1,17 +1,31 @@
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "../../auth/authContext";
 import { useStore } from "../../store/useStore";
 import { AccountPicker } from "./AccountPicker";
 
+const serverFlag = vi.hoisted(() => ({ on: false }));
 vi.mock("../../data/apiConfig", () => ({
   API_BASE: "",
-  isDemoMode: () => true,
-  isServerConfigured: () => false,
+  isDemoMode: () => !serverFlag.on,
+  isServerConfigured: () => serverFlag.on,
 }));
 
+vi.mock("../../auth/accountTransition", () => ({
+  transitionAccount: vi.fn(async (id: string | null) => {
+    useStore.getState().setActiveAccount(id);
+    return true;
+  }),
+}));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 beforeEach(() => {
+  serverFlag.on = false;
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
   useStore.getState().setAccountSummaries([]);
@@ -74,5 +88,92 @@ describe("AccountPicker first-company onboarding", () => {
     expect(screen.queryByText("Colour")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Colour \(/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+
+  it("does not offer example data where no server can add it", () => {
+    render(<AccountPicker />);
+    expect(screen.queryByRole("checkbox", { name: "Start with example data" })).not.toBeInTheDocument();
+  });
+});
+
+describe("AccountPicker example data", () => {
+  const sent: string[] = [];
+  function stubServer(exampleDataStatus: number, exampleDataError?: string) {
+    sent.length = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        sent.push(url);
+        if (url === "/api/orgs") return { ok: true, status: 201, json: async () => ({ id: "org-1", name: "Wayne" }) };
+        return {
+          ok: exampleDataStatus < 400,
+          status: exampleDataStatus,
+          json: async () => (exampleDataError ? { error: exampleDataError } : {}),
+        };
+      }),
+    );
+  }
+
+  it("is ticked by default for a first company and unticked once a company exists", async () => {
+    serverFlag.on = true;
+    const { unmount } = render(<AccountPicker />);
+    expect(screen.getByRole("checkbox", { name: "Start with example data" })).toBeChecked();
+    unmount();
+
+    useStore.getState().setAccountSummaries([{ id: "a1", name: "Wayne", role: "owner" }]);
+    render(
+      <AuthContext.Provider
+        value={{
+          authMode: "off",
+          user: null,
+          canCreateAccount: true,
+          multiAccount: true,
+          refreshAuth: async () => {},
+          signOut: async () => {},
+        }}
+      >
+        <AccountPicker />
+      </AuthContext.Provider>,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("new-company-button"));
+    expect(screen.getByRole("checkbox", { name: "Start with example data" })).not.toBeChecked();
+  });
+
+  it("adds example data after creating the company when the box is ticked", async () => {
+    serverFlag.on = true;
+    stubServer(201);
+    const user = userEvent.setup();
+    render(<AccountPicker />);
+    await user.type(screen.getByLabelText("Company name"), "Wayne Enterprises");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBe("org-1"));
+    expect(sent).toEqual(["/api/orgs", "/api/accounts/org-1/example-data"]);
+  });
+
+  it("adds nothing when the box is unticked", async () => {
+    serverFlag.on = true;
+    stubServer(201);
+    const user = userEvent.setup();
+    render(<AccountPicker />);
+    await user.type(screen.getByLabelText("Company name"), "Wayne Enterprises");
+    await user.click(screen.getByRole("checkbox", { name: "Start with example data" }));
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBe("org-1"));
+    expect(sent).toEqual(["/api/orgs"]);
+  });
+
+  it("keeps the new company and says so when the example data cannot be added", async () => {
+    serverFlag.on = true;
+    stubServer(500, "The example data failed.");
+    const user = userEvent.setup();
+    render(<AccountPicker />);
+    await user.type(screen.getByLabelText("Company name"), "Wayne Enterprises");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBe("org-1"));
+    expect(useStore.getState().notice).toMatchObject({
+      tone: "error",
+      message: expect.stringContaining("The example data failed.") as string,
+    });
   });
 });

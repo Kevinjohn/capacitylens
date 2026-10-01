@@ -21,6 +21,7 @@ import { stamp, touch, touchAfter } from "./revisions";
 import { HISTORY_LIMIT } from "./history";
 import { resetSchedulerView } from "./storeConstants";
 import { createGuards } from "./storeGuards";
+import type { CreateResult } from "./types";
 
 interface UpdateOwnedInput<K extends ScopedEntityKey> {
   key: K;
@@ -71,16 +72,22 @@ const updateById = <T extends Entity>(list: T[], id: ID, patch: Patch<T>): T[] =
 
 function createGuardedActions(blockedByViewer: ReturnType<typeof createGuards>["blockedByViewer"]) {
   const createGuardedAction =
-    <A extends unknown[], R>(action: (...parameters: A) => R, blockedValue?: R) =>
+    <A extends unknown[]>(action: (...parameters: A) => void) =>
+    (...parameters: A): void => {
+      if (!blockedByViewer()) action(...parameters);
+    };
+  // A value-returning action must say what a blocked viewer receives; there is no implicit default.
+  const createGuardedValueAction =
+    <A extends unknown[], R>(action: (...parameters: A) => R, blockedValue: R) =>
     (...parameters: A): R =>
-      blockedByViewer() ? (blockedValue as R) : action(...parameters);
+      blockedByViewer() ? blockedValue : action(...parameters);
   const createGuardedAddAction =
     <A extends unknown[], E>(build: (...parameters: A) => E, persist: (built: E, ...args: A) => E) =>
-    (...parameters: A): E => {
+    (...parameters: A): CreateResult<E> => {
       const built = build(...parameters);
-      return blockedByViewer() ? built : persist(built, ...parameters);
+      return blockedByViewer() ? { kind: "blocked" } : { kind: "created", value: persist(built, ...parameters) };
     };
-  return { createGuardedAction, createGuardedAddAction };
+  return { createGuardedAction, createGuardedValueAction, createGuardedAddAction };
 }
 
 interface OwnedUpdateDependencies {
@@ -120,7 +127,7 @@ interface TimeOffCreationDependencies {
 }
 
 function createAllocationCreator(dependencies: AllocationCreationDependencies) {
-  return (inputs: readonly Draft<Allocation>[]): Allocation[] => {
+  return (inputs: readonly Draft<Allocation>[]): CreateResult<Allocation[]> => {
     if (inputs.length === 0) throw new Error("At least one allocation is required.");
     const accountId = dependencies.requireAccount();
     const allocations = inputs.map((input) => ({
@@ -130,7 +137,7 @@ function createAllocationCreator(dependencies: AllocationCreationDependencies) {
       accountId,
       ...stamp(),
     }));
-    if (dependencies.blockedByViewer()) return allocations;
+    if (dependencies.blockedByViewer()) return { kind: "blocked" };
     const data = dependencies.get().data;
     const account = data.accounts.find((candidate) => candidate.id === accountId);
     const accountWorkingDays = normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? 1);
@@ -150,12 +157,12 @@ function createAllocationCreator(dependencies: AllocationCreationDependencies) {
       if (resource) assertAllocationWithinResourceAvailability({ allocation, resource, accountWorkingDays });
     }
     dependencies.mutate((current) => ({ ...current, allocations: [...current.allocations, ...allocations] }));
-    return allocations;
+    return { kind: "created", value: allocations };
   };
 }
 
 function createTimeOffCreator(dependencies: TimeOffCreationDependencies) {
-  return (inputs: readonly Draft<TimeOff>[]): TimeOff[] => {
+  return (inputs: readonly Draft<TimeOff>[]): CreateResult<TimeOff[]> => {
     if (inputs.length === 0) throw new Error("At least one time off entry is required.");
     const accountId = dependencies.requireAccount();
     const timeOffs = inputs.map((input) => ({
@@ -164,23 +171,23 @@ function createTimeOffCreator(dependencies: TimeOffCreationDependencies) {
       accountId,
       ...stamp(),
     }));
-    if (dependencies.blockedByViewer()) return timeOffs;
+    if (dependencies.blockedByViewer()) return { kind: "blocked" };
     const data = dependencies.get().data;
     for (const timeOff of timeOffs) {
       dependencies.assertResourceExists(data, accountId, timeOff.resourceId);
       assertDateRange(timeOff.startDate, timeOff.endDate);
     }
     dependencies.mutate((current) => ({ ...current, timeOff: [...current.timeOff, ...timeOffs] }));
-    return timeOffs;
+    return { kind: "created", value: timeOffs };
   };
 }
 
 function createImportAction(
   set: StoreApi<StoreState>["setState"],
   get: StoreApi<StoreState>["getState"],
-  createGuardedAction: ReturnType<typeof createGuardedActions>["createGuardedAction"],
+  createGuardedValueAction: ReturnType<typeof createGuardedActions>["createGuardedValueAction"],
 ) {
-  return createGuardedAction(
+  return createGuardedValueAction(
     (accountId: ID, incoming: AppData): ImportSummary => {
       const result = remapAndValidateImport(get().data, accountId, incoming, touch());
       if (result.imported === 0) return { imported: 0, skipped: result.skipped };
@@ -211,11 +218,12 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     applySnappedColor,
   } = createGuards(get, set);
 
-  const { createGuardedAction, createGuardedAddAction } = createGuardedActions(blockedByViewer);
+  const { createGuardedAction, createGuardedValueAction, createGuardedAddAction } =
+    createGuardedActions(blockedByViewer);
   const updateOwned = createOwnedUpdater({ get, resolveOwnedRow, mutate });
   const createAllocations = createAllocationCreator({ get, requireAccount, blockedByViewer, assertAllocation, mutate });
   const createTimeOffs = createTimeOffCreator({ get, requireAccount, blockedByViewer, assertResourceExists, mutate });
-  const importSlice = createImportAction(set, get, createGuardedAction);
+  const importSlice = createImportAction(set, get, createGuardedValueAction);
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
   // come from the shared core (entities.ts) so the store write boundary and the import
@@ -236,6 +244,7 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     snapColor,
     applySnappedColor,
     createGuardedAction,
+    createGuardedValueAction,
     createGuardedAddAction,
     updateOwned,
     createAllocations,

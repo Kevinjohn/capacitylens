@@ -30,6 +30,7 @@ export type InviteAcceptState =
   | { kind: "local" };
 
 export interface InvitePreview {
+  accountId?: string | null;
   accountName: string;
   role: InvitationRole;
   expiresAt: string;
@@ -146,7 +147,7 @@ function InviteStateContent(props: InviteAcceptViewProps) {
     case "joined":
       return props.state.activating ? null : <JoinedContent continueRef={props.continueRef} />;
     case "auth":
-      return props.authMode === "sso" ? <SsoContent {...props} /> : <PasswordContent {...props} />;
+      return props.authMode === "sso-only" ? <SsoContent {...props} /> : <PasswordContent {...props} />;
     case "error":
       return <ErrorContent {...props} />;
     case "local":

@@ -55,7 +55,7 @@ async function createSsoCutoverDatabase(): Promise<{ database: string; directory
   const database = join(directory, "capacitylens.db");
   const db = openDb(database);
   const { auth } = createAuthFromEnvironment(db, {
-    SMALLSASS_ACCOUNT_MODE: "password",
+    SMALLSASS_ACCOUNT_MODE: "password-only",
     SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
     SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
   });
@@ -114,7 +114,7 @@ function createSsoWorkspace(db: ReturnType<typeof openDb>): void {
 
 function buildSsoEnvironment(profile?: string): NodeJS.ProcessEnv {
   const environment = {
-    SMALLSASS_ACCOUNT_MODE: "sso",
+    SMALLSASS_ACCOUNT_MODE: "sso-only",
     SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
     SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
     SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
@@ -198,7 +198,7 @@ describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
 
       expect(result.status, result.stderr).toBe(1);
       expect(result.stderr).toContain(
-        "Provider-required cutover needs a verified company-provider connection for 1 principal(s).",
+        "owner@example.com has no verified connection to a configured company sign-in provider.",
       );
       expect(result.stderr).not.toContain("at ");
 
@@ -209,7 +209,7 @@ describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
       });
       expect(repeated.status, repeated.stderr).toBe(1);
       expect(repeated.stderr).toContain(
-        "Provider-required cutover needs a verified company-provider connection for 1 principal(s).",
+        "owner@example.com has no verified connection to a configured company sign-in provider.",
       );
       assertPreservedSsoState(database);
     } finally {

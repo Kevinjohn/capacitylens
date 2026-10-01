@@ -12,21 +12,17 @@ who is busy, who has room, and who is about to be buried, and move things around
 a problem.
 
 <picture>
-  <img alt="The CapacityLens schedule: people grouped by discipline, coloured allocation bars across a two-week window, per-person utilisation, an over-capacity day highlighted in red, and a booked holiday." src="docs-src/screenshots/schedule-light.jpg">
+  <img alt="The CapacityLens schedule: people grouped by discipline, coloured allocation bars across a two-week window, per-person utilisation, an over-capacity day highlighted in red, and a booked holiday." src="docs-src/screenshots/schedule_light.jpg">
 </picture>
 
 One screen. People down the side, days across the top, the work in between. Red means someone is
 over capacity that day. The percentage next to each name is how full they are across the window
 you're looking at.
 
-## Alpha 5
+## Latest release
 
-Find archived people and work beneath their usual lists, and restore an accidental archive where
-you expect to find it. Plan repeated personal time off with a preview before saving, book shared
-activities against real projects, and check what a team member can see through a read-only access preview.
-
-[Read the Alpha 5 release notes](https://github.com/Kevinjohn/capacitylens/releases/tag/v0.62.0-alpha.5)
-for the highlights and upgrade notes.
+[Read the latest release notes](https://github.com/Kevinjohn/capacitylens/releases/latest) for the
+highlights and upgrade notes.
 
 ## Try it in two minutes
 
@@ -72,22 +68,17 @@ asked "can we take this on?" and need a shared, honest answer.
 
 ## Run it for real
 
-Node 24 and pnpm are required; the pinned version is in `.nvmrc`.
+Every release from 0.73.0-alpha.1 carries a server archive. Node 24 is the only prerequisite.
 Node 26 compatibility is still under investigation; see [the compatibility notes](docs-src/reference/development.md#check-node-26-compatibility).
 
-```bash
-nvm use
-corepack enable
-pnpm install
-pnpm run dev
-```
+1. **Download** `capacitylens-X.Y.Z.tar.gz` from the [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
+2. **Pick a folder** for the database; its file is created there on first start.
+3. **Configure:** copy `capacitylens.env.example` and fill in its three empty lines: the address, and two values from `openssl rand -base64 48`. Set `CAPACITYLENS_DB` to a file in step 2's folder.
+4. **Start it** with `node --env-file=<your env file> server/dist/index.mjs`, or as a service.
+5. **Open the address** and create your company with the setup token from step 3.
 
-That starts the web app on `:5173` and the SQLite API on `:8787`, with sample data loaded.
-A fresh production instance starts empty.
-
-For a real deployment with Docker Compose, plain Node 24 or a managed VPS platform —
-including TLS, backups and upgrades — follow the
-[self-hosting guide](docs-src/self-hosting/index.md).
+[Install CapacityLens](docs-src/getting-started/install.md) has the commands for a managed host
+or a Linux host. Docker is [another way to install](docs-src/self-hosting/install-with-docker.md).
 
 ## Sign-in, in short
 
@@ -131,9 +122,14 @@ in-memory demo adapter.
 
 ## Contributing
 
+Node 24 and pnpm are required; the pinned version is in `.nvmrc`.
+
 ```bash
-pnpm run gate         # formatting, generated i18n, typecheck, lint, coverage and build budget
-pnpm run gate:server  # server/shared formatting, typecheck, tests, coverage and architecture checks
+nvm use
+corepack enable
+pnpm install
+pnpm run dev          # web app on :5173 and SQLite API on :8787, with sample data loaded
+pnpm run gate:all     # app and server: formatting, typecheck, lint, tests, coverage and build budget
 pnpm run e2e          # Chromium demo, database and authentication flows
 ```
 

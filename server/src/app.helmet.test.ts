@@ -115,6 +115,6 @@ describe("HSTS — off by default, on behind the HTTPS flag", () => {
     const hsts = (await health(app)).headers["strict-transport-security"];
     expect(typeof hsts).toBe("string");
     expect(hsts).toContain("max-age=63072000");
-    expect(hsts).toContain("includeSubDomains");
+    expect(hsts).not.toContain("includeSubDomains");
   });
 });

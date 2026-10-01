@@ -1,19 +1,19 @@
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { patch } from "./appTestHttp";
 import {
-  isUnknownRecord,
   readOptionalBoolean,
   readOptionalNumber,
   readOptionalNumberArray,
   readOptionalString,
   readRequiredString,
-  requireModeledKeys,
+  assertModeledKeys,
   type AccountSnapshot,
   type ClosureSnapshot,
   type ResourceSnapshot,
   type TimeOffSnapshot,
 } from "./appTestSnapshotCore";
 import { readProjectBindings, readResourceSnapshot } from "./appTestSnapshotSchedule";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 export function addAccountDisplayOptions(snapshot: AccountSnapshot, row: Record<string, unknown>): void {
   const disciplinesEnabled = readOptionalBoolean(row, "disciplinesEnabled", "account row");
   const externalEnabled = readOptionalBoolean(row, "externalEnabled", "account row");
@@ -41,7 +41,7 @@ export function addAccountWorkflowOptions(snapshot: AccountSnapshot, row: Record
 }
 
 export function readAccountSnapshot(row: Record<string, unknown>): AccountSnapshot {
-  requireModeledKeys(
+  assertModeledKeys(
     row,
     [
       "color",
@@ -94,7 +94,7 @@ export function readAccountSnapshot(row: Record<string, unknown>): AccountSnapsh
 
 export function readAccountSnapshots(rows: unknown[]): AccountSnapshot[] {
   return rows.map((row) => {
-    if (!isUnknownRecord(row)) throw new Error("Expected every account row to be an object.");
+    if (!isRecord(row)) throw new Error("Expected every account row to be an object.");
     return readAccountSnapshot(row);
   });
 }
@@ -113,8 +113,8 @@ export function readAccount(accounts: AccountSnapshot[], id: string): AccountSna
 
 export function readClosureSnapshots(rows: unknown[]): ClosureSnapshot[] {
   return rows.map((row) => {
-    if (!isUnknownRecord(row)) throw new Error("Expected every closure row to be an object.");
-    requireModeledKeys(
+    if (!isRecord(row)) throw new Error("Expected every closure row to be an object.");
+    assertModeledKeys(
       row,
       ["accountId", "createdAt", "endDate", "id", "name", "startDate", "updatedAt"],
       "closure row",
@@ -133,8 +133,8 @@ export function readClosureSnapshots(rows: unknown[]): ClosureSnapshot[] {
 
 export function readTimeOffSnapshots(rows: unknown[]): TimeOffSnapshot[] {
   return rows.map((row) => {
-    if (!isUnknownRecord(row)) throw new Error("Expected every time-off row to be an object.");
-    requireModeledKeys(
+    if (!isRecord(row)) throw new Error("Expected every time-off row to be an object.");
+    assertModeledKeys(
       row,
       ["accountId", "createdAt", "endDate", "id", "note", "resourceId", "startDate", "type", "updatedAt"],
       "time-off row",
@@ -165,7 +165,7 @@ export function readOnlyTimeOff(rows: TimeOffSnapshot[]): TimeOffSnapshot {
 export function readResourceSnapshots(rows: unknown[]): ResourceSnapshot[] {
   return readProjectBindings(rows, "resource").map((binding, index) => {
     const source = rows[index];
-    if (!isUnknownRecord(source)) throw new Error("Expected every resource row to be an object.");
+    if (!isRecord(source)) throw new Error("Expected every resource row to be an object.");
     return readResourceSnapshot(source, binding);
   });
 }

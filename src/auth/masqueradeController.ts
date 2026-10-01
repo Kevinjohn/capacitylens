@@ -35,7 +35,7 @@ interface EndProjectionInput {
 
 type ResumeWrites = (options?: { dropParkedEdits?: boolean }) => void;
 type EndProjectionResult = { kind: "inactive" } | { kind: "superseded" } | { kind: "noop" } | { kind: "failed" };
-type FinishProjectionResult = { ok: true } | { ok: false; message: string };
+type FinishProjectionResult = { kind: "finished" } | { kind: "failed"; message: string };
 type NoStatePolicy = "succeed" | "wait";
 
 function isSwitchSuccessful(outcome: RefreshOutcome, accountId: string | null): boolean {
@@ -177,9 +177,12 @@ export class MasqueradeController {
       reason: reason,
       finish: async (state) => {
         if (!(await this.dependencies.reproject(state.accountId))) {
-          return { ok: false, message: "The real account view could not be restored. Retry ending the masquerade." };
+          return {
+            kind: "failed",
+            message: "The real account view could not be restored. Retry ending the masquerade.",
+          };
         }
-        return { ok: true };
+        return { kind: "finished" };
       },
       failureMessage: "Masquerade could not be ended.",
       options: { onNoState: "succeed" },
@@ -191,6 +194,11 @@ export class MasqueradeController {
   async transitionAccount(accountId: string | null): Promise<boolean> {
     const runtime = useStore.getState().masquerade;
     if (runtime.kind === "inactive") {
+      // A start still flushing belongs to the old company and must not run after the switch.
+      if (this.startPendingGeneration !== null) {
+        ++this.generation;
+        this.startPendingGeneration = null;
+      }
       const outcome = await this.dependencies.switchAccount(accountId);
       return isSwitchSuccessful(outcome, accountId);
     }
@@ -199,8 +207,8 @@ export class MasqueradeController {
       finish: async () => {
         const outcome = await this.dependencies.switchAccount(accountId);
         return isSwitchSuccessful(outcome, accountId)
-          ? { ok: true }
-          : { ok: false, message: "The selected company could not be loaded." };
+          ? { kind: "finished" }
+          : { kind: "failed", message: "The selected company could not be loaded." };
       },
       failureMessage: "The company switch could not be completed.",
       options: { onNoState: "wait" },
@@ -238,7 +246,7 @@ export class MasqueradeController {
       }
       const finishResult = await finish(state);
       if (!this.ownsRuntime(generation, "ending")) return { kind: "superseded" };
-      if (!finishResult.ok) {
+      if (finishResult.kind === "failed") {
         this.fail(finishResult.message);
         return { kind: "failed" };
       }

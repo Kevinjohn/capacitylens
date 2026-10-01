@@ -3,6 +3,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import {
   cacheAccountSlice,
+  isOfflineReadEnabled,
   readCachedAccountSlice,
   readCachedAuthSnapshot,
   setOfflineReadState,
@@ -10,10 +11,11 @@ import {
 import { LoadError } from "../PersistenceAdapter";
 import { API_BULK_TIMEOUT_MS } from "../requestTimeout";
 import { diffOps } from "../syncOps";
-import { isRecord, parseAccountSliceWithRepairBase } from "../validateAccountSlice";
+import { parseAccountSliceWithRepairBase } from "../validateAccountSlice";
 import { listReferencedMissingTables } from "./fkGraph";
 import { seedSnapshot } from "./snapshot";
-import type { SyncState } from "./state";
+import type { SyncState } from "./SyncState";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 interface LoadedState extends MigrationWithRepairBase {
   readonly missingKeys: readonly string[];
@@ -71,7 +73,11 @@ async function applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId }
   // otherwise a superseded or desynchronised load could publish cross-account state.
   if (myGen !== state.loadGen) return;
   seedSnapshot(state, loaded.repairBase, accountId);
-  if (diffOps(loaded.repairBase, loaded.data).length > 0) await saveAll(loaded.data);
+  if (diffOps(loaded.repairBase, loaded.data).length > 0) {
+    await saveAll(loaded.data);
+    // A newer load may have installed a cached, read-only slice while the repair was in flight.
+    if (myGen !== state.loadGen) return;
+  }
   setOfflineReadState("tenant", false);
   if (accountId !== undefined && loaded.missingKeys.length === 0) {
     void cacheAccountSlice(accountId, loaded.data).catch((error) =>
@@ -207,8 +213,9 @@ export async function hydrateFromOfflineCache(
   if (accountId === undefined) {
     try {
       const cachedIdentity = await readCachedAuthSnapshot({
-        acceptEffects: () => myGen === state.loadGen,
+        acceptEffects: () => myGen === state.loadGen && isOfflineReadEnabled(),
       });
+      if (!isOfflineReadEnabled()) return null;
       if (cachedIdentity) {
         const empty = emptyAppData();
         applyCachedLoadEffects({ state, data: empty, savedAt: cachedIdentity.savedAt, myGen });
@@ -221,6 +228,7 @@ export async function hydrateFromOfflineCache(
   }
   try {
     const cached = await readCachedAccountSlice(accountId);
+    if (!isOfflineReadEnabled()) return null;
     if (cached) {
       applyCachedLoadEffects({ state, data: cached.value, savedAt: cached.savedAt, myGen, accountId });
       return cached.value;
@@ -231,7 +239,7 @@ export async function hydrateFromOfflineCache(
   return null;
 }
 
-export async function hasExisting(state: SyncState): Promise<boolean> {
+export async function readHasExistingData(state: SyncState): Promise<boolean> {
   const res = await state.request(`${state.baseUrl}/api/meta`, {
     credentials: "include",
   });

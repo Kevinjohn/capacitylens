@@ -73,6 +73,7 @@ const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
  *  SKIPPED rather than poisoning every distance with NaN. */
 const PRESET_RGB: readonly (RgbChannels | null)[] = PRESET_COLORS.map((preset) => parseRgb(preset));
 
+/** True when the value is one of the preset swatches, ignoring case and surrounding space. Pure. */
 export function isPresetColor(value: unknown): value is string {
   return typeof value === "string" && PRESET_COLOR_SET.has(value.trim().toLowerCase());
 }
@@ -218,6 +219,7 @@ function calculateRelativeLuminance(hex: string): number | null {
   return 0.2126 * normalizeLinearChannel(r) + 0.7152 * normalizeLinearChannel(g) + 0.0722 * normalizeLinearChannel(b);
 }
 
+/** WCAG contrast ratio of two hex colours; 1 when either cannot be parsed. Pure. */
 export function contrastRatio(hexA: string, hexB: string): number {
   const leftLuminance = calculateRelativeLuminance(hexA);
   const rightLuminance = calculateRelativeLuminance(hexB);
@@ -273,7 +275,7 @@ function nudgeChannels(channels: RgbChannels, darken: boolean): void {
  * chosen hue but nudge its lightness — darker under white ink, lighter under dark
  * ink — until the label clears WCAG AA. Returns the adjusted background + its ink.
  */
-export function ensureBarColors(hex: string): { bg: string; ink: string } {
+export function resolveAccessibleBarColors(hex: string): { bg: string; ink: string } {
   const channels = parseRgb(hex);
   const ink = readableTextColor(hex);
   if (!channels) return { bg: NEUTRAL_COLOR, ink: readableTextColor(NEUTRAL_COLOR) };
@@ -297,3 +299,6 @@ export function ensureBarColors(hex: string): { bg: string; ink: string } {
     ink,
   };
 }
+
+/** Compatibility alias for the published shared contract. */
+export { resolveAccessibleBarColors as ensureBarColors };

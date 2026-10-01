@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
-import { resetServer, serverState, stateRows } from "./db-helpers";
+import { openApp, selectShadOption } from "./browserTestSupport";
+import { resetServer, serverState, requireStateRows } from "./serverTestState";
 
 // DB-backed E2E: this project's app is built with VITE_CAPACITYLENS_API, so persistence
 // runs through the entity-level ServerSyncAdapter against the real SQLite server.
@@ -9,13 +9,13 @@ import { resetServer, serverState, stateRows } from "./db-helpers";
 // (there is no localStorage fallback), so a surviving record proves a real server
 // round-trip: UI → store → adapter → PUT/DELETE → SQLite → GET on reload.
 
-function registerSuiteScenario1() {
+function registerBeforeEachHooks() {
   test.beforeEach(async ({ request }) => {
     await resetServer(request, true); // wipe + re-seed before each test
   });
 }
 
-function registerSuiteScenario2() {
+function registerHydratesSeededDatasetServerLoadTest() {
   test("hydrates the seeded dataset from the server on load", async ({ page }) => {
     await openApp(page); // picks "Wayne Enterprises" from the server-seeded accounts
     // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/state → UI.
@@ -23,7 +23,7 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenario3() {
+function registerCreateReloadNewClientRoundTest() {
   test("create + reload: a new client round-trips through the DB", async ({ page, request }) => {
     await openApp(page);
     await page.getByRole("link", { name: "Clients" }).click();
@@ -34,9 +34,12 @@ function registerSuiteScenario3() {
 
     // The write is debounced; confirm it actually reached the server tables.
     await expect
-      .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Persisted DB Co"), {
-        timeout: 10_000,
-      })
+      .poll(
+        async () => requireStateRows(await serverState(request), "clients").some((c) => c.name === "Persisted DB Co"),
+        {
+          timeout: 10_000,
+        },
+      )
       .toBe(true);
 
     // Reload re-hydrates from the DB (no localStorage). The client must still show.
@@ -46,9 +49,9 @@ function registerSuiteScenario3() {
   });
 }
 
-function registerSuiteScenario4() {
+function registerRepeatCreationPersistsAllAllocationTest() {
   test("repeat creation persists all allocation PUTs through one atomic client batch", async ({ page, request }) => {
-    const before = stateRows(await serverState(request), "allocations");
+    const before = requireStateRows(await serverState(request), "allocations");
     const batchBodies: Array<{ ops?: Array<{ method?: string; table?: string; id?: string }> }> = [];
     page.on("request", (outgoing) => {
       if (outgoing.method() === "POST" && outgoing.url().endsWith("/api/batch")) {
@@ -67,7 +70,7 @@ function registerSuiteScenario4() {
     await dialog.getByRole("button", { name: "Save" }).click();
 
     await expect
-      .poll(async () => stateRows(await serverState(request), "allocations").length, { timeout: 10_000 })
+      .poll(async () => requireStateRows(await serverState(request), "allocations").length, { timeout: 10_000 })
       .toBe(before.length + 14);
     expect(batchBodies).toHaveLength(1);
     const batch = batchBodies[0];
@@ -76,7 +79,7 @@ function registerSuiteScenario4() {
     expect(batch.ops?.every((op) => op.method === "PUT" && op.table === "allocations")).toBe(true);
 
     await openApp(page);
-    const afterReload = stateRows(await serverState(request), "allocations");
+    const afterReload = requireStateRows(await serverState(request), "allocations");
     expect(afterReload).toHaveLength(before.length + 14);
     expect(before.every((row) => afterReload.some((persisted) => persisted.id === row.id))).toBe(true);
     const repeated = afterReload.filter((row) => !before.some(({ id }) => id === row.id));
@@ -87,7 +90,7 @@ function registerSuiteScenario4() {
   });
 }
 
-function registerSuiteScenario5() {
+function registerEditReloadRenameRoundTripsTest() {
   test("edit + reload: a rename round-trips through the DB", async ({ page, request }) => {
     await openApp(page);
     await page.getByRole("link", { name: "Clients" }).click();
@@ -105,7 +108,7 @@ function registerSuiteScenario5() {
     await expect(page.getByTestId("client-row").filter({ hasText: "Renamed Co" })).toBeVisible();
 
     await expect
-      .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Renamed Co"), {
+      .poll(async () => requireStateRows(await serverState(request), "clients").some((c) => c.name === "Renamed Co"), {
         timeout: 10_000,
       })
       .toBe(true);
@@ -117,7 +120,7 @@ function registerSuiteScenario5() {
   });
 }
 
-function registerSuiteScenario6() {
+function registerEditFreshHydrationEngagementHalfTest() {
   test("edit + fresh hydration: engagement and half days survive the server round-trip", async ({ page, request }) => {
     await openApp(page);
     await page.getByRole("link", { name: "Resources" }).click();
@@ -130,7 +133,7 @@ function registerSuiteScenario6() {
 
     await expect
       .poll(async () => {
-        const persisted = stateRows(await serverState(request), "resources").find(({ id }) => id === "r-tyler");
+        const persisted = requireStateRows(await serverState(request), "resources").find(({ id }) => id === "r-tyler");
         return { engagement: persisted?.engagement, halfDays: persisted?.halfDays };
       })
       .toEqual({ engagement: "supplementary", halfDays: [2] });
@@ -157,7 +160,7 @@ function registerSuiteScenario6() {
 // the DB (the archive route sets archivedAt; it is NOT a hard delete), but it is HIDDEN from the
 // active views (useActiveScopedData) and STAYS hidden across a reload — the real server round-trip
 // this proves: UI archive → POST .../archive → reload → still absent from the active list.
-function registerSuiteScenario7() {
+function registerArchiveReloadArchivedClientRetainedTests() {
   test("archive + reload: an archived client is retained in the DB but hidden from the active view", async ({
     page,
     request,
@@ -170,7 +173,7 @@ function registerSuiteScenario7() {
     const row = page.getByTestId("client-row").filter({ hasText: "Doomed Co" });
     await expect(row).toBeVisible();
     await expect
-      .poll(async () => stateRows(await serverState(request), "clients").some((c) => c.name === "Doomed Co"), {
+      .poll(async () => requireStateRows(await serverState(request), "clients").some((c) => c.name === "Doomed Co"), {
         timeout: 10_000,
       })
       .toBe(true);
@@ -187,7 +190,8 @@ function registerSuiteScenario7() {
     await expect
       .poll(
         async () =>
-          stateRows(await serverState(request), "clients").find((c) => c.name === "Doomed Co")?.archivedAt ?? null,
+          requireStateRows(await serverState(request), "clients").find((c) => c.name === "Doomed Co")?.archivedAt ??
+          null,
         {
           timeout: 10_000,
         },
@@ -202,11 +206,11 @@ function registerSuiteScenario7() {
 }
 
 test.describe("database-backed persistence", () => {
-  registerSuiteScenario1();
-  registerSuiteScenario2();
-  registerSuiteScenario3();
-  registerSuiteScenario4();
-  registerSuiteScenario5();
-  registerSuiteScenario6();
-  registerSuiteScenario7();
+  registerBeforeEachHooks();
+  registerHydratesSeededDatasetServerLoadTest();
+  registerCreateReloadNewClientRoundTest();
+  registerRepeatCreationPersistsAllAllocationTest();
+  registerEditReloadRenameRoundTripsTest();
+  registerEditFreshHydrationEngagementHalfTest();
+  registerArchiveReloadArchivedClientRetainedTests();
 });

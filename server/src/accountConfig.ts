@@ -188,18 +188,23 @@ function assertHostedProfile(environment: AccountEnvironment, source: AccountEnv
 
 function assertProfileMode(profile: AccountDeploymentProfile, environment: AccountEnvironment): void {
   const capabilities = ACCOUNT_PROFILE_CAPABILITIES[profile];
-  const requiredMode = capabilities.passwordSignIn ? "password" : "sso";
+  const requiredMode = {
+    "self-hosted-password": "password-only",
+    "self-hosted-mixed": "password-and-sso",
+    "self-hosted-sso-only": "sso-only",
+    "hosted-sso-only": "sso-only",
+  }[profile];
   if (environment.SMALLSASS_ACCOUNT_MODE === requiredMode) return;
   throw new AccountConfigError(
     capabilities.hosted
-      ? "The hosted-sso-only deployment profile requires SMALLSASS_ACCOUNT_MODE=sso; hosted password accounts are prohibited."
+      ? "The hosted-sso-only deployment profile requires SMALLSASS_ACCOUNT_MODE=sso-only; hosted password accounts are prohibited."
       : `The ${profile} deployment profile requires SMALLSASS_ACCOUNT_MODE=${requiredMode}.`,
   );
 }
 
 function assertProfileProviderPolicy(profile: AccountDeploymentProfile, environment: AccountEnvironment): void {
   const capabilities = ACCOUNT_PROFILE_CAPABILITIES[profile];
-  if (!capabilities.companyProviderRequired) {
+  if (profile === "self-hosted-password") {
     if (hasConfiguredKey(environment, EXTERNAL_IDENTITY_KEYS)) {
       throw new AccountConfigError("The self-hosted-password profile does not permit external identity providers.");
     }
@@ -235,12 +240,14 @@ export function resolveAccountEnvironment(source: Record<string, string | undefi
   // normalized environment in tests and embedded callers.
   assertNoRetiredAccountNames(source);
   for (const key of RETIRED_SSO_NAMES) {
-    if (source[key] !== undefined) {
+    // Compose projects absent retired settings as empty placeholders; any configured value,
+    // including whitespace, must still stop startup before storage is opened.
+    if (source[key] !== undefined && source[key] !== "") {
       throw new AccountConfigError(`${key} was removed; configure Google or tenant-specific Microsoft instead.`);
     }
   }
   for (const key of RETIRED_GENERIC_OIDC_KEYS) {
-    if (source[key] !== undefined) {
+    if (source[key] !== undefined && source[key] !== "") {
       throw new AccountConfigError(`${key} was removed; configure Google or tenant-specific Microsoft instead.`);
     }
   }

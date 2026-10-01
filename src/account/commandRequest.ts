@@ -6,7 +6,7 @@ import {
   markCommandCohortUnknown,
   type BrowserAccountCommand,
 } from "./accountCommands";
-import { readUnknownAccountCommandOutcome, unknownCommandOutcomes } from "./commandOutcome";
+import { commandOutcomeDecisions, readUnknownAccountCommandOutcome } from "./commandOutcome";
 
 interface RunCommandInput {
   operationKey: string | null;
@@ -29,10 +29,8 @@ export async function runCommand({
     // A transport failure, HTTP 408, 5xx or ambiguous 409 has an unknown commit outcome, so retain
     // the same command. A definitive success or decoded known caller/policy rejection closes it.
     const outcomeUnknown = response.status === ambiguousStatus || (await readUnknownAccountCommandOutcome(response));
-    if (outcomeUnknown) {
-      unknownCommandOutcomes.add(response);
-      if (cohort) markCommandCohortUnknown(cohort);
-    }
+    commandOutcomeDecisions.set(response, outcomeUnknown);
+    if (outcomeUnknown && cohort) markCommandCohortUnknown(cohort);
     return response;
   } catch (error) {
     if (cohort) markCommandCohortUnknown(cohort);

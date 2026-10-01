@@ -1,6 +1,7 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useResourceAvatars } from "../../account/useResourceAvatars";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData, Resource } from "@capacitylens/shared/types/entities";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
@@ -10,6 +11,11 @@ import {
   type CapacityOverviewPeriodResult,
 } from "./capacityOverviewModel";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
+import { resetStoreWithAccount, makeAccount } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
+
+vi.mock("../../account/useResourceAvatars", () => ({ useResourceAvatars: vi.fn() }));
+beforeEach(() => vi.mocked(useResourceAvatars).mockReturnValue(new Map()));
 
 const resource = (id: string, kind: Resource["kind"] = "person"): Resource => ({
   id,
@@ -133,7 +139,56 @@ function renderTable(
   };
 }
 
+describe("CapacityOverviewTable date style", () => {
+  afterEach(() => resetStoreWithAccount());
+
+  it("re-reads column headers when the date style changes with a stable model", () => {
+    resetStoreWithAccount("account");
+    useStore.getState().replaceAll({ ...data, accounts: [makeAccount({ id: "account", dateStyle: "day-month" })] });
+    renderTable();
+    expect(screen.getByRole("columnheader", { name: /10 – 13 Sep/ })).toBeInTheDocument();
+
+    act(() => useStore.getState().updateAccount("account", { dateStyle: "month-day" }));
+
+    expect(screen.getByRole("columnheader", { name: /Sep 10 – 13/ })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /10 – 13 Sep/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("CapacityOverviewTable content", () => {
+  it("uses a linked-member image only when a person has no stored image", () => {
+    class LoadedImage {
+      complete = true;
+      naturalWidth = 1;
+      src = "";
+      addEventListener() {}
+      removeEventListener() {}
+    }
+    vi.stubGlobal("Image", LoadedImage);
+    vi.mocked(useResourceAvatars).mockReturnValue(new Map([[clarkKent.id, "https://images.example/linked.png"]]));
+    try {
+      const { container, rerender } = renderTable();
+      const avatar = () => container.querySelector('button[aria-label="View Clark Kent\'s schedule"] img');
+      expect(avatar()).toHaveAttribute("src", "https://images.example/clark.png");
+      const withoutStoredImage: Resource = { ...clarkKent };
+      delete withoutStoredImage.avatarUrl;
+      rerender({
+        model: {
+          ...model,
+          groups: model.groups.map((group) => ({
+            ...group,
+            rows: group.rows.map((row) =>
+              row.resource.id === clarkKent.id ? { ...row, resource: withoutStoredImage } : row,
+            ),
+          })),
+        },
+      });
+      expect(avatar()).toHaveAttribute("src", "https://images.example/linked.png");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("renders twelve aligned week columns and a keyboard scroll region", () => {
     const twelveWeekModel = buildCapacityOverviewModel({
       data,

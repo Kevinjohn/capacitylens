@@ -1,3 +1,4 @@
+import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
 import { existsSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
@@ -40,7 +41,7 @@ interface RecoveryContext {
   env: Record<string, string | undefined> & { SMALLSASS_ACCOUNT_PUBLIC_URL: string };
 }
 
-function validateRecoveryInput(input: OwnerRecoveryInput): RecoveryContext {
+function prepareRecoveryContext(input: OwnerRecoveryInput): RecoveryContext {
   if (!input.confirmServerStopped) {
     throw new Error(
       "Refusing without --confirm-server-stopped. Stop the CapacityLens server first; the exclusive " +
@@ -54,9 +55,9 @@ function validateRecoveryInput(input: OwnerRecoveryInput): RecoveryContext {
   if (!isAccountEmail(email)) throw new Error("The target email is not a valid account address.");
 
   const { env } = resolveAccountEnvironment({ ...(input.env ?? process.env) });
-  if (env.SMALLSASS_ACCOUNT_MODE !== "password") {
+  if (env.SMALLSASS_ACCOUNT_MODE !== "password-only" && env.SMALLSASS_ACCOUNT_MODE !== "password-and-sso") {
     throw new Error(
-      "SMALLSASS_ACCOUNT_MODE must be password: sso installations have no local credential to reset " +
+      "SMALLSASS_ACCOUNT_MODE must be password-only or password-and-sso: sso-only installations have no local credential to reset " +
         "and off installations have no credential model.",
     );
   }
@@ -83,10 +84,10 @@ async function requireCurrentAuth(db: Db, env: Record<string, string | undefined
   const { auth } = createAuthFromEnvironment(db, env, { deferDatabaseSetup: true });
   if (!auth) throw new Error("Better Auth did not initialize for password mode.");
   const authPlan = await planAuthSchemaMigrations(auth);
-  if (authPlan.pending) {
+  if (authPlan.pending || authPlan.problems.length > 0) {
     throw new Error(
-      `Better Auth schema is not current (pending table change(s): ${authPlan.tables.join(", ")}); ` +
-        "start this release normally before recovery.",
+      `Better Auth schema is not current (pending table change(s): ${authPlan.tables.join(", ")}; ` +
+        `${authPlan.problems.join(" ")}); start this release normally before recovery.`,
     );
   }
   return auth;
@@ -156,7 +157,7 @@ function recordRecovery({ db, context, target, token }: RecordRecoveryInput): Ow
 export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<OwnerRecoveryResult> {
   // Resolve the canonical family configuration exactly the way server startup does, so refusals
   // name canonical keys and the compatibility aliases keep working.
-  const context = validateRecoveryInput(input);
+  const context = prepareRecoveryContext(input);
 
   // Not openDb(): a stale database must refuse below rather than silently migrate outside the
   // production pre-migration backup ceremony.
@@ -166,6 +167,7 @@ export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<Own
     assertRecoverySchemasCurrent(db);
     const auth = await requireCurrentAuth(db, context.env);
     const target = requireSoleOwner(db, context.email);
+    restrictIdentifiedDatabasePermissions(db);
     const token = await mintPasswordResetToken(auth, context.email);
     if (token === null) {
       throw new Error("Better Auth matched no credential identity for that address.");

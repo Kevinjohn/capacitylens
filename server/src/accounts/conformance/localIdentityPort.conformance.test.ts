@@ -17,6 +17,8 @@ const sessionUser: SessionUser = {
 
 function auth(getSession: Auth["api"]["getSession"]): Auth {
   return {
+    mail: null,
+    publicUrl: new URL("http://localhost:8787"),
     handler: vi.fn(async () => new Response(null, { status: 200 })),
     api: {
       getSession,
@@ -123,7 +125,7 @@ function identityPort(
 ): ReturnType<typeof createBetterAuthIdentityPort> {
   return createBetterAuthIdentityPort({
     applicationId: "conformance-app",
-    authMode: "password",
+    authMode: "password-only",
     db,
     ...overrides,
   });
@@ -160,7 +162,7 @@ it("normalizes a federated application session without exposing provider records
         expiresAt: "2026-07-18T12:00:00.000Z",
       },
     })),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.verifyApplicationSession({ headers: new Headers() })).resolves.toMatchObject({
@@ -208,7 +210,7 @@ it("rejects a pre-existing GitHub session after switching to company-provider-on
         ["github", "https://github.com"],
       ]),
     },
-    authMode: "sso",
+    authMode: "sso-only",
   });
   await expect(port.verifyApplicationSession({ headers: new Headers() })).resolves.toBeNull();
 });
@@ -226,11 +228,11 @@ it("correlates only by the exact issuer and subject", async () => {
   });
   const port = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(
-    port.findPrincipalByFederatedSubject({
+    port.getPrincipalByFederatedSubject({
       subject: { issuer: "https://issuer.example", subject: "subject-2" },
     }),
   ).resolves.toEqual({
@@ -239,7 +241,7 @@ it("correlates only by the exact issuer and subject", async () => {
     email: "two@example.com",
   });
   await expect(
-    port.findPrincipalByFederatedSubject({
+    port.getPrincipalByFederatedSubject({
       subject: { issuer: "https://different.example", subject: "subject-2" },
     }),
   ).resolves.toBeNull();
@@ -352,7 +354,7 @@ it("fails closed when an SSO session has no federated assurance record", async (
         expiresAt: "2026-07-18T12:00:00.000Z",
       },
     })),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
@@ -377,7 +379,7 @@ it("fails closed when a federated assurance record has no issuer/subject link", 
         expiresAt: "2026-07-18T12:00:00.000Z",
       },
     })),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
@@ -619,6 +621,49 @@ it("scans only structured verification candidates once when deprovisioning a pri
   ]);
 });
 
+it("erases joining intents by principal and email while retaining access restrictions", async () => {
+  insertIdentityUser({ db, id: "principal-1", name: "One", email: "member@example.com" });
+  const insertIntent = (id: string, email: string, principalId: string | null) =>
+    db
+      .prepare(
+        `INSERT INTO company_join_intents (
+      id, nonceHash, browserHash, purpose, accountId, invitationId, email, principalId, providerId,
+      state, expiresAt, sourceIpHash, createdAt, updatedAt
+    ) VALUES (?, ?, ?, 'policy', 'a-studio', NULL, ?, ?, 'google', 'started', ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        `nonce-${id}`,
+        `browser-${id}`,
+        email,
+        principalId,
+        Date.now() + 60_000,
+        `ip-${id}`,
+        Date.now(),
+        Date.now(),
+      );
+  insertIntent("principal-intent", "alternate@example.net", "principal-1");
+  insertIntent("email-intent", "MEMBER@example.com", null);
+  insertIntent("unrelated-intent", "other@example.com", "other-principal");
+  db.prepare(
+    `INSERT INTO account_access_restrictions
+    (accountId, principalId, verifiedEmail, role, createdAt)
+    VALUES ('a-studio', 'principal-1', 'member@example.com', 'editor', ?)`,
+  ).run(NOW);
+  const port = identityPort({ auth: auth(async () => null) });
+
+  await port.deprovisionLocalPrincipal({
+    principalId: "principal-1",
+    reason: "identity-erasure",
+    command: { commandId: "joining-intent-erasure", idempotencyKey: "joining-intent-erasure-key" },
+  });
+
+  expect(db.prepare("SELECT id FROM company_join_intents ORDER BY id").all()).toEqual([{ id: "unrelated-intent" }]);
+  expect(db.prepare("SELECT verifiedEmail FROM account_access_restrictions").all()).toEqual([
+    { verifiedEmail: "member@example.com" },
+  ]);
+});
+
 it("maps provider password-policy rejection to a terminal validation failure", async () => {
   const configuredAuth = auth(async () => null);
   vi.mocked(configuredAuth.createCredentialUser).mockRejectedValue(
@@ -771,7 +816,7 @@ it("counts malformed verification expiry as active in inspection and a subsequen
   insertVerification(db, "malformed-reset", "principal-1");
   insertVerification(db, "orphan-reset", "missing-principal");
   db.prepare(`UPDATE verification SET expiresAt = ?`).run("not-a-date");
-  const port = identityPort({ auth: auth(async () => null), authMode: "sso" });
+  const port = identityPort({ auth: auth(async () => null), authMode: "sso-only" });
 
   expect(port.inspectSsoCutover("sso").outstandingResetPrincipalIds).toEqual(["principal-1"]);
   await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 2 });
@@ -826,7 +871,7 @@ it("removes malformed session timestamps while retaining a genuinely absent expi
 it("records a first cutover even when no sessions or ceremonies remain", async () => {
   const port = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
@@ -844,7 +889,7 @@ it("rolls back the cutover when the readiness recheck fails under its writer res
   insertVerification(db, "reset-1", "principal-1");
   const port = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(
@@ -918,7 +963,7 @@ it("leaves an already-federated session untouched on a clean SSO-only restart", 
   });
   const port = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
@@ -954,7 +999,7 @@ it("does not treat abandoned OAuth state as a new cutover ceremony", async () =>
   );
   const port = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
@@ -1048,6 +1093,32 @@ it("corrects an identity email with ceremony invalidation, session revocation, a
   expect(db.prepare(`SELECT sessionId FROM account_session_assurance`).all()).toEqual([]);
   expect(db.prepare(`SELECT id FROM session`).all()).toEqual([]);
   expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([{ id: "email-audit-1" }]);
+});
+
+it("allows an unproven Owner email correction without turning it into mailbox proof", async () => {
+  insertIdentityUser({ db, id: "principal-1", name: "Bruce Wayne", email: "bruce@example.com" });
+  db.prepare(
+    `INSERT INTO account_members (accountId, userId, role, status, createdAt)
+    VALUES (?, ?, ?, ?, ?)`,
+  ).run("a-studio", "principal-1", "owner", "active", NOW);
+  db.prepare(
+    `INSERT INTO account_access_restrictions (accountId, principalId, verifiedEmail, role, createdAt)
+    VALUES (?, ?, ?, ?, ?)`,
+  ).run("a-studio", "removed-principal", "blocked@example.com", "editor", NOW);
+  const port = identityPort({ auth: auth(async () => null) });
+  await expect(
+    port.correctPrincipalEmail({
+      principalId: "principal-1",
+      email: "blocked@example.com",
+      authorizeInTransaction: vi.fn(),
+      audit: repairAudit("restricted-owner-correction", "identity.email_corrected"),
+    }),
+  ).resolves.toBeUndefined();
+  expect(db.prepare("SELECT email FROM user WHERE id = 'principal-1'").get()).toEqual({ email: "blocked@example.com" });
+  expect(db.prepare("SELECT 1 FROM identity_email_proofs WHERE principalId = 'principal-1'").get()).toBeUndefined();
+  expect(db.prepare("SELECT id FROM capacitylens_audit_outbox WHERE id = 'restricted-owner-correction'").get()).toEqual(
+    { id: "restricted-owner-correction" },
+  );
 });
 
 it("rolls back an email repair on an audit-id conflict and commits a retry with a distinct id", async () => {
@@ -1254,7 +1325,7 @@ it("never treats a password credential as a federated repair coordinate", async 
 it("keeps no session distinct from a retryable provider failure", async () => {
   const absent = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
   await expect(absent.verifyApplicationSession({ headers: new Headers() })).resolves.toBeNull();
 
@@ -1262,7 +1333,7 @@ it("keeps no session distinct from a retryable provider failure", async () => {
     auth: auth(async () => {
       throw new Error("provider unavailable");
     }),
-    authMode: "sso",
+    authMode: "sso-only",
   });
   await expect(failed.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
     failure: { code: "DEPENDENCY_UNAVAILABLE", retryable: true },
@@ -1423,7 +1494,7 @@ it("rejects ambiguous, unbound, and non-federated SSO session assurance", async 
   });
   const ambiguousDb = ambiguousSessionDb();
   await expect(
-    identityPort({ auth: auth(resolved), authMode: "sso", db: ambiguousDb }).verifyApplicationSession({
+    identityPort({ auth: auth(resolved), authMode: "sso-only", db: ambiguousDb }).verifyApplicationSession({
       headers: new Headers(),
     }),
   ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
@@ -1431,13 +1502,13 @@ it("rejects ambiguous, unbound, and non-federated SSO session assurance", async 
   const unboundAuth = auth(resolved);
   unboundAuth.federatedIssuers = new Map();
   await expect(
-    identityPort({ auth: unboundAuth, authMode: "sso" }).verifyApplicationSession({ headers: new Headers() }),
+    identityPort({ auth: unboundAuth, authMode: "sso-only" }).verifyApplicationSession({ headers: new Headers() }),
   ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
 
   recordSessionAssurance({ db, sessionId: "session-1", principalId: sessionUser.id, assurance: "password" });
   await expect(
-    identityPort({ auth: auth(resolved), authMode: "sso" }).verifyApplicationSession({ headers: new Headers() }),
-  ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
+    identityPort({ auth: auth(resolved), authMode: "sso-only" }).verifyApplicationSession({ headers: new Headers() }),
+  ).resolves.toBeNull();
 });
 
 it("refuses one federated subject mapped to multiple local principals", async () => {
@@ -1479,7 +1550,7 @@ it("refuses one federated subject mapped to multiple local principals", async ()
   const port = identityPort({ auth: auth(async () => null), db: ambiguousDb });
 
   await expect(
-    port.findPrincipalByFederatedSubject({
+    port.getPrincipalByFederatedSubject({
       subject: { issuer: "https://issuer.example", subject: "shared-subject" },
     }),
   ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
@@ -1493,7 +1564,7 @@ it.each([
   [
     "federated lookup",
     (port: ReturnType<typeof createBetterAuthIdentityPort>) =>
-      port.findPrincipalByFederatedSubject({ subject: { issuer: "https://issuer.example", subject: "subject" } }),
+      port.getPrincipalByFederatedSubject({ subject: { issuer: "https://issuer.example", subject: "subject" } }),
   ],
   [
     "session listing",

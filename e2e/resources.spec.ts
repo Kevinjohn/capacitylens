@@ -1,5 +1,12 @@
 import { test, expect, type Locator } from "./fixtures";
-import { dismissLandscapeHint, goToSeedWeek, openApp, selectShadOption, setZoom, showPlaceholders } from "./helpers";
+import {
+  dismissLandscapeHint,
+  goToSeedWeek,
+  openApp,
+  selectShadOption,
+  setZoom,
+  showPlaceholders,
+} from "./browserTestSupport";
 
 async function expectWorkingDaysGeometry(dialog: Locator) {
   const compactFields = dialog.locator('[data-product-layout="label-control"]');
