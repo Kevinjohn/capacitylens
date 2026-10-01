@@ -12,7 +12,7 @@ import {
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // US-NAV-10: the flag-gated login wall, against the auth-backed project's server
-// (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). The default deploy keeps
+// (CAPACITYLENS_MODE=password on :8887 — see playwright.config.ts). The default deploy keeps
 // auth off, so this is the ONLY place the login screen exists; the rest of the suite
 // running unchanged in the other two projects is the off-guarantee.
 
@@ -182,7 +182,7 @@ function registerLoginMembershipsSeesEMPTYPickerTests() {
   });
 }
 
-test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
+test.describe("login screen (CAPACITYLENS_MODE=password)", () => {
   registerUnauthenticatedVisitShowsLoginScreenTest();
   registerSigningRevealsAppSigningOutTest();
   registerCreateOwnerAdminAdminBootstrapTest();

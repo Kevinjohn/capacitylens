@@ -10,7 +10,7 @@ export async function mixedModeCutoverContext(db: Db, environment: Record<string
   const resolved = resolveAccountEnvironment(environment);
   if (resolved.profile !== "self-hosted-mixed") {
     throw new Error(
-      "SSO cutover tooling requires SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-mixed so password recovery remains available while blockers are repaired.",
+      "SSO cutover tooling requires CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed so password recovery remains available while blockers are repaired.",
     );
   }
   const configured = createAuthFromEnvironment(db, resolved.env, {

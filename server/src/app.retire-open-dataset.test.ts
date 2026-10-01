@@ -23,10 +23,10 @@ const client = { id: "c1", accountId: "a1", name: "Ferris", color: "#3b82f6", cr
 const readResponse = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> => app.inject(opts);
 
 const PASSWORD_ENV = {
-  SMALLSASS_ACCOUNT_MODE: "password-only",
-  SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123",
-  SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
-  SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
+  CAPACITYLENS_MODE: "password-only",
+  CAPACITYLENS_SECRET: "unit-test-secret-0123456789abcdef-0123",
+  CAPACITYLENS_PUBLIC_URL: "http://localhost:8787",
+  CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
 };
 
 /**

@@ -33,9 +33,9 @@ async function ensurePasswordAuthSchema(db: ReturnType<typeof openDb>): Promise<
   const fixtureEntropy = ["01234567", "89abcdef"].join("");
   const fixtureSecret = ["fixture", "secret", fixtureEntropy, "012345"].join("-");
   const configured = createAuthFromEnvironment(db, {
-    SMALLSASS_ACCOUNT_MODE: "password-only",
-    SMALLSASS_ACCOUNT_SECRET: fixtureSecret,
-    SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+    CAPACITYLENS_MODE: "password-only",
+    CAPACITYLENS_SECRET: fixtureSecret,
+    CAPACITYLENS_PUBLIC_URL: "http://localhost:8787",
   });
   if (configured.auth === null) throw new Error("Password fixture requires password authentication.");
   await runAuthMigrations(configured.auth);

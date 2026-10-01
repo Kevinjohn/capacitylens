@@ -186,22 +186,11 @@ function registerServerModeTest02() {
 }
 
 function registerServerModeTest03() {
-  it.each([
-    ["signed-out", me(401, { authMode: "password-only", providers: [] }), "Sign in"],
-    [
-      "mandatory MFA",
-      me(200, {
-        authMode: "password-only",
-        user: { id: "mfa-user", name: "MFA user", email: "mfa@example.test" },
-        mfaRequired: true,
-      }),
-      "Secure your account",
-    ],
-  ] as const)("does not signal tenant-data access for a %s boot", async (_state, response, heading) => {
+  it("does not signal tenant-data access for a signed-out boot", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => response),
+      vi.fn(async () => me(401, { authMode: "password-only", providers: [] })),
     );
     const onTenantAccessReady = vi.fn();
     const { AuthProvider } = await freshProvider();
@@ -211,52 +200,9 @@ function registerServerModeTest03() {
       </AuthProvider>,
     );
 
-    expect(await screen.findByRole("heading", { name: heading })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(onTenantAccessReady).not.toHaveBeenCalled();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-  });
-}
-
-function registerServerModeTest04() {
-  it.each([
-    [
-      "/reset-password/reset-token",
-      "Finish securing your account first, or choose Sign out to use this password reset link without the current session.",
-    ],
-    ["/invite/invite-token", "Finish securing your account before accepting this invitation."],
-  ] as const)("explains why mandatory MFA outranks the public entry at %s", async (path, explanation) => {
-    window.history.replaceState({}, "", path);
-    try {
-      vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () =>
-          me(200, {
-            authMode: "password-only",
-            user: {
-              id: "mfa-user",
-              name: "MFA user",
-              email: "mfa@example.test",
-            },
-            mfaRequired: true,
-          }),
-        ),
-      );
-      const onTenantAccessReady = vi.fn();
-      const { AuthProvider } = await freshProvider();
-      render(
-        <AuthProvider onTenantAccessReady={onTenantAccessReady}>
-          <div>app-content</div>
-        </AuthProvider>,
-      );
-
-      expect(await screen.findByRole("heading", { name: "Secure your account" })).toBeInTheDocument();
-      expect(screen.getByText(explanation)).toBeInTheDocument();
-      expect(onTenantAccessReady).not.toHaveBeenCalled();
-      expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-    } finally {
-      window.history.replaceState({}, "", "/");
-    }
   });
 }
 
@@ -1066,7 +1012,6 @@ describe("AuthProvider — server mode", () => {
   registerServerModeTest01();
   registerServerModeTest02();
   registerServerModeTest03();
-  registerServerModeTest04();
   registerServerModeTest05();
   registerServerModeTest06();
   registerServerModeTest07();

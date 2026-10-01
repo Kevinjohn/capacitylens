@@ -1,7 +1,7 @@
 // Boot one of the E2E API servers on this run's lane ports.
 //
 // The auth flavour's environment used to live inline in server/package.json. It cannot stay there
-// now: PORT, SMALLSASS_ACCOUNT_PUBLIC_URL and CAPACITYLENS_CORS_ORIGIN all carry a port, and they
+// now: PORT, CAPACITYLENS_PUBLIC_URL and CAPACITYLENS_CORS_ORIGIN all carry a port, and they
 // have to move together. A lane-shifted server with a lane-0 CORS origin starts perfectly and then
 // fails every browser request, which is a far worse failure than not starting at all.
 import { spawn } from "node:child_process";
@@ -26,15 +26,15 @@ const FLAVOURS = {
     wipe: true,
     env: {
       PORT: String(lanePorts.authApi),
-      SMALLSASS_ACCOUNT_MODE: "password-only",
+      CAPACITYLENS_MODE: "password-only",
       CAPACITYLENS_CREATE_ADMIN_ADMIN: "1",
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: "auth-e2e-password-2026",
-      SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off",
-      SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
+      CAPACITYLENS_PASSWORD_BREACH_CHECK: "off",
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
       CAPACITYLENS_MULTI_ACCOUNT: "1",
       CAPACITYLENS_BOOTSTRAP_TOKEN: "auth-e2e-bootstrap-token-0123456789abcdef",
-      SMALLSASS_ACCOUNT_SECRET: "capacitylens-auth-e2e-secret-0123456789abcdef",
-      SMALLSASS_ACCOUNT_PUBLIC_URL: `http://localhost:${lanePorts.authApi}`,
+      CAPACITYLENS_SECRET: "capacitylens-auth-e2e-secret-0123456789abcdef",
+      CAPACITYLENS_PUBLIC_URL: `http://localhost:${lanePorts.authApi}`,
       CAPACITYLENS_CORS_ORIGIN: `http://localhost:${lanePorts.authWeb},http://127.0.0.1:${lanePorts.authWeb}`,
     },
   }),

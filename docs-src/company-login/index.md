@@ -55,7 +55,7 @@ listed domains, so `team.example.com` is different from `example.com`.
 
 Open the company-specific joining link and choose an available sign-in method.
 Google, Microsoft and, in mixed mode, experimental GitHub may be available together.
-An existing password user signs in and finishes any required second factor before
+An existing password user signs in before choosing
 **Join company**. The server admits only identities with current trusted email proof
 that meet the company's policy; password signup through an open or domain policy is
 not available. A person without that proof can use an eligible verified provider or
@@ -107,17 +107,11 @@ If confirming through Google or Microsoft sends you away from the page, return
 to the action you were taking and submit it again. Signing in confirms your
 identity; it does not apply the original change.
 
-## Two-factor sign-in
+## Multi-factor sign-in at your provider
 
-In password-capable modes, the server operator can require authenticator-app codes before
-people can access company data. Save the recovery codes when enrolling. If you
-lose both the authenticator and those codes, contact the server operator; there
-is no administrator button to bypass them.
-
-For company sign-in, configure and verify multi-factor authentication at Google
-or Microsoft. Do not assume that enabling a provider also enables its MFA policy.
-The server's MFA attestation records the operator's assurance; it does not switch
-on MFA at the provider.
+For company sign-in, configure and verify multi-factor sign-in at Google or Microsoft.
+CapacityLens cannot see or enforce the provider's policy, and enabling a provider does not
+switch it on. Test the policy, its recovery path and session behaviour before you rely on it.
 
 ## When someone leaves
 

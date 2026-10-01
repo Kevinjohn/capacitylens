@@ -48,31 +48,30 @@ installed, most of it waiting for the first build.
    `main`: it carries changes that haven't been released yet. `.env` will hold the signing
    secret and setup token, so only your account may read it.
 
-2. Generate two secrets — one for signing sessions, one for the first-owner setup
-   token:
+2. Generate the two secrets — one for signing sessions, one for the first-owner setup
+   token — with the server's `init` command. This builds the API image first:
 
    ```bash
-   openssl rand -base64 48
+   docker compose run --rm --no-deps api node dist/index.mjs init --public-url https://capacity.example.com --db /data/capacitylens.db
    ```
 
-   Run it twice and keep both values; you'll paste one into each of the two secret
-   fields in the next step.
+   Keep the `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` values it prints; you'll
+   paste them into `.env` in the next step. Compose already sets `NODE_ENV` and `CAPACITYLENS_DB`.
 
 3. Open `.env` and set at least these values:
 
    ```dotenv
-   SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password
-   SMALLSASS_ACCOUNT_MODE=password-only
-   SMALLSASS_ACCOUNT_SECRET=<first generated value>
-   SMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com
-   SMALLSASS_ACCOUNT_SETUP_TOKEN=<second generated value>
+   CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-password
+   CAPACITYLENS_MODE=password-only
+   CAPACITYLENS_SECRET=<generated CAPACITYLENS_SECRET>
+   CAPACITYLENS_PUBLIC_URL=https://capacity.example.com
+   CAPACITYLENS_SETUP_TOKEN=<generated CAPACITYLENS_SETUP_TOKEN>
    CAPACITYLENS_HTTPS=1
    CAPACITYLENS_RATE_LIMIT=300
    ```
 
-   Set `CAPACITYLENS_STORAGE_ENCRYPTED=1` only after verifying that the host's Docker
-   volumes and off-host backup destination use encryption at rest. The setting records
-   your attestation; it does not encrypt a volume. `SMALLSASS_ACCOUNT_PUBLIC_URL` must be the exact browser-facing origin. See
+   Keep the host's Docker volumes and off-host backup destination on storage encrypted at
+   rest; CapacityLens does not encrypt a volume itself. `CAPACITYLENS_PUBLIC_URL` must be the exact browser-facing origin. See
    [Configure the service](/installation/configure-the-service) for what every other variable does.
 
 4. Build and start the stack:
@@ -117,7 +116,7 @@ installed, most of it waiting for the first build.
 
 7. Put a TLS-terminating reverse proxy in front of port 8080, then open the public
    HTTPS address. Enter the setup token from step 3 to create the first owner and
-   company. Once both exist, remove `SMALLSASS_ACCOUNT_SETUP_TOKEN` from `.env` and
+   company. Once both exist, remove `CAPACITYLENS_SETUP_TOKEN` from `.env` and
    run `docker compose up -d --force-recreate api` to discard the setup credential
    from the running container. Continue to
    [verify and hand over the installation](/installation/verify-and-hand-over).

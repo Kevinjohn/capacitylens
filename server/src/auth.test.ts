@@ -37,9 +37,9 @@ import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 // are no options to harden — authFromEnv returns { mode:'off', auth:null } untouched.
 
 const PASSWORD_ENV = {
-  SMALLSASS_ACCOUNT_MODE: "password-only",
-  SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123", // 32+ chars (MIN_BETTER_AUTH_SECRET_LENGTH)
-  SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+  CAPACITYLENS_MODE: "password-only",
+  CAPACITYLENS_SECRET: "unit-test-secret-0123456789abcdef-0123", // 32+ chars (MIN_BETTER_AUTH_SECRET_LENGTH)
+  CAPACITYLENS_PUBLIC_URL: "http://localhost:8787",
 };
 
 const fixtures = registerServerFixtureCleanup();
@@ -173,8 +173,8 @@ const registerFederatedSchemaTests = () => {
       db,
       {
         ...PASSWORD_ENV,
-        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+        CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+        CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
       },
       {
         deferDatabaseSetup: true,
@@ -198,10 +198,10 @@ const registerFederatedAuditTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_MODE: "password-and-sso",
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
 
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     const auth = assertPresent(configured.auth, "password auth");
     const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
@@ -259,10 +259,10 @@ const registerFederatedReconciliationTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_MODE: "password-and-sso",
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
 
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     const auth = assertPresent(configured.auth, "password auth");
     const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
@@ -310,10 +310,10 @@ const registerFederatedCeremonyConflictTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_MODE: "password-and-sso",
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
 
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     const auth = assertPresent(configured.auth, "password auth");
     await runAuthMigrations(auth);
@@ -351,10 +351,10 @@ const registerFederatedSubjectConflictTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_MODE: "password-and-sso",
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
 
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     const auth = assertPresent(configured.auth, "password auth");
     const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
@@ -451,8 +451,8 @@ const registerStartupConfigurationRefusalTests = () => {
     expect(() =>
       createAuthFromEnvironment(db, {
         ...PASSWORD_ENV,
-        SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "id-without-secret",
+        CAPACITYLENS_MODE: "password-and-sso",
+        CAPACITYLENS_GOOGLE_CLIENT_ID: "id-without-secret",
       }),
     ).toThrow(/google/i);
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
@@ -483,17 +483,6 @@ const registerStartupConfigurationRefusalTests = () => {
     }
   });
 
-  it.each([
-    "SMALLSASS_ACCOUNT_OIDC_CLIENT_ID",
-    "SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL",
-    "SMALLSASS_ACCOUNT_OIDC_SCOPES",
-  ])("refuses retired generic setting %s before creating storage", (key) => {
-    const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
-    expect(() => createAuthFromEnvironment(db, { ...PASSWORD_ENV, [key]: "retired" })).toThrow(`${key} was removed`);
-    expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
-    db.close();
-  });
-
   it("refuses public URLs that are not a bare origin", () => {
     for (const publicUrl of [
       "https://user:pass@capacity.example",
@@ -504,7 +493,7 @@ const registerStartupConfigurationRefusalTests = () => {
       expect(() =>
         createAuthFromEnvironment(openDb(":memory:"), {
           ...PASSWORD_ENV,
-          SMALLSASS_ACCOUNT_PUBLIC_URL: publicUrl,
+          CAPACITYLENS_PUBLIC_URL: publicUrl,
         }),
       ).toThrow(/must be an origin/);
     }
@@ -516,9 +505,9 @@ const registerStartupDiscoverySuccessTest = () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_MODE: "password-and-sso",
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     const configured = assertPresent(auth, "Google auth");
     expect(configured.federatedIssuers.get("google")).toBe("https://accounts.google.com");
@@ -682,9 +671,9 @@ describe("first-owner database-hook races", () => {
 
 describe("resolved auth options", () => {
   const companyProviderEnv = {
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+    CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
 
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+    CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
   };
 
   it.each([
@@ -699,15 +688,15 @@ describe("resolved auth options", () => {
       env: {
         ...PASSWORD_ENV,
         ...companyProviderEnv,
-        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+        CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+        CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
       },
       trustedOrigins: ["https://admin.example", "https://capacity.example"],
       pluginIds: ["two-factor"],
     },
     {
       name: "sso",
-      env: { ...PASSWORD_ENV, ...companyProviderEnv, SMALLSASS_ACCOUNT_MODE: "sso-only" },
+      env: { ...PASSWORD_ENV, ...companyProviderEnv, CAPACITYLENS_MODE: "sso-only" },
       trustedOrigins: ["https://capacity.example"],
       pluginIds: [],
     },
@@ -717,7 +706,7 @@ describe("resolved auth options", () => {
       deferDatabaseSetup: true,
       ...(trustedOrigins === undefined ? {} : { trustedOrigins }),
     });
-    const configuredAuth = assertPresent(auth, `${env.SMALLSASS_ACCOUNT_MODE} auth`);
+    const configuredAuth = assertPresent(auth, `${env.CAPACITYLENS_MODE} auth`);
 
     expect(configuredAuth.options.telemetry?.enabled).toBe(false);
     expect(configuredAuth.options.verification?.storeIdentifier).toBe("hashed");
@@ -743,7 +732,7 @@ const registerCookieHardeningTests = () => {
   it("sets a valid __Host prefix and Secure from the HTTPS public URL even behind an HTTP proxy hop", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_PUBLIC_URL: "https://capacity.example",
+      CAPACITYLENS_PUBLIC_URL: "https://capacity.example",
     });
     const passwordAuth = assertPresent(auth, "password auth");
     // Better Auth's built-in switch is deliberately false because it prepends `__Secure-`.
@@ -762,7 +751,7 @@ const registerCookieHardeningTests = () => {
       createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
         NODE_ENV: "production",
-        SMALLSASS_ACCOUNT_PUBLIC_URL: "http://capacity.example",
+        CAPACITYLENS_PUBLIC_URL: "http://capacity.example",
       }),
     ).toThrow(/must use https:\/\//);
   });
@@ -774,7 +763,7 @@ const registerCookieHardeningTests = () => {
       expect(() =>
         createAuthFromEnvironment(openDb(":memory:"), {
           ...PASSWORD_ENV,
-          SMALLSASS_ACCOUNT_PUBLIC_URL: "http://capacity.example",
+          CAPACITYLENS_PUBLIC_URL: "http://capacity.example",
         }),
       ).toThrow(/must use https:\/\//);
     } finally {
@@ -788,7 +777,7 @@ const registerCookieHardeningTests = () => {
       createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
         NODE_ENV: "production",
-        SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+        CAPACITYLENS_PUBLIC_URL: "http://localhost:8787",
       }),
     ).not.toThrow();
   });
@@ -804,7 +793,7 @@ const registerSessionHardeningTests = () => {
   });
 
   it("constructs no betterAuth instance for an absent or explicit off mode", () => {
-    for (const environment of [{}, { SMALLSASS_ACCOUNT_MODE: "off" }]) {
+    for (const environment of [{}, { CAPACITYLENS_MODE: "off" }]) {
       expect(createAuthFromEnvironment(openDb(":memory:"), environment)).toMatchObject({ mode: "off", auth: null });
     }
   });
@@ -836,9 +825,9 @@ const registerExternalProviderConfigurationTests = () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_MODE: "password-and-sso",
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     expect(assertPresent(auth, "password auth").federatedIssuers.get("google")).toBe("https://accounts.google.com");
     expect(
@@ -854,9 +843,9 @@ const registerExternalOpenSignupTest = () => {
       db,
       {
         ...PASSWORD_ENV,
-        SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
-        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+        CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+        CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+        CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
       },
       {
         externalIdentityAdmission: async () => false,
@@ -881,9 +870,9 @@ const registerExternalSsoProviderTest = () => {
       db,
       {
         ...PASSWORD_ENV,
-        SMALLSASS_ACCOUNT_MODE: "sso-only",
-        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+        CAPACITYLENS_MODE: "sso-only",
+        CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+        CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
       },
       { externalIdentityAdmission: async () => true },
     );
@@ -917,10 +906,10 @@ const registerExternalSessionAssuranceTest = () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "sso-only",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_MODE: "sso-only",
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
 
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     const ssoAuth = assertPresent(auth, "SSO auth");
     await runAuthMigrations(ssoAuth);
@@ -960,9 +949,9 @@ const registerExternalBootstrapAdmissionTests = () => {
     const db = openDb(":memory:");
     const env = {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     };
     createAuthFromEnvironment(db, env);
 
@@ -973,25 +962,25 @@ const registerExternalBootstrapAdmissionTests = () => {
   it("allows only a verified, explicitly allow-listed first identity", () => {
     const db = openDb(":memory:");
     createAuthFromEnvironment(db, PASSWORD_ENV); // initializes Better Auth's user table
-    const env = { SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: " owner@example.com, second@example.com " };
+    const env = { CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS: " owner@example.com, second@example.com " };
     expect(
       canAdmitLocalExternalIdentity({
         ...admissionDependencies(db),
-        bootstrapEmails: env.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS,
+        bootstrapEmails: env.CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS,
         candidate: { email: "OWNER@example.com", emailVerified: true },
       }),
     ).toBe(true);
     expect(
       canAdmitLocalExternalIdentity({
         ...admissionDependencies(db),
-        bootstrapEmails: env.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS,
+        bootstrapEmails: env.CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS,
         candidate: { email: "owner@example.com", emailVerified: false },
       }),
     ).toBe(false);
     expect(
       canAdmitLocalExternalIdentity({
         ...admissionDependencies(db),
-        bootstrapEmails: env.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS,
+        bootstrapEmails: env.CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS,
         candidate: { email: "stranger@example.com", emailVerified: true },
       }),
     ).toBe(false);

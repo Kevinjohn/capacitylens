@@ -22,11 +22,7 @@ jobs:
       # NODE_ENV=production is baked into the api image (Dockerfile), and auth is OFF by default
       # in this smoke. The production guard requires explicit consent for this trusted CI-only setup.
       CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
-      SMALLSASS_ACCOUNT_MODE: "off"
-      # CI's ephemeral runner disk is encrypted by the hosted platform and stdout is retained in a
-      # separate Actions log. Production requires operators to make both assurances explicitly.
-      CAPACITYLENS_STORAGE_ENCRYPTED: "1"
-      CAPACITYLENS_SECURITY_LOG_FORWARDING: "1"
+      CAPACITYLENS_MODE: "off"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -239,13 +235,11 @@ jobs:
       COMPOSE_PROJECT_NAME: capacitylens-auth-smoke
       WEB_PORT: "8082"
       DOCKER_SMOKE_URL: http://127.0.0.1:8082
-      SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: self-hosted-password
-      SMALLSASS_ACCOUNT_MODE: password-only
-      SMALLSASS_ACCOUNT_PUBLIC_URL: https://capacity.example.test
-      SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off"
+      CAPACITYLENS_DEPLOYMENT_PROFILE: self-hosted-password
+      CAPACITYLENS_MODE: password-only
+      CAPACITYLENS_PUBLIC_URL: https://capacity.example.test
+      CAPACITYLENS_PASSWORD_BREACH_CHECK: "off"
       CAPACITYLENS_CORS_ORIGIN: https://client.example.test
-      CAPACITYLENS_STORAGE_ENCRYPTED: "1"
-      CAPACITYLENS_SECURITY_LOG_FORWARDING: "1"
       CAPACITYLENS_HTTPS: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -256,7 +250,7 @@ jobs:
           node-version-file: .nvmrc
       - name: Create disposable installation secrets
         run: |
-          for name in SMALLSASS_ACCOUNT_SECRET SMALLSASS_ACCOUNT_SETUP_TOKEN DOCKER_SMOKE_PASSWORD; do
+          for name in CAPACITYLENS_SECRET CAPACITYLENS_SETUP_TOKEN DOCKER_SMOKE_PASSWORD; do
             value="$(openssl rand -hex 32)"
             echo "::add-mask::$value"
             echo "$name=$value" >> "$GITHUB_ENV"
@@ -276,8 +270,8 @@ jobs:
         run: node scripts/docker-auth-smoke.mjs setup
       - name: Remove setup credential and recreate API
         run: |
-          echo "SMALLSASS_ACCOUNT_SETUP_TOKEN=" >> "$GITHUB_ENV"
-          SMALLSASS_ACCOUNT_SETUP_TOKEN='' docker compose up -d --no-deps --force-recreate api
+          echo "CAPACITYLENS_SETUP_TOKEN=" >> "$GITHUB_ENV"
+          CAPACITYLENS_SETUP_TOKEN='' docker compose up -d --no-deps --force-recreate api
           for _ in {1..30}; do
             if curl -fsS http://127.0.0.1:8082/api/health >/dev/null; then exit 0; fi
             sleep 2

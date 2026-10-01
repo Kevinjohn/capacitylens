@@ -98,7 +98,7 @@ function createServerApplication(input: ServerRuntimeInput): {
     if (allowsPasswordSignIn(input.applicationOptions.authMode ?? "off") && input.userCount === 0) {
       input.logWarning(
         "capacitylens-server: SETUP LOCKED — no user accounts exist yet; owner creation requires the " +
-          "configured SMALLSASS_ACCOUNT_SETUP_TOKEN.",
+          "configured CAPACITYLENS_SETUP_TOKEN.",
       );
     }
     let backupController: BackupController | null = null;
