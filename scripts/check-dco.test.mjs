@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   evaluateDcoCommit,
   evaluateDcoRatification,
-  isDcoExemptPullRequestAuthor,
+  isDcoExemptCommit,
   isMergeCommit,
   parseDcoRatifications,
 } from "./check-dco.mjs";
@@ -48,10 +48,11 @@ test("accepts one matching trailer among multiple contributors", () => {
   assert.equal(evaluateDcoCommit(commit(message)).valid, true);
 });
 
-test("exempts only Dependabot pull requests", () => {
-  assert.equal(isDcoExemptPullRequestAuthor("dependabot[bot]"), true);
-  assert.equal(isDcoExemptPullRequestAuthor("renovate[bot]"), false);
-  assert.equal(isDcoExemptPullRequestAuthor("contributor"), false);
+test("exempts only commits Dependabot authored and GitHub committed", () => {
+  const dependabot = "49699333+dependabot[bot]@users.noreply.github.com";
+  assert.equal(isDcoExemptCommit({ authorEmail: dependabot, committerEmail: "noreply@github.com" }), true);
+  assert.equal(isDcoExemptCommit({ authorEmail: dependabot, committerEmail: "author@example.com" }), false);
+  assert.equal(isDcoExemptCommit({ authorEmail: "author@example.com", committerEmail: "noreply@github.com" }), false);
 });
 
 test("identifies generated merge commits by their multiple parents", () => {
