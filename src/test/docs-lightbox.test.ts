@@ -126,7 +126,7 @@ describe("docs image lightbox", () => {
     // src would be a request the file:// build cannot make, and a second inline script
     // means the exception has quietly become a general-purpose escape hatch.
     const offenders = pages.flatMap((page) => {
-      const scripts = [...page.html.matchAll(/<script\b([^>]*)>/g)].map((match) => capture(match, 1));
+      const scripts = [...page.html.matchAll(/<script\b([^>]*)>/gi)].map((match) => capture(match, 1));
       const unexpected = scripts.filter((attrs) => !attrs.includes("data-cl-keep") || attrs.includes("src="));
       return scripts.length > 1 || unexpected.length > 0 ? [{ name: page.name, scripts }] : [];
     });
