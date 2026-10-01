@@ -130,7 +130,9 @@ Google and/or tenant-specific Microsoft configuration; it rejects passwords, Git
 and incomplete provider settings. Self-hosted installations that require company sign-in use
 `self-hosted-sso-only`. See [Require company sign-in](/company-login/move-to-single-sign-on).
 
-The retired generic OIDC settings and `hosted-oidc-only` profile are rejected at startup. Remove
+The retired generic OIDC settings and `hosted-oidc-only` profile are rejected at startup. In
+Docker Compose, a non-empty retired setting is forwarded only as a presence marker; its old
+secret value is not sent to the API container. Remove
 those settings and configure Google and/or Microsoft explicitly; CapacityLens does not fall back
 to password or sign-in-off mode.
 
