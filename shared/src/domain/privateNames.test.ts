@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { emptyAppData, type Client, type Project } from "../types/entities";
+import { emptyAppData } from "../types/entities";
+import type { Client, Project } from "../types/entities";
 import {
   normalizeCodeName,
   nameForQuotedContext,

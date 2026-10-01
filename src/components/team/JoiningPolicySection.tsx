@@ -1,4 +1,5 @@
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState } from "react";
+import type { FormEvent } from "react";
 import { m } from "@/i18n";
 import type { JoiningPolicy, JoiningPolicySettings } from "@capacitylens/shared/account/types";
 import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";

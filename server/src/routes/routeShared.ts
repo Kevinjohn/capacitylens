@@ -5,9 +5,11 @@ import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
 import { isScopedEntityKey } from "@capacitylens/shared/types/entities";
 import type { SanitizeWriteOptions } from "../fieldPolicy";
 import { allocationAttributionAllowed } from "@capacitylens/shared/lib/integrity";
-import { clearAllocationAttributionForActivities, type Db, type RewrittenAllocationRevision, upsertRow } from "../db";
+import { clearAllocationAttributionForActivities, upsertRow } from "../db";
+import type { Db, RewrittenAllocationRevision } from "../db";
 import type { BatchStateProjection } from "../BatchStateProjection";
-import { TABLES, type TableName } from "../tables";
+import { TABLES } from "../tables";
+import type { TableName } from "../tables";
 
 export interface StaleWriteInput {
   existing: Record<string, unknown> | undefined;

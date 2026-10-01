@@ -8,8 +8,8 @@ import {
   pruneJoinIntents,
   readJoinIntent,
   cancelJoinIntent,
-  type JoinIntent,
 } from "../../controlTables/joiningIntents";
+import type { JoinIntent } from "../../controlTables/joiningIntents";
 import { prepareCompanyAdmissionIntent } from "./joiningAdmission";
 import { createAccountFailure } from "./failures";
 import { cancelMicrosoftJoinForBrowser } from "../../authConfig/joiningReplacement";

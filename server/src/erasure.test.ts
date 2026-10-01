@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { openDb, type Db } from "./db";
+import { openDb } from "./db";
+import type { Db } from "./db";
 import { CROSS_TENANT_ERASURE_EDGE_SQL, eraseWorkspaceProductDataInTx, TenantErasureIntegrityError } from "./erasure";
 import { tx } from "./txn";
 import { recordAppliedSyncBatch } from "./syncOrdering";

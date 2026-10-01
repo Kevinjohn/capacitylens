@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { m } from "@/i18n";
-import { AuthContext, type AuthContextValue } from "@/auth/authContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 import type {
   OwnershipTransferOutcomeView,
   OwnershipTransferProjectionView,

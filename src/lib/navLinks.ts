@@ -11,8 +11,8 @@ import {
   TagIcon,
   UsersIcon,
   UserRoundIcon,
-  type LucideIcon,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { m } from "@/i18n";
 import {
   ROUTE_ACTIVITIES,

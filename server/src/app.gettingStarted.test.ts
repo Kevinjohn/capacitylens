@@ -2,7 +2,8 @@ import { expect, it } from "vitest";
 import { createApp } from "./app";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { upsertMember } from "./controlTables";
-import { openDb, type Db } from "./db";
+import { openDb } from "./db";
+import type { Db } from "./db";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers/passwordAuth";
 import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 

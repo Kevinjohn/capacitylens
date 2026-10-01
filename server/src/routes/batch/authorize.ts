@@ -1,13 +1,14 @@
 import type { Action } from "@capacitylens/shared/domain/access";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountMode } from "../../auth";
-import { getRow, type Db } from "../../db";
+import { getRow } from "../../db";
+import type { Db } from "../../db";
 import { countAccounts } from "../accountEntityRoutes";
 import { REPLY_ERRORS } from "../replyErrors";
 import { isScopedTable, NO_REPROMPT } from "../routeShared";
 
 import type { BatchRouteDependencies } from "../batchRoutes";
-import { type BatchOp } from "./types";
+import type { BatchOp } from "./types";
 
 interface AuthorizeBatchOperationsInput {
   ops: BatchOp[];

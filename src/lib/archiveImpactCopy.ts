@@ -1,9 +1,5 @@
-import {
-  archiveImpact,
-  canArchive,
-  type ArchiveImpact,
-  type LifecycleEntityKey,
-} from "@capacitylens/shared/domain/lifecycle";
+import { archiveImpact, canArchive } from "@capacitylens/shared/domain/lifecycle";
+import type { ArchiveImpact, LifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 

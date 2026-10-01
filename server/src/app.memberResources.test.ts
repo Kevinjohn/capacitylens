@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "./app";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { upsertMember } from "./controlTables";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { insertAll, openDb } from "./db";
 import { call, PASSWORD_ENV, signUp } from "./testHelpers/passwordAuth";
 

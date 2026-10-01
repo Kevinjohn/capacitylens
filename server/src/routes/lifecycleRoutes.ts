@@ -9,8 +9,8 @@ import {
   obfuscateResource,
   softDelete,
   unarchive,
-  type LifecycleEntityKey,
 } from "@capacitylens/shared/domain/lifecycle";
+import type { LifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
 import type { AuditRecord } from "../audit";
 import type { LifecycleRow, AccountStore } from "../accountStore";
 import { createServerRevision } from "../revision";

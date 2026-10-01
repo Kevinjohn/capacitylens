@@ -1,4 +1,5 @@
-import { Suspense, type CSSProperties } from "react";
+import { Suspense } from "react";
+import type { CSSProperties } from "react";
 import { matchPath, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { GettingStarted } from "./GettingStarted";
 import { Toaster } from "sonner";

@@ -1,13 +1,12 @@
 import { assertAuditOutboxCurrent } from "./auditOutbox";
 import { assertAccountControlPlaneCurrent } from "./accounts/sqliteAccountAdminPort";
-import {
-  evaluateCompanyProviderCutoverReadiness,
-  type SsoCompanyProviderReadinessIssue,
-} from "./accounts/companyProviderReadiness";
+import { evaluateCompanyProviderCutoverReadiness } from "./accounts/companyProviderReadiness";
+import type { SsoCompanyProviderReadinessIssue } from "./accounts/companyProviderReadiness";
 import { evaluateSsoCutoverReadiness } from "./accounts/ssoCutover";
 import { assertFederatedIdentitySchemaCurrent } from "./auth";
 import { mixedModeCutoverContext } from "./cutoverContext";
-import { planDatabaseMigrations, type Db } from "./db";
+import { planDatabaseMigrations } from "./db";
+import type { Db } from "./db";
 
 type SsoCutoverPreflightIssue =
   | SsoCompanyProviderReadinessIssue

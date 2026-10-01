@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { existsSync, fsyncSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createFileAuditSink, createStreamAuditSink, type AuditEntry, type AuditRecord, type AuditSink } from "./audit";
+import { createFileAuditSink, createStreamAuditSink } from "./audit";
+import type { AuditEntry, AuditRecord, AuditSink } from "./audit";
 import {
   AUDIT_DRAIN_PAGE_SIZE,
   drainAuditOutbox,

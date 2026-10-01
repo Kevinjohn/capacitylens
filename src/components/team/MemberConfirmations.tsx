@@ -2,7 +2,8 @@ import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { TeamMember } from "@/account/teamAccessClient";
-import { buildMemberConfirmationCopy, resolveMemberLabel, type MemberConfirmation } from "./memberConfirmationCopy";
+import { buildMemberConfirmationCopy, resolveMemberLabel } from "./memberConfirmationCopy";
+import type { MemberConfirmation } from "./memberConfirmationCopy";
 
 export type { MemberConfirmation, MemberConfirmationAction } from "./memberConfirmationCopy";
 import { resolveRoleSummary } from "@/lib/accessCopy";

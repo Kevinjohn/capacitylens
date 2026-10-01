@@ -1,5 +1,6 @@
 import type { Db } from "../db";
-import { type Row, toRow, fromRow } from "../rowCodec";
+import { toRow, fromRow } from "../rowCodec";
+import type { Row } from "../rowCodec";
 import { resolveTable, assertKnownTable } from "./introspection";
 import { createCachedTableStatement, createStatementCache, buildPlaceholders } from "./statementCache";
 import { tx } from "../txn";

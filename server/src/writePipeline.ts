@@ -1,5 +1,7 @@
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
-import { type Db, deleteRow, getRow, upsertRow } from "./db";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
+import { deleteRow, getRow, upsertRow } from "./db";
+import type { Db } from "./db";
 import { buildAcceptedWriteFields, sanitizeWrite, assertValidWrite } from "./validate";
 import type { SanitizeWriteOptions } from "./fieldPolicy";
 import type { AccountStore } from "./accountStore";

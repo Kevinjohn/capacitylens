@@ -22,8 +22,8 @@ import {
   requireCallback,
   requireValue,
   saveRoleVia,
-  type RawMember,
 } from "./MembersSection.testSupport";
+import type { RawMember } from "./MembersSection.testSupport";
 
 const accountTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),

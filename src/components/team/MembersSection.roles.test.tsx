@@ -19,8 +19,8 @@ import {
   renderSection,
   saveRoleVia,
   soleOwnerAndEditor,
-  type RawMember,
 } from "./MembersSection.testSupport";
+import type { RawMember } from "./MembersSection.testSupport";
 
 const accountTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),

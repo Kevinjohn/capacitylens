@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DomainError } from "./errors";
+import type { DomainError } from "./errors";
 import type { Weekday } from "../types/entities";
 import { assertAllocationWithinResourceAvailability, validateResourceAvailabilityPair } from "./resourceAvailability";
 

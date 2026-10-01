@@ -10,8 +10,8 @@ import {
   snapToPresetColor,
   FALLBACK_PRESET_COLOR,
   PRESET_COLORS,
-  type BarColorMaps,
 } from "./color";
+import type { BarColorMaps } from "./color";
 import type { Allocation, Client, Project, Resource, Activity } from "../types/entities";
 
 // Build the id→entity maps resolveBarColor consumes, from plain arrays.

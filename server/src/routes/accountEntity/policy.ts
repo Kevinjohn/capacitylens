@@ -1,5 +1,5 @@
 import { SINGLE_COMPANY_CAP_MESSAGE } from "@capacitylens/shared/account/policy";
-import { type Db } from "../../db";
+import type { Db } from "../../db";
 import { IMMUTABLE_ACCOUNT_FIELDS } from "../../validate";
 
 // SINGLE_COMPANY_CAP_MESSAGE (owner policy, see AppOptions.multiAccount) now lives in

@@ -1,9 +1,11 @@
 import type { AccountContractError } from "@capacitylens/shared/account/errors";
 import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";
-import { isJoiningPolicy, type JoiningPolicySettings } from "@capacitylens/shared/account/types";
+import { isJoiningPolicy } from "@capacitylens/shared/account/types";
+import type { JoiningPolicySettings } from "@capacitylens/shared/account/types";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { REPLY_ERRORS } from "../../../routes/replyErrors";
-import { NO_REPROMPT, type ParseResult } from "../../../routes/routeShared";
+import { NO_REPROMPT } from "../../../routes/routeShared";
+import type { ParseResult } from "../../../routes/routeShared";
 import type { AccountRoute } from "../accountRouteDependencies";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAccountActor } from "./authenticatedPrincipal";

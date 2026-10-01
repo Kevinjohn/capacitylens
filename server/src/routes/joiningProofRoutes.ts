@@ -1,9 +1,11 @@
-import { allowsPasswordSignIn, allowsProviderSignIn, type AccountMode } from "@capacitylens/shared/account/types";
+import { allowsPasswordSignIn, allowsProviderSignIn } from "@capacitylens/shared/account/types";
+import type { AccountMode } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { mintJoinEmailProofToken, verifyJoinEmailProofToken } from "../accounts/adminPort/joiningIntentSecrets";
 import { readPrincipalEmail, recordPasswordEmailProof } from "../authConfig/federatedEmailProof";
-import { MailBudgetExceededError, resolveMailDeliveryCause, type MailSender } from "../authConfig/mailSender";
+import { MailBudgetExceededError, resolveMailDeliveryCause } from "../authConfig/mailSender";
+import type { MailSender } from "../authConfig/mailSender";
 import type { Db } from "../db";
 import { createJoiningProviderLifecycle } from "../accounts/adminPort/joiningProviderLifecycle";
 import { completeExistingPolicyJoin } from "../accounts/adminPort/joiningAdmission";

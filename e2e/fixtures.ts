@@ -1,12 +1,5 @@
-import {
-  expect,
-  test as base,
-  type APIRequestContext,
-  type BrowserContext,
-  type BrowserContextOptions,
-  type Locator,
-  type Page,
-} from "@playwright/test";
+import { expect, test as base } from "@playwright/test";
+import type { APIRequestContext, BrowserContext, BrowserContextOptions, Locator, Page } from "@playwright/test";
 
 export { expect, type APIRequestContext, type Locator, type Page };
 

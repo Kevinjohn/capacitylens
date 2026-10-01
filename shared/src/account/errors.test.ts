@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  AccountContractError,
-  assertRetryAfterSeconds,
-  retryAfterSeconds,
-  statusForAccountFailure,
-  type AccountErrorCode,
-} from "./errors";
+import { AccountContractError, assertRetryAfterSeconds, retryAfterSeconds, statusForAccountFailure } from "./errors";
+import type { AccountErrorCode } from "./errors";
 
 describe("account failure status mapping", () => {
   const expected = {

@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
-import { SCHEMA_V8_SQL, TABLES, type ColumnSpec, type TableSpec } from "../tables";
+import { SCHEMA_V8_SQL, TABLES } from "../tables";
+import type { ColumnSpec, TableSpec } from "../tables";
 import type { ColumnInfo } from "./introspection";
 /**
  * Materialise a historical table contract from its immutable DDL. This deliberately does not

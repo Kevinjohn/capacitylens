@@ -1,19 +1,15 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { m } from "@/i18n";
-import {
-  can,
-  canChangeMemberStatus,
-  canEditAnyMemberRole,
-  canRemoveMember,
-  type Role,
-} from "@capacitylens/shared/domain/access";
+import { can, canChangeMemberStatus, canEditAnyMemberRole, canRemoveMember } from "@capacitylens/shared/domain/access";
+import type { Role } from "@capacitylens/shared/domain/access";
 import type { TeamMember } from "@/account/teamAccessClient";
 import { resolveRoleLabel } from "@/lib/accessCopy";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Pencil } from "lucide-react";
 import type { MemberRoleEdit } from "./MemberConfirmations";
-import { resolveMemberLabel, type MemberConfirmationAction } from "./memberConfirmationCopy";
+import { resolveMemberLabel } from "./memberConfirmationCopy";
+import type { MemberConfirmationAction } from "./memberConfirmationCopy";
 import { MemberResourceDialog, MemberResourceLink } from "./MemberResourceLink";
 import { MemberActionsDialog } from "./MemberActionsDialog";
 

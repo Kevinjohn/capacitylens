@@ -1,5 +1,6 @@
 import { m } from "@/i18n";
-import { resolveRejectionMessage, teamAccessClient, type TeamMember as Member } from "@/account/teamAccessClient";
+import { resolveRejectionMessage, teamAccessClient } from "@/account/teamAccessClient";
+import type { TeamMember as Member } from "@/account/teamAccessClient";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { resolveMemberLabel } from "./memberConfirmationCopy";
 import type { MemberMutationDependencies } from "./createMemberMutations";

@@ -2,7 +2,7 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { SINGLE_COMPANY_CAP_MESSAGE } from "@capacitylens/shared/account/policy";
 import type { MemberDirectoryEntry } from "@capacitylens/shared/account/ports";
 import type { ActorContext } from "@capacitylens/shared/account/types";
-import { KeyedOperationLock } from "../KeyedOperationLock";
+import type { KeyedOperationLock } from "../KeyedOperationLock";
 import type { LocalAccountAdminPort } from "../sqliteAccountAdminPort";
 
 const WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS = 3;

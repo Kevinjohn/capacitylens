@@ -1,4 +1,5 @@
-import { type DatabaseMigration, defineMigration } from "../migrationLedger";
+import { defineMigration } from "../migrationLedger";
+import type { DatabaseMigration } from "../migrationLedger";
 import { tableHasColumns } from "../introspection";
 import { DB_SCHEMA_VERSION } from "../constants";
 import { assertSchemaV9 } from "../../schema";

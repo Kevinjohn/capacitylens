@@ -21,8 +21,8 @@ import {
   seedIfUninitialized,
   V13_DEFINITION,
   V13_FROZEN_PRESET_COLORS,
-  type Db,
 } from "./db";
+import type { Db } from "./db";
 import { seed } from "@capacitylens/shared/data/seed";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { PRESET_COLORS, snapToPresetColor } from "@capacitylens/shared/lib/color";
@@ -34,17 +34,14 @@ import {
   assertFederatedIdentitySchemaCurrent,
   createAuthFromEnvironment,
   runAuthMigrations,
-  type Auth,
 } from "./auth";
+import type { Auth } from "./auth";
 import { TABLES } from "./tables";
 import { runAccountDateStyleV40 } from "./db/migrations/definitions";
 import { ensureMicrosoftProofGate } from "./authConfig/microsoftProofGate";
 import { MICROSOFT_PROOF_V46_SQL } from "./db/migrations/microsoftProofV46";
-import {
-  assertMigrationValuesPreserved,
-  captureMigrationValues,
-  type MigrationValueSnapshot,
-} from "./migrationPreservation";
+import { assertMigrationValuesPreserved, captureMigrationValues } from "./migrationPreservation";
+import type { MigrationValueSnapshot } from "./migrationPreservation";
 import {
   FOREIGN_KEY_CHILD_INDEXES_V23,
   ACCOUNT_ENTITY_INDEXES_V21,

@@ -8,7 +8,8 @@ import {
   assertAccountControlPlaneCurrent,
   assertAccountControlPlaneSchemaCurrent,
 } from "./accounts/sqliteAccountAdminPort";
-import { openDbConnection, planDatabaseMigrations, type Db } from "./db";
+import { openDbConnection, planDatabaseMigrations } from "./db";
+import type { Db } from "./db";
 import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
 import { acquireExclusiveDatabaseLock } from "./resetOwnerPassword";
 import { tx } from "./txn";

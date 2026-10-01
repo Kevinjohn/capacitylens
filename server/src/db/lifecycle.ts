@@ -1,8 +1,8 @@
 import type { Db } from "../db";
 import { markInitialized, isInitialized } from "./initialization";
-import { type AppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { tx } from "../txn";
-import { type Row } from "../rowCodec";
+import type { Row } from "../rowCodec";
 import { CREATE_ORDER, SCOPED_ORDER } from "../tables";
 import { insertRowRaw } from "./rows";
 import type { CompleteAccountSlice } from "./slices";

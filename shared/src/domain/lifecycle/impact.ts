@@ -1,5 +1,6 @@
 import type { AppData, ISOTimestamp } from "../../types/entities";
-import { lifecycleStatus, type LifecycleEntityKey, type LifecycleFields } from "./types";
+import { lifecycleStatus } from "./types";
+import type { LifecycleEntityKey, LifecycleFields } from "./types";
 import { activeOnly } from "./projection";
 import { LifecycleTransitionError } from "./transitions";
 

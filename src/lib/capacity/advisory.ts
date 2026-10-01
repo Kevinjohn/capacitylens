@@ -1,6 +1,7 @@
 import { daysInclusive, eachDayISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
-import { effectiveWeekIncludes, type EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import { effectiveWeekIncludes } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import type { Allocation, Closure, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { hasAllocationLoadOnDay, hasOverCapacity } from "./primitives";
 import { isWorkingDay, isUnavailable, resolveScheduledHoursOnDay } from "./availability";

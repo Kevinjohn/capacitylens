@@ -1,14 +1,9 @@
-import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity, type DayCapacity } from "@/lib/capacity";
+import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity } from "@/lib/capacity";
+import type { DayCapacity } from "@/lib/capacity";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import {
-  isExternalResource,
-  type Allocation,
-  type Closure,
-  type ISODate,
-  type Resource,
-  type TimeOff,
-} from "@capacitylens/shared/types/entities";
+import { isExternalResource } from "@capacitylens/shared/types/entities";
+import type { Allocation, Closure, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { bucketByCoveredDate, NO_ALLOCATIONS, NO_TIME_OFF, NO_CLOSURES } from "./schedulerModelIndexing";
 import type { CapacitySource, SchedulerModelOptions } from "./schedulerModelTypes";
 

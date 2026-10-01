@@ -11,7 +11,8 @@ import type {
 } from "../audit";
 import type { AuditSink } from "../audit";
 import type { formatBackupStartupFailure, startBackups } from "../backup";
-import { openDb, type Db } from "../db";
+import { openDb } from "../db";
+import type { Db } from "../db";
 import type { createLastResortErrorHandler, createShutdownHandler, shutDownAfterListenFailure } from "../shutdown";
 import type { closeDbSafely, parseAuditMaxMb, refuseToStart } from "./refusals";
 import { startServerRuntime } from "./serverRuntime";

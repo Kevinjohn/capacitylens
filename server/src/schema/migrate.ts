@@ -1,5 +1,6 @@
 import type { Db } from "../db";
-import { TABLES, type TableSpec } from "../tables";
+import { TABLES } from "../tables";
+import type { TableSpec } from "../tables";
 import { tx } from "../txn";
 import { V8_TABLES } from "./historicalSpecs";
 import { hasColumn, isNotNull, tableExists } from "./introspection";

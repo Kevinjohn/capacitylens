@@ -1,6 +1,6 @@
 import { m } from "@/i18n";
 import { useRef, useState } from "react";
-import { useAuth } from "@/auth/authContext";
+import type { useAuth } from "@/auth/authContext";
 import { clearCapacitylensLocalStorage } from "@/data/clearLocalStorage";
 import {
   cacheAccountSlice,

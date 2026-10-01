@@ -1,7 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
-import { emptyAppData, type ISODate } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { ISODate } from "@capacitylens/shared/types/entities";
 import { buildEmptyFilters, useStore } from "@/store/useStore";
 import { makeActivity, makeAllocation, makeResource, requireValue } from "@/test/fixtures";
 import { buildColumnGeometry } from "./columnGeometry";

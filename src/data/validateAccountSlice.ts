@@ -1,5 +1,7 @@
-import { KNOWN_KEYS, migrateWithRepairBase, type MigrationWithRepairBase } from "@capacitylens/shared/data/migrate";
-import { SCOPED_KEYS, type AppData } from "@capacitylens/shared/types/entities";
+import { KNOWN_KEYS, migrateWithRepairBase } from "@capacitylens/shared/data/migrate";
+import type { MigrationWithRepairBase } from "@capacitylens/shared/data/migrate";
+import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 /** A non-null, non-array object, the shape every JSON payload check in the data layer starts from. */

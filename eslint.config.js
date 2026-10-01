@@ -51,6 +51,11 @@ const parentImportAllowances = {
   ],
 };
 
+const inlineTypeImportGuard = {
+  selector: "ImportSpecifier[importKind='type']",
+  message: "Use a separate `import type` declaration for type-only imports.",
+};
+
 const recordGuard = {
   selector: "FunctionDeclaration[id.name=/^is(Unknown)?Record$/], VariableDeclarator[id.name=/^is(Unknown)?Record$/]",
   message: "Import isRecord from @capacitylens/shared/lib/isRecord instead of defining another copy.",
@@ -73,6 +78,7 @@ function parentImportRules(allowedSpecifiers) {
     "no-restricted-syntax": [
       "error",
       recordGuard,
+      inlineTypeImportGuard,
       { selector: `ImportExpression > Literal.source[value=/${regex}/]`, message },
       { selector: `TSImportType[source.value=/${regex}/]`, message },
       { selector: `${vitestModuleCall} > Literal.arguments:first-child[value=/${regex}/]`, message },
@@ -137,6 +143,13 @@ export default defineConfig([
   {
     files: ["**/*.{ts,tsx,mts,cts}"],
     extends: [js.configs.recommended, tseslint.configs.recommended],
+    rules: {
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        { prefer: "type-imports", fixStyle: "separate-type-imports", disallowTypeAnnotations: false },
+      ],
+      "no-restricted-syntax": ["error", inlineTypeImportGuard],
+    },
   },
 
   // The web app is the only React package — React/Fast-Refresh rules and browser
@@ -321,7 +334,7 @@ export default defineConfig([
     files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
     ignores: ["shared/src/lib/isRecord.ts"],
     rules: {
-      "no-restricted-syntax": ["error", recordGuard],
+      "no-restricted-syntax": ["error", recordGuard, inlineTypeImportGuard],
     },
   },
 

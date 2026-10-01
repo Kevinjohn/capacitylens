@@ -1,5 +1,6 @@
 import type { AppData, AppDataKey, ScopedEntityKey } from "../../types/entities";
-import { lifecycleStatus, type LifecycleFields } from "./types";
+import { lifecycleStatus } from "./types";
+import type { LifecycleFields } from "./types";
 import { PARENT_TABLES, inspectAncestry } from "./ancestry";
 import type { LifecycleAncestryRow, LifecycleAncestryLookup, LifecycleAncestryMemo } from "./ancestry";
 

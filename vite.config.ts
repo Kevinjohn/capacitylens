@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
-import { loadEnv, type Plugin } from "vite";
+import { loadEnv } from "vite";
+import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";

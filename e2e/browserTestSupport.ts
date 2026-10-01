@@ -1,4 +1,5 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { WEEK_SNAP_IDLE_MS } from "../src/lib/schedulerConfig";
 
 // The seed dataset lives in the first half of June 2026 — the over-allocated day is

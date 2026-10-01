@@ -1,4 +1,5 @@
-import { KNOWN_KEYS, migrateWithRepairBase, type MigrationWithRepairBase } from "@capacitylens/shared/data/migrate";
+import { KNOWN_KEYS, migrateWithRepairBase } from "@capacitylens/shared/data/migrate";
+import type { MigrationWithRepairBase } from "@capacitylens/shared/data/migrate";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import {

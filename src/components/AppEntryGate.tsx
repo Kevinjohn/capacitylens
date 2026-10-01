@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import type { ReactNode } from "react";
 import { AccountPicker } from "./accounts/AccountPicker";
 import { AccountLoadRecovery } from "./accounts/AccountLoadRecovery";
 import { ConnectionError } from "./ConnectionError";

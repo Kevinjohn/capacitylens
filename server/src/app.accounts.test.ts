@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
 import type { LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
+import { openDb, insertAll } from "./db";
+import type { Db } from "./db";
 import { upsertMember } from "./controlTables";
 import { call, signUp } from "./testHelpers/passwordAuth";
 import { appWithAuth } from "./fixtures/appWithAuth";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord, AuditSink } from "./audit";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 

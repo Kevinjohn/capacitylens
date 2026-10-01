@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
+import type { ReactNode } from "react";
 import { CircleHelp } from "lucide-react";
 import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";

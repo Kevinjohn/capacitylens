@@ -12,7 +12,8 @@ import { Modal } from "@/components/common/ui";
 import { SelectField } from "@/components/common/fields/SelectField";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useOwnershipTransfer, type OwnershipTransferController } from "./useOwnershipTransfer";
+import { useOwnershipTransfer } from "./useOwnershipTransfer";
+import type { OwnershipTransferController } from "./useOwnershipTransfer";
 
 /**
  * The three-step ownership transfer ceremony, for whichever side of it the viewer is on.

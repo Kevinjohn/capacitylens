@@ -1,7 +1,8 @@
 import type { Db } from "../db";
 import { DatabaseSync } from "node:sqlite";
 import { chmodSync, existsSync } from "node:fs";
-import { type DatabaseMigrationHooks, type DatabaseMigrationPlan, MIGRATION_HISTORY_SQL } from "./migrationLedger";
+import { MIGRATION_HISTORY_SQL } from "./migrationLedger";
+import type { DatabaseMigrationHooks, DatabaseMigrationPlan } from "./migrationLedger";
 import { DATABASE_MIGRATIONS } from "./migrations/index";
 import { planDatabaseMigrations } from "./migrationPlan";
 import { databasePaths, restrictIdentifiedDatabasePermissions } from "./filePermissions";

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import type { LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
-import { openDb, type Db } from "./db";
+import { openDb } from "./db";
+import type { Db } from "./db";
 import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 import {
   createAuthFromEnvironment,

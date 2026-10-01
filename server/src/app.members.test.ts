@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
-import { openDb, type Db } from "./db";
+import { openDb } from "./db";
+import type { Db } from "./db";
 import { upsertMember, getMemberRole, getInvite } from "./controlTables";
 import type { Auth } from "./auth";
 import { call, signUp } from "./testHelpers/passwordAuth";

@@ -3,7 +3,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { PermissionContext } from "@/auth/permissionContext";
-import { AuthContext, type AuthContextValue } from "@/auth/authContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 import { TeamAccessView } from "./TeamAccessView";
 import { setOfflineReadState } from "@/data/offlineCache";
 

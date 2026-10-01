@@ -3,7 +3,8 @@ import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/acco
 import type { ActorContext } from "@capacitylens/shared/account/types";
 import type { Db } from "../../db";
 import { tx } from "../../txn";
-import { completeJoinIntent, type JoinIntent } from "../../controlTables/joiningIntents";
+import { completeJoinIntent } from "../../controlTables/joiningIntents";
+import type { JoinIntent } from "../../controlTables/joiningIntents";
 import { admitCompanyInTx, assertJoinIntentTargetLive, prepareCompanyAdmissionIntent } from "./joiningAdmission";
 import { createAccountFailure } from "./failures";
 import { hashJoiningValue } from "./joiningIntentSecrets";

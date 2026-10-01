@@ -1,7 +1,7 @@
 import { m } from "@/i18n";
 import { useState } from "react";
 import { accountClient, hasUnknownAccountCommandOutcome } from "@/account/accountClient";
-import { useAuth } from "@/auth/authContext";
+import type { useAuth } from "@/auth/authContext";
 import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
 import { isServerConfigured } from "@/data/apiConfig";
 import { resolveErrorMessage } from "@/lib/errorMessage";

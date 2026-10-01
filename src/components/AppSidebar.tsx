@@ -9,7 +9,8 @@ import { FAKE_USER } from "@/lib/fakeAuth";
 import demoAvatarUrl from "@/assets/avatar-demo.svg";
 import { DEFAULT_COLORS } from "@/lib/palette";
 import { Avatar } from "./common/ui";
-import { ACCOUNT_LINK, type NavigationLinkDefinition } from "@/lib/navLinks";
+import { ACCOUNT_LINK } from "@/lib/navLinks";
+import type { NavigationLinkDefinition } from "@/lib/navLinks";
 import { Badge } from "./ui/badge";
 import {
   Sidebar,

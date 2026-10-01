@@ -1,4 +1,5 @@
-import { APP_DATA_WRITE_ORDER, type AppData, type Entity } from "@capacitylens/shared/types/entities";
+import { APP_DATA_WRITE_ORDER } from "@capacitylens/shared/types/entities";
+import type { AppData, Entity } from "@capacitylens/shared/types/entities";
 
 // The pure diff/apply core of server sync, extracted from ServerSyncAdapter so the
 // snapshot-to-REST-ops logic can be read and tested in isolation from the network

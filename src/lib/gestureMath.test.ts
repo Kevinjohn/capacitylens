@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { applyGesture, type DateRange } from "./gestureMath";
+import { applyGesture } from "./gestureMath";
+import type { DateRange } from "./gestureMath";
 import type { Weekday } from "@capacitylens/shared/types/entities";
 
 // Pixel→day snapping no longer lives here: the drag hook derives the day delta from the

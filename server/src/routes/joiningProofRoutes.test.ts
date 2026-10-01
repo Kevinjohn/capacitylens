@@ -5,7 +5,8 @@ import { createApp } from "../app";
 import { upsertMember } from "../controlTables";
 import { createInvite } from "../controlTables/invites";
 import { writeJoiningPolicy } from "../controlTables/joiningPolicies";
-import { insertRow, openDb, type Db } from "../db";
+import { insertRow, openDb } from "../db";
+import type { Db } from "../db";
 import { PASSWORD_ENV, signUp } from "../testHelpers/passwordAuth";
 import { registerServerFixtureCleanup } from "../testHelpers/registerServerFixtureCleanup";
 

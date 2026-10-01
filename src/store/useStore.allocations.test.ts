@@ -2,7 +2,8 @@ import { requireCreated } from "@/test/requireCreated";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Allocation } from "@capacitylens/shared/types/entities";
 import { DEFAULT_ACCOUNT_ID, makeResourceDraft, requireValue, resetStoreWithAccount, WORKDAYS } from "@/test/fixtures";
-import { useStore, type Draft } from "./useStore";
+import { useStore } from "./useStore";
+import type { Draft } from "./useStore";
 
 const state = () => useStore.getState();
 

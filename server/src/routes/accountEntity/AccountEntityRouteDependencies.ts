@@ -5,7 +5,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { LocalAccountFlows } from "../../accounts/createLocalAccountFlows";
 import type { AuditRecord } from "../../audit";
 import type { AccountMode } from "../../auth";
-import { type Db } from "../../db";
+import type { Db } from "../../db";
 import type { SanitizeWriteOptions } from "../../fieldPolicy";
 import type { AccountStore } from "../../accountStore";
 

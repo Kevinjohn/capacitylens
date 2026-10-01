@@ -6,8 +6,8 @@ import {
   HISTORY_LIMIT,
   prepareHistoryTarget,
   resetSchedulerView,
-  type StoreInternals,
 } from "@/store/storeInternal";
+import type { StoreInternals } from "@/store/storeInternal";
 import { readCurrentWeekAnchor } from "./schedulerSlice";
 import type { StoreState } from "@/store/types";
 

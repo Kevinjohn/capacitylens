@@ -2,11 +2,15 @@ import {
   isOwnershipTransferState,
   isOwnershipTransferTerminalOutcomeBody,
   OWNERSHIP_TRANSFER_TERMINAL_REASONS,
-  type OwnershipTransferState,
-  type OwnershipTransferTerminalReason,
 } from "@capacitylens/shared/account/ownershipTransfer";
-import { accountClient, type OwnershipTransferStep } from "./accountClient";
-import { isNullableString, isTimestamp, readCommandResult, readResult, type TeamAccessResult } from "./accessResult";
+import type {
+  OwnershipTransferState,
+  OwnershipTransferTerminalReason,
+} from "@capacitylens/shared/account/ownershipTransfer";
+import { accountClient } from "./accountClient";
+import type { OwnershipTransferStep } from "./accountClient";
+import { isNullableString, isTimestamp, readCommandResult, readResult } from "./accessResult";
+import type { TeamAccessResult } from "./accessResult";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 /**

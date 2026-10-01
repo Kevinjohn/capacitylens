@@ -7,13 +7,8 @@ import { removeMemberSignInTrackingForAccount } from "../accounts/memberSignInTr
 import { cachedStatement } from "./preparedStatement";
 import { isAccessRestricted } from "./accessRestrictions";
 import { removeAccountMemberResourceForMember, removeAccountMemberResourcesForAccount } from "./accountMemberResources";
-import {
-  isKnownRole,
-  toAccountMember,
-  type AccountMember,
-  type AccountMemberRow,
-  type MembershipStatus,
-} from "./members.model";
+import { isKnownRole, toAccountMember } from "./members.model";
+import type { AccountMember, AccountMemberRow, MembershipStatus } from "./members.model";
 
 /**
  * What a membership write should do to the live ownership-transfer requests naming this principal.

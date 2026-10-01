@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { anonymise } from "../scripts/rehearse/anonymise";
 import { remapIds, scrubDanglingReferences } from "../scripts/rehearse/anonymiseOperations";
 import { KNOWN_COLUMNS, KNOWN_TABLES } from "../scripts/rehearse/knownColumns";
-import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
+import type { Auth } from "./auth";
 import { openDb } from "./db";
 import { PASSWORD_ENV } from "./testHelpers/passwordAuth";
 

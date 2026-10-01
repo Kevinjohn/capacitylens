@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useStore } from "@/store/useStore";
 import { useCanEdit } from "@/auth/permissionContext";
 import { m } from "@/i18n";
-import { Pencil, Plus, Trash2, type LucideIcon } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

@@ -1,7 +1,8 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { REPLY_ERRORS } from "../../../routes/replyErrors";
-import { NO_REPROMPT, type ParseResult } from "../../../routes/routeShared";
+import { NO_REPROMPT } from "../../../routes/routeShared";
+import type { ParseResult } from "../../../routes/routeShared";
 import type { MemberRoute } from "../accountRouteDependencies";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAccountActor } from "./authenticatedPrincipal";

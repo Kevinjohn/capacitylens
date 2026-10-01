@@ -8,7 +8,8 @@ import {
   scopedTables,
   SCOPED_KEYS,
 } from "@capacitylens/shared/types/entities";
-import { DATE_STYLES, DEFAULT_DATE_STYLE, type DateStyle } from "@capacitylens/shared/types/entities";
+import { DATE_STYLES, DEFAULT_DATE_STYLE } from "@capacitylens/shared/types/entities";
+import type { DateStyle } from "@capacitylens/shared/types/entities";
 import type { Account, AppData, Discipline, ID, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import type { SchedulerUI } from "./useStore";
 import { DEFAULT_TIME_ZONE } from "@/lib/timezones";

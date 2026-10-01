@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
-import { DB_SCHEMA_VERSION, openDb, type Db } from "./db";
+import { DB_SCHEMA_VERSION, openDb } from "./db";
+import type { Db } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { signUp } from "./testHelpers/passwordAuth";
 

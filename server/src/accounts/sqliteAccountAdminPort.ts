@@ -3,7 +3,8 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { AccountAuditPort } from "@capacitylens/shared/account/ports";
 import type { CommandIdentity, CreatedInvitation } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
-import { tx, type SynchronousCallback } from "../txn";
+import { tx } from "../txn";
+import type { SynchronousCallback } from "../txn";
 import { createAccountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
 import { createAuthority } from "./adminPort/authority";
 import type { AdminPortContext, SsoCutoverAccountAdminPort } from "./adminPort/contracts";
@@ -14,7 +15,7 @@ import { createJoiningPolicyAdministration } from "./adminPort/joiningPolicy";
 import { createMembership } from "./adminPort/membership";
 import { createOwnershipTransferOperations } from "./adminPort/ownershipTransfer";
 import { beginCommand, completeCommand, markAccountCommandReplay, terminateCommand } from "./commands";
-import { KeyedOperationLock } from "./KeyedOperationLock";
+import type { KeyedOperationLock } from "./KeyedOperationLock";
 import { WriteOnceSecretReplay } from "./WriteOnceSecretReplay";
 export { ACCOUNT_POLICY_VERSION, MAX_INVITATION_TTL_MS } from "./adminPort/contracts";
 

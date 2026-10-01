@@ -1,4 +1,5 @@
-import { test, expect, type Locator, type Page } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { Locator, Page } from "./fixtures";
 import { openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./browserTestSupport";
 
 async function addTimeOff(page: Page, resource: string, start: string, end = start) {

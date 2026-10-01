@@ -5,13 +5,15 @@ import {
   readRequiredNumber,
   readRequiredString,
   assertModeledKeys,
-  type ActivitySnapshot,
-  type AllocationSnapshot,
-  type DisciplineSnapshot,
-  type PhaseSnapshot,
-  type ProjectBinding,
-  type ProjectSnapshot,
-  type ResourceSnapshot,
+} from "./appTestSnapshotCore";
+import type {
+  ActivitySnapshot,
+  AllocationSnapshot,
+  DisciplineSnapshot,
+  PhaseSnapshot,
+  ProjectBinding,
+  ProjectSnapshot,
+  ResourceSnapshot,
 } from "./appTestSnapshotCore";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 export function readProjectBindings(rows: unknown[], table: string): ProjectBinding[] {

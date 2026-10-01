@@ -1,18 +1,20 @@
 import type { Db } from "../db";
 import { tx } from "../txn";
 import { cancelCompanyJoinForBrowser } from "../accounts/adminPort/joiningAdmission";
-import { createMicrosoftProofAuthorization } from "./microsoftProofAuthorization";
-import { createMicrosoftCallbackState } from "./microsoftProofCallbackState";
+import type { createMicrosoftProofAuthorization } from "./microsoftProofAuthorization";
+import type { createMicrosoftCallbackState } from "./microsoftProofCallbackState";
 import {
   MicrosoftProofError,
   assertMicrosoftReturnUrl,
-  createMicrosoftReturnUrlCipher,
   hashProofValue,
   newProofId,
   newProofSecret,
   readProofCookie,
-  type MicrosoftProofIntent,
-  type MicrosoftProofPurpose,
+} from "./microsoftProofPrimitives";
+import type {
+  MicrosoftProofIntent,
+  MicrosoftProofPurpose,
+  createMicrosoftReturnUrlCipher,
 } from "./microsoftProofPrimitives";
 
 type Intent = MicrosoftProofIntent;

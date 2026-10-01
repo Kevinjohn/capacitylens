@@ -1,11 +1,7 @@
 import type { Dispatch, SetStateAction, RefObject } from "react";
 import type { InviteAcceptState } from "./InviteAcceptView";
-import {
-  accountClient,
-  readUnknownAccountCommandOutcome,
-  createBrowserAccountCommand,
-  type BrowserAccountCommand,
-} from "@/account/accountClient";
+import { accountClient, readUnknownAccountCommandOutcome, createBrowserAccountCommand } from "@/account/accountClient";
+import type { BrowserAccountCommand } from "@/account/accountClient";
 import { m } from "@/i18n";
 import { readAccountFailure, resolveMessageForStatus } from "./inviteResponses";
 import { authClient } from "@/auth/authClient";

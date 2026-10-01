@@ -1,6 +1,7 @@
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render as rtlRender, screen, type RenderOptions } from "@testing-library/react";
+import { render as rtlRender, screen } from "@testing-library/react";
+import type { RenderOptions } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { PermissionContext } from "./permissionContext";
 import { TooltipProvider } from "@/components/ui/tooltip";

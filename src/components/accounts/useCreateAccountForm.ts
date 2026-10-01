@@ -1,8 +1,9 @@
 import { m } from "@/i18n";
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useMemo, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { accountClient, hasUnknownAccountCommandOutcome } from "@/account/accountClient";
 import { transitionAccount } from "@/auth/accountTransition";
-import { useAuth } from "@/auth/authContext";
+import type { useAuth } from "@/auth/authContext";
 import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
 import { isServerConfigured } from "@/data/apiConfig";
 import { useFieldError } from "@/hooks/useFieldError";

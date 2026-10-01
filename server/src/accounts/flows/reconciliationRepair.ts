@@ -1,5 +1,5 @@
 import type { AccountFlows, ReconciliationRepairKind } from "@capacitylens/shared/account/ports";
-import { readAccountCommandAndFlagStalePending } from "../commands";
+import type { readAccountCommandAndFlagStalePending } from "../commands";
 
 type RepairCoordinate = "workspaceId" | "targetPrincipalId" | "provisionalPrincipalId" | "ceremonyId";
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { MasqueradeRegistry, type MasqueradeRecord } from "./MasqueradeRegistry";
+import { MasqueradeRegistry } from "./MasqueradeRegistry";
+import type { MasqueradeRecord } from "./MasqueradeRegistry";
 
 const record = (overrides: Partial<MasqueradeRecord> = {}): MasqueradeRecord => ({
   sessionHandle: "session-1",

@@ -1,6 +1,7 @@
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
-import { useAuth, type AuthProviderInfo } from "@/auth/authContext";
+import { useAuth } from "@/auth/authContext";
+import type { AuthProviderInfo } from "@/auth/authContext";
 import { m } from "@/i18n";
 import { FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
 import { Badge } from "@/components/ui/badge";

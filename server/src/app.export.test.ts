@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { createApp as buildAppRaw } from "./app";
-import { openDb as openDbRaw, insertAll, type Db } from "./db";
+import { openDb as openDbRaw, insertAll } from "./db";
+import type { Db } from "./db";
 import { upsertMember, createInvite, newInviteId } from "./controlTables";
 import { signUp } from "./testHelpers/passwordAuth";
 import { appWithAuth } from "./fixtures/appWithAuth";
 import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 
 // Test-lock for the complete per-tenant export.
 //

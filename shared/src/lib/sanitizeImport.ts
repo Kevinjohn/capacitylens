@@ -6,9 +6,8 @@ import {
   FULL_DAY_HOURS,
   isPlaceholderResource,
   placeholderCapacityDefaults,
-  type ScopedEntityKey,
-  type Weekday,
 } from "../types/entities";
+import type { ScopedEntityKey, Weekday } from "../types/entities";
 import {
   VALID_STATUS,
   VALID_KIND,

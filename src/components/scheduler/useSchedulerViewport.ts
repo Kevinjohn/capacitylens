@@ -1,15 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type Dispatch,
-  type MutableRefObject,
-  type RefObject,
-  type SetStateAction,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from "react";
 import { eachDayISO, startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 import {
@@ -19,7 +9,8 @@ import {
   resolveColumnFit,
 } from "@/lib/schedulerConfig";
 import { buildVisibleRange } from "@/store/selectors";
-import { useStore, type SchedulerUI } from "@/store/useStore";
+import { useStore } from "@/store/useStore";
+import type { SchedulerUI } from "@/store/useStore";
 import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";
 import { LAYOUT } from "./layout";
 import { resolveWeekStartSnapTarget } from "./resolveWeekStartSnapTarget";

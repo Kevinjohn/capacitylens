@@ -11,7 +11,8 @@ import { OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, revalidateOfflineShell } from "@/da
 import { signOutAndReload } from "./signOut";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { markCompanyPickerForNextReload } from "@/lib/companyPickerEntry";
-import { buildOpenAuthResult, type AuthStatusResult } from "./authStatus";
+import { buildOpenAuthResult } from "./authStatus";
+import type { AuthStatusResult } from "./authStatus";
 import { fetchAuthStatus } from "./fetchAuthStatus";
 import { AuthenticatedExternalSignInFailure, AuthLoading, ReauthMount } from "./authScreens";
 import { useAuthContextValue } from "./useAuthContextValue";

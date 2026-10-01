@@ -1,8 +1,10 @@
-import { allowsPasswordSignIn, type MembershipStatus, type Role } from "@capacitylens/shared/account/types";
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
+import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
 import { isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { REPLY_ERRORS } from "../../../routes/replyErrors";
-import { NO_REPROMPT, type ParseResult } from "../../../routes/routeShared";
+import { NO_REPROMPT } from "../../../routes/routeShared";
+import type { ParseResult } from "../../../routes/routeShared";
 import type { AccountRoute, MemberRoute } from "../accountRouteDependencies";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAccountActor, requireAuthenticatedPrincipal } from "./authenticatedPrincipal";

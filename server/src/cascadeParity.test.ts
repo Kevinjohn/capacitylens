@@ -9,7 +9,8 @@ import {
   deleteResourceCascade,
 } from "@capacitylens/shared/lib/integrity";
 import { deleteAccountCascade } from "@capacitylens/shared/domain/mutations";
-import { deleteRow, insertAll, readState, openDb, type Db } from "./db";
+import { deleteRow, insertAll, readState, openDb } from "./db";
+import type { Db } from "./db";
 import { createSqliteAccountStore } from "./accountStore";
 
 // Cascade parity (differential test).

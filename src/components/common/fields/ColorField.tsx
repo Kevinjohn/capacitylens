@@ -1,4 +1,5 @@
-import { useState, type KeyboardEvent } from "react";
+import { useState } from "react";
+import type { KeyboardEvent } from "react";
 import { SWATCHES, SWATCH_COLUMNS, resolveSwatchLabel, resolveColorName, resolveSwatchIndex } from "@/lib/palette";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Field, FieldLabel } from "@/components/ui/field";

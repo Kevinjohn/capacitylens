@@ -12,7 +12,8 @@ import type {
   SessionSummary,
 } from "@capacitylens/shared/account/types";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
-import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "../../auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "../../auth";
+import type { Auth } from "../../auth";
 import { openDb } from "../../db";
 import { PASSWORD_ENV } from "../../testHelpers/passwordAuth";
 import { createBetterAuthIdentityPort } from "../betterAuthIdentityPort";

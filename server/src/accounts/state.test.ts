@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AccountContractError, type AccountErrorCode } from "@capacitylens/shared/account/errors";
-import { openDb, type Db } from "../db";
+import { AccountContractError } from "@capacitylens/shared/account/errors";
+import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
+import { openDb } from "../db";
+import type { Db } from "../db";
 import { buildAccountPayloadHash, beginCommand, resumeExistingCommand, terminatePendingCommand } from "./commands";
 import {
   assertAccountBoundaryStateCurrent,
@@ -16,9 +18,7 @@ import {
   recordSessionAssurance,
   reserveAccountCommand,
 } from "./state";
-
 const hash = "a".repeat(64);
-
 function getOpenTestDb(db: Db | null): Db {
   if (db === null) throw new Error("Expected the test database to be open");
   return db;

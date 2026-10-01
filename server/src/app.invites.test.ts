@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp as buildAppRaw } from "./app";
-import { openDb as openDbRaw, insertAll, readState, type Db } from "./db";
+import { openDb as openDbRaw, insertAll, readState } from "./db";
+import type { Db } from "./db";
 import {
   createInvite,
   getInvite,
@@ -17,7 +18,8 @@ import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtur
 import { insertVerifiedFederatedAccount } from "./testHelpers/federatedAccount";
 import { recordSessionAssurance } from "./accounts/state";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 

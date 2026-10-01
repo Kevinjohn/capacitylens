@@ -1,13 +1,13 @@
 import type { FastifyInstance } from "fastify";
-import {
-  MEMBER_SIGN_IN_TRACKING_RATE_LIMIT,
-  type AccountRoute,
-  type InvitationRoute,
-  type InvitationTokenRoute,
-  type MemberRoute,
-  type OwnershipTransferRequestRoute,
-  type SessionRoute,
-  type AccountRouteDependencies,
+import { MEMBER_SIGN_IN_TRACKING_RATE_LIMIT } from "./routes/accountRouteDependencies";
+import type {
+  AccountRoute,
+  InvitationRoute,
+  InvitationTokenRoute,
+  MemberRoute,
+  OwnershipTransferRequestRoute,
+  SessionRoute,
+  AccountRouteDependencies,
 } from "./routes/accountRouteDependencies";
 import { resetPassword, revokeMemberSessions } from "./routes/handlers/credentialAdmin";
 import {

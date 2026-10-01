@@ -10,7 +10,8 @@ import {
   listTimeOffApplyingTo,
 } from "@/lib/capacity";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { carriesHourlyLoad, FULL_DAY_HOURS, isCapacityTracked, type ID } from "@capacitylens/shared/types/entities";
+import { carriesHourlyLoad, FULL_DAY_HOURS, isCapacityTracked } from "@capacitylens/shared/types/entities";
+import type { ID } from "@capacitylens/shared/types/entities";
 import { resolveResourceDisplayName } from "@/lib/metadata";
 import { listAccountWorkingDays, resolveSchedulingMode, buildVisibleRange } from "@/store/selectors";
 import { useStore } from "@/store/useStore";

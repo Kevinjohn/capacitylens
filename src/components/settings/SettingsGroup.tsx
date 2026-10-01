@@ -1,4 +1,5 @@
-import { useId, type ReactNode } from "react";
+import { useId } from "react";
+import type { ReactNode } from "react";
 import { SettingsGroupContext } from "./settingsGroupContext";
 
 export function SettingsGroup({

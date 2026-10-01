@@ -1,7 +1,9 @@
-import { Fragment, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { isServerConfigured } from "@/data/apiConfig";
 import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "@/data/fetchInactiveSlice";
-import { useStore, type LifecycleEntity } from "@/store/useStore";
+import { useStore } from "@/store/useStore";
+import type { LifecycleEntity } from "@/store/useStore";
 import { useInactiveScopedData } from "@/store/useScopedData";
 import { useLifecycleActions } from "@/hooks/useLifecycleActions";
 import { useCan } from "@/auth/permissionContext";

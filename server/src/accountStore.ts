@@ -1,27 +1,20 @@
-import {
-  SCOPED_KEYS,
-  type Allocation,
-  type AppDataKey,
-  type Activity,
-  type Client,
-  type Project,
-  type Resource,
-  type ScopedEntityKey,
+import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
+import type {
+  Allocation,
+  AppDataKey,
+  Activity,
+  Client,
+  Project,
+  Resource,
+  ScopedEntityKey,
 } from "@capacitylens/shared/types/entities";
 import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
 import type { LifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
-import {
-  deleteRow,
-  getRow,
-  type CompleteAccountSlice,
-  type Db,
-  type ProjectedAccountSlice,
-  readFullSlice,
-  readSlice,
-  upsertRow,
-} from "./db";
+import { deleteRow, getRow, readFullSlice, readSlice, upsertRow } from "./db";
+import type { CompleteAccountSlice, Db, ProjectedAccountSlice } from "./db";
 import { createServerRevision } from "./revision";
-import { fromRow, type Row } from "./rowCodec";
+import { fromRow } from "./rowCodec";
+import type { Row } from "./rowCodec";
 import { resolveTable } from "./db/introspection";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 

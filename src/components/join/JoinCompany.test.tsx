@@ -2,7 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { AuthContext, type AuthContextValue } from "@/auth/authContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 import { JoinCompany } from "./JoinCompany";
 
 const authClientMock = vi.hoisted(() => ({ signInEmail: vi.fn(), verifyTotp: vi.fn(), verifyBackupCode: vi.fn() }));

@@ -8,8 +8,8 @@ import {
   SegmentedField,
   SelectField,
   TextField,
-  type Option,
 } from "@/components/common/ui";
+import type { Option } from "@/components/common/ui";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FieldError } from "@/components/ui/field";
 import { buildAllocationStatusOptions } from "@/lib/metadata";

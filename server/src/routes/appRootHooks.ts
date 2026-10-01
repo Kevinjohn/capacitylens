@@ -1,9 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { authTransactionGateFor, type GateSlot } from "../authTransactionGate";
+import { authTransactionGateFor } from "../authTransactionGate";
+import type { GateSlot } from "../authTransactionGate";
 import { AccountContractError, statusForAccountFailure } from "@capacitylens/shared/account/errors";
 import { CSP_REPORT_BODY_LIMIT } from "./systemRoutes";
 import { runWithRequestAbortSignal } from "../requestAbort";
-import { type Db } from "../db";
+import type { Db } from "../db";
 import { MAX_SERVER_CONNECTIONS, resolveSafeClientError } from "./appLimits";
 import { redactSecretUrl } from "./appLogging";
 import { resolveRequestClientIp, fail } from "./appErrors";

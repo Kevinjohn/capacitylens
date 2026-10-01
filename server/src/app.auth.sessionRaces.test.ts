@@ -13,7 +13,8 @@ import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessio
 import { call, PASSWORD_ENV, cookiesOf } from "./testHelpers/passwordAuth";
 import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 import { tx } from "./txn";
-import { authTransactionGateFor, type GateSlot } from "./authTransactionGate";
+import { authTransactionGateFor } from "./authTransactionGate";
+import type { GateSlot } from "./authTransactionGate";
 
 const TS = "2026-01-01T00:00:00.000Z";
 

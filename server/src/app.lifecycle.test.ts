@@ -2,22 +2,19 @@ import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, expect, vi } from "vitest";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify from "fastify";
+import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, type CompleteAccountSlice, type Db, type ProjectedAccountSlice } from "./db";
+import { openDb, insertAll } from "./db";
+import type { CompleteAccountSlice, Db, ProjectedAccountSlice } from "./db";
 import { upsertMember } from "./controlTables";
-import { createFileAuditSink, type AuditRecord } from "./audit";
+import { createFileAuditSink } from "./audit";
+import type { AuditRecord } from "./audit";
 import { call, signUp } from "./testHelpers/passwordAuth";
 import { appWithAuth } from "./fixtures/appWithAuth";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
-import {
-  emptyAppData,
-  type AppData,
-  type Activity,
-  type Client,
-  type Project,
-  type Resource,
-} from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData, Activity, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import type { AccountStore } from "./accountStore";

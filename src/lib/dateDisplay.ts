@@ -1,7 +1,8 @@
 import { format } from "date-fns";
 import { daysInclusive, parseDate } from "@capacitylens/shared/lib/dateMath";
 import { readActiveDateLocale, m } from "@/i18n";
-import { DATE_STYLES, DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@capacitylens/shared/types/entities";
+import { DATE_STYLES, DEFAULT_DATE_STYLE } from "@capacitylens/shared/types/entities";
+import type { DateStyle, ISODate } from "@capacitylens/shared/types/entities";
 
 // Human-readable date presentation for at-a-glance lists (e.g. the Time-off list), where a
 // reader wants "which days, how long", not a machine date. Pure display formatting only; the

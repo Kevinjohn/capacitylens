@@ -4,7 +4,7 @@ import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { PRESET_COLORS } from "@capacitylens/shared/lib/color";
-import { DomainError } from "@capacitylens/shared/domain/errors";
+import type { DomainError } from "@capacitylens/shared/domain/errors";
 import {
   DEFAULT_ACCOUNT_ID,
   makeAppData,

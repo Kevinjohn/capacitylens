@@ -1,11 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
-import {
-  allowsPasswordSignIn,
-  allowsProviderSignIn,
-  type ApplicationSession,
-} from "@capacitylens/shared/account/types";
+import { allowsPasswordSignIn, allowsProviderSignIn } from "@capacitylens/shared/account/types";
+import type { ApplicationSession } from "@capacitylens/shared/account/types";
 import { can } from "@capacitylens/shared/domain/access";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 

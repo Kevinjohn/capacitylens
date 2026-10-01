@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext, type Page } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { APIRequestContext, Page } from "./fixtures";
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
 import {
   computedStyles,

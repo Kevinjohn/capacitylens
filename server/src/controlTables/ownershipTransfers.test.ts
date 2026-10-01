@@ -3,10 +3,11 @@ import { describe, it, expect } from "vitest";
 import {
   OWNERSHIP_TRANSFER_STATES,
   OWNERSHIP_TRANSFER_TERMINAL_REASONS,
-  type OwnershipTransferRequest,
 } from "@capacitylens/shared/account/ownershipTransfer";
+import type { OwnershipTransferRequest } from "@capacitylens/shared/account/ownershipTransfer";
 import { OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS } from "@capacitylens/shared/account/ownershipTransferPolicy";
-import { openDb, wipe, type Db } from "../db";
+import { openDb, wipe } from "../db";
+import type { Db } from "../db";
 import {
   OWNERSHIP_TRANSFER_LIVE_INDEX,
   OWNERSHIP_TRANSFER_REQUESTS_V41_SQL,

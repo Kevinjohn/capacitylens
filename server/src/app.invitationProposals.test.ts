@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp as buildAppRaw } from "./app";
-import { buildCompleteAccountSlice, openDb as openDbRaw, insertAll, replaceAccountSlice, type Db, wipe } from "./db";
+import { buildCompleteAccountSlice, openDb as openDbRaw, insertAll, replaceAccountSlice, wipe } from "./db";
+import type { Db } from "./db";
 import { createAuthFromEnvironment, DEMO_USER, runAuthMigrations } from "./auth";
 import {
   createInvite as createControlInvite,
@@ -15,7 +16,8 @@ import {
   revokeInvite,
   upsertMember,
 } from "./controlTables";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { PASSWORD_ENV, call, readCookies, signUp } from "./testHelpers/passwordAuth";
 import { appWithAuth } from "./fixtures/appWithAuth";
 import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";

@@ -10,7 +10,8 @@ import {
   isScopedEntityKey,
   SCHEDULING_MODES,
 } from "@capacitylens/shared/types/entities";
-import { pinGatedFields, type SanitizeWriteOptions } from "../fieldPolicy";
+import { pinGatedFields } from "../fieldPolicy";
+import type { SanitizeWriteOptions } from "../fieldPolicy";
 import { TABLES } from "../tables";
 import { assertIdPresent, ValidationError } from "./errors";
 import { buildAcceptedWriteFields } from "./fields";

@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type RefObject } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import type { FormEvent, RefObject } from "react";
 import { isServerConfigured } from "@/data/apiConfig";
-import { createBrowserAccountCommand, type BrowserAccountCommand } from "@/account/accountClient";
+import { createBrowserAccountCommand } from "@/account/accountClient";
+import type { BrowserAccountCommand } from "@/account/accountClient";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
-import { useAuth, type AuthProviderInfo } from "@/auth/authContext";
+import { useAuth } from "@/auth/authContext";
+import type { AuthProviderInfo } from "@/auth/authContext";
 import { clearExternalSignInError, hasExternalSignInError } from "@/auth/externalSignInError";
 import type { InviteAcceptState, InvitePreview } from "./InviteAcceptView";
 import { createInvitePreviewAction } from "./invitePreviewActions";

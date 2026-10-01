@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { Page } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import {
   computedStyles,

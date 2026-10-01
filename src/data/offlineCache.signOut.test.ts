@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IDBFactory, IDBObjectStore as FakeIDBObjectStore } from "fake-indexeddb";
 
 import { seed } from "@capacitylens/shared/data/seed";
-import { SCOPED_KEYS, emptyAppData, scopedTables, type AppData } from "@capacitylens/shared/types/entities";
+import { SCOPED_KEYS, emptyAppData, scopedTables } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 
 import {
   cacheAccountSlice,

@@ -1,4 +1,5 @@
-import { createServer, get as httpGet, request as httpRequest, type RequestListener, type Server } from "node:http";
+import { createServer, get as httpGet, request as httpRequest } from "node:http";
+import type { RequestListener, Server } from "node:http";
 import { PassThrough } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRehearsalRequestHandler } from "../scripts/serve-dist.mjs";

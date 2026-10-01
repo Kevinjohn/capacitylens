@@ -5,7 +5,8 @@ import { join } from "node:path";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import { createApp } from "./app";
-import { openDb, upsertRow, type Db } from "./db";
+import { openDb, upsertRow } from "./db";
+import type { Db } from "./db";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 import {
   createCompositeAuditSink,
@@ -13,9 +14,8 @@ import {
   createNoopAuditSink,
   parseAuditConfig,
   createStreamAuditSink,
-  type AuditRecord,
-  type AuditSink,
 } from "./audit";
+import type { AuditRecord, AuditSink } from "./audit";
 
 // The CAPACITYLENS_AUDIT flag (opts.audit): an append-only JSONL line per AppData mutation,
 // {ts,userId,accountId,action,entity,id,changedFields}. The primary invariant proven here: changedFields

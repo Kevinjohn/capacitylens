@@ -3,7 +3,8 @@ import { existsSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
-import { openDbConnection, planDatabaseMigrations, type Db } from "./db";
+import { openDbConnection, planDatabaseMigrations } from "./db";
+import type { Db } from "./db";
 import {
   DEFAULT_ACCOUNT_APPLICATION,
   RESET_LINK_TTL_SECONDS,
@@ -12,8 +13,8 @@ import {
   mintPasswordResetToken,
   planAuthSchemaMigrations,
   revokeResetTokensForUser,
-  type Auth,
 } from "./auth";
+import type { Auth } from "./auth";
 import { assertAccountControlPlaneCurrent, listSoleOwnerAccountIds } from "./accounts/sqliteAccountAdminPort";
 import { assertAuditOutboxCurrent, enqueueAudit } from "./auditOutbox";
 import { resolveAccountEnvironment } from "./accountConfig";

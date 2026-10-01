@@ -1,7 +1,8 @@
 import type { ISOTimestamp, Resource } from "../../types/entities";
 import { parseISOTimestamp } from "../../lib/integrity";
 import { shortIdTag } from "../privateNames";
-import { lifecycleStatus, isValidTombstone, PURGE_MIN_AGE_MS, type LifecycleFields } from "./types";
+import { lifecycleStatus, isValidTombstone, PURGE_MIN_AGE_MS } from "./types";
+import type { LifecycleFields } from "./types";
 
 /**
  * May this entity be archived? Pure affordance predicate, true iff the entity is currently

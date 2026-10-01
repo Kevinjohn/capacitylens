@@ -7,7 +7,7 @@ import {
   INTERNAL_CLIENT_COLOR,
 } from "@capacitylens/shared/data/internalClient";
 import { insertRowRaw } from "./rows";
-import { type Row } from "../rowCodec";
+import type { Row } from "../rowCodec";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import {
   V22_INACTIVE_BUILTIN_CLIENT_WHERE_SQL,

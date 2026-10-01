@@ -11,8 +11,8 @@ import {
   canManageMemberRole as canManageCanonicalMemberRole,
   canRemoveMember as canRemoveCanonicalMember,
   isAtLeast as isAtLeastCanonicalRole,
-  type AccountAdminAction,
 } from "../account/policy";
+import type { AccountAdminAction } from "../account/policy";
 export type { Role } from "../account/types";
 
 /**

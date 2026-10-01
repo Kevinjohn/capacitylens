@@ -4,16 +4,11 @@ import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingW
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from "@/lib/metadata";
 import { buildExternalBand, buildDisciplineGroups, hasSupplementaryResources } from "@/store/selectors";
-import {
-  isCapacityTracked,
-  isExternalResource,
-  type AppData,
-  type ISODate,
-  type Resource,
-  type Weekday,
-} from "@capacitylens/shared/types/entities";
+import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
+import type { AppData, ISODate, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import { NEUTRAL_COLOR } from "@/lib/palette";
-import { packLanes, resolveLaneTop, resolveRowHeightForLanes, type LaneLayout } from "@/lib/lanePacking";
+import { packLanes, resolveLaneTop, resolveRowHeightForLanes } from "@/lib/lanePacking";
+import type { LaneLayout } from "@/lib/lanePacking";
 import { laneLayout as compactLaneLayout } from "./layout";
 import {
   createDisplayNameComparator,

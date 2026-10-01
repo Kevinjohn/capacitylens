@@ -1,21 +1,13 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type RefObject,
-  type SetStateAction,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import { m } from "@/i18n";
-import {
-  teamAccessClient,
-  type OwnershipTransferOutcomeView,
-  type OwnershipTransferTerminalView,
-  type OwnershipTransferProjectionView,
-  type TeamAccessResult,
-  type TeamMember,
+import { teamAccessClient } from "@/account/teamAccessClient";
+import type {
+  OwnershipTransferOutcomeView,
+  OwnershipTransferTerminalView,
+  OwnershipTransferProjectionView,
+  TeamAccessResult,
+  TeamMember,
 } from "@/account/teamAccessClient";
 import { resolveRejectionMessage } from "@/account/accessResult";
 import type { OwnershipTransferStep } from "@/account/accountClient";

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { defaultTimeOffRepeatUntilDate, maximumTimeOffRepeatUntilDate } from "@capacitylens/shared/lib/repeatingDates";
 import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
-import { buildRepeatedTimeOffDrafts, type TimeOffRepeatSelection } from "@/lib/repeatingTimeOff";
+import { buildRepeatedTimeOffDrafts } from "@/lib/repeatingTimeOff";
+import type { TimeOffRepeatSelection } from "@/lib/repeatingTimeOff";
 import type { Draft } from "@/store/useStore";
 
 export type TimeOffRepeatChoice = "none" | TimeOffRepeatSelection;

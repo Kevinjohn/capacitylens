@@ -1,6 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { serializeData } from "@capacitylens/shared/data/transfer";
 import { attachPersistence, ReloadDiscardedEditError } from "@/data/persist";
 import { InMemoryDemoAdapter } from "@/data/InMemoryDemoAdapter";

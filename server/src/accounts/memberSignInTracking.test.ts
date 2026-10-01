@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { setMemberStatus, upsertMember } from "../controlTables";
-import { openDb, type Db } from "../db";
+import { openDb } from "../db";
+import type { Db } from "../db";
 import {
   clearTrackedMemberSignIn,
   confirmTrackedMemberSignIn,

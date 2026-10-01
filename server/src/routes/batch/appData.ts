@@ -1,4 +1,5 @@
-import { APP_DATA_KEYS, type AppData } from "@capacitylens/shared/types/entities";
+import { APP_DATA_KEYS } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { resolveTable } from "../../db/introspection";
 
 /** Append one complete account slice to a request-local validation projection. */

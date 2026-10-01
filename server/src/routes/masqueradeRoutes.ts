@@ -1,22 +1,16 @@
 import type { EffectiveRoleResult } from "./appAuthorization";
-import { NO_REPROMPT, type AuthorizeRouteInput, type ParseResult } from "./routeShared";
+import { NO_REPROMPT } from "./routeShared";
+import type { AuthorizeRouteInput, ParseResult } from "./routeShared";
 import { REPLY_ERRORS } from "./replyErrors";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { AccountMode, Role } from "@capacitylens/shared/account/types";
 import type { AccountAuditPort, IdentityPort } from "@capacitylens/shared/account/ports";
-import {
-  MASQUERADE_ERROR_CODES,
-  type MasqueradeEndReason,
-  type MasqueradeState,
-} from "@capacitylens/shared/domain/masquerade";
+import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
+import type { MasqueradeEndReason, MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 import { cleanText } from "@capacitylens/shared/lib/strings";
-import {
-  MasqueradeAlreadyActiveError,
-  MasqueradeRegistry,
-  type MasqueradeRecord,
-  type StoredMasqueradeRecord,
-} from "../MasqueradeRegistry";
+import { MasqueradeAlreadyActiveError } from "../MasqueradeRegistry";
+import type { MasqueradeRecord, StoredMasqueradeRecord, MasqueradeRegistry } from "../MasqueradeRegistry";
 
 /** Dependencies required by the session-scoped masquerade HTTP adapter. */
 export interface MasqueradeRouteDependencies {

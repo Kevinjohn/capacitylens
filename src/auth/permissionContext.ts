@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
-import { can, type Action, type Role } from "@capacitylens/shared/domain/access";
+import { can } from "@capacitylens/shared/domain/access";
+import type { Action, Role } from "@capacitylens/shared/domain/access";
 import { useStore } from "@/store/useStore";
 
 // Client permission context, kept separate from PermissionProvider so this

@@ -1,5 +1,6 @@
 import { m } from "@/i18n";
-import { DomainError, type DomainErrorCode } from "@capacitylens/shared/domain/errors";
+import { DomainError } from "@capacitylens/shared/domain/errors";
+import type { DomainErrorCode } from "@capacitylens/shared/domain/errors";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 
 // One entry per DomainErrorCode. The values are uncalled message references. This table is built

@@ -1,8 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { createElement, type ReactNode } from "react";
+import { createElement } from "react";
+import type { ReactNode } from "react";
 import { useDemoAuthActive, FAKE_USER } from "./fakeAuth";
-import { AuthContext, type AuthContextValue } from "@/auth/authContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 
 vi.mock("@/data/apiConfig", () => ({ isDemoMode: () => true }));
 

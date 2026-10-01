@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { APIRequestContext } from "./fixtures";
 import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,

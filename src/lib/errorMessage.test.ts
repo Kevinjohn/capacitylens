@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { resolveErrorMessage, resolveDomainErrorMessage } from "./errorMessage";
-import { DomainError, type DomainErrorCode } from "@capacitylens/shared/domain/errors";
+import { DomainError } from "@capacitylens/shared/domain/errors";
+import type { DomainErrorCode } from "@capacitylens/shared/domain/errors";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 
 describe("errorMessage", () => {

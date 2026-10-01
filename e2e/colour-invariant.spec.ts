@@ -1,4 +1,5 @@
-import { test, expect, type Locator } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { Locator } from "./fixtures";
 import { openApp, resetSchedulerScroll, setZoom } from "./browserTestSupport";
 
 // The hard colour invariant, end-to-end (Phase 9 verification). CapacityLens allows colour to be

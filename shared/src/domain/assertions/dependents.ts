@@ -4,19 +4,15 @@ import {
   withoutAllocationAttribution,
   validateAllocationAssignment,
   validateDateRange,
-  type ValidationResult,
 } from "../../lib/integrity";
+import type { ValidationResult } from "../../lib/integrity";
 import { isExternalResource } from "../../types/entities";
 import type { Activity, Allocation, AppData, ID, ISODate, Resource, TimeOff } from "../../types/entities";
 import { belongsToAccount } from "../tenancy";
-import { throwDomainError, type DomainErrorCode } from "../errors";
-import {
-  resolveOwnedRow,
-  listValidationAllocations,
-  assertValid,
-  isEffectivelyActive,
-  type ValidationDataLookup,
-} from "../validationLookup";
+import { throwDomainError } from "../errors";
+import type { DomainErrorCode } from "../errors";
+import { resolveOwnedRow, listValidationAllocations, assertValid, isEffectivelyActive } from "../validationLookup";
+import type { ValidationDataLookup } from "../validationLookup";
 
 interface AssertAllocationPairStaysValidOptions {
   data: AppData;

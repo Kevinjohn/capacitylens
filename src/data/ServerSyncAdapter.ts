@@ -1,6 +1,6 @@
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
 import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
-import { type AllocationRewriteRevision, type PersistenceAdapter } from "./PersistenceAdapter";
+import type { AllocationRewriteRevision, PersistenceAdapter } from "./PersistenceAdapter";
 import {
   KEEPALIVE_BODY_BUDGET,
   KEEPALIVE_REQUEST_OVERHEAD_BUDGET,
@@ -15,7 +15,8 @@ import {
   splitLifecycleDeletes,
 } from "./sync/lifecycleOps";
 import { loadAll, readHasExistingData } from "./sync/loadSlice";
-import { applyCommittedRevisions, writeRows, type BatchCommitReceipt } from "./sync/revisions";
+import { applyCommittedRevisions, writeRows } from "./sync/revisions";
+import type { BatchCommitReceipt } from "./sync/revisions";
 import {
   canonicalizeAcknowledged,
   pruneAcknowledgedRevisions,
@@ -23,7 +24,8 @@ import {
   rememberRevisions,
 } from "./sync/snapshot";
 import { SyncState } from "./sync/SyncState";
-import { diffOps, diffOpsFromPossibleBases, type Op } from "./syncOps";
+import { diffOps, diffOpsFromPossibleBases } from "./syncOps";
+import type { Op } from "./syncOps";
 
 // diffOps/applyOps now live in ./syncOps (the pure diff/apply core). Re-exported here
 // so existing import sites (e.g. ServerSyncAdapter.test.ts) keep resolving them from

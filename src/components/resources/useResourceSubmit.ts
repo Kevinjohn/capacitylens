@@ -7,14 +7,8 @@ import { DEFAULT_COLORS } from "@/lib/palette";
 import { parseText, validateWorkingDays } from "@/lib/validation";
 import type { StoreState } from "@/store/types";
 import { m } from "@/i18n";
-import {
-  FULL_DAY_HOURS,
-  placeholderCapacityDefaults,
-  type Resource,
-  type ResourceEngagement,
-  type ResourceKind,
-  type Weekday,
-} from "@capacitylens/shared/types/entities";
+import { FULL_DAY_HOURS, placeholderCapacityDefaults } from "@capacitylens/shared/types/entities";
+import type { Resource, ResourceEngagement, ResourceKind, Weekday } from "@capacitylens/shared/types/entities";
 
 /** Editable values submitted by the person or placeholder form. */
 export type ResourceSubmitDraft = {

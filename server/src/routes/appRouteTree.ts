@@ -1,6 +1,6 @@
 import type { LifecycleRedactionInput } from "./lifecycleRoutes";
 import type { FastifyInstance } from "fastify";
-import { type SsoCutoverIdentityPort } from "../accounts/betterAuthIdentityPort";
+import type { SsoCutoverIdentityPort } from "../accounts/betterAuthIdentityPort";
 import { registerFederatedIdentityRoutes } from "../accounts/federatedIdentityRoutes";
 import { registerAccountRoutes } from "../accounts/accountRoutes";
 import { registerExampleDataRoutes } from "./exampleDataRoutes";
@@ -10,7 +10,8 @@ import { registerLifecycleRoutes } from "./lifecycleRoutes";
 import { registerAuthProxyRoutes } from "./authProxyRoutes";
 import { registerMicrosoftProofRoutes } from "./microsoftProofRoutes";
 import { registerJoiningProofRoutes } from "./joiningProofRoutes";
-import { withSendBudget, type MailSender } from "../authConfig/mailSender";
+import { withSendBudget } from "../authConfig/mailSender";
+import type { MailSender } from "../authConfig/mailSender";
 import { registerBatchRoutes } from "./batchRoutes";
 import { registerEntityRoutes } from "./entityRoutes";
 import { registerImportRoutes } from "./importRoutes";
@@ -19,7 +20,8 @@ import { registerSystemRoutes } from "./systemRoutes";
 import { isStaleWrite, ownsRow } from "./routeShared";
 import { registerMasqueradeRoutes } from "./masqueradeRoutes";
 import { registerAccountEntityRoutes } from "./accountEntityRoutes";
-import { type Db, isInitialized } from "../db";
+import { isInitialized } from "../db";
+import type { Db } from "../db";
 import { enqueueAudit } from "../auditOutbox";
 import {
   toWebHeaders,

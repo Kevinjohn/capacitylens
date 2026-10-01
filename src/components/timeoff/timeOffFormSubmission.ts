@@ -9,7 +9,8 @@ import { resolveErrorMessage } from "@/lib/errorMessage";
 import { isStaleEdit } from "@/lib/isStaleEdit";
 import { buildRepeatedTimeOffDrafts } from "@/lib/repeatingTimeOff";
 import { parseText } from "@/lib/validation";
-import { useStore, type Draft } from "@/store/useStore";
+import { useStore } from "@/store/useStore";
+import type { Draft } from "@/store/useStore";
 import type { TimeOffRepeatChoice } from "./useTimeOffRepeat";
 
 type Fail = (field: string | null, message: string) => void;
