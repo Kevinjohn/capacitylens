@@ -1,8 +1,8 @@
 import type { Db } from "../../db";
-import { TENANT_ENTITY_INDEXES_V34_SQL, assertTenantEntityIndexesCurrent } from "../../tenantIndexes";
+import { ACCOUNT_ENTITY_INDEXES_V34_SQL, assertAccountEntityIndexesCurrent } from "../../accountIndexes";
 import { assertSchemaV39, assertSchemaV40 } from "../../schema";
 import { tableHasColumns } from "../introspection";
-import { CLOSURE_TENANT_INTEGRITY_V34_SQL, assertTenantRelationshipIntegrityCurrent } from "../../tenantIntegrity";
+import { CLOSURE_ACCOUNT_INTEGRITY_V34_SQL, assertAccountRelationshipIntegrityCurrent } from "../../accountIntegrity";
 /**
  * Frozen preset palette for the v13 `snap-legacy-account-colors` migration, a byte-for-byte copy of
  * shared `PRESET_COLORS` as it stood when v13 was authored. A checksummed migration must stay
@@ -138,8 +138,8 @@ export function runAccountDateStyleV40(db: Db): void {
     db.exec("ALTER TABLE accounts ADD COLUMN dateStyle TEXT;");
   }
   assertSchemaV40(db);
-  assertTenantRelationshipIntegrityCurrent(db);
-  assertTenantEntityIndexesCurrent(db);
+  assertAccountRelationshipIntegrityCurrent(db);
+  assertAccountEntityIndexesCurrent(db);
 }
 
 // The one copy of the rebuild SQL: executed by the migration below and hashed into its ledger
@@ -225,8 +225,8 @@ export const COMPANY_CLOSURES_V34_DEFINITION = [
   TIME_OFF_REBUILD_V34_SQL,
   "recreate:captured-indexes-and-triggers:v1",
   CLOSURES_V34_SQL,
-  TENANT_ENTITY_INDEXES_V34_SQL,
-  CLOSURE_TENANT_INTEGRITY_V34_SQL,
+  ACCOUNT_ENTITY_INDEXES_V34_SQL,
+  CLOSURE_ACCOUNT_INTEGRITY_V34_SQL,
 ].join("\n");
 
 export function migrateCompanyClosuresV34(db: Db): void {
@@ -242,6 +242,6 @@ export function migrateCompanyClosuresV34(db: Db): void {
   db.exec(TIME_OFF_REBUILD_V34_SQL);
   for (const { sql } of schemaObjects) db.exec(sql);
   db.exec(CLOSURES_V34_SQL);
-  db.exec(TENANT_ENTITY_INDEXES_V34_SQL);
-  db.exec(CLOSURE_TENANT_INTEGRITY_V34_SQL);
+  db.exec(ACCOUNT_ENTITY_INDEXES_V34_SQL);
+  db.exec(CLOSURE_ACCOUNT_INTEGRITY_V34_SQL);
 }

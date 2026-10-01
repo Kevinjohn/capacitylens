@@ -47,10 +47,10 @@ import {
 } from "./migrationPreservation";
 import {
   FOREIGN_KEY_CHILD_INDEXES_V23,
-  TENANT_ENTITY_ACCOUNT_INDEXES_V21,
-  TENANT_ENTITY_INDEXES_V21_SQL,
-  assertTenantEntityIndexesCurrent,
-} from "./tenantIndexes";
+  ACCOUNT_ENTITY_INDEXES_V21,
+  ACCOUNT_ENTITY_INDEXES_V21_SQL,
+  assertAccountEntityIndexesCurrent,
+} from "./accountIndexes";
 
 // Migration cases perform filesystem and database work; coverage can exceed the default 5 seconds.
 // Keep extra headroom local to this file in both shard and coverage runs.
@@ -739,7 +739,7 @@ function replaceEntityTable(db: DatabaseSync, table: string, transform: (sql: st
 }
 
 function dropTenantEntityIndexes(db: DatabaseSync): void {
-  for (const { index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) db.exec(`DROP INDEX ${index}`);
+  for (const { index } of ACCOUNT_ENTITY_INDEXES_V21) db.exec(`DROP INDEX ${index}`);
 }
 
 function dropAllocationProjectAttribution(db: DatabaseSync): void {
@@ -2458,12 +2458,12 @@ describe("schema migration of an existing on-disk DB", () => {
     ]);
 
     initializeOpenDb(db, ":memory:");
-    expect(() => assertTenantEntityIndexesCurrent(db)).not.toThrow();
+    expect(() => assertAccountEntityIndexesCurrent(db)).not.toThrow();
     const installed = (
       db.prepare(`SELECT name FROM sqlite_master WHERE type = 'index'`).all() as Array<{ name: string }>
     ).map(({ name }) => name);
-    expect(installed).toEqual(expect.arrayContaining(TENANT_ENTITY_ACCOUNT_INDEXES_V21.map(({ index }) => index)));
-    expect(TENANT_ENTITY_INDEXES_V21_SQL).toContain("idx_allocations_accountId");
+    expect(installed).toEqual(expect.arrayContaining(ACCOUNT_ENTITY_INDEXES_V21.map(({ index }) => index)));
+    expect(ACCOUNT_ENTITY_INDEXES_V21_SQL).toContain("idx_allocations_accountId");
     db.close();
   });
 });
@@ -2599,7 +2599,7 @@ describe("schema migration of an existing on-disk DB", () => {
     ]);
 
     initializeOpenDb(db, ":memory:");
-    expect(() => assertTenantEntityIndexesCurrent(db)).not.toThrow();
+    expect(() => assertAccountEntityIndexesCurrent(db)).not.toThrow();
     const installed = new Set(
       (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'index'`).all() as Array<{ name: string }>).map(
         ({ name }) => name,

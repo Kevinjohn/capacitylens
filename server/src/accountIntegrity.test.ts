@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DatabaseSync } from "node:sqlite";
 import { openDb } from "./db";
-import { assertTenantRelationshipIntegrityCurrent } from "./tenantIntegrity";
+import { assertAccountRelationshipIntegrityCurrent } from "./accountIntegrity";
 
 const TS = "2026-01-01T00:00:00.000Z";
 let db: DatabaseSync;
@@ -128,7 +128,7 @@ describe("tenant account identifier integrity", () => {
       CREATE TRIGGER capacitylens_tenant_allocations_resourceId_insert
       BEFORE INSERT ON allocations BEGIN SELECT 1; END;
     `);
-    expect(() => assertTenantRelationshipIntegrityCurrent(db)).toThrow(
+    expect(() => assertAccountRelationshipIntegrityCurrent(db)).toThrow(
       /first mismatch capacitylens_tenant_allocations_resourceId_insert/,
     );
   });

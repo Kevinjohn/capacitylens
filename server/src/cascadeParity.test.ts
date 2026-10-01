@@ -10,14 +10,14 @@ import {
 } from "@capacitylens/shared/lib/integrity";
 import { deleteAccountCascade } from "@capacitylens/shared/domain/mutations";
 import { deleteRow, insertAll, readState, openDb, type Db } from "./db";
-import { createSqliteTenantStore } from "./tenantStore";
+import { createSqliteAccountStore } from "./accountStore";
 
 // CASCADE parity (differential test).
 //
 // Delete semantics live in three places that can silently drift apart:
 //   1. the shared TS `delete*Cascade` transforms (shared/src/lib/integrity.ts) the demo-build store uses,
 //   2. the SQLite FK ON DELETE CASCADE / SET NULL clauses (tables.ts SCHEMA_V8_SQL),
-//   3. the bespoke restamp SQL in purgeLifecycleRow (tenantStore.ts) that bumps updatedAt on the
+//   3. the bespoke restamp SQL in purgeLifecycleRow (accountStore.ts) that bumps updatedAt on the
 //      survivors SQLite silently unbinds.
 // A rule changed in one place but not the others makes a local delete and a server purge leave
 // different surviving rows, so a syncing client sees orphaned or resurrected children.
@@ -195,7 +195,7 @@ function withSeededDb<T>(use: (db: Db) => T): T {
 
 /**
  * Run the same delete both ways and compare the survivors.
- * @param sql  the real database path, a purge through the TenantStore, or a plain deleteRow for a
+ * @param sql  the real database path, a purge through the AccountStore, or a plain deleteRow for a
  * table with no lifecycle purge (where only the FK clauses act).
  */
 function expectParity(
@@ -211,7 +211,7 @@ function expectParity(
 }
 
 const purge = (entity: "resources" | "clients" | "projects", id: string) => (db: Db) => {
-  const result = createSqliteTenantStore(db).purgeLifecycleRow(ACCOUNT, entity, id);
+  const result = createSqliteAccountStore(db).purgeLifecycleRow(ACCOUNT, entity, id);
   // A null result means the row was not found/owned. The parity assertion would then trivially
   // "pass" against an untouched database, so fail loudly here instead.
   expect(result).not.toBeNull();

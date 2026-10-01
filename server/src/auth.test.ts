@@ -27,7 +27,7 @@ const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
   identityHasAnyPrincipal: () => countUsers(db) !== 0,
   hasLivePreauthorizedInvitation: (email: string) => hasLivePreauthorizedInvitation(db, email),
 });
-import { TENANT_ENTITY_ACCOUNT_INDEXES_V21 } from "./tenantIndexes";
+import { ACCOUNT_ENTITY_INDEXES_V21 } from "./accountIndexes";
 import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 
@@ -532,7 +532,7 @@ const registerStartupDiscoveryFailureTest = () => {
 const registerStartupMigrationPlanningTest = () => {
   it("plans both the app-owned control migration and Better Auth DDL before executing either", async () => {
     const db = openDb(":memory:");
-    for (const { index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) db.exec(`DROP INDEX ${index}`);
+    for (const { index } of ACCOUNT_ENTITY_INDEXES_V21) db.exec(`DROP INDEX ${index}`);
     db.exec(`
       DROP TABLE capacitylens_bootstrap_claim;
       DROP TABLE microsoft_identity_proofs;

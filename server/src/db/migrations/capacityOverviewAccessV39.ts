@@ -1,6 +1,6 @@
 import { assertSchemaV38, assertSchemaV39 } from "../../schema";
-import { assertTenantRelationshipIntegrityCurrent } from "../../tenantIntegrity";
-import { assertTenantEntityIndexesCurrent } from "../../tenantIndexes";
+import { assertAccountRelationshipIntegrityCurrent } from "../../accountIntegrity";
+import { assertAccountEntityIndexesCurrent } from "../../accountIndexes";
 import { tableHasColumns } from "../introspection";
 import { defineMigration } from "../migrationLedger";
 import { CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION } from "./definitions";
@@ -15,7 +15,7 @@ export const CAPACITY_OVERVIEW_ACCESS_V39_MIGRATION = defineMigration(
       db.exec("ALTER TABLE accounts ADD COLUMN capacityOverviewAccess TEXT;");
     }
     assertSchemaV39(db);
-    assertTenantRelationshipIntegrityCurrent(db);
-    assertTenantEntityIndexesCurrent(db);
+    assertAccountRelationshipIntegrityCurrent(db);
+    assertAccountEntityIndexesCurrent(db);
   },
 );

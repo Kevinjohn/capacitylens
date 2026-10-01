@@ -4,7 +4,7 @@ import type { Role } from "@capacitylens/shared/account/types";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { KeyedOperationLock } from "../accounts/KeyedOperationLock";
 import type { Db } from "../db";
-import type { TenantStore } from "../tenantStore";
+import type { AccountStore } from "../accountStore";
 import { deferred } from "../testHelpers/deferred";
 import { registerImportRoutes, type ImportRouteDependencies } from "./importRoutes";
 
@@ -47,7 +47,7 @@ function createRaceHarness(nextRole: Role | null) {
   });
   const dependencies: ImportRouteDependencies = {
     db: {} as Db,
-    store: { readFullSlice: () => currentSlice } as unknown as TenantStore,
+    store: { readFullSlice: () => currentSlice } as unknown as AccountStore,
     authMode: "password-only",
     allowReset: false,
     accountAdminPort: {

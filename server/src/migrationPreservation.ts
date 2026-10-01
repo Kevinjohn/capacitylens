@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import { DATABASE_MIGRATION_TABLE } from "./db";
-import { quoteIdentifier } from "./tenantIndexes";
+import { quoteIdentifier } from "./accountIndexes";
 
 type Cell = string | number | bigint | null | Uint8Array;
 type SnapshotRow = Record<string, Cell>;

@@ -5,7 +5,7 @@ import { type AppDataKey } from "@capacitylens/shared/types/entities";
 import { deleteRow, getRow, upsertRow } from "../../db";
 import { createServerRevision } from "../../revision";
 import { isSameSessionSuccessor } from "../../syncOrdering";
-import type { LifecycleRow } from "../../tenantStore";
+import type { LifecycleRow } from "../../accountStore";
 import { listAppliedRequestedFieldNames, sanitizeWrite, assertValidWrite, ValidationError } from "../../validate";
 import {
   resolveBuiltinWriteRejection,

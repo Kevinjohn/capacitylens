@@ -12,7 +12,7 @@
 //                                                     shared/src/domain/mutations.ts, not integrity.ts)
 //
 // SET NULL alone only unbinds; it does not bump the survivor's updatedAt, so an admin purge restamps
-// those rows itself (purgeLifecycleRow in tenantStore.ts) and a sync client observes the edit. This
+// those rows itself (purgeLifecycleRow in accountStore.ts) and a sync client observes the edit. This
 // mapping is a comment, so cascadeParity.test.ts is what actually holds the two sides together: it
 // runs one fixture through the shared transforms and through this schema (+ purge) and diffs the
 // survivors. Change a rule here or there and that suite fails.

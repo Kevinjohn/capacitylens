@@ -2,7 +2,7 @@
 
 **Area:** Privacy / whole app · **Persona:** Account owner and agency member · **Coverage:**
 `server/src/app.authz.test.ts` → "private client/project names — owner-only server projection";
-`server/src/db.tenantStore.test.ts`; client/project/list/archived component tests (manual
+`server/src/db.accountStore.test.ts`; client/project/list/archived component tests (manual
 cross-surface pass until a dedicated auth-backed E2E is added)
 
 ## Goal

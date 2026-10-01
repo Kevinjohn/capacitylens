@@ -53,16 +53,16 @@ import {
 import { ACCOUNT_BOUNDARY_STATE_V15_SQL, assertAccountBoundaryStateCurrent } from "../../accounts/state";
 import { AUDIT_OUTBOX_SQL, assertAuditOutboxCurrent } from "../../auditOutbox";
 import { SYNC_ORDERING_SQL, assertSyncOrderingCurrent } from "../../syncOrdering";
-import { TENANT_RELATIONSHIP_INTEGRITY_V19_SQL, assertTenantRelationshipIntegrityV19 } from "../../tenantIntegrity";
-import { assertTenantRelationshipIntegrityV34 } from "../../tenantIntegrity";
-import { ALLOCATION_PROJECT_TENANT_INTEGRITY_V35_SQL } from "../../tenantIntegrity";
-import { assertTenantRelationshipIntegrityCurrent } from "../../tenantIntegrity";
+import { ACCOUNT_RELATIONSHIP_INTEGRITY_V19_SQL, assertAccountRelationshipIntegrityV19 } from "../../accountIntegrity";
+import { assertAccountRelationshipIntegrityV34 } from "../../accountIntegrity";
+import { ALLOCATION_PROJECT_ACCOUNT_INTEGRITY_V35_SQL } from "../../accountIntegrity";
+import { assertAccountRelationshipIntegrityCurrent } from "../../accountIntegrity";
 import { BOOTSTRAP_CLAIM_V20_DEFINITION, migrateBootstrapClaimV20 } from "../../bootstrapClaim";
 import { assertBootstrapClaimCurrent } from "../../bootstrapClaim";
-import { TENANT_ENTITY_INDEXES_V21_SQL, assertTenantAccountIndexesV21 } from "../../tenantIndexes";
-import { FOREIGN_KEY_CHILD_INDEXES_V23_SQL, assertTenantEntityIndexesV23 } from "../../tenantIndexes";
-import { assertTenantEntityIndexesV34, ALLOCATION_PROJECT_INDEX_V35_SQL } from "../../tenantIndexes";
-import { assertTenantEntityIndexesCurrent } from "../../tenantIndexes";
+import { ACCOUNT_ENTITY_INDEXES_V21_SQL, assertAccountIndexesV21 } from "../../accountIndexes";
+import { FOREIGN_KEY_CHILD_INDEXES_V23_SQL, assertAccountEntityIndexesV23 } from "../../accountIndexes";
+import { assertAccountEntityIndexesV34, ALLOCATION_PROJECT_INDEX_V35_SQL } from "../../accountIndexes";
+import { assertAccountEntityIndexesCurrent } from "../../accountIndexes";
 import {
   FEDERATED_IDENTITY_V25_DEFINITION,
   migrateFederatedIdentityV25,
@@ -171,21 +171,21 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   defineMigration(
     19,
     "enforce-tenant-relationship-integrity",
-    [TENANT_RELATIONSHIP_INTEGRITY_V19_SQL, "assert:no-cross-account-existing-relationships:v1"].join(
+    [ACCOUNT_RELATIONSHIP_INTEGRITY_V19_SQL, "assert:no-cross-account-existing-relationships:v1"].join(
       "\n-- migration component --\n",
     ),
     (db) => {
-      db.exec(TENANT_RELATIONSHIP_INTEGRITY_V19_SQL);
-      assertTenantRelationshipIntegrityV19(db);
+      db.exec(ACCOUNT_RELATIONSHIP_INTEGRITY_V19_SQL);
+      assertAccountRelationshipIntegrityV19(db);
     },
   ),
   defineMigration(20, "version-bootstrap-claim-control", BOOTSTRAP_CLAIM_V20_DEFINITION, (db) => {
     migrateBootstrapClaimV20(db);
     assertBootstrapClaimCurrent(db);
   }),
-  defineMigration(21, "index-tenant-entity-slices", TENANT_ENTITY_INDEXES_V21_SQL, (db) => {
-    db.exec(TENANT_ENTITY_INDEXES_V21_SQL);
-    assertTenantAccountIndexesV21(db);
+  defineMigration(21, "index-tenant-entity-slices", ACCOUNT_ENTITY_INDEXES_V21_SQL, (db) => {
+    db.exec(ACCOUNT_ENTITY_INDEXES_V21_SQL);
+    assertAccountIndexesV21(db);
   }),
   defineMigration(22, "reactivate-builtin-internal-clients", V22_DEFINITION, (db) => {
     reactivateBuiltinInternalClientsV22(db);
@@ -193,7 +193,7 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   }),
   defineMigration(23, "index-foreign-key-children", FOREIGN_KEY_CHILD_INDEXES_V23_SQL, (db) => {
     db.exec(FOREIGN_KEY_CHILD_INDEXES_V23_SQL);
-    assertTenantEntityIndexesV23(db);
+    assertAccountEntityIndexesV23(db);
   }),
   defineMigration(24, "bound-used-invitation-history", USED_INVITATION_RETENTION_V24_DEFINITION, (db) => {
     migrateUsedInvitationHistoryV24(db);
@@ -304,14 +304,14 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   defineMigration(33, "allow-company-wide-time-off", TIME_OFF_RESOURCE_NULLABLE_V33_DEFINITION, (db) => {
     migrateTimeOffResourceNullableV33(db);
     assertSchemaV33(db);
-    assertTenantRelationshipIntegrityV19(db);
-    assertTenantEntityIndexesV23(db);
+    assertAccountRelationshipIntegrityV19(db);
+    assertAccountEntityIndexesV23(db);
   }),
   defineMigration(34, "separate-company-closures", COMPANY_CLOSURES_V34_DEFINITION, (db) => {
     migrateCompanyClosuresV34(db);
     assertSchemaV34(db);
-    assertTenantRelationshipIntegrityV34(db);
-    assertTenantEntityIndexesV34(db);
+    assertAccountRelationshipIntegrityV34(db);
+    assertAccountEntityIndexesV34(db);
   }),
   defineMigration(
     35,
@@ -319,18 +319,18 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     [
       "guard:PRAGMA table_info(allocations):projectId-missing",
       "ALTER TABLE allocations ADD COLUMN projectId TEXT REFERENCES projects(id) ON DELETE SET NULL;",
-      ALLOCATION_PROJECT_TENANT_INTEGRITY_V35_SQL,
+      ALLOCATION_PROJECT_ACCOUNT_INTEGRITY_V35_SQL,
       ALLOCATION_PROJECT_INDEX_V35_SQL,
     ].join("\n"),
     (db) => {
       if (!tableHasColumns(db, "allocations", ["projectId"])) {
         db.exec("ALTER TABLE allocations ADD COLUMN projectId TEXT REFERENCES projects(id) ON DELETE SET NULL;");
       }
-      db.exec(ALLOCATION_PROJECT_TENANT_INTEGRITY_V35_SQL);
+      db.exec(ALLOCATION_PROJECT_ACCOUNT_INTEGRITY_V35_SQL);
       db.exec(ALLOCATION_PROJECT_INDEX_V35_SQL);
       assertSchemaV35(db);
-      assertTenantRelationshipIntegrityCurrent(db);
-      assertTenantEntityIndexesCurrent(db);
+      assertAccountRelationshipIntegrityCurrent(db);
+      assertAccountEntityIndexesCurrent(db);
     },
   ),
   defineMigration(36, "add-activity-lifecycle", ACTIVITY_LIFECYCLE_V36_DEFINITION, (db) => {
@@ -338,8 +338,8 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       if (!tableHasColumns(db, "activities", [column])) db.exec(`ALTER TABLE activities ADD COLUMN ${column} TEXT;`);
     }
     assertSchemaV36(db);
-    assertTenantRelationshipIntegrityCurrent(db);
-    assertTenantEntityIndexesCurrent(db);
+    assertAccountRelationshipIntegrityCurrent(db);
+    assertAccountEntityIndexesCurrent(db);
   }),
   defineMigration(37, "add-allocation-task-field", ALLOCATION_TASK_V37_DEFINITION, (db) => {
     if (!tableHasColumns(db, "accounts", ["showTaskFieldInSchedule"])) {
@@ -349,8 +349,8 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       db.exec("ALTER TABLE allocations ADD COLUMN task TEXT;");
     }
     assertSchemaV37(db);
-    assertTenantRelationshipIntegrityCurrent(db);
-    assertTenantEntityIndexesCurrent(db);
+    assertAccountRelationshipIntegrityCurrent(db);
+    assertAccountEntityIndexesCurrent(db);
   }),
   defineMigration(38, "add-resource-availability-dates", RESOURCE_AVAILABILITY_V38_DEFINITION, (db) => {
     assertSchemaV37(db);
@@ -358,8 +358,8 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       if (!tableHasColumns(db, "resources", [column])) db.exec(`ALTER TABLE resources ADD COLUMN ${column} TEXT;`);
     }
     assertSchemaV38(db);
-    assertTenantRelationshipIntegrityCurrent(db);
-    assertTenantEntityIndexesCurrent(db);
+    assertAccountRelationshipIntegrityCurrent(db);
+    assertAccountEntityIndexesCurrent(db);
   }),
   CAPACITY_OVERVIEW_ACCESS_V39_MIGRATION,
   defineMigration(40, "add-account-date-style", ACCOUNT_DATE_STYLE_V40_DEFINITION, runAccountDateStyleV40),

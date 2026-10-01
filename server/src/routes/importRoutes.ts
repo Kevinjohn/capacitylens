@@ -15,7 +15,7 @@ import { buildCompleteAccountSlice, insertAll, replaceAccountSlice, wipe } from 
 import type { Db } from "../db";
 import { readCurrentRequestAbortSignal } from "../requestAbort";
 import type { runImportWorker } from "../runImportWorker";
-import type { TenantStore } from "../tenantStore";
+import type { AccountStore } from "../accountStore";
 import { tx } from "../txn";
 import { WorkQueueFullError } from "../workQueue";
 import type { WriteRejection } from "../writePipeline";
@@ -56,7 +56,7 @@ function buildImportSnapshotFingerprint(slice: AppData): string {
 
 export interface ImportRouteDependencies {
   db: Db;
-  store: TenantStore;
+  store: AccountStore;
   authMode: AccountMode;
   allowReset: boolean;
   accountAdminPort: ImportAccountAdministration;

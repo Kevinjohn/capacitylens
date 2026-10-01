@@ -6,7 +6,7 @@ import type { AuditRecord } from "../audit";
 import type { AccountMode } from "../auth";
 import { deleteRow, getRow, insertRow, type Db, type RewrittenAllocationRevision, upsertRow } from "../db";
 import type { SanitizeWriteOptions } from "../fieldPolicy";
-import type { TenantStore } from "../tenantStore";
+import type { AccountStore } from "../accountStore";
 import { listAppliedRequestedFieldNames, sanitizeWrite, assertValidWrite } from "../validate";
 import {
   resolveBuiltinWriteRejection,
@@ -28,7 +28,7 @@ import {
 
 export interface EntityRouteDependencies {
   db: Db;
-  store: TenantStore;
+  store: AccountStore;
   authMode: AccountMode;
   optimisticConcurrency: boolean;
   authorize: (input: AuthorizeRouteInput) => boolean;
@@ -137,7 +137,7 @@ function applyWrite(input: ApplyWriteInput): RewrittenAllocationRevision[] {
   return [];
 }
 
-function readPatchValidationState(store: TenantStore, entity: string, accountId: string) {
+function readPatchValidationState(store: AccountStore, entity: string, accountId: string) {
   const lookup = store.validationLookup?.();
   const state = entity === "clients" || lookup === undefined ? store.readFullSlice(accountId) : emptyAppData();
   return { lookup, state };

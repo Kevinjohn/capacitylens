@@ -16,7 +16,7 @@ import {
   type Db,
   buildCompleteAccountSlice,
 } from "./db";
-import { createSqliteTenantStore } from "./tenantStore";
+import { createSqliteAccountStore } from "./accountStore";
 import { tx } from "./txn";
 
 const openDatabases = new Set<Db>();
@@ -34,7 +34,7 @@ afterEach(() => {
   openDatabases.clear();
 });
 
-// Prove the per-account scoped read primitive (readSlice) + the TenantStore seam isolate one
+// Prove the per-account scoped read primitive (readSlice) + the AccountStore seam isolate one
 // account's slice and never leak another tenant's rows, the no-cross-tenant invariant the whole
 // tenancy seam rests on. Mirrors app.test.ts's openDb(':memory:') + plain-row fixture pattern; seeds
 // directly via insertAll (parent-first) so it tests the db layer, not the routes.
@@ -345,18 +345,18 @@ describe("replaceAccountSlice", () => {
   });
 });
 
-function createSqliteTenantStoreTests(): void {
-  createTenantStoreTypeTests();
-  createTenantStoreLifecycleWriteTest();
-  createTenantStoreLookupTest();
-  createTenantStoreScrubTests();
+function createSqliteAccountStoreTests(): void {
+  createAccountStoreTypeTests();
+  createAccountStoreLifecycleWriteTest();
+  createAccountStoreLookupTest();
+  createAccountStoreScrubTests();
 }
 
-function createTenantStoreTypeTests(): void {
+function createAccountStoreTypeTests(): void {
   it("keeps projected reads type-incompatible with complete replacement input", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
-    const store = createSqliteTenantStore(db);
+    const store = createSqliteAccountStore(db);
 
     expectTypeOf(store.readSlice("a1", FULL)).not.toMatchTypeOf<CompleteAccountSlice>();
     expectTypeOf(store.readFullSlice("a1")).toMatchTypeOf<CompleteAccountSlice>();
@@ -366,12 +366,12 @@ function createTenantStoreTypeTests(): void {
   it("readSlice(id) equals the standalone readSlice(db, id)", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
-    const storeSlice = createSqliteTenantStore(db).readSlice("a1", FULL);
+    const storeSlice = createSqliteAccountStore(db).readSlice("a1", FULL);
     expect(storeSlice).toEqual(readSlice(db, "a1", FULL));
   });
 }
 
-function createTenantStoreLifecycleWriteTest(): void {
+function createAccountStoreLifecycleWriteTest(): void {
   it("writes one lifecycle row without rewriting tenant siblings", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
@@ -388,7 +388,7 @@ function createTenantStoreLifecycleWriteTest(): void {
         BEGIN INSERT INTO lifecycle_writes VALUES ('delete', '${table}', OLD.id); END;
       `);
     }
-    const store = createSqliteTenantStore(db);
+    const store = createSqliteAccountStore(db);
     const row = store.readLifecycleRow("a1", "resources", "r1");
     expect(row).toMatchObject({ id: "r1", accountId: "a1" });
     expect(store.readLifecycleRow("a1", "resources", "missing")).toBeNull();
@@ -409,7 +409,7 @@ function createTenantStoreLifecycleWriteTest(): void {
   it("rejects lifecycle resource writes that change the stored kind", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
-    const store = createSqliteTenantStore(db);
+    const store = createSqliteAccountStore(db);
     const row = store.readLifecycleRow("a1", "resources", "r1");
     if (!row) throw new Error("Expected the seeded resource.");
     const resource = row as AppData["resources"][number];
@@ -420,11 +420,11 @@ function createTenantStoreLifecycleWriteTest(): void {
   });
 }
 
-function createTenantStoreLookupTest(): void {
+function createAccountStoreLookupTest(): void {
   it("serves indexed mutation-validation lookups without crossing tenant boundaries", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
-    const lookup = createSqliteTenantStore(db).validationLookup?.();
+    const lookup = createSqliteAccountStore(db).validationLookup?.();
 
     expect(lookup?.row("resources", "r1")).toMatchObject({ id: "r1", accountId: "a1" });
     expect(lookup?.allocationsForResource("a1", "r1").map((row) => row.id)).toEqual(["al1"]);
@@ -439,7 +439,7 @@ function createTenantStoreLookupTest(): void {
   });
 }
 
-function createTenantStoreScrubTests(): void {
+function createAccountStoreScrubTests(): void {
   it("scrubs resource notes, advances revisions and preserves another tenant", () => {
     const db = openDb(":memory:");
     const data = seedTwoAccounts() as unknown as Record<string, unknown[]>;
@@ -448,7 +448,7 @@ function createTenantStoreScrubTests(): void {
       timeOff({ id: "to2", accountId: "a2", resourceId: "r2", note: "private-a2" }),
     ];
     insertAll(db, data as unknown as AppData);
-    const store = createSqliteTenantStore(db);
+    const store = createSqliteAccountStore(db);
 
     expect(store.scrubResourceNotes("a1", "r1")).toEqual({ allocationNotes: true, timeOffNotes: true });
     const a1 = store.readSlice("a1", FULL);
@@ -468,7 +468,7 @@ function createTenantStoreScrubTests(): void {
     const data = seedTwoAccounts() as unknown as Record<string, unknown[]>;
     data.resources = [{ ...person("r1", "a1", "d1"), projectId: "p1" }, person("r2", "a2", "d2")];
     insertAll(db, data as unknown as AppData);
-    const store = createSqliteTenantStore(db);
+    const store = createSqliteAccountStore(db);
 
     expect(store.purgeLifecycleRow("a1", entity, id)).toEqual({ removedCounts: counts });
     const survivor = store.readLifecycleRow("a1", "resources", "r1");
@@ -479,7 +479,7 @@ function createTenantStoreScrubTests(): void {
   });
 }
 
-describe("sqliteTenantStore", createSqliteTenantStoreTests);
+describe("sqliteAccountStore", createSqliteAccountStoreTests);
 
 describe("readSlice — P1.6 time-off note redaction", () => {
   // Seed a1 with a time-off row carrying a note; the standalone primitive decides note visibility
