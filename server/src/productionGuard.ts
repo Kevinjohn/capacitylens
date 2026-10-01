@@ -5,14 +5,14 @@ import { parseRateLimit, MAX_RATE_LIMIT } from "./rateLimit";
 // Production safety interlock. Once NODE_ENV=production, the development/open posture
 // must actually be retired: running with auth off in
 // production would expose the open/demo dataset (DEMO_USER, no login) to the world. This
-// module is the pure predicate the entrypoint consults, like bootGuard's resetForbidden, it
+// module is the pure predicate the entrypoint consults. Like bootGuard's resetForbidden, it
 // is a deliberate fail-closed safety interlock and is therefore not behind an opt-in flag
 // (defaulting a guard to off defeats it). The only escape is the explicit
 // CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, which downgrades the auth-off refusal to a loud
 // warning: it never silences the concern.
 //
 // Active only when NODE_ENV==='production'. Dev / e2e / self-host runs (where NODE_ENV is
-// never 'production') are returned untouched, empty arrays, exactly as bootGuard leaves
+// never 'production') are returned untouched (empty arrays), exactly as bootGuard leaves
 // them. That no-op is the load-bearing "self-hosters unaffected" guarantee: the open posture
 // stays a first-class supported mode everywhere except a NODE_ENV=production process.
 
@@ -27,7 +27,7 @@ import { parseRateLimit, MAX_RATE_LIMIT } from "./rateLimit";
  * tier, and the existing per-flag startup logging for the soft tier.
  */
 export interface ProductionPostureResult {
-  /** Fatal misconfigurations, the server must refuse to boot. Empty unless NODE_ENV==='production'. */
+  /** Fatal misconfigurations; the server must refuse to boot. Empty unless NODE_ENV==='production'. */
   refusals: string[];
   /** Non-fatal posture concerns, boot continues but logs each loudly. */
   warnings: string[];
@@ -121,7 +121,7 @@ function inspectOperationalHardening(
  * reasoning bootGuard's resetForbidden uses).
  *
  * In production it evaluates, in order:
- * - **Refusal: auth off:** `parseAuthMode(env.CAPACITYLENS_MODE) === 'off'` is the dev/open
+ * - **Refusal, auth off:** `parseAuthMode(env.CAPACITYLENS_MODE) === 'off'` is the dev/open
  *   posture production retires; it would leave the demo dataset world-readable+writable. This is a
  *   refusal unless the operator has deliberately opted in via
  *   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1'`, in which case it is downgraded to a warning
@@ -132,7 +132,7 @@ function inspectOperationalHardening(
  *   deliberately operate without external infrastructure.
  * - **Warning: open signup on:** `CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
  *   registration, which should normally stay closed/invite-only in production.
- * - **Refusal: bootstrap password:** the headless bootstrap flags are development-only because
+ * - **Refusal, bootstrap password:** the headless bootstrap flags are development-only because
  *   those initial passwords cannot be forced to expire after first use. Production uses the
  *   setup-token owner flow, where the owner chooses the final credential directly.
  *

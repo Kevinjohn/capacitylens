@@ -7,7 +7,7 @@ import { useStore } from "@/store/useStore";
 // dialogs, the scheduler, the toolbar) don't import the provider machinery. It mirrors the split in
 // authContext.ts / AuthProvider.tsx.
 //
-// The NULL-default is the off/DEMO regression guard. A `null` role resolves to permitted everywhere
+// The null default is the off/demo regression guard. A `null` role resolves to permitted everywhere
 // (useCan → true for every action, and so useCanEdit → true). That covers every path where there is
 // no real membership role to enforce:
 //   - off mode (the default, shipped deploy, must be byte-identical to today's no-login app);

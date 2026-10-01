@@ -71,7 +71,7 @@ describe("the v41 migration body", () => {
   // The DDL spells the two unions out as literals because its text is folded into the ledger
   // checksum and may never be regenerated from a live shared constant. This is the drift guard that
   // makes that safe: it lives outside the checksum, so adding a state to the shared contract fails
-  // here: where the answer is a new migration, rather than silently on someone's disk.
+  // here, where the answer is a new migration, rather than silently on someone's disk.
   it("pins the same states and terminal reasons as the shared contract", () => {
     for (const state of OWNERSHIP_TRANSFER_STATES) {
       expect(OWNERSHIP_TRANSFER_REQUESTS_V41_SQL).toContain(`'${state}'`);

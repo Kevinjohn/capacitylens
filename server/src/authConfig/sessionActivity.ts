@@ -23,7 +23,7 @@ type StoredSessionActivity = { updatedAt: string | number | null };
 /**
  * Apply the app's idle timeout to a session Better Auth has already resolved.
  *
- * Storage representation IS NOT assumed. Better Auth 1.6.x on node:sqlite stores
+ * Storage representation is not assumed. Better Auth 1.6.x on node:sqlite stores
  * `session.updatedAt` as ISO-8601 *text*, not the integer epoch milliseconds an earlier
  * version of this function trusted a comment about. Comparing or writing numbers against a
  * text-valued column means SQL predicates silently never match (INTEGER always sorts before

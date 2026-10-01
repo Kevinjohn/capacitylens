@@ -2,7 +2,7 @@
 // span the React / non-React boundary: `apiFetchReauth` is a plain async function called from inside
 // event handlers (not a hook), so it cannot itself render the "Confirm it's you" dialog. Instead it
 // calls `requestReauth()` here, a module-level singleton that flips a pending flag and hands back a
-// promise: and the React `ReauthMount` (in AuthProvider) subscribes to that flag, renders the
+// promise, and the React `ReauthMount` (in AuthProvider) subscribes to that flag, renders the
 // dialog, and calls `completeReauth(true|false)` when the user finishes or cancels.
 //
 // Why a singleton (not React state / a store): the request originates outside React and must be

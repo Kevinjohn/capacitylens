@@ -18,7 +18,7 @@ import {
 /**
  * What a membership write should do to the live ownership-transfer requests naming this principal.
  *
- * `"invalidate"`: the default and the answer for every ordinary write, ends them: a demotion,
+ * `"invalidate"` (the default, and the answer for every ordinary write) ends them: a demotion,
  * promotion, status change or removal means the person whose consent the ceremony holds is no
  * longer the person it names. `"keep"` belongs to one caller, the ownership exchange kernel, whose
  * two role writes are the ceremony completing; without it, completion would invalidate the request
@@ -59,7 +59,7 @@ export function invalidateRestrictedPrincipal(db: Db, accountId: string, princip
  * @param db      The open SQLite handle.
  * @param member  The membership to upsert.
  * @throws Error  If `member.role` is not a known {@link Role}. A bad role is a programming/integrity
- * fault, not a recoverable request condition, fail loud (mirroring the store's deliberate
+ * fault, not a recoverable request condition; fail loud (mirroring the store's deliberate
  * integrity throws) rather than silently coercing it to a default, which would hand someone the
  * wrong access level.
  */
@@ -83,13 +83,13 @@ export function upsertMember(db: Db, member: AccountMember, transfers: LiveTrans
      ON CONFLICT(accountId, userId) DO UPDATE SET
        role = excluded.role, status = excluded.status`,
   ).run(member.accountId, member.userId, member.role, member.status, member.createdAt, member.accountId);
-  // TOCTOU close: a password-reset link is authorized at mint time against the user's
-  // membership snapshot then, so any membership write for this user (a role change, becoming the
+  // TOCTOU close: a password-reset link is authorized at mint time against the user's membership
+  // snapshot of that moment, so any membership write for this user (a role change, becoming the
   // owner of a new org, even a lateral move) invalidates that
   // authorization and must burn their outstanding reset links, else a link minted while they were
-  // lower-tier could redeem into the elevated identity. Centralised here, at the single membership
-  // -write choke point, precisely so no elevation path (PATCH role, transfer-ownership, invite
-  // accept, POST /api/orgs) can forget it, the sprinkle-at-each-callsite approach missed two.
+  // lower-tier could redeem into the elevated identity. Centralised here, at the single
+  // membership-write choke point, precisely so no elevation path (PATCH role, transfer-ownership, invite
+  // accept, POST /api/orgs) can forget it; the sprinkle-at-each-callsite approach missed two.
   // No-op when the user holds no reset token (the common case: fresh membership) or in off mode
   // (no Better Auth tables). The reset-token implementation remains identity-owned in auth.ts.
   // Deliberately unconditional, unlike the ceremony below: the reset-link and security-revision
@@ -183,7 +183,7 @@ const activeMemberRoleStatement = cachedStatement(`
  * @param accountId  The account to look up.
  * @param userId     The login to look up.
  * @returns The membership row, or `null` when this login has no membership in this account.
- * @throws Error  If the stored role is not a known {@link Role}, control-table corruption, which
+ * @throws Error  If the stored role is not a known {@link Role} (control-table corruption), which
  * fails loud here exactly as it does in {@link listMembersForAccount}.
  */
 export function getMembershipRow(db: Db, accountId: string, userId: string): AccountMember | null {
@@ -232,7 +232,7 @@ export function getActiveMemberRole(db: Db, accountId: string, userId: string): 
 }
 
 /**
- * List every membership a login holds, across all accounts, the by-`userId` lookup
+ * List every membership a login holds, across all accounts: the by-`userId` lookup
  * `listAccounts` builds on (it is what answers "which accounts may this login see?").
  *
  * @param db      The open SQLite handle.
@@ -251,12 +251,12 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
 }
 
 /**
- * List every membership row of one account, the by-`accountId` lookup the member-management UI
+ * List every membership row of one account: the by-`accountId` lookup the member-management UI
  * builds on ("who is in this account?"). Ordered by `createdAt` then `userId` so the member
  * list renders deterministically.
  *
  * Loud role-integrity throw (mirrors {@link listMembershipsForUser}): a stored role that is not a
- * known {@link Role} is a control-table corruption, fail rather than hand back a mistyped,
+ * known {@link Role} is a control-table corruption; fail rather than hand back a mistyped,
  * access-bearing role.
  *
  * @param db         The open SQLite handle.
@@ -267,8 +267,8 @@ const activeOwnerCountStatement = cachedStatement(
   `SELECT COUNT(*) AS owners FROM account_members WHERE accountId = ? AND role = 'owner' AND status = 'active'`,
 );
 
-/** How many active Owners one account has. Counted in SQLite, served directly by the partial
- * unique index that holds the single-active-Owner invariant, rather than by mapping every member
+/** How many active Owners one account has. Counted in SQLite (served directly by the partial
+ * unique index that holds the single-active-Owner invariant) rather than by mapping every member
  * row into objects to answer a question about a number. */
 export function countActiveOwners(db: Db, accountId: string): number {
   const row = activeOwnerCountStatement(db).get(accountId) as { owners: number };
@@ -286,7 +286,7 @@ export function listMembersForAccount(db: Db, accountId: string): AccountMember[
 }
 
 /**
- * Remove one membership, the member-revoke write. Idempotent: deleting an absent
+ * Remove one membership: the member-revoke write. Idempotent: deleting an absent
  * `(accountId, userId)` is a no-op (mirrors {@link deleteRow}). The `accountId` predicate is the
  * cross-tenant guard: a revoke can only ever touch a row of the named account.
  *

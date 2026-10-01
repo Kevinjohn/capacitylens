@@ -12,10 +12,10 @@ import {
 } from "./controlTables";
 import { microsoftCallbackCapture } from "./authConfig/captureContexts";
 
-// CAPACITYLENS_MODE (opts.authMode/auth). The load-bearing assertion set:
-// Off is byte-for-byte today (the whole existing app.test.ts suite already enforces that
-// by running unchanged. These tests add the /api/auth/me surface and the absence of the
-// Better Auth routes); password gates every data route on a real session; sso issues a
+// The CAPACITYLENS_MODE flag (opts.authMode/auth). The load-bearing assertion set: off is
+// byte-for-byte today (the whole existing app.test.ts suite already enforces that by running
+// unchanged; these tests add the /api/auth/me surface and the absence of the Better Auth
+// routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
 
 const MICROSOFT_ENV = {

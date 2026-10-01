@@ -12,7 +12,7 @@ import { deleteAccountCascade } from "@capacitylens/shared/domain/mutations";
 import { deleteRow, insertAll, readState, openDb, type Db } from "./db";
 import { createSqliteTenantStore } from "./tenantStore";
 
-// CASCADE parity (differential test).
+// Cascade parity (differential test).
 //
 // Delete semantics live in three places that can silently drift apart:
 //   1. the shared TS `delete*Cascade` transforms (shared/src/lib/integrity.ts) the demo-build store uses,
@@ -24,8 +24,8 @@ import { createSqliteTenantStore } from "./tenantStore";
 //
 // Rather than generate all three from one source (over-engineering for a schema this stable), this
 // suite runs the same fixture through the TS transform and through the real database, then asserts
-// the surviving rows match: ids, the FK columns each side is supposed to clear, and, on the purge
-// paths: which rows were restamped. The exact revision value differs by construction (the store
+// the surviving rows match: ids, the FK columns each side is supposed to clear, and (on the purge
+// paths) which rows were restamped. The exact revision value differs by construction (the store
 // passes its own clock, the server derives nextServerRevision), so parity is asserted on "was this
 // row restamped", not on the literal timestamp.
 

@@ -171,9 +171,10 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
 });
 
 describe("P1.17 — OFF stays the trusted-local self-hoster default (auth-off-by-default invariant intact)", () => {
-  // Closes the hosted door; it does not flip the global off default. Off = trusted-local: the
-  // open shared dataset is the deliberate self-hoster default, so an unauthenticated request is not
-  // 401'd (requireUser attaches DEMO_USER and continues). This pins off as unchanged.
+  // Retiring the open dataset closes the hosted door; it does not flip the global off default.
+  // Off = trusted-local: the open shared dataset is the deliberate self-hoster default, so an
+  // unauthenticated request is not 401'd (requireUser attaches DEMO_USER and continues). This pins
+  // off as unchanged.
   it("representative unauthenticated reads are NOT 401 in OFF (DEMO_USER, open dataset served)", async () => {
     const app = createTrustedLocalApp();
     // No cookie, no session, yet off serves these (the open shared dataset is the default deploy).

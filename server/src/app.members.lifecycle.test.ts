@@ -446,8 +446,8 @@ describe("member sign-in confirmation", () => {
 
 // The status domain must reach every membership path, not just the new route.
 // Widening a membership to active/disabled/archived is only half a feature. The other half is that
-// every path which resolves a member, invite redemption, identity administration, removal, role
-// change: agrees about what a non-active row means. Each case below failed before this pass, and
+// every path which resolves a member (invite redemption, identity administration, removal, role
+// change) agrees about what a non-active row means. Each case below failed before this pass, and
 // each fails independently, so a regression in one cannot hide behind another.
 
 /** Owner + editor of a1, with the editor already moved into `status`. */
@@ -739,7 +739,7 @@ describe("re-applying a member's current status is a no-op (#175 review)", () =>
 
 // The directory is a list a person reads top to bottom, so its order is part of the feature, not an
 // implementation detail. Join date first (that is how an administrator remembers the team), name as
-// the tie-break, a bulk import stamps everyone with the same instant, and an id order there reads
+// the tie-break: a bulk import stamps everyone with the same instant, and an id order there reads
 // as random. principalId last, so two identically-named same-instant rows still list identically
 // between reads.
 describe("member listing order (#175)", () => {

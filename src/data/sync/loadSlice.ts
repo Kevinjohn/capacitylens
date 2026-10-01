@@ -153,16 +153,16 @@ async function loadRemoteSlice(
       return empty;
     }
     if (!res.ok) throw new Error(`Failed to load state (${res.status})`);
-    // An HTML body, the SPA-fallback index.html or a proxy error page, a reachable case now an
-    // empty-env server-default build can hit a backend-less same-origin host, starts with '<', so
+    // An HTML body (the SPA-fallback index.html or a proxy error page, a reachable case now an
+    // empty-env server-default build can hit a backend-less same-origin host) starts with '<', so
     // native res.json() runs JSON.parse and rejects with a SyntaxError. That rejection is caught
     // below and mapped to LoadError('unavailable') → the connection-error screen; it does not reach
     // migrate(). So migrate() only ever sees a body that already parsed as JSON.
     const json: unknown = await res.json();
     // Deployment contract (rolling deploy, new client, older server): a version-skewed older
     // server may omit a table key this newer client already knows about. A missing key is
-    // tolerated on both read paths, the unscoped migrate()/normalize hydrates it empty, and the
-    // scoped path pre-fills it empty below so parseAccountSlice hydrates it empty too, so a
+    // tolerated on both read paths (the unscoped migrate()/normalize hydrates it empty, and the
+    // scoped path pre-fills it empty below so parseAccountSlice hydrates it empty too), so a
     // new-client/old-server skew is not a total outage on every deploy, and an account switch or
     // scoped load during a version-skew window no longer throws "incomplete state payload". But a
     // key that is present and not an array is a corrupt/incomplete payload masquerading as empty

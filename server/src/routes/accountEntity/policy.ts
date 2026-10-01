@@ -2,9 +2,9 @@ import { SINGLE_COMPANY_CAP_MESSAGE } from "@capacitylens/shared/account/policy"
 import { type Db } from "../../db";
 import { IMMUTABLE_ACCOUNT_FIELDS } from "../../validate";
 
-// SINGLE_COMPANY_CAP_MESSAGE (owner policy, see AppOptions.multiAccount / CLAUDE.md) now lives in
-// @capacitylens/shared/account/policy: every route that could add a second `accounts` row, this
-// PUT, the batch loop, POST /api/orgs, shares that one shared-package constant so the rule can't
+// SINGLE_COMPANY_CAP_MESSAGE (owner policy, see AppOptions.multiAccount) now lives in
+// @capacitylens/shared/account/policy: every route that could add a second `accounts` row (this
+// PUT, the batch loop, POST /api/orgs) shares that one shared-package constant so the rule can't
 // drift between vectors. Re-exported here so app.ts's existing `from "./routes/accountEntityRoutes"`
 // import keeps working unchanged.
 export { SINGLE_COMPANY_CAP_MESSAGE };

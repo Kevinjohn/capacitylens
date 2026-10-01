@@ -170,7 +170,7 @@ function attachAllocationRewriteHandler({ store, adapter }: Pick<PersistencePart
  *  3. `scheduleRetry()` re-sends the latest store state with capped exponential backoff
  *     (max 5 attempts), so a transient failure self-heals without waiting for the next edit.
  *  4. A stranded write (failed and budget exhausted) is re-attempted when the connection plausibly
- *     recovers, the `online` event, or the tab becoming visible again (gated on a real failure).
+ *     recovers: the `online` event, or the tab becoming visible again (gated on a real failure).
  *  5. `visibilitychange→hidden` flushes through the normal serialized path while the page survives;
  *     `pagehide` uses the adapter's keepalive teardown path.
  */

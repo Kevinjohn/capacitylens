@@ -49,8 +49,8 @@ function encodeValue(value: string | number): string {
 // `--accent` is `--c-base`, which is #f4f5f8 on a white toolbar (1.04:1) and #0e1016 on the
 // #161922 dark surface (1.2:1). The fill alone left "which segment is on" effectively invisible
 // in both themes (WCAG 1.4.11 wants 3:1 for the visual info that identifies a control's state).
-// Switch to the brand-soft tint + its paired ink. The same "this one is active" language the
-// sidebar nav already uses (`--sidebar-primary: var(--c-brand-soft)`), and outline the segment in
+// Switch to the brand-soft tint + its paired ink (the same "this one is active" language the
+// sidebar nav already uses, `--sidebar-primary: var(--c-brand-soft)`) and outline the segment in
 // --c-brand so the state survives as a shape, not only as a tint.
 //
 // The `data-[state=on]:hover:*` pair re-pins the colours because the outline variant's

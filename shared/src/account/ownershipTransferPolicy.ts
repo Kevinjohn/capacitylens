@@ -87,7 +87,7 @@ export function canActOnOwnershipTransfer(
   }
 }
 
-/** May this caller see this request at all? Participants only, a transfer in progress, and who it
+/** May this caller see this request at all? Participants only: a transfer in progress, and who it
  * names, is not ordinary member-management information, so other Admins and every lower role read
  * nothing rather than a redacted something. */
 export function canReadOwnershipTransfer({

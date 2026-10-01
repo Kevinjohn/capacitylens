@@ -115,7 +115,7 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
 }
 
 /** Do the two inclusive ranges [aStart, aEnd] and [bStart, bEnd] share at least one day?
- * Both ends are closed on both sides, a range that merely touches the other's edge
+ * Both ends are closed on both sides: a range that merely touches the other's edge
  * overlaps, which is what every caller (timeline intersection, keyboard-nudge visibility)
  * means by "still on screen". Same zero-padded lexicographic compare as `isWithin`, for the
  * same reason: exact, and no parseISO on a hot path. */
@@ -185,7 +185,7 @@ function createCalendarFormatter(timeZone: string): Intl.DateTimeFormat | null {
  * degrade case.
  *
  * `now` (epoch milliseconds, defaulting to the clock) makes the zone resolution reusable for a
- * non-"now" instant, the calendar-boundary search behind the scheduler's reactive "today"
+ * non-"now" instant: the calendar-boundary search behind the scheduler's reactive "today"
  * probes future instants through this same one resolver rather than a second copy of it. */
 export function todayISO(timeZone?: string, now: number = Date.now()): ISODate {
   if (!timeZone) return toISODate(new Date(now));
@@ -226,7 +226,7 @@ export function isWeekendAware(workingDays: Weekday[] | undefined, ignoreWeekend
 }
 
 /** Does an allocation place work on a given day? A weekend-aware allocation works only the resource's
- * working weekdays, a bar that merely spans a non-working day does no work there, while an
+ * working weekdays (a bar that merely spans a non-working day does no work there), while an
  * allocation that opts into weekends (`ignoreWeekends`), or a resource with a full/empty working
  * week, works every calendar day. The single per-day companion to `isWeekendAware`, shared by the
  * over-marker (`allocatedHoursOnDay`) and its advisory mirror (`capacityAdvisory`) so the two can't
@@ -264,7 +264,7 @@ export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Week
  * (treated as a full/every-calendar-day week, matching isWeekendAware), it falls back to a raw
  * inclusive calendar span.
  *
- * Closed-form (O(1)), not a day-by-day scan, the drag-resize gesture math calls this
+ * Closed-form (O(1)), not a day-by-day scan: the drag-resize gesture math calls this
  * per pointer move, and an absurd input (1-working-day week × ~100-year span) would
  * otherwise spin ~255k iterations. Any 7 consecutive calendar days contain exactly `d`
  * working days (each weekday appears once per week), so the working-day offsets repeat

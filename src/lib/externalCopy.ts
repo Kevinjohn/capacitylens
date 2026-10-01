@@ -1,5 +1,5 @@
 // Explainer copy for the External / 3rd-party feature, shared by the Resources and Settings help
-// modals so the two never drift. Describes what External is and IS NOT.
+// modals so the two never drift. Describes what External is and is not.
 //
 // Editable copy: this wording is product copy, not behaviour, refine it in messages/<locale>.json
 // (key `external_explainer`). It lives in one place on purpose; both surfaces call this getter.

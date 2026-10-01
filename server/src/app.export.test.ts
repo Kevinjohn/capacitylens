@@ -15,7 +15,7 @@ import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities"
 // suite locks the two backup guarantees so a future change can't silently regress them:
 //   (1) full slice incl. inactive, archived + soft-deleted rows are retained (a backup keeps them),
 //       and the no-flag read proves includeInactive is what flips that (the active-only contrast).
-//   (2) control TABLES / PII absent, account_members / invites (membership + invite secrets/PII) are
+//   (2) control tables / PII absent: account_members / invites (membership + invite secrets/PII) are
 //       structurally excluded from the slice (readSlice never reads the control plane). Mirrors the
 //       absence assertions in app.controlTables.test.ts.
 // Admin gating (non-admin → 403) is already exhaustively covered by app.lifecycle.test.ts's "auth-on
@@ -52,7 +52,7 @@ const TOMBSTONE = { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" };
 /**
  * Seed account a1 with three resources spanning every lifecycle state the backup must retain:
  *  - rActive: active (visible in both the normal and the complete read)
- *  - rArchived: ARCHIVED (archivedAt set, retained only by the complete read)
+ *  - rArchived: archived (archivedAt set, retained only by the complete read)
  *  - rDeleted: soft-deleted tombstone (deletedAt set, retained only by the complete read)
  * a2 carries an unrelated resource so the per-account scoping is testable.
  */

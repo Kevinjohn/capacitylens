@@ -96,12 +96,12 @@ function buildSingleAdvisory(input: AdvisoryInput, otherAllocations: AdvisoryInp
 
 export function buildAllocationAdvisory(input: AdvisoryInput) {
   const { create, data, editId, isBlocks, repeat, resourceId } = input;
-  // External parties have no capacity, never show an over-capacity / time-off advisory.
+  // External parties have no capacity; never show an over-capacity / time-off advisory.
   if (!canBuildAdvisory(input)) return null;
   // Project the existing load through the account's scheduling mode before counting it: in blocks
   // mode a bar carries placement but no hourly load, so an account that switched to blocks with
   // legacy hourly allocations must not be advised "over capacity" here while the grid's markers
-  // (schedulerModel) and the drag-commit toast (useAllocationGesture). Both of which project the
+  // (schedulerModel) and the drag-commit toast (useAllocationGesture), both of which project the
   // same way, show nothing. Every capacity surface reads the same projected load.
   const others = applyCapacityMode({
     allocations: data.allocations.filter(

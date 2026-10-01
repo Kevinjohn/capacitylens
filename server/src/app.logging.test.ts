@@ -9,7 +9,7 @@ import { call, PASSWORD_ENV, signUp } from "./testHelpers/passwordAuth";
 import { redactSecretUrl } from "./routes/appLogging";
 import type { Db } from "./db";
 
-// CAPACITYLENS_LOG (opts.log): on gives structured per-request JSON via Fastify's
+// The CAPACITYLENS_LOG flag (opts.log): on gives structured per-request JSON via Fastify's
 // bundled pino and routes the 500-path error through the request logger; off is byte-for-
 // byte today's behaviour (no request logs, bare console.error on 500s). The logStream
 // seam exists only so these tests can read the JSON lines instead of stdout.

@@ -552,7 +552,7 @@ function registerWeekendCapacityTests() {
 function registerTimeOffAndWeekdayTests() {
   const r = makeResource();
   it("work scheduled on a time-off day is still over (a real conflict, unlike a spanned weekend)", () => {
-    // Wed 06-03 is a working weekday the resource is on holiday, available 0, but the allocation
+    // Wed 06-03 is a working weekday the resource is on holiday (available 0), but the allocation
     // genuinely works that day, so it stays red. Time-off is deliberately distinct from weekends.
     const allocs = [
       makeAlloc({
@@ -1133,7 +1133,8 @@ function registerBlocksAdvisoryTests() {
 }
 
 describe("#257 characterization: effective-week capacity", () => {
-  // Capacity and load use the company/personal effective week.
+  // These expectations were flipped when capacity and load moved to the company/personal
+  // effective week.
   it("removes Friday capacity, load and utilisation when the company calendar excludes Friday", () => {
     const accountWorkingDays: Weekday[] = [1, 2, 3, 4];
     const resource = makeResource({ workingDays: [1, 2, 3, 4, 5] });
@@ -1172,8 +1173,8 @@ describe("#257 characterization: effective-week capacity", () => {
     ).toBe(0);
   });
 
-  // Intersecting with a partial company week makes a seven-day
-  // resource weekend-aware, so weekend hours stop counting.
+  // Flipped by the same move to the effective week: intersecting with a partial company week
+  // makes a seven-day resource weekend-aware, so weekend hours stop counting.
   it("does not load Saturday and Sunday for a normal allocation on a seven-day resource", () => {
     const resource = makeResource({ workingDays: [0, 1, 2, 3, 4, 5, 6] });
     const allocation = makeAlloc({
@@ -1317,7 +1318,7 @@ describe("utilization", () => {
   registerUtilizationClosureTest();
 });
 
-// The near-term "over soon" radar is a `.some(day => day.over)` over the window's capacity, the
+// The near-term "over soon" radar is a `.some(day => day.over)` over the window's capacity; the
 // scheduler model runs it against its own memoised per-date capacity, so these cases pin the rule
 // (which days may read as over) on the straight-line definition both paths agree on.
 describe("over-allocated inside a window", () => {

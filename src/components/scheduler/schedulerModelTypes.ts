@@ -81,7 +81,7 @@ export interface SchedulerModelOptions {
   // Its origin (days[0]) equals ui.originDate.
   geom: ColumnGeometry;
   days: ISODate[];
-  // Two separate windows, deliberately distinct (CLAUDE.md / DECISIONS.md):
+  // Two separate windows, deliberately distinct (AGENTS.md / DECISIONS.md):
   //
   // - [visStart, visEnd] drives the displayed utilisation % (per-person `utilization`, and so the
   //   per-discipline avg + overall figures that average it). It tracks the currently visible span

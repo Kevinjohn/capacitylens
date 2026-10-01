@@ -26,8 +26,8 @@ export interface PersistenceAdapter {
    * genuine first run from a user who deliberately cleared everything.
    *
    * May throw (e.g. a server `/api/meta` round-trip can fail). A throw is indeterminate,
-   * not "no data": callers must compensate non-destructively, bootstrap falls back to
-   * `!isEmpty(loaded)`, and must never react to a throw by discarding already-loaded data or
+   * not "no data": callers must compensate non-destructively (bootstrap falls back to
+   * `!isEmpty(loaded)`) and must never react to a throw by discarding already-loaded data or
    * skipping the persistence attach (that would strand the user unable to save). */
   hasExisting?(): Promise<boolean>;
 }

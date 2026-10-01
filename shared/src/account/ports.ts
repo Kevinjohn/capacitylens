@@ -120,7 +120,7 @@ export interface AccountAdminPort extends JoiningPolicyAdminPort {
     includeInactive?: boolean;
   }): Promise<Membership | null>;
   /** Active memberships by default. `includeInactive` additionally returns disabled and archived
-   * rows and exists for one caller. The administrative member directory, which must show an
+   * rows and exists for one caller: the administrative member directory, which must show an
    * administrator the state they applied so they can reverse it. `requireFresh` defaults to true
    * for administrative callers; the member-directory projection may set it false after the HTTP
    * authorization seam has established the caller's current role. Never widen an authorization

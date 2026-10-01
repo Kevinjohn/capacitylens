@@ -471,7 +471,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       expect(savesAfterEdit).toBe(1);
 
       // 35s covers every backoff step: a transient error re-attempts across it, a terminal one does
-      // not: and it never reloads (that is the conflict path, not this one).
+      // not, and it never reloads (that is the conflict path, not this one).
       await vi.advanceTimersByTimeAsync(35_000);
       expect(saveAll.mock.calls.length).toBe(savesAfterEdit); // no background retry armed
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // terminal, not a server-wins reload

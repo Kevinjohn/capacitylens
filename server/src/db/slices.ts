@@ -72,11 +72,11 @@ export function listAccountSummaries(db: Db): Array<{ id: string; name: string }
  *
  * @param db         The open SQLite handle.
  * @param accountId  The account whose slice to read.
- * @param opts.includeTimeOffNote  required. `true` keeps each time-off `note`; `false` strips it
+ * @param opts.includeTimeOffNote  Required. `true` keeps each time-off `note`; `false` strips it
  * (owner/admin-only field, redacted before it leaves the server).
- * @param opts.includePrivateNames required. `true` keeps real private names; `false` substitutes
+ * @param opts.includePrivateNames Required. `true` keeps real private names; `false` substitutes
  * quoted code names and strips the raw codeName field.
- * @param opts.includeInactive  required. `false` drops archived/soft-deleted resources/clients/projects
+ * @param opts.includeInactive  Required. `false` drops archived/soft-deleted resources/clients/projects
  * (the normal app read); `true` returns every row.
  * @returns A serialization-only projected slice containing only `accountId`'s data. Its brand is
  * intentionally incompatible with {@link replaceAccountSlice}.

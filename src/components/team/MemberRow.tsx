@@ -302,8 +302,8 @@ export function MemberRow({
   reload(): void;
 }) {
   // One row renderer for both tables: the dialog's actions, the pencil's gate and the status badge are
-  // identical wherever the row is drawn, only the grouping differs.
-  // NB: the row var is `member`, not `m`, `m` is the imported i18n message catalogue;
+  // identical wherever the row is drawn; only the grouping differs.
+  // NB: the row var is `member`, not `m`, because `m` is the imported i18n message catalogue;
   // shadowing it would make `m.settings_*()` resolve against the Member.
   const affordances = buildMemberAffordances(myRole, member);
   const memberLabel = resolveMemberLabel(member);
