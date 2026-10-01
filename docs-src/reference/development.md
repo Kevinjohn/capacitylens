@@ -873,6 +873,9 @@ The version pull request described in `AGENTS.md` → "Version and CI policy" en
 Publishing is a separate maintainer task. Nothing in `.github/` or `scripts/` creates tags or
 releases.
 
+There is one version bump per batch of changes, and every bump is published as a GitHub release.
+Releases before 0.41.0-alpha.3 are kept in `CHANGELOG-ARCHIVE.md`.
+
 1. Find the merged release commit and build the release package from it once, as the
    `release-provenance` workflow will after publication:
 
