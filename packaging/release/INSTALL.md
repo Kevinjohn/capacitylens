@@ -6,7 +6,9 @@ differs between hosts.
 1. **Download** the release archive and unpack it.
 2. **Pick a folder for its data.** The database file is created there on first start.
 3. **Configure.** Copy `capacitylens.env.example` and fill in its three empty lines: the address,
-   and two values pasted from `openssl rand -base64 48`. Everything else has a default.
+   and two values pasted from `openssl rand -base64 48`. Then set `CAPACITYLENS_DB` to a file in
+   the folder from step 2. On a Linux host the example's `/var/lib/capacitylens/capacitylens.db`
+   already matches step 2. Everything else has a default.
 4. **Start it.**
 5. **Open the address** and create your company. The setup token is the `SETUP_TOKEN` line from
    step 3.
@@ -20,9 +22,11 @@ file in the archive names the one you have.
 
 `/home/forge/capacity.example.com` stands for your site's folder; use yours.
 
-1. **Deploy script:** download, unpack and switch the `current` link to the new release.
+1. **Deploy script:** create the data folder, then download, unpack and switch the `current` link
+   to the new release.
 
    ```bash
+   mkdir -p /home/forge/capacitylens-data
    cd /home/forge/capacity.example.com
    curl -fsSLO https://github.com/Kevinjohn/capacitylens/releases/download/vX.Y.Z/capacitylens-X.Y.Z.tar.gz
    tar -xzf capacitylens-X.Y.Z.tar.gz && ln -sfn capacitylens-X.Y.Z current
@@ -31,8 +35,10 @@ file in the archive names the one you have.
    To upgrade, run the deploy script with the new version, then restart the background process
    from step 4 so it runs the new release.
 
-2. **Data folder:** `/home/forge/capacitylens-data`, outside the release so upgrades keep it.
-   Create it once from the host's file manager or its command box: `mkdir -p /home/forge/capacitylens-data`.
+2. **Data folder:** `/home/forge/capacitylens-data`, outside the release so upgrades keep it. The
+   deploy script's first line creates it, so you need no terminal. `forge` is the site's user; a
+   site with website isolation uses its own user, so use that name in this path and in
+   `CAPACITYLENS_DB`.
 3. **Environment:** paste the lines of `capacitylens.env.example` into the site's environment
    editor, fill in the three empty lines and set
    `CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db`.
@@ -42,7 +48,8 @@ file in the archive names the one you have.
    node --env-file=../.env server/dist/index.mjs
    ```
 
-   In the site's nginx file, send every request to the server; it serves the web app itself:
+   In the site's nginx file, replace the generated `location /` block with these locations; the
+   server serves the web app itself:
 
    ```nginx
    client_max_body_size 6m;
@@ -134,8 +141,10 @@ curl -LO https://github.com/Kevinjohn/capacitylens/releases/download/vX.Y.Z/capa
 sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
 ```
 
-Check the running server. Expect `"ok":true`, `"db":true`, `"audit":"ok"` and a `backup` whose
-`status` is `"ok"` (it reads `"pending"` for a moment after the first start):
+Check the running server. On a managed host, open `https://capacity.example.com/api/health` in a
+browser, using your own address. On a Linux host, use the command below. Expect `"ok":true`,
+`"db":true`, `"audit":"ok"` and a `backup` whose `status` is `"ok"` (it reads `"pending"` for a
+moment after the first start):
 
 ```bash
 curl -fsS http://127.0.0.1:8787/api/health
