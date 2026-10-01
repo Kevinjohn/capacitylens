@@ -60,3 +60,4 @@ CapacityLens is open source under AGPL-3.0. Learn how to get support, report a p
 or contribute a change in [Open source and contributing](/open-source). Security reviews,
 privacy and the development guide are under [Security and privacy](/security/) and the
 [Glossary](/reference/glossary).
+To see what CapacityLens deliberately leaves out, read the [philosophy](/reference/philosophy).
