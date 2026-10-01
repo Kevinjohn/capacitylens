@@ -54,28 +54,31 @@ so an upgrade never touches it.
 
 ## 3. Configure
 
-Copy `capacitylens.env.example` from the archive and fill in its three empty lines. Then set
-`CAPACITYLENS_DB` to a file in the data folder from step 2. Everything else has a default.
+Run `init` from the unpacked release folder. Give it the address people open and a database
+file in the data folder from step 2:
+
+```bash
+node server/dist/index.mjs init --public-url https://capacity.example.com --db /var/lib/capacitylens/capacitylens.db
+```
+
+It prints the environment file, with the session secret and the setup token generated for you.
+Everything else has a default.
 
 ```dotenv
 NODE_ENV=production
-CAPACITYLENS_PUBLIC_URL=
-CAPACITYLENS_SECRET=
-CAPACITYLENS_SETUP_TOKEN=
+CAPACITYLENS_PUBLIC_URL=https://capacity.example.com
+CAPACITYLENS_SECRET=<generated>
+CAPACITYLENS_SETUP_TOKEN=<generated>
 CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db
 ```
 
-- `CAPACITYLENS_PUBLIC_URL` is the address people open, for example
-  `https://capacity.example.com`.
-- `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` are two different values, each
-  pasted from `openssl rand -base64 48`. You enter the setup token once, to create the Owner.
+Then it prints the setup token once more. You enter it once, to create the Owner. The server
+refuses to start while a required line is empty, and names the one that is missing.
 
-The server refuses to start while any of the three is empty, and names the one that is missing.
-
-- **Managed host:** paste the lines into the site's environment editor, with `CAPACITYLENS_DB`
-  set to `/home/forge/capacitylens-data/capacitylens.db` (or your site user's folder).
-- **Linux host:** save them as `/etc/capacitylens.env`. The example's
-  `CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db` already matches step 2.
+- **Managed host:** run it with `--db /home/forge/capacitylens-data/capacitylens.db` (or your site
+  user's folder) and paste the output into the site's environment editor.
+- **Linux host:** add `--out /etc/capacitylens.env` and run it with `sudo`. It writes the file
+  readable only by root, and refuses to overwrite one that already exists.
 
 ## 4. Start it
 

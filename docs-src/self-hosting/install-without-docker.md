@@ -49,23 +49,19 @@ use its version instead; the `VERSION` file in the archive names the one you hav
    sudo install -d -o capacitylens -g capacitylens -m 0700 /var/lib/capacitylens
    ```
 
-3. Configure. Copy the environment example to `/etc/capacitylens.env`, readable only by root, and
-   open it:
+3. Configure. Write `/etc/capacitylens.env` with `init`, using the address people will open:
 
    ```bash
-   sudo sh -c 'umask 077 && cp -n /opt/capacitylens/current/capacitylens.env.example /etc/capacitylens.env' && sudo nano /etc/capacitylens.env
+   sudo node /opt/capacitylens/current/server/dist/index.mjs init --public-url https://capacity.example.com --db /var/lib/capacitylens/capacitylens.db --out /etc/capacitylens.env
    ```
 
-   Fill in the three empty lines: the address people will open, and two different values pasted
-   from `openssl rand -base64 48`. The first is `CAPACITYLENS_SECRET`; the second is
-   `CAPACITYLENS_SETUP_TOKEN`. Everything else has a default, including
-   `CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db`. The server refuses to start while a
-   required line is empty, and names it. [Configure the service](/installation/configure-the-service)
-   lists every other setting.
+   It generates `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN`, writes the file readable only
+   by root, and refuses to overwrite an existing one, so running it again cannot replace keys. It
+   then prints the setup token: you enter it once, to create the Owner. Everything else has a
+   default. [Configure the service](/installation/configure-the-service) lists every other setting.
 
    systemd reads the file as root before it starts the service, so the service user needs no
-   access to it. [Write the file in one command](#write-the-environment-file-in-one-command) if you
-   prefer.
+   access to it.
 
 4. Start it as a systemd service:
 
@@ -186,15 +182,6 @@ curl -LO https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alp
 
 ```bash
 sha256sum -c capacitylens-0.73.0-alpha.1.tar.gz.sha256
-```
-
-### Write the environment file in one command
-
-This replaces step 3 with fresh secrets. It refuses to overwrite an existing file, so running it
-again cannot replace keys. Change the address first:
-
-```bash
-sudo sh -c 'set -C; umask 077; secret="$(openssl rand -base64 48)" && token="$(openssl rand -base64 48)" && printf "NODE_ENV=production\nCAPACITYLENS_PUBLIC_URL=https://capacity.example.com\nCAPACITYLENS_SECRET=%s\nCAPACITYLENS_SETUP_TOKEN=%s\nCAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db\n" "$secret" "$token" > /etc/capacitylens.env'
 ```
 
 ## What's next

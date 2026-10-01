@@ -16,6 +16,10 @@ new features and **patch** versions carry fixes.
   two people, a client, a project and a few bookings across this week and next, as ordinary rows. An
   Owner or Admin can add it, and the server refuses a company that already has people, clients,
   projects or allocations (#1388).
+- `node server/dist/index.mjs init --public-url <url> --db <path>` generates the session secret and
+  setup token and prints the five-line environment file, or writes it with `--out <file>`, readable
+  only by its owner and never over an existing file. The install guides use it instead of `openssl`
+  (#1407).
 
 ### Changed
 

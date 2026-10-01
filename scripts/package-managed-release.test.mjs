@@ -223,6 +223,7 @@ test("ships an environment example whose only blanks are the three values to fil
     "CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db",
   ]);
   assert.match(example, /^# CAPACITYLENS_MODE=password-only$/m);
+  assert.doesNotMatch(example, /openssl/);
 });
 
 test("ships a service unit that runs the release with the system Node and the root-only environment", async () => {

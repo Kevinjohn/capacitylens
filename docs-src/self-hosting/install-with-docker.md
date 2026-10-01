@@ -48,24 +48,24 @@ installed, most of it waiting for the first build.
    `main`: it carries changes that haven't been released yet. `.env` will hold the signing
    secret and setup token, so only your account may read it.
 
-2. Generate two secrets — one for signing sessions, one for the first-owner setup
-   token:
+2. Generate the two secrets — one for signing sessions, one for the first-owner setup
+   token — with the server's `init` command. This builds the API image first:
 
    ```bash
-   openssl rand -base64 48
+   docker compose run --rm --no-deps api node dist/index.mjs init --public-url https://capacity.example.com --db /data/capacitylens.db
    ```
 
-   Run it twice and keep both values; you'll paste one into each of the two secret
-   fields in the next step.
+   Keep the `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` values it prints; you'll
+   paste them into `.env` in the next step. Compose already sets `NODE_ENV` and `CAPACITYLENS_DB`.
 
 3. Open `.env` and set at least these values:
 
    ```dotenv
    CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-password
    CAPACITYLENS_MODE=password-only
-   CAPACITYLENS_SECRET=<first generated value>
+   CAPACITYLENS_SECRET=<generated CAPACITYLENS_SECRET>
    CAPACITYLENS_PUBLIC_URL=https://capacity.example.com
-   CAPACITYLENS_SETUP_TOKEN=<second generated value>
+   CAPACITYLENS_SETUP_TOKEN=<generated CAPACITYLENS_SETUP_TOKEN>
    CAPACITYLENS_HTTPS=1
    CAPACITYLENS_RATE_LIMIT=300
    ```
