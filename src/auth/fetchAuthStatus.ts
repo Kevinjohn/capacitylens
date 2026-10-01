@@ -90,6 +90,7 @@ function parsePassResult(body: unknown, acceptEffects: () => boolean): AuthStatu
   }
   const next: Extract<AuthStatusResult, { kind: "pass" }> = {
     kind: "pass",
+    identitySource: authMode === "off" ? "open" : "live",
     authMode,
     user,
     canCreateAccount: resolveBooleanField({ value: fields.canCreateAccount, fallback: true }),
@@ -125,6 +126,7 @@ async function readOfflineIdentity(error: unknown, acceptEffects: () => boolean)
     if (acceptEffects()) setOfflineReadState({ owner: "identity", readOnly: true, lastUpdated: cached.savedAt });
     return {
       kind: "pass",
+      identitySource: "offline",
       authMode: cached.value.authMode,
       user: cached.value.user,
       canCreateAccount: false,

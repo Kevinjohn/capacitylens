@@ -157,7 +157,8 @@ function throwLifecycleError(error: unknown): void {
 
 // A PersistenceAdapter that keeps the SAME whole-tree contract the store already
 // speaks (loadAll / saveAll) but talks to the entity-level REST API:
-//   - loadAll(): GET /api/state  → one round-trip hydration (reads stay whole-tree)
+//   - loadAll(): GET /api/state for OFF mode and unverified identity; live-authenticated bootstrap
+//     seeds an empty snapshot without an unscoped request
 //   - saveAll(next): DIFF next against the last-synced snapshot and POST the ordered
 //     op set to /api/batch, which applies it in ONE server-side transaction (upserts
 //     parent-first, then deletes child-first). One request, all-or-nothing. The store
@@ -180,8 +181,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     this.state = new SyncState(baseUrl, fetchImpl);
   }
 
-  loadAll(accountId?: string): Promise<AppData> {
-    return loadAll(this.state, (next) => this.saveAll(next), accountId);
+  loadAll(accountId?: string, options?: { skipRemoteRead?: boolean }): Promise<AppData> {
+    return loadAll(this.state, (next) => this.saveAll(next), { accountId, ...options });
   }
 
   hasExisting(): Promise<boolean> {

@@ -37,9 +37,13 @@ const MicrosoftVerificationScreen = lazy(() =>
 
 type CheckAuth = (onNull: "fail-open" | "keep-previous") => Promise<AuthStatusResult | null>;
 
-function useTenantAccessReady(status: AuthStatusResult, onTenantAccessReady?: () => void) {
+function useTenantAccessReady(
+  status: AuthStatusResult,
+  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void,
+) {
   const tenantAccessSignalled = useRef(false);
   const ready = status.kind === "pass" && !(allowsPasswordSignIn(status.authMode) && status.mfaRequired);
+  const identitySource = status.kind === "pass" ? (status.identitySource ?? "open") : "open";
   useEffect(() => {
     if (!ready) {
       tenantAccessSignalled.current = false;
@@ -47,8 +51,8 @@ function useTenantAccessReady(status: AuthStatusResult, onTenantAccessReady?: ()
     }
     if (tenantAccessSignalled.current) return;
     tenantAccessSignalled.current = true;
-    onTenantAccessReady?.();
-  }, [onTenantAccessReady, ready]);
+    onTenantAccessReady?.(identitySource);
+  }, [identitySource, onTenantAccessReady, ready]);
 }
 
 type UseAuthStatusOptions = { serverMode: boolean };
@@ -228,9 +232,9 @@ export function AuthProvider({
   onTenantAccessReady,
 }: {
   children: ReactNode;
-  /** Starts tenant-data hydration only after /me admits this boot. The callback must be idempotent
-   * because React development StrictMode deliberately replays effects. */
-  onTenantAccessReady?: () => void;
+  /** Starts tenant-data hydration after /me admits access. Receives whether identity is live,
+   * cached offline, or open; the callback must be idempotent under StrictMode effect replay. */
+  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void;
 }) {
   if (/^\/verify-microsoft\/?$/.test(window.location.pathname)) {
     return (
@@ -251,7 +255,7 @@ function AuthenticatedAppProvider({
   onTenantAccessReady,
 }: {
   children: ReactNode;
-  onTenantAccessReady?: () => void;
+  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void;
 }) {
   const serverMode = isServerConfigured();
   const persistError = useStore((state) => state.persistError);
