@@ -68,9 +68,9 @@ asked "can we take this on?" and need a shared, honest answer.
 
 ## Project status
 
-CapacityLens is alpha software with a single maintainer. Database migrations are tested from every
-released database shape back to 0.20.0-alpha.1, so a database created by that release or any later
-one upgrades in place. Beta will mean the upgrade path and the settings are stable.
+CapacityLens is alpha software with a single maintainer. Database upgrades are tested from thirteen
+released database snapshots, the oldest from 0.20.0-alpha.1, so a database created by that release
+or any later one is expected to upgrade in place. Beta will mean the upgrade path and the settings are stable.
 
 Details: [how it is tested](docs-src/reference/how-it-is-tested.md) ·
 [philosophy](docs-src/reference/philosophy.md)

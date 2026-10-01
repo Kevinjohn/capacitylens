@@ -31,7 +31,7 @@ deliberate. See [Settings](/guide/settings#inline-activity-creation) to turn eit
 ## Decisions you will notice
 
 - **Week granularity.** The schedule shows 1, 2, 4, 6 or 8 weeks. Bookings are date ranges
-  rather than hours.
+  with a daily amount, not hour-by-hour slots.
 - **Over capacity means more than available.** A day is over capacity only when the booked
   time is greater than the available time. Fully booked is not over capacity.
 - **Utilisation, not load.** The percentage beside a name is calculated over the weeks you can
