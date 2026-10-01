@@ -7,7 +7,7 @@ import type { AppData, Client, ID, ISOTimestamp } from "../types/entities";
 // the flag, never by a hard-coded id formula: import-remap (remapAndValidateImport) mints fresh ids,
 // so any id we wrote would not survive a round-trip. The flag does. See DECISIONS.md.
 //
-// ── the single-internal invariant (canonical doc; cited from each enforcement point) ──
+// The single-internal invariant (canonical doc; cited from each enforcement point).
 // "Exactly ONE built-in Internal client per account" is one policy enforced at three points, one per
 // write path, deliberate defence-in-depth, not accidental duplication. They use three different
 // mechanisms because the three write contracts differ structurally; they cannot collapse into one

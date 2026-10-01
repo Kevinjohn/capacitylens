@@ -140,7 +140,7 @@ interface ResolveAllocatedHoursOnDayInput {
  * that ignores the working calendars (`ignoreWeekends`) places its hours on every calendar day in
  * `[startDate, endDate]`. A normal allocation with no effective week loads no days. Time-off days
  * that remain effective weekdays still load, preserving the real over-capacity conflict.
- *  @remarks Assumes each `hoursPerDay` is finite (see the top-of-file precondition). A NaN would
+ * @remarks Assumes each `hoursPerDay` is finite (see the top-of-file precondition). A NaN would
  * poison the sum and make every over/utilisation comparison read as "never over". */
 export function resolveAllocatedHoursOnDay({
   resource,

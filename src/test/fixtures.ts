@@ -229,8 +229,8 @@ export function setExternalEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetEx
  * a mock that resolves the same instance twice hands the second reader an already-consumed body. The
  * idiom is `mock.mockImplementation(() => Promise.resolve(jsonResponse(...)))`.
  *
- *  @param body   - anything `JSON.stringify` accepts; becomes the response body verbatim.
- *  @param status - defaults to 200. Pass a 4xx/5xx to exercise a client's non-ok branch (note the
+ * @param body   - anything `JSON.stringify` accepts; becomes the response body verbatim.
+ * @param status - defaults to 200. Pass a 4xx/5xx to exercise a client's non-ok branch (note the
  * `Response` constructor rejects 204 with a body, use a bare `new Response(null,
  * { status: 204 })` for those). */
 export function jsonResponse(body: unknown, status = 200): Response {

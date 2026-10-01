@@ -59,7 +59,7 @@ export function isMatchingSecretToken(configured: string | undefined, presented:
   return timingSafeEqual(a, b);
 }
 
-// ── Admin-issued password-reset links.
+// Admin-issued password-reset links.
 // Admin requests capture the token instead of emailing it, preserving the write-once copy-link
 // flow. Public requests use optional SMTP. Better Auth owns token storage, expiry, single-use
 // consumption and the public POST /api/auth/reset-password redeem endpoint.

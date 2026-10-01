@@ -22,8 +22,7 @@ export { createRequestLoggerOptions } from "./routes/appLogging";
 export { MAX_SERVER_CONNECTIONS } from "./routes/appLimits";
 
 // The identity requireUser attaches to every gated request. Session/identity
-// plumbing only, accountId stays client-asserted (ownsRow is still the tenant guard);
-// this is the seam Stage C will later use to derive accountId server-side.
+// plumbing only; accountId stays client-asserted, and ownsRow is still the tenant guard.
 declare module "fastify" {
   interface FastifyRequest {
     user: SessionUser | null;

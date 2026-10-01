@@ -53,7 +53,7 @@ interface PatchStatusReqInput {
   headers?: Record<string, string> | undefined;
 }
 
-// ── Member lifecycle: disable / archive / restore.
+// Member lifecycle: disable / archive / restore.
 // A membership's status is what every authorization read narrows on, so these routes are an access
 // control surface, not a labelling one. The assertions below fix both halves: the status actually
 // changes, and the account stops admitting the member the moment it does.
