@@ -3,7 +3,7 @@
 CapacityLens is maintained on a best-effort basis.
 
 - Setup and usage questions: start a
-  [GitHub Discussion](https://github.com/Kevinjohn/capacitylens/discussions). Include the version,
+  [GitHub Discussion](https://github.com/Kevinjohn/capacitylens/discussions/categories/q-a). Include the version,
   deployment method and relevant logs.
 - Reproducible bugs: use the bug-report form.
 - Feature ideas: use the feature-request form and check the product non-goals first.
