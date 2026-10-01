@@ -477,6 +477,18 @@ JavaScript and TypeScript files, so small commits stay fast. Each push runs the 
 lint to catch configuration and cross-file effects. Set `SKIP_SIMPLE_GIT_HOOKS=1` for a single Git
 operation only when diagnosing a hook problem; pull-request checks remain authoritative.
 
+### Account-security versioning
+
+When account-security behavior changes, update the version at the boundary that owns the rule:
+
+- portable identity behavior: the account contract and every `IdentityPort` conformance fixture;
+- database/auth-library behavior: the minimum-security or schema version and its migration/rehearsal evidence;
+- browser/server propagation: the shared command version and the tests proving every implementation accepts it.
+
+The pull-request description should name the changed version and link the conformance, migration,
+or propagation test that proves all implementations moved together. If no version changes, explain
+why the change preserves the existing contract.
+
 ### What `gate` checks
 
 `gate` compiles translations, type-checks, lints with zero warnings, runs Vitest with
