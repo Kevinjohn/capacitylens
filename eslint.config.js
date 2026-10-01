@@ -28,12 +28,55 @@ const sharedTestFiles = [
 ];
 const appTestFiles = ["src/**/*.{test,spec}.{ts,tsx}", "src/**/__tests__/**/*.{ts,tsx}"];
 
-/** Bans parent-relative app imports, except the exact repository-file specifiers listed. */
-function parentImportPattern(allowedSpecifiers) {
+// `@/` maps only to src/, so it cannot name a repository file outside it. These files read one,
+// and each may import only the specifiers listed against it.
+const parentImportAllowances = {
+  "src/data/buildInfo.ts": ["../../package.json"],
+  "src/build/staticSpaRouteDocuments.test.ts": ["../../vite.config"],
+  "src/bundleBudgetGate.test.ts": ["../scripts/bundleBudget.mjs"],
+  "src/csp.test.ts": [
+    "../nginx.conf?raw",
+    "../nginx.client.conf.template?raw",
+    "../nginx-security-headers.conf?raw",
+    "../scripts/render-client-nginx.mjs",
+  ],
+  "src/fileCoverageGate.test.ts": ["../scripts/check-file-coverage.mjs"],
+  "src/playwrightServerScope.test.ts": ["../scripts/playwrightServerScope", "../scripts/playwrightRunMode.mjs"],
+  "src/pnpmSpawn.test.ts": ["../scripts/pnpmSpawn.mjs"],
+  "src/router.test.tsx": ["../scripts/staticSpaRoutes.mjs"],
+  "src/serve-dist.test.ts": ["../scripts/serve-dist.mjs"],
+  "src/test/generateDocumentationComponentId.test.ts": [
+    "../../docs-src/.vitepress/generateDocumentationComponentId.mts",
+    "../../docs-src/.vitepress/config.mts",
+  ],
+};
+
+const recordGuard = {
+  selector: "FunctionDeclaration[id.name=/^is(Unknown)?Record$/], VariableDeclarator[id.name=/^is(Unknown)?Record$/]",
+  message: "Import isRecord from @capacitylens/shared/lib/isRecord instead of defining another copy.",
+};
+
+/**
+ * Rejects parent-relative app module specifiers (`..` or `../…`) in static imports, `import()`,
+ * `import("…")` types and Vitest module calls, except the exact specifiers listed. `/` is written
+ * as `\x2F` because selector regexes cannot contain a slash.
+ */
+function parentImportRules(allowedSpecifiers) {
   const allowed = allowedSpecifiers.map((specifier) => specifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const lookahead = allowed.length ? `(?!(?:${allowed.join("|")})$)` : "";
+  const regex = `^${lookahead}\\.\\.(?:/|$)`.replaceAll("/", "\\x2F");
+  const message = "Import from another folder with `@/…`; use `./` only within the importing file's folder.";
+  const vitestModuleCall =
+    "CallExpression[callee.object.name='vi'][callee.property.name=/^(mock|doMock|unmock|doUnmock|importActual|importMock)$/]";
   return {
-    regex: allowed.length ? `^(?!(?:${allowed.join("|")})$)\\.\\./` : "^\\.\\./",
-    message: "Import from another folder with `@/…`; use `./` only within the importing file's folder.",
+    "no-restricted-imports": ["error", { patterns: [{ regex, message }] }],
+    "no-restricted-syntax": [
+      "error",
+      recordGuard,
+      { selector: `ImportExpression > Literal.source[value=/${regex}/]`, message },
+      { selector: `TSImportType[source.value=/${regex}/]`, message },
+      { selector: `${vitestModuleCall} > Literal.arguments:first-child[value=/${regex}/]`, message },
+    ],
   };
 }
 
@@ -199,53 +242,6 @@ export default defineConfig([
     },
   },
 
-  // App imports that leave the importing file's folder use `@/…`; `./` stays within a folder.
-  {
-    files: ["src/**/*.{ts,tsx}"],
-    rules: { "no-restricted-imports": ["error", { patterns: [parentImportPattern([])] }] },
-  },
-  // `@/` maps only to src/, so it cannot name a repository file outside it. These files read one,
-  // and each such specifier is allowed by exact text.
-  {
-    files: [
-      "src/data/buildInfo.ts",
-      "src/build/staticSpaRouteDocuments.test.ts",
-      "src/bundleBudgetGate.test.ts",
-      "src/csp.test.ts",
-      "src/fileCoverageGate.test.ts",
-      "src/playwrightServerScope.test.ts",
-      "src/pnpmSpawn.test.ts",
-      "src/router.test.tsx",
-      "src/serve-dist.test.ts",
-      "src/test/generateDocumentationComponentId.test.ts",
-    ],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            parentImportPattern([
-              "../../package.json",
-              "../../vite.config",
-              "../../docs-src/.vitepress/generateDocumentationComponentId.mts",
-              "../nginx.conf?raw",
-              "../nginx.client.conf.template?raw",
-              "../nginx-security-headers.conf?raw",
-              "../scripts/bundleBudget.mjs",
-              "../scripts/check-file-coverage.mjs",
-              "../scripts/playwrightRunMode.mjs",
-              "../scripts/playwrightServerScope",
-              "../scripts/pnpmSpawn.mjs",
-              "../scripts/render-client-nginx.mjs",
-              "../scripts/serve-dist.mjs",
-              "../scripts/staticSpaRoutes.mjs",
-            ]),
-          ],
-        },
-      ],
-    },
-  },
-
   // End-to-end scenarios share the structural limits even though their Playwright project is
   // separate from the typed app/server lint projects. Tests are not exempt from the baseline.
   {
@@ -325,16 +321,17 @@ export default defineConfig([
     files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
     ignores: ["shared/src/lib/isRecord.ts"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector:
-            "FunctionDeclaration[id.name=/^is(Unknown)?Record$/], VariableDeclarator[id.name=/^is(Unknown)?Record$/]",
-          message: "Import isRecord from @capacitylens/shared/lib/isRecord instead of defining another copy.",
-        },
-      ],
+      "no-restricted-syntax": ["error", recordGuard],
     },
   },
+
+  // App imports that leave the importing file's folder use `@/…`; `./` stays within a folder.
+  // These blocks restate the record guard because a later no-restricted-syntax replaces it.
+  { files: ["src/**/*.{ts,tsx}"], rules: parentImportRules([]) },
+  ...Object.entries(parentImportAllowances).map(([file, allowed]) => ({
+    files: [file],
+    rules: parentImportRules(allowed),
+  })),
 
   // Colocated shared tests use Node; production resolves through the pure package project.
   {
