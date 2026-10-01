@@ -66,6 +66,15 @@ If you need Jira, use Jira. This is the thing you look at _before_ you open Jira
 Agency owners, studio and operations leads, resource planners and project leads: the people who get
 asked "can we take this on?" and need a shared, honest answer.
 
+## Project status
+
+CapacityLens is alpha software with a single maintainer. Database upgrades are tested from thirteen
+released database snapshots, the oldest from 0.20.0-alpha.1, so a database created by that release
+or any later one is expected to upgrade in place. Beta will mean the upgrade path and the settings are stable.
+
+Details: [how it is tested](docs-src/reference/how-it-is-tested.md) ·
+[philosophy](docs-src/reference/philosophy.md)
+
 ## Run it for real
 
 Every release from 0.73.0-alpha.1 carries a server archive. Node 24 is the only prerequisite.
