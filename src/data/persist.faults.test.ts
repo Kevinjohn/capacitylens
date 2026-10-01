@@ -72,10 +72,12 @@ describe("persistence coordinator fault-injection branches", () => {
     );
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "a2", name: "Beta", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "a2", name: "Beta", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
@@ -272,7 +274,7 @@ describe("persistence coordinator fault-injection branches", () => {
     const loadAll = vi.fn().mockRejectedValueOnce(new Error("switch failed")).mockResolvedValueOnce(a2Slice());
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },

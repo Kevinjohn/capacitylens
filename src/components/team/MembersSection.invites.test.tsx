@@ -66,11 +66,11 @@ vi.mock("../../data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -302,9 +302,11 @@ function registerInviteResetTests(): void {
     fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
     await waitFor(() => expect(pending.respond).toBeDefined());
-    act(() => setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z")));
+    act(() =>
+      setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") }),
+    );
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Invite someone" })).not.toBeInTheDocument());
-    act(() => setOfflineReadState("cleanup", false));
+    act(() => setOfflineReadState({ owner: "cleanup", readOnly: false }));
     const readsBeforeResponse = invitesReads;
     invites = [LATE_INVITE];
     await act(async () => {

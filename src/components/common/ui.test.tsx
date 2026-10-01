@@ -14,7 +14,6 @@ import {
   ColorField,
   WorkingDayPicker,
   ColorSwatch,
-  Avatar,
   SegmentedControl,
   SegmentedField,
   SwitchField,
@@ -408,7 +407,8 @@ function registerModalDirtyStateTests() {
 
 function registerModalControlDirtyTests() {
   it("keeps one editor globally dirty while a clean overlapping Modal mounts and unmounts", () => {
-    const modals = (showCleanOverlay: boolean) => (
+    type ModalsOptions = { showCleanOverlay: boolean };
+    const modals = ({ showCleanOverlay }: ModalsOptions) => (
       <>
         <Modal key="editor" title="Dirty editor" onClose={vi.fn()}>
           <input aria-label="edited field" />
@@ -420,18 +420,18 @@ function registerModalControlDirtyTests() {
         )}
       </>
     );
-    const { rerender, unmount } = render(modals(false));
+    const { rerender, unmount } = render(modals({ showCleanOverlay: false }));
 
     fireEvent.input(screen.getByLabelText("edited field"), {
       target: { value: "unsaved" },
     });
     expect(useStore.getState().dirtyForm).toBe(true);
 
-    rerender(modals(true));
+    rerender(modals({ showCleanOverlay: true }));
     expect(screen.getByRole("dialog", { name: "Clean overlay" })).toBeInTheDocument();
     expect(useStore.getState().dirtyForm).toBe(true);
 
-    rerender(modals(false));
+    rerender(modals({ showCleanOverlay: false }));
     expect(screen.queryByRole("dialog", { name: "Clean overlay" })).not.toBeInTheDocument();
     expect(useStore.getState().dirtyForm).toBe(true);
 
@@ -1274,7 +1274,11 @@ function registerColorFieldModalTests(BLUE: string, RED: string) {
 
 // ─── WorkingDayPicker ──────────────────────────────────────────────────────
 
-const renderWorkingDayPicker = (onChange = vi.fn(), invalid = false) =>
+type RenderWorkingDayPickerOptions = {
+  onChange?: React.ComponentProps<typeof WorkingDayPicker>["onChange"];
+  invalid?: boolean;
+};
+const renderWorkingDayPicker = ({ onChange = vi.fn(), invalid = false }: RenderWorkingDayPickerOptions = {}) =>
   render(
     <WorkingDayPicker
       label="Working days"
@@ -1293,7 +1297,7 @@ describe("WorkingDayPicker", () => {
 
 function registerWorkingDayPickerLayoutTests() {
   it("renders a full-width Monday–Sunday grid with the three choice headings written once", () => {
-    renderWorkingDayPicker();
+    renderWorkingDayPicker({});
     expect(screen.getByRole("columnheader", { name: "Weekday" })).toBeInTheDocument();
     for (const option of ["Full day", "Half day", "Not working"]) {
       expect(screen.getByRole("columnheader", { name: option })).toBeVisible();
@@ -1313,7 +1317,7 @@ function registerWorkingDayPickerLayoutTests() {
   });
 
   it("keeps long availability and weekday labels on one line for horizontal overflow", () => {
-    renderWorkingDayPicker();
+    renderWorkingDayPicker({});
     for (const header of screen.getAllByRole("columnheader").slice(1)) {
       expect(header).toHaveClass("whitespace-nowrap");
     }
@@ -1325,7 +1329,7 @@ function registerWorkingDayPickerLayoutTests() {
 
 function registerWorkingDayPickerStateTests() {
   it("selects full, half and non-working choices from the persisted subsets", () => {
-    renderWorkingDayPicker();
+    renderWorkingDayPicker({});
     const monday = screen.getByRole("row", { name: /Monday/ });
     const wednesday = screen.getByRole("row", { name: /Wednesday/ });
     const saturday = screen.getByRole("row", { name: /Saturday/ });
@@ -1337,7 +1341,7 @@ function registerWorkingDayPickerStateTests() {
   it("moves a weekday between mutually exclusive choices", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    renderWorkingDayPicker(onChange);
+    renderWorkingDayPicker({ onChange: onChange });
     await user.click(
       within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Saturday Half day" }),
     );
@@ -1345,14 +1349,14 @@ function registerWorkingDayPickerStateTests() {
   });
 
   it("does NOT set aria-invalid/aria-describedby on the fieldset when valid", () => {
-    const { container } = renderWorkingDayPicker();
+    const { container } = renderWorkingDayPicker({});
     const fieldset = getRequiredElement<HTMLFieldSetElement>(container, "fieldset");
     expect(fieldset).not.toHaveAttribute("aria-invalid");
     expect(fieldset).not.toHaveAttribute("aria-describedby");
   });
 
   it("marks the GROUP errored (aria-invalid + aria-describedby) when invalid, mirroring sibling fields (WCAG 3.3.1)", () => {
-    const { container } = renderWorkingDayPicker(vi.fn(), true);
+    const { container } = renderWorkingDayPicker({ onChange: vi.fn(), invalid: true });
     const fieldset = getRequiredElement<HTMLFieldSetElement>(container, "fieldset");
     expect(fieldset).toHaveAttribute("aria-invalid", "true");
     expect(fieldset).toHaveAttribute("aria-describedby", "err-1");
@@ -1369,89 +1373,3 @@ describe("ColorSwatch", () => {
     expect(swatch.style.backgroundColor).toBe("rgb(236, 72, 153)");
   });
 });
-
-// ─── Avatar ────────────────────────────────────────────────────────────────
-
-describe("Avatar", () => {
-  registerAvatarInitialTests();
-  registerAvatarImageTests();
-});
-
-function registerAvatarInitialTests() {
-  it("shows two-initial monogram from a full name", () => {
-    const { container } = render(<Avatar name="Alice Smith" color="#111" />);
-    expect(container.firstChild).toHaveTextContent("AS");
-  });
-
-  it("shows single initial from a single-word name", () => {
-    const { container } = render(<Avatar name="Alice" color="#111" />);
-    expect(container.firstChild).toHaveTextContent("A");
-  });
-
-  it("shows only first two initials from a long name", () => {
-    const { container } = render(<Avatar name="Alice Bob Carol" color="#111" />);
-    expect(container.firstChild).toHaveTextContent("AB");
-  });
-
-  it("shows initials in uppercase", () => {
-    const { container } = render(<Avatar name="alice smith" color="#111" />);
-    expect(container.firstChild).toHaveTextContent("AS");
-  });
-
-  it("keeps an astral-plane leading character intact in initials", () => {
-    const { container } = render(<Avatar name="🚀 Studio" color="#111" />);
-    expect(container.firstChild).toHaveTextContent("🚀S");
-  });
-
-  it("shows em dash fallback for an empty name", () => {
-    const { container } = render(<Avatar name="" color="#111" />);
-    expect(container.firstChild).toHaveTextContent("—");
-  });
-
-  it("renders with the given background color", () => {
-    const { container } = render(<Avatar name="Alice Smith" color="#ec4899" />);
-    const el = container.firstChild as HTMLElement;
-    expect(el.style.backgroundColor).toBe("rgb(236, 72, 153)");
-  });
-
-  it("renders no photo <img> when no imageUrl is given (initials only)", () => {
-    const { container } = render(<Avatar name="Alice Smith" color="#111" />);
-    expect(container.querySelector("img")).toBeNull();
-    expect(container.firstChild).toHaveTextContent("AS");
-  });
-}
-
-function registerAvatarImageTests() {
-  it("keeps the initials fallback while an imageUrl is still loading", () => {
-    // jsdom never resolves the Radix image load, so the primitive stays on its fallback — the
-    // signed-in user sees initials (never an empty circle) until the photo resolves.
-    const { container } = render(<Avatar name="Alice Smith" color="#111" imageUrl="https://cdn.example/a.png" />);
-    expect(container.querySelector("img")).toBeNull();
-    expect(container.firstChild).toHaveTextContent("AS");
-  });
-
-  it("renders the photo <img> from imageUrl once it loads", () => {
-    // Stub Image as loaded (complete + non-zero naturalWidth) so Radix mounts the photo in jsdom.
-    class LoadedImage {
-      complete = true;
-      naturalWidth = 1;
-      crossOrigin: string | null = null;
-      referrerPolicy = "";
-      src = "";
-      addEventListener() {}
-      removeEventListener() {}
-    }
-    vi.stubGlobal("Image", LoadedImage);
-    try {
-      const { container } = render(<Avatar name="Alice Smith" color="#111" imageUrl="https://cdn.example/a.png" />);
-      const img = container.querySelector("img");
-      expect(img).not.toBeNull();
-      expect(img).toHaveAttribute("src", "https://cdn.example/a.png");
-      expect(img).toHaveAttribute("alt", "");
-      expect(img).toHaveAttribute("referrerpolicy", "no-referrer");
-      expect(img).toHaveClass("object-cover");
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  });
-}

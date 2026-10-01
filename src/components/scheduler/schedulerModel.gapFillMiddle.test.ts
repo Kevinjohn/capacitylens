@@ -7,7 +7,7 @@ import { allBars, dataset, days, end, geom, start, withExternal } from "./schedu
 
 function registerMovedSchedulerTests23811(
   companyData: () => AppData,
-  buildCompany: (blocksMode?: boolean) => GroupModel[],
+  buildCompany: (options?: BuildCompanyClosureModelOptions) => GroupModel[],
 ) {
   it("applies closure capacity and conflict cells to every tracked row", () => {
     const rows = buildCompany().flatMap((group) => group.rows);
@@ -58,10 +58,10 @@ function registerMovedSchedulerTests23811(
   });
 }
 
-function registerMovedSchedulerTests23812(buildCompany: (blocksMode?: boolean) => GroupModel[]) {
+function registerMovedSchedulerTests23812(buildCompany: (options?: BuildCompanyClosureModelOptions) => GroupModel[]) {
   it("flags a zero-load Block overlapping a closure", () => {
     const r1 = requireValue(
-      buildCompany(true)
+      buildCompany({ blocksMode: true })
         .flatMap((group) => group.rows)
         .find((row) => row.resource.id === "r1"),
       "r1 scheduler row",
@@ -72,7 +72,7 @@ function registerMovedSchedulerTests23812(buildCompany: (blocksMode?: boolean) =
   });
 }
 
-function registerMovedSchedulerTests23813(buildCompany: (blocksMode?: boolean) => GroupModel[]) {
+function registerMovedSchedulerTests23813(buildCompany: (options?: BuildCompanyClosureModelOptions) => GroupModel[]) {
   it("keeps external capacity starved and exempt from company closures", () => {
     const external = requireValue(
       requireValue(
@@ -590,7 +590,8 @@ function buildCompanyClosureData(): AppData {
   return d;
 }
 
-function buildCompanyClosureModel(blocksMode = false) {
+type BuildCompanyClosureModelOptions = { blocksMode?: boolean };
+function buildCompanyClosureModel({ blocksMode = false }: BuildCompanyClosureModelOptions = {}) {
   return buildSchedulerModel({
     data: buildCompanyClosureData(),
     geom,

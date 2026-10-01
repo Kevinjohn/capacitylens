@@ -15,7 +15,7 @@ const json = (status: number, body: unknown) =>
 
 afterEach(() => {
   // Never leak a pending step-up into the next test (the coordinator is a module singleton).
-  if (isReauthPending()) completeReauth(false);
+  if (isReauthPending()) completeReauth({ reauthenticated: false });
   vi.unstubAllGlobals();
 });
 
@@ -35,7 +35,7 @@ describe("apiFetchReauth", () => {
     const first = apiFetchReauth("http://api.test/api/accounts/a1/members");
     const late = apiFetchReauth("http://api.test/api/accounts/a1/invitations");
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
-    completeReauth(outcome);
+    completeReauth({ reauthenticated: outcome });
     await expect(first).resolves.toMatchObject({ status: outcome ? 200 : 403 });
 
     releaseSecond(json(403, { code: "SESSION_NOT_FRESH" }));
@@ -96,7 +96,7 @@ describe("apiFetchReauth passthrough", () => {
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    completeReauth(true); // the dialog reports a fresh session
+    completeReauth({ reauthenticated: true }); // the dialog reports a fresh session
     const res = await pending;
     expect(res.status).toBe(200); // the retried request's response, handed back transparently
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -111,7 +111,7 @@ describe("apiFetchReauth retry outcomes", () => {
 
     const pending = apiFetchReauth("http://api.test/api/accounts/a1/members");
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
-    completeReauth(true);
+    completeReauth({ reauthenticated: true });
 
     const res = await pending;
     expect(res.status).toBe(403);
@@ -135,7 +135,7 @@ describe("apiFetchReauth replay behavior", () => {
 
     const pending = apiFetchReauth("http://api.test/api/accounts/a1/members");
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
-    completeReauth(true);
+    completeReauth({ reauthenticated: true });
 
     await expect(pending).resolves.toMatchObject({ status: 200 });
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -170,7 +170,7 @@ describe("apiFetchReauth replay behavior", () => {
     });
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    completeReauth(true);
+    completeReauth({ reauthenticated: true });
 
     expect((await pending).status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -199,7 +199,7 @@ describe("apiFetchReauth replay behavior", () => {
 
     const pending = apiFetchReauth(request);
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
-    completeReauth(true);
+    completeReauth({ reauthenticated: true });
 
     await expect(pending).resolves.toMatchObject({ status: 200 });
     expect(bodies).toEqual(["payload", "payload"]);
@@ -237,7 +237,7 @@ describe("apiFetchReauth request guards", () => {
     });
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
 
-    completeReauth(false); // the user cancels the dialog
+    completeReauth({ reauthenticated: false }); // the user cancels the dialog
     const res = await pending;
     expect(res.status).toBe(403);
     // The body was only ever peeked at via clone(), so the caller can still read it (readApiError).

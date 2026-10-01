@@ -45,7 +45,8 @@ function useProjectOptions({ resource, projects, clients, rawProjects, rawClient
   return [...baseOptions, { value: resource.projectId, label, disabled: true }];
 }
 
-function resolveFormTitle(resource: Resource | undefined, isPlaceholder: boolean) {
+type ResolveFormTitleOptions = { resource: Resource | undefined; isPlaceholder: boolean };
+function resolveFormTitle({ resource, isPlaceholder }: ResolveFormTitleOptions) {
   if (resource) return isPlaceholder ? m.form_resource_edit_placeholder_title() : m.form_resource_edit_resource_title();
   return isPlaceholder ? m.form_resource_add_placeholder_title() : m.form_resource_add_resource_title();
 }
@@ -224,7 +225,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
   });
   return (
     <Modal
-      title={resolveFormTitle(resource, isPlaceholder)}
+      title={resolveFormTitle({ resource: resource, isPlaceholder: isPlaceholder })}
       onClose={onClose}
       onSubmit={submit}
       footer={<FormActions onCancel={onClose} disabled={submitting} />}

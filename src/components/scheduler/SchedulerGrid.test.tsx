@@ -63,14 +63,14 @@ beforeEach(() => {
   // shipped default (roomy) or a test that flips it changes the row/header heights every test after
   // it measures.
   useStore.getState().setCompactView(false);
-  useStore.getState().setUtilizationPref("showTotal", true);
+  useStore.getState().setUtilizationPref({ key: "showTotal", value: true });
   useStore.getState().clearFilters();
   useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [], scrollToResource: null } }));
 });
 
 describe("SchedulerGrid", () => {
   it("names the resource column when the optional total utilisation is hidden", () => {
-    useStore.getState().setUtilizationPref("showTotal", false);
+    useStore.getState().setUtilizationPref({ key: "showTotal", value: false });
 
     renderGrid();
 
@@ -209,7 +209,7 @@ describe("SchedulerGrid", () => {
       endDate: "2026-06-01",
       type: "holiday",
     });
-    useStore.getState().setUtilizationPref("showPersonal", true);
+    useStore.getState().setUtilizationPref({ key: "showPersonal", value: true });
 
     renderGrid();
 

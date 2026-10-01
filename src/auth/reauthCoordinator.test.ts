@@ -10,7 +10,7 @@ import {
 } from "./reauthCoordinator";
 
 afterEach(() => {
-  if (isReauthPending()) completeReauth(false);
+  if (isReauthPending()) completeReauth({ reauthenticated: false });
   vi.useRealTimers();
 });
 
@@ -27,7 +27,7 @@ describe("reauthCoordinator", () => {
     expect(isReauthPending()).toBe(true);
     expect(listener).toHaveBeenCalledOnce();
 
-    completeReauth(outcome);
+    completeReauth({ reauthenticated: outcome });
 
     const [firstResult, secondResult] = await Promise.all([first, second]);
     expect(firstResult).toEqual(outcome ? { kind: "authenticated" } : { kind: "cancelled" });
@@ -35,7 +35,7 @@ describe("reauthCoordinator", () => {
     const afterResolution = readReauthResolution();
     expect(afterResolution.epoch).toBe(beforeResolution.epoch + 1);
     expect(afterResolution.outcome).toBe(firstResult);
-    completeReauth(!outcome);
+    completeReauth({ reauthenticated: !outcome });
     expect(readReauthResolution()).toBe(afterResolution);
     expect(readReauthResolution().epoch).toBe(afterResolution.epoch);
     expect(isReauthPending()).toBe(false);
@@ -47,7 +47,7 @@ describe("reauthCoordinator", () => {
     const listener = vi.fn();
     const unsubscribe = subscribeReauth(listener);
 
-    completeReauth(true);
+    completeReauth({ reauthenticated: true });
 
     expect(isReauthPending()).toBe(false);
     expect(listener).not.toHaveBeenCalled();
@@ -60,7 +60,7 @@ describe("reauthCoordinator", () => {
     unsubscribe();
 
     const pending = requestReauth();
-    completeReauth(false);
+    completeReauth({ reauthenticated: false });
 
     await expect(pending).resolves.toEqual({ kind: "cancelled" });
     expect(listener).not.toHaveBeenCalled();
@@ -70,7 +70,7 @@ describe("reauthCoordinator", () => {
     const pending = requestReauth("remove-member");
 
     expect(readReauthAction()).toBe("remove-member");
-    completeReauth(false);
+    completeReauth({ reauthenticated: false });
 
     return expect(pending).resolves.toEqual({ kind: "cancelled" });
   });

@@ -31,7 +31,7 @@ export function SettingsAppearanceSection({
               key={option.value}
               label={option.label}
               checked={barLabelPreferences[option.value]}
-              onChange={(next) => setBarLabelPreference(option.value, next)}
+              onChange={(next) => setBarLabelPreference({ key: option.value, value: next })}
             />
           ))}
         </div>
@@ -47,7 +47,7 @@ export function SettingsAppearanceSection({
                 key={option.value}
                 label={option.label}
                 checked={utilizationPreferences[option.value]}
-                onChange={(next) => setUtilizationPreference(option.value, next)}
+                onChange={(next) => setUtilizationPreference({ key: option.value, value: next })}
               />
             ))}
         </div>

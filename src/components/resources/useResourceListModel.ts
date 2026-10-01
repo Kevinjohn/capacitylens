@@ -20,7 +20,8 @@ const byEngagementFavouriteDisplayName =
   createEngagementFavouriteDisplayNameComparator<Resource>(resolveResourceDisplayName);
 const byDisplayName = createDisplayNameComparator<Resource>(resolveResourceDisplayName);
 
-function partitionResources(resources: Resource[], groupByEngagement: boolean) {
+type PartitionResourcesOptions = { resources: Resource[]; groupByEngagement: boolean };
+function partitionResources({ resources, groupByEngagement }: PartitionResourcesOptions) {
   const people: Resource[] = [];
   const placeholders: Resource[] = [];
   const externals: Resource[] = [];
@@ -51,7 +52,10 @@ export function useResourceListModel() {
   const groupByEngagement = useStore((state) => hasResourceEngagementGrouping(state.data, state.activeAccountId));
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
-  const groups = useMemo(() => partitionResources(resources, groupByEngagement), [resources, groupByEngagement]);
+  const groups = useMemo(
+    () => partitionResources({ resources: resources, groupByEngagement: groupByEngagement }),
+    [resources, groupByEngagement],
+  );
   const resolveDisciplineName = (id?: string) => (id ? disciplinesById.get(id)?.name : undefined);
   const resolveSwatchColor = (resource: Resource) =>
     (disciplinesEnabled && resource.disciplineId ? disciplinesById.get(resource.disciplineId)?.color : undefined) ??

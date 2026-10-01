@@ -62,11 +62,16 @@ function useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote }: T
   return { resourceId, setResourceId, startDate, setStartDate, endDate, setEndDate, type, setType, note, setNote };
 }
 
-function useTimeOffResourceOptions(
-  resources: ReturnType<typeof useActiveScopedData>["resources"],
-  placeholdersEnabled: boolean,
-  resourceId: string,
-): Option[] {
+type UseTimeOffResourceOptionsOptions = {
+  resources: ReturnType<typeof useActiveScopedData>["resources"];
+  placeholdersEnabled: boolean;
+  resourceId: string;
+};
+function useTimeOffResourceOptions({
+  resources,
+  placeholdersEnabled,
+  resourceId,
+}: UseTimeOffResourceOptionsOptions): Option[] {
   const filteredResources = useMemo(
     () =>
       resources
@@ -126,7 +131,11 @@ export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
 
-  const resourceOptions = useTimeOffResourceOptions(resources, placeholdersEnabled, fields.resourceId);
+  const resourceOptions = useTimeOffResourceOptions({
+    resources: resources,
+    placeholdersEnabled: placeholdersEnabled,
+    resourceId: fields.resourceId,
+  });
   const repeatFields = buildTimeOffRepeatFields({
     timeOff,
     startDate: fields.startDate,

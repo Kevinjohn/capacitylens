@@ -10,7 +10,8 @@ interface MemberResourceLinkRequestInput {
   reload(): void;
 }
 
-function resolveResourceStatus(expectedResourceId: string | null | undefined, reconciled: boolean): string {
+type ResolveResourceStatusOptions = { expectedResourceId: string | null | undefined; reconciled: boolean };
+function resolveResourceStatus({ expectedResourceId, reconciled }: ResolveResourceStatusOptions): string {
   if (!reconciled) return "";
   return expectedResourceId === null
     ? m.settings_member_resource_remove_done()
@@ -113,7 +114,7 @@ export function useMemberResourceLinkRequest({ member, workspaceId, reload }: Me
   return {
     pending,
     error,
-    statusMessage: resolveResourceStatus(expectedResourceId, reconciled),
+    statusMessage: resolveResourceStatus({ expectedResourceId: expectedResourceId, reconciled: reconciled }),
     change,
     dismissException,
   };

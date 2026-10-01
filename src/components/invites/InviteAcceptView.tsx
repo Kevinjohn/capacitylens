@@ -123,7 +123,7 @@ function InvitePreviewDetails({ preview }: { preview: InvitePreview }) {
         <ItemDescription className="line-clamp-none">{resolveRoleSummary(preview.role)}</ItemDescription>
         <ItemDescription className="line-clamp-none">{m.invite_existing_role_note()}</ItemDescription>
         <ItemDescription className="line-clamp-none wrap-anywhere">
-          {resolveEmailBoundaryCopy(preview.emailBound, preview.emailHint)}
+          {resolveEmailBoundaryCopy({ emailBound: preview.emailBound, emailHint: preview.emailHint })}
         </ItemDescription>
         <ItemDescription className="line-clamp-none">
           {m.invite_expires({ when: formatInviteExpiry(preview.expiresAt) })}
@@ -133,7 +133,8 @@ function InvitePreviewDetails({ preview }: { preview: InvitePreview }) {
   );
 }
 
-function resolveEmailBoundaryCopy(emailBound: boolean | null, emailHint: string | null) {
+type ResolveEmailBoundaryCopyOptions = { emailBound: boolean | null; emailHint: string | null };
+function resolveEmailBoundaryCopy({ emailBound, emailHint }: ResolveEmailBoundaryCopyOptions) {
   if (emailBound === true && emailHint !== null) return m.invite_email_bound({ hint: emailHint });
   if (emailBound === true) return m.invite_email_bound_no_hint();
   if (emailBound === false) return m.invite_email_unbound();

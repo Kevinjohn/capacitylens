@@ -45,7 +45,8 @@ function populateFederatedIdentityDb(db: DatabaseSync): void {
   `);
 }
 
-function createSharedProviderDb(reverseOrder: boolean): DatabaseSync {
+type CreateSharedProviderDbOptions = { reverseOrder: boolean };
+function createSharedProviderDb({ reverseOrder }: CreateSharedProviderDbOptions): DatabaseSync {
   const db = new DatabaseSync(":memory:");
   db.exec(`
       CREATE TABLE user (id TEXT PRIMARY KEY);
@@ -76,11 +77,12 @@ function createSharedProviderDb(reverseOrder: boolean): DatabaseSync {
       );
       INSERT INTO user VALUES ('principal-a'), ('principal-b'), ('principal-c');
     `);
-  insertSharedProviderRows(db, reverseOrder);
+  insertSharedProviderRows({ db: db, reverseOrder: reverseOrder });
   return db;
 }
 
-function insertSharedProviderRows(db: DatabaseSync, reverseOrder: boolean): void {
+type InsertSharedProviderRowsOptions = { db: DatabaseSync; reverseOrder: boolean };
+function insertSharedProviderRows({ db, reverseOrder }: InsertSharedProviderRowsOptions): void {
   const bindings: Array<[applicationId: string, issuer: string, providerId: string, createdAt: string]> = [
     ["app-a", "https://a-one.example.test", "provider-shared", "2026-01-01"],
     ["app-b", "https://b.example.test", "provider-shared", "2026-01-02"],
@@ -234,8 +236,11 @@ function assertSharedProviderResult(db: DatabaseSync): Record<string, unknown>[]
     .all();
 }
 
-function anonymiseSharedProviderBindings(reverseOrder: boolean): Record<string, unknown>[] {
-  const db = createSharedProviderDb(reverseOrder);
+type AnonymiseSharedProviderBindingsOptions = { reverseOrder: boolean };
+function anonymiseSharedProviderBindings({
+  reverseOrder,
+}: AnonymiseSharedProviderBindingsOptions): Record<string, unknown>[] {
+  const db = createSharedProviderDb({ reverseOrder: reverseOrder });
   try {
     expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
     expect(db.prepare("SELECT COUNT(*) AS count FROM account_federated_provider_bindings").get()).toEqual({ count: 3 });
@@ -310,7 +315,8 @@ const SHARED_COMMAND_ROWS: SharedCommandRow[] = [
   },
 ];
 
-function anonymiseSharedCommandCoordinates(reverseOrder: boolean): string[] {
+type AnonymiseSharedCommandCoordinatesOptions = { reverseOrder: boolean };
+function anonymiseSharedCommandCoordinates({ reverseOrder }: AnonymiseSharedCommandCoordinatesOptions): string[] {
   const db = new DatabaseSync(":memory:");
   try {
     db.exec(ACCOUNT_COMMANDS_DDL);
@@ -456,16 +462,16 @@ function registerFederatedIdentityTest(): void {
 
 function registerSharedProviderBindingsTest(): void {
   it("preserves application namespaces and shared provider joins under the real binding constraints", () => {
-    const forward = anonymiseSharedProviderBindings(false);
-    const reverse = anonymiseSharedProviderBindings(true);
+    const forward = anonymiseSharedProviderBindings({ reverseOrder: false });
+    const reverse = anonymiseSharedProviderBindings({ reverseOrder: true });
     expect(reverse).toEqual(forward);
   });
 }
 
 function registerSharedCommandCoordinatesTest(): void {
   it("preserves distinct command application namespaces when operation coordinates overlap", () => {
-    const forward = anonymiseSharedCommandCoordinates(false);
-    const reverse = anonymiseSharedCommandCoordinates(true);
+    const forward = anonymiseSharedCommandCoordinates({ reverseOrder: false });
+    const reverse = anonymiseSharedCommandCoordinates({ reverseOrder: true });
     expect(reverse).toEqual(forward);
   });
 }

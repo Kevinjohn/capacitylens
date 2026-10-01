@@ -47,7 +47,8 @@ function buildWeekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
   return blocks;
 }
 
-function resolveDayClass(weekStart: boolean, isToday: boolean, weekend: boolean): string {
+type ResolveDayClassOptions = { weekStart: boolean; isToday: boolean; weekend: boolean };
+function resolveDayClass({ weekStart, isToday, weekend }: ResolveDayClassOptions): string {
   let stateClass = "text-muted-foreground";
   if (isToday) stateClass = "bg-brand-soft font-semibold text-ink shadow-[inset_0_2px_0_var(--color-brand)]";
   else if (weekend) stateClass = "bg-weekend text-muted-foreground";
@@ -75,7 +76,11 @@ function DateDayTier({
           <div
             key={day}
             data-date={day}
-            className={resolveDayClass(weekday === weekStartsOn, day === today, weekend)}
+            className={resolveDayClass({
+              weekStart: weekday === weekStartsOn,
+              isToday: day === today,
+              weekend: weekend,
+            })}
             style={{ width: geometry.widthOf(index) }}
           >
             <span className="font-medium">{format(date, "d")}</span>

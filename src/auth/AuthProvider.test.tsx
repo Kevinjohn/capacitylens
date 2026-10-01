@@ -371,7 +371,7 @@ function registerServerModeTest08() {
     );
     const { AuthProvider, useStore, readOfflineStateSnapshot, setOfflineReadState } = await freshProvider();
     useStore.setState({ activeAccountId: "a1" });
-    setOfflineReadState("identity", true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState({ owner: "identity", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
 
     render(
       <AuthProvider>

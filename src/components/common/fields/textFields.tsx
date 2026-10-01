@@ -29,7 +29,8 @@ type TextFieldProps = {
   layout?: ProductFieldLayout;
 };
 
-function resolveBooleanAttribute(value: boolean | undefined): true | undefined {
+type ResolveBooleanAttributeOptions = { value: boolean | undefined };
+function resolveBooleanAttribute({ value }: ResolveBooleanAttributeOptions): true | undefined {
   return value ? true : undefined;
 }
 
@@ -79,8 +80,8 @@ function TextFieldControl({
       disabled={disabled}
       aria-label={ariaLabel}
       data-testid={testId}
-      aria-required={resolveBooleanAttribute(required)}
-      aria-invalid={resolveBooleanAttribute(invalid)}
+      aria-required={resolveBooleanAttribute({ value: required })}
+      aria-invalid={resolveBooleanAttribute({ value: invalid })}
       aria-describedby={ariaDescribedBy}
       onChange={(e) => onChange(e.target.value)}
     />
@@ -114,8 +115,8 @@ export function TextField(props: TextFieldProps) {
 
   return (
     <Field
-      data-invalid={resolveBooleanAttribute(invalid)}
-      data-disabled={resolveBooleanAttribute(disabled)}
+      data-invalid={resolveBooleanAttribute({ value: invalid })}
+      data-disabled={resolveBooleanAttribute({ value: disabled })}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
@@ -153,8 +154,8 @@ export function NumberField({
   const id = useId();
   return (
     <Field
-      data-invalid={resolveBooleanAttribute(invalid)}
-      data-disabled={resolveBooleanAttribute(disabled)}
+      data-invalid={resolveBooleanAttribute({ value: invalid })}
+      data-disabled={resolveBooleanAttribute({ value: disabled })}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
@@ -166,8 +167,8 @@ export function NumberField({
         max={max}
         step={step}
         disabled={disabled}
-        aria-required={resolveBooleanAttribute(required)}
-        aria-invalid={resolveBooleanAttribute(invalid)}
+        aria-required={resolveBooleanAttribute({ value: required })}
+        aria-invalid={resolveBooleanAttribute({ value: invalid })}
         aria-describedby={invalid ? describedById : undefined}
         // For <input type="number"> the browser reports `value` as EITHER a valid numeric string
         // OR "" — it sanitises away part-typed junk ("1.", "-", "1e"), so Number(value) is a finite
@@ -218,14 +219,14 @@ export function DateField({
 }) {
   const id = useId();
   return (
-    <Field data-invalid={resolveBooleanAttribute(invalid)} {...buildProductFieldLayoutProps(layout)}>
+    <Field data-invalid={resolveBooleanAttribute({ value: invalid })} {...buildProductFieldLayoutProps(layout)}>
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
       <Input
         id={id}
         type="date"
         value={value}
-        aria-required={resolveBooleanAttribute(required)}
-        aria-invalid={resolveBooleanAttribute(invalid)}
+        aria-required={resolveBooleanAttribute({ value: required })}
+        aria-invalid={resolveBooleanAttribute({ value: invalid })}
         aria-describedby={invalid ? describedById : undefined}
         min={min}
         max={max}

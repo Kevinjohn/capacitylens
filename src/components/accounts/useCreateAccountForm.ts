@@ -105,7 +105,7 @@ async function createServerAccount({
     }
     const summaries = useStore.getState().accountSummaries;
     if (!summaries.some((account) => account.id === created.id)) {
-      setAccountSummaries([...summaries, { id: created.id, name: created.name, role: "owner" as const }]);
+      setAccountSummaries({ list: [...summaries, { id: created.id, name: created.name, role: "owner" as const }] });
     }
     const exampleDataFailure = exampleData ? await addExampleDataTo(created.id) : null;
     resetForm();

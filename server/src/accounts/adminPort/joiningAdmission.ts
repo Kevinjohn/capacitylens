@@ -53,7 +53,7 @@ export function cancelCompanyJoinForBrowser(input: {
   now: number;
 }): void {
   const { db, headers, applicationId, secureCookies, now } = input;
-  const names = joiningCookieNames(applicationId, secureCookies);
+  const names = joiningCookieNames({ applicationId: applicationId, secure: secureCookies });
   const nonce = readJoiningCookie(headers, names.intent);
   const browser = readJoiningCookie(headers, names.browser);
   if (!nonce || !browser) return;

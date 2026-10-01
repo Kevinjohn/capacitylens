@@ -69,7 +69,8 @@ interface ChildRun {
   error: string;
 }
 
-function startChild(dbPath: string, direction: "member" | "resource", hold: boolean): ChildRun {
+type StartChildOptions = { dbPath: string; direction: "member" | "resource"; hold: boolean };
+function startChild({ dbPath, direction, hold }: StartChildOptions): ChildRun {
   const child = spawn(process.execPath, ["--import", "tsx", "--eval", CHILD_SOURCE, dbPath, direction, String(hold)], {
     cwd: fileURLToPath(new URL("../..", import.meta.url)),
     stdio: ["pipe", "pipe", "pipe"],
@@ -139,9 +140,9 @@ function seedRaceDatabase(dbPath: string): void {
 async function runRace(direction: "member" | "resource"): Promise<void> {
   const dbPath = join(tmpdir(), `capacitylens-member-resource-race-${process.pid}-${randomUUID()}.db`);
   seedRaceDatabase(dbPath);
-  const second = startChild(dbPath, direction, false);
+  const second = startChild({ dbPath: dbPath, direction: direction, hold: false });
   await waitForOutput(second, "ready\n");
-  const first = startChild(dbPath, direction, true);
+  const first = startChild({ dbPath: dbPath, direction: direction, hold: true });
   try {
     await waitForOutput(first, "entered\n");
     second.child.stdin.write("x");

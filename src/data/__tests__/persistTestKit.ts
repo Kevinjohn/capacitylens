@@ -111,7 +111,7 @@ interface AttachActiveA2Input {
 export async function attachActiveA2({ adapter, debounceMs = 0, onError, onSuccess }: AttachActiveA2Input) {
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
-  useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+  useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
   const detach = attachPersistence({
     store: useStore,
     adapter: adapter,

@@ -22,7 +22,7 @@ function createDirectWriteColourAndResourceSanitizationTests(): void {
     // one fixed hex regardless of the input.
     // multiAccount: true — this test deliberately creates a SECOND company on one instance (see
     // the identical note at the other multiAccount call sites above).
-    const { app } = freshApp(true, { multiAccount: true });
+    const { app } = freshApp({ allowReset: true, extra: { multiAccount: true } });
     await post(app, "accounts", { ...account("a1"), color: "#7cd9e4" });
     expect((await readStateAccount(app)).color).toBe("#7adae3");
     // A colour on the opposite side of the palette snaps to a DIFFERENT preset — proving the two

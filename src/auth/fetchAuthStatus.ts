@@ -50,7 +50,7 @@ function parseLoginResult(body: unknown, acceptEffects: () => boolean): AuthStat
   const authMode = isAuthMode(rawAuthMode) && rawAuthMode !== "off" ? rawAuthMode : "password-only";
   const degraded =
     fields === null || (rawAuthMode !== undefined && (!isAuthMode(rawAuthMode) || rawAuthMode === "off"));
-  if (acceptEffects()) setOfflineReadState("identity", false);
+  if (acceptEffects()) setOfflineReadState({ owner: "identity", readOnly: false });
   return {
     kind: "login",
     authMode,
@@ -68,7 +68,8 @@ function invalidResponse(): AuthStatusResult {
 }
 
 function updateLiveIdentityState(next: Extract<AuthStatusResult, { kind: "pass" }>, acceptEffects: () => boolean) {
-  if (acceptEffects() && useStore.getState().activeAccountId === null) setOfflineReadState("identity", false);
+  if (acceptEffects() && useStore.getState().activeAccountId === null)
+    setOfflineReadState({ owner: "identity", readOnly: false });
   if (!next.user || !acceptEffects()) return;
   void cacheAuthSnapshot({
     authMode: next.authMode,
@@ -92,10 +93,10 @@ function parsePassResult(body: unknown, acceptEffects: () => boolean): AuthStatu
     identitySource: authMode === "off" ? "open" : "live",
     authMode,
     user,
-    canCreateAccount: resolveBooleanField(fields.canCreateAccount, true),
-    multiAccount: resolveBooleanField(fields.multiAccount, true),
-    mfaRequired: allowsPasswordSignIn(authMode) && resolveBooleanField(fields.mfaRequired, false),
-    requireMfa: allowsPasswordSignIn(authMode) && resolveBooleanField(fields.requireMfa, false),
+    canCreateAccount: resolveBooleanField({ value: fields.canCreateAccount, fallback: true }),
+    multiAccount: resolveBooleanField({ value: fields.multiAccount, fallback: true }),
+    mfaRequired: allowsPasswordSignIn(authMode) && resolveBooleanField({ value: fields.mfaRequired, fallback: false }),
+    requireMfa: allowsPasswordSignIn(authMode) && resolveBooleanField({ value: fields.requireMfa, fallback: false }),
     providers: authMode === "password-only" ? [] : parseAuthProviders(fields.providers),
     reauthMethod: fields.reauthMethod === "provider" || authMode === "sso-only" ? "provider" : "password",
     reauthProviderId: typeof fields.reauthProviderId === "string" ? fields.reauthProviderId : null,
@@ -122,7 +123,7 @@ async function readOfflineIdentity(error: unknown, acceptEffects: () => boolean)
   try {
     const cached = await readCachedAuthSnapshot({ acceptEffects });
     if (!cached) return null;
-    if (acceptEffects()) setOfflineReadState("identity", true, cached.savedAt);
+    if (acceptEffects()) setOfflineReadState({ owner: "identity", readOnly: true, lastUpdated: cached.savedAt });
     return {
       kind: "pass",
       identitySource: "offline",

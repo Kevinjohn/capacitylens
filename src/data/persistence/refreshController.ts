@@ -159,11 +159,8 @@ function installLoadedSlice(input: RefreshSequenceInput): void {
   onSuccess?.();
 }
 
-async function flushBeforeLoad(
-  input: CreateRefreshControllerInput,
-  token: number,
-  preserveParkedEdit: boolean,
-): Promise<boolean> {
+type FlushBeforeLoadOptions = { input: CreateRefreshControllerInput; token: number; preserveParkedEdit: boolean };
+async function flushBeforeLoad({ input, token, preserveParkedEdit }: FlushBeforeLoadOptions): Promise<boolean> {
   const { owner, writes } = input;
   // First let the prior account's write settle. Then flush pending debounce data while store data
   // and adapter snapshot still describe the same account, before loadAll re-seeds the snapshot.
@@ -209,7 +206,8 @@ async function runRefresh(
   // flush, or load are parked until they can be included before re-seed or rebased afterward.
   const resume = owner.beginSuspension({ external: false, writes });
   try {
-    if (!(await flushBeforeLoad(input, myToken, preserveParkedEdit))) return { kind: "skipped" };
+    if (!(await flushBeforeLoad({ input: input, token: myToken, preserveParkedEdit: preserveParkedEdit })))
+      return { kind: "skipped" };
     if (abortIfSaveFailed && owner.current.failedSinceSuccess) return { kind: "skipped" };
     // A pre-armed retry must not fire during load against the old snapshot and then have its
     // discarded save hidden by the successful reload bookkeeping.

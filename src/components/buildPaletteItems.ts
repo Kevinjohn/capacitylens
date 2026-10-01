@@ -35,7 +35,8 @@ interface BuildPaletteItemsInput {
 
 const SECTION_LIMIT = 5;
 
-function filterPaletteItems(items: PaletteItem[], query: string, showAllWithoutQuery = false): PaletteItem[] {
+type FilterPaletteItemsOptions = { items: PaletteItem[]; query: string; showAllWithoutQuery?: boolean };
+function filterPaletteItems({ items, query, showAllWithoutQuery = false }: FilterPaletteItemsOptions): PaletteItem[] {
   if (!query) return showAllWithoutQuery ? items : items.slice(0, SECTION_LIMIT);
   return fuzzyFilter(items, query, (item) => item.label).slice(0, SECTION_LIMIT);
 }
@@ -173,15 +174,19 @@ function buildActivityItems({ data, navigate, onClose }: BuildPaletteItemsInput)
 
 export function buildPaletteItems(input: BuildPaletteItemsInput): PaletteItem[] {
   const query = input.query.trim();
-  const actions = filterPaletteItems(buildActionItems({ ...input, query }), query, true);
-  const pages = filterPaletteItems(buildPageItems(input), query, true);
+  const actions = filterPaletteItems({
+    items: buildActionItems({ ...input, query }),
+    query: query,
+    showAllWithoutQuery: true,
+  });
+  const pages = filterPaletteItems({ items: buildPageItems(input), query: query, showAllWithoutQuery: true });
   if (!query) return [...actions, ...pages];
   return [
     actions,
     pages,
-    filterPaletteItems(buildResourceItems(input), query),
-    filterPaletteItems(buildProjectItems(input), query),
-    filterPaletteItems(buildClientItems(input), query),
-    filterPaletteItems(buildActivityItems(input), query),
+    filterPaletteItems({ items: buildResourceItems(input), query: query }),
+    filterPaletteItems({ items: buildProjectItems(input), query: query }),
+    filterPaletteItems({ items: buildClientItems(input), query: query }),
+    filterPaletteItems({ items: buildActivityItems(input), query: query }),
   ].flat();
 }

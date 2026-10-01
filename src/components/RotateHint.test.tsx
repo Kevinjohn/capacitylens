@@ -4,7 +4,9 @@ import { RotateHint } from "./RotateHint";
 
 // jsdom has no matchMedia, so the hint never shows by default (every other suite
 // relies on that). These tests stub it to simulate a portrait phone.
-function stubMatchMedia(initialMatches: boolean) {
+type RotateOptions = { matches: boolean };
+type StubMatchMediaOptions = { initialMatches: boolean };
+function stubMatchMedia({ initialMatches }: StubMatchMediaOptions) {
   const listeners = new Set<(e: { matches: boolean }) => void>();
   const mql = {
     matches: initialMatches,
@@ -14,7 +16,7 @@ function stubMatchMedia(initialMatches: boolean) {
   };
   vi.stubGlobal("matchMedia", vi.fn().mockReturnValue(mql as unknown as MediaQueryList));
   return {
-    rotate(matches: boolean) {
+    rotate({ matches }: RotateOptions) {
       mql.matches = matches;
       listeners.forEach((cb) => cb({ matches }));
     },
@@ -36,13 +38,13 @@ describe("RotateHint", () => {
   });
 
   it("renders nothing in landscape", () => {
-    stubMatchMedia(false);
+    stubMatchMedia({ initialMatches: false });
     render(<RotateHint />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it('shows the dialog on a portrait phone and dismisses for the session via "Got it"', () => {
-    stubMatchMedia(true);
+    stubMatchMedia({ initialMatches: true });
     const setItem = vi.spyOn(Storage.prototype, "setItem");
     const { unmount } = render(<RotateHint />);
     expect(screen.getByRole("dialog", { name: "Best in landscape" })).toBeInTheDocument();
@@ -61,14 +63,14 @@ describe("RotateHint", () => {
   });
 
   it("hides on rotate to landscape and re-shows on rotate back (until dismissed)", () => {
-    const media = stubMatchMedia(true);
+    const media = stubMatchMedia({ initialMatches: true });
     render(<RotateHint />);
     expect(screen.getByRole("dialog", { name: "Best in landscape" })).toBeInTheDocument();
 
-    act(() => media.rotate(false));
+    act(() => media.rotate({ matches: false }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    act(() => media.rotate(true));
+    act(() => media.rotate({ matches: true }));
     expect(screen.getByRole("dialog", { name: "Best in landscape" })).toBeInTheDocument();
   });
 });

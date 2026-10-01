@@ -168,7 +168,9 @@ function GatedApp({
           ? retryActiveAccountLoad(activeAccountId).then((outcome) => outcome.kind !== "failed")
           : Promise.resolve(false)
       }
-      onChooseAnotherAccount={() => void chooseAnotherAccountAfterLoadFailure(allowWithoutActiveAccount, navigate)}
+      onChooseAnotherAccount={() =>
+        void chooseAnotherAccountAfterLoadFailure({ accountRoute: allowWithoutActiveAccount, navigate: navigate })
+      }
     >
       <PermissionProvider>
         <SidebarProvider
@@ -224,7 +226,9 @@ function GatedSidebar({
         accessibleAccountCount={accessibleAccountCount}
         demoAuthActive={demoAuthActive}
         navLinks={visibleNavLinks}
-        onSwitchAccount={() => void chooseAnotherAccountAfterLoadFailure(accountRoute, navigate)}
+        onSwitchAccount={() =>
+          void chooseAnotherAccountAfterLoadFailure({ accountRoute: accountRoute, navigate: navigate })
+        }
         open={sidebarOpen}
       />
     </>

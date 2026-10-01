@@ -411,7 +411,8 @@ function harness(
   };
 }
 
-function inFlightSignupFixture(failCompensation: boolean) {
+type InFlightSignupFixtureOptions = { failCompensation: boolean };
+function inFlightSignupFixture({ failCompensation }: InFlightSignupFixtureOptions) {
   const { promise: entered, resolve: identityEntered } = deferred();
   const { promise: release, resolve: releaseIdentity } = deferred();
   const claimFailure = contractError("NOT_FOUND");
@@ -445,11 +446,16 @@ function inFlightSignupFixture(failCompensation: boolean) {
   return { entered, releaseIdentity, claimFailure, compensate, flows };
 }
 
-async function expectInFlightSignupOutcome(
-  fixture: ReturnType<typeof inFlightSignupFixture>,
-  signupFailure: unknown,
-  failCompensation: boolean,
-): Promise<void> {
+type ExpectInFlightSignupOutcomeOptions = {
+  fixture: ReturnType<typeof inFlightSignupFixture>;
+  signupFailure: unknown;
+  failCompensation: boolean;
+};
+async function expectInFlightSignupOutcome({
+  fixture,
+  signupFailure,
+  failCompensation,
+}: ExpectInFlightSignupOutcomeOptions): Promise<void> {
   expect(fixture.compensate).toHaveBeenCalledOnce();
   if (failCompensation) {
     expect(signupFailure).toMatchObject({
@@ -845,7 +851,7 @@ it.each([
   ["compensates after the claim fails", false],
   ["retains exact repair state when compensation also fails", true],
 ] as const)("keeps an in-flight signup command durable across erasure and %s", async (_case, failCompensation) => {
-  const fixture = inFlightSignupFixture(failCompensation);
+  const fixture = inFlightSignupFixture({ failCompensation: failCompensation });
   const signup = fixture.flows.acceptInviteWithPasswordSignup({
     token: "invite-erased-during-signup",
     email: "person@example.com",
@@ -897,7 +903,11 @@ it.each([
     status: "pending",
     workspaceId: "workspace-1",
   });
-  await expectInFlightSignupOutcome(fixture, signupFailure, failCompensation);
+  await expectInFlightSignupOutcome({
+    fixture: fixture,
+    signupFailure: signupFailure,
+    failCompensation: failCompensation,
+  });
 });
 
 it("deprovisions an erased workspace principal set through one bulk identity call", async () => {

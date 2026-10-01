@@ -78,7 +78,7 @@ async function applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId }
     // A newer load may have installed a cached, read-only slice while the repair was in flight.
     if (myGen !== state.loadGen) return;
   }
-  setOfflineReadState("tenant", false);
+  setOfflineReadState({ owner: "tenant", readOnly: false });
   if (accountId !== undefined && loaded.missingKeys.length === 0) {
     void cacheAccountSlice(accountId, loaded.data).catch((error) =>
       console.warn("ServerSyncAdapter: the offline account snapshot could not be updated", error),
@@ -88,7 +88,7 @@ async function applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId }
 
 function applyCachedLoadEffects({ state, data, savedAt, myGen, accountId }: CachedLoadEffects): void {
   if (myGen === state.loadGen) seedSnapshot(state, data, accountId);
-  if (myGen === state.loadGen) setOfflineReadState("tenant", true, savedAt);
+  if (myGen === state.loadGen) setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: savedAt });
 }
 
 interface LoadRequest {
@@ -114,7 +114,7 @@ export async function loadAll(
     const empty = emptyAppData();
     if (myGen === state.loadGen) {
       seedSnapshot(state, empty, options.accountId);
-      setOfflineReadState("tenant", false);
+      setOfflineReadState({ owner: "tenant", readOnly: false });
     }
     return empty;
   }
@@ -148,7 +148,7 @@ async function loadRemoteSlice(
       const empty = emptyAppData();
       if (myGen === state.loadGen) {
         seedSnapshot(state, empty);
-        setOfflineReadState("tenant", false);
+        setOfflineReadState({ owner: "tenant", readOnly: false });
       }
       return empty;
     }

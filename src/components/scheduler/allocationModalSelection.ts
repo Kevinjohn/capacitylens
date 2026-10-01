@@ -56,7 +56,12 @@ export function hasWorkingSpan(resource: Resource | undefined, mode: SchedulingM
   return !!resource && !isExternalResource(resource) && (mode === "blocks" || mode === "days");
 }
 
-function buildLiteralAllocationValues(input: EffectiveAllocationInput, external: boolean, validDaysOver: boolean) {
+type BuildLiteralAllocationValuesOptions = {
+  input: EffectiveAllocationInput;
+  external: boolean;
+  validDaysOver: boolean;
+};
+function buildLiteralAllocationValues({ input, external, validDaysOver }: BuildLiteralAllocationValuesOptions) {
   return {
     external,
     validDaysOver,
@@ -68,7 +73,8 @@ function buildLiteralAllocationValues(input: EffectiveAllocationInput, external:
   };
 }
 
-function buildUnavailableWeekValues(input: EffectiveAllocationInput, external: boolean, validDaysOver: boolean) {
+type BuildUnavailableWeekValuesOptions = { input: EffectiveAllocationInput; external: boolean; validDaysOver: boolean };
+function buildUnavailableWeekValues({ input, external, validDaysOver }: BuildUnavailableWeekValuesOptions) {
   return {
     external,
     validDaysOver,
@@ -83,7 +89,8 @@ function buildUnavailableWeekValues(input: EffectiveAllocationInput, external: b
   };
 }
 
-function buildWorkingWeekValues(input: EffectiveAllocationInput, external: boolean, validDaysOver: boolean) {
+type BuildWorkingWeekValuesOptions = { input: EffectiveAllocationInput; external: boolean; validDaysOver: boolean };
+function buildWorkingWeekValues({ input, external, validDaysOver }: BuildWorkingWeekValuesOptions) {
   const { effectiveWeek, startDate, endDate, mode, daysOver, daysOfWork, ignoreWeekends } = input;
   const spanOptions = {
     ...(effectiveWeek?.kind === "days" ? { workingDays: effectiveWeek.days } : {}),
@@ -123,11 +130,11 @@ export function buildEffectiveAllocationValues({
   const validDaysOver = Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
   const usesWorkingSpan = hasWorkingSpan(resource, mode);
   if (!usesWorkingSpan) {
-    return buildLiteralAllocationValues(
-      { resource, effectiveWeek, mode, startDate, endDate, hoursPerDay, daysOver, daysOfWork, ignoreWeekends },
-      external,
-      validDaysOver,
-    );
+    return buildLiteralAllocationValues({
+      input: { resource, effectiveWeek, mode, startDate, endDate, hoursPerDay, daysOver, daysOfWork, ignoreWeekends },
+      external: external,
+      validDaysOver: validDaysOver,
+    });
   }
 
   if (lacksEffectiveWorkingDays(effectiveWeek, ignoreWeekends)) {
@@ -135,16 +142,16 @@ export function buildEffectiveAllocationValues({
     // "Days over" is frozen at its seed (its field is disabled below). Every seed derives
     // daysOfWork and daysOver from the same span, so this recomputation is the identity on the
     // stored volume — the field freeze is what stops a manual change from silently diluting it.
-    return buildUnavailableWeekValues(
-      { resource, effectiveWeek, mode, startDate, endDate, hoursPerDay, daysOver, daysOfWork, ignoreWeekends },
-      external,
-      validDaysOver,
-    );
+    return buildUnavailableWeekValues({
+      input: { resource, effectiveWeek, mode, startDate, endDate, hoursPerDay, daysOver, daysOfWork, ignoreWeekends },
+      external: external,
+      validDaysOver: validDaysOver,
+    });
   }
 
-  return buildWorkingWeekValues(
-    { resource, effectiveWeek, mode, startDate, endDate, hoursPerDay, daysOver, daysOfWork, ignoreWeekends },
-    external,
-    validDaysOver,
-  );
+  return buildWorkingWeekValues({
+    input: { resource, effectiveWeek, mode, startDate, endDate, hoursPerDay, daysOver, daysOfWork, ignoreWeekends },
+    external: external,
+    validDaysOver: validDaysOver,
+  });
 }

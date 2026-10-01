@@ -182,7 +182,7 @@ export async function withOfflineCache(run: () => Promise<void>): Promise<void> 
     await run();
   } finally {
     await clearAllOfflineData();
-    setOfflineReadState("cleanup", false);
+    setOfflineReadState({ owner: "cleanup", readOnly: false });
     localStorage.clear();
     vi.unstubAllGlobals();
   }

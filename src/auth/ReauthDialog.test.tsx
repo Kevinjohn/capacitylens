@@ -61,7 +61,7 @@ function Harness({
 }
 
 afterEach(() => {
-  if (isReauthPending()) completeReauth(false);
+  if (isReauthPending()) completeReauth({ reauthenticated: false });
   signInEmail.mockReset();
   signInSocial.mockReset();
   verifyTotp.mockReset();
@@ -479,7 +479,7 @@ describe("ReauthDialog dismissal guards", () => {
     expect(isReauthPending()).toBe(true);
     expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
 
-    completeReauth(false);
+    completeReauth({ reauthenticated: false });
     await screen.findByText("no-dialog");
     const second = requestReauth();
     await screen.findByRole("heading", { name: "Confirm it's you" });

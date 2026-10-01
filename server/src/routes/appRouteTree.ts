@@ -258,7 +258,7 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
   registerSystemRoutes(app, { ...dependencies.system, section: "public" });
   registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "identity" });
   if (authMode !== "off" && auth) {
-    registerMicrosoftProofRoutes(app, auth, options.trustProxyHeaders === true);
+    registerMicrosoftProofRoutes({ app: app, auth: auth, trustProxyHeaders: options.trustProxyHeaders === true });
     if (options.joiningProof)
       registerJoiningProofRoutes(app, {
         db,
