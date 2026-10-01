@@ -26,6 +26,7 @@ The server binds to localhost by default. Set the host explicitly to expose it o
 | --- | --- |
 | `PORT` | Listen port. Default `8787`; invalid values outside the integer range 1–65,535 refuse startup. |
 | `CAPACITYLENS_HOST` | Listen host. Default `127.0.0.1`; set `0.0.0.0` to expose the listener on the LAN or in a container. |
+| `CAPACITYLENS_WEB_DIR` | Folder holding the built web app, which the server then serves beside the API. Unset: a release archive serves its own `dist/` folder, and a source checkout serves the API only. Set it empty to serve the API only. A folder without `index.html` refuses startup. |
 | `CAPACITYLENS_ALLOW_RESET` | Set `1` to expose `POST /api/test/reset` for development and tests with sign-in off. Production refuses this setting. |
 | `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` | Enabled by default. Set `0` only to allow stale writes to overwrite newer changes. |
 | `CAPACITYLENS_CREATE_ADMIN_ADMIN` | Development-only first-owner helper, also available as `--create-owner-admin-admin`. Creates `admin@admin.admin` only when the password user table is empty. Production refuses this setting. |

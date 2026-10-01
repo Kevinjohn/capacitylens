@@ -7,8 +7,33 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Each release publishes a runnable server archive, `capacitylens-X.Y.Z.tar.gz`, with a `.sha256`
+  checksum. It holds the built web app, the server and its runtime dependencies, an environment
+  example with three lines to fill in, a systemd unit, nginx and Caddy site files and an
+  `INSTALL.md` with the five install steps. Node 24 is the only prerequisite (#1383).
+- Run from the archive, the server also serves the web app, with the same caching and security
+  headers as the packaged nginx, so one reverse-proxy line in front of it is enough. Request logs
+  hide the token in `/invite/` and `/reset-password/` links. `CAPACITYLENS_WEB_DIR` points the
+  server at another build, or turns serving off when set empty (#1383).
+- The archive includes the owner-password recovery tool, so recovering a sole Owner no longer needs
+  a source checkout (#1383).
+
+### Changed
+
+- Under `NODE_ENV=production`, unset settings take the recommended values: sign-in mode
+  `password-only`, a rate limit of 300 requests a minute, request logging, deep health checks,
+  audit records on stdout and hourly backups in `backups/` beside the database file. Explicit
+  values still win, and sign-in mode `off` still needs `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1`
+  (#1383).
+- HSTS is host-only, without `includeSubDomains`, and is on automatically when the public URL is
+  `https`. `CAPACITYLENS_HTTPS=0` turns it off (#1383).
+
 ### Fixed
 
+- The Docker install guide now sets `SMALLSASS_ACCOUNT_MODE=password-only`; its previous `password`
+  value refused to start (#1383).
 - Stop warning logs from copying response payloads, omit corrupt cell contents from SQLite read errors, and strip query strings and fragments from request URLs.
 
 ## [0.72.0-alpha.1] - 2026-09-30
