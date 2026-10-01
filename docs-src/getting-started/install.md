@@ -81,7 +81,7 @@ The server refuses to start while any of the three is empty, and names the one t
 
 This is the step that differs.
 
-- **Managed host:** add a background process (daemon) that runs
+- **Managed host:** add a background process (daemon) that runs as the site's user and runs
   `node --env-file=../.env server/dist/index.mjs` in the site's `current` folder. In the site's
   nginx file, replace the generated `location /` block with the locations on the managed host
   page, which proxy to port 8787.

@@ -60,8 +60,8 @@ version instead.
    Store the setup token in a password manager before you save. The server refuses to start
    while the address, the secret or the token is empty, and names the one that is missing.
 
-4. **Background process (daemon) and nginx:** create one background process with the directory
-   `/home/forge/capacity.example.com/current` and this command:
+4. **Background process (daemon) and nginx:** create one background process that runs as the
+   site's user, with the directory `/home/forge/capacity.example.com/current` and this command:
 
    ```bash
    node --env-file=../.env server/dist/index.mjs
