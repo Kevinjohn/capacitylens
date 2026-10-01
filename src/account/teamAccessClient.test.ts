@@ -102,10 +102,7 @@ describe("teamAccessClient directory validation", () => {
         ],
       },
     });
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("unsupported member-directory row"),
-      expect.objectContaining({ userId: "future-user" }),
-    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unsupported member-directory row"));
   });
 });
 
@@ -164,7 +161,7 @@ describe("teamAccessClient member resource links", () => {
 
 describe("teamAccessClient invitation defaults", () => {
   it("defaults an absent invitation preauthorization email and preserves valid peers", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(accountClient, "listInvitations").mockResolvedValue(
       json({
         invites: [
@@ -190,6 +187,7 @@ describe("teamAccessClient invitation defaults", () => {
       kind: "ok",
       value: [{ id: "legacy-invite", preauthEmail: null }],
     });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unsupported invitation-directory row"));
   });
 });
 

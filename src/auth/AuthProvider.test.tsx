@@ -837,6 +837,7 @@ function registerServerModeTest25() {
     ["an empty email", { id: "u1", email: "   " }],
   ])("fails closed when an auth-on 200 response has %s", async (_case, user) => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => me(200, { authMode: "password-only", user })),
@@ -847,12 +848,9 @@ function registerServerModeTest25() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(
-      await screen.findByRole("heading", {
-        name: "Unable to verify your session",
-      }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("auth-on without a valid user"));
   });
 }
 
@@ -1189,9 +1187,10 @@ function registerAccountPolicyTest04() {
 function registerAccountPolicyTest05() {
   it("fails closed on a 200 response with an off-spec authMode", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(200, { authMode: "bogus" })),
+      vi.fn(async () => me(200, { authMode: "bogus", privateValue: "SENTINEL_AUTH_PAYLOAD" })),
     );
     const { AuthProvider, useAuth } = await freshProvider();
     render(
@@ -1199,11 +1198,8 @@ function registerAccountPolicyTest05() {
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(
-      await screen.findByRole("heading", {
-        name: "Unable to verify your session",
-      }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected authMode"));
   });
 }
 

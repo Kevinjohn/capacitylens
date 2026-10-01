@@ -21,8 +21,10 @@ describe("standing documentation contracts", () => {
     const headings = [...changelog.matchAll(/^## \[([^\]]+)\]/gm)].map((match) => match[1]);
     const references = new Map([...changelog.matchAll(/^\[([^\]]+)\]: (\S+)$/gm)].map((match) => [match[1], match[2]]));
     const releases = headings.filter((heading) => heading !== "Unreleased");
+    const packageVersion = (JSON.parse(read("package.json")) as { version: string }).version;
 
     expect([...references.keys()].filter((label) => headings.includes(label))).toEqual(headings);
+    expect(releases[0]).toBe(packageVersion);
     expect(references.get("Unreleased")).toContain(`/compare/v${releases[0]}...HEAD`);
   });
 

@@ -15,6 +15,7 @@ new features and **patch** versions carry fixes.
   password setup flow (#1387).
 - Docker web targets now keep account-route redirects on the public origin, and the documented
   audit-outbox recovery command accepts pnpm's argument separator (#1387).
+- Stop warning logs from copying response payloads, omit corrupt cell contents from SQLite read errors, and strip query strings and fragments from request URLs.
 
 ## [0.72.0-alpha.1] - 2026-09-30
 

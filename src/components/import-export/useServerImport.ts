@@ -77,7 +77,7 @@ const completeImport = async (response: Response, context: ImportContext): Promi
   const imported = parseCount(isRecord(body) ? body.imported : undefined);
   const skipped = parseCount(isRecord(body) ? body.skipped : undefined) ?? 0;
   if (imported === null) {
-    console.warn("import: 200 response with an off-spec body; the slice was replaced server-side", body);
+    console.warn("import: 200 response with an off-spec body; the slice was replaced server-side");
     await reportCommittedImport(context, m.data_import_done());
     return;
   }
