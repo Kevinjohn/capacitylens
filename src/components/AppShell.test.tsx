@@ -418,6 +418,9 @@ function registerOfflineSnapshotLabelTest(): void {
     expect(screen.getByTestId("active-role")).toHaveTextContent("Offline · View only");
     expect(screen.getByTestId("active-role")).not.toHaveTextContent("Demo access");
     expect(screen.getByTestId("view-only")).toHaveTextContent("Offline · View only");
+    // The offline projection is a Viewer, so the Owner/Admin-only destination leaves the sidebar.
+    expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Diagnostics" })).not.toBeInTheDocument();
   });
 }
 
@@ -562,7 +565,7 @@ function registerSidebarSignOutTest(): void {
 }
 
 function registerPinnedNavigationOrderTest(): void {
-  it("pins Team & access and Settings, in that order, after every other destination", () => {
+  it("pins Team & access, Settings and Diagnostics, in that order, after every other destination", () => {
     renderAppShell({});
 
     // Scoped to the nav landmark so the skip-to-content link above the sidebar stays out of it.
@@ -580,6 +583,7 @@ function registerPinnedNavigationOrderTest(): void {
       "/timeoff",
       "/team",
       "/settings",
+      "/diagnostics",
     ]);
   });
 }
@@ -598,6 +602,7 @@ function registerNavigationRoutesTest(): void {
     expect(screen.getByRole("link", { name: "Activities" })).toHaveAttribute("href", "/activities");
     expect(screen.getByRole("link", { name: "Time off" })).toHaveAttribute("href", "/timeoff");
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+    expect(screen.getByRole("link", { name: "Diagnostics" })).toHaveAttribute("href", "/diagnostics");
   });
 }
 

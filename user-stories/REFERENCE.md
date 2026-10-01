@@ -167,15 +167,16 @@ The sidebar links, in order, route to:
 | Time off      | `/timeoff`     | Time-off list                                                                                                                                                                                                                                                                                                         |
 | Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                                                                                                                                                                                     |
 | Settings      | `/settings`    | Settings (Company setup, Scheduling features, My display, Data and support)                                                                                                                                                                                                                                           |
+| Diagnostics   | `/diagnostics` | Support report with **Copy diagnostics**; Owners and Admins only (everyone when sign-in is off)                                                                                                                                                                                                                       |
 | Account       | `/account`     | Signed-in identity and personal security controls                                                                                                                                                                                                                                                                     |
 
-**Team & access** and **Settings** form a separate **administration group** pinned
+**Team & access**, **Settings** and **Diagnostics** form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
-above. Both remain ordinary first-class routes (same markup, same icons, same command-palette
+above. All three remain ordinary first-class routes (same markup, same icons, same command-palette
 entries); only their placement differs, so administration stays out of the way of the app's
 day-to-day purpose and role-gated controls don't sit among everyone's destinations.
 
-Owners and Admins see **eleven** sections by default — **ten** when the company turns disciplines off (the
+Owners and Admins see **twelve** sections by default — **eleven** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see _Disciplines optional_ under Domain rules). External / 3rd
 parties no longer have their own nav link — they moved INTO the **Resources** tab behind a setting
 (see _External / 3rd parties_ under Domain rules); the old `/external` URL still resolves but
@@ -720,7 +721,7 @@ separate always-on **navigation** snap (Weeks visible / Prev-Next / Today, see _
 above) re-anchors to the week start on every deliberate navigation.
 
 **Company details (per-account, FROZEN after creation — P1.14).** In **Data and support**,
-this compact, read-only three-row table appears before Diagnostics:
+this compact, read-only three-row table appears before Build details:
 **Company name**, **Week starts on** and
 **Time zone** (including its numeric UTC offset). Language is not shown while English is the only
 option. It replaces the editable Company card and the disabled Calendar controls. These values
@@ -883,19 +884,31 @@ address; invalid build configuration is rejected, and the address is safely enco
 The default dev/local build leaves both variables unset, so the row is absent. Settings no longer
 shows persistence diagnostics.
 
-**Diagnostics (Settings).** At the bottom of Settings, a **Diagnostics** card offers
-**Copy diagnostics** (`data-testid="copy-diagnostics"`). The card shows a **Snapshot observed** ISO
-timestamp captured by the client when the response arrives or its failure is observed. This is a
-point-in-time snapshot, not a live monitor. The copied text contains a fixed allowlist: the snapshot
-timestamp, app version, a validated build revision when one is present, deployment mode and export
-schema, followed by separately labelled server connectivity, database schema, persistence and
-backup status. The card is present in demo mode too, with server values unavailable. A missing or
-unavailable value is shown as **Unknown** or **Unavailable**; `null` schema/version fields mean that
-value was unavailable or invalid, not zero or a browser fallback, while a `null` backup timestamp
-means no valid backup timestamp was observed and does not assert that no backup exists. Browser
-constants are never presented as the server's database schema. The projection contains no names, emails,
-identifiers, paths, hostnames, secrets, invite or session values, raw errors or arbitrary response
-fields. The button reports a generic success or clipboard failure message.
+**Diagnostics (`/diagnostics`; Owner and Admin).** The **Diagnostics** link follows **Settings**
+in the sidebar administration group and in the command palette. It is shown to Owners and Admins,
+and to every session without a membership role (sign-in off, demo). Editors and Viewers see no link,
+and a direct visit redirects them to the schedule; while the role is resolving the route shows a
+loading status. Settings no longer has a Diagnostics row; editors and viewers report problems with
+the **Build details** stamp.
+
+The page (`data-testid="diagnostics-report"`) shows a **Support report** as plain text
+(`data-testid="diagnostics-report-text"`), exactly as **Copy diagnostics**
+(`data-testid="copy-diagnostics"`) copies it. The report begins with a **Snapshot observed** ISO
+timestamp captured by the client when the server response arrives or its failure is observed; the
+server values are a point-in-time snapshot, not a live monitor, and copying does not request them
+again. The fixed allowlist is: app version, a validated build revision when present, deployment
+mode and export schema; separately labelled server connectivity, database schema, persistence and
+backup status; the sign-in mode (`off`, `password-only`, `sso-only` or `password-and-sso`); this
+browser session's save counters (saves failed, retries armed, reconciliations resolved, reloads
+superseded, edits rebased, edits discarded, saving suspended); and the browser's user agent,
+viewport, time zone and language. A browser value outside its expected shape reads **Unknown**.
+The page is present in demo mode too, with server values unavailable. A missing or unavailable
+value is shown as **Unknown** or **unavailable**; a `null` schema means that value was unavailable
+or invalid, not zero or a browser fallback, while an unknown backup timestamp does not assert that
+no backup exists. Browser constants are never presented as the server's database schema. The report
+contains no names, emails, identifiers, paths, hostnames, secrets, invite or session values, raw
+errors or arbitrary response fields. The button reports a generic success or clipboard failure
+message.
 
 When SMTP is configured in a password-capable mode, `forgot-password` reveals the inline
 `forgot-password-email` field and `forgot-password-submit` button. A successful request shows
@@ -1451,7 +1464,7 @@ carries a **Restore <name>** + **Delete <name>** button), `archived-section` (Se
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
 deploy that also renders the company block, which needs two or more accessible companies; absent for
 any non-viewer role and wherever the company block is hidden),
-`copy-diagnostics` (Settings diagnostics copy action; server and demo modes), `settings-build-details` (Settings → Data and support → Build details row), `build-stamp` (Settings → Build details; only rendered when the build sets
+`diagnostics-report` (Diagnostics page support-report card), `diagnostics-report-text` (the report text it copies), `copy-diagnostics` (Diagnostics page copy action; server and demo modes), `settings-build-details` (Settings → Data and support → Build details row), `build-stamp` (Settings → Build details; only rendered when the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings → Build details mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,

@@ -15,6 +15,7 @@ export const ROUTE_ACTIVITIES = "/activities";
 export const ROUTE_TIMEOFF = "/timeoff";
 export const ROUTE_TEAM = "/team";
 export const ROUTE_SETTINGS = "/settings";
+export const ROUTE_DIAGNOSTICS = "/diagnostics";
 /** Route path for the signed-in person's account page. */
 export const ROUTE_ACCOUNT = "/account";
 

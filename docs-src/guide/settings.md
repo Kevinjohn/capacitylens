@@ -231,18 +231,8 @@ The **Build details** row provides support context without exposing company data
 deployment shows its build revision and, when configured, a **Send feedback** link. A build with
 neither omits the row.
 
-### Diagnostics
-
-At the bottom of this group, **Diagnostics** provides a **Copy diagnostics** action for a support
-report in both server and demo builds. The copied projection includes the app version, validated
-build revision when available, deployment mode and export schema. Server connectivity, database
-schema, persistence and backup health are listed separately; demo builds and unavailable server
-values show **Unknown** or **Unavailable**. It contains no company or member data, identifiers,
-paths, hostnames, secrets, invite or session values, raw errors or other server response fields.
-
-The Diagnostics row records the **Snapshot observed** time when the server response arrives, or
-when its failure is observed. **Copy diagnostics** copies that same snapshot and does not request a
-fresh report, so the support note describes one clear observation rather than a live stream.
+Owners and Admins copy a fuller support report from the separate
+[Diagnostics](/admin/diagnostics) page.
 
 ![Appearance preferences above Data and support, with Device data and Import and export closed](../screenshots/flows/settings_account_disclosures.png)
 

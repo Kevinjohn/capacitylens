@@ -21,7 +21,8 @@ import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "./ui/sidebar";
 import { endMasquerade, retryMasqueradeProjection } from "../auth/accountTransition";
 import { Button } from "./ui/button";
-import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
+import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "../lib/tourAnchors";
+import { useDiagnosticsAccessDecision } from "./diagnostics/useDiagnosticsAccessDecision";
 import { retryActiveAccountLoad } from "../data/persist";
 import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActions";
 import { useAuth } from "../auth/authContext";
@@ -212,6 +213,10 @@ function GatedSidebar({
     resolveCapacityOverviewAccessDecision({ role, status: permissionStatus, access: overviewAccess }) === "allowed"
       ? navLinks
       : navLinks.filter(({ to }) => to !== ROUTE_CAPACITY_OVERVIEW);
+  const adminLinks =
+    useDiagnosticsAccessDecision() === "allowed"
+      ? ADMIN_LINKS
+      : ADMIN_LINKS.filter(({ to }) => to !== ROUTE_DIAGNOSTICS);
   return (
     <>
       <a
@@ -222,7 +227,7 @@ function GatedSidebar({
       </a>
       <AppSidebar
         activeAccount={activeAccount}
-        adminLinks={ADMIN_LINKS}
+        adminLinks={adminLinks}
         accessibleAccountCount={accessibleAccountCount}
         demoAuthActive={demoAuthActive}
         navLinks={visibleNavLinks}

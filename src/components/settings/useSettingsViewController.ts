@@ -1,11 +1,9 @@
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { useEffect, useId, useState } from "react";
+import { useId } from "react";
 import { useAuth } from "@/auth/authContext";
 import { useCanEdit, useRole } from "@/auth/permissionContext";
 import { isServerConfigured } from "@/data/apiConfig";
 import { readBuildStamp, readFeedbackMailto } from "@/data/buildInfo";
-import { formatDiagnostics, readDiagnostics, type DiagnosticsReport } from "@/data/buildInfo";
-import { accountClient } from "../../account/accountClient";
 import { useOfflineReadEnabled, useOfflineState } from "@/data/useOfflineState";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import {
@@ -55,42 +53,6 @@ function readSchedulingSettings(data: ReturnType<(typeof useStore)["getState"]>[
   };
 }
 
-type UseDiagnosticsControllerOptions = { serverMode: boolean };
-function useDiagnosticsController({ serverMode }: UseDiagnosticsControllerOptions) {
-  const [diagnostics, setDiagnostics] = useState<DiagnosticsReport>(() =>
-    readDiagnostics(null, serverMode ? undefined : new Date().toISOString()),
-  );
-  const [diagnosticsCopyState, setDiagnosticsCopyState] = useState<"idle" | "copied" | "failed">("idle");
-  useEffect(() => {
-    if (!serverMode) return;
-    const controller = new AbortController();
-    void accountClient
-      .diagnostics(controller.signal)
-      .then(async (response) => {
-        const body = (await response.json().catch(() => null)) as unknown;
-        setDiagnostics(readDiagnostics(body, new Date().toISOString()));
-      })
-      .catch(() => {
-        // An unavailable diagnostics read is itself represented in the fixed projection. The
-        // caught error is intentionally not rendered or copied, because it may contain internals.
-        if (!controller.signal.aborted) setDiagnostics(readDiagnostics(null, new Date().toISOString()));
-      });
-    return () => controller.abort();
-  }, [serverMode]);
-  const copyDiagnostics = async () => {
-    try {
-      if (!("clipboard" in navigator) || typeof navigator.clipboard.writeText !== "function") {
-        throw new Error("Clipboard unavailable.");
-      }
-      await navigator.clipboard.writeText(formatDiagnostics(diagnostics));
-      setDiagnosticsCopyState("copied");
-    } catch {
-      setDiagnosticsCopyState("failed");
-    }
-  };
-  return { diagnostics, diagnosticsCopyState, copyDiagnostics };
-}
-
 export function useSettingsViewController() {
   const workingDaysMinimumId = useId();
   const canEdit = useCanEdit();
@@ -106,7 +68,6 @@ export function useSettingsViewController() {
   const offlineEnabled = useOfflineReadEnabled();
   const offlineState = useOfflineState();
   const serverMode = isServerConfigured();
-  const { diagnostics, diagnosticsCopyState, copyDiagnostics } = useDiagnosticsController({ serverMode: serverMode });
   const scheduling = readSchedulingSettings(data, activeAccountId);
   const localData = useLocalDataActions({
     offlineEnabled,
@@ -143,8 +104,5 @@ export function useSettingsViewController() {
     localData,
     stamp: readBuildStamp(),
     feedback: readFeedbackMailto(),
-    diagnostics,
-    diagnosticsCopyState,
-    copyDiagnostics,
   };
 }

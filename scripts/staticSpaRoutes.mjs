@@ -9,6 +9,7 @@ export const STATIC_SPA_ROUTES = [
   "timeoff",
   "team",
   "settings",
+  "diagnostics",
   "account",
   "verify-microsoft",
 ];

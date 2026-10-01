@@ -12,6 +12,7 @@ import { m } from "@/i18n";
 import { usePermissionStatus, useRole } from "./auth/permissionContext";
 import { resolveCapacityOverviewAccessDecision } from "./auth/capacityOverviewAccess";
 import { resolveCapacityOverviewAccess } from "./store/selectors";
+import { useDiagnosticsAccessDecision } from "./components/diagnostics/useDiagnosticsAccessDecision";
 
 // The scheduler is the index route (first paint) so it stays eager. The CRUD list
 // pages are split out — not needed until navigated to, which trims the initial
@@ -44,6 +45,9 @@ const TeamAccessView = lazy(() =>
 );
 const SettingsView = lazy(() =>
   import("./components/settings/SettingsView").then((module) => ({ default: module.SettingsView })),
+);
+const DiagnosticsView = lazy(() =>
+  import("./components/diagnostics/DiagnosticsView").then((module) => ({ default: module.DiagnosticsView })),
 );
 const AccountView = lazy(() =>
   import("./components/account/AccountView").then((module) => ({ default: module.AccountView })),
@@ -96,6 +100,18 @@ export function CapacityOverviewRoute() {
   return decision === "allowed" ? <CapacityOverviewView /> : <Navigate to="/" replace />;
 }
 
+// Diagnostics is Owner/Admin-only, with the Overview route's pending and auth-off handling.
+export function DiagnosticsRoute() {
+  const decision = useDiagnosticsAccessDecision();
+  if (decision === "pending")
+    return (
+      <p role="status" className="p-6 text-sm text-muted-foreground">
+        {m.app_loading()}
+      </p>
+    );
+  return decision === "allowed" ? <DiagnosticsView /> : <Navigate to="/" replace />;
+}
+
 function ActivityRoute() {
   const { hash } = useLocation();
   const encodedId = hash.startsWith("#activity=") ? hash.slice("#activity=".length) : "";
@@ -130,6 +146,7 @@ export const router = createBrowserRouter([
       { path: "timeoff", element: <TimeOffList /> },
       { path: "team", element: <TeamAccessView /> },
       { path: "settings", element: <SettingsView /> },
+      { path: "diagnostics", element: <DiagnosticsRoute /> },
       { path: "account", element: <AccountView /> },
     ],
   },

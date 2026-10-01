@@ -42,6 +42,8 @@ For one person's absence, use [Record time off](/using/record-time-off).
 
 [Company settings](/admin/company-settings) controls shared working days, optional features and Overview access.
 
+When something goes wrong, copy a support report from [Diagnostics](/admin/diagnostics).
+
 Ask the Owner about ownership transfer, company deletion or importing scheduling data.
 
 Ask the service operator about backups, upgrades and company-login configuration.

@@ -21,7 +21,8 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 
 1. Confirm the sidebar shows, in order: **Overview**, **Schedule**, **Resources**, **Disciplines**, **Clients**,
    **Projects**, **Activities**, **Time off**, then — below a divider, pinned to the bottom of the
-   list as the administration group — **Team & access** and **Settings**. At the very bottom sits
+   list as the administration group — **Team & access**, **Settings** and, for Owners, Admins and
+   sign-in-off sessions, **Diagnostics**. At the very bottom sits
    one avatar-led **Account** row. Real auth shows the company name, role and **Switch company** only
    when two or more companies are accessible; auth-off/demo retains the company context and switch.
 2. Click **Overview**. The URL is `/overview` and its four-week table renders.
@@ -39,8 +40,9 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 10. Click **Team & access**. The URL is `/team` and the current access summary shows.
 11. Click **Settings**. The URL is `/settings` and the page shows **Company setup**,
     **Scheduling features**, **My display** and **Data and support** in order. **Company details**
-    and **Diagnostics** appear in Data and support.
-12. Click **Account**. The URL is `/account` and the personal identity and available security
+    appears in Data and support.
+12. Click **Diagnostics**. The URL is `/diagnostics` and the **Support report** shows.
+13. Click **Account**. The URL is `/account` and the personal identity and available security
     controls show independently of the active company. The table has separate avatar, Name, Email and Actions
     columns. A long email is truncated, with its full address available on pointer
     hover or keyboard focus. On narrow screens the row scrolls horizontally. Local-password users can open **Change password** from the identity row;

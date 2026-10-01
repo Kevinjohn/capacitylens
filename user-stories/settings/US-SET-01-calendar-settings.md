@@ -42,7 +42,7 @@ row shows a compact read-only summary: **Company name**, **Week starts on** and 
   offset such as **London — Europe/London (BST, UTC+01:00)**; the label handles daylight-saving
   changes rather than showing an unexplained IANA identifier alone.
 - In Settings, **Company details** shows Company name, Week starts on and Time
-  zone (with numeric offset) in a read-only table; no disabled
+  zone (with numeric offset) in a read-only table before Build details; no disabled
   form controls or ordinary company-name editing control are shown.
 - Its question-mark action opens a labelled modal explaining that the values were selected at
   creation and cannot be changed here.

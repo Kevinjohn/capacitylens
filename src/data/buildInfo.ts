@@ -10,6 +10,8 @@ import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 import packageJson from "../../package.json";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
+import type { AccountMode } from "@capacitylens/shared/account/types";
+import type { PersistenceDiagnostics } from "./persistenceDiagnostics";
 
 /** Whether the observed diagnostics response was reachable; `unavailable` means no response was usable. */
 export type DiagnosticsConnectivity = "ok" | "unavailable";
@@ -36,6 +38,22 @@ export interface ServerDiagnostics {
   };
 }
 
+/** Browser facts a support report may carry; none identifies a person or a company. */
+export interface BrowserDiagnostics {
+  userAgent: string;
+  /** CSS-pixel viewport, e.g. `1280×800`. */
+  viewport: string;
+  timeZone: string;
+  language: string;
+}
+
+/** Facts known only to the running client: its sign-in mode, persistence counters and browser. */
+export interface ClientDiagnostics {
+  signInMode: AccountMode;
+  persistence: PersistenceDiagnostics;
+  browser: BrowserDiagnostics;
+}
+
 /** Privacy-safe client report captured for a local demo or server observation; it is not a live monitor. */
 export interface DiagnosticsReport {
   /** Client ISO timestamp for a local demo snapshot, server response, or observed failure; null means it is still pending. */
@@ -45,7 +63,10 @@ export interface DiagnosticsReport {
   deploymentMode: "server" | "demo";
   exportSchema: number;
   server: ServerDiagnostics;
+  client: ClientDiagnostics;
 }
+
+const UNKNOWN = "Unknown";
 
 function createUnknownServerDiagnostics(): ServerDiagnostics {
   return {
@@ -122,8 +143,38 @@ function readBackupProjection(backup: Record<string, unknown> | null) {
   return { status, lastSuccessAt: readTimestamp(backup?.lastSuccessAt) };
 }
 
+function readMatching(value: string, pattern: RegExp): string {
+  return pattern.test(value) ? value : UNKNOWN;
+}
+
+/** Keep each browser fact to its expected shape, so a report never carries free text it did not ask for. */
+function readBrowserProjection(browser: BrowserDiagnostics): BrowserDiagnostics {
+  return {
+    // A user agent may carry a crawler URL or contact address; such a string is dropped whole.
+    userAgent: readMatching(browser.userAgent, /^(?!.*(?::\/\/|@))[\x20-\x7e]{1,512}$/),
+    viewport: readMatching(browser.viewport, /^\d{1,5}×\d{1,5}$/),
+    timeZone: readMatching(browser.timeZone, /^[A-Za-z0-9_+\-/]{1,64}$/),
+    language: readMatching(browser.language, /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/),
+  };
+}
+
+/** Read this browser's report facts. Each falls back to `Unknown` where the browser withholds it. */
+export function readBrowserDiagnostics(): BrowserDiagnostics {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return {
+    userAgent: navigator.userAgent || UNKNOWN,
+    viewport: `${window.innerWidth}×${window.innerHeight}`,
+    timeZone: timeZone || UNKNOWN,
+    language: navigator.language || UNKNOWN,
+  };
+}
+
 /** Build the fixed, privacy-safe diagnostics projection. Unknown server fields are ignored. */
-export function readDiagnostics(serverResponse: unknown = null, observedAt?: string): DiagnosticsReport {
+export function readDiagnostics(
+  serverResponse: unknown,
+  observedAt: string | undefined,
+  client: ClientDiagnostics,
+): DiagnosticsReport {
   return {
     observedAt: readTimestamp(observedAt) ?? null,
     appVersion: packageJson.version,
@@ -133,25 +184,39 @@ export function readDiagnostics(serverResponse: unknown = null, observedAt?: str
     // physical server schema, which is supplied separately by the authenticated diagnostics route.
     exportSchema: EXPORT_SCHEMA_VERSION,
     server: parseServerDiagnostics(isRecord(serverResponse) ? serverResponse.server : null),
+    client: { ...client, persistence: { ...client.persistence }, browser: readBrowserProjection(client.browser) },
   };
 }
 
 /** Format diagnostics as stable labelled text for support reports. It contains no raw response data. */
 export function formatDiagnostics(report: DiagnosticsReport): string {
   const { server } = report;
+  const { persistence, browser } = report.client;
   return [
     `${APP_NAME} diagnostics`,
-    `Snapshot observed: ${report.observedAt ?? "Unknown"}`,
+    `Snapshot observed: ${report.observedAt ?? UNKNOWN}`,
     `App version: ${report.appVersion}`,
-    `Build revision: ${report.buildRevision ?? "Unknown"}`,
+    `Build revision: ${report.buildRevision ?? UNKNOWN}`,
     `Deployment mode: ${report.deploymentMode}`,
     `Export schema: ${report.exportSchema}`,
     `Server connectivity: ${server.connectivity}`,
     `Database: ${server.database.status}`,
-    `Database schema: ${server.database.schemaVersion ?? "Unknown"}`,
+    `Database schema: ${server.database.schemaVersion ?? UNKNOWN}`,
     `Persistence: ${server.persistence}`,
     `Backup: ${server.backup.status}`,
-    `Backup last success: ${server.backup.lastSuccessAt ?? "Unknown"}`,
+    `Backup last success: ${server.backup.lastSuccessAt ?? UNKNOWN}`,
+    `Sign-in mode: ${report.client.signInMode}`,
+    `Saves failed: ${persistence.savesFailed}`,
+    `Retries armed: ${persistence.retriesArmed}`,
+    `Reconciliations resolved: ${persistence.reconciliationsResolved}`,
+    `Reloads superseded: ${persistence.reloadsSuperseded}`,
+    `Edits rebased: ${persistence.editsRebased}`,
+    `Edits discarded: ${persistence.editsDiscarded}`,
+    `Saving suspended: ${persistence.suspended ? "yes" : "no"}`,
+    `User agent: ${browser.userAgent}`,
+    `Viewport: ${browser.viewport}`,
+    `Time zone: ${browser.timeZone}`,
+    `Language: ${browser.language}`,
   ].join("\n");
 }
 

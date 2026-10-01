@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter, Outlet, Route, RouterProvider, Routes } from "react-router-dom";
 import { ActivityList } from "./components/activities/ActivityList";
-import { CapacityOverviewRoute, RouteLoading, router } from "./router";
+import { CapacityOverviewRoute, DiagnosticsRoute, RouteLoading, router } from "./router";
 import { PermissionContext } from "./auth/permissionContext";
 import { resetStoreWithAccount } from "./test/fixtures";
 import { useStore } from "./store/useStore";
@@ -11,6 +11,9 @@ import { STATIC_SPA_ROUTES } from "../scripts/staticSpaRoutes.mjs";
 vi.mock("./components/AppShell", () => ({ AppShell: Outlet }));
 vi.mock("./components/activities/ActivityList", () => ({
   ActivityList: vi.fn(() => <div data-testid="activity-list-route" />),
+}));
+vi.mock("./components/diagnostics/DiagnosticsView", () => ({
+  DiagnosticsView: () => <div>Diagnostics content</div>,
 }));
 vi.mock("./components/capacity-overview/CapacityOverviewView", () => ({
   CapacityOverviewView: () => <div>Overview content</div>,
@@ -84,6 +87,46 @@ describe("Overview route access", () => {
 
   it("waits for role resolution before deciding", () => {
     resetStoreWithAccount();
+    renderRoute("viewer", "pending");
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+  });
+});
+
+describe("Diagnostics route access", () => {
+  function renderRoute(role: "owner" | "admin" | "editor" | "viewer" | null, status: "pending" | "resolved") {
+    return render(
+      <PermissionContext.Provider value={role === null ? { role, status: "not-applicable" } : { role, status }}>
+        <MemoryRouter initialEntries={["/diagnostics"]}>
+          <Routes>
+            <Route path="/" element={<div>Schedule content</div>} />
+            <Route path="/diagnostics" element={<DiagnosticsRoute />} />
+          </Routes>
+        </MemoryRouter>
+      </PermissionContext.Provider>,
+    );
+  }
+
+  it.each(["owner", "admin"] as const)("opens for an %s", async (role) => {
+    renderRoute(role, "resolved");
+
+    expect(await screen.findByText("Diagnostics content")).toBeInTheDocument();
+  });
+
+  it("opens without a membership role when sign-in is off", async () => {
+    renderRoute(null, "resolved");
+
+    expect(await screen.findByText("Diagnostics content")).toBeInTheDocument();
+  });
+
+  it.each(["editor", "viewer"] as const)("redirects an %s to the schedule", (role) => {
+    renderRoute(role, "resolved");
+
+    expect(screen.getByText("Schedule content")).toBeInTheDocument();
+    expect(screen.queryByText("Diagnostics content")).not.toBeInTheDocument();
+  });
+
+  it("waits for role resolution before deciding", () => {
     renderRoute("viewer", "pending");
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading…");

@@ -15,6 +15,7 @@ import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from ".
 import { cn } from "@/lib/cn";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { buildPaletteItems, type PaletteItem } from "./buildPaletteItems";
+import { useDiagnosticsAccessDecision } from "./diagnostics/useDiagnosticsAccessDecision";
 
 function groupPaletteItems(items: PaletteItem[]) {
   const sections: { title: string; items: PaletteItem[] }[] = [];
@@ -59,6 +60,7 @@ function usePaletteItems(query: string, onClose: () => void) {
   const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
   const showCapacityOverview =
     resolveCapacityOverviewAccessDecision({ role, status: permissionStatus, access: overviewAccess }) === "allowed";
+  const showDiagnostics = useDiagnosticsAccessDecision() === "allowed";
   return useMemo(
     () =>
       buildPaletteItems({
@@ -66,6 +68,7 @@ function usePaletteItems(query: string, onClose: () => void) {
         data,
         disciplinesEnabled,
         showCapacityOverview,
+        showDiagnostics,
         placeholdersEnabled,
         externalEnabled,
         navigate,
@@ -80,6 +83,7 @@ function usePaletteItems(query: string, onClose: () => void) {
       data,
       disciplinesEnabled,
       showCapacityOverview,
+      showDiagnostics,
       placeholdersEnabled,
       externalEnabled,
       navigate,

@@ -12,6 +12,7 @@ const deepDestinations = [
   ["/timeoff", "Time off"],
   ["/team", "Team & access"],
   ["/settings", "Settings"],
+  ["/diagnostics", "Diagnostics"],
   ["/account", "Account"],
 ] as const;
 
@@ -108,7 +109,9 @@ function registerSidebarLinksRouteSectionTest() {
 // Issues #169/#172. Assert real DOM order and the account block below it — mere presence of the
 // links passed under the old layout too, so only order proves the move happened.
 function registerPinsTeamAccessSettingsBelowTest() {
-  test("pins Team & access and Settings below the working destinations, above the account block", async ({ page }) => {
+  test("pins Team & access, Settings and Diagnostics below the working destinations, above the account block", async ({
+    page,
+  }) => {
     await openApp(page);
 
     const hrefs = await page.locator("nav a").evaluateAll((links) => links.map((l) => l.getAttribute("href")));
@@ -123,6 +126,7 @@ function registerPinsTeamAccessSettingsBelowTest() {
       "/timeoff",
       "/team",
       "/settings",
+      "/diagnostics",
     ]);
 
     // Demo keeps company switching in the footer; Account is the only session row.

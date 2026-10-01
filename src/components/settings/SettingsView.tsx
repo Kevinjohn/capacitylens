@@ -3,7 +3,7 @@ import { m } from "@/i18n";
 import { ListPage } from "../common/ui";
 import { ImportExport } from "../ImportExport";
 import { ArchivedSection } from "./ArchivedSection";
-import { SettingsAccountOptions, SettingsBuildDetails, SettingsDiagnostics } from "./SettingsAccountSections";
+import { SettingsAccountOptions, SettingsBuildDetails } from "./SettingsAccountSections";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
 import { SettingsDataSection } from "./SettingsDataSection";
 import { CompanyFeaturesSection, ScheduleViewSection, SettingsCompanySetupSections } from "./SettingsSchedulingSection";
@@ -48,11 +48,6 @@ function SettingsBottomSections({ controller }: { controller: Controller }) {
       <SettingsImportSection />
       <SettingsAccountOptions activeAccount={controller.activeAccount} scheduling={scheduling} />
       <SettingsBuildDetails stamp={controller.stamp} feedback={controller.feedback} />
-      <SettingsDiagnostics
-        diagnostics={controller.diagnostics}
-        diagnosticsCopyState={controller.diagnosticsCopyState}
-        copyDiagnostics={controller.copyDiagnostics}
-      />
     </>
   );
 }
