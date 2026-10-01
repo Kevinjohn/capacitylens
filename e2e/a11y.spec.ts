@@ -174,6 +174,12 @@ test("the empty schedule (dark) has no serious or critical violations", async ({
   await settledAxe(page);
 });
 
+test("the diagnostics page has no serious or critical violations", async ({ page }) => {
+  await openApp(page, "Wayne Enterprises", "/diagnostics");
+  await expect(page.getByTestId("diagnostics-report-text")).toContainText("Snapshot observed:");
+  await settledAxe(page);
+});
+
 // WCAG 1.4.10 Reflow (AA): at 320 CSS px the scheduler CHROME (toolbar title/nav/zoom/draw row +
 // filters row) must not force horizontal scrolling. Before the fix the primary row was a
 // non-wrapping flex, so the controls packed past 320px and overflowed; adding flex-wrap lets it

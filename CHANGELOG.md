@@ -14,6 +14,11 @@ new features and **patch** versions carry fixes.
   two people, a client, a project and a few bookings across this week and next, as ordinary rows. An
   Owner or Admin can add it, and the server refuses a company that already has people, clients,
   projects or allocations (#1388).
+- A **Diagnostics** page for Owners and Admins, listed under Settings in the sidebar and the command
+  palette. Its support report adds the sign-in mode, this browser session's save counters and the
+  browser's user agent, viewport, time zone and language to the build and server status, and
+  **Copy diagnostics** copies it. It contains no names, email addresses, identifiers or company data
+  (#1408).
 
 ### Changed
 
@@ -33,6 +38,8 @@ new features and **patch** versions carry fixes.
   internal projects**, **Show internal activities**, **Snap to week start** or **Compact view**, and
   no longer shows the read-only Language row or the persistence diagnostics in **Build details**
   (#1408).
+- Settings no longer has the **Diagnostics** row: Editors and Viewers report problems with the
+  **Build details** stamp, and Owners and Admins use the new Diagnostics page (#1408).
 
 ### Fixed
 

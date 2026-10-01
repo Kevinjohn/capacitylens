@@ -5,7 +5,7 @@ import type { useNavigate } from "react-router-dom";
 import { fuzzyFilter } from "../lib/fuzzy";
 import { resolveResourceDisplayName } from "../lib/metadata";
 import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "../lib/navLinks";
-import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
+import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "../lib/tourAnchors";
 import type { useActiveScopedData } from "../store/useScopedData";
 import { buildEmptyFilters, type Filters } from "../store/useStore";
 
@@ -22,6 +22,7 @@ interface BuildPaletteItemsInput {
   data: ReturnType<typeof useActiveScopedData>;
   disciplinesEnabled: boolean;
   showCapacityOverview: boolean;
+  showDiagnostics: boolean;
   placeholdersEnabled: boolean;
   externalEnabled: boolean;
   navigate: ReturnType<typeof useNavigate>;
@@ -77,12 +78,14 @@ function buildActionItems({
 function buildPageItems({
   disciplinesEnabled,
   showCapacityOverview,
+  showDiagnostics,
   navigate,
   onClose,
 }: BuildPaletteItemsInput): PaletteItem[] {
   return [...LINKS, ...ADMIN_LINKS, ACCOUNT_LINK]
     .filter(({ to }) => disciplinesEnabled || to !== "/disciplines")
     .filter(({ to }) => showCapacityOverview || to !== ROUTE_CAPACITY_OVERVIEW)
+    .filter(({ to }) => showDiagnostics || to !== ROUTE_DIAGNOSTICS)
     .map(({ to, label }) => ({
       id: `page-${to === "/" ? "schedule" : to.slice(1)}`,
       label: label(),

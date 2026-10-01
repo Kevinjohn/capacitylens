@@ -118,6 +118,19 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Team & access")).toBeInTheDocument();
   });
 
+  it.each(["editor", "viewer"] as const)("hides Diagnostics from a resolved %s", (role) => {
+    renderPaletteWithPermission(role, "resolved");
+
+    expect(screen.getByText("Settings", { exact: true })).toBeInTheDocument();
+    expect(screen.queryByText("Diagnostics", { exact: true })).not.toBeInTheDocument();
+  });
+
+  it.each(["owner", "admin"] as const)("lists Diagnostics for a resolved %s", (role) => {
+    renderPaletteWithPermission(role, "resolved");
+
+    expect(screen.getByText("Diagnostics", { exact: true })).toBeInTheDocument();
+  });
+
   it("hides Overview when the resolved role cannot access it", () => {
     renderPaletteWithPermission("viewer", "resolved");
 
@@ -136,6 +149,7 @@ describe("CommandPalette", () => {
       "Time off",
       "Team & access",
       "Settings",
+      "Diagnostics",
       "Account",
     ];
     const expectedWithoutDisciplines = [
@@ -148,6 +162,7 @@ describe("CommandPalette", () => {
       "Time off",
       "Team & access",
       "Settings",
+      "Diagnostics",
       "Account",
     ];
     const pageLabels = () =>

@@ -6,6 +6,7 @@ import {
   FolderIcon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
+  StethoscopeIcon,
   SunIcon,
   TagIcon,
   UsersIcon,
@@ -18,6 +19,7 @@ import {
   ROUTE_ACCOUNT,
   ROUTE_CAPACITY_OVERVIEW,
   ROUTE_CLIENTS,
+  ROUTE_DIAGNOSTICS,
   ROUTE_DISCIPLINES,
   ROUTE_PROJECTS,
   ROUTE_RESOURCES,
@@ -62,11 +64,13 @@ export const LINKS: NavigationLinkDefinition[] = [
  * separator (issues #169 / #172). They are the same `NavigationLinkDefinition` shape and render through the same
  * menu markup as `LINKS` — only their placement differs. Team & access is here because it is
  * role-gated in practice (most people never act on it) and Settings because it is rarely visited:
- * neither should compete for the eye with the day-to-day scheduling destinations above.
+ * neither should compete for the eye with the day-to-day scheduling destinations above. Diagnostics
+ * is Owner/Admin-only; the sidebar and command palette drop it for other roles.
  */
 export const ADMIN_LINKS: NavigationLinkDefinition[] = [
   { to: ROUTE_TEAM, label: () => m.nav_team_access(), icon: ShieldCheckIcon },
   { to: ROUTE_SETTINGS, label: () => m.nav_settings(), icon: SlidersHorizontalIcon },
+  { to: ROUTE_DIAGNOSTICS, label: () => m.nav_diagnostics(), icon: StethoscopeIcon },
 ];
 
 /** The personal account destination rendered in the sidebar session footer. */
