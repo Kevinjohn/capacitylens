@@ -26,7 +26,7 @@ import type {
 import { emptyAppData } from "../types/entities";
 import type { AppData, Resource, Weekday } from "../types/entities";
 
-// These tests are an INDEPENDENT oracle of the P2.2 lifecycle state machine: the expected states /
+// These tests are an INDEPENDENT oracle of the lifecycle state machine: the expected states /
 // booleans below are hand-derived from the contract (deletedAt wins; archive needs active; delete +
 // unarchive need archived; purge needs deleted + age ≥ 30d, fail-closed), NOT copied from the
 // implementation. If lifecycle.ts and these tables disagree, that's the test doing its job.

@@ -87,8 +87,8 @@ export interface Account extends Entity {
   weekStartsOn?: 0 | 1;
   /** Weekdays on which schedule creation may start. Stored as a set; presentation follows weekStartsOn. */
   workingDays?: Weekday[];
-  /** UI language for this company. Absent = 'en'. English-only until P1.5.1 (Paraglide).
-   *  Frozen after creation — see P1.14. Not shown in Settings while English is the only option. */
+  /** UI language for this company. Absent = 'en'. English-only for now.
+   *  Frozen after creation. Not shown in Settings while English is the only option. */
   language?: string;
   /** Whether this company uses disciplines. Absent = true (the original behaviour).
    *  When false, disciplines are hidden across the whole UI (nav, resource form,

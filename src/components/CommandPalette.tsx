@@ -142,8 +142,6 @@ function PaletteResults({
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function CommandPalette({ onClose }: { onClose: () => void }) {
   // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
   // Per-account view pref (default OFF): when off, placeholders are not offered as jump targets.

@@ -98,12 +98,12 @@ function rebuildNullableInviteIds(db: Db): void {
  *
  * Schema: `account_members(accountId, userId, role, status, createdAt, signInConfirmed?)` with a composite
  * PRIMARY KEY `(accountId, userId)` (a login has at most one role per account), plus a
- * by-`userId` index (P1.2's listAccounts: "which accounts can this login see?") and a
+ * by-`userId` index (listAccounts: "which accounts can this login see?") and a
  * by-`accountId` index (member-management listing: "who is in this account?").
  *
  * Also creates `invites(tokenHash PK, id, accountId, role, preauthEmail?, expiresAt, usedAt?, createdAt)`
- * (P1.9) — the single-use, expiring invite links that mint a membership on accept — with a
- * by-`accountId` index (list an account's outstanding invites). The `id` column (P1.11) is a
+ * — the single-use, expiring invite links that mint a membership on accept — with a
+ * by-`accountId` index (list an account's outstanding invites). The `id` column is a
  * NON-SECRET handle, distinct from the bearer `token`: list/revoke key on `id` so the secret `token`
  * stays WRITE-ONCE and never travels on a read path.
  *
@@ -142,8 +142,8 @@ export function ensureControlTables(db: Db): void {
   // The v26 migration owns this additive shape. Repeating its guarded repair here keeps fresh and
   // pre-ledger development databases on the same every-boot control-plane boundary as invites.
   migrateMemberSignInTrackingV26(db);
-  // ADDITIVE column for an ALREADY-CREATED dev DB (the `invites` table is new in P1.9; the `id`
-  // column is added in P1.11). A DB that already has the table from P1.9 won't get `id` from the
+  // ADDITIVE column for an ALREADY-CREATED dev DB (the `id` column
+  // arrived after the `invites` table). A DB that already has the older table won't get `id` from the
   // IF-NOT-EXISTS CREATE above (node:sqlite never re-runs CREATE on an existing table), so add it
   // here — guarded by a column-exists check, mirroring schema.ts's additive ALTER idiom. SQLite
   // can't ALTER-ADD a NOT NULL column to existing rows, so it lands NULLABLE; createInvite always

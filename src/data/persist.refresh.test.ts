@@ -447,7 +447,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
   });
 
   it("with a STALE id is a no-op and does NOT cancel an in-flight newer switch (wrong-tenant race)", async () => {
-    // The P1 race: a lifecycle POST for account A resolves AFTER the user switched A→B while B's
+    // The race: a lifecycle POST for account A resolves AFTER the user switched A→B while B's
     // slice load is still on the wire. Pre-fix, the stale refreshActive(A) bumped the switch token —
     // CANCELLING B's late-resolving load — then installed A's slice while activeAccountId === B
     // (cross-tenant display → cross-tenant writes). The entry guard must make the stale call a

@@ -1,7 +1,7 @@
 export { writePreMigrationBackup, type PreMigrationBackupOptions } from "./backup/writePreMigrationBackup";
 export type { DurableSnapshotPublisher } from "./backup/publish";
 export { startBackups } from "./backup/scheduler";
-// Online DB snapshots (production plan P4.1, flag CAPACITYLENS_BACKUP_DIR — default OFF: this
+// Online DB snapshots (flag CAPACITYLENS_BACKUP_DIR — default OFF: this
 // module is never started, touches no filesystem, owns no timer). A small server feature
 // rather than a host cron because WAL mode means a raw `cp` can catch a torn state —
 // node:sqlite's backup() takes a consistent online snapshot instead (fallback:

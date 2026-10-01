@@ -77,7 +77,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   // ONLY secret here, so it is NEVER logged (it's returned in the body to the authorised caller and
   // nowhere else).
   //
-  // P1.10 — an optional `preauthEmail` may be attached: a non-empty, email-shaped value is stored
+  // An optional `preauthEmail` may be attached: a non-empty, email-shaped value is stored
   // NORMALIZED (trim+lowercase) and turns this into a pre-authorised invite that the accept route
   // binds ONLY for a caller whose VERIFIED email matches it (see preauthInviteAllows). Absent/empty
   // ⇒ stored as null ⇒ a link invite in trusted-local mode. Addressed invitations are
@@ -98,13 +98,13 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     previewInvitation(req, reply, context),
   );
 
-  // Invite ACCEPT (P1.9): a signed-in caller redeems a link, binding the invited role to THEIR
+  // Invite ACCEPT: a signed-in caller redeems a link, binding the invited role to THEIR
   // membership. NO authorize() call — the membership is the OUTPUT of this route, not a precondition
   // (requireUser upstream already proved a real session, or attached DEMO_USER in OFF mode). The
-  // token-state checks ARE the gate: unknown → 404, already-used → 409, expired → 410. P1.10 adds an
+  // token-state checks ARE the gate: unknown → 404, already-used → 409, expired → 410. An
   // email-preauth gate AFTER those and BEFORE the bind: a non-null preauthEmail must match the
   // caller's email; SSO also requires the IdP's verified-email assertion, while password mode uses
-  // possession of the addressed invite as verification. A null preauthEmail is the P1.9 link path
+  // possession of the addressed invite as verification. A null preauthEmail is the link path
   // (any signed-in caller). On success the membership upsert and
   // the single-use stamp commit in ONE transaction (atomic bind), and markInviteUsed's
   // `usedAt IS NULL` clause double-guards single-use against a concurrent race.
@@ -169,7 +169,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     removeMember(req, reply, context),
   );
 
-  // OWNERSHIP TRANSFER (#780): the three-step consent ceremony that replaced the one-click
+  // OWNERSHIP TRANSFER: the three-step consent ceremony that replaced the one-click
   // hand-over. The Owner nominates, the nominated Admin consents, the same Owner gives final
   // approval — so ownership never moves on one person's say-so, and the nominee is never made
   // responsible for a company without agreeing to it.
@@ -220,7 +220,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     async (req, reply) => cancelOwnershipTransfer(req, reply, context),
   );
 
-  // RESET PASSWORD (P1.18): mint a single-use, 24h reset LINK token for a member. The app supports
+  // RESET PASSWORD: mint a single-use, 24h reset LINK token for a member. The app supports
   // optional self-service email, but this admin operation hands the link over out-of-band,
   // exactly like an invite. Gated 'manageMembers' + the account policy's identity-administration guard (an
   // admin must never reset an OWNER — a reset link is an account-takeover capability, so this is

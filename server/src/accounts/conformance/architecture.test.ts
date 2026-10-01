@@ -57,7 +57,7 @@ function internalImports(file: string, include: (edge: DependencyEdge, target: s
 
 const runtimeImports = (file: string): string[] => internalImports(file, (edge) => edge.kind === "runtime");
 
-// These three concrete adapter contracts remain migration debt for T15. Only the named type
+// These three concrete adapter contracts remain migration debt. Only the named type
 // edges are tolerated; another consumer, a runtime import or a duplicate declaration fails.
 const adapterTypeDebt = [
   ["accounts/createLocalAccountFlows.ts", "accounts/betterAuthIdentityPort.ts", "LocalIdentityPort"],

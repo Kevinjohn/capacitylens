@@ -5,7 +5,7 @@ import type { ScopedEntityKey } from "@capacitylens/shared/types/entities";
  *
  * `changedFields` is field NAMES ONLY (e.g. `['accountId','note','startDate']`), NEVER their
  * values. NEVER construct one of these by spreading a row/body; build `changedFields` with
- * `Object.keys(...)` so a value can't leak into the audit trail (the #1 privacy invariant).
+ * `Object.keys(...)` so a value can't leak into the audit trail (the primary privacy invariant).
  */
 export interface AuditRecord {
   /** ISO-8601 instant the mutation committed (server runtime clock). */
@@ -14,13 +14,13 @@ export interface AuditRecord {
   userId: string;
   /** The tenant the mutation targeted. */
   accountId: string;
-  /** The kind of mutation. The lifecycle quartet (P2.5a) is distinct from the generic CRUD verbs:
+  /** The kind of mutation. The lifecycle quartet is distinct from the generic CRUD verbs:
    *  `archive`/`unarchive` flip the `archivedAt` tombstone, `softDelete` sets `deletedAt` (and, for a
    *  resource, scrubs the PII `name`), and `purge` is the HARD cascade row-delete of a ≥30-day-old
    *  tombstone. They stay distinct from `delete` (the generic by-id row delete) so the audit trail
    *  tells a reversible soft-delete apart from an irreversible purge. changedFields stay field NAMES
    *  only (e.g. `['archivedAt']`, `['deletedAt','name','allocations.note']`) — never values (the
-   *  #1 no-PII invariant). */
+   *  no-PII invariant). */
   action:
     | "create"
     | "update"

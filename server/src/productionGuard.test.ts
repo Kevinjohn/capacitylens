@@ -57,7 +57,7 @@ function productionPosture(overrides: ProductionEnv) {
   return evaluateProductionPosture(environmentWith(FULLY_HARDENED_PRODUCTION_CONTROLS, overrides));
 }
 
-// P3.1: once NODE_ENV=production, the dev/open posture is retired — the entrypoint refuses to
+// Once NODE_ENV=production, the dev/open posture is retired — the entrypoint refuses to
 // boot when auth is OFF (unless deliberately opted in) and warns on the softer posture concerns.
 // Outside production it is a strict no-op so dev / e2e / self-host are untouched. These tests
 // prove BOTH directions (it actually refuses, and a clean production config passes clean).

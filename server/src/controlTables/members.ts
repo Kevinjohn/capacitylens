@@ -53,7 +53,7 @@ export function invalidateRestrictedPrincipal(db: Db, accountId: string, princip
  * is the JOIN timestamp and is **preserved** on a role/status change (it is set ONCE, on the first
  * insert) — so a role change or ownership transfer never rewrites a member's displayed "joined"
  * date. The client applies its own role-priority presentation order. The idempotent write the permissioned
- * member-management endpoints (P1.5) use: re-inviting an existing member just changes their role
+ * member-management endpoints use: re-inviting an existing member just changes their role
  * rather than erroring on the PK conflict.
  *
  * @param db      The open SQLite handle.
@@ -83,7 +83,7 @@ export function upsertMember(db: Db, member: AccountMember, transfers: LiveTrans
      ON CONFLICT(accountId, userId) DO UPDATE SET
        role = excluded.role, status = excluded.status`,
   ).run(member.accountId, member.userId, member.role, member.status, member.createdAt, member.accountId);
-  // P1.18 (TOCTOU close): a password-reset link is authorized at MINT time against the user's
+  // TOCTOU close: a password-reset link is authorized at MINT time against the user's
   // membership snapshot THEN — so ANY membership write for this user (a role change, becoming the
   // owner of a new org, even a lateral move) invalidates that
   // authorization and must burn their outstanding reset links, else a link minted while they were
@@ -232,7 +232,7 @@ export function getActiveMemberRole(db: Db, accountId: string, userId: string): 
 }
 
 /**
- * List every membership a login holds, across all accounts — the by-`userId` lookup P1.2's
+ * List every membership a login holds, across all accounts — the by-`userId` lookup
  * `listAccounts` builds on (it is what answers "which accounts may this login see?").
  *
  * @param db      The open SQLite handle.
@@ -252,7 +252,7 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
 
 /**
  * List EVERY membership row of one account — the by-`accountId` lookup the member-management UI
- * (P1.11) builds on ("who is in this account?"). Ordered by `createdAt` then `userId` so the member
+ * builds on ("who is in this account?"). Ordered by `createdAt` then `userId` so the member
  * list renders deterministically.
  *
  * LOUD role-integrity throw (mirrors {@link listMembershipsForUser}): a stored role that is not a
@@ -286,7 +286,7 @@ export function listMembersForAccount(db: Db, accountId: string): AccountMember[
 }
 
 /**
- * Remove one membership — the member-revoke write (P1.11). IDEMPOTENT: deleting an absent
+ * Remove one membership — the member-revoke write. IDEMPOTENT: deleting an absent
  * `(accountId, userId)` is a no-op (mirrors {@link deleteRow}). The `accountId` predicate is the
  * cross-tenant guard: a revoke can only ever touch a row of the named account.
  *
@@ -307,7 +307,7 @@ export function removeMember(db: Db, accountId: string, userId: string): string[
 
 /**
  * Remove EVERY membership row of one account in a single statement — the bulk revoke the per-tenant
- * erasure (P2.6b) runs when an account is hard-deleted. Mirrors {@link removeMember} but drops all of
+ * erasure runs when an account is hard-deleted. Mirrors {@link removeMember} but drops all of
  * the account's rows at once: `account_members` carries NO FK to `accounts` (see {@link ensureControlTables}),
  * so the AppData delete-cascade never reaches it — this is what stops the membership rows leaking when
  * the account row goes.

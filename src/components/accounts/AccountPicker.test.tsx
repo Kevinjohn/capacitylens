@@ -432,7 +432,7 @@ function registerServerCreateRequestTest() {
     expect(url).toBe("/api/orgs");
     expect(init.method).toBe("POST");
     expect(init.credentials).toBe("include");
-    // The three frozen fields ride in the body as concrete values (P1.14).
+    // The three frozen fields ride in the body as concrete values.
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
     expect(body.name).toBe("Stark Industries");
     expect(body.weekStartsOn).toBe(1);

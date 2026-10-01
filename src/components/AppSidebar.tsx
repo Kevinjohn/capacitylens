@@ -135,8 +135,8 @@ function SidebarNavigation({
 }) {
   return (
     <SidebarContent>
-      {/* ONE <nav> landmark around both groups. The admin group is a separate visual block (issues
-          #169/#172) but the same navigation region, so screen-reader users still hear a single
+      {/* ONE <nav> landmark around both groups. The admin group is a separate visual block
+          but the same navigation region, so screen-reader users still hear a single
           "Navigation" landmark rather than two competing ones. `mt-auto` pushes it to the bottom of
           the scroll area whenever the primary list is shorter than the viewport. */}
       <nav className="flex flex-1 flex-col">

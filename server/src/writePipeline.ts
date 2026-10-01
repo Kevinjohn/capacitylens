@@ -176,8 +176,7 @@ export function prepareScopedWrite(input: {
   return { row, generatedReplacement, scopedState };
 }
 
-// ── Pure write-path helpers (moved verbatim from app.ts so the funnel and its call sites share one
-//    definition; app.ts re-imports them). ──────────────────────────────────────────────────────
+// Pure write-path helpers. The funnel and its call sites share one definition; app.ts re-imports them.
 
 /** The server owns persistence timestamps; request timestamps are only precondition versions. */
 export function stampServerRevision(

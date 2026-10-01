@@ -31,8 +31,8 @@ import { TENANT_ENTITY_ACCOUNT_INDEXES_V21 } from "./tenantIndexes";
 import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 
-// P1.16 — session-cookie + session-lifetime hardening, asserted by INTROSPECTING the resolved
-// betterAuth options (auth.options is the exact object we passed; same robust point P1.7 uses for
+// Session-cookie + session-lifetime hardening, asserted by INTROSPECTING the resolved
+// betterAuth options (auth.options is the exact object we passed; same robust point the provider tests use for
 // socialProviders). These are auth-ON-only: in OFF mode betterAuth is never constructed, so there
 // are no options to harden — authFromEnv returns { mode:'off', auth:null } untouched.
 

@@ -1010,7 +1010,7 @@ function registerPersistentWarningNoticeTest(): void {
 
 function registerNoticeReplacementRaceTest(): void {
   it("rapidly replacing notice A with B leaves B intact (no stale-clear race)", async () => {
-    // REGRESSION for the Phase-5 stale-clear race: rapidly swapping notice A→B (e.g. two drags
+    // REGRESSION for the stale-clear race: rapidly swapping notice A→B (e.g. two drags
     // in quick succession) must NOT let A's deferred programmatic dismiss wipe B. When the bridge
     // replaces A's toast it runs cleanup `toast.dismiss(idA)`, and Sonner fires A's `onDismiss`
     // even for a *programmatic* dismiss — so without the `=== thisNotice` identity guard A's
@@ -1223,7 +1223,7 @@ describe("AppShell command palette dirty-form guard", () => {
 
 describe("AppShell transient notice", () => {
   // The store `notice`/`setNotice` API is unchanged; AppShell now bridges it to a Sonner
-  // toast (the hand-rolled Toast was retired in shadcn Phase 5). Sonner portals the toast in
+  // toast. Sonner portals the toast in
   // asynchronously inside a polite live region (<section aria-label="Notifications…"
   // aria-live="polite">), each toast a `li[data-sonner-toast]` with an aria-label="Close
   // toast" button — so these assertions match Sonner's DOM, while the behavioural intent

@@ -1,4 +1,4 @@
-// Boot-time safety interlock (production plan P1.6): POST /api/test/reset wipes the whole
+// Boot-time safety interlock: POST /api/test/reset wipes the whole
 // dataset, so it must be IMPOSSIBLE in production, not merely unconfigured. A process asked
 // to run with both CAPACITYLENS_ALLOW_RESET=1 and NODE_ENV=production refuses to start — dev and
 // e2e (where NODE_ENV is never 'production') are untouched. Deliberately NOT behind a flag:

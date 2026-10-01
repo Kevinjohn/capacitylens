@@ -36,7 +36,7 @@ import { ensureAccountBoundaryState } from "./accounts/state";
 import { ACCESS_RESTRICTIONS_V47_SQL } from "./db/migrations/accessRestrictionsV47";
 import type { Db } from "./db";
 
-// Unit tests for the membership server-CONTROL table (P1.1). The control rows are intentionally
+// Unit tests for the membership server-CONTROL table. The control rows are intentionally
 // decoupled from AppData/openDb; only the resource table required by v43's cleanup trigger is added
 // below. (openDb wiring + the AppData-exclusion guarantees are covered in app.controlTables.test.ts.)
 
@@ -207,7 +207,7 @@ describe("listMembershipsForUser", () => {
   });
 });
 
-// ── P1.11 member-management helpers ────────────────────────────────────────────────────────────
+// Member-management helpers.
 
 describe("listMembersForAccount", () => {
   it("lists only the requested account's members, in a stable createdAt order", () => {

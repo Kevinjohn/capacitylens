@@ -13,7 +13,7 @@ import { schedulerDataset } from "./__tests__/schedulerTestKit";
 //
 // Memoised exactly like the real bar (React.memo), so the counter re-renders IFF one of its props
 // changed identity — i.e. it is a faithful stand-in for the production bail condition. What this
-// test actually catches is the `onDraw` reference stability: on the round-1 code
+// test actually catches is the `onDraw` reference stability: on the earlier code
 // `onDraw` closed over `ui.drawMode`, so a toggle re-rendered SchedulerGrid → new `onDraw` →
 // ResourceLane re-rendered → every bar re-rendered. With `onDraw` stabilised (getState-backed,
 // `[]` deps), ResourceLane's props no longer change, its memo bails, and the count holds. The test
@@ -69,10 +69,10 @@ describe("draw-mode toggle does not re-render allocation bars", () => {
       useStore.getState().setDrawMode("timeoff");
     });
 
-    // PROOF #1: no AllocationBar re-rendered as a result of the toggle (the round-1 regression).
+    // Proof 1: no AllocationBar re-rendered as a result of the toggle.
     expect(barRenderCount.mock.calls.length).toBe(beforeToggle);
 
-    // PROOF #2: the toggle DID take effect — `inert` is applied via the ANCESTOR bars layer, so the
+    // Proof 2: the toggle DID take effect — `inert` is applied via the ANCESTOR bars layer, so the
     // bars are non-interactive without having re-rendered. The bars layer is the parent <div> that
     // wraps the bar elements.
     const bar = screen.getAllByTestId("allocation-bar")[0];

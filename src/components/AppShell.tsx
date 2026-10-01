@@ -350,7 +350,7 @@ export function AppShell() {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const activeAccountLoadFailed = useStore((state) => state.activeAccountLoadFailed);
   // EXISTENCE of the active account from `data.accounts` (after the slice loads, it holds exactly the
-  // active account) OR `accountSummaries` (P1.13 — covers the pick→slice-load gap in server mode,
+  // active account) OR `accountSummaries` (covers the pick→slice-load gap in server mode,
   // where `data` is empty for one frame until the switch orchestrator hydrates the slice). The summary
   // is enough to pass the tenant gate and render the shell; the slice fills in the body a frame later.
   const activeAccount =

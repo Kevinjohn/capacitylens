@@ -10,7 +10,7 @@ import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities"
 import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// P2.6b — per-tenant DELETE + member-PII erasure. The existing 'purge'-gated account hard-delete used
+// Per-tenant DELETE + member-PII erasure. The existing 'purge'-gated account hard-delete used
 // to drop ONLY the
 // `accounts` row: the FK cascade wiped the account's scoped AppData, but `account_members` + `invites`
 // LEAKED (no FK to accounts) and Better Auth's user/account/session PII was left fully intact. This
@@ -53,7 +53,7 @@ const deleteAccountRoute = ({ app, id, cookie, command }: DeleteAccountRouteInpu
     },
   });
 
-// ---- Raw observable-state probes (the assertion vocabulary; never trust a helper) ----
+// Raw observable-state probes (the assertion vocabulary; never trust a helper).
 
 const accountCount = (db: Db, id: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = ?`).get(id) as { n: number }).n;

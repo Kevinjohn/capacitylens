@@ -6,7 +6,7 @@ import type { AppOptions } from "../app";
 import { REPLY_ERRORS } from "./replyErrors";
 
 export function installSecurityPlugins(app: FastifyInstance, options: AppOptions, rateLimitMax: number) {
-  // Baseline security headers (P0.5.3, @fastify/helmet): ON by default — these are pure
+  // Baseline security headers (@fastify/helmet): ON by default — these are pure
   // hardening with no precondition, for an API server that returns JSON only (the SPA is
   // served by Nginx, not here). Registered EARLY, before route plugins, so its onRequest
   // hook decorates every response. helmet defaults already give us nosniff
@@ -47,7 +47,7 @@ export function installSecurityPlugins(app: FastifyInstance, options: AppOptions
     hsts: options.https === true ? { maxAge: 63072000, includeSubDomains: false } : false,
   });
 
-  // Rate limiting (P1.5, flag CAPACITYLENS_RATE_LIMIT): registered ONLY when a positive limit
+  // Rate limiting (flag CAPACITYLENS_RATE_LIMIT): registered ONLY when a positive limit
   // was configured — off means the plugin doesn't exist in the app at all. Keyed per IP;
   // behind the Nginx proxy every socket is loopback, so trustProxyHeaders swaps the
   // key to the first X-Forwarded-For hop there (and only there). 429s flow through the

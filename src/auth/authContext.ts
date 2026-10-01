@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-// Auth context (production plan P3.3), separate from AuthProvider so component files
+// Auth context, separate from AuthProvider so component files
 // export only components (react-refresh) and consumers (SettingsView) don't import the
 // provider machinery. The server's reported authMode is the single source of truth —
 // there is NO client-side auth flag; the default below is what the demo build and an

@@ -407,7 +407,7 @@ function registerImportedLifecycleTests(): void {
   });
 }
 
-// Lifecycle timestamps (archivedAt / deletedAt — P2.1) are optional ISO strings on
+// Lifecycle timestamps (archivedAt / deletedAt) are optional ISO strings on
 // resources / clients / projects / activities; a valid string is kept, anything non-string is
 // dropped (its absence reads back as active / not-deleted).
 function registerImportedLifecycleSuites(): void {

@@ -122,7 +122,7 @@ function inspectOperationalHardening(
  *
  * In production it evaluates, in order:
  * - **Refusal — auth off:** `parseAuthMode(env.CAPACITYLENS_MODE) === 'off'` is the dev/open
- *   posture P3.1 retires; it would leave the demo dataset world-readable+writable. This is a
+ *   posture production retires; it would leave the demo dataset world-readable+writable. This is a
  *   refusal UNLESS the operator has deliberately opted in via
  *   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1'`, in which case it is DOWNGRADED to a warning
  *   (the open posture is then run on purpose, but still surfaced). The escape never silences the

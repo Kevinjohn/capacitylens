@@ -9,7 +9,7 @@ import { appWithAuth } from "./fixtures/appWithAuth";
 import { recordSessionAssurance } from "./accounts/state";
 import { seedTwo } from "./app.members.testSupport";
 
-// P1.11 — Owner/Admin member-management endpoints. Mirrors app.invites.test.ts: drives sign-up →
+// Owner/Admin member-management endpoints. Mirrors app.invites.test.ts: drives sign-up →
 // membership → the five new routes (GET/PATCH/DELETE members, GET/DELETE invites) plus the Owner
 // rejection on POST /api/invites. Asserts the gates (owner/admin allowed, editor/viewer/non-member 403,
 // session-less 401), the role-change matrix (Owner changes only through transfer), that the
@@ -575,7 +575,7 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
   createStaleSessionRevocationTest();
 });
 
-// ── Step-up freshness gate: fail CLOSED on a missing session timestamp ─────────────────────────
+// ── Step-up freshness gate: fail CLOSED on a missing session timestamp.
 //
 // The real Better Auth path always stamps sessionCreatedAt (auth.api.getSession derives it from the
 // session row), so a verified session WITHOUT it can only come from a nonstandard adapter or a

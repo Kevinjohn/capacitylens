@@ -20,12 +20,12 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation } from "@capacitylens/shared/types/entities";
 import type { Role } from "@capacitylens/shared/domain/access";
 
-// P1.12 — client permission gating. Two halves:
+// Client permission gating. Two halves:
 //   1) the useCanEdit affordance gate (ListPage Add, AllocationBar grips) — and the OFF/local
 //      regression guard (provider ABSENT / role null → fully editable, byte-identical to today);
 //   2) the store's defense-in-depth viewer guard (a viewer's add*/update*/delete* no-ops + notices;
 //      null/editor/owner permit).
-// The server 403 (P1.5) is the TRUE backstop; this suite only covers the client UX + the local guard.
+// The server 403 is the TRUE backstop; this suite only covers the client UX + the local guard.
 
 /** Render `ui` inside a PermissionContext fixed to `role` (null = no provider equivalent / OFF/local). */
 function withRole(role: Role | null, ui: ReactNode) {
@@ -39,7 +39,7 @@ beforeEach(() => {
   useStore.getState().setNotice(null);
 });
 
-// ─── useCanEdit affordance gate ──────────────────────────────────────────────
+// useCanEdit affordance gate.
 
 describe("useCanEdit gates the ListPage create affordance", () => {
   const onAdd = vi.fn();
@@ -77,7 +77,7 @@ describe("useCanEdit gates direct AddButton create affordances", () => {
   });
 });
 
-// ─── AllocationBar viewer → display-only (no resize grips) ────────────────────
+// AllocationBar viewer → display-only (no resize grips).
 
 describe("useCanEdit gates the AllocationBar resize grips", () => {
   const GEOM = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 48, {
@@ -129,7 +129,7 @@ describe("useCanEdit gates the AllocationBar resize grips", () => {
   });
 });
 
-// ─── Store defense-in-depth viewer guard ─────────────────────────────────────
+// Store defense-in-depth viewer guard.
 
 describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () => {
   beforeEach(() => resetStoreWithAccount());

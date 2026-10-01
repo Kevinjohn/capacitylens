@@ -20,7 +20,7 @@ it("pins the public maximum scheduling span independently of its implementation"
 });
 
 describe("#257 characterization: empty working-set hazard", () => {
-  // PERMANENT hazard record: Phase 2's typed effective week must keep callers out of this calendar fallback.
+  // PERMANENT hazard record: the typed effective week must keep callers out of this calendar fallback.
   it("treats an empty working-day array as literal calendar mode", () => {
     const emptyWorkingSet = { workingDays: [] as Weekday[] };
 

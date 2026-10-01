@@ -293,8 +293,7 @@ function registerSqliteAccountAdminPortTest18(): void {
   });
 }
 
-// Was "reactivates an inactive invitee with the invitation role rather than its stale role". The
-// #175 review closed that door entirely: redeeming an invite is no longer a way back INTO a
+// Redeeming an invite is no longer a way back INTO a
 // non-active membership at any role, because it would let the suspended party reverse their own
 // suspension with no `member.status_changed` record. The escalation half of the old assertion is
 // kept and strengthened — the stale `owner` role must not survive either.

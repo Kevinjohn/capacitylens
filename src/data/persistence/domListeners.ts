@@ -63,7 +63,7 @@ export function attachDomListeners({ store, owner, writes, refresh, serverMode }
   // and mobile lifecycle changes through the normal serialized save path. The unacknowledged snapshot
   // remains tracked until either path confirms it, so either event may safely follow the other.
   // Coming BACK to the tab (or the browser firing `online`) re-attempts a stranded write.
-  // Refresh-on-focus (P1.16): when the user returns to the tab/window, re-hydrate the active
+  // Refresh-on-focus: when the user returns to the tab/window, re-hydrate the active
   // account's slice so a change made in another tab/device shows up — REUSING refreshActive (the
   // switch orchestrator's body) so the private lastSynced snapshot is re-seeded atomically and stays
   // consistent with `data` (a parallel re-hydrate would desync them and emit a garbage diff). Guards:

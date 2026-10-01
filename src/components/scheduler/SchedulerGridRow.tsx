@@ -240,7 +240,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         bars={bars}
         placeholder={resource.kind === "placeholder"}
         weekStartsOn={calendarWeekStartsOn}
-        // Viewer (P1.12): pass NO edit/draw callbacks — the lane then bails its draw gesture and
+        // Viewer: pass NO edit/draw callbacks — the lane then bails its draw gesture and
         // drops the hover "+" hint (display-only). Editable (null/owner/admin/editor, incl.
         // OFF/local) gets the stable memoised callbacks, byte-identical to today.
         {...(canEdit && onEdit ? { onEdit: onEdit } : {})}

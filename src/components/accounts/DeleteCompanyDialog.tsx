@@ -134,14 +134,14 @@ function DeleteCompanyMessages({
 // company's data first, and (b) require typing the exact name to arm the button.
 //
 // `account` is the minimal { id, name } the dialog needs — so the AccountPicker can pass an
-// AccountSummary (P1.13), which carries no colour/config.
+// AccountSummary, which carries no colour/config.
 //
 // "Export first" sources per mode (this is a LAST backup before a no-undo cascade delete, so it
 // must be COMPLETE):
 //   • SERVER mode — the client store may hold NOTHING for this company (you can delete a company
 //     you never switched into), and even a loaded slice is active-only (readSlice hides
 //     archived/soft-deleted rows). So fetch the COMPLETE slice from the purge-gated admin read,
-//     `GET /api/state?accountId=…&includeInactive=1` (the P2.6 complete per-tenant backup — the
+//     `GET /api/state?accountId=…&includeInactive=1` (the complete per-tenant backup — the
 //     same endpoint ArchivedSection uses). A failed or structurally incomplete fetch THROWS into
 //     the inline error surface and no file is saved (DEFENSIVE-CODING §3: a failed backup never
 //     saves a partial file and surfaces loudly — but export stays OPTIONAL; the user may already

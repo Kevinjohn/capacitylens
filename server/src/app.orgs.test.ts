@@ -10,7 +10,7 @@ import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities"
 import type { AuditSink } from "./audit";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// P1.8 — constrained org-creation (POST /api/orgs). The endpoint allows iff ANY of: zero accounts
+// Constrained org-creation (POST /api/orgs). The endpoint allows iff ANY of: zero accounts
 // (first-run bootstrap), OFF mode (trusted-local), the caller is an ACTIVE owner/admin of SOME
 // existing account, or a matching x-capacitylens-bootstrap-token header (env, off by default);
 // otherwise 403. On success it creates the account + its built-in Internal client + an Owner

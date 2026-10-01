@@ -49,7 +49,7 @@ export const isLifecycleEntityKey = (entityKey: string): entityKey is LifecycleE
 
 /**
  * The minimum age (in days) a soft-deleted tombstone must reach before it may be HARD-purged
- * (Admin-only, server-side, P2.5). Per the CapacityLens Decisions data-lifecycle rule: a tombstone
+ * (Admin-only, server-side). Per the CapacityLens Decisions data-lifecycle rule: a tombstone
  * is retained for a grace window before the row is physically removed, so an accidental delete is
  * recoverable for at least this long. Consumed by {@link canPurge}.
  */

@@ -1133,7 +1133,7 @@ function registerBlocksAdvisoryTests() {
 }
 
 describe("#257 characterization: effective-week capacity", () => {
-  // Flipped in Phase 3: capacity and load now use the company/personal effective week.
+  // Capacity and load use the company/personal effective week.
   it("removes Friday capacity, load and utilisation when the company calendar excludes Friday", () => {
     const accountWorkingDays: Weekday[] = [1, 2, 3, 4];
     const resource = makeResource({ workingDays: [1, 2, 3, 4, 5] });
@@ -1172,7 +1172,7 @@ describe("#257 characterization: effective-week capacity", () => {
     ).toBe(0);
   });
 
-  // Flipped in Phase 3: intersecting with a partial company week makes a seven-day
+  // Intersecting with a partial company week makes a seven-day
   // resource weekend-aware, so weekend hours stop counting.
   it("does not load Saturday and Sunday for a normal allocation on a seven-day resource", () => {
     const resource = makeResource({ workingDays: [0, 1, 2, 3, 4, 5, 6] });

@@ -32,7 +32,7 @@ import {
 /**
  * A nav destination: `[route, labelFn, icon]`. The label is a **getter** (`() => m.nav_x()`), not a
  * pre-resolved string, so each destination's text is resolved at RENDER (inside the `navLinks.map`
- * site in AppSidebar) rather than at module load. That matters for i18n (P1.5.2): `LINKS` is
+ * site in AppSidebar) rather than at module load. That matters for i18n: `LINKS` is
  * module-scope, and calling `m.nav_x()` here would freeze the label to the locale active at import
  * — the getter defers it to render so a locale switch (account change) re-resolves the text on the
  * next render.
@@ -61,7 +61,7 @@ export const LINKS: NavigationLinkDefinition[] = [
 
 /**
  * Administration destinations, pinned to the BOTTOM of the sidebar in their own group below a
- * separator (issues #169 / #172). They are the same `NavigationLinkDefinition` shape and render through the same
+ * separator. They are the same `NavigationLinkDefinition` shape and render through the same
  * menu markup as `LINKS` — only their placement differs. Team & access is here because it is
  * role-gated in practice (most people never act on it) and Settings because it is rarely visited:
  * neither should compete for the eye with the day-to-day scheduling destinations above. Diagnostics

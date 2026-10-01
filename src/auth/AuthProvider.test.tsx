@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { IDBFactory } from "fake-indexeddb";
 
-// P3.3: the auth boundary's three behaviours. The demo build (VITE_CAPACITYLENS_DEMO=1) is a
+// The auth boundary's three behaviours. The demo build (VITE_CAPACITYLENS_DEMO=1) is a
 // pass-through that performs NO fetch at all; server mode (the default) + authMode 'off' renders
 // the app after one /api/auth/me check; a 401 walls everything off behind the LoginScreen. apiConfig
 // freezes its env at import, so each case stubs the env, resets the module registry, and re-imports —
@@ -990,8 +990,8 @@ function registerServerModeTest31() {
       </AuthProvider>,
     );
     expect(await screen.findByRole("button", { name: /refresh/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /refresh/ })); // request #2, still in flight
-    act(() => useStore.getState().setPersistError(true)); // request #3 → 401 → login screen
+    fireEvent.click(screen.getByRole("button", { name: /refresh/ })); // second request, still in flight
+    act(() => useStore.getState().setPersistError(true)); // third request → 401 → login screen
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     // NOW the stale request resolves with the old authenticated snapshot…
     await act(async () => {

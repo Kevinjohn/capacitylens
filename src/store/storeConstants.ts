@@ -19,7 +19,7 @@ export const PURGE_CASCADES: Record<LifecycleEntity, (data: AppData, id: ID) => 
   activities: (data, id) => deleteActivityCascade(data, id),
 };
 
-// --- Tenant-boundary resets ----------------------------------------------------------------------
+// Tenant-boundary resets.
 // Deleting, switching, publishing a slice without the active tenant, or importing over one all cross
 // a tenant boundary, and none of them may carry the LEAVING account's transient session state or
 // scheduler view into what is shown next. The field sets live here ONCE so a boundary can't quietly

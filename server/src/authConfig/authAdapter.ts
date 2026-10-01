@@ -293,7 +293,7 @@ function buildCallbackErrorUrl(options: AdapterOptions, trustedOrigins: Readonly
 
 function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactoryDependencies): Auth {
   // Collapse the invariant generic to the structural Auth surface (see Auth), AND normalize at
-  // this single narrowing boundary (P1.7a): Better Auth's full user carries the richer fields we
+  // this single narrowing boundary: Better Auth's full user carries the richer fields we
   // drop here, so this is exactly where `emailVerified` is read and defaulted before everything
   // downstream sees only the {id,email,emailVerified,name} SessionUser.
   // Better Auth's async init context (reverified against better-auth 1.7.5,

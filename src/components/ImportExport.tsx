@@ -21,8 +21,8 @@ import { useServerImport } from "./import-export/useServerImport";
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
 // Order + labels for the "what's in this file" import summary. Each `label` is a render-time
-// GETTER (`() => m.key()`), not a pre-resolved string (the nav LINKS / option-getter pattern,
-// P1.5.2): this list is module-scope, so resolving `m.key()` here would freeze the label to the
+// GETTER (`() => m.key()`), not a pre-resolved string (the nav LINKS / option-getter pattern):
+// this list is module-scope, so resolving `m.key()` here would freeze the label to the
 // load-time locale. The getter defers it to render — summarize() calls each at its call site.
 const SUMMARY: [keyof AppData, () => string][] = [
   ["resources", () => m.data_summary_resources()],
@@ -266,12 +266,12 @@ export function ImportExport() {
   // Export only the active account's planning data. The `accounts` list itself is deliberately
   // omitted: import re-stamps records into whichever account is active and preserves that
   // destination's identity, calendar, language, scheduling and visibility settings.
-  // DELIBERATELY the RAW useScopedData, NOT useActiveScopedData (P2.4): the export must NOT apply the
+  // DELIBERATELY the RAW useScopedData, NOT useActiveScopedData: the export must NOT apply the
   // view-only active filter — it serializes whatever the store actually holds. In the DEMO build the store
   // is the whole device blob, so archived + soft-deleted rows ARE retained in the backup. In SERVER
-  // mode the store is hydrated from the active-only per-account read (readSlice `includeInactive:false`,
-  // P2.4), so those rows are not present client-side — they remain in the server DB and belong to the
-  // COMPLETE per-tenant export (P2.6) / the P2.5 admin "Archived & deleted" view, not this client-side
+  // mode the store is hydrated from the active-only per-account read (readSlice `includeInactive:false`),
+  // so those rows are not present client-side — they remain in the server DB and belong to the
+  // COMPLETE per-tenant export / the admin "Archived & deleted" view, not this client-side
   // snapshot. Using the raw hook keeps this export decoupled from the view-hiding rule (and complete in
   // the demo build); the normal VIEWS use the active-only projection, this export does not.
   const importData = useStore((state) => state.importData);
@@ -317,7 +317,7 @@ export function ImportExport() {
   };
 
   return (
-    // Lives in a Settings card (issue #169), NOT the sidebar: a full-slice export/replace is a
+    // Lives in a Settings card, NOT the sidebar: a full-slice export/replace is a
     // once-in-a-while administrative act, and it was crowding the day-to-day destinations. The
     // enclosing SettingsSection owns the heading, help and disclosure, so this renders controls only.
     <div className="flex flex-col gap-3" data-testid="settings-data-tools">

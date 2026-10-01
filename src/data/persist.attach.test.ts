@@ -542,7 +542,7 @@ it("attachPersistence retries a failed write in the background without waiting f
     expect(onSuccess).not.toHaveBeenCalled();
     expect(readPersistenceDiagnosticsSnapshot()).toMatchObject({ savesFailed: 1, retriesArmed: 1 });
 
-    await vi.advanceTimersByTimeAsync(1000); // backoff #1 (2^0 * 1000ms) → succeeds
+    await vi.advanceTimersByTimeAsync(1000); // first backoff (2^0 * 1000ms) → succeeds
     expect(calls).toBe(2);
     expect(onSuccess).toHaveBeenCalled();
     expect((await adapter.loadAll()).clients.some((c) => c.name === "Retry Me")).toBe(true);

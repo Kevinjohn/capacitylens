@@ -120,7 +120,7 @@ export interface AppOptions {
    *  never affected: the cap is create-time only, so a genuinely multi-company instance (this flag
    *  on, or a DB seeded before the cap existed) keeps serving normally. */
   multiAccount?: boolean;
-  /** CAPACITYLENS_BOOTSTRAP_TOKEN (P1.8) — a shared secret that, when sent as the
+  /** CAPACITYLENS_BOOTSTRAP_TOKEN — a shared secret that, when sent as the
    *  `x-capacitylens-bootstrap-token` request header on `POST /api/orgs`, authorises
    *  constrained org-creation even for a caller who is NOT yet an Owner/Admin of any
    *  account (e.g. an operator provisioning the SECOND account on an instance that already
@@ -141,11 +141,11 @@ export interface AppOptions {
    *  all other helmet baseline headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
    *  are on regardless, as they are pure improvements with no HTTPS precondition. */
   https?: boolean;
-  /** CAPACITYLENS_AUDIT (P1.15) — the append-only JSONL audit sink. ON-by-default is decided at
+  /** CAPACITYLENS_AUDIT — the append-only JSONL audit sink. ON-by-default is decided at
    *  the index.ts layer (which builds a fileAuditSink from env, or a noop when =off); THIS factory
    *  defaults to noopAuditSink() so tests AND the default local/no-server deploy are byte-identical
    *  unless a real sink is explicitly injected. NEVER pass a row/body into the sink — only typed
-   *  product or normalized account entries whose changedFields are field NAMES (the #1 no-PII
+   *  product or normalized account entries whose changedFields are field NAMES (the no-PII
    *  invariant). */
   audit?: AuditSink;
   /** Test seam for deterministically pausing import preparation around concurrent writes. The

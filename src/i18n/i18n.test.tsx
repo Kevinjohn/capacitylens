@@ -1,4 +1,4 @@
-// i18n scaffolding tests (P1.5.1) — Paraglide (inlang) compile-time, type-safe messages.
+// i18n scaffolding tests — Paraglide (inlang) compile-time, type-safe messages.
 //
 // ACCEPTANCE — "a removed key fails the build": the demonstrator key `form_cancel` is referenced
 // in type-checked code. Deleting it and recompiling removes the generated function, so TypeScript and

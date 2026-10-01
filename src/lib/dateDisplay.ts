@@ -321,7 +321,6 @@ export function formatDayCount(start: ISODate, end: ISODate): string {
   return dayCount === 1 ? m.list_timeoff_days_one({ count: dayCount }) : m.list_timeoff_days_other({ count: dayCount });
 }
 
-// ─── Instants ────────────────────────────────────────────────────────────────
 // The two above render calendar DAYS (an `ISODate`, no clock, no zone). The two below render an
 // INSTANT — a server timestamp (an invite's expiry, a session's creation) — on the VIEWER'S OWN
 // wall clock. `formatInstant` accepts the string wire values and numeric epoch values used by local

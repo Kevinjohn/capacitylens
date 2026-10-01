@@ -254,10 +254,10 @@ describe("SchedulerGrid", () => {
     const labelLayer = screen.getByTestId("scheduler-closure-label-layer");
     expect(labelLayer).toHaveTextContent("Long weekend");
     // Both halves of the closure's stacking, pinned together so neither can regress alone.
-    // #766: the band's SHADING stays under the group-header rows.
+    // The band's SHADING stays under the group-header rows.
     expect(band).toHaveClass("z-0");
     expect(screen.getAllByTestId("discipline-group")[0]).toHaveClass("relative", "z-10");
-    // #788: the NAME is not inside that `z-0` stacking context, so the rows cannot bury it. It is
+    // The NAME is not inside that `z-0` stacking context, so the rows cannot bury it. It is
     // a sibling in the same context as the rows, lifted above them by the scheduler-local token.
     expect(band.contains(labelLayer)).toBe(false);
     expect(labelLayer.parentElement).toBe(band.parentElement);

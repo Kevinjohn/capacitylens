@@ -65,7 +65,7 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies): Acco
     if (extra && !wasAccountCommandReplayed(result)) audit(reply, record);
   };
 
-  // ── Member management (P1.11) ────────────────────────────────────────────────────────────────
+  // ── Member management.
   // Owner/Admin list / change-role / revoke members of THEIR account, plus list / revoke outstanding
   // invites. Every route gates through the SAME authorize seam (cross-tenant → 403 automatically):
   // members under 'manageMembers', invites under 'manageInvites' (both admin-tier). The pure shared

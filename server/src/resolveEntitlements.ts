@@ -1,4 +1,4 @@
-// THE ENTITLEMENTS SWAP POINT (P1.16) — the control-plane seam that answers
+// THE ENTITLEMENTS SWAP POINT — the control-plane seam that answers
 // "what is this account allowed to do?" in ONE place.
 //
 // TODAY: every account is UNLIMITED. There is NO billing, NO plan/tier field, NO quota, and NO

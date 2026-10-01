@@ -433,7 +433,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       expect(onSuccess).not.toHaveBeenCalled();
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // a transient failure never reloads
 
-      await vi.advanceTimersByTimeAsync(1000); // backoff #1 → succeeds
+      await vi.advanceTimersByTimeAsync(1000); // first backoff → succeeds
       expect(onSuccess).toHaveBeenCalled();
       // The optimistic edit survived (no server-wins reload for a transient failure).
       expect(useStore.getState().data.clients.some((c) => c.name === "Transient")).toBe(true);

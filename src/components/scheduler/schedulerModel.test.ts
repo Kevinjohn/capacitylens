@@ -72,7 +72,7 @@ function buildCompanyWorkingWeekRow(data: AppData, accountWorkingDays: Weekday[]
 }
 
 describe("#257 characterization: company-off tint/capacity agreement", () => {
-  // Flipped in Phase 3: company closure now also zeroes scheduled and available capacity.
+  // Company closure also zeroes scheduled and available capacity.
   it("tints a company-closed Friday unavailable with zero available capacity", () => {
     const data = dataset();
     const resource = requireValue(
@@ -1578,7 +1578,7 @@ describe("internal-work bars", () => {
   });
 });
 
-// P2.4: the scheduler renders the ACTIVE-ONLY projection (SchedulerGrid reads useActiveScopedData,
+// The scheduler renders the ACTIVE-ONLY projection (SchedulerGrid reads useActiveScopedData,
 // which runs the SAME shared `activeOnly` exercised here). Prove that an archived resource and a
 // soft-deleted resource produce NO lanes when the data is passed through `activeOnly`, while the
 // active resources still do — pinning the production seam, not a re-implementation of the filter.

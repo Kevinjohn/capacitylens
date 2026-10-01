@@ -1,4 +1,4 @@
-// Build provenance for tester bug reports (production plan P1.7), read from the build-time
+// Build provenance for tester bug reports, read from the build-time
 // env like apiConfig. The deploy script sets VITE_CAPACITYLENS_BUILD_SHA; a build without it (dev
 // server, plain local build) renders no stamp at all. The mode suffix exists because the demo
 // build looks otherwise identical to a real server deploy — the stamp is how the
@@ -236,7 +236,7 @@ export function readBuildStamp(): string | null {
   return `build ${revision} · ${isServerConfigured() ? "server" : "demo"}`;
 }
 
-/** The Settings "Send feedback" mailto href (P5.2, flag VITE_CAPACITYLENS_FEEDBACK_MAILTO), or
+/** The Settings "Send feedback" mailto href (flag VITE_CAPACITYLENS_FEEDBACK_MAILTO), or
  *  null when the build carries no address (render nothing). The subject carries the build
  *  stamp when there is one, so tester reports arrive pinned to a build. */
 export function readFeedbackMailto(): string | null {

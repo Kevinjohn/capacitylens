@@ -202,7 +202,7 @@ export function validateAllocationAssignment(resource: Resource, projectId: ID |
   return toResult(issues);
 }
 
-// ---- Cascade deletes ----
+// Cascade deletes.
 //
 // Every `delete*Cascade` below is PURE: it returns a NEW `AppData` and never mutates its input.
 // Pushing onto the undo stack is the store's job. The required revision makes every caller stamp

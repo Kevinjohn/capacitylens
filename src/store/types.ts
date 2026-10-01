@@ -39,7 +39,7 @@ export interface Notice {
 }
 
 /**
- * The minimal per-login account summary that drives the AccountPicker (P1.13) — the server-sourced
+ * The minimal per-login account summary that drives the AccountPicker — the server-sourced
  * list of accounts this login may open. Mirrors the provider-neutral workspace summary returned by
  * `GET /api/accounts`; the browser alias stays product-named and server modules remain outside the
  * client build.
@@ -111,7 +111,7 @@ export interface StoreState extends StoreEntityActions {
   /** The account that was active before switching to the picker — lets the picker
    *  offer a "back" escape after an accidental "Switch company". Never persisted. */
   previousAccountId: ID | null;
-  /** The server-sourced list of accounts this login may open (P1.13) — the AccountPicker's data
+  /** The server-sourced list of accounts this login may open — the AccountPicker's data
    *  source. Set by useAccountSummaries: in server mode from `GET /api/accounts` (the login's
    *  memberships); in the demo build derived from `data.accounts`. SEPARATE from `data` because in
    *  server mode `data` holds only the ACTIVE account's slice, so it can't list the other tenants.
@@ -189,11 +189,11 @@ export interface StoreState extends StoreEntityActions {
    *  off. See `src/components/FakeSignIn.tsx`. */
   fakeSignedIn: boolean;
   /** The caller's resolved {@link Role} for the ACTIVE account, or null. Set by PermissionProvider
-   *  (P1.12) once it resolves the role from `GET /api/accounts`; null in OFF/local/not-fetched.
+   * once it resolves the role from `GET /api/accounts`; null in OFF/local/not-fetched.
    *  Transient (never persisted, never on the undo stack). It powers ONLY the defense-in-depth
    *  mutation guard below (assertCanWrite): a scoped mutation NO-OPS when this is exactly 'viewer',
    *  so an ungated affordance or an optimistic write that the server would 403 can't desync local
-   *  state. The server 403 (P1.5) is the TRUE security backstop — this is UX/defense-in-depth, NOT
+   *  state. The server 403 is the TRUE security backstop — this is UX/defense-in-depth, NOT
    *  the access boundary, which is why ANY non-'viewer' value (incl. null = OFF/local) stays editable. */
   activeRole: Role | null;
   /** Why a fail-closed Viewer projection is active. Keeps mutation notices factual while role
@@ -263,7 +263,7 @@ export interface StoreState extends StoreEntityActions {
   setMinimiseWeekends: (value: boolean) => void;
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void;
-  /** Set the active account's resolved role (P1.12) — called by PermissionProvider whenever it
+  /** Set the active account's resolved role — called by PermissionProvider whenever it
    *  resolves/changes the role (incl. back to null on OFF/local/account-switch). Plain transient
    *  state: never persisted, never on the undo stack. Drives ONLY the defense-in-depth write guard. */
   setActiveRole: (role: Role | null, status?: "not-applicable" | "pending" | "resolved" | "unavailable") => void;

@@ -52,7 +52,7 @@ it("gives repeated client edit controls distinct contextual names", () => {
   expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
 });
 
-// P2.5b: the per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
+// The per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
 // the inline archive section). DEMO mode here → the store's archiveEntity: the client gets
 // `archivedAt` set (its projects/activities are RETAINED — archiving is reversible, unlike the old
 // cascade-delete) and vanishes from this active-only list. Server is the app default now, so we opt

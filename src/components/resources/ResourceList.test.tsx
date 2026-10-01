@@ -446,7 +446,7 @@ describe("ResourceList display", () => {
   });
 });
 
-// P2.5b: the per-row "Delete" affordance now ARCHIVES (the simplest coherent flow — soft-delete is
+// The per-row "Delete" affordance now ARCHIVES (the simplest coherent flow — soft-delete is
 // reached LATER from the inline archive section on an archived row). DEMO build here, so the
 // archive affordance dispatches the store's archiveEntity directly (no fetch, no reload): the row
 // gets `archivedAt` set (still in `data`) and vanishes from this list (which reads

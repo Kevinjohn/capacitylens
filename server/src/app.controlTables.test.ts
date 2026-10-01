@@ -3,7 +3,7 @@ import { createApp } from "./app";
 import { openDb, readState } from "./db";
 import { insertRequest, upsertMember } from "./controlTables";
 
-// P1.1 EXCLUSION proof: the `account_members` server-control table must be UNREACHABLE through the
+// EXCLUSION proof: the `account_members` server-control table must be UNREACHABLE through the
 // generic entity machinery and ABSENT from the state read. openDb creates it on every open, so even
 // with a row present it must not leak through /api/:entity, GET /api/state (the state read/export
 // source; there is no separate /api/state/export route today — loadState IS the export source), or
@@ -55,7 +55,7 @@ describe("account_members is excluded from the AppData path", () => {
   });
 });
 
-// The same EXCLUSION proof for `account_ownership_transfers` (#780). A row names the two principals
+// The same EXCLUSION proof for `account_ownership_transfers`. A row names the two principals
 // of a pending ownership handover, so reaching it through the generic entity machinery would
 // publish who is being handed the company to anyone who can read the ordinary state.
 describe("account_ownership_transfers is excluded from the AppData path", () => {

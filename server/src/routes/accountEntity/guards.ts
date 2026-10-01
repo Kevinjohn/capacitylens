@@ -22,7 +22,7 @@ export function sendAccountRouteFailure(
 
 /**
  * The three account-write guards PUT and PATCH both run, byte-identical status codes/bodies, in
- * this fixed order: ownsRow's accountId-immutability 404, the P1.14 frozen-fields 409, then the
+ * this fixed order: ownsRow's accountId-immutability 404, the frozen-fields 409, then the
  * optimistic-concurrency stale-write 409. Returns the sent refusal (the caller must return it
  * immediately), or null when the write may proceed.
  *

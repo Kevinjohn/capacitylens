@@ -192,7 +192,7 @@ describe("computeGesture", () => {
   });
 
   it("carries the origin's working-day duration into the target week on a reassign", () => {
-    // Issue #338: Thu 2026-08-13 - Tue 08-18 is two working days for a Tue/Wed/Thu resource;
+    // Thu 2026-08-13 - Tue 08-18 is two working days for a Tue/Wed/Thu resource;
     // dropped on a Mon-Fri one it must stay two days and not be re-read as four.
     const { dates, hours } = resolveGesture({
       mode: "move",

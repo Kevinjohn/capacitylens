@@ -17,7 +17,7 @@ import {
 
 function registerScopedLoadTests(): void {
   it("loadAll(accountId) GETs /api/state?accountId= and seeds the snapshot to THAT slice (zero ops on an identical save)", async () => {
-    // Per-account hydration (P1.13): the picker chose a1, so we load ONLY a1's slice.
+    // Per-account hydration: the picker chose a1, so we load ONLY a1's slice.
     const a1Slice = scopedData("a1", { clients: [client("c1")] });
     const urls: string[] = [];
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
@@ -68,7 +68,7 @@ function registerScopedLoadTests(): void {
 
 function registerCrossAccountLoadTests(): void {
   it("CROSS-ACCOUNT REGRESSION: re-seed to a2 then save a2 emits ONLY a2 ops — never deletes of a1", async () => {
-    // The #1 correctness guard (§5): after a switch, lastSynced (the diff snapshot) MUST be the NEW
+    // The primary correctness guard (§5): after a switch, lastSynced (the diff snapshot) MUST be the NEW
     // account's slice. If it stayed a1's, the first a2 save would diff a1→a2 and emit DELETEs for a1's
     // rows + PUTs for a2's — catastrophic cross-account data loss. The switch orchestrator (persist.ts)
     // achieves this by calling loadAll(a2), which re-seeds the snapshot to a2's slice.

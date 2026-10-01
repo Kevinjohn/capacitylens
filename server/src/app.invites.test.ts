@@ -21,7 +21,7 @@ import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities"
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// P1.9 — single-use, expiring invite links. POST /api/invites mints a token (gated 'manageInvites',
+// Single-use, expiring invite links. POST /api/invites mints a token (gated 'manageInvites',
 // admin+ of the target account); POST /api/invites/:token/accept binds the invited role to the
 // signed-in caller's membership and consumes the token (single-use, expiry-checked). This suite
 // drives sign-up -> create -> accept and asserts: the create gate (owner/admin 201, editor/viewer/
@@ -90,7 +90,7 @@ function seedOne(db: Db): void {
 
 /**
  * Flip a Better Auth user's `emailVerified` flag directly in the DB (the `user` table; column is an
- * INTEGER 0/1). A fresh email+password sign-up is unverified (P1.7a), so this is how the P1.10 tests
+ * INTEGER 0/1). A fresh email+password sign-up is unverified, so this is how the tests
  * obtain a VERIFIED principal: the NEXT getSession reads the live user row (Better Auth joins it
  * fresh), so normalizeSessionUser then reports emailVerified=true.
  */
@@ -876,7 +876,7 @@ describe("invites — OFF mode (trusted-local)", () => {
   });
 });
 
-// P1.10 — email-pre-authorise. The pure decision matrix (preauthInviteAllows + normalizeEmail) is
+// Email pre-authorisation. The pure decision matrix (preauthInviteAllows + normalizeEmail) is
 // unit-tested deterministically below; the integration block then proves the create-store-normalize
 // path and every accept outcome (link binds, wrong-email 403, unverified-match 403, verified-match
 // 200, OFF skip) end-to-end, asserting that a 403 never consumes the single-use invite.

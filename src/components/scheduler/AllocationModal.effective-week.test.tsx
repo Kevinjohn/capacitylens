@@ -151,7 +151,7 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
-  // Phase 1 pinned the ungated duplicate; Phase 5 flips it to a rejected record-creation action.
+  // Duplicating onto a company-non-working start is a rejected record-creation action.
   it("rejects duplicating an allocation whose start is company-non-working", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
     const resource = requireCreated(

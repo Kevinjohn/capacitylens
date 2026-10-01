@@ -36,7 +36,7 @@ void accountBooleanFieldsAreComplete;
 /**
  * Optional account fields constrained to a fixed value set. Anything outside it is dropped:
  *   schedulingMode: absence reads as 'hourly', the original behaviour.
- *   language: English-only until P1.5.1 (Paraglide); absence reads as 'en'.
+ *   language: English-only for now; absence reads as 'en'.
  *   capacityOverviewAccess: absence reads as owner/admin-only access.
  *   dateStyle: absence reads as 'day-month', the historical format.
  */

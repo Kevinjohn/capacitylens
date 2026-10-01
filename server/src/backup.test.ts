@@ -33,7 +33,7 @@ import {
 } from "./db";
 import { seed } from "@capacitylens/shared/data/seed";
 
-// P4.1 (flag CAPACITYLENS_BACKUP_DIR): OFF (unset) means backups don't exist — parseBackupConfig
+// CAPACITYLENS_BACKUP_DIR: OFF (unset) means backups don't exist — parseBackupConfig
 // is the single gate. ON: snapshots are real, openable SQLite files holding the data, the
 // retention prunes oldest-first by filename, and stop() ends the timer AND waits for an
 // in-flight snapshot (the shutdown path closes the DB right after).

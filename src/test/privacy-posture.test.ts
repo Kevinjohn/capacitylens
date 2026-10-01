@@ -9,7 +9,7 @@ import { join } from "node:path";
 // rather than reaching for the global `process.cwd()`.
 import { cwd } from "node:process";
 
-// P2.7 privacy posture — dependency guard against analytics/telemetry/email vendor SDKs.
+// Privacy posture — dependency guard against analytics/telemetry/email vendor SDKs.
 //
 // Product analytics, telemetry and browser-side third-party egress remain prohibited. The server
 // may send Microsoft identity verification through operator-configured SMTP, using nodemailer;

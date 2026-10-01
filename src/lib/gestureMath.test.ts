@@ -49,7 +49,7 @@ describe("applyGesture: move", () => {
 });
 
 describe("applyGesture: move across resources with different working weeks", () => {
-  // Issue #338. 2026-08-13 is a Thursday, 08-14 a Friday, 08-17 a Monday, 08-18 a Tuesday.
+  // 2026-08-13 is a Thursday, 08-14 a Friday, 08-17 a Monday, 08-18 a Tuesday.
   // "Mid" works Tue/Wed/Thu — neither Friday nor Monday; "full" works Mon-Fri.
   const mid = [2, 3, 4] as Weekday[];
   const monToFri = [1, 2, 3, 4, 5] as Weekday[];

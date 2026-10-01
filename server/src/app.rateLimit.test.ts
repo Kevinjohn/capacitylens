@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { createApp, MAX_RATE_LIMIT, parseRateLimit } from "./app";
 import { openDb } from "./db";
 
-// P1.5 (flag CAPACITYLENS_RATE_LIMIT → opts.rateLimit): a guard against accidental client
+// CAPACITYLENS_RATE_LIMIT (opts.rateLimit): a guard against accidental client
 // loops hammering the single-writer SQLite file. OFF (the default) means the plugin is
 // not registered at all. /api/health is deliberately EXEMPT from the limiter (config.rateLimit:
 // false) so an uptime monitor polling it is never told 429 — behind a proxy without forwarded-IP

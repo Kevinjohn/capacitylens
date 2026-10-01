@@ -9,7 +9,7 @@ import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtur
 import type { Role } from "@capacitylens/shared/domain/access";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 
-// P1.18 — admin-issued password-reset links. This suite drives the whole loop end-to-end against a
+// Admin-issued password-reset links. This suite drives the whole loop end-to-end against a
 // real (in-memory) Better Auth instance: mint (the admin-gated route) → redeem (Better Auth's public
 // /api/auth/reset-password) → sign in with the new password. Plus the authz matrix (same
 // who-may-touch-whom shape as member removal: admin must never reset an OWNER — takeover path), the

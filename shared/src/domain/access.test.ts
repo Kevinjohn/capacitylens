@@ -203,7 +203,7 @@ describe("canViewCapacityOverview(role, access) — account setting policy", () 
   });
 });
 
-// P1.11 member-management guards. The expected booleans below are the hand-written oracle of the
+// Member-management guards. The expected booleans below are the hand-written oracle of the
 // member-management policy (Owner changes only through transfer), NOT derived from the
 // implementation — if access.ts and these tables disagree, the test is doing its job.
 

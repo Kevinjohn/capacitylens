@@ -15,7 +15,7 @@ import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessio
 import { call, PASSWORD_ENV, cookiesOf, headerValues } from "./testHelpers/passwordAuth";
 import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
-// P3.1/P3.2/P3.5 (flag CAPACITYLENS_MODE → opts.authMode/auth). The load-bearing assertion set:
+// CAPACITYLENS_MODE (opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
 // by running unchanged — these tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
@@ -477,9 +477,9 @@ describe("CAPACITYLENS_MODE password", () => {
     expect(parseAuthMeResponse(me).user.email).toBe("tester@capacitylens.dev");
     expect(parseAuthMeResponse(me).mfaRequired).toBe(false);
     expect(me.json()).toMatchObject({ requireMfa: false });
-    // P1.7a: emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
+    // emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
     // verification infra, so Better Auth leaves the flag false — confirming the normalized flag
-    // is present and defaults correctly (the P1.10 invite-bind gate depends on it).
+    // is present and defaults correctly (the invite-bind gate depends on it).
     expect(parseAuthMeResponse(me).user.emailVerified).toBe(false);
 
     // The GENERIC account create is CLOSED auth-on (403 → POST /api/orgs): the bare row write never
@@ -493,7 +493,7 @@ describe("CAPACITYLENS_MODE password", () => {
     });
     expect(write.statusCode).toBe(403);
     expect(parseErrorMessage(write)).toContain("/api/orgs");
-    // P1.13: the no-arg whole read is CLOSED in auth-on (tenant isolation — the P1.4 carry-forward).
+    // The no-arg whole read is CLOSED in auth-on (tenant isolation).
     // A logged-in user must hydrate PER ACCOUNT via ?accountId=, so the bare GET /api/state now 400s.
     const noArg = await call(app, {
       method: "GET",

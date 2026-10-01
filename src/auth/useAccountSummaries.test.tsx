@@ -19,7 +19,7 @@ vi.mock("@/data/offlineCache", async (importOriginal) => {
   };
 });
 
-// P1.13 — the AccountPicker's data source. These tests pin the fetch contract's three distinct
+// The AccountPicker's data source. These tests pin the fetch contract's three distinct
 // answers, in particular the malformed-200 case (the bug this pins: a 200 whose JSON body is not
 // an array used to coerce to `[]` — a fake "no accounts" that blanked the picker — where every
 // other failure reported null / keep-what-you-have):

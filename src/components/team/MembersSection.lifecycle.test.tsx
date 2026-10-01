@@ -69,8 +69,8 @@ afterEach(() => {
 });
 
 describe("MembersSection — member lifecycle", () => {
-  // Transfer ownership is deliberately NOT here: #175 removed the per-member button, and the
-  // action returns under a follow-up ticket as its own owner-only section. Its server route and
+  // Transfer ownership is deliberately NOT here: there is no per-member button.
+  // Its server route and
   // client method are untouched, so this describe covers what the ROW can now do instead.
   const lifecycleMembers: RawMember[] = [
     { userId: "me", role: "owner", isSelf: true },

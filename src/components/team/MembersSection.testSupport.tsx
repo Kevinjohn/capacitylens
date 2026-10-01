@@ -158,14 +158,14 @@ export function requireCallback(value: (() => void) | null, context: string): ()
   return value;
 }
 
-/** Row actions moved behind the row's gear popover (#175). Open it; the popover renders in a
+/** Row actions moved behind the row's gear popover. Open it; the popover renders in a
  *  PORTAL, so its items are reachable from `screen`, never from `within(row)`. */
 export async function openMemberMenu(user: User, row: HTMLElement): Promise<void> {
   await user.click(within(row).getByTestId("member-menu"));
   await screen.findByText(m.settings_member_settings_heading());
 }
 
-/** Disabled and archived rows live behind a collapsed disclosure (#175) — open it before reaching
+/** Disabled and archived rows live behind a collapsed disclosure — open it before reaching
  *  for one. Returns once the second table is on screen. */
 export async function openInactiveGroup(user: User): Promise<HTMLElement> {
   await user.click(await screen.findByTestId("members-inactive-toggle"));
@@ -178,7 +178,7 @@ export async function chooseMemberAction(user: User, row: HTMLElement, testId: s
   await user.click(screen.getByTestId(testId));
 }
 
-/** The role selector moved out of the row and into the pencil's dialog (#175): open it, pick the
+/** The role selector moved out of the row and into the pencil's dialog: open it, pick the
  *  role, then Save. Selecting a role is now a DRAFT — nothing is sent until Save. */
 export async function saveRoleVia(user: User, row: HTMLElement, option: string): Promise<void> {
   await user.click(within(row).getByTestId("member-edit"));

@@ -95,11 +95,11 @@ export interface StoreEntityActions {
   /** Delete a company closure from the active account. */
   deleteClosure: (id: ID) => void;
 
-  // --- Data-lifecycle (P2.5b): the Active → Archived → Soft-deleted → Purged machine for the
+  // --- Data-lifecycle: the Active → Archived → Soft-deleted → Purged machine for the
   // tombstone-carrying tables (resources / clients / projects / activities). These are the DEMO-build / OFF path —
   // they mutate the local `data` blob through the same mutate()/undo machinery as the CRUD above. In
   // SERVER mode the UI instead calls the dedicated routes (POST /api/:entity/:id/{archive,unarchive,
-  // delete,purge}, P2.5a) directly, so the admin view only invokes these in the demo build. They COMPOSE
+  // delete,purge}) directly, so the admin view only invokes these in the demo build. They COMPOSE
   // the pure shared lifecycle helpers (shared/src/domain/lifecycle.ts) — the transition logic and the
   // soft-delete obfuscation string are NEVER re-derived here. Archive/unarchive are undoable;
   // soft-delete/purge clear both history stacks so erased data cannot be recovered from memory.

@@ -1,7 +1,7 @@
 import type { FastifyRequest } from "fastify";
 import type { AppOptions } from "../app";
 
-// P0.5.5: NEVER let a secret reach the logs. pino strips these exact paths from every record
+// NEVER let a secret reach the logs. pino strips these exact paths from every record
 // when logging is on; remove:true DELETES the key (so the value is gone entirely, not printed as
 // "[Redacted]"). DEFENSE-IN-DEPTH: Fastify's default req/res serializers don't log headers at all
 // (req → method/url/hostname/remoteAddress; res → statusCode/responseTime), so today nothing here

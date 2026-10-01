@@ -12,7 +12,7 @@ const URL_PATTERN = /\bhttps?:\/\/\S+/g;
 const TICKET_PATTERNS = [
   /(?<![\w&])#\d{1,5}\b/,
   /\b[TP]\d+(?:\.\d+)*\b/,
-  /\b(?:phase|round)[ -]?\d+\b/i,
+  /\b(?:phase|round)[ -]\d+\b/i,
   /\b(?:issue|ticket|PR|pull request)s? #?\d+\b/i,
 ];
 const BANNER_PATTERN = /([-=_~#*+─━═])\1{3,}/;

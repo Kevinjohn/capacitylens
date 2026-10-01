@@ -5,7 +5,7 @@ import { apiFetch, API_BULK_TIMEOUT_MS } from "./requestTimeout";
 import { parseAccountSlice } from "./validateAccountSlice";
 
 // The ONE client-side reader of the purge-gated admin endpoint
-// `GET /api/state?accountId=…&includeInactive=1` (the P2.6 complete per-tenant read: archived +
+// `GET /api/state?accountId=…&includeInactive=1` (the complete per-tenant read: archived +
 // soft-deleted rows retained). Shared by DeleteCompanyDialog ("Export first" — the last backup
 // before a no-undo cascade delete) and ArchivedSection (the Settings lifecycle admin view) so the
 // two call sites can't drift on how much they trust the response — they briefly disagreed, and the

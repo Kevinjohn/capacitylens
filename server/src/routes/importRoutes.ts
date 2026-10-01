@@ -239,7 +239,7 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
     //       entire scoped slice and re-inserts the import, the same hard-delete semantics the
     //       purge tier exists for (cf. the accounts-DELETE vectors); and
     //   (2) it BYPASSES field-level write pins — every id is remapped, so sanitizeWrite's
-    //       existing-row pins (e.g. the P1.6 timeOff note pin) can never match a stored row.
+    //       existing-row pins (e.g. the timeOff note pin) can never match a stored row.
     //       At 'write' tier a note-blind editor could erase every owner-confidential timeOff
     //       note (their own exports are note-redacted) or fabricate notes wholesale.
     // It is then narrowed to OWNER in auth-on mode: admins receive private clients/projects with

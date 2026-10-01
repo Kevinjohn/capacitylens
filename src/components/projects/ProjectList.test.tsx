@@ -125,7 +125,7 @@ describe("ProjectList", () => {
     expect(projects[0]?.clientId).toBe(client.id);
   });
 
-  // P2.5b: the per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
+  // The per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
   // the inline archive section). DEMO mode here → archiveEntity: the project gets `archivedAt`
   // set (its activities are RETAINED — reversible) and vanishes from this active-only list.
   it("shows the Archive ConfirmDialog when the archive button is clicked", async () => {

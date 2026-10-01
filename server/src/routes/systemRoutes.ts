@@ -184,7 +184,7 @@ function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDep
       dependencies.healthStatement.get();
       const backupHealth = dependencies.backupHealth?.();
       const auditPending = dependencies.auditDrainer.pendingCount();
-      // P1.15: audit-degraded is a SOFT signal — keep ok:true (the DB is fine; the audit sink
+      // Audit-degraded is a SOFT signal — keep ok:true (the DB is fine; the audit sink
       // failing a write doesn't make the server unhealthy), just surface 'degraded' so an
       // operator can see it. The SHALLOW (non-deep) health stays exactly { ok: true } above —
       // the Playwright webServer probe contract — so the audit field appears ONLY in deep mode.

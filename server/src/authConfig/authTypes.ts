@@ -51,7 +51,7 @@ export interface Auth {
         expiresAt: string | null;
       };
     } | null>;
-    /** Better Auth's server-side reset-token mint (P1.18) — call it ONLY through
+    /** Better Auth's server-side reset-token mint — call it ONLY through
      *  {@link mintPasswordResetToken}, which provides the AsyncLocalStorage capture context the
      *  sendResetPassword callback delivers the token into. Anti-enumeration by design: it resolves
      *  with a generic success whether or not the email matched a user. */
@@ -141,7 +141,7 @@ export const DEFAULT_ACCOUNT_APPLICATION: BoundApplication = {
 
 /**
  * The normalized session principal the whole server depends on (membership lookups,
- * `/api/auth/me`, P1.10 invite binding) — decoupled from Better Auth's richer user type.
+ * `/api/auth/me`, invite binding) — decoupled from Better Auth's richer user type.
  *
  * `emailVerified` is the IdP-asserted verified-email flag. It defaults to `false` when a
  * provider omits it (see {@link buildSessionUser}): an unverifiable provider is treated as

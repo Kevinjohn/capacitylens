@@ -36,7 +36,6 @@ interface WriteStoredSidebarOpenInput {
   open: boolean;
 }
 
-// ---------------------------------------------------------------------------
 // Shared storage shapes
 //
 // Two encodings serve every pref in this file: a single boolean stored as the literal string
@@ -45,7 +44,6 @@ interface WriteStoredSidebarOpenInput {
 // NEITHER — it is tri-state ('open'/'closed'/never-chosen). All four helpers share the swallow
 // rule from the file header: a blocked/corrupt store loses the toggle but can never touch tenant
 // data.
-// ---------------------------------------------------------------------------
 
 /** Read an on/off flag stored as 'on'/'off' under `key`; returns `fallback` when unset,
  *  unrecognised, or when storage is unavailable. */

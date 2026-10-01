@@ -53,7 +53,7 @@ interface PatchStatusReqInput {
   headers?: Record<string, string> | undefined;
 }
 
-// ── Member lifecycle: disable / archive / restore (#175) ──────────────────────────────────────
+// ── Member lifecycle: disable / archive / restore.
 // A membership's status is what every authorization read narrows on, so these routes are an access
 // control surface, not a labelling one. The assertions below fix BOTH halves: the status actually
 // changes, AND the account stops admitting the member the moment it does.
@@ -444,7 +444,7 @@ describe("member sign-in confirmation", () => {
   });
 });
 
-// ── #175 review: the status domain must reach EVERY membership path, not just the new route ──────
+// The status domain must reach EVERY membership path, not just the new route.
 // Widening a membership to active/disabled/archived is only half a feature. The other half is that
 // every path which resolves a member — invite redemption, identity administration, removal, role
 // change — agrees about what a non-active row means. Each case below failed before this pass, and

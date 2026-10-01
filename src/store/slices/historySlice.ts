@@ -31,7 +31,7 @@ export function createHistorySlice(internals: HistorySliceInternals): StateCreat
       // let an edit in one account silently rewrite another's row.
       // The account is resolved at the CALL, ahead of the shared viewer gate: replacing a slice with
       // NO active account is a programming error for every role, so requireAccount must still throw
-      // where `createGuardedAction` would merely refuse. Viewer no-op (P1.12 defense-in-depth): a read-only user
+      // where `createGuardedAction` would merely refuse. Viewer no-op (defense-in-depth): a read-only user
       // can't replace the account slice, and gets a zero-effect summary so the caller reports honestly.
       importData: (incoming) => importSlice(requireAccount(), incoming),
 

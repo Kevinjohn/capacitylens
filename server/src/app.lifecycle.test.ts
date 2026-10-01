@@ -25,7 +25,7 @@ import { seedMemberResourceLink } from "./fixtures/seedMemberResourceLink";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 import { FROZEN_REPLY_MESSAGES } from "@capacitylens/shared/api/replyMessages";
 
-// P2.5a entity-lifecycle routes — the SERVER half of the Active→Archived→Soft-deleted→Purged machine.
+// Entity-lifecycle routes — the SERVER half of the Active→Archived→Soft-deleted→Purged machine.
 // This suite drives archive/unarchive/delete/purge and admin inactive reads end-to-end, asserting
 // authorization, interlocks, cascades, persisted obfuscation and audit wiring. Pure transitions
 // remain unit-tested in shared/domain/lifecycle.test.ts.
@@ -199,7 +199,7 @@ interface LifecycleActionInput {
   cookie?: string | undefined;
 }
 
-// ---- Lifecycle action requests (cookie carries the session in auth-on; omit it for OFF). ----
+// Lifecycle action requests (cookie carries the session in auth-on; omit it for OFF).
 
 const lifecycleAction = ({ app, entity, id, action, accountId, cookie }: LifecycleActionInput) =>
   call(app, {

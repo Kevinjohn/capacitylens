@@ -7,7 +7,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 
 // SERVER-mode coverage for the lifecycle dispatch hook (the LOCAL/store path is covered by
 // useStore.lifecycle.test.ts + the list/section component tests). With a backend configured, the
-// hook POSTs the dedicated P2.5a route, surfaces a non-OK body.error as an error notice WITHOUT
+// hook POSTs the dedicated lifecycle route, surfaces a non-OK body.error as an error notice WITHOUT
 // crashing (the highest-value gap, since purge is destructive), and on success RELOADS the active
 // slice through the attached persistence orchestrator. An explicit no-orchestrator test seam covers
 // the documented loadAll → replaceAll fallback. We assert both paths so a refactor cannot bypass
@@ -121,7 +121,7 @@ describe("useLifecycleActions — refresh outcomes", () => {
 
       await result.current[method]("clients", "c-1");
 
-      // The exact route + body + credentials the P2.5a routes expect.
+      // The exact route + body + credentials the routes expect.
       expect(fetchMock).toHaveBeenCalledTimes(1);
       const firstCall: unknown = fetchMock.mock.calls[0];
       if (!Array.isArray(firstCall) || typeof firstCall[0] !== "string" || typeof firstCall[1] !== "object") {
@@ -303,7 +303,7 @@ describe("useLifecycleActions — successful response variants", () => {
 
 describe("useLifecycleActions — account switching", () => {
   it("SKIPS the post-mutation reload when the active account changed while the POST was in flight", async () => {
-    // The wrong-tenant race (P1): the lifecycle POST resolves AFTER the user switched away from the
+    // The wrong-tenant race: the lifecycle POST resolves AFTER the user switched away from the
     // account the mutation ran in. The mutation committed server-side (it shows on that account's
     // next hydration); the NEW tenant's slice is owned by the switch orchestrator, and this stale
     // reload must not fight it — reloading here would install the OLD tenant's slice under the new

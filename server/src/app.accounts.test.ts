@@ -9,7 +9,7 @@ import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities"
 import type { AuditRecord, AuditSink } from "./audit";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// P1.4 endpoint coverage: GET /api/accounts + the new ?accountId= form of GET /api/state, in both
+// Endpoint coverage: GET /api/accounts + the new ?accountId= form of GET /api/state, in both
 // OFF (trusted-local, no gate) and auth-on (membership-existence guard) postures. The no-arg
 // GET /api/state whole read must stay byte-for-byte (backward-compat) — asserted here AND by the
 // whole existing app.test.ts suite running unchanged.
@@ -81,7 +81,7 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
     const app = createApp(db);
     const res = await call(app, { method: "GET", url: "/api/accounts" });
     expect(res.statusCode).toBe(200);
-    // OFF mode tags every account with the trusted-local full-access sentinel role 'owner' (P1.12),
+    // OFF mode tags every account with the trusted-local full-access sentinel role 'owner',
     // so the wire shape matches auth-on's AccountSummary and the client's pure `can` keeps OFF editable.
     expect(res.json()).toEqual([
       { id: "a1", name: "Studio a1", role: "owner" },

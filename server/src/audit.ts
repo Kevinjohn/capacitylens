@@ -3,14 +3,14 @@ export { createFileAuditSink } from "./audit/createFileAuditSink";
 export { createCompositeAuditSink, createNoopAuditSink, createStreamAuditSink } from "./audit/sinks";
 export { AUDIT_RECOVERY_SCAN_BYTES, MAX_AUDIT_BYTES } from "./audit/types";
 export type { AuditDeliveryMetadata, AuditEntry, AuditRecord, AuditSink, FileAuditSinkOptions } from "./audit/types";
-// Append-only JSONL audit sink (P1.15, flag CAPACITYLENS_AUDIT — ON BY DEFAULT, opt-out =off).
+// Append-only JSONL audit sink (flag CAPACITYLENS_AUDIT — ON BY DEFAULT, opt-out =off).
 // It records one legacy product AuditRecord per AppData mutation plus normalized AccountAuditEvent
 // entries emitted by cross-port account flows. SERVER-MODE ONLY: the sink lives in the server (built in
 // index.ts from env), so the default local/no-server deploy never runs it — buildApp's factory
 // defaults to noopAuditSink(), keeping the default deploy and every test byte-identical unless a
 // sink is explicitly passed.
 //
-// THE #1 INVARIANT — NO RAW PII EVER REACHES A LINE. `changedFields` is field NAMES only
+// The primary invariant: no raw PII ever reaches a line. `changedFields` is field NAMES only
 // (Object.keys of the wire body/row); a VALUE, a ROW, or a request BODY must NEVER be handed to
 // append(). Names + ids are operational metadata (who changed what, when); values are tenant PII
 // (a time-off note, a person's name) and are deliberately excluded. Product callers compute

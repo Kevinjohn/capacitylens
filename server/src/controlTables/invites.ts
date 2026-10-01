@@ -7,7 +7,7 @@ import { removeInvitationPersonProposalsForAccount } from "./invitationPersonPro
 
 /**
  * Revoke EVERY outstanding invite of one account in a single statement — the bulk revoke the per-tenant
- * erasure (P2.6b) runs when an account is hard-deleted. Mirrors {@link revokeInvite} but drops all of
+ * erasure runs when an account is hard-deleted. Mirrors {@link revokeInvite} but drops all of
  * the account's invites at once: `invites` carries NO FK to `accounts` (see {@link ensureControlTables}),
  * so the AppData delete-cascade never reaches it — without this an erased account leaves live,
  * role-bearing invite tokens behind.
@@ -24,19 +24,19 @@ export function removeAllInvitesForAccount(db: Db, accountId: string): void {
 }
 
 /**
- * One row of the `invites` control table (P1.9): a single-use, expiring link that, when accepted by
+ * One row of the `invites` control table: a single-use, expiring link that, when accepted by
  * a signed-in caller, binds {@link role} to that caller's membership of {@link accountId}.
  *
  * @property token         The opaque, unguessable invite secret — the link's `:token` segment.
  *   NEVER STORED: only `inviteTokenHash(token)` persists, and that hash is the table's PRIMARY KEY.
  *   Treat it like a password: never log it, never return it on a read path.
- * @property id            A NON-SECRET handle (P1.11), distinct from {@link token}. list/revoke key on
+ * @property id            A NON-SECRET handle, distinct from {@link token}. list/revoke key on
  *   THIS, so the bearer `token` is write-once: minted + returned to the authorised creator and never
  *   read back. Safe to surface on a read path (it grants nothing on its own).
  * @property accountId     The account a successful accept joins the caller to.
  * @property role          The {@link Role} the accept binds (see shared/domain/access for semantics).
- * @property preauthEmail  An OPTIONAL pre-authorised email. `null` in P1.9 (any signed-in caller may
- *   accept); P1.10 will require the caller's verified email to match this when non-null.
+ * @property preauthEmail  An OPTIONAL pre-authorised email. `null` means any signed-in caller may
+ *   accept; otherwise the caller's verified email must match it.
  * @property expiresAt     ISO-8601 instant after which the invite is rejected (410).
  * @property usedAt        ISO-8601 instant the invite was consumed, or `null` while unused. A
  *   non-null value is the single-use marker — a second accept is rejected (409).
@@ -169,11 +169,10 @@ interface PreauthInviteAllowsInput {
 
 /**
  * May this signed-in principal accept this invite? The PURE security-matrix decision behind the
- * accept endpoint's email-preauth gate (P1.10) — extracted so the matrix is deterministically
+ * accept endpoint's email-preauth gate — extracted so the matrix is deterministically
  * unit-testable without spinning up a session/DB.
  *
- * - `preauthEmail === null` → `true` (a LINK invite: any signed-in caller may accept — P1.9
- *   behaviour, preserved).
+ * - `preauthEmail === null` → `true` (a LINK invite: any signed-in caller may accept).
  * - `preauthEmail !== null` → the normalized email must match. SSO additionally requires
  *   `user.emailVerified === true`; password mode does not, because possession of the addressed
  *   invite is the verification ceremony in deployments with no outbound verification service.
@@ -191,7 +190,7 @@ interface PreauthInviteAllowsInput {
  * @returns `true` if this principal may accept this invite, `false` otherwise.
  */
 export function preauthInviteAllows({ preauthEmail, user, passwordMode = false }: PreauthInviteAllowsInput): boolean {
-  if (preauthEmail === null) return true; // link invite: any signed-in caller (P1.9)
+  if (preauthEmail === null) return true; // link invite: any signed-in caller
   // Password deployments have no outbound verification service: possession of the
   // email-addressed invite is their verification ceremony. SSO still requires the IdP's verified
   // email claim. Both sides are normalized before the exact comparison.

@@ -133,7 +133,7 @@ function registerTargetCalendarTest() {
 }
 
 function registerSourceCalendarTest() {
-  // Issue #338. June 2026: 06-04 is a Thursday, 06-05 a Friday, 06-08 a Monday, 06-09 a Tuesday.
+  // June 2026: 06-04 is a Thursday, 06-05 a Friday, 06-08 a Monday, 06-09 a Tuesday.
   const midWeek = [2, 3, 4] as const; // Tue/Wed/Thu — works neither Friday nor Monday
   const monToFri = [1, 2, 3, 4, 5] as const;
 

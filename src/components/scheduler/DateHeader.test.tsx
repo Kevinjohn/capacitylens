@@ -217,7 +217,7 @@ function registerDateStyleReactivityTests() {
     // The store is module-global, so hand the rest of the file back its default reading.
     afterEach(() => resetStoreWithAccount());
 
-    // Guards #820: the header's week/month groupings are memoised on `days`, and `days` does not
+    // The header's week/month groupings are memoised on `days`, and `days` does not
     // change when the company's date format does. Without `dateStyle` in the memo dependencies the
     // label below stays on the old reading until something else forces a recompute, so this test
     // fails if that dependency (or the `useDateStyle` subscription that feeds it) is removed.

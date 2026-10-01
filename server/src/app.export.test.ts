@@ -7,14 +7,14 @@ import { appWithAuth } from "./fixtures/appWithAuth";
 import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 
-// P2.6a — TEST-LOCK for the COMPLETE PER-TENANT EXPORT.
+// TEST-LOCK for the COMPLETE PER-TENANT EXPORT.
 //
 // A complete per-tenant export is not a second route: it
 // is the EXISTING `GET /api/state?accountId=X&includeInactive=1` admin read (server/src/app.ts), which
 // returns exactly ONE account's slice via store.readSlice(accountId, { includeInactive: true }). This
 // suite locks the two backup guarantees so a future change can't silently regress them:
 //   (1) FULL SLICE incl. inactive — archived + soft-deleted rows are RETAINED (a backup keeps them),
-//       and the no-flag read PROVES includeInactive is what flips that (P2.4 active-only contrast).
+//       and the no-flag read PROVES includeInactive is what flips that (the active-only contrast).
 //   (2) CONTROL TABLES / PII ABSENT — account_members / invites (membership + invite secrets/PII) are
 //       structurally excluded from the slice (readSlice never reads the control plane). Mirrors the
 //       absence assertions in app.controlTables.test.ts.

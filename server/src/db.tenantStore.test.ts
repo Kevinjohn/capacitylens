@@ -34,7 +34,7 @@ afterEach(() => {
   openDatabases.clear();
 });
 
-// P1.4: prove the per-account scoped read primitive (readSlice) + the TenantStore seam isolate one
+// Prove the per-account scoped read primitive (readSlice) + the TenantStore seam isolate one
 // account's slice and NEVER leak another tenant's rows — the no-cross-tenant invariant the whole
 // tenancy seam rests on. Mirrors app.test.ts's openDb(':memory:') + plain-row fixture pattern; seeds
 // directly via insertAll (parent-first) so it tests the db layer, not the routes.
@@ -137,14 +137,14 @@ const timeOff = ({ id, accountId, resourceId, note }: TimeOffInput) => ({
   startDate: "2026-02-01",
   endDate: "2026-02-03",
   type: "holiday" as const,
-  // optional, owner/admin-only note — exercises the P1.6 field-redaction in readSlice.
+  // optional, owner/admin-only note — exercises the field-redaction in readSlice.
   ...(note !== undefined ? { note } : {}),
   ...meta(),
 });
 
-/** All readSlice calls below pass includeTimeOffNote (REQUIRED, P1.6) AND includeInactive (REQUIRED,
- *  P2.4); the isolation/shape tests want the FULL slice, so they pass both `true` (every note + every
- *  archived/deleted row). The note redaction (P1.6) and the lifecycle projection (P2.4) each get their
+/** All readSlice calls below pass includeTimeOffNote (REQUIRED) AND includeInactive (REQUIRED);
+ *  the isolation/shape tests want the FULL slice, so they pass both `true` (every note + every
+ *  archived/deleted row). The note redaction and the lifecycle projection each get their
  *  own describe block where the relevant flag is flipped. */
 const FULL = {
   includeTimeOffNote: true,

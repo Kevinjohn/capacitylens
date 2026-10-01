@@ -171,7 +171,7 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
     ),
   },
 };
-// v37 includes the account/task fields added by #720. It is only the v38 resource boundaries
+// v37 includes the account/task fields. It is only the v38 resource boundaries
 // that are absent from this historical contract; keep the v37 fields present so the v38
 // precondition proves the exact released shape before adding its two columns.
 export const V37_TABLES: Record<string, TableSpec> = {

@@ -41,12 +41,12 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
     return id;
   };
 
-  // Defense-in-depth viewer guard (P1.12). It is INERT unless the active role is EXACTLY 'viewer':
+  // Defense-in-depth viewer guard. It is INERT unless the active role is EXACTLY 'viewer':
   // every other value — null (OFF/local/not-fetched), 'owner', 'admin', 'editor' — permits, so the
   // default deploy is byte-identical to today (fully editable). When the role IS 'viewer', a scoped
   // mutation NO-OPS (the caller returns early) and surfaces a notice, so an ungated affordance or an
   // optimistic local write the server would 403 can't desync local state. This is UX/defense-in-depth,
-  // NOT the security boundary — the server 403 (P1.5) is the true backstop; we never throw here (a
+  // NOT the security boundary — the server 403 is the true backstop; we never throw here (a
   // throw would read as corruption and could crash a drag handler), we just refuse + inform.
   const blockedByViewer = (): boolean => {
     const state = get();

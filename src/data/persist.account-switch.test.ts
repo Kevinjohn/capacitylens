@@ -634,7 +634,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
   });
 
   it("FLUSHES (does not drop) account A's pending debounced edits before loading B's slice", async () => {
-    // Regression guard for the data-loss edge (P1.13): a user edits account A and switches to B
+    // Regression guard for the data-loss edge: a user edits account A and switches to B
     // WITHIN the debounce window. The orchestrator used to clearTimeout + pending=null, silently
     // DROPPING A's last edit. It must instead FLUSH that pending write while data===A AND the diff
     // snapshot===A (so the diff is A-vs-A, correct), landing it BEFORE B's slice load reseeds the

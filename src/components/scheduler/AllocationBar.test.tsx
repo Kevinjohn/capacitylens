@@ -71,7 +71,7 @@ describe("AllocationBar rendering", () => {
     expect(el).toHaveTextContent("8h");
   });
 
-  // #786: a bar that began before the visible window used to carry its label off-screen with it.
+  // A bar that began before the visible window used to carry its label off-screen with it.
   // The bar publishes its own geometry and the label overlay clamps to the intersection of that
   // geometry with the scroll container's viewport, so no bar needs its own scroll listener.
   it("positions the label over the bar's visible portion rather than its start", () => {

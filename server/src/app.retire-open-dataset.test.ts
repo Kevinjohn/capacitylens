@@ -5,16 +5,16 @@ import { DB_SCHEMA_VERSION, openDb, type Db } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { signUp } from "./testHelpers/passwordAuth";
 
-// P1.17 — the Phase-1 CAPSTONE. "Retire the open shared dataset": in the HOSTED (auth-on) posture
+// "Retire the open shared dataset": in the HOSTED (auth-on) posture
 // there must be ZERO unauthenticated /api access. The requireUser preHandler (app.ts) is the single
 // chokepoint — every /api/* route EXCEPT /api/health + /api/auth/* must 401 a no-session request,
 // and the 401 body must be the plain no-data error (the open shared dataset never serialises). This
 // suite is the consolidated 401-matrix proof; it makes NO-session requests (it never attaches a
-// session cookie). OFF stays the trusted-local self-hoster default (asserted at the end) — P1.17
+// session cookie). OFF stays the trusted-local self-hoster default (asserted at the end). This suite
 // closes the HOSTED door without flipping the auth-off-by-default invariant.
 //
-// NB: the behaviour already exists (the requireUser chokepoint, P3.2 / P1.5 / P1.13). This is the
-// capstone TEST that pins it as a contract, plus the defensive guard that any FUTURE /api route
+// NB: the behaviour already exists (the requireUser chokepoint). This is the
+// TEST that pins it as a contract, plus the defensive guard that any FUTURE /api route
 // without auth coverage is a one-line add to the matrix below (and a visible omission if forgotten).
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -53,8 +53,8 @@ function createTrustedLocalApp(): FastifyInstance {
   return createApp(openDb(":memory:"), { allowReset: true });
 }
 
-// Every /api/* route EXCEPT /api/health + /api/auth/* MUST 401 unauthenticated in the hosted posture
-// (P1.17). This table IS the contract: a future /api route is one line to add here — and a missing
+// Every /api/* route EXCEPT /api/health + /api/auth/* MUST 401 unauthenticated in the hosted posture.
+// This table IS the contract: a future /api route is one line to add here — and a missing
 // line is a visible gap. Each entry is a NO-session request (no cookie attached). Per the spec, the
 // route families covered are: the read endpoints; the generic per-entity CRUD; batch; import; orgs;
 // the invite flow; the member/invite management routes; and the test-only reset.
@@ -171,9 +171,9 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
 });
 
 describe("P1.17 — OFF stays the trusted-local self-hoster default (auth-off-by-default invariant intact)", () => {
-  // P1.17 closes the HOSTED door; it does NOT flip the global OFF default. OFF = trusted-local: the
+  // Closes the HOSTED door; it does NOT flip the global OFF default. OFF = trusted-local: the
   // open shared dataset IS the deliberate self-hoster default, so an unauthenticated request is NOT
-  // 401'd (requireUser attaches DEMO_USER and continues). This pins that P1.17 left OFF unchanged.
+  // 401'd (requireUser attaches DEMO_USER and continues). This pins OFF as unchanged.
   it("representative unauthenticated reads are NOT 401 in OFF (DEMO_USER, open dataset served)", async () => {
     const app = createTrustedLocalApp();
     // No cookie, no session — yet OFF serves these (the open shared dataset is the default deploy).

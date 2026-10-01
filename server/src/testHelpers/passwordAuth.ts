@@ -5,7 +5,7 @@ import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fas
 // password env, the typed inject wrapper, the two Set-Cookie readers and the sign-up flow.
 // The auth-backed app itself is built by fixtures/appWithAuth.ts.
 
-/** Password-auth env for `authFromEnv`. Open signup is CLOSED by default (P1.7 disableSignUp); these
+/** Password-auth env for `authFromEnv`. Open signup is CLOSED by default (disableSignUp); these
  *  fixtures create users via sign-up/email, so it is re-opened here until the invite flow is the only
  *  path. A suite that asserts the default-closed posture builds its own env WITHOUT this flag. */
 export const PASSWORD_ENV = {

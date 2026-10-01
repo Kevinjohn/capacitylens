@@ -77,7 +77,7 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
 
   if (effectiveRole) {
     // Collapsed by default: the tick list is reference material, not something anyone reads
-    // on every visit, and expanded it pushed the member table below the fold (#175).
+    // on every visit, and expanded it pushed the member table below the fold.
     accessDetails = (
       <>
         <button

@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
 
-// P0.5.3 (@fastify/helmet → baseline security headers): an API-only server returns JSON,
+// Baseline security headers from @fastify/helmet: an API-only server returns JSON,
 // so a strict CSP is safe. These headers are pure hardening and ON by default — nosniff,
 // a CSP carrying frame-ancestors 'none' + connect-src 'self', a no-referrer Referrer-Policy,
 // and X-Frame-Options: DENY for legacy browsers. HSTS is the ONE header gated OFF by default

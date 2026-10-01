@@ -114,7 +114,7 @@ export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimesta
 
 /**
  * Un-archive an entity (archived → active). Returns a NEW object with `archivedAt` CLEARED — the key
- * is REMOVED (not set to `undefined`) so it round-trips as ABSENT, matching the P2.1 convention that
+ * is REMOVED (not set to `undefined`) so it round-trips as ABSENT, matching the convention that
  * absent = active. The input is NOT mutated and `deletedAt` is untouched (un-archive only fires from
  * `'archived'`, where `deletedAt` is already absent).
  *
@@ -189,5 +189,5 @@ export function obfuscateResource(resource: Resource): Resource {
 }
 
 // NOTE: there is deliberately NO `purge(entity)` function. Purge is a HARD row-delete done
-// server-side in P2.5; the entity simply ceases to exist, so there is no "next entity" to return.
+// server-side; the entity simply ceases to exist, so there is no "next entity" to return.
 // This module provides only the {@link canPurge} eligibility predicate plus the derive helpers.

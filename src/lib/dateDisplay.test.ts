@@ -245,7 +245,7 @@ describe("schedule dates", () => {
   });
 });
 
-// Every cell of the plan's style table (issue #793), exercised through the range and single-date
+// Every cell of the plan's style table, exercised through the range and single-date
 // helpers it governs. `writeStoredDateStyle` sets the style for each style-table describe block;
 // `localStorage.clear()` in `afterEach` above resets it back to the default between blocks.
 const STYLE_TABLE: Record<

@@ -18,7 +18,7 @@ function createDirectPutConcurrencyTests(): void {
   it("rejects a stale PUT with 409 when enabled; allows same/newer", async () => {
     const app = createApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
-    // Store a client at T2.
+    // Store a client at the later timestamp.
     const created = await put({
       app,
       entity: "clients",
@@ -28,7 +28,7 @@ function createDirectPutConcurrencyTests(): void {
         updatedAt: "2026-02-02T00:00:00.000Z",
       },
     });
-    // A PUT carrying an OLDER updatedAt (T1) is a stale overwrite → 409.
+    // A PUT carrying an OLDER updatedAt is a stale overwrite → 409.
     const stale = await put({
       app,
       entity: "clients",

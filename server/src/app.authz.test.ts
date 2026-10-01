@@ -10,7 +10,7 @@ import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities"
 import { seed } from "@capacitylens/shared/data/seed";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 
-// P1.5 requirePermission — the auth-on 403 matrix for the authorize() route gate, plus the #1
+// requirePermission — the auth-on 403 matrix for the authorize() route gate, plus the primary
 // invariant that OFF mode stays allow-all/no-op (cross-account ids included). The gate maps each
 // protected route onto a pure can(role, action) decision against the caller's membership role; this
 // suite drives those routes end-to-end (sign-up → membership → request) and asserts the resulting
@@ -75,13 +75,13 @@ const closure = (id: string, accountId: string) => ({
   ...meta(),
 });
 
-// P1.6: a recognizable sentinel for a1's time-off note. Asserting it is ABSENT from the raw response
+// A recognizable sentinel for a1's time-off note. Asserting it is ABSENT from the raw response
 // BODY (not just the parsed key) is what proves the redaction is SERVER-SIDE — the note never serialized.
 const SENTINEL_TIMEOFF_NOTE = "SENTINEL_TIMEOFF_NOTE";
 
 /**
  * Two accounts a1/a2, seeded directly via insertAll (parent-first). a1 additionally carries a
- * resource + a time-off row whose `note` is {@link SENTINEL_TIMEOFF_NOTE}, so the P1.6 redaction
+ * resource + a time-off row whose `note` is {@link SENTINEL_TIMEOFF_NOTE}, so the redaction
  * suite can assert owner/admin SEE it and editor/viewer do NOT.
  */
 function seedTwo(db: Db): void {
@@ -246,7 +246,7 @@ function seedPrivateNames(db: Db): void {
   );
 }
 
-// ---- Per-verb requests against a1's seeded rows (cookie carries the session in auth-on). ----
+// Per-verb requests against a1's seeded rows (cookie carries the session in auth-on).
 // Each returns the status of ONE write/read so a test can assert allow (2xx) vs deny (403).
 
 const getState = (app: FastifyInstance, accountId: string, cookie?: string) =>
@@ -533,7 +533,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     expect((await deleteProject({ app, accountId: "a1", id: "p1", cookie })).statusCode).toBe(204);
     expect((await batchInto({ app, accountId: "a1", id: "ec3", cookie })).statusCode).toBe(200);
     // Import is NOT an editor write: it replaces the whole slice AND (all ids remapped) bypasses
-    // the P1.6 note pin — ultimately gated to owner. See the dedicated import-tier suite below.
+    // the note pin — ultimately gated to owner. See the dedicated import-tier suite below.
     expect((await importInto({ app, accountId: "a1", id: "ec4", cookie })).statusCode).toBe(403);
   });
 });
@@ -1247,7 +1247,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
 
     const res = await deleteAccount(app, "purgeMe", cookie);
     expect(res.statusCode).toBe(204);
-    // P2.6b: this is now a TENANT ERASURE, not a bare row delete. The caller is the SOLE member, so the
+    // This is now a TENANT ERASURE, not a bare row delete. The caller is the SOLE member, so the
     // erasure also removes their identity and KILLS their session — their cookie no longer authenticates, so a
     // read-back as them is 401 (not 200). "Account gone" is therefore asserted on observable DB state
     // directly: the accounts row, the membership row, and the member's auth session are all removed.
@@ -1278,7 +1278,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
 describe("P1.5 authorize — /api/import is owner-only", () => {
   // Import is a destructive delete-all + re-insert of the tenant slice (replaceAccountSlice) — the
   // purge tier's hard-delete semantics — AND it bypasses field-level write pins: every id is
-  // remapped, so the P1.6 timeOff note pin can never match a stored row. At 'write' tier a
+  // remapped, so the timeOff note pin can never match a stored row. At 'write' tier a
   // note-blind editor could erase every owner-confidential note simply by importing their own
   // (note-redacted) export. Client/project privacy makes the final tier stricter still: an admin's
   // export is name-redacted, so only an owner has a lossless slice suitable for replacement. OFF

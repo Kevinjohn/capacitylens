@@ -17,8 +17,8 @@ import {
   type AuditSink,
 } from "./audit";
 
-// P1.15 (flag CAPACITYLENS_AUDIT → opts.audit): an append-only JSONL line per AppData mutation,
-// {ts,userId,accountId,action,entity,id,changedFields}. THE #1 INVARIANT proven here: changedFields
+// CAPACITYLENS_AUDIT (opts.audit): an append-only JSONL line per AppData mutation,
+// {ts,userId,accountId,action,entity,id,changedFields}. The primary invariant proven here: changedFields
 // are field NAMES only — a tenant VALUE (a time-off note, a name) NEVER reaches a line. Plus the
 // fail-never contract (append never throws; the request still 2xx; a uniform warning header; deep-
 // health latches degraded; ONE redacted error line) and the default-deploy byte-identity (noop sink

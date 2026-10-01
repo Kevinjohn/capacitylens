@@ -28,7 +28,7 @@ void projectedKeysAreComplete;
  * Resource/Client/Project. PURE: returns a NEW AppData; the input and every nested array are left
  * untouched (the kept rows are the SAME object references, just re-collected into fresh arrays).
  *
- * This is the SINGLE source of the "hide non-active from the view" rule (P2.4), reused by BOTH the
+ * This is the SINGLE source of the "hide non-active from the view" rule, reused by BOTH the
  * client VIEW seam (`useActiveScopedData`, src/store) and the server per-account read
  * (`readSlice`'s `includeInactive: false` branch, server/db.ts) — so the two halves can't drift on
  * what "shown in the normal app" means. "Active" is exactly `lifecycleStatus(e) === 'active'`, so the

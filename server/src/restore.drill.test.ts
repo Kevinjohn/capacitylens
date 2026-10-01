@@ -29,7 +29,7 @@ afterEach(() => {
   temporaryDirectories.clear();
 });
 
-// P3.3 — the RESTORE DRILL, codified. A backup that has never been restored is a hope, not a
+// The RESTORE DRILL, codified. A backup that has never been restored is a hope, not a
 // backup: this exercises the WHOLE recovery path end to end so the restore SEQUENCE itself is
 // continuously verified by `pnpm run gate:server`, not just on a one-off manual run on the droplet.
 //

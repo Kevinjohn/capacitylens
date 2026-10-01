@@ -48,7 +48,7 @@ function startPersistence(identitySource: "live" | "offline" | "open"): void {
     // fabricating a "Wayne Enterprises". `undefined` here means bootstrap() only loads whatever the
     // server already has (possibly nothing).
     ...(isDemoMode() ? { seedIfEmpty: seedForCurrentWeek() } : {}),
-    // Per-account hydration (P1.13): in server mode a tenant pick loads ONLY that account's slice and
+    // Per-account hydration: in server mode a tenant pick loads ONLY that account's slice and
     // re-seeds the diff snapshot atomically (the switch orchestrator). The demo build leaves it inert.
     serverMode: isServerConfigured(),
     onError: (error) => {
@@ -89,7 +89,7 @@ const reactRoot = createRoot(rootEl);
 reactRoot.render(
   <StrictMode>
     <ErrorBoundary>
-      {/* Auth boundary (P3.3): the demo build and auth-off deploys pass straight through;
+      {/* Auth boundary: the demo build and auth-off deploys pass straight through;
           only an auth-enabled server can swap in the login
           screen. Wraps the router so a 401 walls off the whole app, picker included. */}
       <AuthProvider onTenantAccessReady={startPersistence}>

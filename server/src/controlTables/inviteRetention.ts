@@ -42,7 +42,7 @@ function compareIds(left: string, right: string): number {
 }
 
 /**
- * List an account's invites for the member-management UI (P1.11) — ordered newest-first by
+ * List an account's invites for the member-management UI — ordered newest-first by
  * `createdAt`. CRITICAL: this NEVER selects or returns the token digest. The token is a write-once
  * bearer secret (handed to the creator at mint time and nowhere else); returning it on this read path
  * would hand out live, role-bearing links to anyone who can list invites. list/revoke key on the
@@ -118,8 +118,8 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
 }
 
 /**
- * Revoke (delete) one outstanding invite by its non-secret `id` — the member-management revoke write
- * (P1.11). IDEMPOTENT: deleting an absent id is a no-op. The `accountId = ?` predicate is the
+ * Revoke (delete) one outstanding invite by its non-secret `id` — the member-management revoke write.
+ * IDEMPOTENT: deleting an absent id is a no-op. The `accountId = ?` predicate is the
  * CROSS-TENANT guard: a revoke can only ever delete an invite of the named account, so an admin of
  * one account cannot revoke another account's invite even with its id.
  *

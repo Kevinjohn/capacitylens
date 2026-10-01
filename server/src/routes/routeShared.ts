@@ -71,8 +71,8 @@ export const isGenericEntity = (entity: string): entity is keyof typeof TABLES =
 // ownership via accountId, so this must not be inferred independently from the SQLite codec.
 export const isScopedTable = isScopedEntityKey;
 
-// The ONLY three entities that carry the lifecycle tombstones (archivedAt/deletedAt, P2.1) and so can
-// run the archive/unarchive/soft-delete/purge routes (P2.5a). A guard, not a free string compare, so a
+// The ONLY three entities that carry the lifecycle tombstones (archivedAt/deletedAt) and so can
+// run the archive/unarchive/soft-delete/purge routes. A guard, not a free string compare, so a
 // lifecycle handler can `entity is LifecycleEntity`-narrow before indexing AppData[entity] — and any
 // other table (phases/activities/allocations/timeOff/disciplines/accounts) is a 404 on these routes.
 // Single-sourced in shared (LIFECYCLE_ENTITY_KEYS) so this route allow-list and validate.ts's

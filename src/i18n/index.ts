@@ -1,4 +1,4 @@
-// i18n seam (P1.5.1) — Paraglide (inlang) compile-time, type-safe messages.
+// i18n seam — Paraglide (inlang) compile-time, type-safe messages.
 //
 // WHY Paraglide: messages are compiled into typed functions (src/paraglide, generated + gitignored),
 // so a removed/renamed key is a tsc/build error — not a runtime "missing translation" surprise. The
