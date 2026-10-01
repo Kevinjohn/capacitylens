@@ -20,7 +20,7 @@ describe("useResourceAvatars", () => {
       .mockImplementation(async () => response([]));
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
   });
-  afterEach(() => setOfflineReadState("cleanup", false));
+  afterEach(() => setOfflineReadState({ owner: "cleanup", readOnly: false }));
 
   it("clears immediately, refreshes on invalidation, and validates normalized URLs", async () => {
     vi.mocked(accountClient.listResourceAvatars)
@@ -66,11 +66,11 @@ describe("useResourceAvatars", () => {
   });
 
   it("does not fetch in app read-only mode even while the browser reports online", async () => {
-    setOfflineReadState("tenant", true, Date.now());
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.now() });
     renderHook(() => useResourceAvatars("a1"));
     await act(async () => Promise.resolve());
     expect(accountClient.listResourceAvatars).not.toHaveBeenCalled();
-    act(() => setOfflineReadState("tenant", false));
+    act(() => setOfflineReadState({ owner: "tenant", readOnly: false }));
     await waitFor(() => expect(accountClient.listResourceAvatars).toHaveBeenCalledOnce());
   });
 

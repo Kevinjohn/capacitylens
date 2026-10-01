@@ -21,7 +21,7 @@ beforeEach(() => {
   // Placeholders are gated behind a per-account pref that defaults OFF. Most tests here exercise
   // the placeholder management section, so enable it for the suite; the default-OFF hide behaviour
   // has its own dedicated test below.
-  setPlaceholdersEnabled(true);
+  setPlaceholdersEnabled({ on: true });
 });
 
 // Shared resource shape helpers
@@ -64,7 +64,7 @@ describe("ResourceList display", () => {
   });
 
   it("sorts each visible section by displayed name without changing stored resource order", () => {
-    setExternalEnabled(true);
+    setExternalEnabled({ on: true });
     useStore.getState().addResource(personDraft("Zulu"));
     useStore.getState().addResource(personDraft("alpha"));
     useStore.getState().addResource(personDraft("Bravo"));
@@ -88,7 +88,7 @@ describe("ResourceList display", () => {
 
   it("puts favourites first within People and External and toggles them accessibly", async () => {
     const user = userEvent.setup();
-    setExternalEnabled(true);
+    setExternalEnabled({ on: true });
     useStore.getState().addResource(personDraft("Alpha"));
     useStore.getState().addResource({ ...personDraft("Zulu"), isFavourite: true });
     useStore.getState().addResource({ ...personDraft("Ferris"), kind: "external", role: "Print partner" });
@@ -262,7 +262,7 @@ describe("ResourceList display", () => {
   });
 
   it("gives repeated external-party edit controls distinct contextual names", () => {
-    setExternalEnabled(true);
+    setExternalEnabled({ on: true });
     useStore.getState().addResource({ ...personDraft("Kord Industries"), kind: "external", role: "Partner studio" });
     useStore.getState().addResource({ ...personDraft("Pixel Forge"), kind: "external", role: "Print partner" });
     render(<ResourceList />);
@@ -275,7 +275,7 @@ describe("ResourceList display", () => {
 describe("ResourceList display", () => {
   it("keeps the External explainer behind the section's labelled help action", async () => {
     const user = userEvent.setup();
-    setExternalEnabled(true);
+    setExternalEnabled({ on: true });
     useStore.getState().addResource({ ...personDraft("Kord Industries"), kind: "external", role: "Partner studio" });
     render(<ResourceList />);
 
@@ -382,7 +382,7 @@ describe("ResourceList display", () => {
       projectId: project.id,
     });
     // Turn the feature off — the placeholder data still exists, it's just hidden.
-    setPlaceholdersEnabled(false);
+    setPlaceholdersEnabled({ on: false });
     render(<ResourceList />);
     // The person still renders; the placeholder section/heading/row do not.
     expect(screen.getByText("Alice")).toBeInTheDocument();

@@ -126,11 +126,12 @@ interface ServerLifecycleContext {
   setNotice: SetNotice;
 }
 
-async function reconcileLifecycleFailure(
-  context: ServerLifecycleContext,
-  mutationConfirmed: boolean,
-  cause: unknown,
-): Promise<boolean> {
+type ReconcileLifecycleFailureOptions = { context: ServerLifecycleContext; mutationConfirmed: boolean; cause: unknown };
+async function reconcileLifecycleFailure({
+  context,
+  mutationConfirmed,
+  cause,
+}: ReconcileLifecycleFailureOptions): Promise<boolean> {
   const { activeAccountId, setNotice } = context;
   if (useStore.getState().activeAccountId !== activeAccountId) return false;
   if (mutationConfirmed) {
@@ -203,7 +204,7 @@ async function dispatchServerLifecycle(
     }
     return true;
   } catch (cause) {
-    return reconcileLifecycleFailure(context, mutationConfirmed, cause);
+    return reconcileLifecycleFailure({ context: context, mutationConfirmed: mutationConfirmed, cause: cause });
   }
 }
 

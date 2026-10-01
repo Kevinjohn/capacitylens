@@ -71,7 +71,8 @@ async function admitExternalIdentity(
   }
 }
 
-function enforceBootstrapClaim(options: HookOptions, context: Parameters<UserBefore>[1], emailSignup: boolean) {
+type EnforceBootstrapClaimOptions = { options: HookOptions; context: Parameters<UserBefore>[1]; emailSignup: boolean };
+function enforceBootstrapClaim({ options, context, emailSignup }: EnforceBootstrapClaimOptions) {
   // Re-check at insertion so a delayed request cannot create an orphan after another request wins.
   if (emailSignup && options.countUsers(options.db) !== 0) {
     throw APIError.from("CONFLICT", {
@@ -102,7 +103,7 @@ function buildUserBefore(options: HookOptions): UserBefore {
     // identities remain verified-email plus invitation/allow-list gated in every posture.
     if (externalSignup) await admitExternalIdentity(options, sanitizedUser, context);
     if (options.allowOpenSignup && emailSignup) return { data: sanitizedUser };
-    enforceBootstrapClaim(options, context, emailSignup);
+    enforceBootstrapClaim({ options: options, context: context, emailSignup: emailSignup });
     return { data: sanitizedUser };
   };
 }

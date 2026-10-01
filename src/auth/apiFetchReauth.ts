@@ -49,7 +49,12 @@ function cloneRequestInput(input: RequestInfo | URL) {
   return input instanceof Request ? input.clone() : input;
 }
 
-function canReplayRequest(input: RequestInfo | URL, requestOptions: RequestInit, replayAfterFreshnessRefusal: boolean) {
+type CanReplayRequestOptions = {
+  input: RequestInfo | URL;
+  requestOptions: RequestInit;
+  replayAfterFreshnessRefusal: boolean;
+};
+function canReplayRequest({ input, requestOptions, replayAfterFreshnessRefusal }: CanReplayRequestOptions) {
   const method = (requestOptions.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(requestOptions.headers).forEach((value, key) => headers.set(key, value));
@@ -92,7 +97,14 @@ export async function apiFetchReauth(
   const retryInput = cloneRequestInput(input);
   const res = await apiFetch(firstInput, requestOptions, timeoutMs);
   if (!(await isSessionNotFresh(res))) return res;
-  if (!canReplayRequest(input, requestOptions, options.replayAfterFreshnessRefusal === true)) return res;
+  if (
+    !canReplayRequest({
+      input: input,
+      requestOptions: requestOptions,
+      replayAfterFreshnessRefusal: options.replayAfterFreshnessRefusal === true,
+    })
+  )
+    return res;
   const resolutionAfterResponse = readReauthResolution();
   if (resolutionAfterResponse.epoch !== resolutionAtDispatch.epoch) {
     return resolutionAfterResponse.outcome?.kind === "authenticated"

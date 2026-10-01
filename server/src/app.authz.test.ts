@@ -376,7 +376,8 @@ const writeClosure = ({ app, accountId, id, cookie, batched }: WriteClosureInput
   );
 };
 
-const replaceGeneratedInternal = (app: FastifyInstance, cookie: string, batched: boolean) => {
+type ReplaceGeneratedInternalOptions = { app: FastifyInstance; cookie: string; batched: boolean };
+const replaceGeneratedInternal = ({ app, cookie, batched }: ReplaceGeneratedInternalOptions) => {
   const row = { ...buildInternalClient("a1", TS), id: "legacy-internal" };
   return call(
     app,
@@ -414,7 +415,8 @@ const importInto = ({ app, accountId, id, cookie }: ImportIntoInput) => {
   });
 };
 
-function expectedClosureWriteStatus(role: Role, batched: boolean): number {
+type ExpectedClosureWriteStatusOptions = { role: Role; batched: boolean };
+function expectedClosureWriteStatus({ role, batched }: ExpectedClosureWriteStatusOptions): number {
   if (role === "viewer") return 403;
   if (batched) return 200;
   return 201;
@@ -448,7 +450,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       const id = `${role}-company-${batched}`;
       const response = await writeClosure({ app, accountId: "a1", id, cookie, batched });
 
-      expect(response.statusCode, role).toBe(expectedClosureWriteStatus(role, batched));
+      expect(response.statusCode, role).toBe(expectedClosureWriteStatus({ role: role, batched: batched }));
       if (role === "viewer") expect(getRow(db, "closures", id), role).toBeNull();
       else {
         expect(getRow(db, "closures", id), role).toMatchObject({
@@ -580,7 +582,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
         createdAt: TS,
       });
 
-      expect((await replaceGeneratedInternal(app, editor.cookie, batched)).statusCode).toBe(403);
+      expect((await replaceGeneratedInternal({ app: app, cookie: editor.cookie, batched: batched })).statusCode).toBe(
+        403,
+      );
       expect(getRow(db, "clients", "internal:a1")?.builtin).toBe(true);
       expect(getRow(db, "clients", "legacy-internal")).toBeNull();
       expect(getRow(db, "projects", "internal-project")?.clientId).toBe("internal:a1");
@@ -600,7 +604,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       );
       // Adopting a client as the internal one is ordinary administration: the admin-tier role
       // check still gates it, a recent sign-in no longer does.
-      const stale = await replaceGeneratedInternal(app, admin.cookie, batched);
+      const stale = await replaceGeneratedInternal({ app: app, cookie: admin.cookie, batched: batched });
       expect(stale.statusCode).toBe(200);
       expect(getRow(db, "clients", "internal:a1")).toBeNull();
       expect(getRow(db, "clients", "legacy-internal")?.builtin).toBe(true);

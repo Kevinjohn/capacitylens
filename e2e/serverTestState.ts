@@ -12,7 +12,8 @@ import { serverTestApiOrigin } from "../scripts/playwrightRunMode.mjs";
 export const API = serverTestApiOrigin(ports().dbApi);
 
 /** Wipe the server DB and re-seed the demo data so each test starts identically. */
-export async function resetServer(request: APIRequestContext, withSeed = true): Promise<void> {
+type ResetServerOptions = { request: APIRequestContext; withSeed?: boolean };
+export async function resetServer({ request, withSeed = true }: ResetServerOptions): Promise<void> {
   const res = await request.post(`${API}/api/test/reset`, { data: { seed: withSeed } });
   expect(res.ok()).toBeTruthy();
 }

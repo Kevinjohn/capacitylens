@@ -9,7 +9,7 @@ import { resetServer, serverState, requireStateRows } from "./serverTestState";
 // UI → store → ServerSyncAdapter → PATCH → SQLite `accounts.dateStyle` → GET on reload.
 test.describe("Settings — date format is account data", () => {
   test.beforeEach(async ({ request }) => {
-    await resetServer(request, true);
+    await resetServer({ request: request, withSeed: true });
   });
 
   test("the company's choice survives a reload", async ({ page, request }) => {

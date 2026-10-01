@@ -102,7 +102,7 @@ describe("active-account replacement invariant", () => {
   it("rejects scoped writes when a non-null active id has no loaded account row", () => {
     // Exercise the mutation backstop independently from replaceAll's picker fallback. Direct state
     // injection models any future caller that publishes transient identity state out of order.
-    s().setAccountSummaries([]);
+    s().setAccountSummaries({ list: [] });
     useStore.setState({ activeAccountId: "missing-account" });
 
     expect(() => requireCreated(s().addClient({ name: "Orphan", color: "#111111" }))).toThrow(/not loaded/i);
@@ -315,8 +315,8 @@ describe("unknown account selection while on the picker", () => {
   it("clears the leaving company session state and keeps its breadcrumb when selection is unknown", () => {
     const dirtySourceA = Symbol("company A form");
     const dirtySourceB = Symbol("company A dialog");
-    s().setDirtyFormSource(dirtySourceA, true);
-    s().setDirtyFormSource(dirtySourceB, true);
+    s().setDirtyFormSource({ source: dirtySourceA, dirty: true });
+    s().setDirtyFormSource({ source: dirtySourceB, dirty: true });
     s().setDraggingAllocation("allocation-a");
     s().announceCapacity("Company A capacity changed");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);

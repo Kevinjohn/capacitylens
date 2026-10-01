@@ -78,7 +78,7 @@ export function createJoiningProviderIntent(input: {
   secureCookies: boolean;
 }) {
   const { db, applicationId, secret, secureCookies } = input;
-  const names = joiningCookieNames(applicationId, secureCookies);
+  const names = joiningCookieNames({ applicationId: applicationId, secure: secureCookies });
   const fromHeaders = (headers: Headers): JoinIntent | null => {
     const nonce = readJoiningCookie(headers, names.intent);
     const browser = readJoiningCookie(headers, names.browser);

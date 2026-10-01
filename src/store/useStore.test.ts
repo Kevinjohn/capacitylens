@@ -283,7 +283,7 @@ function registerSchedulerUiPart2(): void {
 
   it("re-anchors after the first slice for a selected account replaces the temporary fallback", () => {
     const accountId = "late-account";
-    s().setAccountSummaries([{ id: accountId, name: "Late account", role: "owner" }]);
+    s().setAccountSummaries({ list: [{ id: accountId, name: "Late account", role: "owner" }] });
     s().setActiveAccount(accountId); // absent locally: temporarily anchored with GMT/Monday
     s().goToDate("2031-09-10");
 

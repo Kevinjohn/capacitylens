@@ -21,7 +21,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
   resetStoreWithAccount();
-  setPlaceholdersEnabled(true);
+  setPlaceholdersEnabled({ on: true });
 });
 
 afterEach(() => {

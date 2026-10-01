@@ -45,11 +45,12 @@ function resolveStoredWeekStart(existing: Record<string, unknown> | undefined): 
   return undefined;
 }
 
-function preserveCapacityOverviewAccess(
-  copy: Record<string, unknown>,
-  existing: Record<string, unknown> | undefined,
-  canChange: boolean | undefined,
-): void {
+type PreserveCapacityOverviewAccessOptions = {
+  copy: Record<string, unknown>;
+  existing: Record<string, unknown> | undefined;
+  canChange: boolean | undefined;
+};
+function preserveCapacityOverviewAccess({ copy, existing, canChange }: PreserveCapacityOverviewAccessOptions): void {
   if (canChange === true) return;
   const storedAccess = existing?.capacityOverviewAccess;
   if (CAPACITY_OVERVIEW_ACCESS_VALUES.includes(storedAccess as never)) copy.capacityOverviewAccess = storedAccess;
@@ -80,7 +81,11 @@ function sanitizeAccountWrite(
   // restored onto the copy AFTER sanitisation (see the loop below), so without this a payload
   // omitting it would repair a Sunday-start account's week to the Monday-start default.
   sanitizeAccount(copy, resolveStoredWeekStart(existing));
-  preserveCapacityOverviewAccess(copy, existing, options.canChangeCapacityOverviewAccess);
+  preserveCapacityOverviewAccess({
+    copy: copy,
+    existing: existing,
+    canChange: options.canChangeCapacityOverviewAccess,
+  });
   // A full PUT from a pre-v31 client cannot express this field. Preserve the stored selection
   // when it was omitted, while still repairing an explicitly malformed direct write above.
   if (!workingDaysRequested && existing?.workingDays !== undefined) {

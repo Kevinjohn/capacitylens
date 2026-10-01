@@ -143,7 +143,7 @@ function registerServerModeTest01() {
     });
 
     expect(await screen.findByText("app-content")).toBeInTheDocument();
-    await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledWith("live"));
   });
 }
 
@@ -371,7 +371,7 @@ function registerServerModeTest08() {
     );
     const { AuthProvider, useStore, readOfflineStateSnapshot, setOfflineReadState } = await freshProvider();
     useStore.setState({ activeAccountId: "a1" });
-    setOfflineReadState("identity", true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState({ owner: "identity", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
 
     render(
       <AuthProvider>
@@ -778,6 +778,7 @@ function registerServerModeTest23() {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError")));
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const { AuthProvider, useAuth, cacheAuthSnapshot, readOfflineStateSnapshot } = await freshProvider();
+    const onTenantAccessReady = vi.fn();
     const savedAt = Date.parse("2026-07-20T12:00:00.000Z");
     vi.spyOn(Date, "now").mockReturnValue(savedAt);
     await cacheAuthSnapshot({
@@ -792,12 +793,13 @@ function registerServerModeTest23() {
     });
 
     render(
-      <AuthProvider>
+      <AuthProvider onTenantAccessReady={onTenantAccessReady}>
         <SessionProbe useAuth={useAuth} />
       </AuthProvider>,
     );
 
     expect(await screen.findByText("authMode:password-only user:offline-user")).toBeInTheDocument();
+    expect(onTenantAccessReady).toHaveBeenCalledWith("offline");
     expect(readOfflineStateSnapshot()).toEqual({
       readOnly: true,
       lastUpdated: savedAt,

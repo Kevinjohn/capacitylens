@@ -78,7 +78,7 @@ async function applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId }
     // A newer load may have installed a cached, read-only slice while the repair was in flight.
     if (myGen !== state.loadGen) return;
   }
-  setOfflineReadState("tenant", false);
+  setOfflineReadState({ owner: "tenant", readOnly: false });
   if (accountId !== undefined && loaded.missingKeys.length === 0) {
     void cacheAccountSlice(accountId, loaded.data).catch((error) =>
       console.warn("ServerSyncAdapter: the offline account snapshot could not be updated", error),
@@ -88,33 +88,48 @@ async function applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId }
 
 function applyCachedLoadEffects({ state, data, savedAt, myGen, accountId }: CachedLoadEffects): void {
   if (myGen === state.loadGen) seedSnapshot(state, data, accountId);
-  if (myGen === state.loadGen) setOfflineReadState("tenant", true, savedAt);
+  if (myGen === state.loadGen) setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: savedAt });
 }
 
-// P3.4: every request carries credentials so an auth-enabled server (SMALLSASS_ACCOUNT_MODE ≠ off)
-// sees the Better Auth session cookie. With auth off (the default) and same-origin
-// requests there are no cookies to send — a verified no-op (the db-backed e2e project
-// runs unchanged); the server pairs reflected CORS origins with Allow-Credentials.
-//
-// @param accountId  When PRESENT (P1.13), load ONLY that account's scoped slice via
-//   `GET /api/state?accountId=…`. This is the per-account hydration path: the picker chose a tenant
-//   and we load just its data. When ABSENT, fall back to the no-arg whole read — used in OFF/demo
-//   (still a whole tree) and the pre-pick bootstrap before any account is active (in auth-on the
-//   server now 400s a no-arg read, which surfaces as a LoadError → connection screen, which is
-//   correct: there's nothing to show until a tenant is picked and re-loaded with an id).
-//
-// EITHER WAY `lastSynced` is set to EXACTLY the returned body — this is the diff SNAPSHOT every save
-// is computed against, so it MUST equal the slice we just loaded. The persist switch orchestrator
-// (persist.ts) relies on this: re-seeding the snapshot to the new account in the SAME call as the
-// load is what keeps snapshot and `data` on the same tenant. If they ever desync (snapshot=A,
-// data=B) the next save would emit DELETEs for A + PUTs for B → cross-account data loss.
+interface LoadRequest {
+  readonly accountId: string | undefined;
+  readonly myGen: number;
+}
+
+interface LoadOptions {
+  readonly accountId: string | undefined;
+  readonly skipRemoteRead?: boolean;
+}
+
+/** Load an unscoped dataset or account slice, or seed an empty snapshot for live-auth pre-pick startup.
+ * Every accepted result re-seeds the diff snapshot to the returned data so subsequent saves cannot
+ * diff across accounts. Superseded loads do not change the snapshot. */
 export async function loadAll(
   state: SyncState,
   saveAll: (next: AppData) => Promise<void>,
-  accountId?: string,
+  options: LoadOptions = { accountId: undefined },
 ): Promise<AppData> {
   const myGen = ++state.loadGen;
+  if (options.skipRemoteRead) {
+    const empty = emptyAppData();
+    if (myGen === state.loadGen) {
+      seedSnapshot(state, empty, options.accountId);
+      setOfflineReadState({ owner: "tenant", readOnly: false });
+    }
+    return empty;
+  }
+  return loadRemoteSlice(state, saveAll, { accountId: options.accountId, myGen });
+}
+
+async function loadRemoteSlice(
+  state: SyncState,
+  saveAll: (next: AppData) => Promise<void>,
+  { accountId, myGen }: LoadRequest,
+): Promise<AppData> {
   try {
+    // Every request carries credentials so auth-enabled servers see the Better Auth session cookie.
+    // With auth off, same-origin requests send no cookies; the server pairs reflected CORS origins
+    // with Allow-Credentials.
     const url =
       accountId !== undefined
         ? `${state.baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`
@@ -122,7 +137,7 @@ export async function loadAll(
     // Whole-slice hydration: the BULK tier, not the interactive 15s — a large tenant's full read
     // can legitimately outrun the interactive bound against a healthy-but-slow server.
     const res = await state.request(url, { credentials: "include" }, API_BULK_TIMEOUT_MS);
-    // The no-arg whole read is CLOSED in auth-on (P1.13): the server 400s it (tenant isolation —
+    // The no-arg whole read is CLOSED in auth-on: the server 400s it (tenant isolation —
     // a logged-in user must hydrate PER ACCOUNT via ?accountId=). Treat that 400 on the NO-ARG read
     // as "nothing to hydrate yet" — return EMPTY (snapshot empty) so bootstrap shows the picker
     // rather than a connection-error dead end. The picker lists the login's accounts from
@@ -133,7 +148,7 @@ export async function loadAll(
       const empty = emptyAppData();
       if (myGen === state.loadGen) {
         seedSnapshot(state, empty);
-        setOfflineReadState("tenant", false);
+        setOfflineReadState({ owner: "tenant", readOnly: false });
       }
       return empty;
     }

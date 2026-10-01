@@ -12,7 +12,8 @@ const payload = {
   errorCallbackURL: `${origin}/account?capacitylensIdentityProvider=microsoft`,
 };
 
-async function configured(verifyEmail = true) {
+type ConfiguredOptions = { verifyEmail?: boolean };
+async function configured({ verifyEmail = true }: ConfiguredOptions = {}) {
   const db = fixtures.trackDb(openDb(":memory:"));
   const { auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
@@ -47,7 +48,7 @@ async function configured(verifyEmail = true) {
 
 describe("Microsoft link through the common identity route", () => {
   it("starts an exact fresh-session proof without binding an account", async () => {
-    const { db, app, auth, cookie } = await configured();
+    const { db, app, auth, cookie } = await configured({});
     const response = await app.inject({
       method: "POST",
       url: "/api/identity/link-provider",
@@ -81,7 +82,7 @@ describe("Microsoft link through the common identity route", () => {
   });
 
   it("rejects a stale session before creating a proof", async () => {
-    const { db, app, cookie } = await configured();
+    const { db, app, cookie } = await configured({});
     db.prepare("UPDATE session SET createdAt = ?").run("2000-01-01T00:00:00.000Z");
     const response = await app.inject({
       method: "POST",
@@ -94,7 +95,7 @@ describe("Microsoft link through the common identity route", () => {
   });
 
   it.each(["google", "microsoft"])("requires a verified local mailbox for explicit %s linking", async (providerId) => {
-    const { db, app, cookie } = await configured(false);
+    const { db, app, cookie } = await configured({ verifyEmail: false });
     const response = await app.inject({
       method: "POST",
       url: "/api/identity/link-provider",

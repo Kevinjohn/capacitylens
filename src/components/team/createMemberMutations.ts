@@ -29,7 +29,7 @@ function createSignInTrackingMutation(dependencies: MemberMutationDependencies) 
   return ({ next }: ChangeSignInTrackingInput) =>
     dependencies.withMemberAction("member-sign-in-tracking", async (accountId) => {
       try {
-        const result = await teamAccessClient.setMemberSignInTracking(accountId, next);
+        const result = await teamAccessClient.setMemberSignInTracking({ workspaceId: accountId, enabled: next });
         if (!dependencies.isActiveAccount(accountId)) return;
         if (result.kind !== "ok") {
           dependencies.fail(

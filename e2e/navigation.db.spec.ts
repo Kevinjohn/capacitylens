@@ -4,7 +4,7 @@ import { waitForAppLanding } from "./browserTestSupport";
 
 test.describe("single-company reload entry", () => {
   test.beforeEach(async ({ request }) => {
-    await resetServer(request, false);
+    await resetServer({ request: request, withSeed: false });
   });
 
   test("resumes a deep route once, but keeps first entry and explicit switching on the picker", async ({

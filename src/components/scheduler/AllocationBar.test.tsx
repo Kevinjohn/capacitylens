@@ -15,8 +15,8 @@ beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().clearFilters();
   // Device-global prefs persist across tests via localStorage — reset to defaults.
-  useStore.getState().setBarLabelPref("showClient", true);
-  useStore.getState().setBarLabelPref("showProject", true);
+  useStore.getState().setBarLabelPref({ key: "showClient", value: true });
+  useStore.getState().setBarLabelPref({ key: "showProject", value: true });
 });
 
 function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
@@ -37,7 +37,8 @@ function makeBar(allocation: Allocation, labelOverride?: string): BarLayout {
   return makeBarBase({ allocation, width: 336, color: "#ec4899", label: labelOverride ?? "My Activity" });
 }
 
-function setTaskFieldVisibility(enabled: boolean) {
+type SetTaskFieldVisibilityOptions = { enabled: boolean };
+function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions) {
   useStore.getState().replaceAll({ ...emptyAppData(), accounts: [makeAccount({ showTaskFieldInSchedule: enabled })] });
   useStore.getState().setActiveAccount("acct-test");
 }
@@ -194,7 +195,7 @@ describe("AllocationBar client/project context", () => {
   });
 
   it("omits the client when showClient is off", () => {
-    useStore.getState().setBarLabelPref("showClient", false);
+    useStore.getState().setBarLabelPref({ key: "showClient", value: false });
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const el = screen.getByTestId("allocation-bar");
@@ -203,7 +204,7 @@ describe("AllocationBar client/project context", () => {
   });
 
   it("omits the project when showProject is off", () => {
-    useStore.getState().setBarLabelPref("showProject", false);
+    useStore.getState().setBarLabelPref({ key: "showProject", value: false });
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const el = screen.getByTestId("allocation-bar");
@@ -212,8 +213,8 @@ describe("AllocationBar client/project context", () => {
   });
 
   it("shows only the activity when both toggles are off", () => {
-    useStore.getState().setBarLabelPref("showClient", false);
-    useStore.getState().setBarLabelPref("showProject", false);
+    useStore.getState().setBarLabelPref({ key: "showClient", value: false });
+    useStore.getState().setBarLabelPref({ key: "showProject", value: false });
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const el = screen.getByTestId("allocation-bar");
@@ -252,7 +253,7 @@ describe("AllocationBar accessible name (status / dates / note)", () => {
 
   it("announces task text to a viewer only when the account setting enables it", () => {
     const allocation = makeAllocation({ task: "Review a deliberately long task description" });
-    setTaskFieldVisibility(true);
+    setTaskFieldVisibility({ enabled: true });
     const { rerender } = render(
       <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
         <AllocationBar bar={makeBar(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
@@ -262,7 +263,7 @@ describe("AllocationBar accessible name (status / dates / note)", () => {
       /task: Review a deliberately long task description/i,
     );
 
-    setTaskFieldVisibility(false);
+    setTaskFieldVisibility({ enabled: false });
     rerender(
       <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
         <AllocationBar bar={makeBar(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
@@ -272,7 +273,7 @@ describe("AllocationBar accessible name (status / dates / note)", () => {
   });
 
   it("wraps a long task token in the fixed-width popover", () => {
-    setTaskFieldVisibility(true);
+    setTaskFieldVisibility({ enabled: true });
     const task = "a".repeat(180);
     const allocation = makeAllocation({ task });
     render(<AllocationBar bar={makeBar(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);

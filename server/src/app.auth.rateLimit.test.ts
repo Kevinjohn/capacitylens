@@ -15,7 +15,8 @@ vi.hoisted(() => {
 // are module-wide, so each test uses its own addresses.
 const { trackApp, trackDb } = registerServerFixtureCleanup();
 
-async function appWithCredentialLimit(trustProxyHeaders: boolean): Promise<FastifyInstance> {
+type AppWithCredentialLimitOptions = { trustProxyHeaders: boolean };
+async function appWithCredentialLimit({ trustProxyHeaders }: AppWithCredentialLimitOptions): Promise<FastifyInstance> {
   const db = trackDb(openDb(":memory:"));
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   if (!auth) throw new Error("Expected authentication to be configured.");
@@ -34,7 +35,7 @@ const signIn = (app: FastifyInstance, remoteAddress: string, headers: Record<str
 
 describe("credential rate limit client identity", () => {
   it("gives each client its own sign-in bucket", async () => {
-    const app = await appWithCredentialLimit(false);
+    const app = await appWithCredentialLimit({ trustProxyHeaders: false });
     for (let attempt = 0; attempt < 3; attempt++) expect(await signIn(app, "192.0.2.1")).toBe(401);
     expect(await signIn(app, "192.0.2.1")).toBe(429);
     expect(await signIn(app, "192.0.2.2")).toBe(401);
@@ -44,7 +45,7 @@ describe("credential rate limit client identity", () => {
     ["x-forwarded-for", "192.0.2.3"],
     ["x-capacitylens-client-ip", "192.0.2.4"],
   ])("ignores a client-supplied %s when proxy headers are not trusted", async (header, socketAddress) => {
-    const app = await appWithCredentialLimit(false);
+    const app = await appWithCredentialLimit({ trustProxyHeaders: false });
     for (let attempt = 0; attempt < 3; attempt++) {
       expect(await signIn(app, socketAddress, { [header]: `198.51.100.${attempt}` })).toBe(401);
     }
@@ -52,7 +53,7 @@ describe("credential rate limit client identity", () => {
   });
 
   it("keys on the forwarded client when proxy headers are trusted", async () => {
-    const app = await appWithCredentialLimit(true);
+    const app = await appWithCredentialLimit({ trustProxyHeaders: true });
     for (let attempt = 0; attempt < 3; attempt++) {
       expect(await signIn(app, "127.0.0.1", { "x-forwarded-for": "203.0.113.1" })).toBe(401);
     }

@@ -44,11 +44,16 @@ async function refreshInvalidResult(setState: InviteStateSetter): Promise<void> 
   setState({ kind: "error", message });
 }
 
-async function resolveRejectedMessage(
-  response: Response,
-  outcomeUnknown: boolean,
-  failure: Awaited<ReturnType<typeof readAccountFailure>>,
-): Promise<string> {
+type ResolveRejectedMessageOptions = {
+  response: Response;
+  outcomeUnknown: boolean;
+  failure: Awaited<ReturnType<typeof readAccountFailure>>;
+};
+async function resolveRejectedMessage({
+  response,
+  outcomeUnknown,
+  failure,
+}: ResolveRejectedMessageOptions): Promise<string> {
   let reconciliation = "";
   if (outcomeUnknown) {
     const list = await refreshAccountSummaries({ allowCachedFallback: false });
@@ -73,7 +78,11 @@ async function reportRejectedAcceptance(
     setState({ kind: "auth", message: resolveMessageForStatus(401, failure.message ?? undefined) });
     return;
   }
-  const message = await resolveRejectedMessage(response, outcomeUnknown, failure);
+  const message = await resolveRejectedMessage({
+    response: response,
+    outcomeUnknown: outcomeUnknown,
+    failure: failure,
+  });
   setState({
     kind: "error",
     message,

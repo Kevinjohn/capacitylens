@@ -166,7 +166,8 @@ type Survivors = Record<string, Array<Record<string, unknown>>>;
  * columns (absent normalised to null, since the DB omits an optional column the TS side sets to
  * `undefined`) and, when `withRestamps`, whether the row's updatedAt moved off the seeded value.
  */
-function survivors(data: AppData, withRestamps: boolean): Survivors {
+type SurvivorsOptions = { data: AppData; withRestamps: boolean };
+function survivors({ data, withRestamps }: SurvivorsOptions): Survivors {
   const source = data as unknown as Record<string, Array<Record<string, unknown>>>;
   const out: Survivors = {};
   for (const [table, columns] of Object.entries(FK_COLUMNS)) {
@@ -204,9 +205,9 @@ function expectParity(
 ): void {
   const fromDatabase = withSeededDb((db) => {
     sql(db);
-    return survivors(readState(db), withRestamps);
+    return survivors({ data: readState(db), withRestamps: withRestamps });
   });
-  expect(fromDatabase).toEqual(survivors(transform(seed()), withRestamps));
+  expect(fromDatabase).toEqual(survivors({ data: transform(seed()), withRestamps: withRestamps }));
 }
 
 const purge = (entity: "resources" | "clients" | "projects", id: string) => (db: Db) => {

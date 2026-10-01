@@ -92,7 +92,7 @@ async function confirmPassword(email: string, state: ReauthState) {
       state.setBusy(false);
       return;
     }
-    completeReauth(true);
+    completeReauth({ reauthenticated: true });
   } catch (error) {
     console.error("ReauthDialog: password re-auth request failed", error);
     state.setError(m.login_network_error());
@@ -113,7 +113,7 @@ async function confirmSecondFactor(state: ReauthState) {
       state.setBusy(false);
       return;
     }
-    completeReauth(true);
+    completeReauth({ reauthenticated: true });
   } catch (error) {
     console.error("ReauthDialog: second-factor re-auth verification failed", error);
     state.setError(m.login_network_error());
@@ -154,7 +154,7 @@ export function ReauthDialog({
   action = null,
 }: ReauthDialogProps) {
   const state = useReauthState();
-  const cancel = () => completeReauth(false);
+  const cancel = () => completeReauth({ reauthenticated: false });
   if (reauthMethod === "provider") {
     const selected = reauthProviderId ? providers.filter((provider) => provider.id === reauthProviderId) : providers;
     return <ProviderDialog providers={selected} state={state} cancel={cancel} action={action} />;

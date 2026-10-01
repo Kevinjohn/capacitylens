@@ -7,7 +7,7 @@ const PERSISTENCE_WARNING = "Changes aren’t being saved right now — we’ll 
 
 function registerBeforeEachHooks() {
   test.beforeEach(async ({ request }) => {
-    await resetServer(request, true);
+    await resetServer({ request: request, withSeed: true });
   });
 }
 

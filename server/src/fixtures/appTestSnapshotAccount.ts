@@ -186,6 +186,10 @@ export function readResourceResponse(response: LightMyRequestResponse): Resource
   return readFirstResource(readResourceSnapshots([response.json()]));
 }
 
-export async function patchResourceFavourite(app: FastifyInstance, isFavourite: boolean): Promise<ResourceSnapshot> {
+type PatchResourceFavouriteOptions = { app: FastifyInstance; isFavourite: boolean };
+export async function patchResourceFavourite({
+  app,
+  isFavourite,
+}: PatchResourceFavouriteOptions): Promise<ResourceSnapshot> {
   return readResourceResponse(await patch({ app, entity: "resources", id: "r1", payload: { isFavourite } }));
 }

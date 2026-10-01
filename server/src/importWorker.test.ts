@@ -25,7 +25,8 @@ function readMessageListener(port: ReturnType<typeof createPort>) {
   return registration[1];
 }
 
-function mockWorkerModule(isMainThread: boolean, parentPort: ReturnType<typeof createPort> | null) {
+type MockWorkerModuleOptions = { isMainThread: boolean; parentPort: ReturnType<typeof createPort> | null };
+function mockWorkerModule({ isMainThread, parentPort }: MockWorkerModuleOptions) {
   vi.doMock("node:worker_threads", () => ({ isMainThread, parentPort }));
 }
 
@@ -53,7 +54,7 @@ afterEach(() => {
 describe("import worker protocol", () => {
   it("installs no listener on the main thread", async () => {
     const port = createPort();
-    mockWorkerModule(true, port);
+    mockWorkerModule({ isMainThread: true, parentPort: port });
     mockDomain(vi.fn());
 
     await import("./importWorker");
@@ -62,7 +63,7 @@ describe("import worker protocol", () => {
   });
 
   it("refuses to start without a parent port", async () => {
-    mockWorkerModule(false, null);
+    mockWorkerModule({ isMainThread: false, parentPort: null });
     mockDomain(vi.fn());
 
     await expect(import("./importWorker")).rejects.toThrow("Import worker started without a parent port.");
@@ -71,7 +72,7 @@ describe("import worker protocol", () => {
   it("registers one listener and forwards successful imports", async () => {
     const port = createPort();
     const remapAndValidateImport = vi.fn(() => result);
-    mockWorkerModule(false, port);
+    mockWorkerModule({ isMainThread: false, parentPort: port });
     mockDomain(remapAndValidateImport);
 
     await import("./importWorker");
@@ -91,7 +92,7 @@ describe("import worker protocol", () => {
     const remapAndValidateImport = vi.fn(() => {
       throw failure;
     });
-    mockWorkerModule(false, port);
+    mockWorkerModule({ isMainThread: false, parentPort: port });
     mockDomain(remapAndValidateImport);
 
     await import("./importWorker");
@@ -108,7 +109,7 @@ describe("import worker protocol", () => {
   it("serializes non-Error failures", async () => {
     const port = createPort();
     const remapAndValidateImport = vi.fn(() => runInNewContext("throw 42"));
-    mockWorkerModule(false, port);
+    mockWorkerModule({ isMainThread: false, parentPort: port });
     mockDomain(remapAndValidateImport);
 
     await import("./importWorker");

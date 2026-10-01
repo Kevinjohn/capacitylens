@@ -37,9 +37,13 @@ const MicrosoftVerificationScreen = lazy(() =>
 
 type CheckAuth = (onNull: "fail-open" | "keep-previous") => Promise<AuthStatusResult | null>;
 
-function useTenantAccessReady(status: AuthStatusResult, onTenantAccessReady?: () => void) {
+function useTenantAccessReady(
+  status: AuthStatusResult,
+  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void,
+) {
   const tenantAccessSignalled = useRef(false);
   const ready = status.kind === "pass" && !(allowsPasswordSignIn(status.authMode) && status.mfaRequired);
+  const identitySource = status.kind === "pass" ? (status.identitySource ?? "open") : "open";
   useEffect(() => {
     if (!ready) {
       tenantAccessSignalled.current = false;
@@ -47,11 +51,12 @@ function useTenantAccessReady(status: AuthStatusResult, onTenantAccessReady?: ()
     }
     if (tenantAccessSignalled.current) return;
     tenantAccessSignalled.current = true;
-    onTenantAccessReady?.();
-  }, [onTenantAccessReady, ready]);
+    onTenantAccessReady?.(identitySource);
+  }, [identitySource, onTenantAccessReady, ready]);
 }
 
-function useAuthStatus(serverMode: boolean) {
+type UseAuthStatusOptions = { serverMode: boolean };
+function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
   const [status, setStatus] = useState<AuthStatusResult>(
     serverMode ? { kind: "checking" } : buildOpenAuthResult("off", null),
   );
@@ -113,7 +118,12 @@ function useAuthRevalidation({
   }, [serverMode, refreshAuth]);
 }
 
-function useAuthInvalidation(serverMode: boolean, checkAuth: CheckAuth, setStatus: (status: AuthStatusResult) => void) {
+type UseAuthInvalidationOptions = {
+  serverMode: boolean;
+  checkAuth: CheckAuth;
+  setStatus: (status: AuthStatusResult) => void;
+};
+function useAuthInvalidation({ serverMode, checkAuth, setStatus }: UseAuthInvalidationOptions) {
   useEffect(() => {
     if (!serverMode) return;
     const onAuthInvalidation = (event: StorageEvent) => {
@@ -222,9 +232,9 @@ export function AuthProvider({
   onTenantAccessReady,
 }: {
   children: ReactNode;
-  /** Starts tenant-data hydration only after /me admits this boot. The callback must be idempotent
-   * because React development StrictMode deliberately replays effects. */
-  onTenantAccessReady?: () => void;
+  /** Starts tenant-data hydration after /me admits access. Receives whether identity is live,
+   * cached offline, or open; the callback must be idempotent under StrictMode effect replay. */
+  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void;
 }) {
   if (/^\/verify-microsoft\/?$/.test(window.location.pathname)) {
     return (
@@ -245,14 +255,14 @@ function AuthenticatedAppProvider({
   onTenantAccessReady,
 }: {
   children: ReactNode;
-  onTenantAccessReady?: () => void;
+  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void;
 }) {
   const serverMode = isServerConfigured();
   const persistError = useStore((state) => state.persistError);
-  const { status, setStatus, checkAuth, refreshAuth, confirmMfaEnrollment } = useAuthStatus(serverMode);
+  const { status, setStatus, checkAuth, refreshAuth, confirmMfaEnrollment } = useAuthStatus({ serverMode });
   useTenantAccessReady(status, onTenantAccessReady);
   useAuthRevalidation({ serverMode, persistError, checkAuth, refreshAuth });
-  useAuthInvalidation(serverMode, checkAuth, setStatus);
+  useAuthInvalidation({ serverMode, checkAuth, setStatus });
 
   useEffect(() => {
     if (status.kind === "error") {

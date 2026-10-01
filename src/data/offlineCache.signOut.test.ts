@@ -147,7 +147,7 @@ describe("offline tenant cache sign-out failures", () => {
 
   it("drops page-local offline state when the offline database cannot open", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
-    setOfflineReadState("tenant", true, 123);
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: 123 });
     vi.spyOn(indexedDB, "open").mockImplementation(() => {
       throw new Error("The offline database could not open.");
     });

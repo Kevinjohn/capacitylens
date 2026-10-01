@@ -73,11 +73,11 @@ vi.mock("../../data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();

@@ -40,10 +40,12 @@ async function attachHeldLossSwitch() {
   const onError = vi.fn();
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
-  useStore.getState().setAccountSummaries([
-    { id: "a2", name: "Beta", role: "owner" },
-    { id: "b1", name: "Beta Two", role: "owner" },
-  ]);
+  useStore.getState().setAccountSummaries({
+    list: [
+      { id: "a2", name: "Beta", role: "owner" },
+      { id: "b1", name: "Beta Two", role: "owner" },
+    ],
+  });
   const detach = attachPersistence({
     store: useStore,
     adapter: { loadAll, saveAll },
@@ -73,10 +75,12 @@ async function attachRecoverableAccountSwitch() {
   const onSuccess = vi.fn();
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
-  useStore.getState().setAccountSummaries([
-    { id: "a2", name: "Beta", role: "owner" },
-    { id: "b1", name: "Beta Two", role: "owner" },
-  ]);
+  useStore.getState().setAccountSummaries({
+    list: [
+      { id: "a2", name: "Beta", role: "owner" },
+      { id: "b1", name: "Beta Two", role: "owner" },
+    ],
+  });
   const detach = attachPersistence({
     store: useStore,
     adapter: { loadAll, saveAll },

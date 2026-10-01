@@ -235,7 +235,7 @@ function createAllocationReferenceValidationTests(): void {
   });
 
   it("fails closed when a corrupt project-bound activity points at another account's project", async () => {
-    const { app, db } = freshApp(true, { multiAccount: true });
+    const { app, db } = freshApp({ allowReset: true, extra: { multiAccount: true } });
     await post(app, "accounts", account("a1"));
     await post(app, "accounts", account("a2"));
     await post(app, "clients", client("c2", "a2"));

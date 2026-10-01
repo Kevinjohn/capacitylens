@@ -18,7 +18,8 @@ export function hashJoiningValue(kind: string, value: string): string {
   return createHash("sha256").update(`company-join-${kind}\0`).update(value).digest("hex");
 }
 
-export function joiningCookieNames(applicationId: string, secure: boolean) {
+type JoiningCookieNamesOptions = { applicationId: string; secure: boolean };
+export function joiningCookieNames({ applicationId, secure }: JoiningCookieNamesOptions) {
   const prefix = `${secure ? "__Host-" : ""}${applicationId}-join`;
   return { browser: `${prefix}-browser`, intent: `${prefix}-intent` };
 }

@@ -62,7 +62,7 @@ export function resetAllocationModalStore(): void {
   // via the Assignee picker, which only offers placeholders when the pref is on — enable it for
   // every suite. The risk-A case (editing an allocation already ON a placeholder while the pref is
   // OFF still shows that placeholder) has its own dedicated test in AllocationModal.edit.test.tsx.
-  setPlaceholdersEnabled(true);
+  setPlaceholdersEnabled({ on: true });
 }
 
 export const person = (name: string) => makeResourceDraft({ name, role: "Dev", color: "#111" });

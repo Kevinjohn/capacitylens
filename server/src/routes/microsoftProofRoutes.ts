@@ -53,7 +53,12 @@ function parseStart(body: unknown): {
   };
 }
 
-export function registerMicrosoftProofRoutes(app: FastifyInstance, auth: Auth, trustProxyHeaders = false): void {
+type RegisterMicrosoftProofRoutesOptions = { app: FastifyInstance; auth: Auth; trustProxyHeaders?: boolean };
+export function registerMicrosoftProofRoutes({
+  app,
+  auth,
+  trustProxyHeaders = false,
+}: RegisterMicrosoftProofRoutesOptions): void {
   const proof = auth.microsoftProof;
   if (!proof) return;
   app.post("/api/account/microsoft/start", async (req: FastifyRequest, reply) => {

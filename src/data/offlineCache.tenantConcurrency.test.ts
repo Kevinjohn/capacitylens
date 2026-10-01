@@ -326,7 +326,7 @@ describe("offline tenant cache cross-tab boundaries", () => {
     expect(preferenceChanged).toHaveBeenCalledOnce();
     await expect(getRaw(`slice:${currentCacheNamespace()}:user-a:a-studio`)).resolves.toBeDefined();
 
-    setOfflineReadState("tenant", true, 123);
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: 123 });
     window.dispatchEvent(
       new StorageEvent("storage", {
         key: "capacitylens/offlineWriteBoundary",
