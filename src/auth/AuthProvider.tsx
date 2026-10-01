@@ -1,4 +1,3 @@
-import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { isServerConfigured } from "../data/apiConfig";
@@ -24,11 +23,6 @@ import { useAuthContextValue } from "./useAuthContextValue";
 // lazy chunk so better-auth's client never loads unless a login is actually shown.
 
 const LoginScreen = lazy(() => import("./LoginScreen").then((screenModule) => ({ default: screenModule.LoginScreen })));
-const MfaEnrollmentScreen = lazy(() =>
-  import("./MfaEnrollmentScreen").then((screenModule) => ({
-    default: screenModule.MfaEnrollmentScreen,
-  })),
-);
 const MicrosoftVerificationScreen = lazy(() =>
   import("./MicrosoftVerificationScreen").then((screenModule) => ({
     default: screenModule.MicrosoftVerificationScreen,
@@ -42,7 +36,7 @@ function useTenantAccessReady(
   onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void,
 ) {
   const tenantAccessSignalled = useRef(false);
-  const ready = status.kind === "pass" && !(allowsPasswordSignIn(status.authMode) && status.mfaRequired);
+  const ready = status.kind === "pass";
   const identitySource = status.kind === "pass" ? (status.identitySource ?? "open") : "open";
   useEffect(() => {
     if (!ready) {
@@ -78,12 +72,7 @@ function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
   const refreshAuth = useCallback(async () => {
     if (serverMode) await checkAuth("keep-previous");
   }, [serverMode, checkAuth]);
-  const confirmMfaEnrollment = useCallback(async () => {
-    if (!serverMode) return true;
-    const next = await checkAuth("keep-previous");
-    return next?.kind === "pass" && !next.mfaRequired;
-  }, [serverMode, checkAuth]);
-  return { status, setStatus, checkAuth, refreshAuth, confirmMfaEnrollment };
+  return { status, setStatus, checkAuth, refreshAuth };
 }
 
 function useAuthRevalidation({
@@ -259,7 +248,7 @@ function AuthenticatedAppProvider({
 }) {
   const serverMode = isServerConfigured();
   const persistError = useStore((state) => state.persistError);
-  const { status, setStatus, checkAuth, refreshAuth, confirmMfaEnrollment } = useAuthStatus({ serverMode });
+  const { status, setStatus, checkAuth, refreshAuth } = useAuthStatus({ serverMode });
   useTenantAccessReady(status, onTenantAccessReady);
   useAuthRevalidation({ serverMode, persistError, checkAuth, refreshAuth });
   useAuthInvalidation({ serverMode, checkAuth, setStatus });
@@ -293,17 +282,6 @@ function AuthenticatedAppProvider({
       <LoginBoundary status={status} authContextValue={authContextValue}>
         {children}
       </LoginBoundary>
-    );
-  }
-  if (status.mfaRequired && allowsPasswordSignIn(status.authMode)) {
-    return (
-      <Suspense fallback={<AuthLoading message={m.auth_loading_sign_in()} />}>
-        <MfaEnrollmentScreen
-          blockedEntry={resolvePublicAuthEntry(window.location.pathname)}
-          onEnrolled={confirmMfaEnrollment}
-          onSignOut={() => void signOut()}
-        />
-      </Suspense>
     );
   }
   return (

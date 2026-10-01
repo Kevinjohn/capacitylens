@@ -345,8 +345,8 @@ deep health stays `degraded` or `pending`, or the host reports no free blocks or
    snapshot or truncate an audit log to make room.
 3. Free space only from disposable material that is already retained elsewhere, such as
    an old release directory or a verified off-host copy of an older snapshot. Keep the
-   configured retention policy; the storage-encryption setting is an advisory attestation,
-   not a substitute for preserving evidence.
+   configured retention policy; encrypted storage is not a substitute for preserving
+   evidence.
 4. Confirm the database, audit and backup paths are writable, then restart the service and
    recheck deep health. Wait for one complete scheduled snapshot. If the next snapshot
    fails, the database reports an integrity error, or SQLite cannot reopen the database,

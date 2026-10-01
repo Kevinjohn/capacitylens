@@ -17,6 +17,28 @@ new features and **patch** versions carry fixes.
   Owner or Admin can add it, and the server refuses a company that already has people, clients,
   projects or allocations (#1388).
 
+### Changed
+
+- Under `NODE_ENV=production`, an unset `CAPACITYLENS_CORS_ORIGIN` now allows the origin of
+  `SMALLSASS_ACCOUNT_PUBLIC_URL` instead of the local development origins. An explicitly empty value
+  still allows none, and Docker Compose keeps passing it empty (#1407).
+- `.env.example` is regrouped as the operator reference: required, common, company providers, mail
+  and operations. Development and test variables moved to the development guide (#1407).
+
+### Removed
+
+- Startup no longer recognises the removed account variable names, the generic OIDC settings or the
+  `hosted-oidc-only` profile; they are unknown settings now, and `hosted-oidc-only` is an invalid
+  profile. Docker Compose stops forwarding them (#1407).
+- `CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED` is gone; use `CAPACITYLENS_TRUST_PROXY_HEADERS` (#1407).
+- `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` is gone: stale writes are always rejected (#1407).
+- Password MFA is hidden: `SMALLSASS_ACCOUNT_REQUIRE_MFA` is no longer read, the enrolment screen no
+  longer appears, and Account no longer shows MFA status. Its startup warning is gone (#1407).
+- `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED`, `CAPACITYLENS_STORAGE_ENCRYPTED` and
+  `CAPACITYLENS_SECURITY_LOG_FORWARDING` and their startup warnings are gone. Requiring multi-factor
+  sign-in at the provider, encrypting storage and forwarding logs remain operator tasks described in
+  the guides. A missing internal TLS identity still warns, now on its own line (#1407).
+
 ### Fixed
 
 - Password sign-in reaches the company picker without requesting an unscoped state snapshot (#1338).

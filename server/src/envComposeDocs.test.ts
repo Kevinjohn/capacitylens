@@ -17,6 +17,10 @@ const bareMetalInstall = readFileSync(
   fileURLToPath(new URL("../../docs-src/self-hosting/install-without-docker.md", import.meta.url)),
   "utf8",
 );
+const developmentGuide = readFileSync(
+  fileURLToPath(new URL("../../docs-src/reference/development.md", import.meta.url)),
+  "utf8",
+);
 const nginxConf = readFileSync(fileURLToPath(new URL("../../nginx.conf", import.meta.url)), "utf8");
 const clientNginxConf = readFileSync(
   fileURLToPath(new URL("../../nginx.client.conf.template", import.meta.url)),
@@ -33,7 +37,7 @@ const inviteActionsAt = (source: string, anchor: RegExp): string[] => {
 };
 
 const registerNamedProviderComposeTest = (): void => {
-  it("passes company-provider settings and marks configured retired OIDC names for refusal", () => {
+  it("passes company-provider and mail settings through Compose unchanged", () => {
     const apiService = compose.split("\n  api:\n")[1]?.split("\n  web:\n")[0];
     expect(apiService).toBeDefined();
     const apiLines = apiService?.split("\n").map((line) => line.trim());
@@ -52,24 +56,10 @@ const registerNamedProviderComposeTest = (): void => {
     ]) {
       expect(apiLines).toContain(`${name}: ${"${"}${name}:-}`);
     }
-    for (const key of [
-      "CLIENT_ID",
-      "CLIENT_SECRET",
-      "DISCOVERY_URL",
-      "ISSUER",
-      "AUTHORIZATION_URL",
-      "TOKEN_URL",
-      "SCOPES",
-      "PROVIDER_ID",
-      "LABEL",
-      "BRAND",
-      "BOOTSTRAP_EMAILS",
-    ]) {
-      for (const prefix of ["SMALLSASS_ACCOUNT_OIDC_", "CAPACITYLENS_SSO_"]) {
-        const name = `${prefix}${key}`;
-        expect(apiLines).toContain(`${name}: ${"${"}${name}:+configured}`);
-      }
-    }
+  });
+
+  it("keeps the CORS allow-list explicitly empty so Compose stays fail-closed", () => {
+    expect(compose).toMatch(/^\s+CAPACITYLENS_CORS_ORIGIN: \$\{CAPACITYLENS_CORS_ORIGIN:-\}$/m);
   });
 };
 
@@ -93,13 +83,13 @@ describe("Compose exceptions in the environment register", () => {
     expect(compose).toMatch(/CAPACITYLENS_DB:\s*\/data\/capacitylens\.db/);
   });
 
-  it("documents development-only values deliberately omitted from the production container", () => {
+  it("documents development-only values outside the operator register and the production container", () => {
+    expect(developmentGuide).toContain(
+      "Compose does not pass `CAPACITYLENS_ALLOW_RESET` or `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`",
+    );
     for (const name of ["CAPACITYLENS_ALLOW_RESET", "CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD"]) {
-      expect(envExample).toMatch(
-        new RegExp(
-          `Compose (?:deliberately )?does\\n?#? ?not pass[\\s\\S]*?${name}|${name}[\\s\\S]*?Compose (?:deliberately )?does\\n?#? ?not pass`,
-        ),
-      );
+      expect(envExample).not.toContain(name);
+      expect(developmentGuide).toContain(`| \`${name}\` |`);
       expect(compose).not.toMatch(new RegExp(`^\\s+${name}:`, "m"));
     }
   });

@@ -29,7 +29,6 @@ describe("access lab environment isolation", () => {
       PORT: "8897",
       CAPACITYLENS_HOST: "127.0.0.1",
       CAPACITYLENS_ALLOW_RESET: "0",
-      SMALLSASS_ACCOUNT_REQUIRE_MFA: "0",
       SMALLSASS_ACCOUNT_MODE: "password-only",
       CAPACITYLENS_SEED_DEMO: "0",
       CAPACITYLENS_HTTPS: "0",
@@ -38,6 +37,7 @@ describe("access lab environment isolation", () => {
       VITE_CAPACITYLENS_API: "",
     });
     expect(env.CAPACITYLENS_OIDC_ISSUER).toBeUndefined();
+    expect(env.SMALLSASS_ACCOUNT_REQUIRE_MFA).toBeUndefined();
     expect(env.SMALLSASS_ACCOUNT_SECRET).toBe("capacitylens-access-lab-secret-0123456789abcdef");
   });
 });

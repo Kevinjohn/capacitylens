@@ -178,16 +178,7 @@ async function acceptsNamedCompanyConnection(): Promise<void> {
 // refusal case boots twice. The per-test budget must cover the spawn budgets, not vitest's 5 s
 // default: on the shared CI runner the two-boot case already sat near that default before the
 // server module graph grew.
-// eslint-disable-next-line max-lines-per-function
 describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
-  it("refuses a retired account name and identifies its canonical replacement", () => {
-    const result = boot({ CAPACITYLENS_AUTH: "password" });
-
-    expect(result.status, result.stderr).toBe(1);
-    expect(result.stderr).toContain("CAPACITYLENS_AUTH was removed; use SMALLSASS_ACCOUNT_MODE");
-    expect(result.stderr).not.toContain("at resolveAccountEnvironment");
-  });
-
   it("refuses a direct SSO-only flip without a verified provider link", async () => {
     const { database, directory } = await createSsoCutoverDatabase();
     try {

@@ -813,16 +813,7 @@ function registerCredentialAndDiscoveryConfigurationTests(): void {
   });
 }
 
-function registerRetiredProviderRefusalTests(): void {
-  it.each([
-    ["SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL", "https://idp.test/authorize"],
-    ["SMALLSASS_ACCOUNT_OIDC_TOKEN_URL", "https://idp.test/token"],
-    ["SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL", "https://idp.test/.well-known/openid-configuration"],
-    ["SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID", "company-sso"],
-  ])("rejects retired generic provider setting %s", (key, value) => {
-    expect(() => createAuthFromEnvironment(openDb(":memory:"), { ...SSO_ENV, [key]: value })).toThrow(new RegExp(key));
-  });
-
+function registerBuildAppRefusalTests(): void {
   it("buildApp refuses authMode ≠ off without an auth instance", () => {
     expect(() => createApp(openDb(":memory:"), { authMode: "password-only" })).toThrow(
       /requires a Better Auth instance/,
@@ -833,5 +824,5 @@ function registerRetiredProviderRefusalTests(): void {
 describe("boot refusal (AuthConfigError)", () => {
   registerAuthModeRefusalTests();
   registerCredentialAndDiscoveryConfigurationTests();
-  registerRetiredProviderRefusalTests();
+  registerBuildAppRefusalTests();
 });

@@ -11,13 +11,9 @@ type ProductionEnv = {
 
 const FULLY_HARDENED_PRODUCTION_CONTROLS: ProductionEnv = {
   NODE_ENV: "production",
-  SMALLSASS_ACCOUNT_REQUIRE_MFA: "1",
-  SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED: "1",
   CAPACITYLENS_RATE_LIMIT: "240",
   CAPACITYLENS_AUDIT: "on",
   CAPACITYLENS_AUDIT_STDOUT: "1",
-  CAPACITYLENS_STORAGE_ENCRYPTED: "1",
-  CAPACITYLENS_SECURITY_LOG_FORWARDING: "1",
   CAPACITYLENS_INTERNAL_TLS_CERT: "/run/capacitylens-internal-tls/api.crt",
   CAPACITYLENS_INTERNAL_TLS_KEY: "/run/capacitylens-internal-tls/api.key",
 };
@@ -25,31 +21,15 @@ const FULLY_HARDENED_PRODUCTION_CONTROLS: ProductionEnv = {
 const envExample = readFileSync(fileURLToPath(new URL("../../.env.example", import.meta.url)), "utf8");
 
 const OPTIONAL_HARDENING_CASES = [
-  ["MFA", { SMALLSASS_ACCOUNT_MODE: "password-only", SMALLSASS_ACCOUNT_REQUIRE_MFA: undefined }, /REQUIRE_MFA/],
   [
     "breach checking",
     { SMALLSASS_ACCOUNT_MODE: "password-only", SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off" },
     /PASSWORD_BREACH_CHECK/,
   ],
   [
-    "SSO MFA assurance",
-    { SMALLSASS_ACCOUNT_MODE: "sso-only", SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED: undefined },
-    /SSO_MFA_ENFORCED/,
-  ],
-  [
     "audit forwarding output",
     { SMALLSASS_ACCOUNT_MODE: "sso-only", CAPACITYLENS_AUDIT_STDOUT: undefined },
     /AUDIT_STDOUT/,
-  ],
-  [
-    "encrypted storage",
-    { SMALLSASS_ACCOUNT_MODE: "sso-only", CAPACITYLENS_STORAGE_ENCRYPTED: undefined },
-    /STORAGE_ENCRYPTED/,
-  ],
-  [
-    "central security-log forwarding",
-    { SMALLSASS_ACCOUNT_MODE: "sso-only", CAPACITYLENS_SECURITY_LOG_FORWARDING: undefined },
-    /SECURITY_LOG_FORWARDING/,
   ],
   [
     "internal service TLS",
@@ -103,7 +83,7 @@ describe("evaluateProductionPosture", () => {
 
   it("refuses boot when auth is explicitly OFF in production", () => {
     // An unset mode never reaches the guard in production: the entrypoint defaults it first.
-    const result = productionPosture({ SMALLSASS_ACCOUNT_MODE: "off", CAPACITYLENS_STORAGE_ENCRYPTED: undefined });
+    const result = productionPosture({ SMALLSASS_ACCOUNT_MODE: "off", CAPACITYLENS_AUDIT_STDOUT: undefined });
     expect(result.refusals).toHaveLength(1);
     // The single refusal must name the auth env var / mode so the operator knows what to change.
     expect(result.refusals[0]).toMatch(/SMALLSASS_ACCOUNT_MODE/);
@@ -141,33 +121,6 @@ describe("production transport and optional-control posture", () => {
     });
     expect(result.refusals).toEqual([]);
     expect(result.warnings).toEqual([]);
-  });
-
-  it("reports the three unattested controls as one line that names each absent one", () => {
-    const result = productionPosture({
-      SMALLSASS_ACCOUNT_MODE: "sso-only",
-      CAPACITYLENS_STORAGE_ENCRYPTED: undefined,
-      CAPACITYLENS_SECURITY_LOG_FORWARDING: undefined,
-      CAPACITYLENS_INTERNAL_TLS_CERT: undefined,
-      CAPACITYLENS_INTERNAL_TLS_KEY: undefined,
-    });
-    expect(result.refusals).toEqual([]);
-    expect(result.warnings).toHaveLength(1);
-    for (const variable of [
-      "CAPACITYLENS_STORAGE_ENCRYPTED",
-      "CAPACITYLENS_SECURITY_LOG_FORWARDING",
-      "CAPACITYLENS_INTERNAL_TLS_CERT",
-    ]) {
-      expect(result.warnings[0]).toContain(variable);
-    }
-  });
-
-  it("names only the controls that are actually absent", () => {
-    const result = productionPosture({ SMALLSASS_ACCOUNT_MODE: "sso-only", CAPACITYLENS_STORAGE_ENCRYPTED: undefined });
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toContain("CAPACITYLENS_STORAGE_ENCRYPTED");
-    expect(result.warnings[0]).not.toContain("CAPACITYLENS_SECURITY_LOG_FORWARDING");
-    expect(result.warnings[0]).not.toContain("CAPACITYLENS_INTERNAL_TLS_CERT");
   });
 });
 

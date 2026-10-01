@@ -31,6 +31,7 @@ describe("applyProductionDefaults", () => {
       CAPACITYLENS_HEALTH_DEEP: "1",
       CAPACITYLENS_AUDIT_STDOUT: "1",
       SMALLSASS_ACCOUNT_MODE: "password-only",
+      CAPACITYLENS_CORS_ORIGIN: "https://schedule.example.test",
       CAPACITYLENS_BACKUP_DIR: "/srv/capacitylens/data/backups",
     });
     expect(parseRateLimit(environment.CAPACITYLENS_RATE_LIMIT)).toBe(300);
@@ -38,12 +39,10 @@ describe("applyProductionDefaults", () => {
     expect(parseBackupConfig(environment)?.dir).toBe("/srv/capacitylens/data/backups");
   });
 
-  it("boots the minimal environment with one MFA warning and one unattested-hardening line", () => {
+  it("boots the minimal environment with only the plain-HTTP internal hop warning", () => {
     const { refusals, warnings } = evaluateProductionPosture(resolveAccountEnvironment(defaulted()).env);
     expect(refusals).toEqual([]);
-    expect(warnings).toHaveLength(2);
-    expect(warnings.filter((warning) => warning.includes("SMALLSASS_ACCOUNT_REQUIRE_MFA"))).toHaveLength(1);
-    expect(warnings.filter((warning) => warning.startsWith("Unattested hardening"))).toHaveLength(1);
+    expect(warnings).toEqual([expect.stringContaining("CAPACITYLENS_INTERNAL_TLS_CERT")]);
   });
 
   it("changes nothing outside production", () => {
@@ -85,6 +84,24 @@ describe("applyProductionDefaults explicit choices and backups", () => {
       defaulted({ SMALLSASS_ACCOUNT_MODE: "off", CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1" }),
     );
     expect(allowed.refusals).toEqual([]);
+  });
+
+  it.each([
+    [
+      "the public URL's origin when unset",
+      { SMALLSASS_ACCOUNT_PUBLIC_URL: " https://Schedule.example.test:8443/ " },
+      "https://schedule.example.test:8443",
+    ],
+    [
+      "an explicit allow-list unchanged",
+      { CAPACITYLENS_CORS_ORIGIN: "https://client.example.test" },
+      "https://client.example.test",
+    ],
+    ["an explicitly empty allow-list empty (fail-closed)", { CAPACITYLENS_CORS_ORIGIN: "" }, ""],
+    ["no origin without a public URL", { SMALLSASS_ACCOUNT_PUBLIC_URL: undefined }, undefined],
+    ["no origin for an unparseable public URL", { SMALLSASS_ACCOUNT_PUBLIC_URL: "not a url" }, undefined],
+  ] as const)("sets the CORS allow-list to %s", (_label, overrides, expected) => {
+    expect(defaulted(overrides).CAPACITYLENS_CORS_ORIGIN).toBe(expected);
   });
 
   it("treats an empty mode (a compose pass-through of an unset variable) as unset", () => {

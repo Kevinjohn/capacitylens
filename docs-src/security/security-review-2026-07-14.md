@@ -191,3 +191,13 @@ Two corrections to the DAST posture described above, made after the first public
   default posture is scanned by a separate non-blocking weekly job whose report is published as an
   artifact. Findings there document the default's accepted residual surface rather than failing
   the build.
+
+## Addendum — 2026-10-01
+
+- CL-06's control moved to operator documentation. `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED` and its
+  startup warning were removed; [company login](/company-login/) tells operators to require
+  multi-factor sign-in at the identity provider. The `CAPACITYLENS_STORAGE_ENCRYPTED` and
+  `CAPACITYLENS_SECURITY_LOG_FORWARDING` attestations behind CL-08 and CL-09 were removed the same
+  way; storage encryption and log forwarding remain operator controls described in the
+  self-hosting guides. Required password MFA is no longer configurable or shown in the interface;
+  its server code remains, and the blocking DAST baseline no longer enables it or the attestations.

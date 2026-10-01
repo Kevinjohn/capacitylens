@@ -110,7 +110,7 @@ path check cannot inspect.
 | Proxy/IdP/platform | TLS/access/WAF/container/identity/collector events                                                                                                           | deployment-defined separate systems                                                                  | operator must classify, redact, restrict, retain and correlate in UTC                                                     |
 
 Production requires application audit to remain enabled. Forwarding security events to a separate
-monitored destination is recommended but optional; its absent attestation produces a warning. The
+monitored destination is recommended but optional and is an operator control, not a setting. The
 local audit sink latches degradation into deep health. The runbook defines incident preservation and
 review, but the operator must document retention, access groups, time synchronization and alerts.
 

@@ -47,7 +47,7 @@ Content-Type: application/json
 ```
 
 Use the target member's company and principal IDs from the member directory.
-The request needs an authenticated, fresh session with any required MFA,
+The request needs an authenticated, fresh session,
 membership-management permission in that company, and identity-wide authority
 over the target across their companies. The server checks those rules again in
 the write transaction. The repair marks the corrected address verified and

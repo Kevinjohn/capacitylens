@@ -17,21 +17,19 @@ rebuild. Two prefixes are deliberate: sign-in and accounts are built as a separa
 platform component, so their settings carry the `SMALLSASS_ACCOUNT_` prefix, while
 everything specific to the app itself uses `CAPACITYLENS_`.
 
-## Listener and development settings
+## Listener settings
 
 For a source checkout, use Node 24 or newer and run `pnpm --filter capacitylens-server start`.
 A release archive needs no pnpm: it starts with `node --env-file=<your env file> server/dist/index.mjs`.
 The server binds to localhost by default. Set the host explicitly to expose it on a network.
+Development-only variables, such as the test reset route and the development owner helper, are
+listed in the [development guide](/reference/development#development-environment).
 
 | Variable | What it does |
 | --- | --- |
 | `PORT` | Listen port. Default `8787`; invalid values outside the integer range 1–65,535 refuse startup. |
 | `CAPACITYLENS_HOST` | Listen host. Default `127.0.0.1`; set `0.0.0.0` to expose the listener on the LAN or in a container. |
 | `CAPACITYLENS_WEB_DIR` | Folder holding the built web app, which the server then serves beside the API. Unset: a release archive serves its own `dist/` folder, and a source checkout serves the API only. Set it empty to serve the API only. A folder without `index.html` refuses startup. |
-| `CAPACITYLENS_ALLOW_RESET` | Set `1` to expose `POST /api/test/reset` for development and tests with sign-in off. Production refuses this setting. |
-| `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` | Enabled by default. Set `0` only to allow stale writes to overwrite newer changes. |
-| `CAPACITYLENS_CREATE_ADMIN_ADMIN` | Development-only first-owner helper, also available as `--create-owner-admin-admin`. Creates `admin@admin.admin` only when the password user table is empty. Production refuses this setting. |
-| `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` | Required password for that development-only owner helper. For production, use the account setup token instead. |
 
 ## Sign-in mode
 
@@ -62,11 +60,10 @@ After the first owner account and company have been created, remove
 signup already closes as soon as the first identity exists, but removing the secret invalidates the
 handoff material instead of leaving it available to operators or future processes.
 
-## Passwords and multi-factor sign-in
+## Password checks
 
-| Variable                                  | What it does                                                                                                                                    |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SMALLSASS_ACCOUNT_REQUIRE_MFA`           | Set `1` to require every password-mode teammate to enroll multi-factor sign-in before they can see company data.                                |
+| Variable | What it does |
+| --- | --- |
 | `SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK` | On by default: new passwords are checked against known breaches. Set `off` only for an isolated deployment that accepts the production warning. |
 
 ## Company login
@@ -89,7 +86,6 @@ external-provider settings at startup. Remove those settings before selecting th
 | `SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID` | Required organisation tenant GUID. `common`, `organizations`, personal-account tenants and a missing value are refused. |
 | `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS` | Comma-separated company email addresses allowed to create the first named-provider identity. Later new identities require an unused invitation addressed to them. |
 | `SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID` / `SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET` | Optional credentials for the existing experimental GitHub sign-in in mixed mode. |
-| `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED` | Operator attestation that the company provider requires multi-factor sign-in. Set it only after checking the upstream policy. |
 
 Register `https://your-capacitylens-address/api/auth/callback/google` for Google and
 `https://your-capacitylens-address/api/auth/callback/microsoft` for Microsoft, using your actual
@@ -132,12 +128,6 @@ Google and/or tenant-specific Microsoft configuration; it rejects passwords, Git
 and incomplete provider settings. Self-hosted installations that require company sign-in use
 `self-hosted-sso-only`. See [Require company sign-in](/company-login/move-to-single-sign-on).
 
-The retired generic OIDC settings and `hosted-oidc-only` profile are rejected at startup. In
-Docker Compose, a non-empty retired setting is forwarded only as a presence marker; its old
-secret value is not sent to the API container. Remove
-those settings and configure Google and/or Microsoft explicitly; CapacityLens does not fall back
-to password or sign-in-off mode.
-
 ## The database and backups
 
 | Variable                           | What it does                                                                                                                                                                                              |
@@ -172,7 +162,7 @@ The size setting is only read when audit logging is enabled.
 
 | Variable                           | What it does                                                                                                                                                                                                                                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CAPACITYLENS_CORS_ORIGIN`         | Comma-separated browser origins to allow, only needed if the web app and API are on different origins. Defaults to local development origins. Wildcards are rejected because browser requests use cookie credentials.                                                                          |
+| `CAPACITYLENS_CORS_ORIGIN`         | Comma-separated browser origins to allow, only needed if the web app and API are on different origins. Unset under production, it is the origin of `SMALLSASS_ACCOUNT_PUBLIC_URL`; outside production, local development origins. Explicitly empty allows none (Docker Compose passes it empty). Wildcards are rejected because browser requests use cookie credentials. |
 | `CAPACITYLENS_HTTPS`               | Controls the two-year HSTS header. Unset, it is on when `SMALLSASS_ACCOUNT_PUBLIC_URL` is `https` and off otherwise. `1` forces it on; `0` forces it off, for a proxy that already emits its own HSTS. Any other value is treated as unset, so the URL scheme decides.                                                                                                                                                             |
 | `CAPACITYLENS_TRUST_PROXY_HEADERS` | Trusts `X-Forwarded-For`/`X-Forwarded-Proto` from a non-loopback listener. Docker Compose sets this to `1` because its API only accepts connections from the packaged nginx. Loopback listeners (`127.0.0.1`, `localhost`, `::1`) trust their same-host proxy automatically without this flag. |
 
@@ -209,12 +199,10 @@ or admin.
 | `CAPACITYLENS_HEALTH_DEEP`             | Set `1` to make `/api/health` run a readiness query and report audit, backup and certificate status. On by default in production. |
 | `CAPACITYLENS_RATE_LIMIT`              | Requests per minute per IP across rate-limited routes. Accepts integers 1–1,000,000. Production defaults to 300 when unset and refuses zero or invalid values. `/api/health` is exempt.                          |
 | `CAPACITYLENS_AUDIT_STDOUT`            | Set `1` to also write each audit record to stdout as JSON, for a container log collector. On by default in production.                |
-| `CAPACITYLENS_STORAGE_ENCRYPTED`       | Set `1` only after you have verified that the database, audit log and backup storage are encrypted at rest. This is an operator attestation; it does not encrypt storage itself. |
-| `CAPACITYLENS_SECURITY_LOG_FORWARDING` | An attestation that you're forwarding audit and security events to a separate collector. Doesn't create the collector itself.      |
 
-In production, an unset `CAPACITYLENS_STORAGE_ENCRYPTED`, `CAPACITYLENS_SECURITY_LOG_FORWARDING` or
-internal TLS identity is reported as one startup warning that names each missing control. It does not
-block startup.
+In production, a missing internal TLS identity is reported as a startup warning. It does not block
+startup. Encrypting the storage and forwarding audit and security events to a separate collector
+are your responsibility; CapacityLens has no setting for either.
 
 Sign-in, sign-up and password changes have a stricter built-in limit of three attempts per
 10 seconds per client, and reset and verification emails of three per minute. It is fixed and
@@ -251,13 +239,6 @@ Any of these needs a rebuild to take effect. Use `docker compose build web` for 
 packaged production stack, or `pnpm run build` for a source build, then redeploy the rebuilt
 web files. A release archive's web app is already built with the same-origin defaults, so these
 settings do not apply to it. Setting them only in a running process does nothing.
-
-## Removed account variable names
-
-CapacityLens accepts only the `SMALLSASS_ACCOUNT_*` account variables documented above.
-If you're upgrading an installation that predates this namespace, follow the
-[account-variable rename procedure](/self-hosting/upgrades#upgrading-to-0-71-0-alpha-1) before
-starting the new release. Startup refuses a configured removed name and identifies its replacement.
 
 <!-- #endregion guide-content -->
 

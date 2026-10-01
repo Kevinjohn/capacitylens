@@ -73,9 +73,8 @@ Confirm the platform stores one environment file outside the versioned release d
 links or exposes it to every release as `.env`. A new release must not silently receive a fresh,
 empty environment.
 
-Set `CAPACITYLENS_STORAGE_ENCRYPTED=1` only after verifying that the database, audit log and
-backup directory use encrypted storage at rest. The variable records that operator
-attestation; it does not encrypt the host or filesystem.
+Keep the database, audit log and backup directory on storage encrypted at rest. CapacityLens does
+not encrypt the host or filesystem itself.
 
 Leave these settings unset for this single-company, non-demo installation:
 
@@ -85,7 +84,6 @@ CAPACITYLENS_SEED_DEMO
 CAPACITYLENS_MULTI_ACCOUNT
 CAPACITYLENS_BOOTSTRAP_TOKEN
 SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP
-SMALLSASS_ACCOUNT_REQUIRE_MFA
 ```
 
 Unset is different from `0` for some environment parsers. Remove the lines unless the

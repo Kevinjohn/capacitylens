@@ -63,7 +63,7 @@ never changes [membership](/reference/glossary).
 From there:
 
 - Already have a password sign-in? Enter the invited email and password, review the
-  invitation, then choose **Accept invite**. Complete any required second factor.
+  invitation, then choose **Accept invite**.
 - New to this install? Use the invitation's **Create account** option. Account
   creation and invitation acceptance happen together.
 - Use company login? Choose an available provider, return to the invitation,

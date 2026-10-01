@@ -33,8 +33,8 @@ establish company membership.
    the Owner about changes. No editing controls appear. Either Owner or Admin can copy and share
    this company's **Joining link** from the section.
 3. Open `/join/:accountId` as a prospective member. The page names the company. Choose
-   an eligible provider, or sign in with an existing password account and complete any required
-   second factor. Choose **Join company** to finish. An existing password identity without
+   an eligible provider, or sign in with an existing password account. Choose **Join company** to
+   finish. An existing password identity without
    current trusted email proof can verify their address by an emailed link to join through an
    open or approved-domain policy when email delivery is enabled.
 4. Check the company list after joining. The new membership is Viewer unless an addressed,

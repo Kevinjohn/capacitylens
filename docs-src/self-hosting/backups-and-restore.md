@@ -55,9 +55,9 @@ local-time snapshots (from earlier releases) remain valid restore inputs.
 The on-host snapshot directory protects against many application and operator mistakes,
 but not loss of the whole host. For real disaster recovery, also copy snapshots off-host
 — to a separate account, region or provider, with tools like restic, rclone or rsync —
-encrypt that destination, and monitor snapshot freshness. Set
-`CAPACITYLENS_STORAGE_ENCRYPTED=1` only after you have verified that the database, audit
-log and backup storage are encrypted at rest. Deep health reports
+encrypt that destination, and monitor snapshot freshness. Keep the database, audit log and
+backup storage on volumes encrypted at rest; CapacityLens does not encrypt them itself. Deep
+health reports
 `backup.status` and `backup.lastSuccessAt`; see
 [Monitoring and health checks](/self-hosting/monitoring).
 

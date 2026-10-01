@@ -70,9 +70,8 @@ installed, most of it waiting for the first build.
    CAPACITYLENS_RATE_LIMIT=300
    ```
 
-   Set `CAPACITYLENS_STORAGE_ENCRYPTED=1` only after verifying that the host's Docker
-   volumes and off-host backup destination use encryption at rest. The setting records
-   your attestation; it does not encrypt a volume. `SMALLSASS_ACCOUNT_PUBLIC_URL` must be the exact browser-facing origin. See
+   Keep the host's Docker volumes and off-host backup destination on storage encrypted at
+   rest; CapacityLens does not encrypt a volume itself. `SMALLSASS_ACCOUNT_PUBLIC_URL` must be the exact browser-facing origin. See
    [Configure the service](/installation/configure-the-service) for what every other variable does.
 
 4. Build and start the stack:

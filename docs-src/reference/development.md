@@ -90,6 +90,23 @@ Owner/Admin/Editor/Viewer flows against the password-auth server, use the isolat
 lab described below. It documents the local-only credentials, the prebuilt Wayne
 Enterprises fixture, and the expected visibility matrix.
 
+### Development-only variables {#development-environment}
+
+These server variables exist for development and tests. They are not operator configuration, so
+`.env.example` and the [configuration guide](/self-hosting/configuration) leave them out, and
+Compose does not pass `CAPACITYLENS_ALLOW_RESET` or `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` into
+the production API container. Production refuses each of the first three.
+
+| Variable | What it does |
+| --- | --- |
+| `CAPACITYLENS_ALLOW_RESET` | Set `1` to expose the destructive `POST /api/test/reset` route for development and tests with sign-in off. |
+| `CAPACITYLENS_CREATE_ADMIN_ADMIN` | First-owner helper, also available as `--create-owner-admin-admin`. Creates `admin@admin.admin` only when the password user table is empty. |
+| `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` | Required password for that owner helper. Keep it in a secret manager; the server never generates or prints it. |
+| `CAPACITYLENS_DEV_API_PORT` | API port used by `scripts/dev-fullstack.mjs`. Default `8787`. |
+
+Browser-test and rehearsal controls (`API_PORT`, `CAPACITYLENS_E2E_PHASE` and the browser
+selectors) are described under [Browser upgrade rehearsal](#browser-upgrade-rehearsal).
+
 ## The access lab
 
 The lab is destructive only to the fixed local file `server/.access-lab.db`, which is
@@ -832,7 +849,7 @@ server archive and its checksum, generates its SBOM, creates GitHub build attest
 the artifacts plus the recognized
 `.intoto.jsonl` provenance bundle to the GitHub Release. It is manually runnable with an existing
 release tag for deliberate rebuilds and backfills. The blocking ZAP scan boots the hardened posture
-— password authentication, required MFA, scheduled backups and operator attestations, with
+— password authentication and scheduled backups, with
 credentials minted and masked per run — so a finding there is a regression in the
 recommended configuration. A second, non-blocking job scans the explicit no-login posture
 (sign-in mode `off`) weekly and uploads its report as an artifact. Reviewed secret-scan fixtures are

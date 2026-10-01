@@ -130,16 +130,13 @@ jobs:
     timeout-minutes: 30
     env:
       # Password auth ON plus the optional hardening a security-conscious operator enables:
-      # required MFA, scheduled backups, and the storage/log-forwarding attestations.
+      # scheduled backups.
       # http:// is permitted for the public URL because localhost is a loopback origin;
       # production account configuration refuses plaintext for non-loopback origins.
       SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: self-hosted-password
       SMALLSASS_ACCOUNT_MODE: password-only
-      SMALLSASS_ACCOUNT_REQUIRE_MFA: "1"
       SMALLSASS_ACCOUNT_PUBLIC_URL: http://localhost:8080
       CAPACITYLENS_BACKUP_INTERVAL_MIN: "60"
-      CAPACITYLENS_STORAGE_ENCRYPTED: "1"
-      CAPACITYLENS_SECURITY_LOG_FORWARDING: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

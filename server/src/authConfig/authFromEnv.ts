@@ -285,7 +285,6 @@ function buildAuthPolicies(
     configuredFederatedIssuers: providers.providerConfig.configuredFederatedIssuers,
     permittedCompanyProviderIds: companyProviderIds(providers.providerConfig.configuredProviderInfo),
     allowOpenSignup: providers.allowOpenSignup,
-    requirePasswordMfa: allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1",
     externalIdentityAdmission: async (candidate) =>
       microsoftProof?.admitsNewJoiningIdentity(candidate) === true ||
       (await options.externalIdentityAdmission?.(candidate)) === true,
