@@ -1133,8 +1133,7 @@ function registerBlocksAdvisoryTests() {
 }
 
 describe("#257 characterization: effective-week capacity", () => {
-  // These expectations were flipped when capacity and load moved to the company/personal
-  // effective week.
+  // Flipped when capacity and load moved to the company/personal effective week.
   it("removes Friday capacity, load and utilisation when the company calendar excludes Friday", () => {
     const accountWorkingDays: Weekday[] = [1, 2, 3, 4];
     const resource = makeResource({ workingDays: [1, 2, 3, 4, 5] });
