@@ -21,9 +21,10 @@ standalone planning or ideation Markdown file in the repository. A proposal shou
 problem, why it fits the deliberate scope, migration and security impact, and the smallest viable
 implementation. Accepted architectural constraints are recorded in `DECISIONS.md`.
 
-Opening a pull request proposes a change; it does not authorise the change to be merged. Every pull
-request remains open until the maintainer gives explicit merge authorisation for that specific pull
-request after reviewing the available evidence.
+Opening a pull request proposes a change; it does not authorise the change to be merged. A request or
+agreement to create a pull request is likewise not permission to merge it. Every pull request remains
+open until the maintainer gives explicit merge authorisation for that specific pull request after
+reviewing the available evidence.
 
 Contributors who demonstrate sustained, constructive work may be invited to triage issues or review
 changes. Any future expansion of maintainer rights and the process for removing them will be

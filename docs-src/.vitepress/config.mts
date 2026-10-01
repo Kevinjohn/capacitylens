@@ -153,6 +153,8 @@ const referenceSidebar = [
       { text: "Control inventories", link: "/security/control-inventories" },
       { text: "Development guide", link: "/reference/development" },
       { text: "Code conventions", link: "/reference/conventions" },
+      { text: "How it is tested", link: "/reference/how-it-is-tested" },
+      { text: "Philosophy", link: "/reference/philosophy" },
       { text: "Open source and contributing", link: "/open-source" },
     ],
   },
@@ -165,6 +167,7 @@ const introductionSidebar = [
       { text: "What is CapacityLens?", link: "/getting-started/what-is-capacitylens" },
       { text: "Quick start", link: "/getting-started/quick-start" },
       { text: "Try the demo", link: "/getting-started/try-the-demo" },
+      { text: "How it compares", link: "/getting-started/how-it-compares" },
     ],
   },
 ];
