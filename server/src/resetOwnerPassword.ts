@@ -155,8 +155,8 @@ function recordRecovery({ db, context, target, token }: RecordRecoveryInput): Ow
  * Ruling and full guard rationale: to-my-siblings/_sole-owner-recovery-playbook-2026-08-05.md.
  */
 export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<OwnerRecoveryResult> {
-  // Resolve the canonical account configuration exactly the way server startup does, so refusals
-  // name canonical keys and the compatibility aliases keep working.
+  // Resolve the account configuration exactly the way server startup does, so refusals name the
+  // same keys.
   const context = prepareRecoveryContext(input);
 
   // Not openDb(): a stale database must refuse below rather than silently migrate outside the
