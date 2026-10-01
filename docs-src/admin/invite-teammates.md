@@ -111,32 +111,28 @@ reverses a completed change. See [Link a person to a member](/using/resources#li
 
 ![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/remove_resource_link.png)
 
-**Disable Access** stops this person opening the company immediately, including through an
-existing session or a later invitation. It follows a recreated identity at the same address only
-when both identities have durable proof of mailbox ownership. An addressed invitation or an
-older verified-email flag alone does not establish that link. **Enable Access** removes that restriction. A retained active member then keeps
-their existing role; an archived or removed person still needs the ordinary restore or invitation
-process. Only an Owner or Admin can enable access, including for a removed person listed under
-**No longer active**.
-
-**Archive user** stops current membership access and retains the inactive record. **Restore
-membership** reactivates that record, but does not clear Disable Access. **Remove** ends the
-membership. Archive or removal alone permits a later invitation; a returning person receives the
-invitation's role. Other company memberships remain usable throughout.
-
 ## Stop access
 
-Open Member settings beside the member. **Disable Access** stops access to this company and prevents rejoining until an Owner or Admin selects **Enable Access**. The restriction remains visible even after removal. **Archive user** keeps an inactive membership that can later be restored; archiving or removal alone does not prevent a new invitation. Restoring a membership does not clear an explicit Disable Access restriction.
+Open Member settings beside the member. **Disable Access** stops this person opening the company
+immediately, including through an existing session or a later invitation, and prevents rejoining
+until an Owner or Admin selects **Enable Access**. The restriction remains visible even after
+removal. Only an Owner or Admin can enable access, including for a removed person listed under
+**No longer active**. After **Enable Access**, a retained active member keeps their existing role;
+an archived or removed person still needs the ordinary restore or invitation process.
 
 If the person later creates a new sign-in identity with the same address, the restriction follows
 that address only when the original and new identities have proven mailbox ownership through
 verified company sign-in or a completed mailbox ceremony. An addressed invitation or an older
 "email verified" flag alone does not establish that link. Owners and Admins can still manage the
-original restriction from the inactive member list.
-An established Microsoft sign-in keeps its stable provider identity, but a returning sign-in alone
-does not add mailbox proof to an older identity that lacks it.
+original restriction from the inactive member list. An established Microsoft sign-in keeps its
+stable provider identity, but a returning sign-in alone does not add mailbox proof to an older
+identity that lacks it.
 
-Remove deletes the membership; the person may return later if the company's joining policy permits it.
+**Archive user** stops current membership access and keeps an inactive record that can later be
+restored. **Restore membership** reactivates that record, but does not clear Disable Access.
+**Remove** ends the membership; the person may return later if the company's joining policy
+permits it. Archiving or removal alone does not prevent a new invitation, and a returning person
+receives the invitation's role. Other company memberships remain usable throughout.
 
 ## Review who can join
 
