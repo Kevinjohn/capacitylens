@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { carriesHourlyLoad, emptyAppData } from "@capacitylens/shared/types/entities";
-import { buildLaneLayout, buildSchedulerDensity, LAYOUT } from "./layout";
+import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from "./layout";
 import { buildSchedulerModel, applyVisibleUtilization } from "./schedulerModel";
 import { useCalendarToday } from "./useCalendarToday";
 import { buildVisibleSpanLabels, resolveVisibleWindow } from "./visibleSpan";
@@ -11,12 +11,8 @@ import type { useSchedulerViewport } from "./useSchedulerViewport";
 import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
-  hasResourceEngagementGrouping,
-  resolveInternalColourMode,
   hasPlaceholdersEnabled,
   resolveSchedulingMode,
-  hasVisibleInternalActivities,
-  hasVisibleInternalProjects,
   resolveTimeZone,
   resolveWeekStart,
 } from "../../store/selectors";
@@ -37,7 +33,7 @@ interface SchedulerModelProjectionInput {
   overEnd: string;
   visibleStart: string;
   visibleEnd: string;
-  rowLaneLayout: ReturnType<typeof buildLaneLayout>;
+  rowLaneLayout: typeof SCHEDULER_LANE_LAYOUT;
   partiallyExposesNextColumn: boolean;
 }
 
@@ -101,11 +97,7 @@ function buildModelPreferences(
     placeholdersEnabled: accountPrefs.placeholdersEnabled,
     externalEnabled: accountPrefs.externalEnabled,
     accountWorkingDays,
-    groupResourcesByEngagement: accountPrefs.groupResourcesByEngagement,
     blocksMode: accountPrefs.blocksMode,
-    internalColourMode: accountPrefs.internalColourMode,
-    showInternalProjects: accountPrefs.showInternalProjects,
-    showInternalActivities: accountPrefs.showInternalActivities,
   };
 }
 
@@ -186,14 +178,6 @@ export function useSchedulerGridPreferences() {
       // When disciplines are off, discipline bands disappear and the model uses the
       // Studio/Supplementary (or Unassigned) fallback. The discipline filter is ignored.
       disciplinesEnabled: hasDisciplinesEnabled(view, id),
-      groupResourcesByEngagement: hasResourceEngagementGrouping(view, id),
-      // Internal work colour preference. Grey is the absent/default mode; palette restores saved
-      // project colours without changing the underlying project records.
-      internalColourMode: resolveInternalColourMode(view, id),
-      // BAR-ONLY hide prefs for internal work (both default ON). They remove only the bars —
-      // capacity/utilisation stay truthful (see buildSchedulerModel's barVisibleByInternalPref).
-      showInternalProjects: hasVisibleInternalProjects(view, id),
-      showInternalActivities: hasVisibleInternalActivities(view, id),
       blocksMode: !carriesHourlyLoad(resolveSchedulingMode(view, id)),
       calendarTimeZone: resolveTimeZone(view, id),
       calendarWeekStartsOn: resolveWeekStart(view, id),
@@ -211,10 +195,10 @@ export function useSchedulerGridPreferences() {
   const utilizationPreferences = useStore((state) => state.utilizationPrefs);
   // Device-global display pref (default on): narrow the weekend columns. Drives the geometry below.
   const minimiseWeekends = useStore((state) => state.minimiseWeekends);
-  // Device-global display pref (default on): after a FREE scroll settles, floor the left edge back
-  // to the current week's first day (the scroll-idle snap in onScroll below). FREE SCROLL ONLY —
-  // the navigation snap (zoom / Prev-Next / date-picker, Feature 1) is always on, independent of this.
-  const snapToWeekStart = useStore((state) => state.snapToWeekStart);
+  // After a FREE scroll settles, floor the left edge back to the current week's first day (the
+  // scroll-idle snap in onScroll below). Always on for users; only a test-only storage override
+  // turns it off. The navigation snap (zoom / Prev-Next / date-picker) is independent of this.
+  const weekSnapEnabled = useStore((state) => state.weekSnapEnabled);
   return {
     data,
     accountPrefs: accountPreferences,
@@ -222,7 +206,7 @@ export function useSchedulerGridPreferences() {
     ui,
     utilizationPrefs: utilizationPreferences,
     minimiseWeekends,
-    snapToWeekStart,
+    weekSnapEnabled,
   };
 }
 
@@ -256,18 +240,10 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
     [visibleStart, visibleEnd],
   );
 
-  // Vertical density ("Compact view" device pref, default OFF = roomier). `density` covers the
-  // geometry the VIEW draws directly; `rowLaneLayout` is the projection the MODEL packs lanes with.
-  // Both must be memo dependencies of everything derived from them (the model, and the heights
-  // prefix-sum below) or a density change would leave stale row heights and bar offsets behind.
-  const compactView = useStore((state) => state.compactView);
-  const { density, rowLaneLayout } = useMemo(
-    () => ({
-      density: buildSchedulerDensity({ compact: compactView }),
-      rowLaneLayout: buildLaneLayout({ compact: compactView }),
-    }),
-    [compactView],
-  );
+  // Vertical density. `density` covers the geometry the VIEW draws directly; `rowLaneLayout` is the
+  // projection the MODEL packs lanes with. Both are module constants, so they are stable dependencies.
+  const density = SCHEDULER_DENSITY;
+  const rowLaneLayout = SCHEDULER_LANE_LAYOUT;
 
   const model = useSchedulerModelProjection({
     preferences,

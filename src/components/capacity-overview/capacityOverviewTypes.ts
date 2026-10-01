@@ -47,7 +47,6 @@ export interface BuildCapacityOverviewModelInput {
   placeholdersEnabled?: boolean;
   hasAvailability?: boolean;
   disciplinesEnabled?: boolean;
-  groupResourcesByEngagement?: boolean;
   blocksMode?: boolean;
   /** Narrowed test/read projections may pass these arrays explicitly; data remains the default. */
   timeOff?: TimeOff[];

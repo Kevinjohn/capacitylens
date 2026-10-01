@@ -50,8 +50,34 @@ function liveTableSpec(table: string): TableSpec {
   return spec;
 }
 
+/**
+ * Account preferences retired from the write model. Their SQLite columns are deliberately kept (no
+ * migration), so every released contract still names them; each is restored after its released
+ * predecessor so historical column order is unchanged. The live spec omits them, which makes server
+ * writes drop them, and live startup accepts them as nullable compatible extensions.
+ */
+const RETIRED_ACCOUNT_COLUMNS: ReadonlyArray<{ after: string; column: ColumnSpec }> = [
+  { after: "disciplinesEnabled", column: { name: "groupResourcesByEngagement", json: true, optional: true } },
+  { after: "externalEnabled", column: { name: "internalColourMode", optional: true } },
+  { after: "internalColourMode", column: { name: "showInternalProjects", json: true, optional: true } },
+  { after: "showInternalProjects", column: { name: "showInternalActivities", json: true, optional: true } },
+];
+
+/** The live accounts spec with the retired columns restored: the released write shape. */
+function releasedAccountsTableSpec(): TableSpec {
+  const accounts = liveTableSpec("accounts");
+  const columns = [...accounts.columns];
+  for (const { after, column } of RETIRED_ACCOUNT_COLUMNS) {
+    const index = columns.findIndex((candidate) => candidate.name === after);
+    if (index < 0) throw new Error(`Missing accounts column "${after}" before retired column "${column.name}".`);
+    columns.splice(index + 1, 0, column);
+  }
+  return { ...accounts, columns };
+}
+
 const PRE_V42_TABLES: Record<string, TableSpec> = {
   ...TABLES,
+  accounts: releasedAccountsTableSpec(),
   resources: {
     ...liveTableSpec("resources"),
     columns: liveTableSpec("resources").columns.filter((column) => column.name !== "avatarUrl"),
@@ -83,7 +109,7 @@ const ACCOUNT_COLUMN_INTRODUCED_AT: Record<string, number> = {
 };
 
 export function buildAccountsTableAtVersion(targetVersion: number): TableSpec {
-  const accounts = liveTableSpec("accounts");
+  const accounts = releasedAccountsTableSpec();
   return {
     ...accounts,
     columns: accounts.columns.filter((column) => {

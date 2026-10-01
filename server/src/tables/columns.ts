@@ -57,18 +57,15 @@ const accountsColumns = [
   { name: "workingDays", json: true, optional: true },
   { name: "language", optional: true },
   { name: "disciplinesEnabled", json: true, optional: true },
-  { name: "groupResourcesByEngagement", json: true, optional: true },
   { name: "placeholdersEnabled", json: true, optional: true },
   { name: "externalEnabled", json: true, optional: true },
-  { name: "internalColourMode", optional: true },
-  // Optional schedule view prefs (default true — shown/enabled). JSON so node:sqlite round-trips the
-  // boolean as "true"/"false"; absent → NULL → omitted on read, matching the client object.
-  { name: "showInternalProjects", json: true, optional: true },
-  { name: "showInternalActivities", json: true, optional: true },
+  // Optional account prefs. JSON so node:sqlite round-trips the boolean as "true"/"false";
+  // absent → NULL → omitted on read, matching the client object. Retired preference columns stay in
+  // SQLite but are absent here, so writes drop them (see RETIRED_ACCOUNT_COLUMNS in historicalSpecs).
   { name: "inlineActivityCreateEnabled", json: true, optional: true },
   { name: "showTaskFieldInSchedule", json: true, optional: true },
   { name: "capacityOverviewAccess", json: true, optional: true },
-  // Plain TEXT like internalColourMode: an enum string, not a JSON-encoded value.
+  // Plain TEXT like schedulingMode: an enum string, not a JSON-encoded value.
   { name: "dateStyle", optional: true },
   ...META,
 ] as const satisfies ColumnSpec[];

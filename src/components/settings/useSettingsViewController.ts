@@ -6,7 +6,7 @@ import { isServerConfigured } from "@/data/apiConfig";
 import { readBuildStamp, readFeedbackMailto } from "@/data/buildInfo";
 import { formatDiagnostics, readDiagnostics, type DiagnosticsReport } from "@/data/buildInfo";
 import { accountClient } from "../../account/accountClient";
-import { useOfflineReadEnabled, useOfflineState, usePersistenceDiagnostics } from "@/data/useOfflineState";
+import { useOfflineReadEnabled, useOfflineState } from "@/data/useOfflineState";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import {
   canCreateInlineActivity,
@@ -14,11 +14,7 @@ import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
-  hasResourceEngagementGrouping,
-  hasVisibleInternalActivities,
-  hasVisibleInternalProjects,
   listAccountWorkingDays,
-  resolveInternalColourMode,
   resolveCapacityOverviewAccess,
   resolveDateStyle,
   resolveSchedulingMode,
@@ -38,10 +34,6 @@ function useDisplayPreferences() {
     setBarLabelPref: useStore((state) => state.setBarLabelPref),
     minimiseWeekends: useStore((state) => state.minimiseWeekends),
     setMinimiseWeekends: useStore((state) => state.setMinimiseWeekends),
-    snapToWeekStart: useStore((state) => state.snapToWeekStart),
-    setSnapToWeekStart: useStore((state) => state.setSnapToWeekStart),
-    compactView: useStore((state) => state.compactView),
-    setCompactView: useStore((state) => state.setCompactView),
   };
 }
 
@@ -54,12 +46,8 @@ function readSchedulingSettings(data: ReturnType<(typeof useStore)["getState"]>[
     workingDayOrder: orderedWeekdays(weekStartsOn),
     timezone: resolveTimeZone(data, accountId),
     disciplinesEnabled: hasDisciplinesEnabled(data, accountId),
-    groupResourcesByEngagement: hasResourceEngagementGrouping(data, accountId),
     placeholdersEnabled: hasPlaceholdersEnabled(data, accountId),
     externalEnabled: hasExternalResourcesEnabled(data, accountId),
-    internalColourMode: resolveInternalColourMode(data, accountId),
-    showInternalProjects: hasVisibleInternalProjects(data, accountId),
-    showInternalActivities: hasVisibleInternalActivities(data, accountId),
     inlineActivityCreateEnabled: canCreateInlineActivity(data, accountId),
     showTaskFieldInSchedule: hasVisibleTaskFieldInSchedule(data, accountId),
     capacityOverviewAccess: resolveCapacityOverviewAccess(data, accountId),
@@ -114,7 +102,6 @@ export function useSettingsViewController() {
   const updateAccount = useStore((state) => state.updateAccount);
   const setNotice = useStore((state) => state.setNotice);
   const display = useDisplayPreferences();
-  const persistenceDiagnostics = usePersistenceDiagnostics();
   const auth = useAuth();
   const offlineEnabled = useOfflineReadEnabled();
   const offlineState = useOfflineState();
@@ -154,7 +141,6 @@ export function useSettingsViewController() {
     offlineEnabled,
     offlineState,
     localData,
-    persistenceDiagnostics,
     stamp: readBuildStamp(),
     feedback: readFeedbackMailto(),
     diagnostics,

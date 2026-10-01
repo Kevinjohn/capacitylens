@@ -344,12 +344,12 @@ export function SchedulerGrid() {
   const clearFilters = useStore((state) => state.clearFilters);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const resourceAvatars = useResourceAvatars(activeAccountId);
-  const { accountPrefs, ui, minimiseWeekends, snapToWeekStart } = preferences;
+  const { accountPrefs, ui, minimiseWeekends, weekSnapEnabled } = preferences;
   const interactions = useSchedulerInteractions(ui);
   const viewport = useSchedulerViewport({
     ui,
     minimiseWeekends,
-    snapToWeekStart,
+    weekSnapEnabled,
     calendarWeekStartsOn: accountPrefs.calendarWeekStartsOn,
   });
   const gridModel = useSchedulerGridModel(preferences, viewport);

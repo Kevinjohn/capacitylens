@@ -439,7 +439,6 @@ function registerServerCreateRequestTest() {
     expect(body.timezone).toBe(resolveBrowserTimeZone());
     expect(body.schedulingMode).toBe("days");
     expect(body.inlineActivityCreateEnabled).toBe(false);
-    expect(body.internalColourMode).toBe("grey");
     // Summary seeded (the picker lists it; setActiveAccount validated against it)…
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toContain("org-1");
     // …and NO local addAccount ran (the slice arrives via the switch orchestrator's loadAll, not here).

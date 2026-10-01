@@ -102,7 +102,7 @@ describe("resolveBarColor", () => {
     expect(resolveBarColor(alloc("ext", "t"), m)).toBe("#9ca3af");
   });
 
-  it("defaults an internal activity bar to grey and restores its resource colour in palette mode", () => {
+  it("always shows an internal activity bar in grey", () => {
     const internal: Activity = {
       id: "internal",
       accountId: "acct",
@@ -113,12 +113,11 @@ describe("resolveBarColor", () => {
     };
     const base = maps({ activities: [internal], resources: [resource("r", "person")] });
     expect(resolveBarColor(alloc("r", "internal"), base)).toBe("#9ca3af");
-    expect(resolveBarColor(alloc("r", "internal"), { ...base, internalColourMode: "palette" })).toBe("#123456");
   });
 });
 
 describe("resolveBarColor project attribution", () => {
-  it("defaults an Internal-owned project to grey and restores its saved colour in palette mode", () => {
+  it("always shows an Internal-owned project in grey while keeping its saved colour", () => {
     const internalClient: Client = {
       id: "c",
       accountId: "acct",
@@ -136,9 +135,8 @@ describe("resolveBarColor project attribution", () => {
       resources: [resource("r", "person")],
     });
     expect(resolveBarColor(alloc("r", "t"), base)).toBe("#9ca3af");
-    expect(resolveBarColor(alloc("r", "t"), { ...base, internalColourMode: "palette" })).toBe("#abcdef");
     expect(resolveProjectColor(saved, internalClient)).toBe("#9ca3af");
-    expect(resolveProjectColor(saved, internalClient, "palette")).toBe("#abcdef");
+    expect(saved.color).toBe("#abcdef");
   });
 
   it("does not treat a project-less all-projects activity as internal work", () => {

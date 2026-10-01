@@ -2,13 +2,11 @@ import { useActiveScopedData } from "../../store/useScopedData";
 import { useEntityListState } from "../../hooks/useEntityListState";
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { ProjectForm } from "./ProjectForm";
-import type { AppData, Client, ID, InternalColourMode, Project } from "@capacitylens/shared/types/entities";
+import type { AppData, Client, ID, Project } from "@capacitylens/shared/types/entities";
 import { useLifecycleActions } from "../../hooks/useLifecycleActions";
 import { m } from "@/i18n";
 import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
 import { resolveProjectColor } from "@capacitylens/shared/lib/color";
-import { useStore } from "../../store/useStore";
-import { resolveInternalColourMode } from "../../store/selectors";
 import { Fragment, useMemo } from "react";
 import { Folder, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
@@ -31,12 +29,11 @@ function buildProjectArchiveMessage(data: AppData, project: Project): string {
 interface ProjectItemsProps {
   projects: Project[];
   clientsById: Map<ID, Client>;
-  internalColourMode: InternalColourMode;
   onEdit: (project: Project) => void;
   onArchive: (project: Project) => void;
 }
 
-function ProjectItems({ projects, clientsById, internalColourMode, onEdit, onArchive }: ProjectItemsProps) {
+function ProjectItems({ projects, clientsById, onEdit, onArchive }: ProjectItemsProps) {
   return (
     <ItemGroup className="rounded-md border bg-card">
       {projects.map((project, index) => (
@@ -44,9 +41,7 @@ function ProjectItems({ projects, clientsById, internalColourMode, onEdit, onArc
           {index > 0 && <ItemSeparator />}
           <Item size="sm" role="listitem" data-testid="project-row" className="rounded-none">
             <ItemContent className="flex-row items-center gap-2">
-              <ColorSwatch
-                color={resolveProjectColor(project, clientsById.get(project.clientId), internalColourMode)}
-              />
+              <ColorSwatch color={resolveProjectColor(project, clientsById.get(project.clientId))} />
               <span className="font-medium">{project.name}</span>
               <span className="text-sm text-muted-foreground">
                 · {clientsById.get(project.clientId)?.name ?? m.list_projects_no_client()}
@@ -74,7 +69,6 @@ export function ProjectList() {
     [clients, data.projects],
   );
   const clientsById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);
-  const internalColourMode = useStore((state) => resolveInternalColourMode(state.data, state.activeAccountId));
   // The per-row action ARCHIVES (soft-delete is reached from the inline archive section);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions();
@@ -96,13 +90,7 @@ export function ProjectList() {
           {m.list_projects_empty()}
         </EmptyState>
       ) : (
-        <ProjectItems
-          projects={projects}
-          clientsById={clientsById}
-          internalColourMode={internalColourMode}
-          onEdit={setEditing}
-          onArchive={setConfirming}
-        />
+        <ProjectItems projects={projects} clientsById={clientsById} onEdit={setEditing} onArchive={setConfirming} />
       )}
 
       <ArchivedEntitySection entity="projects" />

@@ -4,7 +4,6 @@ import { useActiveScopedData } from "@/store/useScopedData";
 import {
   hasDisciplinesEnabled,
   hasPlaceholdersEnabled,
-  hasResourceEngagementGrouping,
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
@@ -38,7 +37,6 @@ export function CapacityOverviewView() {
   );
   const placeholdersEnabled = hasPlaceholdersEnabled(data, activeAccountId);
   const disciplinesEnabled = hasDisciplinesEnabled(data, activeAccountId);
-  const groupResourcesByEngagement = hasResourceEngagementGrouping(data, activeAccountId);
   const model = useMemo(
     () =>
       buildCapacityOverviewModel({
@@ -51,13 +49,11 @@ export function CapacityOverviewView() {
         placeholdersEnabled,
         hasAvailability,
         disciplinesEnabled,
-        groupResourcesByEngagement,
         blocksMode: schedulingMode === "blocks",
       }),
     [
       accountWorkingDays,
       disciplinesEnabled,
-      groupResourcesByEngagement,
       horizon,
       hasAvailability,
       includeTentative,

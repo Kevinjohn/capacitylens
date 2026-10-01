@@ -63,14 +63,11 @@ function listVisibleAllocations(input: {
   allAllocations: Allocation[];
   dimmed: boolean;
   hasTimelineIntersection: (row: { startDate: ISODate; endDate: ISODate }) => boolean;
-  filters: Pick<AllocationFilters, "notTentativeHidden" | "barVisibleByInternalPref">;
+  filters: Pick<AllocationFilters, "notTentativeHidden">;
   matchingVisibleAllocations: Allocation[];
 }): Allocation[] {
   if (!input.dimmed) return input.matchingVisibleAllocations;
-  return input.allAllocations
-    .filter(input.filters.notTentativeHidden)
-    .filter(input.hasTimelineIntersection)
-    .filter(input.filters.barVisibleByInternalPref);
+  return input.allAllocations.filter(input.filters.notTentativeHidden).filter(input.hasTimelineIntersection);
 }
 
 function buildBars(input: {
@@ -172,8 +169,7 @@ export function createRowBuilder({
     // create a full-opacity, zero-bar "ghost" row that escapes the show-unmatched filter.
     const matchingVisibleAllocations = allAllocations
       .filter(allocationFilters.allocVisible)
-      .filter(hasTimelineIntersection)
-      .filter(allocationFilters.barVisibleByInternalPref);
+      .filter(hasTimelineIntersection);
     const dimmed = allocationFilters.workFilterActive && matchingVisibleAllocations.length === 0;
     const visibleAllocations = listVisibleAllocations({
       allAllocations,

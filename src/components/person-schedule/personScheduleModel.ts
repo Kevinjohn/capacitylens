@@ -10,7 +10,6 @@ import {
   type AppData,
   type Client,
   type ID,
-  type InternalColourMode,
   type ISODate,
   type Project,
   type Resource,
@@ -31,7 +30,6 @@ export interface BuildPersonScheduleInput {
   data: AppData;
   window: PersonScheduleWindow;
   schedulingMode: SchedulingMode;
-  internalColourMode: InternalColourMode;
   showTaskFieldInSchedule: boolean;
   canSeeTimeOffNotes: boolean;
   title: string;
@@ -75,7 +73,6 @@ function createProjectionContext(input: BuildPersonScheduleInput): ProjectionCon
       projects: projectsById,
       clients: clientsById,
       resources: new Map(input.data.resources.map((row) => [row.id, row])),
-      internalColourMode: input.internalColourMode,
     },
     seriesEndByKey: new Map(),
   };

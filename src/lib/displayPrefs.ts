@@ -233,26 +233,13 @@ export const [readStoredMinimiseWeekends, writeStoredMinimiseWeekends] = createB
   fallback: true,
 });
 
-// "Snap to week start": after a FREE horizontal scroll settles, the schedule floors its left edge
-// back to the current week's first day. Device-global like the prefs above (own key, not account
-// data, NOT in AppData/export), and DEFAULTS ON — keeps the first day of the week pinned to the
-// left edge so a stray scroll can't nudge the view onto a mid-week (Tue/Wed) day. Governs FREE
-// SCROLL ONLY; the navigation snap (zoom / Prev-Next / date-picker) is always on, independent of
-// this flag. A plain on/off string (like minimiseWeekends) — it's a single bool.
-export const [readStoredSnapToWeekStart, writeStoredSnapToWeekStart] = createBooleanPreference({
-  key: "snapToWeekStart",
-  fallback: true,
-});
-
-// "Compact view": the schedule's vertical density. Device-global like the prefs above (own key, not
-// account data, NOT in AppData/export) and DEFAULTS OFF, which is the roomier layout — off is the
-// density the product ships with, and turning it ON restores the tighter original spacing for people
-// who would rather fit more people on screen. A plain on/off string — it's a single bool. The
-// geometry it selects lives in components/scheduler/layout.ts (`buildSchedulerDensity`).
-export const [readStoredCompactView, writeStoredCompactView] = createBooleanPreference({
-  key: "compactView",
-  fallback: false,
-});
+// Week snap: after a FREE horizontal scroll settles, the schedule floors its left edge back to the
+// current week's first day, so a stray scroll can't leave the view on a mid-week day. Always on for
+// users, with no Settings control. The storage key remains ONLY as a test override: browser tests
+// store "off" to hold a mid-week position across the idle re-floor (see e2e/browserTestSupport.ts).
+// Governs FREE SCROLL ONLY; the navigation snap (zoom / Prev-Next / date-picker) is always on.
+export const WEEK_SNAP_OVERRIDE_KEY = "snapToWeekStart";
+export const [readStoredWeekSnapOverride] = createBooleanPreference({ key: WEEK_SNAP_OVERRIDE_KEY, fallback: true });
 
 // "Fake sign-in": a COSMETIC demo gate shown before the account picker so a viewer sees a
 // "log in first, then pick a company" flow. Device-global like the prefs above (own key,

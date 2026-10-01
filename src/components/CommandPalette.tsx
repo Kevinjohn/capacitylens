@@ -5,7 +5,6 @@ import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
-  hasVisibleInternalProjects,
   resolveCapacityOverviewAccess,
 } from "../store/selectors";
 import { usePermissionStatus, useRole } from "../auth/permissionContext";
@@ -55,7 +54,6 @@ function usePaletteItems(query: string, onClose: () => void) {
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
-  const showInternalProjects = useStore((state) => hasVisibleInternalProjects(state.data, state.activeAccountId));
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
@@ -70,7 +68,6 @@ function usePaletteItems(query: string, onClose: () => void) {
         showCapacityOverview,
         placeholdersEnabled,
         externalEnabled,
-        showInternalProjects,
         navigate,
         goToToday,
         goToDate,
@@ -85,7 +82,6 @@ function usePaletteItems(query: string, onClose: () => void) {
       showCapacityOverview,
       placeholdersEnabled,
       externalEnabled,
-      showInternalProjects,
       navigate,
       goToToday,
       goToDate,

@@ -123,7 +123,7 @@ for (const theme of ["light", "dark"] as const) {
     await activity.getByRole("button", { name: "Cancel", exact: true }).click();
 
     await page.getByRole("link", { name: "Settings", exact: true }).click();
-    for (const name of ["Scheduling input", "Internal work colours", "Theme"]) {
+    for (const name of ["Scheduling input", "Date format", "Theme"]) {
       const group = page.getByRole("radiogroup", { name });
       await expectSegmentGeometry(group, {
         trackRadius: "7px",

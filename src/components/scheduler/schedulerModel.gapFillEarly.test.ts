@@ -173,7 +173,7 @@ function registerMovedSchedulerTests20104() {
 }
 
 function registerMovedSchedulerTests20105() {
-  it("an internal activity is grey by default and palette mode restores the RESOURCE colour", () => {
+  it("an internal activity bar is always neutral grey", () => {
     const d = dataset();
     d.activities.push({
       id: "t-int",
@@ -210,27 +210,6 @@ function registerMovedSchedulerTests20105() {
       "internal bar",
     );
     expect(greyBar.color).toBe("#9ca3af");
-
-    const paletteModel = buildSchedulerModel({
-      data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: true,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-        blocksMode: false,
-        internalColourMode: "palette",
-      },
-    });
-    const paletteBar = requireValue(
-      allBars(paletteModel).find((b) => b.allocation.id === "a-int"),
-      "internal bar",
-    );
-    expect(paletteBar.color).toBe("#4");
   });
 }
 

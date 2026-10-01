@@ -27,7 +27,6 @@ function build(overrides: Partial<Parameters<typeof buildPersonSchedule>[0]> = {
     },
     window: { startDate: "2026-09-07", endDate: "2026-10-04" },
     schedulingMode: "hourly",
-    internalColourMode: "grey",
     showTaskFieldInSchedule: true,
     canSeeTimeOffNotes: false,
     title: "Diana Prince's schedule",
@@ -209,7 +208,7 @@ describe("buildPersonSchedule time off and Internal work", () => {
     expect(externalResult.model.entries).toEqual([]);
   });
 
-  it("uses the Internal colour preference without dropping internal work", () => {
+  it("shows internal work in neutral grey without dropping it", () => {
     const internalClient = makeClient({ id: "internal", builtin: true, name: "Internal", color: "#112233" });
     const internalActivity = withoutProjectId(makeActivity({ kind: "internal", name: "Admin" }));
     const data = {
@@ -223,7 +222,6 @@ describe("buildPersonSchedule time off and Internal work", () => {
     };
 
     expect(build({ data }).model.entries[0]).toMatchObject({ activity: "Admin", client: "Internal", color: "#9ca3af" });
-    expect(build({ data, internalColourMode: "palette" }).model.entries[0]).toMatchObject({ color: "#123456" });
   });
 });
 

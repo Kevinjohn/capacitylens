@@ -77,8 +77,6 @@ describe("store slice composition", () => {
         "setBarLabelPref",
         "setSidebarOpen",
         "setMinimiseWeekends",
-        "setSnapToWeekStart",
-        "setCompactView",
         "setFakeSignedIn",
         "setActiveRole",
         "invalidateMemberships",

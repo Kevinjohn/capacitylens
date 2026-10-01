@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsView } from "./SettingsView";
@@ -142,13 +142,8 @@ describe("SettingsView — section help", () => {
       "Allocation units",
       "Overview access",
       "Company-wide working days",
-      "Disciplines",
-      "Group people by engagement",
+      "Company features",
       "Schedule on this device",
-      "Internal work colours",
-      "Placeholders and external resources",
-      "Internal work",
-      "Activity creation",
       "Allocation labels on this device",
       "Utilisation figures on this device",
       "Appearance on this device",
@@ -167,9 +162,9 @@ describe("SettingsView — section help", () => {
       </PermissionContext.Provider>,
     );
 
-    expect(screen.getByRole("button", { name: "About Disciplines" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "About Company features" })).toBeEnabled();
     expect(screen.getByRole("switch", { name: "Use disciplines" })).toBeDisabled();
-    expect(screen.getByRole("switch", { name: "Group resources by engagement" })).toBeDisabled();
+    expect(screen.getByRole("switch", { name: "Show task field in schedule" })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "Days" })).toBeDisabled();
     expect(screen.getByRole("checkbox", { name: "Monday" })).toBeDisabled();
     expect(screen.getByRole("cell", { name: "Test Co" })).toBeInTheDocument();
@@ -280,21 +275,20 @@ describe("SettingsView — minimum company working week", () => {
   });
 });
 
-describe("SettingsView — Internal work colours", () => {
-  it("defaults to Neutral grey and stores Colour palette on the active account", async () => {
-    const user = userEvent.setup();
+describe("SettingsView — removed options", () => {
+  it("offers no internal-work, engagement, density, snap or language controls", () => {
     render(<SettingsView />);
-
-    const grey = screen.getByRole("radio", { name: "Neutral grey" });
-    const palette = screen.getByRole("radio", { name: "Colour palette" });
-    expect(grey).toHaveAttribute("aria-checked", "true");
-    expect(palette).toHaveAttribute("aria-checked", "false");
-
-    await user.click(palette);
-
-    const account = useStore.getState().data.accounts.find((candidate) => candidate.id === DEFAULT_ACCOUNT_ID);
-    expect(account?.internalColourMode).toBe("palette");
-    expect(palette).toHaveAttribute("aria-checked", "true");
+    for (const name of [
+      "Group resources by engagement",
+      "Show internal projects",
+      "Show internal activities",
+      "Compact view",
+      "Snap to week start",
+    ]) {
+      expect(screen.queryByRole("switch", { name })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByRole("radiogroup", { name: "Internal work colours" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /^Language/ })).not.toBeInTheDocument();
   });
 });
 
@@ -453,6 +447,11 @@ describe("SettingsView — diagnostics clipboard", () => {
 describe("SettingsView — Import and export disclosure (issue #169)", () => {
   it("keeps import/export closed by default and account options before final diagnostics", async () => {
     const user = userEvent.setup();
+    // Build details renders only for a stamped build or a feedback link.
+    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
     render(<SettingsView />);
 
     expect(screen.getByRole("heading", { name: "Import and export" })).toBeInTheDocument();
@@ -560,11 +559,8 @@ describe("SettingsView — account toggle wiring", () => {
   // would keep agreeing with it if that rule ever changed.
   it.each([
     ["Use disciplines", "disciplinesEnabled", true],
-    ["Group resources by engagement", "groupResourcesByEngagement", true],
     ["Show placeholders", "placeholdersEnabled", false],
     ["Show external resources", "externalEnabled", false],
-    ["Show internal projects", "showInternalProjects", true],
-    ["Show internal activities", "showInternalActivities", true],
     ["Inline activity creation", "inlineActivityCreateEnabled", false],
     ["Show task field in schedule", "showTaskFieldInSchedule", false],
   ] as const)("wires %s to account.%s (absent reads as %s)", async (label, key, whenAbsent) => {
@@ -578,13 +574,11 @@ describe("SettingsView — account toggle wiring", () => {
     expect(after).toBe(!(before ?? whenAbsent));
   });
 
-  it("keeps placeholder and external visibility independently configurable in one section", async () => {
+  it("keeps every company toggle independently configurable in one section", async () => {
     const user = userEvent.setup();
     render(<SettingsView />);
 
-    const section = screen
-      .getByRole("heading", { name: "Placeholders and external resources" })
-      .closest('[data-slot="settings-row"]');
+    const section = screen.getByRole("heading", { name: "Company features" }).closest('[data-slot="settings-row"]');
     expect(section).not.toBeNull();
     expect(within(section as HTMLElement).getByRole("switch", { name: "Show placeholders" })).toHaveAttribute(
       "aria-checked",
@@ -599,8 +593,12 @@ describe("SettingsView — account toggle wiring", () => {
     expect(useStore.getState().data.accounts[0]?.placeholdersEnabled).toBe(true);
     expect(useStore.getState().data.accounts[0]?.externalEnabled).toBeUndefined();
 
-    await user.click(screen.getByRole("button", { name: "About Placeholders and external resources" }));
-    const dialog = screen.getByRole("dialog", { name: "Placeholders and external resources" });
+    for (const name of ["Use disciplines", "Inline activity creation", "Show task field in schedule"]) {
+      expect(within(section as HTMLElement).getByRole("switch", { name })).toBeInTheDocument();
+    }
+
+    await user.click(screen.getByRole("button", { name: "About Company features" }));
+    const dialog = screen.getByRole("dialog", { name: "Company features" });
     expect(within(dialog).getAllByText(/unfilled roles or tentative people/i)).not.toHaveLength(0);
     expect(within(dialog).getAllByText(/partner agencies, freelancers, suppliers or subcontractors/i)).not.toHaveLength(
       0,
@@ -609,14 +607,6 @@ describe("SettingsView — account toggle wiring", () => {
 });
 
 describe("SettingsView — device preference toggle wiring", () => {
-  it("wires Snap to week start to its own preference", async () => {
-    const user = userEvent.setup();
-    const before = useStore.getState().snapToWeekStart;
-    render(<SettingsView />);
-    await user.click(screen.getByRole("switch", { name: "Snap to week start" }));
-    expect(useStore.getState().snapToWeekStart).toBe(!before);
-  });
-
   it.each([
     ["Show client name", "showClient"],
     ["Show project name", "showProject"],
@@ -756,18 +746,17 @@ it("locks both confirmation actions while device cleanup is in flight", async ()
 });
 
 describe("SettingsView — account options selected at creation", () => {
-  it("shows the four frozen values in a compact read-only table at the bottom", () => {
+  it("shows the three frozen values in a compact read-only table at the bottom", () => {
     render(<SettingsView />);
 
     const heading = screen.getByRole("heading", { name: "Company details" });
     const card = heading.closest('[data-slot="settings-row"]');
     expect(card).not.toBeNull();
     const table = within(card as HTMLElement).getByRole("table");
-    expect(within(table).getAllByRole("row")).toHaveLength(4);
+    expect(within(table).getAllByRole("row")).toHaveLength(3);
     expect(within(table).getByRole("cell", { name: "Test Co" })).toBeInTheDocument();
     expect(within(table).getByRole("cell", { name: "Monday" })).toBeInTheDocument();
     expect(within(table).getByRole("cell", { name: "GMT (UTC+00:00)" })).toBeInTheDocument();
-    expect(screen.getByTestId("settings-language")).toHaveTextContent("English");
     for (const cell of [...within(table).getAllByRole("rowheader"), ...within(table).getAllByRole("cell")]) {
       expect(cell).toHaveClass("py-1");
       expect(cell).not.toHaveClass("py-2");

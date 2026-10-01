@@ -3,16 +3,7 @@ import type { Account } from "@capacitylens/shared/types/entities";
 
 export type CreateWorkspaceBody = Pick<Account, "name"> &
   Partial<
-    Pick<
-      Account,
-      | "color"
-      | "weekStartsOn"
-      | "timezone"
-      | "language"
-      | "schedulingMode"
-      | "inlineActivityCreateEnabled"
-      | "internalColourMode"
-    >
+    Pick<Account, "color" | "weekStartsOn" | "timezone" | "language" | "schedulingMode" | "inlineActivityCreateEnabled">
   >;
 
 export interface CreateInvitationBody {

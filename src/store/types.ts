@@ -178,15 +178,10 @@ export interface StoreState extends StoreEntityActions {
    *  `theme`, own localStorage key, NOT in AppData/export — and defaults ON. */
   minimiseWeekends: boolean;
   /** After a FREE horizontal scroll settles, floor the grid's left edge to the current week's
-   *  first day. Device-global like `theme` (own localStorage key, NOT in AppData/export), defaults
-   *  ON. Governs FREE SCROLL ONLY — the navigation snap (zoom / Prev-Next / date-picker) is always
-   *  on, independent of this flag. */
-  snapToWeekStart: boolean;
-  /** Schedule vertical density. Device-global like `theme` (own localStorage key, NOT in
-   *  AppData/export) and defaults OFF, which is the ROOMIER layout — off is what the product
-   *  ships, and ON restores the tighter original spacing for people who want more rows on
-   *  screen. Selects the geometry in `components/scheduler/layout.ts` (`buildSchedulerDensity`). */
-  compactView: boolean;
+   *  first day. Always true for users; read once from a test-only storage override (see
+   *  `readStoredWeekSnapOverride`). The navigation snap (zoom / Prev-Next / date-picker) is
+   *  independent of this flag. */
+  weekSnapEnabled: boolean;
   /** COSMETIC demo "fake sign-in" state — gates a Google-style demo sign-in screen BEFORE
    *  the account picker so a viewer sees "log in first, then pick a company". Device-global
    *  like `theme` (own localStorage key, NOT in AppData/export), defaults OFF (signed out).
@@ -266,10 +261,6 @@ export interface StoreState extends StoreEntityActions {
   setSidebarOpen: (open: boolean) => void;
   /** Toggle the minimise-weekends preference: persist and update state. */
   setMinimiseWeekends: (value: boolean) => void;
-  /** Toggle the snap-to-week-start preference: persist and update state. */
-  setSnapToWeekStart: (value: boolean) => void;
-  /** Toggle the compact schedule density: persist and update state. */
-  setCompactView: (value: boolean) => void;
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void;
   /** Set the active account's resolved role (P1.12) — called by PermissionProvider whenever it

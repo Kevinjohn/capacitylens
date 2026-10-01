@@ -4,7 +4,7 @@ import { resolveLeftEdgeDate } from "./columnGeometry";
 import type { ColumnGeometry } from "./columnGeometry";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
-// The "snap to week start" floor, extracted as a pure function so the scroll-idle behaviour in
+// The week-start snap floor, extracted as a pure function so the scroll-idle behaviour in
 // SchedulerGrid is unit-testable without a measured DOM (in jsdom the grid container is never laid
 // out — clientWidth === 0 — so the component's onScroll snap normally early-returns). The component
 // (Feature 2's scroll-idle snap) calls this; the geometry is built by the exhaustively-tested

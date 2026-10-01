@@ -52,9 +52,22 @@ export const resolveSchedulingMode = createAccountFieldSelector("schedulingMode"
  *  form, schedule grouping + filter, lists, command palette) gates on the same value. */
 export const hasDisciplinesEnabled = createAccountFieldSelector("disciplinesEnabled", true);
 
-/** Whether the active company partitions people by engagement in Resources and within schedule
- * groups. Absent reads as TRUE so existing and new accounts receive the default-on behaviour. */
-export const hasResourceEngagementGrouping = createAccountFieldSelector("groupResourcesByEngagement", true);
+/** True for a resource the engagement bands hold as Supplementary: active and capacity-tracked. */
+function isActiveSupplementary(resource: Resource): boolean {
+  return resource.engagement === "supplementary" && isCapacityTracked(resource) && !resource.archivedAt;
+}
+
+/** Whether people are partitioned Studio then Supplementary in Resources, the schedule and
+ * Overview. Derived, not stored: the split applies once any active, capacity-tracked resource is
+ * Supplementary, so a Studio-only company reads as one list. Pass one company's resources. */
+export function hasSupplementaryResources(resources: readonly Resource[]): boolean {
+  return resources.some(isActiveSupplementary);
+}
+
+/** {@link hasSupplementaryResources} for the active company, read from the full store data. */
+export function hasResourceEngagementGrouping(data: AppData, activeAccountId: ID | null): boolean {
+  return data.resources.some((resource) => resource.accountId === activeAccountId && isActiveSupplementary(resource));
+}
 
 /** Whether the active company shows placeholder ("slot") rows. Absent on the account reads as
  *  FALSE (hidden) — the documented default-off behaviour. NOTE the `?? false` (contrast
@@ -68,19 +81,6 @@ export const hasPlaceholdersEnabled = createAccountFieldSelector("placeholdersEn
  *  NOT hasDisciplinesEnabled's `?? true`). Single source so every external surface gates on the
  *  same per-account value. */
 export const hasExternalResourcesEnabled = createAccountFieldSelector("externalEnabled", false);
-
-/** How the active company displays Internal work. Absent reads as neutral grey, so legacy and new
- * accounts receive the requested default without rewriting their saved project colours. */
-export const resolveInternalColourMode = createAccountFieldSelector("internalColourMode", "grey");
-
-/** Whether the schedule shows INTERNAL-PROJECT allocation bars (activities under the built-in Internal
- *  client). Absent reads as TRUE (shown) — note the `?? true` (like hasDisciplinesEnabled, NOT the
- *  placeholders/external `?? false`). A pure VIEW pref: it hides only bars, never capacity/utilisation. */
-export const hasVisibleInternalProjects = createAccountFieldSelector("showInternalProjects", true);
-
-/** Whether the schedule shows INTERNAL-ACTIVITY allocation bars (kind 'internal'). Absent reads as
- *  TRUE (shown), the exact analog of hasVisibleInternalProjects. Hides bars only, never capacity. */
-export const hasVisibleInternalActivities = createAccountFieldSelector("showInternalActivities", true);
 
 /** Whether the Allocation modal offers the inline "Add activity" input + button. Absent reads as
  *  FALSE (disabled). Single source so Settings and the modal use the same workspace value. */

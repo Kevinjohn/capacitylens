@@ -123,7 +123,7 @@ describe("ResourceList display", () => {
 });
 
 describe("ResourceList display", () => {
-  it("separates Studio and Supplementary by default, with favourites first inside each section", () => {
+  it("separates Studio and Supplementary once a Supplementary person exists, with favourites first inside each", () => {
     useStore.getState().addResource(personDraft("Studio Zulu"));
     useStore.getState().addResource({ ...personDraft("Studio Alpha"), isFavourite: true });
     useStore.getState().addResource({
@@ -154,21 +154,18 @@ describe("ResourceList display", () => {
     ).toEqual([expect.stringContaining("Supplementary Zulu"), expect.stringContaining("Supplementary Alpha")]);
   });
 
-  it("combines people into one favourites-first list when engagement grouping is off", () => {
-    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { groupResourcesByEngagement: false });
+  it("keeps a Studio-only company in one favourites-first list", () => {
     useStore.getState().addResource(personDraft("Studio Zulu"));
-    useStore.getState().addResource({
-      ...personDraft("Supplementary Alpha"),
-      engagement: "supplementary",
-      isFavourite: true,
-    });
+    useStore.getState().addResource({ ...personDraft("Studio Alpha"), isFavourite: true });
+    useStore.getState().addResource(personDraft("Studio Bravo"));
 
     render(<ResourceList />);
 
     expect(screen.queryByRole("heading", { name: "Studio" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Supplementary" })).not.toBeInTheDocument();
     expect(screen.getAllByTestId("resource-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
-      "Supplementary Alpha",
+      "Studio Alpha",
+      "Studio Bravo",
       "Studio Zulu",
     ]);
   });

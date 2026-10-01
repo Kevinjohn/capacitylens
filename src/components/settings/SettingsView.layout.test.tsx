@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsView } from "./SettingsView";
 import { useStore } from "../../store/useStore";
@@ -32,7 +32,10 @@ beforeEach(() => {
 
 describe("SettingsView — grouped information architecture", () => {
   it("groups company, feature, device and support controls in the agreed heading order", () => {
+    // Build details renders only for a stamped build or a feedback link.
+    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
     render(<SettingsView />);
+    vi.unstubAllEnvs();
 
     expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
       "Company setup",
@@ -48,17 +51,16 @@ describe("SettingsView — grouped information architecture", () => {
     expect(within(company).getByRole("radio", { name: "Days" })).toBeVisible();
     expect(within(company).getByRole("table", { name: "Company working days" })).toBeVisible();
     expect(within(company).getByRole("heading", { name: "Date format", level: 3 })).toBeVisible();
-    expect(within(company).getByRole("switch", { name: "Use disciplines" })).toBeVisible();
-    expect(within(company).getByRole("switch", { name: "Group resources by engagement" })).toBeVisible();
     expect(within(company).getByRole("radio", { name: "Everyone" })).toBeVisible();
-    for (const heading of [
-      "Placeholders and external resources",
-      "Internal work colours",
-      "Internal work",
-      "Activity creation",
-      "Allocation task field",
+    expect(within(features).getByRole("heading", { name: "Company features", level: 3 })).toBeVisible();
+    for (const name of [
+      "Use disciplines",
+      "Show placeholders",
+      "Show external resources",
+      "Inline activity creation",
+      "Show task field in schedule",
     ]) {
-      expect(within(features).getByRole("heading", { name: heading, level: 3 })).toBeVisible();
+      expect(within(features).getByRole("switch", { name })).toBeVisible();
     }
     expect(within(display).getByText(/This device/)).toBeVisible();
     for (const heading of [
@@ -87,11 +89,12 @@ describe("SettingsView — grouped information architecture", () => {
     const company = screen.getByRole("region", { name: "Company setup" });
     expect(within(company).getByRole("radio", { name: "Everyone" })).toBeDisabled();
     const display = screen.getByRole("region", { name: "My display" });
-    const compact = within(display).getByRole("switch", { name: "Compact view" });
-    const before = useStore.getState().compactView;
-    expect(compact).toBeEnabled();
-    await user.click(compact);
-    expect(useStore.getState().compactView).toBe(!before);
+    const minimise = within(display).getByRole("switch", { name: "Minimise weekends" });
+    const before = useStore.getState().minimiseWeekends;
+    expect(minimise).toBeEnabled();
+    await user.click(minimise);
+    expect(useStore.getState().minimiseWeekends).toBe(!before);
+    act(() => useStore.getState().setMinimiseWeekends(before));
   });
 
   it("retains the existing permission exceptions during a masquerade transition", () => {
@@ -109,7 +112,7 @@ describe("SettingsView — grouped information architecture", () => {
       expect(screen.getByRole("switch", { name: "Use disciplines" })).toBeDisabled();
       expect(screen.getByRole("radio", { name: "Days" })).toBeDisabled();
       expect(screen.getByRole("radio", { name: "Everyone" })).toBeEnabled();
-      expect(screen.getByRole("switch", { name: "Compact view" })).toBeEnabled();
+      expect(screen.getByRole("switch", { name: "Minimise weekends" })).toBeEnabled();
       expect(screen.queryByTestId("archived-section")).not.toBeInTheDocument();
     } finally {
       useStore.getState().setMasquerade({ kind: "inactive" });

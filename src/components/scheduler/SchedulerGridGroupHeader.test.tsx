@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { m } from "@/i18n";
 import { makeResource } from "../../test/fixtures";
 import type { ColumnGeometry } from "./columnGeometry";
-import { buildSchedulerDensity } from "./layout";
+import { SCHEDULER_DENSITY } from "./layout";
 import type { GroupModel, RowModel } from "./schedulerModel";
 import { SchedulerGridGroupHeader } from "./SchedulerGridGroupHeader";
 
@@ -30,7 +30,7 @@ function renderGroup({ rows, external = false }: RenderGroupOptions) {
       group={group}
       rowIndex={1}
       ui={{ collapsedGroups: [] }}
-      density={buildSchedulerDensity({ compact: false })}
+      density={SCHEDULER_DENSITY}
       toggleGroup={() => {}}
       geom={{ totalWidth: 700 } as ColumnGeometry}
       utilizationPrefs={{ showTotal: true, showDiscipline: true, showPersonal: true }}

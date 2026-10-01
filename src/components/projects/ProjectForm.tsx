@@ -8,7 +8,6 @@ import { isStaleEdit } from "../../lib/isStaleEdit";
 import { validateProjectClient } from "@capacitylens/shared/lib/integrity";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { byName } from "../../lib/displayOrder";
-import { resolveInternalColourMode } from "../../store/selectors";
 import { m } from "@/i18n";
 import { ColorField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { PrivateNameFields } from "../common/PrivateNameFields";
@@ -29,7 +28,6 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   // build an archived client is still in the raw slice (so we can show its name); in server mode the
   // per-account read strips it entirely, so the label degrades to the generic "(current, archived)".
   const rawClients = useScopedData().clients;
-  const internalColourMode = useStore((state) => resolveInternalColourMode(state.data, state.activeAccountId));
 
   const [name, setName] = useState(project?.name ?? "");
   const [clientId, setClientId] = useState(project?.clientId ?? "");
@@ -37,7 +35,8 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const { error, errorField, errorId, fail } = useFieldError();
   const privateNameFields = usePrivateNameFields(project, fail);
   const selectedClientIsInternal = clients.find((client) => client.id === clientId)?.builtin === true;
-  const showColourPicker = internalColourMode === "palette" || !selectedClientIsInternal;
+  // Internal projects always read as neutral grey, so their colour is not editable.
+  const showColourPicker = !selectedClientIsInternal;
 
   // The internal/ordinary split + sort is the only non-trivial cost here; memoised on its actual
   // input (clients) so it isn't redone on every keystroke elsewhere in the form. The archived-option

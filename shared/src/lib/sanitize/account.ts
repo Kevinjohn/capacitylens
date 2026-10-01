@@ -1,10 +1,5 @@
 import { normalizeAccountWorkingDays } from "../accountWorkingDays";
-import {
-  CAPACITY_OVERVIEW_ACCESS_VALUES,
-  DATE_STYLES,
-  INTERNAL_COLOUR_MODES,
-  SCHEDULING_MODES,
-} from "../../types/entities";
+import { CAPACITY_OVERVIEW_ACCESS_VALUES, DATE_STYLES, SCHEDULING_MODES } from "../../types/entities";
 import type { Account } from "../../types/entities";
 
 /**
@@ -12,11 +7,8 @@ import type { Account } from "../../types/entities";
  * hand-edited value isn't a real boolean, so its ABSENCE reads back as the documented default on
  * the client — which differs per field and is what `Account` documents:
  *   disciplinesEnabled            absent = true  (disciplines shown)
- *   groupResourcesByEngagement    absent = true  (Studio / Supplementary partitioning on)
  *   placeholdersEnabled           absent = false (placeholders hidden out of the box)
  *   externalEnabled               absent = false (external resources hidden out of the box)
- *   showInternalProjects          absent = true  (Internal-client bars shown)
- *   showInternalActivities        absent = true  (internal-kind bars shown)
  *   inlineActivityCreateEnabled   absent = false (inline "Add activity" hidden)
  *   showTaskFieldInSchedule       absent = false (allocation task hidden)
  * Dropping junk — rather than coercing it — is what keeps a `false`-defaulting flag from turning on
@@ -24,11 +16,8 @@ import type { Account } from "../../types/entities";
  */
 const ACCOUNT_BOOLEAN_FIELDS = [
   "disciplinesEnabled",
-  "groupResourcesByEngagement",
   "placeholdersEnabled",
   "externalEnabled",
-  "showInternalProjects",
-  "showInternalActivities",
   "inlineActivityCreateEnabled",
   "showTaskFieldInSchedule",
 ] as const satisfies readonly AccountBooleanField[];
@@ -48,7 +37,6 @@ void accountBooleanFieldsAreComplete;
  * Optional account fields constrained to a fixed value set. Anything outside it is dropped:
  *   schedulingMode: absence reads as 'hourly', the original behaviour.
  *   language: English-only until P1.5.1 (Paraglide); absence reads as 'en'.
- *   internalColourMode: absence reads as the safe/default grey.
  *   capacityOverviewAccess: absence reads as owner/admin-only access.
  *   dateStyle: absence reads as 'day-month', the historical format.
  */
@@ -68,13 +56,13 @@ type AccountEnumField =
 const ACCOUNT_ENUM_FIELDS: { readonly [K in AccountEnumField]: readonly unknown[] } = {
   language: ["en"],
   schedulingMode: SCHEDULING_MODES,
-  internalColourMode: INTERNAL_COLOUR_MODES,
   capacityOverviewAccess: CAPACITY_OVERVIEW_ACCESS_VALUES,
   dateStyle: DATE_STYLES,
 };
 
 /** Sanitize the optional calendar fields of an account record in place.
- *  Called by the server write path; the import path doesn't re-import accounts.
+ *  Called by the server write path; the import path doesn't re-import accounts. Retired account
+ *  preferences are not listed above: the server's write-column whitelist drops them before this runs.
  *  `storedWeekStartsOn` is the row's persisted week start, used to repair an empty or malformed
  *  workingDays value when the payload itself omits the (immutable, restored-later) field — without
  *  it a Sunday-start account's repair would silently produce the Monday-start default. */

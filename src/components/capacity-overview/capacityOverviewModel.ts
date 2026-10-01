@@ -8,7 +8,7 @@ import {
   createFavouriteDisplayNameComparator,
 } from "../../lib/displayOrder";
 import { resolveResourceDisplayName } from "../../lib/metadata";
-import { buildDisciplineGroups } from "../../store/selectors";
+import { buildDisciplineGroups, hasSupplementaryResources } from "../../store/selectors";
 import { buildDayCapacity } from "../../lib/capacity";
 import type { CapacityOverviewPeriod } from "./capacityOverviewDates";
 import { buildCapacityOverviewPeriods } from "./capacityOverviewDates";
@@ -54,7 +54,7 @@ interface BuildGroupSeedsInput {
   data: AppData;
   eligible: Set<string>;
   disciplinesEnabled: boolean;
-  groupResourcesByEngagement: boolean;
+  groupByEngagement: boolean;
 }
 
 interface OverviewIndexes {
@@ -129,10 +129,10 @@ function calculatePeriod({
   };
 }
 
-type FallbackGroupsOptions = { resources: Resource[]; groupResourcesByEngagement: boolean };
-function fallbackGroups({ resources, groupResourcesByEngagement }: FallbackGroupsOptions): GroupSeed[] {
+type FallbackGroupsOptions = { resources: Resource[]; groupByEngagement: boolean };
+function fallbackGroups({ resources, groupByEngagement }: FallbackGroupsOptions): GroupSeed[] {
   if (!resources.length) return [];
-  if (!groupResourcesByEngagement) return [{ key: "unassigned", title: "Unassigned", resources }];
+  if (!groupByEngagement) return [{ key: "unassigned", title: "Unassigned", resources }];
   return (
     [
       {
@@ -149,8 +149,8 @@ function fallbackGroups({ resources, groupResourcesByEngagement }: FallbackGroup
   ).filter((group) => group.resources.length > 0);
 }
 
-type CreateResourceComparatorOptions = { groupResourcesByEngagement: boolean };
-function createResourceComparator({ groupResourcesByEngagement }: CreateResourceComparatorOptions) {
+type CreateResourceComparatorOptions = { groupByEngagement: boolean };
+function createResourceComparator({ groupByEngagement }: CreateResourceComparatorOptions) {
   const byDisplayName = createDisplayNameComparator<Resource>(resolveResourceDisplayName);
   const byFavouriteDisplayName = createFavouriteDisplayNameComparator<Resource>(resolveResourceDisplayName);
   const byEngagementFavouriteDisplayName =
@@ -159,25 +159,18 @@ function createResourceComparator({ groupResourcesByEngagement }: CreateResource
     const placeholderOrder = Number(left.kind === "placeholder") - Number(right.kind === "placeholder");
     if (placeholderOrder !== 0) return placeholderOrder;
     if (left.kind === "placeholder") return byDisplayName(left, right);
-    return groupResourcesByEngagement
-      ? byEngagementFavouriteDisplayName(left, right)
-      : byFavouriteDisplayName(left, right);
+    return groupByEngagement ? byEngagementFavouriteDisplayName(left, right) : byFavouriteDisplayName(left, right);
   };
 }
 
-function buildGroupSeeds({
-  data,
-  eligible,
-  disciplinesEnabled,
-  groupResourcesByEngagement,
-}: BuildGroupSeedsInput): GroupSeed[] {
+function buildGroupSeeds({ data, eligible, disciplinesEnabled, groupByEngagement }: BuildGroupSeedsInput): GroupSeed[] {
   const eligibleResources = data.resources.filter((resource) => eligible.has(resource.id));
   const placeholders = eligibleResources.filter(isPlaceholderResource);
   const people = eligibleResources.filter((resource) => !isPlaceholderResource(resource));
   if (!disciplinesEnabled) {
     let peopleGroups: GroupSeed[] = [];
-    if (groupResourcesByEngagement) {
-      peopleGroups = fallbackGroups({ resources: people, groupResourcesByEngagement: true });
+    if (groupByEngagement) {
+      peopleGroups = fallbackGroups({ resources: people, groupByEngagement: true });
     } else if (people.length) {
       peopleGroups = [{ key: "overall", title: "Overall", resources: people }];
     }
@@ -201,7 +194,7 @@ function buildGroupSeeds({
         resources,
       });
     } else {
-      groups.push(...fallbackGroups({ resources: resources, groupResourcesByEngagement: groupResourcesByEngagement }));
+      groups.push(...fallbackGroups({ resources: resources, groupByEngagement: groupByEngagement }));
     }
   }
   return [
@@ -253,16 +246,16 @@ function buildRows({
   indexes,
   closures,
   accountWorkingDays,
-  groupResourcesByEngagement,
+  groupByEngagement,
 }: {
   seeds: GroupSeed[];
   periods: CapacityOverviewPeriod[];
   indexes: OverviewIndexes;
   closures: Closure[];
   accountWorkingDays: Weekday[];
-  groupResourcesByEngagement: boolean;
+  groupByEngagement: boolean;
 }): CapacityOverviewGroup[] {
-  const compareResources = createResourceComparator({ groupResourcesByEngagement: groupResourcesByEngagement });
+  const compareResources = createResourceComparator({ groupByEngagement: groupByEngagement });
   return seeds.map((seed) => {
     const rows = seed.resources
       .slice()
@@ -301,7 +294,6 @@ function applyAvailabilityFilter({ groups, hasAvailability }: ApplyAvailabilityF
 
 // The model keeps eligibility, grouping, filtering and blocks-mode orchestration together so
 // every displayed period follows the same scoped calculation path.
-// eslint-disable-next-line complexity
 export function buildCapacityOverviewModel({
   data,
   today,
@@ -312,7 +304,6 @@ export function buildCapacityOverviewModel({
   placeholdersEnabled = false,
   hasAvailability = false,
   disciplinesEnabled = true,
-  groupResourcesByEngagement = true,
   blocksMode = false,
   timeOff = data.timeOff,
   closures = data.closures,
@@ -328,13 +319,15 @@ export function buildCapacityOverviewModel({
       .map((resource) => resource.id),
   );
   const indexes = buildIndexes({ data, eligible, includeTentative, timeOff });
+  // Derived like the schedule's bands: Studio/Supplementary only once a Supplementary person exists.
+  const groupByEngagement = hasSupplementaryResources(data.resources);
   const groups = buildRows({
-    seeds: buildGroupSeeds({ data, eligible, disciplinesEnabled, groupResourcesByEngagement }),
+    seeds: buildGroupSeeds({ data, eligible, disciplinesEnabled, groupByEngagement }),
     periods,
     indexes,
     closures,
     accountWorkingDays,
-    groupResourcesByEngagement,
+    groupByEngagement,
   });
   return {
     measured: true,

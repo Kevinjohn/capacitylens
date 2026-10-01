@@ -5,15 +5,12 @@ import {
   readStoredFakeSignedIn,
   readStoredMinimiseWeekends,
   readStoredSidebarOpen,
-  readStoredCompactView,
-  readStoredSnapToWeekStart,
+  readStoredWeekSnapOverride,
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
   writeStoredFakeSignedIn,
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
-  writeStoredCompactView,
-  writeStoredSnapToWeekStart,
   writeStoredUtilizationPrefs,
 } from "../../lib/displayPrefs";
 import { applyThemeToDom, readStoredTheme, writeStoredTheme } from "../../lib/theme";
@@ -35,8 +32,7 @@ type RuntimeSliceKeys =
   | "barLabelPrefs"
   | "sidebarOpen"
   | "minimiseWeekends"
-  | "snapToWeekStart"
-  | "compactView"
+  | "weekSnapEnabled"
   | "fakeSignedIn"
   | "activeRole"
   | "activeRoleStatus"
@@ -56,8 +52,6 @@ type RuntimeSliceKeys =
   | "setBarLabelPref"
   | "setSidebarOpen"
   | "setMinimiseWeekends"
-  | "setSnapToWeekStart"
-  | "setCompactView"
   | "setFakeSignedIn"
   | "setActiveRole"
   | "invalidateMemberships"
@@ -68,7 +62,7 @@ type RuntimeSliceKeys =
 type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
 
 /** The device-global boolean prefs, each persisted under its own localStorage key. */
-type PersistedFlagKey = "sidebarOpen" | "minimiseWeekends" | "snapToWeekStart" | "compactView" | "fakeSignedIn";
+type PersistedFlagKey = "sidebarOpen" | "minimiseWeekends" | "fakeSignedIn";
 
 const legacyDirtyFormSource = Symbol("setDirtyForm");
 
@@ -99,8 +93,7 @@ function readRuntimeInitialState() {
     barLabelPrefs: readStoredBarLabelPrefs(),
     sidebarOpen: readStoredSidebarOpen() ?? readDefaultSidebarOpen(),
     minimiseWeekends: readStoredMinimiseWeekends(),
-    snapToWeekStart: readStoredSnapToWeekStart(),
-    compactView: readStoredCompactView(),
+    weekSnapEnabled: readStoredWeekSnapOverride(),
     fakeSignedIn: readStoredFakeSignedIn(),
     activeRole: null,
     activeRoleStatus: "not-applicable" as const,
@@ -162,8 +155,6 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
       }),
     setSidebarOpen: createPersistedFlagSetter(set, "sidebarOpen", (open) => writeStoredSidebarOpen({ open })),
     setMinimiseWeekends: createPersistedFlagSetter(set, "minimiseWeekends", writeStoredMinimiseWeekends),
-    setSnapToWeekStart: createPersistedFlagSetter(set, "snapToWeekStart", writeStoredSnapToWeekStart),
-    setCompactView: createPersistedFlagSetter(set, "compactView", writeStoredCompactView),
     setFakeSignedIn: createPersistedFlagSetter(set, "fakeSignedIn", writeStoredFakeSignedIn),
     setActiveRole: (role, status = role === null ? "not-applicable" : "resolved") =>
       set({ activeRole: role, activeRoleStatus: status }),

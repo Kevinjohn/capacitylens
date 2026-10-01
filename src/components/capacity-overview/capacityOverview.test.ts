@@ -443,7 +443,7 @@ describe("buildCapacityOverviewModel", () => {
     expect(period(result, real.id, 0)).toMatchObject({ freeDays: 5 });
   });
 
-  it("keeps disabled-discipline fallback groups and placeholder demand visibly separate", () => {
+  it("derives disabled-discipline fallback groups and keeps placeholder demand visibly separate", () => {
     const studio = person("studio", { engagement: "studio" });
     const supplementary = person("supplementary", { engagement: "supplementary" });
     const slot = placeholder("slot", { engagement: "studio" });
@@ -453,15 +453,14 @@ describe("buildCapacityOverviewModel", () => {
       accountWorkingDays: WEEKDAYS,
       placeholdersEnabled: true,
       disciplinesEnabled: false,
-      groupResourcesByEngagement: true,
     });
+    // A Studio-only company has no Supplementary people, so its people form one flat group.
     const ungrouped = buildCapacityOverviewModel({
-      data: data([studio, supplementary, slot], [allocation("demand", slot.id, "2026-06-01", "2026-06-01", 8)]),
+      data: data([studio, slot], [allocation("demand", slot.id, "2026-06-01", "2026-06-01", 8)]),
       today: "2026-06-01",
       accountWorkingDays: WEEKDAYS,
       placeholdersEnabled: true,
       disciplinesEnabled: false,
-      groupResourcesByEngagement: false,
     });
 
     expect(grouped.groups.map((group) => group.key)).toEqual([

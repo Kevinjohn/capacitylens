@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
 import {
+  disableWeekSnap,
   waitForAppLanding,
   nudgeScheduler as nudge,
   openApp,
@@ -11,28 +12,13 @@ import {
 
 test.use({ contextOptions: { reducedMotion: "reduce" }, viewport: { width: 1440, height: 800 } });
 
-// Covers US-SET-09. "Snap to week start" (device-global, default ON) floors the schedule's left
-// edge back to the current week's first day after a FREE scroll settles, so a stray nudge can't
-// park the view on a Tue/Wed. Off → the nudge sticks. Independent of Feature 1's always-on
-// navigation snap (zoom / Prev-Next / date-picker), which is not under test here.
-test.describe("Snap to week start", () => {
-  test("the setting is on by default and persists across reload", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/settings");
-    const toggle = page.getByRole("switch", { name: "Snap to week start" });
-    await expect(toggle).toHaveAttribute("aria-checked", "true"); // default on
-
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-checked", "false");
-
-    await page.reload();
-    // Re-pick the company after reload (activeAccountId is never persisted) and re-open Settings.
-    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
-    await page.getByRole("link", { name: "Settings", exact: true }).click();
-    await expect(page.getByRole("switch", { name: "Snap to week start" })).toHaveAttribute("aria-checked", "false");
-  });
-
-  test("with the setting ON, a stray scroll nudge snaps back to the week start", async ({ page }) => {
-    await openApp(page); // snap on by default
+// Covers US-SET-09. The week snap (always on, no Settings control) floors the schedule's left edge
+// back to the current week's first day after a FREE scroll settles, so a stray nudge can't park the
+// view on a Tue/Wed. With the test-only override off, the nudge sticks. Independent of Feature 1's
+// always-on navigation snap (zoom / Prev-Next / date-picker), which is not under test here.
+test.describe("Week snap", () => {
+  test("a stray scroll nudge snaps back to the week start", async ({ page }) => {
+    await openApp(page); // snap is always on
     await setZoom(page, 1);
 
     // Pre-condition: the left edge opens flush on the week start (Monday, default weekStartsOn).
@@ -51,7 +37,7 @@ test.describe("Snap to week start", () => {
   });
 
   test("the snap FLOORS to the current week (not NEAREST), even past the half-week", async ({ page }) => {
-    await openApp(page); // snap on by default
+    await openApp(page); // snap is always on
     await setZoom(page, 1);
 
     // Pre-condition: the left edge opens flush on this week's Monday. Frozen clock 2026-06-03 (Wed),
@@ -77,8 +63,8 @@ test.describe("Snap to week start", () => {
   test("with a Sunday week-start, the free-scroll snap floors to Sunday (not a hardcoded Monday)", async ({ page }) => {
     // weekStartsOn is FROZEN after creation (P1.14), so it can no longer be flipped in Settings;
     // capture Sunday at company creation via the onboarding form instead. With the snap ON, a free
-    // nudge must then floor onto a SUNDAY — guarding against a hardcoded-Monday floor. (The snap pref
-    // is device-global, default ON, so it needs no setup here.)
+    // nudge must then floor onto a SUNDAY — guarding against a hardcoded-Monday floor. (The snap is
+    // always on, so it needs no setup here.)
     await openApp(page, "Wayne Enterprises", "/settings"); // land in the app first
     await page.getByRole("button", { name: "Switch company" }).click();
     await page.getByRole("button", { name: "New company" }).click();
@@ -109,20 +95,16 @@ test.describe("Snap to week start", () => {
     await expect.poll(async () => (await probe(page)).leftWeekday).toBe("Sun");
   });
 
-  test("with the setting OFF, the nudge sticks (and so proves the nudge moves off Monday)", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/settings");
-    const toggle = page.getByRole("switch", { name: "Snap to week start" });
-    await toggle.click(); // → off
-    await expect(toggle).toHaveAttribute("aria-checked", "false");
-
-    await page.getByRole("link", { name: "Schedule" }).click();
+  test("with the test override OFF, the nudge sticks (and so proves the nudge moves off Monday)", async ({ page }) => {
+    await disableWeekSnap(page);
+    await openApp(page);
     await setZoom(page, 1);
     // Poll the open-flush precondition until the zoom-click scroll settles on Monday (parallel-load
     // Firefox can still be settling on a single read).
     await expect.poll(async () => (await probe(page)).leftWeekday).toBe("Mon");
 
-    // Same nudge as the ON test — with the pref off it must STICK on the mid-week day. This
-    // doubles as the proof that the nudge actually leaves Monday (otherwise the ON test is vacuous).
+    // Same nudge as the snapping test — with the override off it must STICK on the mid-week day. This
+    // doubles as the proof that the nudge actually leaves Monday (otherwise the snapping test is vacuous).
     await nudge(page, 2.5);
     await waitForWeekSnap(page);
 

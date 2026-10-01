@@ -148,7 +148,7 @@ describe("scopeData", () => {
       ...account,
       schedulingMode: "days",
       placeholdersEnabled: true,
-      internalColourMode: "palette",
+      dateStyle: "month-day",
     };
 
     const exported = scopeData(source, "a1");

@@ -24,7 +24,6 @@ interface BuildPaletteItemsInput {
   showCapacityOverview: boolean;
   placeholdersEnabled: boolean;
   externalEnabled: boolean;
-  showInternalProjects: boolean;
   navigate: ReturnType<typeof useNavigate>;
   goToToday: () => void;
   goToDate: (iso: string) => void;
@@ -115,24 +114,22 @@ function buildResourceItems(input: BuildPaletteItemsInput): PaletteItem[] {
 }
 
 function buildProjectItems(input: BuildPaletteItemsInput): PaletteItem[] {
-  const { data, showInternalProjects, navigate, setFilters, onClose } = input;
+  const { data, navigate, setFilters, onClose } = input;
   const clientsById = new Map(data.clients.map((client) => [client.id, client]));
-  return data.projects
-    .filter((project) => showInternalProjects || clientsById.get(project.clientId)?.builtin !== true)
-    .map((project) => {
-      const client = clientsById.get(project.clientId);
-      return {
-        id: `proj-${project.id}`,
-        label: project.name,
-        ...(client ? { sublabel: client.name } : {}),
-        section: m.palette_section_projects(),
-        onSelect: () => {
-          void navigate("/");
-          setFilters({ ...buildEmptyFilters(), projectId: project.id });
-          onClose();
-        },
-      };
-    });
+  return data.projects.map((project) => {
+    const client = clientsById.get(project.clientId);
+    return {
+      id: `proj-${project.id}`,
+      label: project.name,
+      ...(client ? { sublabel: client.name } : {}),
+      section: m.palette_section_projects(),
+      onSelect: () => {
+        void navigate("/");
+        setFilters({ ...buildEmptyFilters(), projectId: project.id });
+        onClose();
+      },
+    };
+  });
 }
 
 function buildClientItems({ data, navigate, setFilters, onClose }: BuildPaletteItemsInput): PaletteItem[] {

@@ -39,10 +39,11 @@ test.describe("Disciplines", () => {
     await expect(bruce).toBeVisible();
     await expect(bruce).toContainText("Designer");
     await expect(bruce).not.toContainText("—");
-    // …and still appears on the schedule in his Studio engagement fallback.
+    // …and still appears on the schedule in the fallback band (one Unassigned band, because the
+    // seeded company has no Supplementary people).
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
-    await expect(page.getByTestId("discipline-group").filter({ hasText: "Studio" })).toBeVisible();
+    await expect(page.getByTestId("discipline-group").filter({ hasText: "Unassigned" })).toBeVisible();
     await expect(page.getByTestId("discipline-group").filter({ hasText: "No discipline" })).toHaveCount(0);
   });
 });

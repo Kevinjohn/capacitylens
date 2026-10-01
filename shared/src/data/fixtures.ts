@@ -30,17 +30,10 @@ export const FIXTURE_ACCOUNT: Account = {
   workingDays: [0, 1, 2, 3],
   language: "en",
   disciplinesEnabled: false,
-  // Default-on preference: explicit false proves the optional column round-trips.
-  groupResourcesByEngagement: false,
   // Both true (the NON-default — absent reads as false/hidden) so the server round-trip test
   // proves the new optional boolean columns persist a PRESENT value, not just absence.
   placeholdersEnabled: true,
   externalEnabled: true,
-  // Non-default so the round-trip proves the optional enum is stored, not merely defaulted.
-  internalColourMode: "palette",
-  // Internal visibility defaults true when absent, so explicit false values exercise its inverse.
-  showInternalProjects: false,
-  showInternalActivities: false,
   // Inline creation defaults false; keeping the explicit value exercises boolean persistence.
   inlineActivityCreateEnabled: false,
   showTaskFieldInSchedule: true,
