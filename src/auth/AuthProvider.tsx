@@ -51,7 +51,8 @@ function useTenantAccessReady(status: AuthStatusResult, onTenantAccessReady?: ()
   }, [onTenantAccessReady, ready]);
 }
 
-function useAuthStatus(serverMode: boolean) {
+type UseAuthStatusOptions = { serverMode: boolean };
+function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
   const [status, setStatus] = useState<AuthStatusResult>(
     serverMode ? { kind: "checking" } : buildOpenAuthResult("off", null),
   );
@@ -113,7 +114,12 @@ function useAuthRevalidation({
   }, [serverMode, refreshAuth]);
 }
 
-function useAuthInvalidation(serverMode: boolean, checkAuth: CheckAuth, setStatus: (status: AuthStatusResult) => void) {
+type UseAuthInvalidationOptions = {
+  serverMode: boolean;
+  checkAuth: CheckAuth;
+  setStatus: (status: AuthStatusResult) => void;
+};
+function useAuthInvalidation({ serverMode, checkAuth, setStatus }: UseAuthInvalidationOptions) {
   useEffect(() => {
     if (!serverMode) return;
     const onAuthInvalidation = (event: StorageEvent) => {
@@ -249,10 +255,10 @@ function AuthenticatedAppProvider({
 }) {
   const serverMode = isServerConfigured();
   const persistError = useStore((state) => state.persistError);
-  const { status, setStatus, checkAuth, refreshAuth, confirmMfaEnrollment } = useAuthStatus(serverMode);
+  const { status, setStatus, checkAuth, refreshAuth, confirmMfaEnrollment } = useAuthStatus({ serverMode });
   useTenantAccessReady(status, onTenantAccessReady);
   useAuthRevalidation({ serverMode, persistError, checkAuth, refreshAuth });
-  useAuthInvalidation(serverMode, checkAuth, setStatus);
+  useAuthInvalidation({ serverMode, checkAuth, setStatus });
 
   useEffect(() => {
     if (status.kind === "error") {
