@@ -2,7 +2,7 @@
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/snap-week.spec.ts` → "a stray scroll nudge snaps back to the week start", "the snap FLOORS to the current week (not NEAREST), even past the half-week", "with the test override OFF, the nudge sticks (and so proves the nudge moves off Monday)"
 
-**Documentation:** [The schedule](../../docs-src/guide/the-schedule.md)
+**Documentation:** [Schedule](../../docs-src/using/read-the-schedule.md)
 
 ## Goal
 

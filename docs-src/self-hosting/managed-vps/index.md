@@ -6,7 +6,7 @@ description: Install CapacityLens on Forge, Ploi, RunCloud and similar platforms
 # Deploy on a managed VPS platform
 
 This installs CapacityLens on a server that a platform such as Laravel Forge, Ploi or RunCloud
-manages for you. It takes the five steps from [Install CapacityLens](/getting-started/install),
+manages for you. It takes the five steps from [Install CapacityLens](/self-hosting/install),
 in the platform's own labels, and needs no terminal. The target is ten minutes on a site that
 already exists.
 
@@ -127,11 +127,11 @@ with your own address. Expect `"ok":true`, `"db":true`, `"audit":"ok"` and a `ba
 
 Then work through these pages:
 
-- [Verify and hand over](/installation/verify-and-hand-over) gives the Owner the setup token,
+- [Verify and hand over](/self-hosting/verify-and-hand-over) gives the Owner the setup token,
   then removes it from the environment once they have signed in.
 - [Upgrades](/self-hosting/upgrades) and
   [Backups and restore](/self-hosting/backups-and-restore) are the routine for a running site.
-- [Configure the service](/installation/configure-the-service) lists every setting, including
+- [Configuration](/self-hosting/configuration) lists every setting, including
   company login.
 
 ## Long-form pages

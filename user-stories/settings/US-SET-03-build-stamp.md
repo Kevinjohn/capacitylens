@@ -6,7 +6,7 @@
 > (the deploy script does this). A build with no stamp and no feedback link omits the **Build
 > details** row.
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 

@@ -2,7 +2,7 @@
 
 **Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "import shows a confirmation that replaces all data; Cancel keeps the data", "confirming an import replaces the dataset and ⌘Z restores it"
 
-**Documentation:** [Settings — Import and export](../../docs-src/guide/settings.md#everything-else-on-the-page)
+**Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#everything-else-on-the-page)
 
 ## Goal
 

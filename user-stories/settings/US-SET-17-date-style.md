@@ -2,7 +2,7 @@
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:**
 `e2e/settings-date-style.spec.ts`, `e2e/settings-date-style.db.spec.ts` ·
-**Docs:** [Settings → Date format](../../docs-src/guide/settings.md)
+**Docs:** [Settings → Date format](../../docs-src/using/settings.md)
 
 ## Goal
 

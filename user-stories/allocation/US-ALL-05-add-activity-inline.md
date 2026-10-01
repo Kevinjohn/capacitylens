@@ -10,7 +10,7 @@ Opt in to adding a brand-new activity from inside the allocation modal, then imm
 
 Agencies normally reuse activities created on the Activities page so names stay consistent. A workspace can opt in to inline creation when avoiding that context switch matters more.
 
-**Documentation:** [Settings — Inline activity creation](../../docs-src/guide/settings.md#inline-activity-creation)
+**Documentation:** [Settings — Inline activity creation](../../docs-src/using/settings.md#inline-activity-creation)
 
 ## How (end-to-end)
 

@@ -2,7 +2,7 @@
 
 **Area:** Navigation & shell · **Persona:** Anyone entering a company or the personal Account page · **Linked coverage:** `src/components/ProductOrientation.test.tsx`, `src/components/AppShell.productOrientation.test.tsx`, `src/lib/productOrientation.test.ts`, `e2e/fake-signin.spec.ts`
 
-**Documentation:** [Make your first schedule useful](../../docs-src/getting-started/first-steps.md#understand-what-capacitylens-plans)
+**Documentation:** [What is CapacityLens?](../../docs-src/getting-started/what-is-capacitylens.md)
 
 **Sources:** `src/components/ProductOrientation.tsx`, `src/components/useProductOrientation.ts`,
 `src/lib/productOrientation.ts`, `src/components/AppShell.tsx`, `src/components/AppSidebar.tsx`

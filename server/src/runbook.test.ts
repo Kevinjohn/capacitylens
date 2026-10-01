@@ -17,7 +17,7 @@ describe("operator documentation", () => {
 
   it("runs the managed-host background process as the isolated site user", () => {
     expect(page("self-hosting/managed-vps/index.md")).toContain("background process that runs as the site's user");
-    expect(page("getting-started/install.md")).toContain("background process (daemon) that runs as the site's user");
+    expect(page("self-hosting/install.md")).toContain("background process (daemon) that runs as the site's user");
   });
 
   it("distinguishes password and SSO first-owner bootstrap settings", () => {

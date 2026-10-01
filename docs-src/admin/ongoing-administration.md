@@ -36,7 +36,7 @@ Open Time off in the left menu. Under Company closures, select Add closure.
 
 Enter the name, Start and End dates, then Save. The closure reduces availability across tracked people and placeholders.
 
-For one person's absence, use [Record time off](/using/record-time-off).
+For one person's absence, use [Record time off](/using/time-off#record-time-off).
 
 ## Settings and support
 

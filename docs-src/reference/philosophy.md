@@ -26,7 +26,7 @@ The inline **Add activity** control and the **Task** field in the allocation edi
 company settings that are off by default. Early users treated activities as a task list. One
 company reached about 300 activities and scheduled hour by hour, instead of blocking days on a
 project. Because CapacityLens is a week-granularity capacity view, the extra steps are
-deliberate. See [Settings](/guide/settings#inline-activity-creation) to turn either on.
+deliberate. See [Settings](/using/settings#inline-activity-creation) to turn either on.
 
 ## Decisions you will notice
 

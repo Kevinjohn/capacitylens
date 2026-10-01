@@ -38,4 +38,4 @@ Internal and All projects activities can be created without first adding a clien
 
 [Make the first booking](/admin/first-booking)
 
-[More activity and project options](/guide/projects-and-allocations)
+[More activity and project options](/using/activities)

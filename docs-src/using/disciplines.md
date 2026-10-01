@@ -13,6 +13,6 @@ Discipline colours and groups carry through to people on Schedule.
 
 This page is hidden when your company switches disciplines off.
 
-[Assign a person's discipline](/guide/people-and-placeholders#add-a-person)
+[Assign a person's discipline](/using/resources#add-a-person)
 
-[Company discipline settings](/guide/settings#disciplines)
+[Company discipline settings](/using/settings#disciplines)

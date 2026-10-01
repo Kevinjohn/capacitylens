@@ -2,7 +2,7 @@
 
 **Area:** Navigation · **Persona:** Studio manager · **Linked E2E:** `e2e/palette.spec.ts` → "fuzzy-finds a seeded resource and jumps to their lane"
 
-**Documentation:** [Jump to a page with the command palette](../../docs-src/guide/the-schedule.md#jump-to-a-page-with-the-command-palette)
+**Documentation:** [Jump to a page with the command palette](../../docs-src/using/read-the-schedule.md#jump-to-a-page-with-the-command-palette)
 
 ## Goal
 

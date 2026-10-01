@@ -5,8 +5,6 @@ description: Every CapacityLens environment variable, grouped by what you're try
 
 # Configuration
 
-<!-- #region guide-content -->
-
 CapacityLens is configured entirely through environment variables, read from `.env` by
 Docker Compose or set directly for a bare-metal run. `.env.example` in the repository is
 the complete, authoritative register with defaults — this page groups the variables that
@@ -237,8 +235,6 @@ Any of these needs a rebuild to take effect. Use `docker compose build web` for 
 packaged production stack, or `pnpm run build` for a source build, then redeploy the rebuilt
 web files. A release archive's web app is already built with the same-origin defaults, so these
 settings do not apply to it. Setting them only in a running process does nothing.
-
-<!-- #endregion guide-content -->
 
 ## What's next
 

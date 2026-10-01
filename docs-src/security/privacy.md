@@ -52,7 +52,7 @@ The public demo keeps its scheduling data in memory only — it resets on refres
 anywhere. Ordinary device preferences (like theme) use the browser's localStorage and are not
 part of a company export.
 
-[Offline access](/guide/offline-access) is optional. When turned on, it stores your last verified
+[Offline access](/using/settings#offline-access) is optional. When turned on, it stores your last verified
 identity, your list of companies and a snapshot of each company's data in the browser's IndexedDB,
 for up to seven days. Signing out clears your own cached snapshots; using "Clear device data"
 clears every CapacityLens user's cache from that browser profile. The offline snapshot is

@@ -2,7 +2,7 @@
 
 **Area:** Navigation & shell · **Persona:** New Owner, Admin or Editor setting up a company · **Linked coverage:** `e2e/getting-started.spec.ts`, `e2e/members.auth.spec.ts`, `e2e/viewer.auth.spec.ts`, `src/components/GettingStarted.test.tsx`, `src/lib/gettingStarted.test.ts`
 
-**Documentation:** [Make your first schedule useful](../../docs-src/getting-started/first-steps.md)
+**Documentation:** [Make your first schedule useful](../../docs-src/getting-started/quick-start.md#make-your-first-schedule-useful)
 
 ## Goal
 

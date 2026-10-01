@@ -2,7 +2,7 @@
 
 **Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "settings toggles the colour theme", "sidebar toggles between light and dark mode", "renders in dark mode"; `e2e/a11y.spec.ts` → "scheduler in dark mode has no serious or critical violations"
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 

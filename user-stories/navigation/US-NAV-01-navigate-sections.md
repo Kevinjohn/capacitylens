@@ -2,7 +2,7 @@
 
 **Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "sidebar links route to each section", "valid deep link … survives a browser reload"; `e2e/navigation.db.spec.ts` → single-company reload and picker boundaries
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 

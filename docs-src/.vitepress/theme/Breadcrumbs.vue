@@ -17,7 +17,7 @@ interface SidebarItem {
   items?: SidebarItem[];
 }
 
-// Sidebar links are written without an extension ("/guide/the-schedule"). The
+// Sidebar links are written without an extension ("/using/read-the-schedule"). The
 // site is built with cleanUrls off and read straight from disk, where only a
 // server would resolve an extensionless URL — so every link this component
 // emits needs the real .html on it. Directory links ("/company-login/") already

@@ -2,8 +2,8 @@
 title: Finish and operate the managed installation
 description: Verify the managed service, hand it to the first Owner, and establish its operating routine.
 next:
-  text: Configure the service
-  link: /installation/configure-the-service
+  text: Configuration
+  link: /self-hosting/configuration
 ---
 
 # Finish and operate the managed installation
@@ -184,7 +184,6 @@ The installation is complete when:
 
 ## What's next
 
-- Return to [Configure the service](/installation/configure-the-service) for the
-  installation track.
+- Review [Configuration](/self-hosting/configuration) for every other setting.
 - Read [Monitoring and health checks](/self-hosting/monitoring) for the regular operating routine.
 - Keep [When something goes wrong](/self-hosting/incidents) available to the person on call.

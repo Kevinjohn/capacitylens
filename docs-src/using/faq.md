@@ -58,13 +58,13 @@ Your company can switch [Disciplines](/using/disciplines) off.
 Turn on Make this device available offline in your Settings to keep a seven-day,
 read-only snapshot on that device. You cannot queue changes while offline.
 
-[Offline access](/guide/offline-access)
+[Offline access](/using/settings#offline-access)
 
 ## Where do clients, projects and activities come from?
 
 An Admin or Owner normally prepares them.
 
-[Clients](/using/clients) · [Projects](/using/projects) · [Activities](/using/activities)
+[Clients](/using/projects#clients) · [Projects](/using/projects) · [Activities](/using/activities)
 
 ## Is this a timesheet or a leave request?
 

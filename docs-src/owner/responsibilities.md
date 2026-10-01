@@ -31,7 +31,7 @@ The transfer completes only after your confirmation. You become an Admin and the
 
 Only the Owner can import scheduling data in a signed-in installation. Import replaces existing scheduling records; it is not a way to add a few new items.
 
-[Import and export details](/guide/settings#import-and-export)
+[Import and export details](/using/settings#import-and-export)
 
 Only the Owner can delete the company. This removes the company for everyone and is separate from stopping an individual member's access.
 

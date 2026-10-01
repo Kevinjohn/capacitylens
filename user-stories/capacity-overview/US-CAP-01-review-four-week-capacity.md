@@ -69,4 +69,4 @@ the schedule.
   from its own start date, the same trigger and drawer used by the Schedule; the horizon does not
   change the drawer.
 
-See [Find capacity across four, eight or twelve weeks](/guide/capacity-overview) for the user guide.
+See [Overview](../../docs-src/using/overview.md) for the user guide.

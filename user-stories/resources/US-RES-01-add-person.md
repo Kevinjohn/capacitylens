@@ -2,7 +2,7 @@
 
 **Area:** Resources · **Persona:** Studio manager · **Coverage:** component (`src/components/resources/ResourceForm.test.tsx`) + unit/store availability coverage · **Linked E2E:** `e2e/resources.spec.ts` → "adds a person and shows them in the list and schedule" (base flow; no availability-date assertions)
 
-**Documentation:** [People and placeholders — set availability dates](../../docs-src/guide/people-and-placeholders.md#set-availability-dates)
+**Documentation:** [Resources — set availability dates](../../docs-src/using/resources.md#set-availability-dates)
 
 ## Goal
 

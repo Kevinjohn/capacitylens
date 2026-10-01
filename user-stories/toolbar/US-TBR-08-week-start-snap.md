@@ -2,7 +2,7 @@
 
 **Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)" — the one test that asserts the Monday re-anchor for **Weeks visible**, **Next**, **Prev** and **Today**
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 

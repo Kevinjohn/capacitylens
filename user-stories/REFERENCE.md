@@ -202,7 +202,7 @@ Settings is one page with four permanent groups in order: **Company setup**, **S
 **My display**, and **Data and support**. Compact rows stack their labels and controls on narrow
 screens. Group descriptions distinguish company-wide settings from preferences saved in this browser.
 Editors and above can change ordinary company settings; Owners and Admins manage Overview access.
-Everyone can adjust their device preferences. See [Settings](../docs-src/guide/settings.md).
+Everyone can adjust their device preferences. See [Settings](../docs-src/using/settings.md).
 
 The **Import and export** row (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
 in **Data and support**, below **Deleted items** and above the compact company-details
@@ -810,7 +810,7 @@ dismiss the Sheet and focus returns to its connected avatar button, or to the sc
 has disappeared. Owners see real private client/project names; Admins, Editors and Viewers retain
 the independently projected quoted code names. Time-off notes are visible only to authenticated
 Owners/Admins (and in existing auth-off/demo semantics), and account, permission or resource
-invalidation removes all stale drawer content immediately. See [The schedule](../docs-src/guide/the-schedule.md).
+invalidation removes all stale drawer content immediately. See [Schedule](../docs-src/using/read-the-schedule.md).
 If the optional allocation Task field from #720 is available and populated under its workspace
 visibility rule, this vertical view shows it above Notes; this drawer does not create that field or
 setting. See [US-ALL-10](allocation/US-ALL-10-task-field.md).
@@ -1805,11 +1805,17 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
 
 ## Documentation navigation
 
+The documentation is split into four role guides, each with its own landing page and sidebar:
+day-to-day use for schedulers, Owner setup, Admin and settings, and installing and running the
+service for the technical operator. Each topic has one canonical page; old documentation paths
+are not redirected.
+
 The day-to-day documentation introduces the application page by page: Schedule, Overview,
-Resources, Disciplines, Clients, Projects, Activities and Time off. Schedule is first in the
-guide so an invited teammate can find their own work. Settings, Account, Team & access and
-the FAQ provide supporting help. Scheduling tasks remain visible in the guide navigation
-so their current page can be identified. The application navigation itself is unchanged.
+Resources, Disciplines, Clients and projects, Activities and Time off. Each page keeps the short
+introduction first and the detailed reference below it. Schedule is first in the guide so an
+invited teammate can find their own work. Scheduling and changing work, Settings, Account,
+Team & access and the FAQ provide supporting help. The application navigation itself is
+unchanged.
 
 The [Schedule guide](../docs-src/using/read-the-schedule.md) explains the avatar/eye button
 that opens a person's work list and distinguishes viewing booking details from editing.

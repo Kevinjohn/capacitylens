@@ -28,6 +28,20 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- The documentation is reshaped into four role guides (day-to-day use, Owner, Admin, and install
+  and run), each with its own landing page and sidebar, and one canonical page per topic: 70 pages
+  instead of 91. The detailed `guide/` pages are merged into the matching day-to-day pages,
+  installation and operations pages into `self-hosting/` with one install page, and dated security
+  reviews move under `security/reviews/`. Old documentation paths are not redirected (#1408).
+- Settings gathers the remaining company switches (**Use disciplines**, **Show placeholders**, **Show
+  external resources**, **Inline activity creation** and **Show task field in schedule**) in one
+  **Company features** section (#1408).
+- People are grouped into Studio and Supplementary only while the company has an active
+  Supplementary person. A Studio-only team sees one list on Resources and one schedule band, titled
+  Resources when disciplines are off and Unassigned for people without a discipline (#1408).
+- Internal projects and activities are always shown and always use neutral grey (#1408).
+- The schedule always snaps a free scroll back to the week start and always uses the roomier row
+  spacing (#1408).
 - Under `NODE_ENV=production`, an unset `CAPACITYLENS_CORS_ORIGIN` now allows the origin of
   `CAPACITYLENS_PUBLIC_URL` instead of the local development origins. An explicitly empty value
   still allows none, and Docker Compose keeps passing it empty (#1407).
@@ -39,6 +53,12 @@ new features and **patch** versions carry fixes.
 
 ### Removed
 
+- Settings no longer offers **Group resources by engagement**, **Internal work colours**, **Show
+  internal projects**, **Show internal activities**, **Snap to week start** or **Compact view**, and
+  no longer shows the read-only Language row or the persistence diagnostics in **Build details**
+  (#1408).
+- Settings no longer has the **Diagnostics** row: Editors and Viewers report problems with the
+  **Build details** stamp, and Owners and Admins use the new Diagnostics page (#1408).
 - Startup no longer recognises the removed account variable names, the generic OIDC settings or the
   `hosted-oidc-only` profile; they are unknown settings now, and `hosted-oidc-only` is an invalid
   profile. Docker Compose stops forwarding them (#1407).
@@ -50,27 +70,6 @@ new features and **patch** versions carry fixes.
   `CAPACITYLENS_SECURITY_LOG_FORWARDING` and their startup warnings are gone. Requiring multi-factor
   sign-in at the provider, encrypting storage and forwarding logs remain operator tasks described in
   the guides. A missing internal TLS identity still warns, now on its own line (#1407).
-
-### Changed
-
-- Settings gathers the remaining company switches (**Use disciplines**, **Show placeholders**, **Show
-  external resources**, **Inline activity creation** and **Show task field in schedule**) in one
-  **Company features** section (#1408).
-- People are grouped into Studio and Supplementary only while the company has an active
-  Supplementary person. A Studio-only team sees one list on Resources and one schedule band, titled
-  Resources when disciplines are off and Unassigned for people without a discipline (#1408).
-- Internal projects and activities are always shown and always use neutral grey (#1408).
-- The schedule always snaps a free scroll back to the week start and always uses the roomier row
-  spacing (#1408).
-
-### Removed
-
-- Settings no longer offers **Group resources by engagement**, **Internal work colours**, **Show
-  internal projects**, **Show internal activities**, **Snap to week start** or **Compact view**, and
-  no longer shows the read-only Language row or the persistence diagnostics in **Build details**
-  (#1408).
-- Settings no longer has the **Diagnostics** row: Editors and Viewers report problems with the
-  **Build details** stamp, and Owners and Admins use the new Diagnostics page (#1408).
 
 ### Fixed
 
