@@ -24,6 +24,8 @@ export interface InitResult {
 
 class InitUsageError extends Error {}
 
+const UNSAFE_ENV_VALUE = /[\s#$"'`\\]/;
+
 export function parseInitArguments(args: readonly string[]): InitOptions {
   let values: { "public-url"?: string; db?: string; out?: string };
   try {
@@ -39,6 +41,15 @@ export function parseInitArguments(args: readonly string[]): InitOptions {
   if (!values["public-url"]) throw new InitUsageError("--public-url is required.");
   if (!values.db) throw new InitUsageError("--db is required.");
   if (values.out === "") throw new InitUsageError("--out needs a file path.");
+  // The file is read by node --env-file, systemd and a shell `source`, which quote differently, so
+  // refuse any character one of them would split, expand or treat as a comment.
+  for (const [flag, value] of [
+    ["--public-url", values["public-url"]],
+    ["--db", values.db],
+  ] as const) {
+    if (UNSAFE_ENV_VALUE.test(value))
+      throw new InitUsageError(`${flag} must not contain spaces, quotes, #, $, \\ or \`.`);
+  }
   try {
     // The generated file sets NODE_ENV=production, so apply the server's own production rule now
     // rather than hand the operator a file the server will refuse at first start.

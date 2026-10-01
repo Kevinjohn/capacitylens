@@ -745,7 +745,8 @@ function registerServerModeTest23() {
     );
 
     expect(await screen.findByText("authMode:password-only user:offline-user")).toBeInTheDocument();
-    expect(onTenantAccessReady).toHaveBeenCalledWith("offline");
+    // The readiness signal comes from an effect that can commit after the text renders.
+    await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledWith("offline"));
     expect(readOfflineStateSnapshot()).toEqual({
       readOnly: true,
       lastUpdated: savedAt,

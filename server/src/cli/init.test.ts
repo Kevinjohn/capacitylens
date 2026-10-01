@@ -87,6 +87,8 @@ describe("init usage errors", () => {
     [["--public-url", "ftp://capacity.example.com", "--db", "c.db"], "must use http:// or https://"],
     [["--public-url", "http://capacity.example.com", "--db", "c.db"], "must use https://"],
     [["--public-url", "https://capacity.example.com", "--db", "c.db", "--prompt"], "Unknown option"],
+    [["--public-url", "https://capacity.example.com", "--db", "/var/lib/my data/c.db"], "--db must not contain"],
+    [["--public-url", "https://capacity.example.com", "--db", "/var/lib/$HOME/c.db"], "--db must not contain"],
   ])("rejects %j with a usage line", (args, message) => {
     const result = runInitCommand(args);
     expect(result.exitCode).toBe(2);
