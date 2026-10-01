@@ -67,7 +67,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD ["node", "scripts/check-health.mjs"]
 CMD ["sh", "-c", "node scripts/check-node.mjs && exec node dist/index.mjs"]
 
-FROM alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS internal-tls
+FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS internal-tls
 RUN apk add --no-cache openssl
 COPY scripts/internal-tls.sh /usr/local/bin/capacitylens-internal-tls
 ENTRYPOINT ["/usr/local/bin/capacitylens-internal-tls"]
