@@ -118,6 +118,14 @@ export const accountClient = {
     });
   },
 
+  /** Add the small example company to an empty company. Not idempotent: a second call is refused. */
+  addExampleData(workspaceId: string): Promise<Response> {
+    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/example-data`, {
+      method: "POST",
+      credentials: "include",
+    });
+  },
+
   eraseWorkspace(workspaceId: string, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand({
       operationKey: `workspace-erase:${workspaceId}`,
