@@ -156,7 +156,7 @@ pnpm exec playwright test --project=auth-backed \
 - `src/data/` — persistence, in-memory demo and opt-in offline cache.
 - `src/components/scheduler/` — grid/view-model.
 - `server/src/app.ts` — HTTP boundary and authorization.
-- `server/src/tenantStore.ts` — account-scoped whole-slice and targeted lifecycle storage
+- `server/src/accountStore.ts` — account-scoped whole-slice and targeted lifecycle storage
   boundary.
 - `server/src/tables.ts` — schema/column specification.
 
@@ -265,10 +265,10 @@ projection reaches the signed-in browser flow.
 requirements for account-scoped requests.
 
 **Follow through:** Inspect the route that consumes the authorization seam, such as
-`server/src/routes/entityRoutes.ts`, then `server/src/tenantStore.ts` when the operation crosses the
+`server/src/routes/entityRoutes.ts`, then `server/src/accountStore.ts` when the operation crosses the
 scoped storage boundary. Client visibility or permission projection is never server authority.
 
-**Tests:** Start with `server/src/app.authz.test.ts`; include `server/src/db.tenantStore.test.ts` and
+**Tests:** Start with `server/src/app.authz.test.ts`; include `server/src/db.accountStore.test.ts` and
 `e2e/viewer.auth.spec.ts` when storage isolation or end-to-end role enforcement is affected.
 
 #### Online persistence and refresh {#task-online-persistence}
@@ -328,7 +328,7 @@ A few rules the codebase enforces structurally, worth knowing before you touch t
 relevant area:
 
 - Lifecycle archive, unarchive and soft-delete use owned entity-level writes through
-  `TenantStore`; purge uses targeted SQLite cascades and restamps only surviving rows whose
+  `AccountStore`; purge uses targeted SQLite cascades and restamps only surviving rows whose
   nullable relationship was cleared. Don't route a single lifecycle action through
   whole-slice replacement — synchronous SQLite would make its latency and write
   amplification proportional to every row in the tenant.
@@ -407,18 +407,7 @@ alias. This convention introduces no branded IDs and changes no wire fields.
 
 ### Account vocabulary
 
-| Term | Meaning and owning contract |
-| --- | --- |
-| Product account / workspace | A scheduling tenant. Product entities use `Account` and `accountId`; the portable account boundary uses `WorkspaceId`. Keep each existing contract's terminology. |
-| Principal | A person's identity across workspaces, represented by `PrincipalId` in the portable boundary. |
-| Membership | A principal's access and role in one workspace. |
-| Provider account | A linked external sign-in identity. The auth vendor's singular `account` table is not the product's plural `accounts` table. |
-| Session | Identity-global sign-in state, not workspace-local membership. |
-
-Name new adapters explicitly when they translate between these contracts. Preserve routes,
-SQL names, environment variables, IDs, emails, test-ids and serialized property names;
-a naming cleanup is not a public-contract migration. Display names in fixtures follow the
-comic-book naming policy in `AGENTS.md`, independently of these stable identifiers.
+The code, UI and wire names for each concept are in [Account vocabulary](/reference/conventions#account-vocabulary).
 
 ### Import paths and ownership
 
@@ -455,7 +444,7 @@ never apply a sorting fix that changes initialization behavior.
 | `server/src/accounts/flows` | Portable account use-case coordination | Identity/admin ports, transaction and command-ledger contracts. |
 | `server/src/accounts/identityPort`, `adminPort` | Vendor and SQLite implementations | Their corresponding portable ports; vendor/storage details stay inside adapters. |
 | `server/src/routes`, `server/src/accounts/routes` | HTTP parsing, authorization and response mapping | Owned use cases and storage boundaries; UI visibility never authorizes an operation. |
-| `server/src/tenantStore.ts`, `server/src/tables` | Scoped product storage and column specifications | Explicit storage operations and immutable versioned migrations. |
+| `server/src/accountStore.ts`, `server/src/tables` | Scoped product storage and column specifications | Explicit storage operations and immutable versioned migrations. |
 
 The company-joining client in `src/account/companyJoinClient.ts` owns its browser URLs alongside
 `accountClient.ts`. On the server, `accounts/adminPort/joiningProviderIntent.ts` checks the local

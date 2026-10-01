@@ -103,6 +103,30 @@ Counterexamples that are now tracked debt:
   Entity fields keep their shipped names (`ignoreWeekends`), and `isNotNull` in
   `server/src/schema/introspection.ts` is the SQL term, not a negated boolean.
 
+## Account vocabulary
+
+Each concept has one name per layer. The boundary that keeps one company's data apart from
+another's is an account in code, a company on screen and `accountId` on the wire.
+
+| Term | Meaning and owning contract |
+| --- | --- |
+| `account` (code) | The boundary that isolates one company's data. Product types, modules and functions say account: `Account`, `server/src/accountStore.ts`, `assertAccountRelationshipIntegrityCurrent`. New code does not add `tenant`, `org` or `workspace` names for it. |
+| company (UI) | What screens, messages and user-facing docs call an account. |
+| `accountId` (wire) | The account key in rows, request bodies, query strings and exports. |
+| `workspaceId` | The account port's alias for an account id, `WorkspaceId` in `shared/src/account/types.ts`. Use it only in the portable account boundary; product code says `accountId`. |
+| resource | A schedulable person: a row on the schedule, including placeholders and external parties. Screens say person or Resource. A resource needs no sign-in. |
+| member | A login inside one company. Its membership carries the role: Owner, Admin, Editor or Viewer. |
+| principal | An identity across companies, `PrincipalId` in the portable boundary. |
+| user | The Better Auth `user` row behind a principal. |
+| provider account | A linked external sign-in. The auth vendor's singular `account` table is not the product's plural `accounts` table. |
+| session | Identity-global sign-in state, not company-local membership. |
+
+Name new adapters explicitly when they translate between these contracts. Preserve routes,
+SQL names, environment variables, IDs, emails, test-ids and serialized property names;
+a naming cleanup is not a public-contract migration, so `POST /api/orgs` keeps its URL.
+Display names in fixtures follow the comic-book naming policy in `AGENTS.md`, independently
+of these stable identifiers.
+
 ## Parameters
 
 - **At most three positional parameters**, subject first: `(db, accountId, userId)`,
