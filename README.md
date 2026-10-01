@@ -69,6 +69,7 @@ asked "can we take this on?" and need a shared, honest answer.
 ## Run it for real
 
 Every release from 0.73.0-alpha.1 carries a server archive. Node 24 is the only prerequisite.
+Node 26 compatibility is still under investigation; see [the compatibility notes](docs-src/reference/development.md#check-node-26-compatibility).
 
 1. **Download** `capacitylens-X.Y.Z.tar.gz` from the [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
 2. **Pick a folder** for the database; its file is created there on first start.

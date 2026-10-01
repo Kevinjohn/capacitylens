@@ -19,7 +19,8 @@ everything specific to the app itself uses `CAPACITYLENS_`.
 
 ## Listener and development settings
 
-For a source checkout, use Node 24 or newer and run `pnpm --filter capacitylens-server start`.
+For a source checkout, use the default Node 24 runtime and run `pnpm --filter capacitylens-server start`.
+Newer versions allowed by the package engine range are not automatically validated for deployment.
 A release archive needs no pnpm: it starts with `node --env-file=<your env file> server/dist/index.mjs`.
 The server binds to localhost by default. Set the host explicitly to expose it on a network.
 

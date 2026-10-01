@@ -15,6 +15,11 @@ new features and **patch** versions carry fixes.
   Owner or Admin can add it, and the server refuses a company that already has people, clients,
   projects or allocations (#1388).
 
+### Changed
+
+- Prepare experimental Node 26 compatibility checks while retaining Node 24 as the default;
+  official fixed-runtime acceptance remains pending (#710).
+
 ## [0.73.0-alpha.1] - 2026-10-01
 
 ### Added
