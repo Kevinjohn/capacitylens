@@ -22,7 +22,7 @@ import {
  *
  * Stays SQL (set-based, runs inside the DB) rather than calling the shared TS helper, but the CANONICAL
  * definition of "the account's builtin Internal" lives in shared `internalClientFor` /
- * `ensureInternalClients` — the `builtin = 'true'` predicate below is its SQL transcription, and the
+ * `ensureInternalClients`. The `builtin = 'true'` predicate below is its SQL transcription, and the
  * inserted row is built by the shared `buildInternalClient` factory so the row shape can't drift.
  */
 export function ensureInternalClients(db: Db): void {
@@ -129,9 +129,9 @@ function snapToFrozenPresetV13(value: string | null): string {
     const presetRgb = hexToRgbV13(preset);
     if (!presetRgb) continue; // unreachable: every frozen entry is a valid 6-digit hex (pinned by a test)
     const [pr, pg, pb] = presetRgb;
-    // Squared Euclidean distance in RGB space — no sqrt needed since we only compare magnitudes.
+    // Squared Euclidean distance in RGB space. No sqrt needed since we only compare magnitudes.
     const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
-    // Strict `<` (not `<=`) so the FIRST minimal-distance preset wins on a tie — palette order is
+    // Strict `<` (not `<=`) so the FIRST minimal-distance preset wins on a tie, palette order is
     // the deterministic tie-break, matching shared `snapToPresetColor`.
     if (distance < nearestDistance) {
       nearestDistance = distance;
@@ -154,12 +154,12 @@ function hexToRgbV13(hex: string): [number, number, number] | null {
 
 /**
  * v13 one-time data repair: BEFORE this migration, sanitizeWrite('accounts') replaced ANY stored
- * colour outside the current preset palette with one FIXED fallback hex on every single write —
+ * colour outside the current preset palette with one FIXED fallback hex on every single write,
  * so a legacy account colour that predated today's `PRESET_COLORS` (or any hex a hand-crafted
  * request supplied) would silently flip to that one fixed colour the next time its row was
  * touched, with no migration ever having repaired the rows already on disk. Run ONCE: snap every
- * stored account colour through {@link snapToFrozenPresetV13} — the palette-FROZEN transcription of
- * the shared mapper — so each legacy colour is repaired to its NEAREST preset (not a fixed colour)
+ * stored account colour through {@link snapToFrozenPresetV13}, the palette-FROZEN transcription of
+ * the shared mapper, so each legacy colour is repaired to its NEAREST preset (not a fixed colour)
  * and the write-time guard becomes a no-op for every already-migrated row. The frozen palette (not
  * the live shared one) keeps this checksummed step reproducible forever. See DECISIONS.md.
  */

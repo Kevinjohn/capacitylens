@@ -547,7 +547,7 @@ describe("AllocationModal edit", () => {
         status: "confirmed",
       }),
     );
-    // Turn placeholders OFF — they're hidden everywhere, but an allocation already on one must not
+    // Turn placeholders OFF, they're hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) placeholder.
     setPlaceholdersEnabled({ on: false });
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
@@ -555,7 +555,7 @@ describe("AllocationModal edit", () => {
     const assignee = screen.getByRole("combobox", { name: "Assignee" });
     expect(assignee).toHaveTextContent("Placeholder (slot)");
     // The placeholder option is present (labelled "Placeholder (slot)") even though placeholders are
-    // hidden — without it the picker would silently reassign to another available option.
+    // hidden: without it the picker would silently reassign to another available option.
     fireEvent.keyDown(assignee, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Placeholder (slot)" })).toBeInTheDocument();
   });
@@ -586,7 +586,7 @@ describe("AllocationModal edit", () => {
         status: "confirmed",
       }),
     );
-    // External pref OFF (its default) — hidden everywhere, but an allocation already on one must not
+    // External pref OFF (its default), hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) external.
     setExternalEnabled({ on: false });
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
@@ -594,7 +594,7 @@ describe("AllocationModal edit", () => {
     const assignee = screen.getByRole("combobox", { name: "Assignee" });
     expect(assignee).toHaveTextContent("Kord Industries (external)");
     // The external option is present (labelled "Kord Industries (external)") even though externals are
-    // hidden — without it the picker would silently reassign to another available option.
+    // hidden: without it the picker would silently reassign to another available option.
     fireEvent.keyDown(assignee, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Kord Industries (external)" })).toBeInTheDocument();
   });

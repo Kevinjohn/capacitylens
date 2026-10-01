@@ -34,8 +34,8 @@ export async function resetPassword(
   const { accountId, userId } = req.params;
   if (!authorize({ req, reply, accountId, action: "manageMembers" })) return;
   if (!allowsPasswordSignIn(authMode)) {
-    // 'sso': the IdP owns sign-in — resetting a local password is meaningless there. 'off':
-    // trusted-local, no credential model (and no UI shows the button) — a clear 400 either way.
+    // 'sso': the IdP owns sign-in, resetting a local password is meaningless there. 'off':
+    // trusted-local, no credential model (and no UI shows the button), a clear 400 either way.
     return reply.code(400).send({
       error: REPLY_ERRORS.passwordResetUnavailable,
     });

@@ -16,7 +16,7 @@ import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
 // CAPACITYLENS_MODE (opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
-// by running unchanged — these tests add the /api/auth/me surface and the absence of the
+// by running unchanged. These tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
 
@@ -90,7 +90,7 @@ function registerClosedSignupLifecycleTests(): void {
     expect(first.statusCode).toBe(200);
     expect(cookiesOf(first)).toContain("capacitylens.session_token");
     // The gate is per REQUEST, not per boot: the very next sign-up on the SAME running app must
-    // be refused now that one user exists — Better Auth's unchanged 400
+    // be refused now that one user exists, Better Auth's unchanged 400
     // EMAIL_PASSWORD_SIGN_UP_DISABLED shape (a boot-time boolean would stay open until restart).
     const second = await signUpWithSetupToken(app, "late@capacitylens.dev");
     expect(second.statusCode).toBe(400);
@@ -211,7 +211,7 @@ function registerOpenSignupEscapeTests(): void {
 function registerClosedSignupStatusTests(): void {
   it("keeps the library flag OFF — the live hook owns the gate (disableSignUp stays false)", () => {
     // Better Auth 1.6.23 enforces disableSignUp even for server-side auth.api.signUpEmail
-    // (sign-up.mjs:143), so the static flag must stay false in BOTH postures — the closed
+    // (sign-up.mjs:143), so the static flag must stay false in BOTH postures, the closed
     // behaviour above comes from hooks.before, never from this option.
     const open = createAuthFromEnvironment(openDb(":memory:"), {
       ...CLOSED_SIGNUP_ENV,
@@ -228,7 +228,7 @@ function registerClosedSignupStatusTests(): void {
     const before = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(before.statusCode).toBe(401);
     expect(parseNeedsSetup(before)).toBe(true);
-    // The 401 shape still excludes account facts (sign-in options and needsSetup only — no capFields).
+    // The 401 shape still excludes account facts (sign-in options and needsSetup only, no capFields).
     expect(Object.keys(parseJsonObject(before)).sort()).toEqual([
       "authMode",
       "error",
@@ -236,7 +236,7 @@ function registerClosedSignupStatusTests(): void {
       "passwordResetEmail",
       "providers",
     ]);
-    // One user later, the flag is GONE (absent, not false — the client fail-closes on absence).
+    // One user later, the flag is GONE (absent, not false, the client fail-closes on absence).
     expect((await signUpWithSetupToken(app, "owner@capacitylens.dev")).statusCode).toBe(200);
     const after = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(after.statusCode).toBe(401);
@@ -339,7 +339,7 @@ function registerBootstrapCredentialPolicyTests(): void {
   it("keeps minPasswordLength at the shared floor ALWAYS — flagged boot or not, empty table or not", async () => {
     // The fix (review remediation): the instance-wide floor is never bent. The bootstrap's 5-char
     // password is created through a DIFFERENT path (auth.createCredentialUser(), bypassing the sign-up route
-    // entirely — see createBootstrapAdmin) instead of lowering this option.
+    // entirely: see createBootstrapAdmin) instead of lowering this option.
     const { auth } = await bootstrapFixture();
     expect(parseConfiguredAuth(auth).options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
     const seeded = await bootstrapFixture();
@@ -354,7 +354,7 @@ function registerBootstrapCredentialPolicyTests(): void {
     const { db, mode, auth } = await bootstrapFixture();
     await createBootstrapAdmin(db, mode, auth, () => {});
     // Same DB, open self-registration so the sign-up ROUTE (not the bootstrap's internalAdapter
-    // path) is reachable — this is exactly the "operator's own reset" / "sign-up that boot" case
+    // path) is reachable. This is exactly the "operator's own reset" / "sign-up that boot" case
     // the finding called out: it must NOT inherit any lowered floor.
     const open = createAuthFromEnvironment(db, {
       ...CLOSED_ENV,

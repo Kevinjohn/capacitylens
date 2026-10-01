@@ -13,8 +13,8 @@ import { m } from "@/i18n";
 // WHY here, at a shared fetch wrapper (not per call site): every one of those call sites already
 // does `const res = await apiFetch(...)`, so wrapping that ONE call catches all of them with a
 // uniform swap and no bespoke per-handler logic. On a SESSION_NOT_FRESH response we raise the shared
-// "Confirm it's you" dialog (via requestReauth), and — because the freshness check runs BEFORE the
-// handler mutates anything (the 403 means the write did NOT happen) — a successful re-auth lets us
+// "Confirm it's you" dialog (via requestReauth), and, because the freshness check runs BEFORE the
+// handler mutates anything (the 403 means the write did NOT happen). A successful re-auth lets us
 // RE-ISSUE the identical request transparently. The caller only ever sees the final Response: a 200
 // after step-up, or (on cancel) the original 403 it would have surfaced anyway.
 
@@ -23,7 +23,7 @@ import { m } from "@/i18n";
 async function isSessionNotFresh(res: Response): Promise<boolean> {
   if (res.status !== 403) return false;
   // Best-effort per DEFENSIVE-CODING.md §5: an unreadable/non-JSON 403 body simply isn't a step-up
-  // (it's an ordinary Forbidden) — fall through to the caller's existing handling, never swallow it.
+  // (it's an ordinary Forbidden), fall through to the caller's existing handling, never swallow it.
   return (await readApiErrorCode(res)) === "SESSION_NOT_FRESH";
 }
 
@@ -72,7 +72,7 @@ function canReplayRequest({ input, requestOptions, replayAfterFreshnessRefusal }
  *   - freshness 403 + cancelled re-auth → the original 403, so the caller surfaces its message as
  *     it does today.
  *
- * Retries AT MOST once — a still-fresh-failing retry is returned as-is (no re-prompt loop).
+ * Retries AT MOST once. A still-fresh-failing retry is returned as-is (no re-prompt loop).
  */
 export async function apiFetchReauth(
   input: RequestInfo | URL,

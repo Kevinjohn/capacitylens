@@ -638,7 +638,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     // WITHIN the debounce window. The orchestrator used to clearTimeout + pending=null, silently
     // DROPPING A's last edit. It must instead FLUSH that pending write while data===A AND the diff
     // snapshot===A (so the diff is A-vs-A, correct), landing it BEFORE B's slice load reseeds the
-    // snapshot to B — never a cross-account diff. Uses the REAL ServerSyncAdapter so the actual
+    // snapshot to B, never a cross-account diff. Uses the REAL ServerSyncAdapter so the actual
     // diff/snapshot logic runs against a fake fetch; we assert on the wire traffic.
     const { adapter, wire } = recordingAccountSwitchAdapter();
 
@@ -663,13 +663,13 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
     // Genuine edit to A → DEBOUNCED (not yet on the wire). Capture its id to find it later.
     const edited = requireCreated(useStore.getState().addClient({ name: "A only", color: "#222222" }));
-    expect(wire.some((w) => w.ops)).toBe(false); // nothing flushed yet — still inside the 300ms window
+    expect(wire.some((w) => w.ops)).toBe(false); // nothing flushed yet, still inside the 300ms window
 
     // Switch to B BEFORE the debounce timer fires → must FLUSH A's edit, then load B.
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "reloaded" });
 
     // A's edit reached the adapter (flushed, not dropped): a batch carrying A's client (a PUT, so
-    // its accountId rides on the row — DELETEs carry a top-level accountId, PUTs carry the full row).
+    // its accountId rides on the row, DELETEs carry a top-level accountId, PUTs carry the full row).
     const carriesA = (o: NonNullable<AccountSwitchWireEntry["ops"]>[number]) =>
       o.row?.accountId === "a1" || o.accountId === "a1";
     const aBatchIdx = wire.findIndex((w) => w.ops?.some((o) => o.id === edited.id && carriesA(o)));

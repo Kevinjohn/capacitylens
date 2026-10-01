@@ -8,7 +8,7 @@ const BOUNDARY_SEARCH_MS = 36 * 60 * 60 * 1000;
  * search naturally handles 23/25-hour daylight-saving days and non-hour timezone offsets.
  * Every probe goes through the SAME zone resolver the rendered date does (`todayISO`, which
  * caches one formatter per zone), so the timer can never land on a boundary the displayed date
- * disagrees with — and a bad stored zone degrades to todayISO's LOCAL date, making this measure
+ * disagrees with, and a bad stored zone degrades to todayISO's LOCAL date, making this measure
  * the next LOCAL midnight instead of crashing or arming a runaway timer. */
 export function resolveMillisecondsUntilNextCalendarDate(timeZone: string, now = Date.now()): number {
   const dateAt = (instant: number): ISODate => todayISO(timeZone, instant);

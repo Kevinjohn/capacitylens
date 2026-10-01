@@ -64,12 +64,12 @@ export function attachDomListeners({ store, owner, writes, refresh, serverMode }
   // remains tracked until either path confirms it, so either event may safely follow the other.
   // Coming BACK to the tab (or the browser firing `online`) re-attempts a stranded write.
   // Refresh-on-focus: when the user returns to the tab/window, re-hydrate the active
-  // account's slice so a change made in another tab/device shows up — REUSING refreshActive (the
+  // account's slice so a change made in another tab/device shows up, REUSING refreshActive (the
   // switch orchestrator's body) so the private lastSynced snapshot is re-seeded atomically and stays
   // consistent with `data` (a parallel re-hydrate would desync them and emit a garbage diff). Guards:
   // SERVER mode only (refreshActive only re-seeds meaningfully when serverMode; local already holds
-  // every account); SKIP when there's no active account (on the picker — nothing to refresh); and
-  // THROTTLE to REFRESH_MIN_INTERVAL_MS. Unsaved-edit safety is INHERENT — refreshActive flushes
+  // every account); SKIP when there's no active account (on the picker, nothing to refresh); and
+  // THROTTLE to REFRESH_MIN_INTERVAL_MS. Unsaved-edit safety is INHERENT, refreshActive flushes
   // pending + awaits inFlightSave BEFORE loadAll, so the user's edits POST first (last-writer-wins).
   const maybeRefreshActiveSlice = createActiveSliceRefresh({ store, owner, writes, refresh, serverMode });
 

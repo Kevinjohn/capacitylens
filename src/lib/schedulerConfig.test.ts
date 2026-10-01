@@ -51,7 +51,7 @@ describe("resolveColumnFit", () => {
 
   it("falls back to MIN for a non-finite (NaN) available width, without propagating NaN", () => {
     // A measured DOM rect can be NaN (unmeasured/detached). Without the early `!Number.isFinite`
-    // guard, the fit calculations would propagate NaN straight through the geometry — this
+    // guard, the fit calculations would propagate NaN straight through the geometry, this
     // specifically exercises that guard, not the `<= 0` half.
     expect(resolveColumnFit(NaN, 4)).toEqual({ dayWidth: MIN_DAY_WIDTH, weekWidth: MIN_DAY_WIDTH * 7 });
     expect(Number.isFinite(resolveColumnFit(NaN, 4).dayWidth)).toBe(true);

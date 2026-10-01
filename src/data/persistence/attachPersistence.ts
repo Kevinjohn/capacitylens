@@ -36,10 +36,10 @@ function attachStoreSubscription(
   return store.subscribe((state) => {
     if (owner.current.disposed || state.data === owner.current.lastData) return;
     owner.update({ lastData: state.data });
-    // The orchestrator's slice load is not a user edit — track lastData (done) but DON'T save it.
+    // The orchestrator's slice load is not a user edit, track lastData (done) but DON'T save it.
     if (owner.current.loadingSlice) return;
     owner.update({ unacknowledged: state.data, terminalBatchSnapshot: null, lastError: null });
-    // Suspended (a slice replacement is in flight): PARK the edit — record it in `pending` with no
+    // Suspended (a slice replacement is in flight): PARK the edit, record it in `pending` with no
     // timer so nothing sends it. It is rebased by a successful reload, or re-scheduled on resume
     // when the suspending operation failed before any reload.
     if (owner.current.suspendDepth > 0) {
@@ -122,7 +122,7 @@ function hasUnsavedWrites(owner: AttachmentState): boolean {
 
 function attachCoordinator(parts: PersistenceParts, accountSwitch: ReturnType<typeof attachAccountSwitch>): () => void {
   const { owner, refresh, serverMode } = parts;
-  // Register the orchestrator-backed refresh for out-of-band server writers. Server mode only —
+  // Register the orchestrator-backed refresh for out-of-band server writers. Server mode only,
   // the demo build's lifecycle actions mutate the store directly and never reload. Save failure
   // aborts because a convenience re-hydrate must never destroy un-persisted edits.
   const registeredRefresh = serverMode ? (id: string) => refresh.refreshActive(id, { abortIfSaveFailed: true }) : null;
@@ -162,7 +162,7 @@ function attachAllocationRewriteHandler({ store, adapter }: Pick<PersistencePart
  * Detach cancels ownership without initiating a final write; a caller that needs a confirmed handoff
  * must call {@link flushPendingWrites} before detaching.
  *
- * Lifecycle of a write — the moving parts, top-down (each is detailed inline below):
+ * Lifecycle of a write. The moving parts, top-down (each is detailed inline below):
  *  1. A data change fires the store subscription → schedule a DEBOUNCED save (immediate when
  *     `debounceMs <= 0`). A fresh edit resets the retry budget.
  *  2. `save()` runs `adapter.saveAll`; on success it clears the error state (`onSuccess`) and the
@@ -170,7 +170,7 @@ function attachAllocationRewriteHandler({ store, adapter }: Pick<PersistencePart
  *  3. `scheduleRetry()` re-sends the LATEST store state with capped exponential backoff
  *     (max 5 attempts), so a transient failure self-heals without waiting for the next edit.
  *  4. A STRANDED write (failed AND budget exhausted) is re-attempted when the connection plausibly
- *     recovers — the `online` event, or the tab becoming visible again (gated on a real failure).
+ *     recovers, the `online` event, or the tab becoming visible again (gated on a real failure).
  *  5. `visibilitychange→hidden` flushes through the normal serialized path while the page survives;
  *     `pagehide` uses the adapter's keepalive teardown path.
  */

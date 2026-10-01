@@ -89,7 +89,7 @@ export function ClosureBand({
       />
       {/* The name rides on its OWN layer rather than inside the band. The band's shading has to
           stay beneath the group-header rows, and `z-0` makes it a stacking context, so a
-          name nested in it would be buried by every group header it scrolled behind — the very
+          name nested in it would be buried by every group header it scrolled behind. The very
           "closure is unnamed" symptom. A sibling layer can outrank those rows while
           the shading underneath stays beneath those rows. */}
       <div

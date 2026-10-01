@@ -275,7 +275,7 @@ function SchedulerGridFooter({
 /**
  * The scroll container's contribution to the grid's shared geometry variables: the measured sticky
  * header, and the timeline area actually on screen. Each size is published only once it has been
- * measured — a still-unmeasured `0` would clamp every visible-portion overlay to nothing, whereas
+ * measured. A still-unmeasured `0` would clamp every visible-portion overlay to nothing, whereas
  * an absent variable falls back to not clamping at all (see visibleSpanInsets).
  */
 function buildViewportVariables({

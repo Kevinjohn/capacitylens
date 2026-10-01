@@ -2,12 +2,12 @@ import type { ISOTimestamp } from "../../types/entities";
 import { parseISOTimestamp } from "../../lib/integrity";
 
 /**
- * The three DERIVED lifecycle states an entity can be read as. There is no stored `state` column —
- * the state is derived from the `archivedAt`/`deletedAt` tombstone fields (see {@link lifecycleStatus}):
- * - `'active'`   — neither tombstone set (the default; absent = active).
- * - `'archived'` — valid `archivedAt` set, valid `deletedAt` absent (soft, reversible: hidden from scheduling
+ * The three DERIVED lifecycle states an entity can be read as. There is no stored `state` column.
+ * The state is derived from the `archivedAt`/`deletedAt` tombstone fields (see {@link lifecycleStatus}):
+ * - `'active'`: neither tombstone set (the default; absent = active).
+ * - `'archived'`: valid `archivedAt` set, valid `deletedAt` absent (soft, reversible: hidden from scheduling
  *                  but fully retained).
- * - `'deleted'`  — valid `deletedAt` set (a soft-delete tombstone). `deletedAt` WINS over `archivedAt`: a
+ * - `'deleted'`: valid `deletedAt` set (a soft-delete tombstone). `deletedAt` WINS over `archivedAt`: a
  *                  record archived-then-deleted reads `'deleted'`, never `'archived'`.
  *
  * INVARIANT: these are the only three states; the predicates + transitions below are exhaustive over
@@ -16,13 +16,13 @@ import { parseISOTimestamp } from "../../lib/integrity";
 export type LifecycleState = "active" | "archived" | "deleted";
 
 /**
- * The minimal structural shape the lifecycle machine reads and writes — the two optional tombstone
+ * The minimal structural shape the lifecycle machine reads and writes, the two optional tombstone
  * timestamps. Resource, Client, Project and Activity all satisfy this by carrying the same two fields,
  * so the machine is generic over the shape rather than coupled to those concrete types: a transition
  * takes `<T extends LifecycleFields>` and returns `T`, so `archive(aResource)` yields a `Resource`
  * with its other fields untouched.
  *
- * Named `LifecycleFields` (over `Lifecyclable`) to read as "the fields the lifecycle owns" — it's a
+ * Named `LifecycleFields` (over `Lifecyclable`) to read as "the fields the lifecycle owns". It's a
  * structural CONSTRAINT on the entity, not a capability the entity has.
  */
 export interface LifecycleFields {
@@ -36,7 +36,7 @@ export interface LifecycleFields {
  * The entity tables that carry the lifecycle tombstones (archivedAt/deletedAt) and so run the
  * archive/unarchive/soft-delete/purge routes. Single-sourced HERE (the pure module both app and
  * server import) so the server's lifecycle-route allow-list (`isLifecycleEntity` in app.ts) and the
- * `sanitizeWrite` tombstone-pin (validate.ts) can't drift apart — two hand-rolled copies of this set
+ * `sanitizeWrite` tombstone-pin (validate.ts) can't drift apart, two hand-rolled copies of this set
  * is exactly what silently rots if a 4th entity ever grows tombstones. Every other table
  * (phases/allocations/timeOff/disciplines/accounts) is deliberately OUT.
  */
@@ -56,7 +56,7 @@ export const isLifecycleEntityKey = (entityKey: string): entityKey is LifecycleE
 export const PURGE_MIN_AGE_DAYS = 30;
 
 /** The purge grace window expressed in milliseconds (derived from PURGE_MIN_AGE_DAYS, NO magic
- * numbers) — the unit `Date.parse` works in, so {@link canPurge} can compare tombstone age directly. */
+ * numbers), the unit `Date.parse` works in, so {@link canPurge} can compare tombstone age directly. */
 export const PURGE_MIN_AGE_MS = PURGE_MIN_AGE_DAYS * 24 * 60 * 60 * 1000;
 
 /** Lifecycle state is derived only from a canonical, parseable tombstone. Import repair uses the
@@ -69,7 +69,7 @@ export function isValidTombstone(value: ISOTimestamp | null | undefined): value 
 
 /**
  * Derive the {@link LifecycleState} of an entity from its tombstone fields. PURE: a function of the
- * two fields only — no I/O, no Date.
+ * two fields only. No I/O, no Date.
  *
  * Precedence is load-bearing: `deletedAt` WINS over `archivedAt`, so a record that was
  * archived-then-deleted reads `'deleted'` (a tombstone, not "archived"). `archivedAt` is only

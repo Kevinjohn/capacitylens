@@ -24,13 +24,13 @@ void PROJECTED_LIFECYCLE_KEYS;
 void projectedKeysAreComplete;
 
 /**
- * Project an {@link AppData} to its ACTIVE rows only — drop every NON-active (archived OR soft-deleted)
+ * Project an {@link AppData} to its ACTIVE rows only, drop every NON-active (archived OR soft-deleted)
  * Resource/Client/Project. PURE: returns a NEW AppData; the input and every nested array are left
  * untouched (the kept rows are the SAME object references, just re-collected into fresh arrays).
  *
  * This is the SINGLE source of the "hide non-active from the view" rule, reused by BOTH the
  * client VIEW seam (`useActiveScopedData`, src/store) and the server per-account read
- * (`readSlice`'s `includeInactive: false` branch, server/db.ts) — so the two halves can't drift on
+ * (`readSlice`'s `includeInactive: false` branch, server/db.ts), so the two halves can't drift on
  * what "shown in the normal app" means. "Active" is exactly `lifecycleStatus(e) === 'active'`, so the
  * lifecycle state machine stays the single authority (a future state never silently leaks into views).
  *
@@ -41,9 +41,9 @@ void projectedKeysAreComplete;
  * references are retained rather than treated as invented lifecycle evidence, so integrity damage
  * stays visible through the app's safe fallback labels and can be diagnosed.
  *
- * INVARIANT — VIEW/READ PROJECTION ONLY. Use this ONLY where the goal is "what the normal app shows":
+ * INVARIANT: VIEW/READ PROJECTION ONLY. Use this ONLY where the goal is "what the normal app shows":
  * the scheduler/list/picker/palette views and the per-account read. NEVER on an integrity, mutation,
- * cascade, import, migrate or EXPORT path — those MUST see every row (a backup retains archived/
+ * cascade, import, migrate or EXPORT path. Those MUST see every row (a backup retains archived/
  * soft-deleted rows; cascade/integrity reason over the full set). Hiding rows from those paths would
  * silently drop retained data. This is a payload-narrowing projection, not a delete.
  *
@@ -58,7 +58,7 @@ export function activeOnly(data: AppData): AppData {
       new Map((data[table] as unknown as LifecycleAncestryRow[]).map((row) => [row.id, row])),
     ]),
   ) as Partial<Record<AppDataKey, Map<string, LifecycleAncestryRow>>>;
-  // Only PARENT_TABLES are indexed, and the walk only ever looks a PARENT up — an unindexed table
+  // Only PARENT_TABLES are indexed, and the walk only ever looks a PARENT up, an unindexed table
   // reads as an unresolvable reference, which the walk already retains rather than hides.
   const lookup: LifecycleAncestryLookup = (table, id) => indexes[table]?.get(id);
   const memo: LifecycleAncestryMemo = new Map();

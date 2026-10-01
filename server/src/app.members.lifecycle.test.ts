@@ -446,8 +446,8 @@ describe("member sign-in confirmation", () => {
 
 // The status domain must reach EVERY membership path, not just the new route.
 // Widening a membership to active/disabled/archived is only half a feature. The other half is that
-// every path which resolves a member — invite redemption, identity administration, removal, role
-// change — agrees about what a non-active row means. Each case below failed before this pass, and
+// every path which resolves a member, invite redemption, identity administration, removal, role
+// change: agrees about what a non-active row means. Each case below failed before this pass, and
 // each fails independently, so a regression in one cannot hide behind another.
 
 /** Owner + editor of a1, with the editor already moved into `status`. */
@@ -470,7 +470,7 @@ function registerDisabledInviteRedemptionTest(): void {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-bypass");
     // An addressed invite the disabled member holds. Before this fix the accept path
     // probed membership with an ACTIVE-only read, saw "not a member", and upserted them back to
-    // active at the invite's role — reversing the administrator's decision with no audit record.
+    // active at the invite's role, reversing the administrator's decision with no audit record.
     const created = await call(app, {
       method: "POST",
       url: "/api/invites",
@@ -495,7 +495,7 @@ function registerDisabledInviteRedemptionTest(): void {
     expect(
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
     ).toBe(403);
-    // And the invite is NOT burned — it still works once an admin restores the membership.
+    // And the invite is NOT burned. It still works once an admin restores the membership.
     const invite = getInvite(db, token);
     if (!invite) throw new Error("Expected the invitation to remain available.");
     expect(invite.usedAt).toBeNull();
@@ -568,7 +568,7 @@ function registerDisabledMemberAuthorityTest(): void {
     const { app, owner, ed } = await ownerAndInactiveEditor("identity-authority");
     // The compromised-account case: an admin disables first, THEN kills the live session. Before
     // this fix the target's authority map was active-only, so disabling someone reported them as
-    // "not a member" and removed both controls — leaving the attacker's session running.
+    // "not a member" and removed both controls, leaving the attacker's session running.
     const listed = await membersReq(app, "a1", { cookie: owner.cookie });
     expect(listed.statusCode).toBe(200);
     const row = (
@@ -580,7 +580,7 @@ function registerDisabledMemberAuthorityTest(): void {
     expect(row.mayResetPassword).toBe(true);
     expect(row.mayRevokeSessions).toBe(true);
 
-    // Not merely advertised — the routes themselves still work on the disabled member.
+    // Not merely advertised. The routes themselves still work on the disabled member.
     expect(
       (
         await call(app, {
@@ -739,7 +739,7 @@ describe("re-applying a member's current status is a no-op (#175 review)", () =>
 
 // The directory is a list a person reads top to bottom, so its order is part of the feature, not an
 // implementation detail. Join date first (that is how an administrator remembers the team), name as
-// the tie-break — a bulk import stamps everyone with the same instant, and an id order there reads
+// the tie-break, a bulk import stamps everyone with the same instant, and an id order there reads
 // as random. principalId last, so two identically-named same-instant rows still list identically
 // between reads.
 describe("member listing order (#175)", () => {

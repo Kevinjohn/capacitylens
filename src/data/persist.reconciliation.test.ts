@@ -109,7 +109,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
     expect(await flushPendingWrites()).toEqual({ kind: "blocked" });
 
     // Switching to B succeeds: B's writes are clean BY CONSTRUCTION (fresh authoritative slice,
-    // snapshot re-seeded) — A's abandoned failure must not follow the user into B.
+    // snapshot re-seeded). A's abandoned failure must not follow the user into B.
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     onSuccess.mockClear();
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "reloaded" });
@@ -128,7 +128,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
 
   it("a switch past FAILED edits SURFACES the loss (typed sticky error) and cancels the stale backoff retry", async () => {
     // Two failure modes this pins: (1) the reset that makes B's writes clean must not SILENTLY
-    // swallow the loss of A's un-persisted edits — the reload raises the typed sticky error for
+    // swallow the loss of A's un-persisted edits, the reload raises the typed sticky error for
     // them (the banner it clears was their only surface before); (2) the backoff retry armed by
     // A's failure must not survive into the reload and fire mid-/post-load with A's stale tree.
     vi.useFakeTimers();
@@ -140,7 +140,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
       await vi.advanceTimersByTimeAsync(5); // save failed → failure state up, backoff retry armed
       const savesBeforeSwitch = saveAll.mock.calls.length;
 
-      saveAll.mockResolvedValue(undefined); // the connection heals — but A's edit is already lost
+      saveAll.mockResolvedValue(undefined); // the connection heals, but A's edit is already lost
       useStore.getState().setActiveAccount("b1");
       await loadStarted.promise;
       const releaseB = readReleaseB();
@@ -176,7 +176,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
 
 describe("batch reconciliation (authoritative reload)", () => {
   // A 409 from /api/batch (optimistic concurrency) is NOT transient: retrying the same stale diff
-  // 409s forever, and abortIfSaveFailed blocks the focus refresh that could break the loop — a
+  // 409s forever, and abortIfSaveFailed blocks the focus refresh that could break the loop, a
   // self-sustaining error wedge. The persist layer must instead resolve by RELOADING the active
   // slice (server wins, the local conflicting edit is deliberately discarded), surface the banner
   // via onError, and clear it via the follow-up clean save's onSuccess.
@@ -197,7 +197,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       await vi.advanceTimersByTimeAsync(5);
 
       expect(onError).toHaveBeenCalledTimes(1); // the banner surfaced "your edit did not save"
-      // The resolution reload ran — deliberately WITHOUT abortIfSaveFailed (this reload IS the
+      // The resolution reload ran, deliberately WITHOUT abortIfSaveFailed (this reload IS the
       // resolution), unlike the focus refresh which must abort on a failed save.
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
       // Server wins: the conflicting local edit was discarded for the server's slice.
@@ -326,7 +326,7 @@ describe("batch reconciliation (authoritative reload)", () => {
 
   it("a conflict DURING the resolution does not recurse — ONE reload, banner stays up", async () => {
     // The re-entry guard: the resolution's follow-up save can itself 409 (other pending edits also
-    // stale). That must NOT trigger a second resolution reload (an unbounded reload↔save loop) —
+    // stale). That must NOT trigger a second resolution reload (an unbounded reload↔save loop),
     // it just surfaces the banner; a later focus/online re-attempt retriggers resolution.
     vi.useFakeTimers();
     try {
@@ -349,11 +349,11 @@ describe("batch reconciliation (authoritative reload)", () => {
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1); // exactly ONE resolution reload
       expect(onError).toHaveBeenCalledTimes(2); // both conflicts surfaced
       // The resolution RELOAD fires onSuccess (an installed authoritative slice IS a healthy
-      // sync), but the follow-up save's second 409 re-raises the banner AFTER it — the user's
+      // sync), but the follow-up save's second 409 re-raises the banner AFTER it, the user's
       // final state is the banner up. Assert the ORDER, not "never called".
       const lastSuccess = Math.max(...onSuccess.mock.invocationCallOrder);
       const lastError = Math.max(...onError.mock.invocationCallOrder);
-      expect(lastError).toBeGreaterThan(lastSuccess); // banner ends UP — the 409 outlives the reload's clear
+      expect(lastError).toBeGreaterThan(lastSuccess); // banner ends UP, the 409 outlives the reload's clear
       await vi.advanceTimersByTimeAsync(35_000); // and no retry/reload machinery re-fires
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
       expect(saveAll.mock.calls.length).toBe(2);
@@ -367,7 +367,7 @@ describe("batch reconciliation (authoritative reload)", () => {
     // The reload window race: the 409 triggers refreshActive, and the user edits again while
     // loadAll is on the wire. The server slice is AUTHORITATIVE (server-wins): keeping the local
     // state and letting its save diff against the fresh snapshot would push the WHOLE pre-reload
-    // tree — re-landing the exact edit the resolution just declared discarded and DELETE-ing rows
+    // tree: re-landing the exact edit the resolution just declared discarded and DELETE-ing rows
     // the other writer committed. Only the operation made during the reload may be rebased onto the
     // authoritative slice; the original conflicted edit must stay discarded.
     let hold = false;
@@ -391,7 +391,7 @@ describe("batch reconciliation (authoritative reload)", () => {
     await vi.waitFor(() => expect(release).not.toBeNull()); // resolution reload in flight
 
     // A second edit lands while the reload is on the wire. (In this immediate-save configuration
-    // its own save fires at edit time — pre-seed, so harmless; the danger is a save AFTER the
+    // its own save fires at edit time, pre-seed, so harmless; the danger is a save AFTER the
     // reload installed the slice re-pushing the pre-reload tree.)
     useStore.getState().addClient({ name: "During reload", color: "#333333" });
     const savesBeforeReloadSettled = saveAll.mock.calls.length;
@@ -445,8 +445,8 @@ describe("batch reconciliation (authoritative reload)", () => {
 
   it("an over-limit failure (BatchTooLargeError) is TERMINAL — no backoff retry, banner via onError", async () => {
     // Unlike a transient failure (the regression pin above), an over-limit diff would throw on EVERY
-    // backoff attempt (the atomic batch refuses to split it), so persist.ts must STOP retrying — no
-    // self-sustaining error wedge — while still surfacing the banner. It is NOT a conflict either, so
+    // backoff attempt (the atomic batch refuses to split it), so persist.ts must STOP retrying, no
+    // self-sustaining error wedge, while still surfacing the banner. It is NOT a conflict either, so
     // it must not trigger a server-wins reload. The current page's in-memory desired state remains
     // available for a later, smaller diff to clear the banner; closing/reloading discards it because
     // CapacityLens deliberately has no queued offline-write journal.
@@ -471,7 +471,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       expect(savesAfterEdit).toBe(1);
 
       // 35s covers every backoff step: a TRANSIENT error re-attempts across it, a TERMINAL one does
-      // not — and it never reloads (that is the conflict path, not this one).
+      // not: and it never reloads (that is the conflict path, not this one).
       await vi.advanceTimersByTimeAsync(35_000);
       expect(saveAll.mock.calls.length).toBe(savesAfterEdit); // no background retry armed
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // terminal, not a server-wins reload

@@ -69,7 +69,7 @@ function stripsAddedBuiltinFlag(): void {
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
-  // A cast payload smuggling builtin:true must NOT mint a second Internal — the store strips it.
+  // A cast payload smuggling builtin:true must NOT mint a second Internal, the store strips it.
   const c = requireCreated(s().addClient({ name: "Sneaky", color: "#3b82f6", builtin: true } as never));
   const sneaky = expectPresent(
     s().data.clients.find((x) => x.id === c.id),
@@ -103,7 +103,7 @@ describe("built-in Internal client in the store", () => {
   it("addAccount creates exactly one builtin Internal client for the new account", addsAccountWithBuiltinClient);
   it("rejects renaming the built-in Internal client", rejectsBuiltinRename);
   // The builtin Internal client's protection from REMOVAL is now exercised through the lifecycle
-  // actions (archive/softDelete/purge all throw "built in") in useStore.lifecycle.test.ts — there is
+  // actions (archive/softDelete/purge all throw "built in") in useStore.lifecycle.test.ts, there is
   // no immediate deleteClient action anymore. This file keeps the RENAME guard, which is the
   // updateClient concern that stays here.
   it("still allows renaming a normal client", renamesNormalClient);

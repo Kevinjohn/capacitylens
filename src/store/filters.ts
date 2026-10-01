@@ -7,7 +7,7 @@ export interface Filters {
   /** Activity lens: a specific internal/all-projects activity. Mutually exclusive with the
    * client/project lens and with `activityKind` (enforced in setFilters). */
   activityId: ID | null;
-  /** Activity lens: ALL activities of a kind ('Internal — All' / 'All projects — All'). Mutually
+  /** Activity lens: ALL activities of a kind ('Internal, All' / 'All projects, All'). Mutually
    * exclusive with the client/project lens and with `activityId`. */
   activityKind: "internal" | "repeatable" | null;
   search: string;
@@ -41,13 +41,13 @@ export const clearEntityLenses = (filters: Filters): Filters => ({
   activityKind: null,
 });
 
-/** The project/client lens specifically — the pair that decides whether a bar "matches the filter"
+/** The project/client lens specifically, the pair that decides whether a bar "matches the filter"
  * (the activity lens is standalone and mutually exclusive with it via setFilters). */
 export function hasProjectClientLens(filters: Filters): boolean {
   return filters.projectId !== null || filters.clientId !== null;
 }
 
-/** Any "what work" lens is active — project/client OR activity. This is the gate for the dimmed
+/** Any "what work" lens is active, project/client OR activity. This is the gate for the dimmed
  * show-unmatched staffing view, which behaves identically whichever of the two lenses is set. */
 export function hasLensFilter(filters: Filters): boolean {
   return hasProjectClientLens(filters) || filters.activityId !== null || filters.activityKind !== null;

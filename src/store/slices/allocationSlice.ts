@@ -59,7 +59,7 @@ export function createAllocationSlice(
             patch: patch,
             prepare: (merged, existing) => {
               // Clamp FIRST (same shared clamp as creation and import) so validation sees the value
-              // that would actually be stored — a drag-resize rescale past 24h must land on 24 like
+              // that would actually be stored. A drag-resize rescale past 24h must land on 24 like
               // every other write boundary, not reject after the fact.
               const clampedPatch: Patch<Allocation> =
                 patch.hoursPerDay !== undefined

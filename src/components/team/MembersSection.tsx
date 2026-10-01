@@ -16,10 +16,10 @@ import type { TeamMember } from "@/account/teamAccessClient";
 // row's pencil, reach the rarer lifecycle actions and Resource link through the centered member-actions dialog, and invite people from a
 // separate dialog above. Ownership transfer is deliberately absent: it is not a per-row action.
 // The CLIENT
-// gate is courtesy only — the SAME pure guards (canEditAnyMemberRole / canRemoveMember) hide controls
+// gate is courtesy only, the SAME pure guards (canEditAnyMemberRole / canRemoveMember) hide controls
 // the user can't use, but the SERVER is the backstop (every route is gated server-side; a 403 on the
 // initial members fetch is what hides the whole section for a viewer/editor). The invite TOKEN is
-// shown exactly ONCE, straight from the create response — it is write-once and never read back.
+// shown exactly ONCE, straight from the create response. It is write-once and never read back.
 
 /**
  * The Team & access member-management section. Renders ONLY in server + auth-on mode; a 403 on the initial

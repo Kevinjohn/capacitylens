@@ -517,7 +517,7 @@ it("attachPersistence retries a failed write in the background without waiting f
   // Server-backed mode has no localStorage fallback: if a write fails and the user
   // reloads before their next edit, unsynced changes would be lost. A bounded
   // background retry (re-sending the latest store state) self-heals once the
-  // adapter recovers — proven here with a one-shot failure + a short backoff.
+  // adapter recovers, proven here with a one-shot failure + a short backoff.
   vi.useFakeTimers();
   try {
     const adapter = new InMemoryDemoAdapter();

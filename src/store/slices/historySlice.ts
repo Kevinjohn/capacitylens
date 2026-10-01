@@ -26,7 +26,7 @@ export function createHistorySlice(internals: HistorySliceInternals): StateCreat
       //
       // Imported entities keep their relationships but are given FRESH ids. An
       // exported file carries the source account's ids; re-importing it into a
-      // different account would otherwise collide — the store matches entities by
+      // different account would otherwise collide, the store matches entities by
       // id GLOBALLY (updateById / cascade scan all accounts), so a shared id would
       // let an edit in one account silently rewrite another's row.
       // The account is resolved at the CALL, ahead of the shared viewer gate: replacing a slice with

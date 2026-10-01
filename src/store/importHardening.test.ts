@@ -181,7 +181,7 @@ function registerImportHardening5(): void {
     } as unknown as AppData;
     s().importData(incoming);
     // Import REPLACES the account slice, so exactly ONE builtin remains (the imported one, kept as
-    // the account's Internal) — never two. Its name stays the reserved "Internal".
+    // the account's Internal), never two. Its name stays the reserved "Internal".
     const builtins = s().data.clients.filter((c) => c.builtin && c.accountId === DEFAULT_ACCOUNT_ID);
     expect(builtins).toHaveLength(1);
     const builtin = requireValue(builtins[0], "imported internal client");

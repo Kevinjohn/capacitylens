@@ -22,8 +22,8 @@ export interface DragResizePreviewInput {
 
 export interface UseDragResizeArgs {
   /** Maps a document clientX to a snapped day index (the ColumnGeometry inverse, applied
-   * against the live lane rect — supplied by the lane). The day delta is the difference of
-   * the two endpoints' indices, so each end snaps to a column independently — correct even
+   * against the live lane rect, supplied by the lane). The day delta is the difference of
+   * the two endpoints' indices, so each end snaps to a column independently, correct even
    * when the pointer crosses narrowed weekend columns of unequal width. */
   indexAtClientX: (clientX: number) => number;
   onPreview: (input: DragResizePreviewInput) => void;
@@ -78,7 +78,7 @@ function createPointerHandlers(
   const { argsRef, mode, startX, startY, pointerId, threshold } = state;
   // NOTE: the day delta is `indexAtClientX(here) - indexAtClientX(start)`. The
   // divide-by-zero / out-of-range guarding lives in the PURE ColumnGeometry.indexAt (it's
-  // total and never returns NaN). This hook intentionally stays guard-free — do NOT wrap
+  // total and never returns NaN). This hook intentionally stays guard-free, do NOT wrap
   // these pure calls in try/catch (the guard belongs in the geometry layer). The 4px
   // arm-vs-click test below stays a RAW pixel test, independent of the day snapping.
   const onMove = (event: PointerEvent) => {
@@ -162,13 +162,13 @@ export function useDragResize(args: UseDragResizeArgs) {
 
   // Returns true when the gesture was ARMED (listeners attached), false when the
   // pointerdown was ignored (non-left button or re-entrant). The caller uses this to
-  // avoid starting side effects (e.g. a scroll watcher) for a gesture that never runs
-  // — those have no onCommit/onCancel/onClick to tear them back down.
+  // avoid starting side effects (e.g. a scroll watcher) for a gesture that never runs,
+  // those have no onCommit/onCancel/onClick to tear them back down.
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLElement>): boolean => {
     if (e.button !== 0) return false;
     e.stopPropagation(); // don't let the lane start a draw-to-create gesture
     // Ignore a re-entrant pointerdown (a second finger / pen) while a gesture is
-    // already live — otherwise its document listeners would leak and a single
+    // already live, otherwise its document listeners would leak and a single
     // pointerup could commit twice.
     if (teardownRef.current) return false;
 

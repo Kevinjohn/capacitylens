@@ -27,7 +27,7 @@ export function buildSessionPolicy({
   "database" | "secret" | "baseURL" | "basePath" | "verification" | "account" | "advanced" | "session" | "telemetry"
 > {
   return {
-    database: db, // node:sqlite DatabaseSync — same file as the app data (see header)
+    database: db, // node:sqlite DatabaseSync, same file as the app data (see header)
     secret,
     baseURL,
     basePath: "/api/auth",
@@ -41,8 +41,8 @@ export function buildSessionPolicy({
     // an existing local principal merely by presenting the same verified email address.
     //
     // Provider access/refresh/id tokens are encrypted with the application secret before they reach
-    // SQLite, so a stolen database or backup copy alone does not surrender live provider credentials
-    // — defence in depth between database-copy theft and application-secret theft.
+    // SQLite, so a stolen database or backup copy alone does not surrender live provider credentials,
+    // defence in depth between database-copy theft and application-secret theft.
     account: { accountLinking: { disableImplicitLinking: true }, encryptOAuthTokens: true },
     // Session-cookie hardening follows the PUBLIC Better Auth URL, not the Node listener: an HTTPS
     // browser origin still needs Secure cookies when nginx proxies to Node over HTTP. Better Auth's

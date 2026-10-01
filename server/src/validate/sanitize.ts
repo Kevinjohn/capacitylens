@@ -64,15 +64,15 @@ function sanitizeAccountWrite(
 ): Record<string, unknown> {
   const workingDaysRequested = Object.hasOwn(copy, "workingDays");
   // POLICY: a non-preset colour snaps to its NEAREST palette preset (shared/lib/color's
-  // snapToPresetColor — the SAME mapper the client uses and the one-time
+  // snapToPresetColor: the SAME mapper the client uses and the one-time
   // snap-legacy-account-colors migration ran), not a fixed fallback purple. Before this, ANY
   // stored colour outside the (then-current) preset set was replaced with one fixed hex on
-  // every write, so a legacy account's colour — or any hex a hand-crafted request supplied —
+  // every write, so a legacy account's colour, or any hex a hand-crafted request supplied,
   // would silently flip to that one colour the next time the row was touched. See DECISIONS.md.
   copy.color = snapToPresetColor(copy.color);
   if (typeof copy.name === "string") copy.name = cleanText(copy.name);
   // schedulingMode is an OPTIONAL enum (absent = 'hourly'). Drop a junk value rather
-  // than persisting a mode the scheduler's hourly/days/blocks switch can't handle — the
+  // than persisting a mode the scheduler's hourly/days/blocks switch can't handle, the
   // one enum a direct /api/accounts write would otherwise slip past every other guard.
   if (copy.schedulingMode !== undefined && !SCHEDULING_MODES.includes(copy.schedulingMode as never)) {
     delete copy.schedulingMode;
@@ -219,13 +219,13 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
  * Repair the constrained value-level fields of a write body, returning a NEW object
  * (the input is not mutated). Scoped tables delegate to the shared
  * sanitizeImportedRecord; accounts (not a scoped table) get their colour repaired
- * here. A well-formed body from the real client is unchanged — this only bites
+ * here. A well-formed body from the real client is unchanged. This only bites
  * malformed direct API writes.
  *
- * Also rejects any row whose id is not a non-empty string — the single funnel all
+ * Also rejects any row whose id is not a non-empty string, the single funnel all
  * write paths flow through, so no path can slip past the NULL-id guard.
  *
- * `existing` is the currently-stored row (from getRow) on an UPDATE — PUT/PATCH/batch pass it so
+ * `existing` is the currently-stored row (from getRow) on an UPDATE, PUT/PATCH/batch pass it so
  * the lifecycle tombstones (and, for a note-blind writer, the time-off `note`) can be PINNED to
  * what's on disk (see the scoped branch); it is undefined on a CREATE (POST), which is why a new
  * row always starts with its tombstones stripped (active).

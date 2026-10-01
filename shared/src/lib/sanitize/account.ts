@@ -5,13 +5,13 @@ import type { Account } from "../../types/entities";
 /**
  * Every optional BOOLEAN preference on an account. Each is dropped rather than persisted when a
  * hand-edited value isn't a real boolean, so its ABSENCE reads back as the documented default on
- * the client — which differs per field and is what `Account` documents:
+ * the client, which differs per field and is what `Account` documents:
  * disciplinesEnabled            absent = true  (disciplines shown)
  * placeholdersEnabled           absent = false (placeholders hidden out of the box)
  * externalEnabled               absent = false (external resources hidden out of the box)
  * inlineActivityCreateEnabled   absent = false (inline "Add activity" hidden)
  * showTaskFieldInSchedule       absent = false (allocation task hidden)
- * Dropping junk — rather than coercing it — is what keeps a `false`-defaulting flag from turning on
+ * Dropping junk, rather than coercing it, is what keeps a `false`-defaulting flag from turning on
  * because someone typed "no" into the file.
  */
 const ACCOUNT_BOOLEAN_FIELDS = [
@@ -64,7 +64,7 @@ const ACCOUNT_ENUM_FIELDS: { readonly [K in AccountEnumField]: readonly unknown[
  * Called by the server write path; the import path doesn't re-import accounts. Retired account
  * preferences are not listed above: the server's write-column whitelist drops them before this runs.
  * `storedWeekStartsOn` is the row's persisted week start, used to repair an empty or malformed
- * workingDays value when the payload itself omits the (immutable, restored-later) field — without
+ * workingDays value when the payload itself omits the (immutable, restored-later) field, without
  * it a Sunday-start account's repair would silently produce the Monday-start default. */
 export function sanitizeAccount(record: Record<string, unknown>, storedWeekStartsOn?: 0 | 1): Record<string, unknown> {
   sanitizeTimezone(record);

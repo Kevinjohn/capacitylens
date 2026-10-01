@@ -44,7 +44,7 @@ function registerSeedTests(): void {
     expect(once.clients.filter((c) => c.builtin)).toHaveLength(2);
     expect(internalClientFor(once.clients, "a1")).toBeDefined();
     expect(internalClientFor(once.clients, "a2")).toBeDefined();
-    // Run again — no duplicate, and (no change) returns the SAME reference.
+    // Run again, no duplicate, and (no change) returns the SAME reference.
     const twice = applyInternalClientRepairs(once, TS);
     expect(twice).toBe(once);
     expect(twice.clients.filter((c) => c.builtin)).toHaveLength(2);
@@ -351,7 +351,7 @@ function registerPublicPredicateTests(): void {
   });
 
   // wouldAddSecondBuiltin is the server-reject predicate (validate.ts). These cases pin it to the
-  // exact inline check it replaced: `internalClientFor(...) && existing.id !== id` — including the
+  // exact inline check it replaced: `internalClientFor(...) && existing.id !== id`, including the
   // account-scoping that lets each account keep its own builtin.
   it("wouldAddSecondBuiltin: reproduces the server reject check byte-for-byte", () => {
     const existing: Client = {

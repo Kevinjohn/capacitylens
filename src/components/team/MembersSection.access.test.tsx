@@ -184,7 +184,7 @@ function registerSelfGateDisplayTests(): void {
   });
 
   it("surfaces a malformed member response instead of trusting it", async () => {
-    // Deliberately malformed (missing required member fields) — must NOT go through rawMember,
+    // Deliberately malformed (missing required member fields), must NOT go through rawMember,
     // which would paper over the very thing this test is pinning.
     vi.stubGlobal(
       "fetch",

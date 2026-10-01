@@ -153,7 +153,7 @@ function createInternalClientSingletonAcceptanceTests(): void {
 
 function registerPerAccountBuiltinTest(): void {
   it("creates one protected builtin in each account", async () => {
-    // multiAccount: true — this test deliberately creates a SECOND company on one instance, which
+    // multiAccount: true, this test deliberately creates a SECOND company on one instance, which
     // the default single-company cap would otherwise 403 (see app.singleCompanyCap.test.ts for the
     // cap's own coverage); this test is about per-account builtin scoping, not the cap.
     const { app } = freshApp({ allowReset: true, extra: { multiAccount: true } });

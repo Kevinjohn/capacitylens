@@ -85,7 +85,7 @@ describe("ClosureBand", () => {
   });
 
   it("keeps the vertical label on a band too narrow to read across", () => {
-    // A single day zoomed out below the 44px threshold — the case the sideways label exists for.
+    // A single day zoomed out below the 44px threshold, the case the sideways label exists for.
     const narrow = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 20, {
       minimiseWeekends: false,
       weekendWidth: 12,

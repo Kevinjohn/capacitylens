@@ -9,7 +9,7 @@ import { FROZEN_REPLY_MESSAGES, REPLY_ERRORS } from "../replyErrors";
 type AccountRouteFailureDependencies = Pick<AccountEntityRouteDependencies, "accountFail" | "fail">;
 
 /** Both account write paths turn an AccountContractError into the account failure shape and
- * anything else into the generic redacted failure — one funnel, as the generic routes had. */
+ * anything else into the generic redacted failure. One funnel, as the generic routes had. */
 export function sendAccountRouteFailure(
   reply: FastifyReply,
   error: unknown,
@@ -27,8 +27,8 @@ export function sendAccountRouteFailure(
  * immediately), or null when the write may proceed.
  *
  * PUT interleaves unrelated code (computing `vis`, its trusted-local replay attempt) BETWEEN the
- * frozen guard and the stale guard, so it calls this helper twice — once for `ownsRow`+`frozen`,
- * once afterward for `stale` alone — to keep that interleaving, and therefore behavior, unchanged.
+ * frozen guard and the stale guard, so it calls this helper twice (once for `ownsRow`+`frozen`,
+ * once afterward for `stale` alone) to keep that interleaving, and therefore behavior, unchanged.
  * PATCH has nothing between the three checks and calls this once with all three.
  *
  * `existing` stays optional (unlike PATCH's already-narrowed row) because PUT also runs the

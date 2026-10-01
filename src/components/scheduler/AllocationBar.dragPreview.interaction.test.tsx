@@ -134,7 +134,7 @@ function registerTargetCalendarTest() {
 
 function registerSourceCalendarTest() {
   // June 2026: 06-04 is a Thursday, 06-05 a Friday, 06-08 a Monday, 06-09 a Tuesday.
-  const midWeek = [2, 3, 4] as const; // Tue/Wed/Thu — works neither Friday nor Monday
+  const midWeek = [2, 3, 4] as const; // Tue/Wed/Thu: works neither Friday nor Monday
   const monToFri = [1, 2, 3, 4, 5] as const;
 
   /** The bar is drawn inset inside its column span, so its rendered width is not the raw geometry
@@ -515,12 +515,12 @@ function registerWeekendPreviewTests() {
     const bar = screen.getByTestId("allocation-bar");
 
     fireEvent.pointerDown(bar, { clientX: 10, clientY: 10, button: 0 });
-    // Move +1 day — crosses the weekend, so the commit extends the end (Fri → following Mon).
+    // Move +1 day, crosses the weekend, so the commit extends the end (Fri → following Mon).
     act(() => {
       document.dispatchEvent(new MouseEvent("pointermove", { clientX: 10 + dayWidth, clientY: 10, bubbles: true }));
     });
     // The PREVIEW width reflects the extended 7-day span (06-02..06-08), not the raw 5-day
-    // bar — matching what the commit produces, so the bar doesn't jump on release.
+    // bar: matching what the commit produces, so the bar doesn't jump on release.
     const previewedWidth = parseFloat((bar as HTMLElement).style.width);
     expect(previewedWidth).toBeGreaterThan(6 * dayWidth - 12); // ~7 days (minus inset), not 5
   });

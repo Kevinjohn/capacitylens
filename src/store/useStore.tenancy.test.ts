@@ -196,14 +196,14 @@ function registerEntityOwnershipTests(): void {
       s().data.projects.find((p) => p.id === "pB"),
       "project pB",
     );
-    expect(proj.archivedAt).toBeUndefined(); // unchanged — not archived across the tenant boundary
+    expect(proj.archivedAt).toBeUndefined(); // unchanged: not archived across the tenant boundary
     expect(s().data.activities.find((t) => t.id === "tB")).toBeDefined();
   });
 
   it("treats a stale / non-existent id as a silent no-op (does not throw)", () => {
     // A drag committed after an undo, or a double Delete keypress, can target an id
     // that no longer exists. That must NOT throw (it fires from window listeners
-    // outside React's error boundary) — only a cross-account hit is a violation.
+    // outside React's error boundary), only a cross-account hit is a violation.
     expect(s().updateAllocation("gone", { status: "tentative" })).toBe(false);
     expect(() => s().deleteAllocation("gone")).not.toThrow();
     expect(() => s().updateClient("gone", { name: "x" })).not.toThrow();

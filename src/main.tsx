@@ -43,7 +43,7 @@ function startPersistence(identitySource: "live" | "offline" | "open"): void {
     ...(identitySource === "live" && isServerConfigured() ? { initialLoad: "empty" as const } : {}),
     // Auto-seed is a DEMO-BUILD-ONLY convenience (single-company-per-instance policy): the
     // in-memory build has no server to own the data, so it seeds a demo dataset on each page load.
-    // A server-backed instance (the default) must NOT auto-seed — the server owns its data, and a
+    // A server-backed instance (the default) must NOT auto-seed. The server owns its data, and a
     // fresh real deploy now deliberately starts EMPTY at the create-your-company picker rather than
     // fabricating a "Wayne Enterprises". `undefined` here means bootstrap() only loads whatever the
     // server already has (possibly nothing).
@@ -55,7 +55,7 @@ function startPersistence(identitySource: "live" | "offline" | "open"): void {
       // Successful reloads rebase edits made during their network window. This typed error is the
       // exceptional case where an older failed write or committed external replacement cannot be
       // safely replayed. It is a discrete loss, not an ongoing transport failure, so its sticky
-      // toast is the whole surface — skip the "changes aren't saving" banner.
+      // toast is the whole surface, skip the "changes aren't saving" banner.
       if (error instanceof ReloadDiscardedEditError) {
         useStore.getState().setNotice(m.notice_edit_dropped_reload(), "error");
         return;
@@ -76,7 +76,7 @@ function startPersistence(identitySource: "live" | "offline" | "open"): void {
       else detachPersistence = detach;
     })
     .catch((e) => {
-      // Hydration itself failed — still let the app render (with the banner) rather
+      // Hydration itself failed, still let the app render (with the banner) rather
       // than dying on an unhandled rejection. The banner tells the user "changes aren't saving",
       // but log the real cause too so a contributor isn't left guessing what broke at boot.
       console.error("bootstrap: hydration failed; rendering with the persist-error banner", e);

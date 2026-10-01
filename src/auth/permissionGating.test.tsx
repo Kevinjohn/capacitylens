@@ -21,7 +21,7 @@ import type { Allocation } from "@capacitylens/shared/types/entities";
 import type { Role } from "@capacitylens/shared/domain/access";
 
 // Client permission gating. Two halves:
-//   1) the useCanEdit affordance gate (ListPage Add, AllocationBar grips) — and the OFF/local
+//   1) the useCanEdit affordance gate (ListPage Add, AllocationBar grips), and the OFF/local
 //      regression guard (provider ABSENT / role null → fully editable, byte-identical to today);
 //   2) the store's defense-in-depth viewer guard (a viewer's add*/update*/delete* no-ops + notices;
 //      null/editor/owner permit).
@@ -155,7 +155,7 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
     // too. The row stays present and active (the lifecycle suite covers the full archive/delete/purge set).
     useStore.getState().archiveEntity("resources", seeded.id);
     expect(useStore.getState().data.resources).toHaveLength(1); // still there
-    expect(requireValue(useStore.getState().data.resources[0], "viewer resource")).not.toHaveProperty("archivedAt"); // not archived — viewer no-op
+    expect(requireValue(useStore.getState().data.resources[0], "viewer resource")).not.toHaveProperty("archivedAt"); // not archived, viewer no-op
 
     expect(useStore.getState().data.resources).toHaveLength(1);
   });

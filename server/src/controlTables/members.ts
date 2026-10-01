@@ -18,7 +18,7 @@ import {
 /**
  * What a membership write should do to the live ownership-transfer requests naming this principal.
  *
- * `"invalidate"` — the default and the answer for every ordinary write — ends them: a demotion,
+ * `"invalidate"`: the default and the answer for every ordinary write, ends them: a demotion,
  * promotion, status change or removal means the person whose consent the ceremony holds is no
  * longer the person it names. `"keep"` belongs to ONE caller, the ownership exchange kernel, whose
  * two role writes ARE the ceremony completing; without it, completion would invalidate the request
@@ -51,7 +51,7 @@ export function invalidateRestrictedPrincipal(db: Db, accountId: string, princip
 /**
  * Insert a membership, or update the role/status of an existing `(accountId, userId)`. `createdAt`
  * is the JOIN timestamp and is **preserved** on a role/status change (it is set ONCE, on the first
- * insert) — so a role change or ownership transfer never rewrites a member's displayed "joined"
+ * insert), so a role change or ownership transfer never rewrites a member's displayed "joined"
  * date. The client applies its own role-priority presentation order. The idempotent write the permissioned
  * member-management endpoints use: re-inviting an existing member just changes their role
  * rather than erroring on the PK conflict.
@@ -59,7 +59,7 @@ export function invalidateRestrictedPrincipal(db: Db, accountId: string, princip
  * @param db      The open SQLite handle.
  * @param member  The membership to upsert.
  * @throws Error  If `member.role` is not a known {@link Role}. A bad role is a programming/integrity
- * fault, not a recoverable request condition — fail LOUD (mirroring the store's deliberate
+ * fault, not a recoverable request condition, fail LOUD (mirroring the store's deliberate
  * integrity throws) rather than silently coercing it to a default, which would hand someone the
  * wrong access level.
  */
@@ -71,7 +71,7 @@ export function upsertMember(db: Db, member: AccountMember, transfers: LiveTrans
   }
   // Read the membership BEFORE the upsert: SQLite counts a row it matched as changed even when the
   // values written are identical, so an unguarded write would let anyone end a live nomination by
-  // re-applying the role its participant already holds — repeatedly, and with nothing to show for
+  // re-applying the role its participant already holds, repeatedly, and with nothing to show for
   // it. The same distinction setMemberStatus already draws between "changed" and "unchanged".
   const previous = getMembershipRow(db, member.accountId, member.userId);
   const changed = previous === null || previous.role !== member.role || previous.status !== member.status;
@@ -84,18 +84,18 @@ export function upsertMember(db: Db, member: AccountMember, transfers: LiveTrans
        role = excluded.role, status = excluded.status`,
   ).run(member.accountId, member.userId, member.role, member.status, member.createdAt, member.accountId);
   // TOCTOU close: a password-reset link is authorized at MINT time against the user's
-  // membership snapshot THEN — so ANY membership write for this user (a role change, becoming the
+  // membership snapshot THEN, so ANY membership write for this user (a role change, becoming the
   // owner of a new org, even a lateral move) invalidates that
   // authorization and must burn their outstanding reset links, else a link minted while they were
   // lower-tier could redeem into the elevated identity. Centralised HERE, at the single membership
   // -write choke point, precisely so no elevation path (PATCH role, transfer-ownership, invite
-  // accept, POST /api/orgs) can forget it — the sprinkle-at-each-callsite approach missed two.
+  // accept, POST /api/orgs) can forget it, the sprinkle-at-each-callsite approach missed two.
   // No-op when the user holds no reset token (the common case: fresh membership) or in OFF mode
   // (no Better Auth tables). The reset-token implementation remains identity-owned in auth.ts.
   // Deliberately unconditional, unlike the ceremony below: the reset-link and security-revision
   // protocol is this path's TOCTOU close, it is pinned by the late-auth probe test, and narrowing
   // it is a change to that security decision rather than to this ceremony. A live nomination is
-  // different — ending one is visible to two people and undoes work, so it needs a real change.
+  // different: ending one is visible to two people and undoes work, so it needs a real change.
   revokeResetTokensForUser(db, member.userId);
   bumpSecurityRevision(db, member.userId);
   return changed && transfers === "invalidate" ? terminaliseMemberTransfers(db, member.accountId, member.userId) : [];
@@ -124,7 +124,7 @@ interface SetMemberStatusInput {
  * @param input.accountId  The account whose membership is changing.
  * @param input.userId     The login whose membership is changing.
  * @param input.status     The {@link MembershipStatus} to move to.
- * @returns Which of the three outcomes occurred. `"missing"` is NOT_FOUND to callers — an absent
+ * @returns Which of the three outcomes occurred. `"missing"` is NOT_FOUND to callers. An absent
  * membership must never report a committed lifecycle change. `"unchanged"` is a SUCCESS: the
  * membership already holds the requested status, so the caller's intent is satisfied. The three
  * are distinguished rather than collapsed to a boolean precisely because "no row" and "no change"
@@ -176,14 +176,14 @@ const activeMemberRoleStatement = cachedStatement(`
  * The status-agnostic counterpart to {@link getActiveMemberRole}, and deliberately NOT a substitute
  * for it: this helper answers "does this relationship exist?" (administration, lifecycle), never
  * "what authority does this login hold?" (authorization). A disabled or archived row is a real
- * membership that an administrator must still be able to see, restore and remove — and one that
+ * membership that an administrator must still be able to see, restore and remove, and one that
  * must confer nothing. Callers that narrow authority keep using {@link getActiveMemberRole}.
  *
  * @param db         The open SQLite handle.
  * @param accountId  The account to look up.
  * @param userId     The login to look up.
  * @returns The membership row, or `null` when this login has no membership in this account.
- * @throws Error  If the stored role is not a known {@link Role} — control-table corruption, which
+ * @throws Error  If the stored role is not a known {@link Role}, control-table corruption, which
  * fails loud here exactly as it does in {@link listMembersForAccount}.
  */
 export function getMembershipRow(db: Db, accountId: string, userId: string): AccountMember | null {
@@ -232,7 +232,7 @@ export function getActiveMemberRole(db: Db, accountId: string, userId: string): 
 }
 
 /**
- * List every membership a login holds, across all accounts — the by-`userId` lookup
+ * List every membership a login holds, across all accounts, the by-`userId` lookup
  * `listAccounts` builds on (it is what answers "which accounts may this login see?").
  *
  * @param db      The open SQLite handle.
@@ -246,17 +246,17 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
   // Map rows explicitly (mirrors rowCodec's row→object discipline) so the returned objects carry
   // the precise Role/MembershipStatus unions, not the raw TEXT columns. A row whose role is somehow
   // not a known Role is a control-table integrity fault (every write goes through upsertMember's
-  // guard) — fail LOUD rather than hand back a mistyped role.
+  // guard): fail LOUD rather than hand back a mistyped role.
   return rows.map((r) => toAccountMember(r, "listMembershipsForUser"));
 }
 
 /**
- * List EVERY membership row of one account — the by-`accountId` lookup the member-management UI
+ * List EVERY membership row of one account, the by-`accountId` lookup the member-management UI
  * builds on ("who is in this account?"). Ordered by `createdAt` then `userId` so the member
  * list renders deterministically.
  *
  * LOUD role-integrity throw (mirrors {@link listMembershipsForUser}): a stored role that is not a
- * known {@link Role} is a control-table corruption — fail rather than hand back a mistyped,
+ * known {@link Role} is a control-table corruption, fail rather than hand back a mistyped,
  * access-bearing role.
  *
  * @param db         The open SQLite handle.
@@ -267,8 +267,8 @@ const activeOwnerCountStatement = cachedStatement(
   `SELECT COUNT(*) AS owners FROM account_members WHERE accountId = ? AND role = 'owner' AND status = 'active'`,
 );
 
-/** How many active Owners one account has. Counted in SQLite — served directly by the partial
- * unique index that holds the single-active-Owner invariant — rather than by mapping every member
+/** How many active Owners one account has. Counted in SQLite, served directly by the partial
+ * unique index that holds the single-active-Owner invariant, rather than by mapping every member
  * row into objects to answer a question about a number. */
 export function countActiveOwners(db: Db, accountId: string): number {
   const row = activeOwnerCountStatement(db).get(accountId) as { owners: number };
@@ -286,7 +286,7 @@ export function listMembersForAccount(db: Db, accountId: string): AccountMember[
 }
 
 /**
- * Remove one membership — the member-revoke write. IDEMPOTENT: deleting an absent
+ * Remove one membership, the member-revoke write. IDEMPOTENT: deleting an absent
  * `(accountId, userId)` is a no-op (mirrors {@link deleteRow}). The `accountId` predicate is the
  * cross-tenant guard: a revoke can only ever touch a row of the named account.
  *
@@ -306,14 +306,14 @@ export function removeMember(db: Db, accountId: string, userId: string): string[
 }
 
 /**
- * Remove EVERY membership row of one account in a single statement — the bulk revoke the per-tenant
+ * Remove EVERY membership row of one account in a single statement, the bulk revoke the per-tenant
  * erasure runs when an account is hard-deleted. Mirrors {@link removeMember} but drops all of
  * the account's rows at once: `account_members` carries NO FK to `accounts` (see {@link ensureControlTables}),
- * so the AppData delete-cascade never reaches it — this is what stops the membership rows leaking when
+ * so the AppData delete-cascade never reaches it. This is what stops the membership rows leaking when
  * the account row goes.
  *
  * IDEMPOTENT: an account with no members is a no-op. The `accountId = ?` predicate is the CROSS-TENANT
- * guard — it can only ever delete rows of the named account, never another tenant's memberships.
+ * guard. It can only ever delete rows of the named account, never another tenant's memberships.
  *
  * @param db         The open SQLite handle.
  * @param accountId  The account whose memberships to remove entirely.

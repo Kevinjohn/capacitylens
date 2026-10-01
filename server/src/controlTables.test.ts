@@ -176,7 +176,7 @@ describe("upsertMember + getMemberRole", () => {
     upsertMember(db, member({ role: "viewer" }));
     upsertMember(db, member({ role: "owner" }));
     expect(getMemberRole(db, "acc-1", "user-1")).toBe("owner");
-    // The PK keeps it to a single row — the upsert mutated in place, it did not insert a second.
+    // The PK keeps it to a single row. The upsert mutated in place, it did not insert a second.
     expect(listMembershipsForUser(db, "user-1")).toHaveLength(1);
   });
 
@@ -378,7 +378,7 @@ const registerSingleOwnerMigrationEditorPromotionTest = () => {
     expect(getMemberRole(db, "acc-1", "a-viewer")).toBe("viewer");
     expect(getMemberRole(db, "acc-1", "c-viewer")).toBe("viewer");
     expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow();
-    // An editor is below admin — the elevated path fires exactly once, naming account + member + role.
+    // An editor is below admin, the elevated path fires exactly once, naming account + member + role.
     expect(errorLines).toHaveLength(1);
     expect(errorLines[0]).toContain("acc-1");
     expect(errorLines[0]).toContain("b-editor");
@@ -421,7 +421,7 @@ const registerSingleOwnerMigrationTieBreakTest = () => {
     const db = freshDb();
     upsertMember(db, member({ userId: "admin-b", role: "admin", createdAt: "2026-01-02T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "admin-a", role: "admin", createdAt: "2026-01-01T00:00:00.000Z" }));
-    // Same createdAt as admin-a — the userId ascending tie-break decides ('admin-a' < 'admin-c').
+    // Same createdAt as admin-a, the userId ascending tie-break decides ('admin-a' < 'admin-c').
     upsertMember(db, member({ userId: "admin-c", role: "admin", createdAt: "2026-01-01T00:00:00.000Z" }));
     migrateSingleOwnerControlPlaneV10(db); // installs the single-owner index the final assertion requires
 
@@ -469,7 +469,7 @@ const registerSingleOwnerMigrationCeremonyScopeTest = () => {
 
     migrateMemberResetCeremoniesV14(db);
     expect(db.prepare(`SELECT id FROM verification ORDER BY id`).all()).toEqual([{ id: "inactive-reset" }]);
-    // Membership rows are untouched — v14 only burns ceremonies, it never rewrites roles or statuses.
+    // Membership rows are untouched, v14 only burns ceremonies, it never rewrites roles or statuses.
     expect(getMemberRole(db, "acc-1", "kept-owner")).toBe("owner");
     expect(getMemberRole(db, "acc-1", "demoted-admin")).toBe("admin");
   });
@@ -601,7 +601,7 @@ describe("listInvitesForAccount", () => {
 
     const list = listInvitesForAccount(db, "acc-1");
     expect(list.map((i) => i.id)).toEqual(["inv-2", "inv-1"]); // newest first
-    // No token field on ANY row (it's a write-once secret — never on a read path).
+    // No token field on ANY row (it's a write-once secret, never on a read path).
     expect(list.every((i) => !("token" in i))).toBe(true);
     expect(JSON.stringify(list)).not.toContain("tok-");
   });

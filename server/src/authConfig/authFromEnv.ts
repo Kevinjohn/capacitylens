@@ -177,7 +177,7 @@ function createEnabledAuthContext(input: {
 
 // Retain one facade-owned error class and policy surface without a runtime cycle.
 export function createAuthFromEnvironmentFactory(dependencies: FactoryDependencies) {
-  /** Build the Better Auth instance for the parsed mode — or null in 'off' mode, where no
+  /** Build the Better Auth instance for the parsed mode, or null in 'off' mode, where no
    * env beyond CAPACITYLENS_MODE itself is read. `trustedOrigins` should be the same browser
    * origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
    * the same-origin production deploy needs none.

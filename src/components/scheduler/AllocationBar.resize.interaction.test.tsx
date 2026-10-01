@@ -59,7 +59,7 @@ function registerDayModeKeyboardNoticeTests() {
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h of work. Shrinking to 1 working
-    // day would need 48h/day — clamped to 24, so half the volume is lost (the user must be told).
+    // day would need 48h/day, clamped to 24, so half the volume is lost (the user must be told).
     const a = requireCreated(
       st.addAllocation({
         resourceId: r.id,
@@ -90,14 +90,14 @@ function registerDayModeKeyboardNoticeTests() {
     const a = seedAllocation(); // 8h over 3 days; growing to 4 days → 6h/day, well under the cap
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     // No baseline needed: resetStoreWithAccount (beforeEach) already clears any leaked notice,
-    // so this proves the resize itself doesn't RAISE a cap notice — order-independently.
+    // so this proves the resize itself doesn't RAISE a cap notice, order-independently.
 
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
     const after = getStoredAllocation(a.id);
     expect(after.hoursPerDay).toBe(6); // rescaled, in range
     // No clamp → no cap notice at all here (a keyboard nudge only raises a toast on a clamp), proving
     // the persistent 'warning' treatment is scoped to the truncation case and didn't leak onto every
-    // resize — transient confirmations elsewhere stay 'info' (~4s auto-dismiss).
+    // resize: transient confirmations elsewhere stay 'info' (~4s auto-dismiss).
     expect(useStore.getState().notice?.message ?? "").not.toMatch(/capped/i);
   });
 }
@@ -114,7 +114,7 @@ function registerDayModePointerNoticeTests() {
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h. Dragging the end grip inward to a
-    // single day needs 48h/day — clamped to 24, half the volume lost.
+    // single day needs 48h/day, clamped to 24, half the volume lost.
     const a = requireCreated(
       st.addAllocation({
         resourceId: r.id,
@@ -154,11 +154,11 @@ function registerDayModePointerNoticeTests() {
 
     const notice = useStore.getState().notice;
     expect(notice?.message ?? "").not.toMatch(/capped/i);
-    expect(notice?.tone).toBe("info"); // transient confirmation — auto-dismisses on the 4s timer
+    expect(notice?.tone).toBe("info"); // transient confirmation, auto-dismisses on the 4s timer
   });
 
   it("hourly mode keeps hours/day fixed on resize (regression guard)", () => {
-    // No enableDays() — the default account is hourly.
+    // No enableDays(), the default account is hourly.
     const a = seedAllocation();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
@@ -180,7 +180,7 @@ function registerDayModeSuite() {
 // WCAG 4.1.3: a keyboard nudge that changes over-capacity must announce the recomputed outcome
 // for the affected resource via the store's polite live region (srAnnouncement). Pointer drags
 // (sighted feedback) must NOT announce. The announced over-count reuses the per-day over-marker
-// signal (allocated > available) — NOT the visible-window % or the overSoon flag.
+// signal (allocated > available), NOT the visible-window % or the overSoon flag.
 // Resource works Mon–Fri @ 8h. June 2026: 06-01 Mon … 06-05 Fri.
 // Allocation A is FIXED on Wed 06-03. Bar B starts on Mon–Tue (no overlap → 0 over days);
 // ArrowRight slides B to Tue–Wed so Wed reads 16h vs 8h available = 1 over day.

@@ -47,7 +47,7 @@ export function openDbConnection(path: string): Db {
       timeout: 5000,
     });
   } catch (e) {
-    // Boot SHOULD crash on an unopenable DB — but frame the raw node:sqlite error with the path so
+    // Boot SHOULD crash on an unopenable DB, but frame the raw node:sqlite error with the path so
     // an operator sees "could not open <CAPACITYLENS_DB>" instead of a bare stack. Rethrow (don't swallow).
     throw new Error(`Could not open the SQLite database at "${path}": ${e instanceof Error ? e.message : String(e)}`, {
       cause: e,
@@ -218,7 +218,7 @@ export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationH
   // initializeOpenDb is the only schema-change boundary (migrations + ALTERs happen only here).
   // node:sqlite Statement objects freeze their column set at prepare time, so any statement cached
   // while migrations were still running (e.g. migration 8's loadState call, prepared while the
-  // schema was still at v8) must be discarded here — otherwise it keeps returning its stale,
+  // schema was still at v8) must be discarded here, otherwise it keeps returning its stale,
   // pre-ALTER column list forever. Dropping the handle's cache before returning guarantees every
   // statement callers see cached afterward is prepared against the final, fully-migrated schema.
   statementCaches.delete(db);

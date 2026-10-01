@@ -205,7 +205,7 @@ function registerReasonPrecedenceTests() {
         closures: [],
       }),
     ).toBe(null);
-    // The per-allocation override bypasses the calendars ONLY — time off passed in still blocks.
+    // The per-allocation override bypasses the calendars ONLY, time off passed in still blocks.
     expect(
       resolveCreationBlockReason({
         resource: person,

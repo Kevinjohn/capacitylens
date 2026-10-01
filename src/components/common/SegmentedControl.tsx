@@ -47,16 +47,16 @@ function encodeValue(value: string | number): string {
 
 // Selected-segment styling, overriding the primitive's stock `data-[state=on]:bg-accent`.
 // `--accent` is `--c-base`, which is #f4f5f8 on a white toolbar (1.04:1) and #0e1016 on the
-// #161922 dark surface (1.2:1) — the fill alone left "which segment is on" effectively invisible
+// #161922 dark surface (1.2:1). The fill alone left "which segment is on" effectively invisible
 // in both themes (WCAG 1.4.11 wants 3:1 for the visual info that identifies a control's state).
-// Switch to the brand-soft tint + its paired ink — the same "this one is active" language the
-// sidebar nav already uses (`--sidebar-primary: var(--c-brand-soft)`) — and outline the segment in
+// Switch to the brand-soft tint + its paired ink. The same "this one is active" language the
+// sidebar nav already uses (`--sidebar-primary: var(--c-brand-soft)`), and outline the segment in
 // --c-brand so the state survives as a shape, not only as a tint.
 //
 // The `data-[state=on]:hover:*` pair re-pins the colours because the outline variant's
 // `hover:bg-accent` would otherwise flip the selected segment back to grey on hover.
 //
-// Static across renders (no prop/state input) — hoisted out of the component body.
+// Static across renders (no prop/state input), hoisted out of the component body.
 const selectedSegmentClass = [
   "data-[state=on]:bg-brand-soft data-[state=on]:text-brand-soft-ink",
   "data-[state=on]:hover:bg-brand-soft data-[state=on]:hover:text-brand-soft-ink",

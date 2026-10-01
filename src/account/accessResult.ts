@@ -4,8 +4,8 @@ import { extractApiErrorMessage, readApiError } from "@/lib/readApiError";
 
 /**
  * The shared shape of every account-administration answer, and the Response handling that produces
- * it. Kept apart from the operations themselves so a second boundary module — the ownership
- * transfer ceremony — reads the same outcomes without importing the operation surface it sits
+ * it. Kept apart from the operations themselves so a second boundary module, the ownership
+ * transfer ceremony, reads the same outcomes without importing the operation surface it sits
  * beside, which would be a cycle.
  */
 
@@ -22,7 +22,7 @@ export type TeamAccessResult<T> =
  * Only `kind: 'rejected'` is server-authored refusal ("that member is the last owner"), so only that
  * kind's message is preferred. `unknown` (the write may or may not have landed) and `invalid` (we
  * could not decode the body) carry messages that describe OUR uncertainty, not the user's problem,
- * and the caller's fallback stays the better sentence for them — which is exactly what every Team &
+ * and the caller's fallback stays the better sentence for them, which is exactly what every Team &
  * access call site already open-codes. An empty-string message falls back too: a blank toast is a
  * worse outcome than a generic one.
  *

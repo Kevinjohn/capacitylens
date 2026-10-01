@@ -302,7 +302,7 @@ export function useAllocationTargetState(input: TargetInput) {
   const { resourceId, projectSelection, activityId, setActivityId } = fieldState;
   const { newActivityName, setNewActivityName, setInlineActivityOption } = fieldState;
   // Placeholders and externals are each gated behind a per-account pref (both default OFF). When
-  // off, drop them from the assignee picker — EXCEPT the allocation's currently-selected resource
+  // off, drop them from the assignee picker, EXCEPT the allocation's currently-selected resource
   // (risk A): keep a hidden placeholder/external in the options when it's the one already assigned,
   // so editing shows the correct value in the chooser instead of silently reassigning the work to
   // someone else on save.

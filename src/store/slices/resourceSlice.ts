@@ -128,7 +128,7 @@ function createResourceAddAction(internals: ResourceSliceInternals, get: StoreAp
         engagement: input.kind === "person" ? (input.engagement ?? "studio") : "studio",
         // Clamp working hours/day (the store is the last line; resource forms write the fixed 8h,
         // but imports and other programmatic callers must not persist NaN / 0 / >24h capacity).
-        // 0 is rejected (a resource works a positive day) — distinct from an allocation, where 0 is legal.
+        // 0 is rejected (a resource works a positive day), distinct from an allocation, where 0 is legal.
         workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
         id: newId(),
         accountId: requireAccount(),
@@ -153,7 +153,7 @@ function createResourceAddAction(internals: ResourceSliceInternals, get: StoreAp
             : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
         );
       }
-      // Colour snap runs LAST, right before persisting — never before the asserts above, so a
+      // Colour snap runs LAST, right before persisting, never before the asserts above, so a
       // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
       const safe = applySnappedColor({ patch: entity, allowNeutral: entity.kind === "external" });
       mutate((data) => ({ ...data, resources: [...data.resources, safe] }));

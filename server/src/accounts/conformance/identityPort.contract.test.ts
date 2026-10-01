@@ -546,7 +546,7 @@ describe("revocation window race", () => {
     if (typeof remaining !== "object" || !("n" in remaining) || typeof remaining.n !== "number") {
       throw new Error("expected numeric assurance count");
     }
-    expect(remaining.n).toBe(0); // no orphaned assurance — including the in-window session
+    expect(remaining.n).toBe(0); // no orphaned assurance, including the in-window session
     db.close();
   });
 });

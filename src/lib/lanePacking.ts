@@ -5,7 +5,7 @@ import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 // Greedy first-fit interval partitioning, per resource. Produces the minimum
 // number of vertical lanes needed so that overlapping allocations never share a
 // lane. Ends are INCLUSIVE, so an item ending on day X overlaps one starting on
-// day X — hence the strict `<` in the free-lane test.
+// day X, hence the strict `<` in the free-lane test.
 
 export interface Interval {
   id: ID;

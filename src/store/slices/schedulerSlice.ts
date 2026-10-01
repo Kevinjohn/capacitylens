@@ -56,7 +56,7 @@ function createDefaultSchedulerUi(emptyFilters: () => Filters): SchedulerUI {
   };
 }
 
-/** Open the grid on `weekStart` and ask it to scroll there — the shared body of the two
+/** Open the grid on `weekStart` and ask it to scroll there, the shared body of the two
  * "navigate to a week" actions. */
 function recenterOn(state: StoreState, weekStart: ISODate): { ui: SchedulerUI } {
   return {

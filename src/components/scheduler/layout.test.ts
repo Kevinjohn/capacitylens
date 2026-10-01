@@ -11,7 +11,7 @@ import {
 import { resolveRowHeightForLanes } from "@/lib/lanePacking";
 
 // laneLayout is the LaneLayout projection of LAYOUT handed to lanePacking (packLanes / laneTop /
-// rowHeightForLanes) — schedulerModel.ts wires it through unmodified. Pin its shape directly so a
+// rowHeightForLanes): schedulerModel.ts wires it through unmodified. Pin its shape directly so a
 // regression collapsing it to an empty object (losing barHeight/laneGap/rowPadding) is caught here
 // rather than surfacing as mysterious zero-height lanes downstream.
 describe("laneLayout", () => {
@@ -54,7 +54,7 @@ describe("schedulerDensity", () => {
   });
 
   // Owner decision: at the shared scale the stacked-allocation gap moves 4px → 8px, which the row
-  // padding either side swamps — it reads as "that gap never changed". It gets its own multiplier,
+  // padding either side swamps. It reads as "that gap never changed". It gets its own multiplier,
   // and must scale strictly harder than the padding around it or the complaint comes back.
   it("scales the gap between stacked allocations harder than the row padding", () => {
     expect(SCHEDULER_DENSITY.laneGap).toBe(Math.round(LAYOUT.laneGap * LANE_GAP_SCALE));

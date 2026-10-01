@@ -40,7 +40,7 @@ async function seedFixtureDeps(app: FastifyInstance) {
 
 // Generic writes (POST/PUT/PATCH/batch) STRIP lifecycle tombstones (the write guard in
 // sanitizeWrite): only the dedicated archive/delete routes may set archivedAt/deletedAt. So a fixture
-// round-tripped through POST comes back MINUS its tombstones — those columns' persistence is covered
+// round-tripped through POST comes back MINUS its tombstones. Those columns' persistence is covered
 // by app.lifecycle.test.ts (archive/delete → includeInactive read). Stripping them here keeps this
 // column-spec-gap check honest for every OTHER field on clients/projects/resources.
 function stripTombstones<T extends { archivedAt?: string; deletedAt?: string }>(fixture: T): T {

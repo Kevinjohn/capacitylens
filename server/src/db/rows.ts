@@ -5,7 +5,7 @@ import { createCachedTableStatement, createStatementCache, buildPlaceholders } f
 import { tx } from "../txn";
 import { markInitialized } from "./initialization";
 import { createServerRevision } from "../revision";
-// Insert one row WITHOUT touching the init marker — the primitive the bulk paths
+// Insert one row WITHOUT touching the init marker, the primitive the bulk paths
 // (insertAll / replaceAccountSlice) loop over so they can mark ONCE at the end instead of
 // re-running an `INSERT OR IGNORE INTO _meta` per row.
 export function insertRowRaw(db: Db, table: string, row: Row): void {
@@ -64,7 +64,7 @@ export function clearAllocationAttributionForActivities(
   return rewritten;
 }
 
-/** Idempotent insert-or-replace by id — the write the sync adapter uses for every
+/** Idempotent insert-or-replace by id, the write the sync adapter uses for every
  * create/update, so replaying a batch after a partial failure can't double-insert
  * (a re-PUT of an already-written row just overwrites it). */
 export function upsertRow(db: Db, table: string, row: Row): void {

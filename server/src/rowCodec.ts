@@ -5,7 +5,7 @@ import type { TableSpec } from "./tables";
 // per the table spec) and the plain AppData entity object the client already speaks:
 // json columns are JSON.stringify'd on write / parsed on read, and absent optionals are
 // stored NULL and omitted again on read so a round-trip deep-equals the client's object.
-// Pure — no DB handle — so they're independently testable.
+// Pure: no DB handle, so they're independently testable.
 
 export type Row = Record<string, unknown>;
 

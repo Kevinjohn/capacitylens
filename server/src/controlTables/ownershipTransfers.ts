@@ -18,8 +18,8 @@ import {
 /**
  * Storage operations over the `account_ownership_transfers` control table.
  *
- * The table's own contract — its frozen v41 DDL, its indexes, the row shape and the boot-time
- * assertion — lives in `ownershipTransfersSchema.ts`. Everything here is a statement against that
+ * The table's own contract (its frozen v41 DDL, its indexes, the row shape and the boot-time
+ * assertion) lives in `ownershipTransfersSchema.ts`. Everything here is a statement against that
  * contract: every function is synchronous and transaction-agnostic, because a ceremony write commits
  * alongside its command-ledger row and its audit event or not at all, and only the caller owns that
  * transaction.
@@ -32,7 +32,7 @@ import {
  * v12 and v14 drive on a handle where `ensureControlTables` has installed the membership tables but
  * not this one; and the stopped-server repair commands, which deliberately run against a database
  * whose migration 40 is still pending. A live request cannot exist in either case, so absence means
- * "nothing to end" — but the query would still throw. Guarding HERE, rather than at each call site,
+ * "nothing to end", but the query would still throw. Guarding HERE, rather than at each call site,
  * is what keeps a repair path from failing with an opaque `no such table`. Absence is re-probed
  * every call, never cached, so the same handle starts terminalising the moment v41 runs on it.
  */
@@ -61,7 +61,7 @@ export function nextOwnershipTransferRevision(revision: string): string {
   return String(current + 1);
 }
 
-/** The company's live request, or `null`. At most one row can match — the partial unique index is
+/** The company's live request, or `null`. At most one row can match. The partial unique index is
  * what makes that a guarantee rather than a convention. */
 const liveRequestStatement = cachedStatement(
   `SELECT ${SELECTED_COLUMNS} FROM account_ownership_transfers WHERE accountId = ? AND ${LIVE_STATES_PREDICATE}`,
@@ -153,7 +153,7 @@ interface ApplyTransitionInput {
   /** The request to move, together with the workspace it must belong to. */
   id: string;
   accountId: string;
-  /** The state and revision the command was authorised against — the compare half of the CAS. */
+  /** The state and revision the command was authorised against, the compare half of the CAS. */
   expectedState: OwnershipTransferState;
   expectedRevision: string;
   nextState: OwnershipTransferState;
@@ -175,7 +175,7 @@ const applyTransitionStatement = cachedStatement(
 /**
  * Compare-and-set one transition, returning whether it applied.
  *
- * The `WHERE` clause matches on `(id, accountId, state, revision)` and NOTHING else — in particular
+ * The `WHERE` clause matches on `(id, accountId, state, revision)` and NOTHING else, in particular
  * never on membership values, because completion bumps those in the same transaction and a
  * membership-sensitive predicate would make the ceremony's own write unable to find its row.
  *
@@ -183,8 +183,8 @@ const applyTransitionStatement = cachedStatement(
  * NOTHING was written. It is not an error here: the caller decides whether that is a conflict to
  * report or a race it loses quietly, and only the caller knows which command it was running.
  *
- * @throws Error if `expectedState` is terminal. Terminal rows are IMMUTABLE — they are the durable
- * evidence a participant reads — so a caller asking to transition one is a programming fault, not
+ * @throws Error if `expectedState` is terminal. Terminal rows are IMMUTABLE, they are the durable
+ * evidence a participant reads, so a caller asking to transition one is a programming fault, not
  * a lost race, and must fail loudly rather than return an ambiguous `false`.
  */
 export function applyTransition({
@@ -220,7 +220,7 @@ interface TerminaliseForAccountInput {
   db: Db;
   accountId: string;
   reason: OwnershipTransferTerminalReason;
-  /** The ISO instant stamped as `terminalAt` — the value written, not a clock read here, so the
+  /** The ISO instant stamped as `terminalAt`, the value written, not a clock read here, so the
    * whole transaction that caused the invalidation shares one instant. */
   now: string;
 }
@@ -233,7 +233,7 @@ interface TerminaliseForMemberInput extends TerminaliseForAccountInput {
  * Invalidate every live request of one company, returning the ids actually changed.
  *
  * The ids are the return value because the choke point that calls this holds no audit writer: the
- * calling port operation — inside the SAME transaction — emits one `ownership_transfer.invalidated`
+ * calling port operation, inside the SAME transaction, emits one `ownership_transfer.invalidated`
  * event per id. State correctness stays unforgettable down here; audit stays atomic with the write.
  *
  * The resulting state is always `invalidated`: `reason` says why consent stopped being valid, it
@@ -314,7 +314,7 @@ function invalidateLive({ db, now, reason, scope, parameters }: InvalidateLiveIn
   // The partial unique index on live states (ownershipTransfersSchema.ts) guarantees at most one
   // live row per account, so `row`'s revision is safe to write to every matched row. If that
   // index's scope ever widened, writing one row's successor to a second, higher-revision row
-  // would silently move it backwards — fail loudly instead of doing that.
+  // would silently move it backwards, fail loudly instead of doing that.
   if (rows.length > 1) {
     throw new Error(
       `invalidateLive: expected at most one live ownership-transfer row, found ${rows.length} — control table corrupted.`,
@@ -328,7 +328,7 @@ function invalidateLive({ db, now, reason, scope, parameters }: InvalidateLiveIn
 const deleteForAccountStatement = cachedStatement(`DELETE FROM account_ownership_transfers WHERE accountId = ?`);
 
 /**
- * Delete every request row of one company — live and terminal alike.
+ * Delete every request row of one company, live and terminal alike.
  *
  * Workspace erasure calls this explicitly. There is no `accounts` cascade to rely on (this table
  * carries no FK by design), so without an explicit delete an erased company would leave behind rows
@@ -353,12 +353,12 @@ const sweepHistoryStatement = cachedStatement(
  *
  * Scoped to ONE company, like `pruneInvites`: this runs from a ceremony command, inside a mutation
  * holding that workspace's lock and audited against that workspace. An unscoped DELETE would let one
- * company's cancel remove another company's rows, outside any lock the caller holds — retention is a
+ * company's cancel remove another company's rows, outside any lock the caller holds, retention is a
  * per-company policy, not a housekeeping job that rides along with whoever writes next.
  *
- * @param accountId  The company whose history is being bounded — the workspace the caller's mutation
+ * @param accountId  The company whose history is being bounded. The workspace the caller's mutation
  * is locked and audited against.
- * @param now  The current instant in epoch milliseconds — arithmetic, not a stamp, which is why
+ * @param now  The current instant in epoch milliseconds, arithmetic, not a stamp, which is why
  * this one takes a number where the terminalisers take the ISO instant they WRITE.
  */
 export function sweepExpiredHistory(db: Db, accountId: string, now: number): number {

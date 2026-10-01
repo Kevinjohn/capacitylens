@@ -1,8 +1,8 @@
 /**
  * CSS insets that keep an overlay inside the part of a span the scroll container can actually show.
  *
- * The scheduler paints its whole timeline into one `overflow-auto` container, so a span — an
- * allocation bar, a company-closure band — routinely starts far outside the visible window. An
+ * The scheduler paints its whole timeline into one `overflow-auto` container, so a span (an
+ * allocation bar, a company-closure band) routinely starts far outside the visible window. An
  * overlay anchored to the span's own edge scrolls away with it, leaving long-running work
  * unlabelled. Clamping the overlay to the intersection of the span and the viewport keeps it on
  * screen, and does it declaratively: the scroll container publishes its offsets as custom
@@ -26,9 +26,9 @@ const AXIS_VARIABLES = {
 export type ScrollAxis = keyof typeof AXIS_VARIABLES;
 
 export interface VisibleSpanInsets {
-  /** Offset from the span's leading edge to the viewport's — `left` on x, `top` on y. */
+  /** Offset from the span's leading edge to the viewport's, `left` on x, `top` on y. */
   readonly leading: string;
-  /** Offset from the span's trailing edge to the viewport's — `right` on x, `bottom` on y. */
+  /** Offset from the span's trailing edge to the viewport's, `right` on x, `bottom` on y. */
   readonly trailing: string;
 }
 

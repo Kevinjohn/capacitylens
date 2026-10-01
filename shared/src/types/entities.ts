@@ -1,4 +1,4 @@
-// Core domain types for CapacityLens. Pure data shapes — no behaviour lives here.
+// Core domain types for CapacityLens. Pure data shapes. No behaviour lives here.
 
 /** Opaque row identifier, generated with `crypto.randomUUID()`. */
 export type ID = string;
@@ -18,7 +18,7 @@ export type AllocationStatus = "confirmed" | "tentative" | "completed";
  * the default), by volume of work spread over a span ('days'), or as a pure
  * booking block where only the span matters and load is ignored ('blocks'). */
 export type SchedulingMode = "hourly" | "days" | "blocks";
-/** Runtime list of the valid scheduling modes — the single source the server's
+/** Runtime list of the valid scheduling modes, the single source the server's
  * sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
 export const SCHEDULING_MODES: SchedulingMode[] = ["hourly", "days", "blocks"];
 /** Who may open the Capacity Overview for an account. Absent means owner/admin only. */
@@ -31,20 +31,20 @@ export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
 ];
 /** How human-readable dates read across an account: day/month order, and whether the day number
  * carries an ordinal suffix. Absent means "day-month" ("9 Sep"), the format the app has always
- * used. This is account data, not a device preference — a company reads one convention. */
+ * used. This is account data, not a device preference. A company reads one convention. */
 export type DateStyle = "day-month" | "day-ordinal-month" | "month-day" | "month-day-ordinal";
 /** Every supported style, in the order the Settings control offers them. The server/import
  * sanitiser rejects anything absent from this list, and the `Record<DateStyle, …>` tables in the
- * app fail to compile until they cover a new entry — so a style cannot exist in the type while
+ * app fail to compile until they cover a new entry, so a style cannot exist in the type while
  * being missing here. */
 export const DATE_STYLES: DateStyle[] = ["day-month", "day-ordinal-month", "month-day", "month-day-ordinal"];
 /** The format an absent `dateStyle` reads back as. */
 export const DEFAULT_DATE_STYLE: DateStyle = "day-month";
 /**
  * What a resource row represents:
- * - `person`      — a real team member with capacity (the default).
- * - `placeholder` — an unfilled role/"slot", bound to one project (see `projectId`).
- * - `external`    — an outsourced 3rd-party company. Can be assigned activities, but has NO
+ * - `person`: a real team member with capacity (the default).
+ * - `placeholder`: an unfilled role/"slot", bound to one project (see `projectId`).
+ * - `external`: an outsourced 3rd-party company. Can be assigned activities, but has NO
  *   hours/capacity/utilisation and is EXCLUDED from all capacity math; it renders in its own
  *   band at the bottom of the schedule. Reuses `name` (company name, required by the form) +
  *   `role` (optional descriptor); its `workingHoursPerDay`/`workingDays`/`halfDays` are unused silent
@@ -58,16 +58,16 @@ export type ResourceEngagement = "studio" | "supplementary";
 /** The reason for a time-off entry. */
 export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
 /**
- * What an activity IS — the axis the schedule's "activity view" filters on. Three kinds:
- * - `project`    — project-specific: belongs to one project (carries `projectId`, optionally a `phaseId`).
- * - `internal`   — project-less internal work (Admin, internal review/meeting).
- * - `repeatable` — all-projects: project-less activity used across many projects (Design, Workshop).
+ * What an activity IS, the axis the schedule's "activity view" filters on. Three kinds:
+ * - `project`: project-specific: belongs to one project (carries `projectId`, optionally a `phaseId`).
+ * - `internal`: project-less internal work (Admin, internal review/meeting).
+ * - `repeatable`: all-projects: project-less activity used across many projects (Design, Workshop).
  * Coherence (enforced in assertScopedRefs, repaired on import): `project` HAS a `projectId`;
  * `internal`/`repeatable` have NEITHER `projectId` nor `phaseId`.
  */
 export type ActivityKind = "project" | "internal" | "repeatable";
 
-/** Fields every persisted entity carries — cheap now, impossible to backfill later. */
+/** Fields every persisted entity carries, cheap now, impossible to backfill later. */
 export interface Entity {
   id: ID;
   createdAt: ISOTimestamp;
@@ -92,10 +92,10 @@ export interface Account extends Entity {
   language?: string;
   /** Whether this company uses disciplines. Absent = true (the original behaviour).
    * When false, disciplines are hidden across the whole UI (nav, resource form,
-   * schedule grouping + filter, lists, command palette) — the data is preserved. */
+   * schedule grouping + filter, lists, command palette). The data is preserved. */
   disciplinesEnabled?: boolean;
   /** Whether this company surfaces placeholder ("slot") resources. Absent = false
-   * (hidden out of the box — NOT `?? true` like disciplinesEnabled) so new companies start
+   * (hidden out of the box, NOT `?? true` like disciplinesEnabled) so new companies start
    * with placeholders OFF. When false, placeholders are hidden across the UI; the data is
    * preserved and returns when re-enabled. */
   placeholdersEnabled?: boolean;
@@ -135,7 +135,7 @@ export interface Resource extends ScopedEntity {
   /** Optional: placeholders may be nameless (shown by `role`). For `external` this holds the
    * COMPANY name (the External form requires it). */
   name?: string;
-  /** e.g. "Senior Designer" — the label used for nameless placeholders; an `external`'s
+  /** e.g. "Senior Designer", the label used for nameless placeholders; an `external`'s
    * optional descriptor (e.g. "Print", "Overflow dev"). */
   role: string;
   /** Optional externally hosted avatar for people. Must be an absolute HTTPS URL without credentials. */
@@ -143,7 +143,7 @@ export interface Resource extends ScopedEntity {
   disciplineId?: ID;
   employmentType: EmploymentType;
   engagement: ResourceEngagement;
-  /** Capacity per working day. Unused (silent default) for `external` — externals have no capacity. */
+  /** Capacity per working day. Unused (silent default) for `external`, externals have no capacity. */
   workingHoursPerDay: number;
   /** Working weekdays, e.g. [1,2,3,4,5] for Mon–Fri. Unused for placeholders and externals. */
   workingDays: Weekday[];
@@ -167,7 +167,7 @@ export interface Resource extends ScopedEntity {
   /** ISO 8601 timestamp of the soft-delete tombstone: when this resource was soft-deleted.
    * Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
    * soft-delete requires prior archival, and a tombstone is hard-purged only after
-   * PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
+   * PURGE_MIN_AGE_DAYS, all enforced by shared/src/domain/lifecycle.ts. */
   deletedAt?: ISOTimestamp;
 }
 
@@ -181,7 +181,7 @@ export interface Client extends ScopedEntity {
   /** Owner-managed cover name for a private client. Stored without quotation marks; the read
    * projection adds them consistently wherever the code name is displayed. */
   codeName?: string;
-  /** True ONLY for the built-in "Internal" pseudo-client — exactly one per account, created by
+  /** True ONLY for the built-in "Internal" pseudo-client, exactly one per account, created by
    * seed / addAccount / migrate. A built-in client cannot be renamed or deleted, and a project-less
    * internal/all-projects activity buckets under it for display + filtering. Absent/false = a normal,
    * user-managed client. Identified at runtime by THIS flag, never a hard-coded id (so it survives
@@ -195,14 +195,14 @@ export interface Client extends ScopedEntity {
   /** ISO 8601 timestamp of the soft-delete tombstone: when this client was soft-deleted.
    * Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
    * soft-delete requires prior archival, and a tombstone is hard-purged only after
-   * PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
+   * PURGE_MIN_AGE_DAYS, all enforced by shared/src/domain/lifecycle.ts. */
   deletedAt?: ISOTimestamp;
 }
 
 /** A client project. */
 export interface Project extends ScopedEntity {
   name: string;
-  clientId: ID; // REQUIRED — a project must belong to a client
+  clientId: ID; // REQUIRED: a project must belong to a client
   color: string;
   /** When true, only account owners receive `name`; every other role receives the quoted
    * `codeName` in its place. Absent = public (the default). */
@@ -218,7 +218,7 @@ export interface Project extends ScopedEntity {
   /** ISO 8601 timestamp of the soft-delete tombstone: when this project was soft-deleted.
    * Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
    * soft-delete requires prior archival, and a tombstone is hard-purged only after
-   * PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
+   * PURGE_MIN_AGE_DAYS, all enforced by shared/src/domain/lifecycle.ts. */
   deletedAt?: ISOTimestamp;
 }
 
@@ -234,7 +234,7 @@ export interface Activity extends ScopedEntity {
   /** What this activity is: project-specific work, internal work, or an all-projects activity. The
    * discriminant the schedule's activity lens filters on. See {@link ActivityKind}. */
   kind: ActivityKind;
-  /** Set ONLY for `kind: 'project'` — the project this activity belongs to. Internal and
+  /** Set ONLY for `kind: 'project'`, the project this activity belongs to. Internal and
    * all-projects (`repeatable`) activities are project-less at the activity level; repeatable
    * allocations may carry their own project attribution. */
   projectId?: ID;
@@ -315,10 +315,10 @@ export type { AppDataKey, ScopedEntityKey } from "./entityKeys";
  * (v4 added Activity.kind;
  * v5 renamed the domain concept Task→Activity: the `tasks` table → `activities` and
  * `Allocation.taskId` → `activityId`; v6 ensures every account has one built-in `Client`
- * with `builtin: true` — the "Internal" pseudo-client; v7 adds optional client/project privacy
+ * with `builtin: true`, the "Internal" pseudo-client; v7 adds optional client/project privacy
  * fields, whose absent values already represent the public default; v8 adds an optional
  * per-account Internal work colour mode (since retired); v9 adds optional per-account schedule
- * view prefs — two internal-work visibility toggles (since retired) and inlineActivityCreateEnabled,
+ * view prefs, two internal-work visibility toggles (since retired) and inlineActivityCreateEnabled,
  * whose absence means disabled; v10 adds optional Resource.isFavourite,
  * whose absence means not favourite; v11 adds required Resource.halfDays, initially empty for
  * legacy resources so every previously selected weekday remains a full day; v12 adds required

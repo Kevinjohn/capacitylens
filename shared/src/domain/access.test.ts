@@ -16,7 +16,7 @@ import { canAdministerAccount } from "../account/policy";
 
 // These tests are an INDEPENDENT oracle of the CapacityLens Decisions access matrix: the expected
 // booleans below are hard-coded by hand from the spec, NOT derived from the implementation. If
-// access.ts and this table disagree, that's the test doing its job — do not "fix" it by copying the
+// access.ts and this table disagree, that's the test doing its job, do not "fix" it by copying the
 // implementation's logic.
 
 // The closed set of roles, hard-coded (not imported as a list) so the test is its own source of truth.
@@ -40,15 +40,15 @@ const ACTIONS = [
 ] as const satisfies readonly Action[];
 
 // The full 4×11 expected matrix, written out explicitly from the Decisions table:
-//   read              — any member (owner, admin, editor, viewer)
-//   write             — editor and up (owner, admin, editor); NOT viewer
-//   manageInternalClient — admin and up (owner, admin)
-//   manageMembers     — admin and up (owner, admin)
-//   manageInvites     — admin and up (owner, admin)
-//   purge             — admin and up (owner, admin)
-//   deleteAccount     — owner only
-//   transferOwnership — owner only
-//   actOnOwnershipTransfer — admin and up (owner, admin): the nominated Admin must be able to
+//   read: any member (owner, admin, editor, viewer)
+//   write: editor and up (owner, admin, editor); NOT viewer
+//   manageInternalClient: admin and up (owner, admin)
+//   manageMembers: admin and up (owner, admin)
+//   manageInvites: admin and up (owner, admin)
+//   purge: admin and up (owner, admin)
+//   deleteAccount: owner only
+//   transferOwnership: owner only
+//   actOnOwnershipTransfer: admin and up (owner, admin): the nominated Admin must be able to
 //                            reach the ceremony to give or withdraw their own consent
 const EXPECTED: Record<Role, Record<Action, boolean>> = {
   owner: {
@@ -114,7 +114,7 @@ function expectEditableRolePrecondition(actor: Role, target: Role, next: Role): 
 describe("can(role, action) — the pure access matrix", () => {
   // Completeness guard: the action list the sweep iterates must equal the `Action` union, so a new
   // Action can't slip past the exhaustive check. (The `satisfies` on ACTIONS catches an EXTRA/typo
-  // member at compile time; this asserts none was DROPPED — keep this count in step with `Action`.)
+  // member at compile time; this asserts none was DROPPED, keep this count in step with `Action`.)
   it("iterates exactly the Action union (11 actions, no more, no fewer)", () => {
     expect(ACTIONS.length).toBe(11);
     expect(new Set(ACTIONS).size).toBe(ACTIONS.length); // no duplicates
@@ -205,7 +205,7 @@ describe("canViewCapacityOverview(role, access) — account setting policy", () 
 
 // Member-management guards. The expected booleans below are the hand-written oracle of the
 // member-management policy (Owner changes only through transfer), NOT derived from the
-// implementation — if access.ts and these tables disagree, the test is doing its job.
+// implementation: if access.ts and these tables disagree, the test is doing its job.
 
 describe("isAtLeast(role, min) — tier comparison", () => {
   // The full 4×4 oracle, written from the strict hierarchy viewer<editor<admin<owner.
@@ -228,7 +228,7 @@ describe("isAtLeast(role, min) — tier comparison", () => {
 describe("canManageMemberRole(actor, target, next) — role-change matrix", () => {
   // Exhaustive sweep over every actor × target × next combination, against a hand-derived oracle.
   // Oracle rules: actor must hold manageMembers (admin+); neither promoting to nor demoting from
-  // Owner is an ordinary role edit — both go through ownership transfer.
+  // Owner is an ordinary role edit. Both go through ownership transfer.
   const oracle = (actor: Role, target: Role, next: Role): boolean => {
     if (!(actor === "owner" || actor === "admin")) return false; // manageMembers = admin tier
     if (next === "owner" || target === "owner") return false;
@@ -382,13 +382,13 @@ describe("canResetMemberAcrossAccounts(actor, target) — global-identity reset 
   it("SELF-RESET exemption: a multi-account self passes even where cross-account authority would fail", () => {
     // Owner of X who is a mere editor of Y resets their OWN password. actor === target, so the maps
     // are identical; the non-self path would hit Y and fail identity administration for editor/editor.
-    // The isSelf exemption skips the cross-account check — you cannot escalate against your own identity.
+    // The isSelf exemption skips the cross-account check. You cannot escalate against your own identity.
     const self = roles([
       ["X", "owner"],
       ["Y", "editor"],
     ]);
     expect(canResetMemberAcrossAccounts(self, self, true)).toBe(true);
-    // Same maps WITHOUT the exemption is (correctly) refused — proving the exemption is load-bearing.
+    // Same maps WITHOUT the exemption is (correctly) refused, proving the exemption is load-bearing.
     expect(canResetMemberAcrossAccounts(self, self, false)).toBe(false);
   });
 
@@ -398,7 +398,7 @@ describe("canResetMemberAcrossAccounts(actor, target) — global-identity reset 
 });
 
 // The documented fail-closed contract at the untyped boundary: an unrecognised role or action makes
-// a rank `undefined`, and the guard must DENY (return false) — it must never fall open to `true`.
+// a rank `undefined`, and the guard must DENY (return false). It must never fall open to `true`.
 describe("can / isAtLeast — fail-closed on an unknown role/action (never falls open)", () => {
   it("an unknown role is denied EVERY action", () => {
     for (const action of ACTIONS) {

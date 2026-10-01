@@ -73,7 +73,7 @@ beforeEach(() => {
   useStore.getState().setHydrated(true);
   useStore.getState().setNotice(null);
   // Sign through the cosmetic demo gate so AppShell renders the picker (the demo sign-in
-  // sits in front of it) — these tests exercise the account gate, not the demo one.
+  // sits in front of it). These tests exercise the account gate, not the demo one.
   useStore.getState().setFakeSignedIn(true);
 });
 
@@ -380,7 +380,7 @@ function registerServerListAccessTests() {
 function registerUnloadedAccountActivationTest() {
   it("activates an account whose slice is NOT loaded (existence via summaries)", async () => {
     const user = userEvent.setup();
-    // `data` is empty (no slice loaded yet — the pre-load state), but the summary exists.
+    // `data` is empty (no slice loaded yet, the pre-load state), but the summary exists.
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Other Co", role: "editor" }] });
     render(<AccountPicker />);
@@ -794,7 +794,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === "/api/auth/me") {
         meCalls += 1;
-        // Single-company instance: AT the cap on boot, back UNDER it (zero accounts — the
+        // Single-company instance: AT the cap on boot, back UNDER it (zero accounts, the
         // bootstrap exemption) once the only company is deleted.
         return jsonRes(200, { authMode: "off", user: null, canCreateAccount: meCalls > 1, multiAccount: false });
       }
@@ -809,7 +809,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
       </AuthProvider>,
     );
 
-    // Boot snapshot: capped — no create affordance while the one company exists.
+    // Boot snapshot: capped, no create affordance while the one company exists.
     expect(await screen.findByText("Only Co")).toBeInTheDocument();
     expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
 
@@ -819,7 +819,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
     // The refetched /me flips canCreateAccount → the button (and the empty two-choice state)
-    // come back WITHOUT a manual reload — the dead end this pins against.
+    // come back WITHOUT a manual reload, the dead end this pins against.
     expect(await screen.findByLabelText("Company name")).toBeInTheDocument();
     expect(screen.queryByTestId("company-empty-options")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.filter((c) => c[0] === "/api/auth/me")).toHaveLength(2);
@@ -850,7 +850,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe("org-1"));
-    // The refetched /me now reports the cap — the flipped value reaches the picker (button gone).
+    // The refetched /me now reports the cap, the flipped value reaches the picker (button gone).
     await waitFor(() => expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument());
     expect(fetchMock.mock.calls.filter((c) => c[0] === "/api/auth/me")).toHaveLength(2);
   });

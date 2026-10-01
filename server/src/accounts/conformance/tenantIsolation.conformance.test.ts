@@ -49,7 +49,7 @@ describe("control-table writes stay inside their account: transfer recovery", ()
  * clause, deleting every company's terminal rows from inside a mutation holding one company's lock.
  * Nothing in the repository observed mutation SCOPE: `tenantIntegrity.ts` guards AppData product
  * tables, the schema assertions check columns and indexes, and `architecture.test.ts` decides which
- * modules may own raw control-table SQL — which is why it correctly admitted the defect.
+ * modules may own raw control-table SQL, which is why it correctly admitted the defect.
  *
  * The probe that matters is the FOREIGN one: calling a mutator for account A with account B's
  * identifier, and asserting nothing was written. A test that merely invokes the mutator for its own
@@ -216,7 +216,7 @@ describe("control-table writes stay inside their account: membership", () => {
     members.upsertMember(db, member(STARK, { userId: NEWCOMER, role: "editor" }));
 
     // The observation column is stamped from a correlated EXISTS over the tracking table. If that
-    // subquery lost its accountId, Stark's newcomer would be stamped 'false' — a "never signed in"
+    // subquery lost its accountId, Stark's newcomer would be stamped 'false'. A "never signed in"
     // flag on a company that never turned tracking on, written by another company's switch.
     expect(observationBits(db, WAYNE)).toContainEqual({ userId: NEWCOMER, signInConfirmed: "false" });
     expect(observationBits(db, STARK)).toEqual([
@@ -782,7 +782,7 @@ describe("the isolation inventory", () => {
 
   it("backs every covered mutator with a case that still calls it", () => {
     // The set above only CLAIMS coverage; this proves it. Without it, deleting or renaming a case
-    // leaves the inventory certifying isolation that nothing tests any more — worse than no
+    // leaves the inventory certifying isolation that nothing tests any more, worse than no
     // inventory at all, because a reader who sees the name stops looking.
     const source = readFileSync(new URL(import.meta.url), "utf8");
     const cases =

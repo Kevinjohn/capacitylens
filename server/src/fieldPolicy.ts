@@ -6,26 +6,26 @@ import type { Client, Project } from "@capacitylens/shared/types/entities";
 //
 // Three independent behaviours enforce the SAME two field-confidentiality rules (owner/admin-only
 // time-off `note`; owner-only private client/project real names):
-//   1. REDACT ON READ — a write/conflict/lifecycle response echo is also a read and must strip a
+//   1. REDACT ON READ. A write/conflict/lifecycle response echo is also a read and must strip a
 //      field the caller may not see (redactWriteEcho / redactGatedEcho).
-//   2. PIN ON WRITE — a redaction-blind writer's round-trip has NO key for the field the server
+//   2. PIN ON WRITE. A redaction-blind writer's round-trip has NO key for the field the server
 //      redacted from them; without a pin, upsertRow would store NULL and SILENTLY ERASE data the
 //      writer never saw (sanitizeWrite → pinGatedFields).
-//   3. INCLUDE/EXCLUDE ON EXPORT — the per-account read decides the
+//   3. INCLUDE/EXCLUDE ON EXPORT, the per-account read decides the
 //      readSlice `include*` flags from the caller's role (visibilityForRole).
 //
 // This catalogue supplies every path with the same table, field, and role predicates. A gated field
 // is defined once and used for redaction, write pinning, and export visibility.
 
-/** Caller-context options for {@link sanitizeWrite} and the read echo — facts about the WRITER/READER
+/** Caller-context options for {@link sanitizeWrite} and the read echo, facts about the WRITER/READER
  * the row body alone cannot carry, so field-level gating runs at the single write funnel (not as
  * per-route hacks). Owns the type here because the field-policy map is its single source of truth. */
 export interface SanitizeWriteOptions {
   /**
    * Write-side counterpart of read redaction: `false` when the caller's role may not see
    * the time-off `note` (the same `canSeeTimeOffNote` rule readSlice applies; auth OFF ⇒ always
-   * `true`). A note-blind writer round-trips rows the server REDACTED — their PUT body has no
-   * `note` key — so without a pin, upsertRow would store NULL (rowCodec: absent optional → SQL
+   * `true`). A note-blind writer round-trips rows the server REDACTED, their PUT body has no
+   * `note` key, so without a pin, upsertRow would store NULL (rowCodec: absent optional → SQL
    * NULL) and silently ERASE a note the writer never saw. Defaults to `true` (visible), which is
    * byte-identical to the pre-option behaviour, so callers writing tables other than `timeOff`
    * need not pass it.
@@ -50,7 +50,7 @@ export interface GatedFieldPolicy {
   readonly id: string;
   /** Tables this policy governs. */
   readonly tables: readonly string[];
-  /** The gated field name(s) — the single list every site derives from. */
+  /** The gated field name(s), the single list every site derives from. */
   readonly fields: readonly string[];
   /** The {@link SanitizeWriteOptions} flag that is `false` when the caller may NOT see these fields. */
   readonly visKey: keyof SanitizeWriteOptions;
@@ -78,7 +78,7 @@ export const GATED_FIELD_POLICIES: readonly GatedFieldPolicy[] = [
       return visible;
     },
     // When the writer's role cannot see the time-off `note` (readSlice redacted it from every row
-    // they ever received), their write body is note-less BY CONSTRUCTION — pin `note` to the stored
+    // they ever received), their write body is note-less BY CONSTRUCTION, pin `note` to the stored
     // value on an UPDATE, and strip it on a CREATE (existing === undefined ⇒ nothing to preserve; a
     // note-blind writer also can't legitimately AUTHOR a note they'd never be able to read back).
     pin: (cleaned, existing) => {

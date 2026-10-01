@@ -8,7 +8,7 @@ export type CapacityAdvisoryVariant = "toast" | "form" | "repeat";
 
 /** Pick the one/other form for a count. `one` and `other` are UNCALLED message references, invoked
  * here at lookup time so Paraglide resolves the active locale on each render rather than freezing
- * it at import — never call `m.*()` while building the table below. */
+ * it at import, never call `m.*()` while building the table below. */
 const plural =
   (one: (inputs: { count: number }) => string, other: (inputs: { count: number }) => string) =>
   (count: number): string =>
@@ -52,8 +52,8 @@ const ADVISORY_COPY: Record<
 };
 
 /** The human sentence for an advisory result, or "" when it has nothing to say. Every surface
- * builds it the same way — over-capacity bit, then time-off bit, then the repeat-only non-effective
- * start bit, joined and wrapped — so ORDER and the "silent when all counts are zero" rule live here.
+ * builds it the same way (over-capacity bit, then time-off bit, then the repeat-only non-effective
+ * start bit, joined and wrapped) so ORDER and the "silent when all counts are zero" rule live here.
  * For the `repeat` variant the counts are allocations, not days (see the copy table). */
 export function formatCapacityAdvisory(result: CapacityAdvisory, variant: CapacityAdvisoryVariant): string {
   const copy = ADVISORY_COPY[variant];

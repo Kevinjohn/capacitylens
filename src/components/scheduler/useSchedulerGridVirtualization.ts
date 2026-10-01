@@ -39,7 +39,7 @@ function resolveTimelineBounds(days: readonly string[]) {
 
 /**
  * The week-grid scheduler: the helicopter view of who's busy/free. Two non-obvious
- * mechanisms run here — read this before touching the scroll/render path.
+ * mechanisms run here, read this before touching the scroll/render path.
  *
  * **1. Vertical virtualization.** The model (groups → rows) is flattened into one ordered
  * `items` list (group headers + the rows of expanded groups), then each item's height is
@@ -73,7 +73,7 @@ export function useSchedulerGridVirtualization({
   const items = useMemo(() => flattenVisibleItems(model, ui.collapsedGroups), [model, ui.collapsedGroups]);
 
   // Heights + their prefix-sum depend only on the item set (model/collapse), NOT on
-  // scroll — memoise so a scroll frame only runs the cheap edge-scan in resolveVirtualWindow.
+  // scroll: memoise so a scroll frame only runs the cheap edge-scan in resolveVirtualWindow.
   const heights = useMemo(
     () => items.map((interval) => (interval.kind === "group" ? density.groupHeaderHeight : interval.row.rowHeight)),
     [items, density],
@@ -111,7 +111,7 @@ export function useSchedulerGridVirtualization({
 
   const { first, last } = resolveVirtualWindow({ layout, heights, scrollTop, viewportHeight: timelineHeight });
   // Memoised because this scan is O(rows × bars) and the grid re-renders every frame while a drag
-  // autoscrolls — the dragged row only changes when the item set or the dragged id changes, never
+  // autoscrolls: the dragged row only changes when the item set or the dragged id changes, never
   // per scroll pixel. Same keying discipline as the neighbouring derived values above.
   const draggedItemIndex = useMemo(
     () =>

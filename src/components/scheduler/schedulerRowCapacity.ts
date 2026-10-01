@@ -96,7 +96,7 @@ export function createCapacitySource({
   closures,
   blocksMode,
 }: CreateCapacitySourceInput) {
-  // The [visibleStart, visibleEnd] and [overStart, overEnd] windows are RESOURCE-INVARIANT — every row in
+  // The [visibleStart, visibleEnd] and [overStart, overEnd] windows are RESOURCE-INVARIANT. Every row in
   // this model reads the exact same two windows. Building their day arrays here ONCE avoids resources
   // × (visibleDays + 14) redundant eachDayISO calls per model rebuild (this fires on every scroll-day
   // change, zoom, filter keystroke and edit). Each row separately caches its computed resource-day

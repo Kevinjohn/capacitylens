@@ -230,23 +230,23 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
   // applies the shape guard + MAX_IMPORT_RECORDS cap + migration.
   //
   // EXEMPT from the single-company cap: replaceAccountSlice only ever rewrites SCOPED tables
-  // (accountId-carrying), never `accounts` itself — an import can only replace an EXISTING
+  // (accountId-carrying), never `accounts` itself. An import can only replace an EXISTING
   // account's data, never insert a new top-level accounts row. So there is no create vector here
   // for accountCreateCapped to gate.
   app.post("/api/import", (req, reply) => {
     // Import first requires 'purge', NOT 'write' (editor), because:
-    //   (1) it is DESTRUCTIVE slice replacement — replaceAccountSlice deletes the account's
+    //   (1) it is DESTRUCTIVE slice replacement, replaceAccountSlice deletes the account's
     //       entire scoped slice and re-inserts the import, the same hard-delete semantics the
     //       purge tier exists for (cf. the accounts-DELETE vectors); and
-    //   (2) it BYPASSES field-level write pins — every id is remapped, so sanitizeWrite's
+    //   (2) it BYPASSES field-level write pins. Every id is remapped, so sanitizeWrite's
     //       existing-row pins (e.g. the timeOff note pin) can never match a stored row.
     //       At 'write' tier a note-blind editor could erase every owner-confidential timeOff
     //       note (their own exports are note-redacted) or fabricate notes wholesale.
     // It is then narrowed to OWNER in auth-on mode: admins receive private clients/projects with
     // quoted cover names and no raw codeName. Their own valid export therefore cannot safely be
-    // used as a replacement — it would turn the cover name into the persisted real name and repair
+    // used as a replacement. It would turn the cover name into the persisted real name and repair
     // the missing code name to "Confidential", destroying the owner-only identity. OFF mode keeps
-    // the open behaviour (demo/e2e parity — authorize no-ops there).
+    // the open behaviour (demo/e2e parity, authorize no-ops there).
     // remapAndValidateImport drops/repairs dangling refs before SQLite. The handler retains
     // defence-in-depth so any residual constraint failure is classified by fail rather than lost.
     return importState(req, reply, dependencies);
@@ -257,7 +257,7 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
   // wide erasure authority, so auth-on modes refuse this route even when allowReset was set.
   //
   // EXEMPT from the single-company cap: this is the raw insertAll test-only path (itself
-  // production-forbidden — see bootGuard/resetForbidden, and allowReset just below), not an
+  // production-forbidden: see bootGuard/resetForbidden, and allowReset just below), not an
   // HTTP create vector the cap is meant to police. It's how e2e fixtures reach a known
   // multi-company state (the demo seed ships TWO companies) without threading multiAccount
   // through every spec.

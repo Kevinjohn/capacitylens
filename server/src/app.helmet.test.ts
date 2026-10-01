@@ -4,10 +4,10 @@ import { createApp } from "./app";
 import { openDb } from "./db";
 
 // Baseline security headers from @fastify/helmet: an API-only server returns JSON,
-// so a strict CSP is safe. These headers are pure hardening and ON by default — nosniff,
+// so a strict CSP is safe. These headers are pure hardening and ON by default, nosniff,
 // a CSP carrying frame-ancestors 'none' + connect-src 'self', a no-referrer Referrer-Policy,
 // and X-Frame-Options: DENY for legacy browsers. HSTS is the ONE header gated OFF by default
-// (opts.https / CAPACITYLENS_HTTPS=1) because it is only valid over real HTTPS — this server
+// (opts.https / CAPACITYLENS_HTTPS=1) because it is only valid over real HTTPS, this server
 // typically runs HTTP behind a TLS-terminating proxy, where HSTS would be harmful.
 
 const health = (app: FastifyInstance) => app.inject({ method: "GET", url: "/api/health" });
@@ -44,7 +44,7 @@ describe("baseline security headers (helmet, on by default)", () => {
   });
 
   it("keeps the cross-origin contract: CORP same-origin, COEP off", async () => {
-    // The cross-origin client→server flow (CORS-mode fetch) depends on COEP staying OFF —
+    // The cross-origin client→server flow (CORS-mode fetch) depends on COEP staying OFF,
     // enabling Cross-Origin-Embedder-Policy could break it. CORP same-origin is helmet's
     // default and harmless here (JSON-only API). Pin both so a helmet bump can't regress them.
     const headers = (await health(createApp(openDb(":memory:")))).headers;
@@ -68,7 +68,7 @@ describe("P2.7 privacy posture — CSP forbids browser egress (connect-src is se
   // under img-src; they cannot widen fetch/XHR destinations governed by connect-src.
   // SSO sign-in is a TOP-LEVEL REDIRECT (a navigation to accounts.google.com /
   // login.microsoftonline.com / github.com), NOT a connect-src fetch, and the token exchange is
-  // server-to-server — so connect-src legitimately stays 'self'. These assertions are the
+  // server-to-server: so connect-src legitimately stays 'self'. These assertions are the
   // no-WIDENING guard: if anyone ever adds an external origin (an IdP, an analytics endpoint, a
   // wildcard) to connect-src or default-src, this test fails. Pairs with the dependency-denylist
   // half in src/test/privacy-posture.test.ts to form the full no-egress proof. See docs-src/security/privacy.md.

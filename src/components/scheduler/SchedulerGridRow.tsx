@@ -196,7 +196,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
   const { resource, rowHeight, bars, dayStates, timeOff, dimmed } = row;
   return (
     /* One scheduler-row surface on the whole row (not just the sticky header) keeps the divider
-         on ONE background — without it the border crosses the frozen left column
+         on ONE background, without it the border crosses the frozen left column
          and the darker timeline, reading as a two-tone line. */
     <div
       role="row"
@@ -240,7 +240,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         bars={bars}
         placeholder={resource.kind === "placeholder"}
         weekStartsOn={calendarWeekStartsOn}
-        // Viewer: pass NO edit/draw callbacks — the lane then bails its draw gesture and
+        // Viewer: pass NO edit/draw callbacks, the lane then bails its draw gesture and
         // drops the hover "+" hint (display-only). Editable (null/owner/admin/editor, incl.
         // OFF/local) gets the stable memoised callbacks, byte-identical to today.
         {...(canEdit && onEdit ? { onEdit: onEdit } : {})}

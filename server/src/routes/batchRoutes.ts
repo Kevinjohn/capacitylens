@@ -128,12 +128,12 @@ function sendBatchError(
 function createBatchHandler(dependencies: BatchRouteDependencies) {
   const { db, authMode, multiAccount, authorize } = dependencies;
 
-  // Transactional batch write — the verb the client sync adapter uses for every save.
+  // Transactional batch write, the verb the client sync adapter uses for every save.
   // Body: { ops: BatchOp[] }, already ordered (upserts parent-first, then deletes
   // child-first; see the client's syncOps.diffOps). The whole list is applied in ONE
-  // transaction: all-or-nothing. This is what makes a reparent+delete safe — the
+  // transaction: all-or-nothing. This is what makes a reparent+delete safe, the
   // re-binding upsert commits before the old parent's DELETE cascades, so the cascade
-  // finds nothing to take — and guarantees a mid-batch failure rolls back, leaving the
+  // finds nothing to take, and guarantees a mid-batch failure rolls back, leaving the
   // prior data intact. Each op reuses the SAME ownsRow / sanitizeWrite / validateWrite the
   // per-entity routes use; one request-scoped state projection is loaded inside the transaction
   // and advanced after each op, so a child validates against a parent a sibling op just upserted.
@@ -154,9 +154,9 @@ function createBatchHandler(dependencies: BatchRouteDependencies) {
     // destruction. An accounts
     // PUT that is an UPDATE gates 'write'; an accounts PUT that is a CREATE is refused outright
     // when auth is on (→ POST /api/orgs, see REPLY_ERRORS.accountCreateClosed) and stays open ONLY
-    // in OFF mode, where the single-company cap (accountCreateCapped) can still deny it — either
+    // in OFF mode, where the single-company cap (accountCreateCapped) can still deny it, either
     // refusal fails the whole batch, see below. In OFF mode authorize
-    // short-circuits true, so the whole loop is a no-op pass for authz; the cap check is NOT part of that no-op — it runs
+    // short-circuits true, so the whole loop is a no-op pass for authz; the cap check is NOT part of that no-op, it runs
     // regardless of authMode.
     // Evaluate the single-company cap against the batch's PROJECTED state, not once per op
     // against the same pre-transaction snapshot. Two distinct account creates in an empty DB

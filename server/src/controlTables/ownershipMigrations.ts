@@ -43,7 +43,7 @@ export function migrateSingleOwnerControlPlaneV10(db: Db): void {
 }
 
 /**
- * Role-tier ranking for the ownerless-repair promotion below — `owner > admin > editor > viewer`.
+ * Role-tier ranking for the ownerless-repair promotion below, `owner > admin > editor > viewer`.
  * Mirrors shared/domain/access.ts's private `ROLE_RANK`; that constant is NOT exported and `shared/`
  * is off the server's SQL path, so the ordering is re-stated here as a SQL `CASE` and kept in
  * lock-step by being byte-identical to it. An unknown role sorts BELOW viewer (`-1`) so a corrupt
@@ -56,11 +56,11 @@ const roleTierSql = (alias: string): string =>
 /**
  * Loudly record ONE v11 ownerless-account promotion. There is no request-scoped audit sink or
  * `securityLog` at boot (those are wired into buildApp per-request; a migration only has the raw
- * `Db`), so `console` IS the established surface here — the same fallback app.ts/audit.ts use when
+ * `Db`), so `console` IS the established surface here, the same fallback app.ts/audit.ts use when
  * their sink is unavailable. Every promotion emits a structured `capacitylens.security` line so an
  * operator can see WHO was handed Owner authority by an upgrade; a promotion of a member BELOW admin
  * (an editor or, in the documented last-resort, a viewer) is the sensitive case and additionally
- * escalates to `console.error` naming the account and member — surfacing, never swallowing (§1).
+ * escalates to `console.error` naming the account and member, surfacing, never swallowing (§1).
  *
  * @param accountId     The ownerless account being repaired.
  * @param userId        The member promoted to Owner.
@@ -80,7 +80,7 @@ function reportOwnerlessPromotion(accountId: string, userId: string, promotedFro
   });
   if (belowAdmin) {
     // No admin OR editor... (viewer) / no admin (editor) existed: a member below admin now holds full
-    // Owner authority. Loudest surface — an operator should review this promotion.
+    // Owner authority. Loudest surface, an operator should review this promotion.
     console.error(
       `capacitylens-server: SECURITY — ownerless account ${accountId} had no admin${promotedFrom === "viewer" ? " or editor" : ""}; promoted ${promotedFrom} member ${userId} to Owner (below-admin elevation). ${record}`,
     );
@@ -107,22 +107,22 @@ export function reportOwnerlessPromotionsV11(promotions: readonly OwnerlessPromo
 /**
  * Migration v11 completes the exactly-one-Owner rule for databases that had active members but no
  * Owner. The single HIGHEST-role-tier active member is promoted (`owner > admin > editor > viewer`),
- * tie-broken by the earliest membership (createdAt, then userId) — so an admin is chosen over an
+ * tie-broken by the earliest membership (createdAt, then userId), so an admin is chosen over an
  * older viewer, an editor only when no admin exists, and a viewer only when the account holds nothing
  * but viewers. Auth-off datasets with no membership rows remain untouched.
  *
- * POLICY (documented call — DECISIONS.md 2026-07-17, entry by the orchestrator; flagged REVISITABLE):
- * promoting by tier — rather than the earlier "oldest member regardless of role" rule — stops a
+ * POLICY (documented call, DECISIONS.md 2026-07-17, entry by the orchestrator; flagged REVISITABLE):
+ * promoting by tier, rather than the earlier "oldest member regardless of role" rule, stops a
  * routine upgrade silently escalating a viewer to full Owner authority (private client/project names,
  * purge, destructive imports, member management, ownership transfer) whenever a more-privileged member
  * exists. The single-Owner invariant (assertSingleOwnerControlPlaneCurrent) requires exactly one
- * active Owner per member-bearing account, so an ownerless account CANNOT simply be left un-promoted —
- * that would brick startup. The last-resort viewer promotion (an account of viewers only) is therefore
+ * active Owner per member-bearing account, so an ownerless account CANNOT simply be left un-promoted.
+ * That would brick startup. The last-resort viewer promotion (an account of viewers only) is therefore
  * retained but made LOUD (see {@link reportOwnerlessPromotionsV11}) rather than refused. This was chosen
  * over refuse-and-halt precisely to avoid bricking upgrades; revisit if a safer path (e.g. an operator
  * repair step) becomes available.
  *
- * Promotions are written with RAW SQL — deliberately NOT via upsertMember — so its reset-ceremony
+ * Promotions are written with RAW SQL, deliberately NOT via upsertMember, so its reset-ceremony
  * invalidation does NOT fire here; migration v12 revokes outstanding ceremonies for every active Owner
  * afterwards (that ordering is asserted by controlTables.test.ts). IDEMPOTENT: once every account has
  * an Owner there is nothing left to promote, so a second run is a no-op.
@@ -173,7 +173,7 @@ export function migrateOwnerlessControlPlaneV11(db: Db): OwnerlessPromotionV11[]
     for (const target of targets) {
       promote.run(target.accountId, target.userId);
       // A stored role that is not a known Role is control-table corruption (every write goes through
-      // upsertMember's guard) — fail LOUD rather than mis-report the promotion (mirrors the readers).
+      // upsertMember's guard), fail LOUD rather than mis-report the promotion (mirrors the readers).
       if (!isKnownRole(target.role)) {
         throw new Error(
           `migrateOwnerlessControlPlaneV11: stored role ${JSON.stringify(target.role)} for (${target.accountId}, ${target.userId}) is not a known role — control table corrupted.`,
@@ -206,11 +206,11 @@ export function migrateOwnerResetCeremoniesV12(db: Db): void {
 
 /** Migration v14 closes the reset-ceremony gap v12 left for DEMOTED identities. The v10-era owner
  * repairs demoted co-owners to admin with raw SQL, bypassing upsertMember's privilege-change
- * invalidation — but v12 revoked ceremonies for ACTIVE OWNERS ONLY, so a demoted co-owner kept any
+ * invalidation, but v12 revoked ceremonies for ACTIVE OWNERS ONLY, so a demoted co-owner kept any
  * reset link minted while they still held Owner privilege.
  *
  * BLANKET scope on purpose: revoke for EVERY active member, with no role filter. Targeting only the
- * demoted identities is PROVABLY IMPOSSIBLE — the original v11 repair overwrote roles in place and
+ * demoted identities is PROVABLY IMPOSSIBLE, the original v11 repair overwrote roles in place and
  * destroyed the role history a targeted revocation would need (the same destroyed-information
  * reasoning that justified v11's supersession allow-list in db.ts). Over-revoking is harmless: a
  * reset link is re-issuable on demand, and revokeResetTokensForUser already no-ops for members with

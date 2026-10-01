@@ -42,18 +42,18 @@ export function listAccountSummaries(db: Db): Array<{ id: string; name: string }
  *
  * NO-CROSS-TENANT INVARIANT: every scoped query carries `WHERE accountId = ?`, and the only global
  * table (`accounts`) is read by its id (`WHERE id = ?`). No query here omits its predicate, so this
- * function can NEVER return a row belonging to another account — the tenant-isolation guarantee the
+ * function can NEVER return a row belonging to another account, the tenant-isolation guarantee the
  * {@link TenantStore} seam rests on (see tenantStore.ts).
  *
  * UNKNOWN accountId: not an error. An id with no matching account yields `accounts: []` plus an empty
- * array for every scoped table — degrade to "empty slice", never throw (a stale/typo'd id from a
+ * array for every scoped table, degrade to "empty slice", never throw (a stale/typo'd id from a
  * client is a 0-row read, not a corruption signal). Rows are mapped through the SAME `fromRow` codec
  * {@link readState} uses, so optional/json columns round-trip identically.
  *
- * Field-level redaction: `opts.includeTimeOffNote` is required — there is no silent default, so
+ * Field-level redaction: `opts.includeTimeOffNote` is required. There is no silent default, so
  * every caller must DECIDE the visibility of the owner/admin-only time-off `note` (the access rule
  * lives in `canSeeTimeOffNote`, shared/domain/access). When `false`, the `note` key is STRIPPED from every returned `timeOff`
- * row HERE, server-side — so an Editor/Viewer's read can never serialize the note onto the wire. When
+ * row HERE, server-side, so an Editor/Viewer's read can never serialize the note onto the wire. When
  * `true`, the note is returned as stored. This is a payload-narrowing rule, not a request gate: the
  * read is already authorized; this only decides which columns leave the server.
  *
@@ -62,18 +62,18 @@ export function listAccountSummaries(db: Db): Array<{ id: string; name: string }
  * removed. Only account owners pass true; every other role is narrowed before serialization.
  *
  * Lifecycle projection: `opts.includeInactive` is required, mirroring `includeTimeOffNote` (no
- * silent default — every caller DECIDES). When `false` (the normal app read), the SHARED `activeOnly`
+ * silent default, every caller DECIDES). When `false` (the normal app read), the SHARED `activeOnly`
  * helper is applied AFTER the note redaction, dropping every NON-active (archived OR soft-deleted)
- * resource/client/project from the returned slice — exactly the rows the normal views hide. The rows
+ * resource/client/project from the returned slice, exactly the rows the normal views hide. The rows
  * REMAIN in the DB and in EXPORT; this only narrows what the per-account read serializes. When `true`
  * (the privileged inactive-row read), the full slice is returned untouched. Composition order is
- * load-bearing: redact the note FIRST, then `activeOnly` — the two narrowings are independent, and
+ * load-bearing: redact the note FIRST, then `activeOnly`. The two narrowings are independent, and
  * applying `activeOnly` last keeps it a single, total projection over the already-redacted slice.
  *
  * @param db         The open SQLite handle.
  * @param accountId  The account whose slice to read.
  * @param opts.includeTimeOffNote  REQUIRED. `true` keeps each time-off `note`; `false` strips it
- * (owner/admin-only field — redacted before it leaves the server).
+ * (owner/admin-only field, redacted before it leaves the server).
  * @param opts.includePrivateNames REQUIRED. `true` keeps real private names; `false` substitutes
  * quoted code names and strips the raw codeName field.
  * @param opts.includeInactive  REQUIRED. `false` drops archived/soft-deleted resources/clients/projects
@@ -137,7 +137,7 @@ function readSliceFromSnapshot(
   const accountsSpec = resolveTable("accounts");
   cache.accountByIdSelect ??= db.prepare(`SELECT * FROM accounts WHERE id = ?`);
   data["accounts"] = cache.accountByIdSelect.all(accountId).map((r) => fromRow(accountsSpec, r));
-  // Every scoped table: WHERE accountId = ? — never an unpredicated read (the no-cross-tenant invariant).
+  // Every scoped table: WHERE accountId = ?, never an unpredicated read (the no-cross-tenant invariant).
   for (const table of SCOPED_ORDER) {
     const spec = resolveTable(table);
     const statement = createCachedTableStatement({
@@ -151,12 +151,12 @@ function readSliceFromSnapshot(
   // Derive both gated-field redactions from the same
   // fieldPolicy.ts GATED_FIELD_POLICIES catalogue the write-pin (pinGatedFields) and export-include
   // (readSliceVisibility) sites already use, so a read/write/export can never disagree about who may
-  // see a gated field. redactGatedEcho DELETES the gated key (never nulls it) — matching TimeOff's
-  // optional `note` shape — and is applied per-table via tableHasGatedFields, so redacting
+  // see a gated field. redactGatedEcho DELETES the gated key (never nulls it), matching TimeOff's
+  // optional `note` shape, and is applied per-table via tableHasGatedFields, so redacting
   // clients/projects through the catalogue's privateNames `redactEcho` policy. Apply it before the
   // activeOnly projection below, over every gated table at once (table iteration order doesn't matter:
   // each policy only ever touches its own table(s), so the net result of this loop is unchanged
-  // regardless of order — the one ordering that DOES matter, gated redaction before activeOnly, is
+  // regardless of order. The one ordering that DOES matter, gated redaction before activeOnly, is
   // preserved).
   const visibility: SanitizeWriteOptions = {
     canSeeTimeOffNote: options.includeTimeOffNote,
@@ -170,7 +170,7 @@ function readSliceFromSnapshot(
   }
   const visibleData = data as unknown as AppData;
   // For the normal app read (includeInactive:false), drop every non-active
-  // (archived/soft-deleted) resource/client/project via the SHARED activeOnly helper — the SAME rule
+  // (archived/soft-deleted) resource/client/project via the SHARED activeOnly helper, the SAME rule
   // the client views use (useActiveScopedData), so the two halves can't drift. Applied AFTER the gated
   // redaction above so the projection runs over the already-redacted slice. includeInactive:true
   // returns the full slice untouched. The dropped rows stay in the database and export.

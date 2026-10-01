@@ -31,7 +31,7 @@ const dayState = (overrides: Partial<DayState> = {}): DayState => ({
   ...overrides,
 });
 
-// Days 0 and 1 are inside TIME_OFF_BLOCKS below — the lane reads that from `hasTimeOff` (date
+// Days 0 and 1 are inside TIME_OFF_BLOCKS below. The lane reads that from `hasTimeOff` (date
 // space), not by intersecting the block's pixels, so the two must be kept consistent here.
 const DAY_STATES: DayState[] = [
   dayState({ unavailable: true, hasTimeOff: true }),
@@ -173,7 +173,7 @@ describe("ResourceLane allocation rendering", () => {
     // The specific label survives in an sr-only span (not just dropped to AT).
     expect(block).toHaveTextContent("Holiday");
     expect(block.querySelector(".sr-only")?.textContent).toBe("Holiday");
-    // The dead pointer-events-none `title` is gone — it was unreachable, so it conveyed nothing.
+    // The dead pointer-events-none `title` is gone. It was unreachable, so it conveyed nothing.
     expect(block).not.toHaveAttribute("title");
   });
 

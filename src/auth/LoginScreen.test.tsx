@@ -535,7 +535,7 @@ function registerOwnerSetupValidationTests() {
 function registerOwnerSetupAccessibilityAndRaceTests() {
   it("drops out of setup into the ordinary sign-in form when another operator wins the setup race", async () => {
     // Better Auth's live per-request gate (server/src/auth.ts) refuses a SECOND sign-up with this
-    // exact typed code once a user exists — the shape a losing second tab/operator would see.
+    // exact typed code once a user exists, the shape a losing second tab/operator would see.
     signUpEmail.mockResolvedValue({
       error: { message: "Email and password sign up is not enabled", code: "EMAIL_PASSWORD_SIGN_UP_DISABLED" },
     });
@@ -647,7 +647,7 @@ describe("LoginScreen — degraded 401 body notice", () => {
   it("shows the non-terminal advisory above the form when degraded is true", () => {
     render(<LoginScreen authMode="password-only" degraded onSignedIn={vi.fn()} />);
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
-    // Still a fully usable password form underneath the advisory — never a dead end.
+    // Still a fully usable password form underneath the advisory, never a dead end.
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
   });

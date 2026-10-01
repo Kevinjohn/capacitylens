@@ -294,7 +294,7 @@ describe("SchedulerGrid", () => {
 
     act(() => useStore.getState().jumpToResource("r1"));
     // The first row sits directly under one discipline header, whose height follows the active
-    // density — the store default is Compact OFF (roomy), so assert the roomy geometry.
+    // density: the store default is Compact OFF (roomy), so assert the roomy geometry.
     expect(grid.scrollTop).toBe(SCHEDULER_DENSITY.groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
 
@@ -373,7 +373,7 @@ describe("SchedulerGrid visible-window utilisation", () => {
   }
 
   // Anchor the timeline AND the focus date at Mon 2026-06-01 so the visible window starts there
-  // (leftEdgeIdx stays -1 in jsdom — the container is never measured — so the % anchors at focusDate).
+  // (leftEdgeIdx stays -1 in jsdom, the container is never measured, so the % anchors at focusDate).
   const renderAtZoom = (zoom: 1 | 2 | 4 | 8) => {
     useStore.getState().replaceAll(densityDataset());
     useStore.getState().setActiveAccount(ACC);
@@ -516,7 +516,7 @@ describe("SchedulerGrid filters", () => {
   });
 });
 
-// Feature 2 (the week snap, always on for users) — the scroll-idle floor wired through
+// Feature 2 (the week snap, always on for users), the scroll-idle floor wired through
 // onScroll. The PURE floor math is unit-tested in resolveWeekStartSnapTarget.test.ts; here we pin the COMPONENT
 // WIRING: the debounce, the drag-freeze respect, the convergence no-op, and the unmount cleanup.
 //
@@ -596,7 +596,7 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     scrollSchedulerGridTo(nudge); // arms timer A (would fire at t=120)
     act(() => {
       vi.advanceTimersByTime(40);
-    }); // t=40, under the idle — no snap yet
+    }); // t=40, under the idle. No snap yet
     expect(grid.scrollLeft).toBe(nudge);
     scrollSchedulerGridTo(nudge + week); // a second scroll (Wed of week 3) clears A and re-arms timer B (fires t=160)
     act(() => {
@@ -663,7 +663,7 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     act(() => {
       vi.advanceTimersByTime(500);
     });
-    expect(grid.scrollLeft).toBe(nudge); // not snapped — the drag-freeze held
+    expect(grid.scrollLeft).toBe(nudge); // not snapped, the drag-freeze held
     view.unmount();
   });
 

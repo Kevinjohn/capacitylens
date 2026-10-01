@@ -29,7 +29,7 @@ export function clampHoursPerDay(hours: number): number {
 }
 
 /** Clamp a RESOURCE's working hours/day to (0, MAX_HOURS_PER_DAY]. Unlike an allocation, a
- * resource must work a POSITIVE number of hours (0 capacity = no working day at all — same
+ * resource must work a POSITIVE number of hours (0 capacity = no working day at all, same
  * reason the store rejects an empty working-week), so junk / <= 0 falls back to a normal 8h
  * day; a finite positive value just clamps to the 24h ceiling. Shared by the import sanitiser
  * and the store resource write path so the two stay in lockstep. */
@@ -38,14 +38,14 @@ export function clampWorkingHoursPerDay(hours: number): number {
 }
 
 /** Outsourced / 3rd-party resources have NO capacity (no hours, utilisation, or over-markers) and
- * render in their own neutral band. This is the SINGLE predicate every capacity surface gates on —
+ * render in their own neutral band. This is the SINGLE predicate every capacity surface gates on,
  * so a new capacity-free kind is a one-line change here, not N scattered `kind === 'external'`
  * checks across the scheduler / forms / import. */
 export function isExternalResource(resource: { kind: ResourceKind }): boolean {
   return resource.kind === "external";
 }
 
-/** Inverse of {@link isExternalResource} — true when a resource participates in capacity/utilisation. */
+/** Inverse of {@link isExternalResource}, true when a resource participates in capacity/utilisation. */
 export function isCapacityTracked(resource: { kind: ResourceKind }): boolean {
   return !isExternalResource(resource);
 }
@@ -71,7 +71,7 @@ function buildDefaultCapacityWorkingPattern(): Pick<Resource, "workingDays" | "h
 
 /** The unused silent-default capacity fields every `external` resource is created with: externals
  * have no capacity, but the Resource type + store still require a positive working day and a
- * non-empty week. A FACTORY (not a shared object) so each call gets its own weekday arrays — no
+ * non-empty week. A FACTORY (not a shared object) so each call gets its own weekday arrays. No
  * aliasing if a consumer mutates one. One source for the External form, seed, and fixtures. */
 export function externalCapacityDefaults(): Pick<
   Resource,
@@ -93,7 +93,7 @@ export function placeholderCapacityDefaults(): Pick<Resource, "workingDays" | "h
   return buildDefaultCapacityWorkingPattern();
 }
 
-/** A fresh, empty dataset — the starting point before seeding. */
+/** A fresh, empty dataset, the starting point before seeding. */
 export function emptyAppData(): AppData {
   return {
     accounts: [],
@@ -109,7 +109,7 @@ export function emptyAppData(): AppData {
   };
 }
 
-/** True when every AppData table is an empty array — a genuinely empty dataset (a
+/** True when every AppData table is an empty array, a genuinely empty dataset (a
  * first run or a fully-cleared store). The single definition shared by the client
  * bootstrap (src/data/persist.ts) and the server's init-marker backfill
  * (server/src/db.ts) so the two "is this empty?" checks can never drift. */

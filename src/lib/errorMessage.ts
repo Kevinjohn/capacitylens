@@ -2,7 +2,7 @@ import { m } from "@/i18n";
 import { DomainError, type DomainErrorCode } from "@capacitylens/shared/domain/errors";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 
-// One entry per DomainErrorCode. The values are UNCALLED message references — this table is built
+// One entry per DomainErrorCode. The values are UNCALLED message references. This table is built
 // once at import and Paraglide resolves the active locale at CALL time, so storing resolved strings
 // here would freeze every message to the import-time language. `Record<DomainErrorCode, …>` (not a
 // Partial or an index signature) is what keeps this exhaustive: adding a code without a message
@@ -52,7 +52,7 @@ export const resolveDomainErrorMessage = (code: DomainErrorCode): string => DOMA
 /** Normalise anything thrown (an Error, a bare string, a React Router ErrorResponse, …)
  * to a human message, so a non-Error throw never renders a blank screen.
  *
- *  @remarks This is intentionally TOTAL — every input maps to a string and it can never throw
+ *  @remarks This is intentionally TOTAL. Every input maps to a string and it can never throw
  * (`m.error_unexpected()` returns a plain string, preserving that guarantee). It's the standard
  * SINK for `catch` blocks across the app, so do NOT wrap it in its own try/catch (there is nothing
  * to guard, and a wrapper would only add noise). The generic fallback resolves through Paraglide

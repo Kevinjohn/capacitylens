@@ -228,7 +228,7 @@ describe("setActiveAccount resets per-account view state", () => {
   beforeEach(() => s().replaceAll(twoAccountData()));
 
   it("switching the active account changes the rows in scope (read-side isolation)", () => {
-    // Drives the switch the way useScopedData composes it — scopeData(data, activeAccountId) —
+    // Drives the switch the way useScopedData composes it (scopeData(data, activeAccountId))
     // so it proves the *transition* changes the visible row set, not just that scopeData filters.
     s().setActiveAccount("a1");
     const a1 = scopeData(s().data, present(s().activeAccountId));
@@ -285,7 +285,7 @@ function registerScopedImportPart1(): void {
     s().importData(incoming);
 
     // a1's old client replaced by the imported one, re-stamped to a1. Import also guarantees the
-    // account keeps exactly one built-in Internal client (synthesised here — the file carried none).
+    // account keeps exactly one built-in Internal client (synthesised here, the file carried none).
     const a1Clients = s().data.clients.filter((c) => c.accountId === "a1");
     expect(a1Clients.filter((c) => !c.builtin).map((c) => c.name)).toEqual(["Imported"]);
     expect(a1Clients.filter((c) => c.builtin)).toHaveLength(1);
@@ -361,7 +361,7 @@ function registerScopedImportPart3(): void {
 
 function registerScopedImportPart2(): void {
   it("drops imported allocations/time-off that violate the integrity rules", () => {
-    // The store is the integrity boundary on every write — import is no exception.
+    // The store is the integrity boundary on every write, import is no exception.
     s().importData(invalidImportedData);
 
     const a1Allocs = s().data.allocations.filter((a) => a.accountId === "a1");

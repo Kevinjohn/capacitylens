@@ -19,7 +19,7 @@ import { requireAuthenticatedPrincipal } from "./authenticatedPrincipal";
  * is answered by the port inside its transaction, where the membership facts are still true.
  */
 
-/** The wire projection of one request. Ids and instants only — display identity is resolved from
+/** The wire projection of one request. Ids and instants only, display identity is resolved from
  * the member directory, so the ceremony never becomes a second store of personal data. */
 function toWire(request: OwnershipTransferRequest) {
   return {
@@ -40,7 +40,7 @@ function toWire(request: OwnershipTransferRequest) {
  * A committed business-terminal outcome answered as a conflict.
  *
  * It is NOT an error: the expiry it reports was written and committed. The caller's command did not
- * apply, so 409 is the honest status — but the body names the terminal state and reason so an
+ * apply, so 409 is the honest status, but the body names the terminal state and reason so an
  * interface can explain what happened rather than merely refusing.
  */
 function sendTerminal(reply: FastifyReply, outcome: Extract<OwnershipTransferOutcome, { kind: "terminal" }>) {
@@ -56,7 +56,7 @@ function sendTerminal(reply: FastifyReply, outcome: Extract<OwnershipTransferOut
  * Send the refusal for a ceremony read while masquerading; null when the read may proceed.
  *
  * The global masquerade policy already refuses every unsafe method, which covers the six commands.
- * It deliberately does not cover GET — so this read, which names who is being handed the company,
+ * It deliberately does not cover GET, so this read, which names who is being handed the company,
  * refuses here. Concealment, not redaction: a masquerading session is not the participant whose
  * ceremony this is.
  */

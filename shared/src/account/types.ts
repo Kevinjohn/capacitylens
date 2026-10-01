@@ -86,10 +86,10 @@ export function isAccountRole(value: unknown): value is Role {
 /**
  * The lifecycle state of one membership.
  *
- * - `'active'`   — an ordinary member: may enter the account under their role.
- * - `'disabled'` — suspended by an administrator. The membership and its role are retained, but the
+ * - `'active'`: an ordinary member: may enter the account under their role.
+ * - `'disabled'`: suspended by an administrator. The membership and its role are retained, but the
  *                  principal may NOT enter the account. Reversible.
- * - `'archived'` — retired by an administrator. Same denial of entry as `'disabled'`; the separate
+ * - `'archived'`: retired by an administrator. Same denial of entry as `'disabled'`; the separate
  *                  state exists so a long-departed member can be filtered out of day-to-day
  *                  administration without destroying the audit trail a removal would.
  *
@@ -144,7 +144,7 @@ export interface LocalPrincipal {
   linkedSubject: FederatedSubject | null;
   /** IdP-asserted avatar URL for the SESSION principal (https-validated upstream). Absent/`null`
    * for trusted-local and any provider without a picture. Deliberately NOT on {@link
-   * PrincipalSummary}: only the signed-in user's own avatar is surfaced — teammates stay initials. */
+   * PrincipalSummary}: only the signed-in user's own avatar is surfaced, teammates stay initials. */
   image?: string | null;
 }
 

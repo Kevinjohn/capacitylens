@@ -27,9 +27,9 @@ import type { ReauthAction } from "@/auth/reauthCoordinator";
 //     non-admin purge / non-member → 403) and never crash. HTTP 408/5xx cannot prove whether an
 //     intermediary returned after commit, so those enter the same authoritative-reload recovery as
 //     a thrown transport failure before another destructive attempt is allowed.
-//   • DEMO build (`isServerConfigured()` false — VITE_CAPACITYLENS_DEMO=1): the UI calls the store action, which mutates the
+//   • DEMO build (`isServerConfigured()` false, VITE_CAPACITYLENS_DEMO=1): the UI calls the store action, which mutates the
 //     local `data` blob immediately through the same mutate()/undo machinery (no fetch, no reload).
-//     We wrap it in try/catch and surface the throw — these are the store's deliberate display-safe
+//     We wrap it in try/catch and surface the throw. These are the store's deliberate display-safe
 //     integrity throws (builtin-Internal guard, illegal-transition backstop), exactly the ones the UI
 //     pre-gates with the shared can* predicates but must still surface if they fire.
 
@@ -45,7 +45,7 @@ function isLifecycleOutcomeUnknown(response: Response): boolean {
  * The dispatch surface returned by {@link useLifecycleActions}. Each method runs ONE lifecycle
  * transition for one entity row, branching server vs local internally. They are async because the
  * SERVER path awaits the route POST + the reload; in the demo build they resolve synchronously after the
- * store mutation. The promise NEVER rejects — a failure is surfaced as a notice and the promise still
+ * store mutation. The promise NEVER rejects. A failure is surfaced as a notice and the promise still
  * resolves, so a caller can `void` it without an unhandled rejection (the MembersSection idiom).
  */
 export interface LifecycleActions {
@@ -64,12 +64,12 @@ export interface LifecycleActions {
  *
  * REUSE, not a hand-roll: this goes THROUGH the persist orchestrator
  * ({@link refreshActiveAccountSlice} → persist.ts `refreshActive`), the same sequence tenant switches
- * and refresh-on-focus use — it FLUSHES a still-debounced ordinary edit and awaits any in-flight save
+ * and refresh-on-focus use. It FLUSHES a still-debounced ordinary edit and awaits any in-flight save
  * BEFORE reloading, and skips the reload entirely while a save is in a failed state. A bare
  * `loadAll` + `replaceAll` here would race those: an edit inside the debounce window when the reload
  * lands would be replaced by the server slice AND the snapshot re-seeded under it, so the queued save
  * diffs to zero ops and the edit is silently, permanently lost. (When the reload is skipped on a
- * failed save, the lifecycle change is already committed server-side — it appears on the next
+ * failed save, the lifecycle change is already committed server-side, it appears on the next
  * successful refresh; preserving the un-persisted edit wins.)
  *
  * The bare-reload fallback runs when no orchestrator is attached: normally unit tests and
@@ -85,11 +85,11 @@ async function reloadFromServer(accountId: string): Promise<LifecycleReloadOutco
   // the CURRENT active account and skip the reload when it no longer matches the account the
   // mutation ran in. The mutation already committed server-side (it shows on that account's next
   // hydration); the slice for the NEW tenant is being loaded by the switch orchestrator, and this
-  // stale reload must not fight it — the bare fallback below would install the OLD tenant's slice
+  // stale reload must not fight it. The bare fallback below would install the OLD tenant's slice
   // under the NEW active id (cross-tenant display → cross-tenant writes). persist.ts's
   // refreshActive carries the same guard at its own altitude; this one also covers the fallback.
   if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
-  // Anything but 'unattached' means the orchestrator OWNED the call — including 'skipped' (a
+  // Anything but 'unattached' means the orchestrator OWNED the call, including 'skipped' (a
   // failed save's edits win; the committed change appears on the next successful refresh) and
   // 'failed' (surfaced via the persist banner). Only the no-orchestrator case may fall back.
   const outcome = await refreshActiveAccountSlice(accountId);
@@ -116,7 +116,7 @@ function buildCommittedButStaleMessage(outcome: "skipped" | "failed", cause?: un
 
 // A confirmed mutation without its mandatory refresh must stay gated across route/component
 // remounts: the same stale store slice is shared across those surfaces. Module lifetime matches the
-// required recovery boundary — a full page reload boots, hydrates, and creates a fresh gate map.
+// required recovery boundary, a full page reload boots, hydrates, and creates a fresh gate map.
 const reloadRequiredByAccount = new Map<string, string>();
 
 type SetNotice = ReturnType<typeof useStore.getState>["setNotice"];
@@ -231,7 +231,7 @@ function dispatchLocalLifecycle(
 /**
  * The lifecycle dispatch hook. Returns {@link LifecycleActions} whose methods branch
  * server-vs-local per the module header. An optional `onReloaded` callback fires after a SUCCESSFUL
- * server-mode mutation + reload — the admin section passes a `reloadKey` bump so its own
+ * server-mode mutation + reload, the admin section passes a `reloadKey` bump so its own
  * `?includeInactive=1` list re-fetches (the MembersSection idiom); the lists pass nothing (the active
  * view already re-renders off the reloaded store `data`).
  *

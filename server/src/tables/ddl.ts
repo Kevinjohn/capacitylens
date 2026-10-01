@@ -7,7 +7,7 @@
 //   project  → allocations.projectId : SET NULL       (repeatable booking attribution unbind)
 //   client   → projects              : CASCADE        (deleteClientCascade)
 //   discipline → resources.disciplineId : SET NULL    (deleteDisciplineCascade: ungroup)
-//   account  → everything scoped     : CASCADE        (deleteAccountCascade — the one account-scoped
+//   account  → everything scoped     : CASCADE        (deleteAccountCascade, the one account-scoped
 //                                                     transform, and it lives in
 //                                                     shared/src/domain/mutations.ts, not integrity.ts)
 //
@@ -18,7 +18,7 @@
 // survivors. Change a rule here or there and that suite fails.
 //
 // id columns are declared NOT NULL here for fresh databases. Existing databases are
-// NOT rebuilt to add NOT NULL to the PK — a table-rebuild for all 9 tables is
+// NOT rebuilt to add NOT NULL to the PK, a table-rebuild for all 9 tables is
 // disproportionate, and assertSchemaCurrent already exempts `id` from its nullability
 // check (SQLite PRAGMA reports notnull=0 for TEXT PRIMARY KEY regardless of the DDL,
 // so the spec and live DB would always appear to disagree). The route-level

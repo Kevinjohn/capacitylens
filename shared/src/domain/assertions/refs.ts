@@ -185,14 +185,14 @@ function assertResourceRefs(context: ScopedRefsContext): void {
  * SAME account. Optional FKs are checked only when present. A project/phase create or full row must
  * carry its required parent; a partial update may omit that field but may not explicitly clear it.
  *
- * `existing` (updates only) is the currently-stored row the write targets — pass the
+ * `existing` (updates only) is the currently-stored row the write targets, pass the
  * `getOwned` result so its tenancy is already proven. When a checked FK field equals
  * the existing row's value, its EXISTENCE check is skipped: the reference was validated
  * when it was written, and in SERVER mode the client's hydrated slice is ACTIVE-ONLY
  * (readSlice strips archived/soft-deleted clients/projects), so re-checking an unchanged
  * parent id against the slice would falsely reject every UNRELATED edit (a rename, a
  * colour change) of a row whose parent is archived. A CHANGED id is still validated
- * strictly, so this never weakens tenancy — you can't MOVE a record onto a parent the
+ * strictly, so this never weakens tenancy. You can't MOVE a record onto a parent the
  * slice can't prove is yours. (The server needs no such relaxation: its validateWrite
  * runs against the full DB, where an archived parent still exists.)
  */
@@ -268,7 +268,7 @@ export function assertScopedRefs(
  * repeatable attribution may only reference a live project when changed, a placeholder may only
  * take allocations effective under its bound project, and an external /
  * 3rd-party resource (which has no capacity) may only carry a zero load. `hoursPerDay`
- * is REQUIRED — every allocation write knows its load, and making the parameter
+ * is REQUIRED. Every allocation write knows its load, and making the parameter
  * mandatory forces the compiler to surface it so the capacity-free rule below can never
  * be silently skipped by a future caller (the old optional arg made that invariant
  * opt-in per call site).
@@ -363,7 +363,7 @@ export function assertAllocationRefs(
   }
   assertValid(validateAllocationAssignment(resource, resolvedProjectId));
   // External / 3rd parties have NO capacity: their allocations carry no load (hoursPerDay 0). The
-  // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only — enforce it at the
+  // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only, enforce it at the
   // write boundary too so a direct store / API write can't land a phantom load on a capacity-free
   // resource (the scheduler hides it, so it would persist invisibly). Import coerces the same value
   // to 0 instead of dropping the booking, which is still valid. Always checked: `hoursPerDay` is a

@@ -51,7 +51,7 @@ export function prepareBatchBody(
   if (ops.length > MAX_BATCH_OPS) {
     throw new BatchTooLargeError(`Atomic sync exceeds the ${MAX_BATCH_OPS}-operation server limit.`);
   }
-  // Rebase PUT preconditions, then serialize ONCE — the same body feeds both the keepalive
+  // Rebase PUT preconditions, then serialize ONCE, the same body feeds both the keepalive
   // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
   const wireOps = addResourceAvailabilityClearMarkers(state, rebaseForWire(state, ops)).map((op) =>
     options?.archiveLifecycleDeletes && op.method === "DELETE" && isLifecycleEntityKey(op.table)
@@ -85,7 +85,7 @@ export function dispatchPreparedBatch({
 
 // updatedAt on the wire is a concurrency precondition: rebase each PUT onto the last authoritative
 // server revision while retaining every locally edited field. A Map per touched table keeps this
-// O(ops + rows) — a linear .find per op degraded a whole-table re-timestamp (undo/redo touching
+// O(ops + rows), a linear .find per op degraded a whole-table re-timestamp (undo/redo touching
 // every allocation) to O(ops × rows) on the hot save path. Maps are built lazily, so a batch that
 // touches one table never indexes the rest.
 export function rebaseForWire(state: SyncState, ops: Op[]): Op[] {
@@ -114,7 +114,7 @@ interface PostBatchInput {
 }
 
 // POST the complete ≤MAX_BATCH_OPS diff to /api/batch; the server applies it in one
-// transaction (upserts parent-first, then deletes child-first — see syncOps.diffOps), so a
+// transaction (upserts parent-first, then deletes child-first, see syncOps.diffOps), so a
 // mid-batch failure rolls the whole transaction back. keepalive (unload) lets the request outlive
 // the page. `body` is the already-serialized, PUT-rebased wire payload; `ops` supplies the exact
 // PUT identities that a non-superseded server receipt must cover.
@@ -151,7 +151,7 @@ export async function sendBatch({ state, body, sequence, options }: SendBatchInp
       },
       // The atomic write is a BULK op: give it the long bound so a big-but-healthy batch isn't
       // aborted into the retry-the-same-diff wedge (drain never advances lastSynced on abort).
-      // The keepalive unload flush gets NO deadline — a timeout on a request meant to outlive the
+      // The keepalive unload flush gets NO deadline, a timeout on a request meant to outlive the
       // page is self-contradictory; when the page survives, its receipt or failure still flows back
       // through flushUnload to the persistence coordinator.
       options?.keepalive ? null : API_BULK_TIMEOUT_MS,
@@ -168,12 +168,12 @@ export async function sendBatch({ state, body, sequence, options }: SendBatchInp
 }
 
 /** Classification stage: turn a non-OK batch status into the typed error persist.ts branches on.
- * Returns without effect for a 2xx — the receipt is validated by readBatchReceipt. */
+ * Returns without effect for a 2xx. The receipt is validated by readBatchReceipt. */
 export async function throwForBatchStatus(res: Response): Promise<void> {
   if (!res.ok) {
     // 409 is the optimistic-concurrency conflict signal (stale updatedAt; body
     // `{ error, current }`). Throw the TYPED BatchConflictError so persist.ts can resolve it
-    // by reloading (server wins) — retrying the same stale diff is deterministic futility.
+    // by reloading (server wins), retrying the same stale diff is deterministic futility.
     // Body parse is best-effort: an unreadable body still yields a conflict error.
     if (res.status === 409) {
       const body = (await res.json().catch(() => null)) as { current?: unknown } | null;
@@ -199,7 +199,7 @@ export async function throwForBatchStatus(res: Response): Promise<void> {
       }
     }
     // A 401 (session expired on an auth-enabled server) surfaces like any other write
-    // failure — persist.ts raises the banner, and the AuthProvider's re-check sees the
+    // failure: persist.ts raises the banner, and the AuthProvider's re-check sees the
     // 401 and swaps to the login screen. Never a silent drop.
     const detail = await res.text().catch(() => "");
     throw createSafeResponseError("Batch sync", res.status, detail);

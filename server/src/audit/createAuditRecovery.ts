@@ -99,8 +99,8 @@ function collectDeliveryIds(path: string, input: DeliveryIdCollectorInput) {
       const parsed = JSON.parse(line) as { auditId?: unknown };
       if (typeof parsed.auditId === "string") rememberDeliveryId(state, parsed.auditId);
       // A WELL-FORMED line without a usable auditId still cannot suppress replay (its outbox row,
-      // if any, replays) but it is not corruption — records may legitimately omit the delivery
-      // metadata — so it is skipped silently, as before.
+      // if any, replays) but it is not corruption, records may legitimately omit the delivery
+      // metadata: so it is skipped silently, as before.
     } catch {
       // A complete MALFORMED historical line is file corruption: silent acceptance hid it from
       // deep health entirely (review finding DBR-0007). Latch degraded; the affected outbox rows

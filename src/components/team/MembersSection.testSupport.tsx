@@ -54,7 +54,7 @@ export function rawMember(overrides: Partial<RawMember> & { userId: string; role
 type RouteHandler = (url: string, init: RequestInit | undefined) => Response | Promise<Response>;
 
 /** Build a fetch mock from a small default route table (members GET, invites GET, accounts GET, and
- * a 204 fallback for every write) plus per-test overrides keyed `"METHOD /path-suffix"` — an
+ * a 204 fallback for every write) plus per-test overrides keyed `"METHOD /path-suffix"`, an
  * override with the same key as a default replaces it; a new key adds a route. An empty suffix
  * (e.g. `"PATCH "`) matches every URL for that method. A 403 on the members read self-gates the
  * section. */
@@ -165,7 +165,7 @@ export async function openMemberMenu(user: User, row: HTMLElement): Promise<void
   await screen.findByText(m.settings_member_settings_heading());
 }
 
-/** Disabled and archived rows live behind a collapsed disclosure — open it before reaching
+/** Disabled and archived rows live behind a collapsed disclosure, open it before reaching
  * for one. Returns once the second table is on screen. */
 export async function openInactiveGroup(user: User): Promise<HTMLElement> {
   await user.click(await screen.findByTestId("members-inactive-toggle"));
@@ -179,7 +179,7 @@ export async function chooseMemberAction(user: User, row: HTMLElement, testId: s
 }
 
 /** The role selector moved out of the row and into the pencil's dialog: open it, pick the
- * role, then Save. Selecting a role is now a DRAFT — nothing is sent until Save. */
+ * role, then Save. Selecting a role is now a DRAFT. Nothing is sent until Save. */
 export async function saveRoleVia(user: User, row: HTMLElement, option: string): Promise<void> {
   await user.click(within(row).getByTestId("member-edit"));
   const dialog = await screen.findByRole("dialog");

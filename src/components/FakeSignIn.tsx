@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
-// COSMETIC demo sign-in — a Google-account-chooser look shown BEFORE the account picker so
+// COSMETIC demo sign-in, a Google-account-chooser look shown BEFORE the account picker so
 // a viewer sees the intended "log in first, then pick a company" flow. There is NO real
 // authentication and NO popup: clicking an account just flips the device-global
 // `fakeSignedIn` flag (via onSignIn) and reveals the picker. The real, server-authoritative
@@ -42,7 +42,7 @@ function GoogleMark() {
 /**
  * The demo sign-in gate.
  *
- * @param onSignIn called when the viewer "signs in" (clicks the account) — the host
+ * @param onSignIn called when the viewer "signs in" (clicks the account), the host
  * (AppShell) flips the device-global flag and advances to the account picker.
  */
 export function FakeSignIn({ onSignIn }: { onSignIn: () => void }) {

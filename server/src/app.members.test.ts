@@ -14,7 +14,7 @@ import { seedTwo } from "./app.members.testSupport";
 // rejection on POST /api/invites. Asserts the gates (owner/admin allowed, editor/viewer/non-member 403,
 // session-less 401), the role-change matrix (Owner changes only through transfer), that the
 // exactly-one-Owner backstop refuses generic demotion/removal/duplication, that the
-// invites LIST never carries the token, cross-tenant revoke is a no-op, and — the headline — that an
+// invites LIST never carries the token, cross-tenant revoke is a no-op, and, the headline, that an
 // admin of one account cannot read another account's members (cross-tenant member leak → 403).
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -315,7 +315,7 @@ function registerMemberGateIdentityTest(): void {
 function registerMemberGateResetCapabilityTest(): void {
   it("reports mayResetPassword per-row from the SERVER's full cross-account judgment", async () => {
     // The client hides the reset control off this field, so it must equal what the reset route would
-    // decide — true for an ordinary same-account target and the caller\'s own row, false for a target
+    // decide: true for an ordinary same-account target and the caller\'s own row, false for a target
     // whose GLOBAL identity outranks the caller in another account (the cross-account takeover the
     // reset route refuses). Proving the affordance can\'t drift open past the enforcement.
     const { app, db } = await appWithAuth();
@@ -579,7 +579,7 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
 //
 // The real Better Auth path always stamps sessionCreatedAt (auth.api.getSession derives it from the
 // session row), so a verified session WITHOUT it can only come from a nonstandard adapter or a
-// corrupted session record. That shape must count as NOT fresh (403 SESSION_NOT_FRESH — the
+// corrupted session record. That shape must count as NOT fresh (403 SESSION_NOT_FRESH, the
 // re-auth dialog recovers by minting a dated session), never as fresh: the field is unverifiable,
 // and treating its absence as "fresh" would let it bypass the step-up gate entirely.
 
@@ -645,7 +645,7 @@ function createMissingTimestampRejectionTest(): void {
     const result = await revokeSessionsReq({ app, accountId: "a1", userId: "undated-target" });
     expect(result.statusCode).toBe(403);
     expect(parseErrorCode(result.json())).toBe("SESSION_NOT_FRESH");
-    // The membership itself is intact — only the freshness gate refused, not authorization.
+    // The membership itself is intact, only the freshness gate refused, not authorization.
     expect(getMemberRole(db, "a1", "undated-target")).toBe("editor");
   });
 }

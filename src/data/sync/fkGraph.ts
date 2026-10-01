@@ -47,7 +47,7 @@ const FK_EDGES = [
 
 // Compile-completeness guard in the same idiom as SCOPED_KEYS/IMPORTED_FIELDS: the accounts parent
 // used to be derived by iterating SCOPED_KEYS, so a NEW scoped table would automatically have been
-// covered. Enumerating the edges gives up that automatism, and this witness buys it back — adding a
+// covered. Enumerating the edges gives up that automatism, and this witness buys it back, adding a
 // scoped table without its `accountId` edge above fails the build instead of silently letting a
 // version-skewed server drop `accounts` while that table's rows still reference it.
 type MissingAccountScopeEdge = Exclude<

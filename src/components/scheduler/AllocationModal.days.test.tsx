@@ -346,7 +346,7 @@ describe("AllocationModal days mode", () => {
   });
 
   it("rejects a work volume that would derive more than 24h/day (no silent clamp)", async () => {
-    // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24 —
+    // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24,
     // silently discarding the entered volume. The modal must reject so preview === saved.
     enableDays();
     const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
@@ -405,7 +405,7 @@ describe("AllocationModal days mode", () => {
     fireEvent.change(screen.getByLabelText("Days of work"), {
       target: { value: "5" },
     });
-    // Empty the "Days over" field — emits NaN — then submit the form directly (Enter from a
+    // Empty the "Days over" field, emits NaN, then submit the form directly (Enter from a
     // single number input), which skips the field's on-blur clamp.
     const daysOver = screen.getByLabelText("Days over");
     fireEvent.change(daysOver, { target: { value: "" } });
@@ -469,7 +469,7 @@ describe("AllocationModal days mode", () => {
   it("does not drift hours when an unevenly-dividing allocation is re-saved unchanged", async () => {
     enableDays();
     const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
-    // 5h/day over 3 working days = 1.875 days of work — a value 2-dp rounding would distort.
+    // 5h/day over 3 working days = 1.875 days of work. A value 2-dp rounding would distort.
     const alloc = requireCreated(
       useStore.getState().addAllocation({
         resourceId: r.id,

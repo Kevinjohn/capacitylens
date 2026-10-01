@@ -10,7 +10,7 @@ import { isAllocationMoveStartBlocked, resolveEffectiveWorkingDays } from "./cre
 // them about two resources at once.
 
 /** One live read of the resource a gesture is asking about, with the company working days its
- * pattern is narrowed by. `resource` is undefined when it is gone — deleted mid-drag. */
+ * pattern is narrowed by. `resource` is undefined when it is gone, deleted mid-drag. */
 function readResource(resourceId: ID) {
   const state = useStore.getState();
   return {
@@ -61,7 +61,7 @@ interface PreviewDropQuery {
 
 /** Would a drop starting on `date` be refused because `resourceId` does not work that day? The one
  * answer the live drag preview and the commit both ask, so the bar cannot draw a placement the
- * release is about to reject. An absent resource is not blocked — its own gate rejects it. */
+ * release is about to reject. An absent resource is not blocked, its own gate rejects it. */
 export function isDropStartBlocked({ resourceId, date, ignoreWeekends }: DropStartQuery) {
   const { resource, accountWorkingDays } = readResource(resourceId);
   if (!resource) return false;

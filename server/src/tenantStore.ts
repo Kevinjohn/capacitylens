@@ -195,14 +195,14 @@ export interface TenantStore {
    * empty). The projected brand cannot be passed to a destructive replacement. An unknown id yields an empty
    * slice (`accounts: []` + empty scoped arrays), never a throw.
    *
-   * `opts.includeTimeOffNote` is required — the caller must decide whether the owner/admin-only
+   * `opts.includeTimeOffNote` is required. The caller must decide whether the owner/admin-only
    * time-off `note` is included. When `false`, `note` is redacted from every time-off row server-side
    * (see {@link readSlice} in db.ts), so it never reaches an Editor/Viewer client.
    *
-   * `opts.includePrivateNames` is REQUIRED — only owners pass true. False substitutes quoted code
+   * `opts.includePrivateNames` is REQUIRED, only owners pass true. False substitutes quoted code
    * names for private client/project real names and strips raw codeName fields server-side.
    *
-   * `opts.includeInactive` is required — the caller must decide whether archived/soft-deleted
+   * `opts.includeInactive` is required. The caller must decide whether archived/soft-deleted
    * resources/clients/projects are included. When `false` (the normal app read), they are dropped
    * server-side (see {@link readSlice}); `true` returns every lifecycle state.
    */
@@ -247,7 +247,7 @@ export function createSqliteTenantStore(
 ): TenantStore {
   // Single query + fromRow, replacing an id-only SELECT followed by one getRow point lookup per
   // id (N+1). Same WHERE predicate as before, so it hits the same idx_allocations_{field} index and
-  // returns rows in the same order the old id-loop preserved — verified empirically, since neither
+  // returns rows in the same order the old id-loop preserved, verified empirically, since neither
   // form carries an ORDER BY of its own.
   const listRelatedAllocations = (field: "resourceId" | "activityId", accountId: string, id: string): Allocation[] =>
     (db.prepare(`SELECT * FROM allocations WHERE accountId = ? AND ${field} = ?`).all(accountId, id) as Row[]).map(

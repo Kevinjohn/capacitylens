@@ -6,26 +6,26 @@ import type { AppOptions } from "../app";
 import { REPLY_ERRORS } from "./replyErrors";
 
 export function installSecurityPlugins(app: FastifyInstance, options: AppOptions, rateLimitMax: number) {
-  // Baseline security headers (@fastify/helmet): ON by default — these are pure
+  // Baseline security headers (@fastify/helmet): ON by default. These are pure
   // hardening with no precondition, for an API server that returns JSON only (the SPA is
   // served by Nginx, not here). Registered EARLY, before route plugins, so its onRequest
   // hook decorates every response. helmet defaults already give us nosniff
   // (X-Content-Type-Options) and X-Frame-Options: DENY (frameguard) for legacy browsers; we
   // add a strict, minimal CSP whose frame-ancestors 'none' is the modern clickjacking guard,
   // and a no-referrer Referrer-Policy. The CSP carries exactly the minimal API directives plus
-  // legacy and current reporting targets — useDefaults:false below keeps
+  // legacy and current reporting targets, useDefaults:false below keeps
   // helmet from merging its defaults (script-src/style-src 'unsafe-inline'/img-src/etc.), since
   // nothing here loads scripts or styles. HSTS is the ONE header
-  // gated — see opts.https: it is only valid over real HTTPS, so it follows the https public URL
+  // gated: see opts.https: it is only valid over real HTTPS, so it follows the https public URL
   // (or CAPACITYLENS_HTTPS) rather than being always on.
   void app.register(helmetPlugin, {
     contentSecurityPolicy: {
-      // useDefaults:false — we emit EXACTLY these directives, nothing merged in. This is a
+      // useDefaults:false: we emit EXACTLY these directives, nothing merged in. This is a
       // JSON-only API (no script/style/img sources are ever needed), so helmet's defaults
       // (script-src/style-src 'unsafe-inline'/img-src/font-src/form-action/upgrade-insecure-
       // requests) would only ship surface this server never uses. Leaving useDefaults at its
-      // true default silently merged all of that — including 'unsafe-inline' and upgrade-
-      // insecure-requests — past the explicit set below; this pins the wire CSP to the minimal set.
+      // true default silently merged all of that, including 'unsafe-inline' and upgrade-
+      // insecure-requests: past the explicit set below; this pins the wire CSP to the minimal set.
       useDefaults: false,
       directives: {
         "default-src": ["'self'"],
@@ -48,7 +48,7 @@ export function installSecurityPlugins(app: FastifyInstance, options: AppOptions
   });
 
   // Rate limiting (flag CAPACITYLENS_RATE_LIMIT): registered ONLY when a positive limit
-  // was configured — off means the plugin doesn't exist in the app at all. Keyed per IP;
+  // was configured, off means the plugin doesn't exist in the app at all. Keyed per IP;
   // behind the Nginx proxy every socket is loopback, so trustProxyHeaders swaps the
   // key to the first X-Forwarded-For hop there (and only there). 429s flow through the
   // setErrorHandler above, so the refusal is the API's usual { error } JSON shape.

@@ -34,7 +34,7 @@ describe("readStoredTheme", () => {
 
   it("falls back to light when an empty string is stored", () => {
     // Distinguishes the real 'light'/'dark'/'system' equality checks from a mutant that
-    // compares against "" instead — an empty string is neither a valid pref nor 'light'.
+    // compares against "" instead. An empty string is neither a valid pref nor 'light'.
     localStorage.setItem("capacitylens/theme", "");
     expect(readStoredTheme()).toBe("light");
   });

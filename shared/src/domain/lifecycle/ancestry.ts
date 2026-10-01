@@ -60,7 +60,7 @@ const LIFECYCLE_ANCESTRY: readonly LifecycleAncestryRelation[] = [
   { child: "timeOff", parent: "resources", field: "resourceId" },
 ];
 
-// Derived constants — the two access patterns the walk and the projection need, computed ONCE from
+// Derived constants, the two access patterns the walk and the projection need, computed ONCE from
 // the single relation list above so a new edge can never leave one of them stale.
 /** Edges grouped by CHILD table: a walk step reads only its own edges (most tables have one or
  * none) instead of re-scanning the whole relation list. */
@@ -74,13 +74,13 @@ const CHILD_RELATIONS: ReadonlyMap<AppDataKey, readonly LifecycleAncestryRelatio
   new Map<AppDataKey, LifecycleAncestryRelation[]>(),
 );
 
-/** The only tables the walk ever LOOKS UP — every other table is a leaf child, so indexing it would
+/** The only tables the walk ever LOOKS UP. Every other table is a leaf child, so indexing it would
  * build a Map nothing reads. */
 export const PARENT_TABLES: readonly AppDataKey[] = [...new Set(LIFECYCLE_ANCESTRY.map((relation) => relation.parent))];
 
 /** Per-projection cache of a walk's verdict, keyed `${table}|${id}`. Sound because the child-vs-parent
  * accountId equality check happens at the EDGE, before recursion: a parent's own verdict is a pure
- * function of (table, id, data) — it never depends on which child reached it. Rows are resolved
+ * function of (table, id, data). It never depends on which child reached it. Rows are resolved
  * through the id-keyed index, so one key can only ever mean one row. */
 export type LifecycleAncestryMemo = Map<string, LifecycleAncestryResult>;
 

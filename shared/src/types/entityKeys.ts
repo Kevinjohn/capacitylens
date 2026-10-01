@@ -82,7 +82,7 @@ type MissingScopedWriteKey = Exclude<ScopedEntityKey, (typeof SCOPED_WRITE_ORDER
 const scopedWriteOrderIsComplete: MissingScopedWriteKey extends never ? true : never = true;
 void scopedWriteOrderIsComplete;
 
-/** Upper bound for hours/day on a resource or allocation — a day can't hold more than
+/** Upper bound for hours/day on a resource or allocation. A day can't hold more than
  * 24h. The single source of truth for the clamp applied on import, at the store write
  * boundary, and after a drag-resize rescale. */
 export const MAX_HOURS_PER_DAY = 24;

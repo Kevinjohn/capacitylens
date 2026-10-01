@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 // Prove the per-account scoped read primitive (readSlice) + the TenantStore seam isolate one
-// account's slice and NEVER leak another tenant's rows — the no-cross-tenant invariant the whole
+// account's slice and NEVER leak another tenant's rows, the no-cross-tenant invariant the whole
 // tenancy seam rests on. Mirrors app.test.ts's openDb(':memory:') + plain-row fixture pattern; seeds
 // directly via insertAll (parent-first) so it tests the db layer, not the routes.
 
@@ -86,7 +86,7 @@ const person = (id: string, accountId: string, disciplineId?: string) => ({
   employmentType: "permanent",
   engagement: "studio" as const,
   workingHoursPerDay: 8,
-  // json column — must round-trip through the codec.
+  // json column, must round-trip through the codec.
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [2],
   color: "#3b82f6",
@@ -117,7 +117,7 @@ const allocation = ({ id, accountId, resourceId, activityId }: AllocationInput) 
   endDate: "2026-01-05",
   hoursPerDay: 8,
   status: "confirmed",
-  // optional note + json ignoreWeekends — exercise the codec round-trip.
+  // optional note + json ignoreWeekends, exercise the codec round-trip.
   note: "hi",
   ignoreWeekends: true,
   ...meta(),
@@ -137,7 +137,7 @@ const timeOff = ({ id, accountId, resourceId, note }: TimeOffInput) => ({
   startDate: "2026-02-01",
   endDate: "2026-02-03",
   type: "holiday" as const,
-  // optional, owner/admin-only note — exercises the field-redaction in readSlice.
+  // optional, owner/admin-only note, exercises the field-redaction in readSlice.
   ...(note !== undefined ? { note } : {}),
   ...meta(),
 });
@@ -198,7 +198,7 @@ function createReadSliceBaseTests(): void {
     for (const key of SCOPED_KEYS) {
       const rows = slice[key];
       expect(rows.length).toBe(1);
-      // ZERO rows from a2 in any scoped table — the no-cross-tenant invariant.
+      // ZERO rows from a2 in any scoped table, the no-cross-tenant invariant.
       expect(rows.every((r) => (r as { accountId: string }).accountId === "a1")).toBe(true);
     }
   });
@@ -600,7 +600,7 @@ function seedLifecycleMix(): Db {
     person("r-active", "a1", "d1"),
     { ...person("r-archived", "a1", "d1"), archivedAt: ARCH }, // archived (not deleted)
   ];
-  // Non-lifecycle children — must survive BOTH flags untouched.
+  // Non-lifecycle children, must survive BOTH flags untouched.
   d.phases = [phase("ph1", "a1", "p-active")];
   d.activities = [activity("act1", "a1", "p-active")];
   d.timeOff = [timeOff({ id: "to1", accountId: "a1", resourceId: "r-active" })];
@@ -622,7 +622,7 @@ function createLifecycleProjectionReadTests(): void {
     expect(slice.resources.map((r) => r.id)).toEqual(["r-active"]);
     expect(slice.clients.map((c) => c.id)).toEqual(["c-active"]);
     expect(slice.projects.map((p) => p.id)).toEqual(["p-active"]);
-    // Non-lifecycle tables are NEVER filtered — pass through unchanged.
+    // Non-lifecycle tables are NEVER filtered, pass through unchanged.
     expect(slice.phases.map((p) => p.id)).toEqual(["ph1"]);
     expect(slice.activities.map((a) => a.id)).toEqual(["act1"]);
     expect(slice.timeOff.map((t) => t.id)).toEqual(["to1"]);

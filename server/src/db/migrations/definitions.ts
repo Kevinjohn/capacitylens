@@ -4,17 +4,17 @@ import { assertSchemaV39, assertSchemaV40 } from "../../schema";
 import { tableHasColumns } from "../introspection";
 import { CLOSURE_TENANT_INTEGRITY_V34_SQL, assertTenantRelationshipIntegrityCurrent } from "../../tenantIntegrity";
 /**
- * FROZEN preset palette for the v13 `snap-legacy-account-colors` migration — a byte-for-byte copy of
+ * FROZEN preset palette for the v13 `snap-legacy-account-colors` migration, a byte-for-byte copy of
  * shared `PRESET_COLORS` as it stood when v13 was authored. A checksummed migration must stay
  * REPRODUCIBLE forever, so it may NOT read the live shared palette: a future edit to
  * `PRESET_COLORS`/`snapToPresetColor` would silently change what this already-checksummed step does
  * to rows on disk while the checksum stayed the same (defineMigration's whole contract is that the
- * checksum covers everything the step does). Freezing the palette HERE — and folding its contents
- * into the v13 definition string so the checksum COVERS the exact palette — makes the migration
+ * checksum covers everything the step does). Freezing the palette HERE, and folding its contents
+ * into the v13 definition string so the checksum COVERS the exact palette, makes the migration
  * self-contained. The write-time guard (`sanitizeWrite`/`useStore`) keeps using the LIVE shared
  * mapper; the two only need to agree for colours written AFTER this migration, and both start from
- * this identical list today. If the shared palette is ever edited, THIS frozen copy must NOT follow —
- * a new colour policy is a NEW migration with its own frozen list and checksum.
+ * this identical list today. If the shared palette is ever edited, THIS frozen copy must NOT follow.
+ * A new colour policy is a NEW migration with its own frozen list and checksum.
  */
 export const V13_FROZEN_PRESET_COLORS: readonly string[] = [
   "#f5bcbc",
@@ -72,7 +72,7 @@ export const V13_FROZEN_PRESET_COLORS: readonly string[] = [
 ];
 
 /** The ONE fixed colour v13 uses for a value that can't be parsed as a 6-digit hex at all (frozen
- * transcription of shared `FALLBACK_PRESET_COLOR` at authoring time — frozen for the same reason). */
+ * transcription of shared `FALLBACK_PRESET_COLOR` at authoring time, frozen for the same reason). */
 export const V13_FALLBACK_PRESET_COLOR = "#5c34d4";
 
 /** v13 migration definition string. The joined frozen-palette hex list and fallback are embedded so
@@ -84,7 +84,7 @@ export const V13_DEFINITION = [
   `fallback:${V13_FALLBACK_PRESET_COLOR}`,
 ].join("\n");
 
-/** V22 predicate for "a built-in Internal client that is currently archived or soft-deleted" —
+/** V22 predicate for "a built-in Internal client that is currently archived or soft-deleted",
  * verbatim, so the repair's row scan and the post-repair assertion can never drift apart. */
 export const V22_INACTIVE_BUILTIN_CLIENT_WHERE_SQL = `builtin = 'true' AND (archivedAt IS NOT NULL OR deletedAt IS NOT NULL)`;
 

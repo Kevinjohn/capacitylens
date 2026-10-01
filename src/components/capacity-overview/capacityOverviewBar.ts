@@ -47,7 +47,7 @@ export function resolveCapacityTone(freeHours: number, availableHours: number): 
 
 /**
  * Pure fraction helper for a person-week bar. It reads the rounded day figures the cell prints, not
- * the precise hours, so a "—" never sits beside a painted sliver and the tone matches the number.
+ * the precise hours, so an em-dash placeholder never sits beside a painted sliver and the tone matches the number.
  */
 export function computeCapacityCellFill({
   availableHours,

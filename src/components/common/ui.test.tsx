@@ -447,7 +447,7 @@ function registerModalControlNoOpTests() {
       </Modal>,
     );
     // A button-driven toggle fires no input/change event, but the guard must still
-    // catch it — otherwise editing working days then pressing Escape loses the change.
+    // catch it, otherwise editing working days then pressing Escape loses the change.
     fireEvent.click(screen.getByRole("button", { name: "Mon" }));
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).not.toHaveBeenCalled();

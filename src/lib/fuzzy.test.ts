@@ -131,7 +131,7 @@ describe("fuzzyFilter — ranking", () => {
   });
 
   it("stable tie-break: within same tier, shorter name first then alpha", () => {
-    // "b" is a tier-0 prefix for both "Barry Allen" and "Bruce Wayne" — same length (11
+    // "b" is a tier-0 prefix for both "Barry Allen" and "Bruce Wayne", same length (11
     // chars including the space), so the tie breaks alphabetically: "Barry" < "Bruce".
     const result = fuzzyFilter(resources, "b", getText);
     expect(result[0]?.id).toBe("r-alex");
@@ -152,7 +152,7 @@ describe("fuzzyFilter — ranking", () => {
 describe("fuzzyFilter — query and tie behavior", () => {
   it("returns items in original (unsorted) order for an empty or whitespace-only query", () => {
     // The early-return path must hand back `items` untouched, not run them through the tier/
-    // length/alpha sort — an empty query short-circuits before scoring even starts.
+    // length/alpha sort, an empty query short-circuits before scoring even starts.
     expect(fuzzyFilter(resources, "", getText)).toEqual(resources);
     expect(fuzzyFilter(resources, "   ", getText)).toEqual(resources);
   });
@@ -175,7 +175,7 @@ describe("fuzzyFilter — query and tie behavior", () => {
   it("does not skip the tier compare on equal tiers (falls through to the length tie-break)", () => {
     const items = [
       { id: "long", name: "alphabet" }, // tier 0, length 8
-      { id: "short", name: "al" }, // tier 0, length 2 — same tier, should sort FIRST (shorter)
+      { id: "short", name: "al" }, // tier 0, length 2, same tier, should sort FIRST (shorter)
     ];
     expect(fuzzyFilter(items, "al", (i) => i.name).map((i) => i.id)).toEqual(["short", "long"]);
   });

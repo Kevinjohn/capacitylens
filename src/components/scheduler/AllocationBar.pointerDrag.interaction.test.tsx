@@ -80,7 +80,7 @@ function registerRejectedReassignmentTest() {
     const p2 = requireCreated(st.addProject({ name: "P2", clientId: c.id, color: "#3" }));
     const t1 = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p1.id }));
     const person = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
-    // A placeholder bound to p2 cannot take a p1 activity — dropping onto it must be rejected.
+    // A placeholder bound to p2 cannot take a p1 activity, dropping onto it must be rejected.
     const slot = requireCreated(
       st.addResource({
         kind: "placeholder",

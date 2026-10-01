@@ -44,7 +44,7 @@ function registerLifecycleArchiveTests(): void {
     const { calls, fetchImpl } = recordingFetch();
     const a = new ServerSyncAdapter("http://x", fetchImpl);
 
-    // 1) create + sync a client (its PUT rides the batch — a lifecycle PUT is allowed).
+    // 1) create + sync a client (its PUT rides the batch. A lifecycle PUT is allowed).
     await a.saveAll(scopedData("a1", { clients: [client("c1")] }));
     // 2) undo: c1 is removed. Its delete must NOT ride the batch (that would 400 the whole request);
     //    it converges by archiving through the dedicated archive route instead.
@@ -52,7 +52,7 @@ function registerLifecycleArchiveTests(): void {
     await a.saveAll(scopedData("a1", {}));
     const urls = calls.map((c) => c.url);
     expect(urls).toContain("http://x/api/clients/c1/archive");
-    // the sync layer NEVER hits /delete — soft-delete is not emitted by background sync.
+    // the sync layer NEVER hits /delete, soft-delete is not emitted by background sync.
     expect(urls.some((u) => u.endsWith("/clients/c1/delete"))).toBe(false);
     // the archive carries the owning account in its body.
     const archive = required(calls.find((call) => call.url.endsWith("/clients/c1/archive")));
@@ -64,7 +64,7 @@ function registerLifecycleArchiveTests(): void {
       expect(opsOf(bc).some((o) => o.method === "DELETE" && o.table === "clients")).toBe(false);
     }
 
-    // 3) a later unrelated edit still syncs — the poison is gone.
+    // 3) a later unrelated edit still syncs. The poison is gone.
     calls.length = 0;
     await a.saveAll(scopedData("a1", { clients: [client("c2")] }));
     const put = required(calls.find((call) => call.url.endsWith("/api/batch")));
@@ -248,7 +248,7 @@ function registerLifecycleBatchOrderingTests(): void {
     // Undo the client (lifecycle delete) AND edit the discipline; the archive endpoint is down.
     calls.length = 0;
     await expect(a.saveAll(scopedData("a1", { disciplines: [discipline(TS2)] }))).rejects.toThrow(/Lifecycle archive/);
-    // The unrelated discipline edit STILL committed — the batch is independent of the stuck archive.
+    // The unrelated discipline edit STILL committed. The batch is independent of the stuck archive.
     expect(opsOf(required(calls.find((call) => call.url.endsWith("/api/batch"))))).toEqual([
       expect.objectContaining({
         method: "PUT",

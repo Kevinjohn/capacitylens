@@ -177,7 +177,7 @@ describe("getOwned", () => {
 const registerUnchangedParentIdOnUpdatePart1 = () => {
   it("passes an UNCHANGED clientId even when the client is absent from data (archived parent)", () => {
     const existing = project("p1", A1, "c-archived");
-    // No clients at all — the archived parent was stripped from the slice.
+    // No clients at all. The archived parent was stripped from the slice.
     expect(() =>
       assertScopedRefs(base(), A1, "projects", { name: "Renamed", clientId: "c-archived" }, existing),
     ).not.toThrow();
@@ -370,7 +370,7 @@ const registerAssertScopedRefsPart3 = () => {
       projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
       phases: [phase("ph1", A1, "p1")], // a phase of p1
     };
-    // Activity is bound to p2 but references p1's phase — double-bound to two projects.
+    // Activity is bound to p2 but references p1's phase, double-bound to two projects.
     expect(() =>
       assertScopedRefs(data, A1, "activities", {
         projectId: "p2",
@@ -1426,7 +1426,7 @@ const registerRemapAndValidateImportPart7 = () => {
 const registerRemapAndValidateImportPart8 = () => {
   it("coerces an external resource’s allocation load to 0 and drops external time-off", () => {
     // A hand-edited file: an external resource carries a non-zero allocation load (impossible via the
-    // form) and a time-off entry (meaningless — externals have no capacity). Import keeps the booking
+    // form) and a time-off entry (meaningless, externals have no capacity). Import keeps the booking
     // but zeroes its load, and drops the time-off entirely (the same rule the write boundary rejects).
     const handEdited: AppData = {
       ...emptyAppData(),
@@ -1449,7 +1449,7 @@ const registerRemapAndValidateImportPart8 = () => {
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.allocations).toHaveLength(1);
-    expect(data.allocations[0]?.hoursPerDay).toBe(0); // load coerced — capacity-free resource
+    expect(data.allocations[0]?.hoursPerDay).toBe(0); // load coerced, capacity-free resource
     expect(data.timeOff).toHaveLength(0); // external time-off dropped
   });
 
@@ -1568,7 +1568,7 @@ const registerRemapAndValidateImportPart10 = () => {
 
   it("keeps an allocation to an unbound placeholder when its activity is general", () => {
     // The placeholder's bound project is absent, so it unbinds. An allocation of it to
-    // a (general) activity whose own project is also absent survives — a general activity is
+    // a (general) activity whose own project is also absent survives. A general activity is
     // allocatable to anyone, placeholders included.
     const handEdited: AppData = {
       ...emptyAppData(),
@@ -1622,7 +1622,7 @@ const registerRemapAndValidateImportPart12 = () => {
   it("does not count an auto-added built-in Internal that the file already carries (no N+1 over-report)", () => {
     // A pre-v6 FULL export gets a builtin Internal synthesised by migrate BEFORE this import runs, so
     // the file reaching here already carries one. It must be KEPT (every account needs exactly one) but
-    // NOT counted — `imported` reflects only the file's genuine non-builtin records.
+    // NOT counted, `imported` reflects only the file's genuine non-builtin records.
     const withBuiltin: AppData = {
       ...emptyAppData(),
       clients: [
@@ -1637,7 +1637,7 @@ const registerRemapAndValidateImportPart12 = () => {
       projects: [project("src-p", "src", "src-c")],
     };
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, withBuiltin, TS);
-    expect(imported).toBe(2); // the real (non-builtin) client + project — NOT the builtin (would be 3)
+    expect(imported).toBe(2); // the real (non-builtin) client + project, NOT the builtin (would be 3)
     expect(skipped).toBe(0);
     // Exactly one builtin lands for A1 (the kept imported one), and it is NOT in the genuine count;
     // the one real non-builtin client (src-c) lands alongside it.
@@ -1740,7 +1740,7 @@ const registerRemapAndValidateImportPart15 = () => {
     // If a new scoped entity is added to SCOPED_KEYS but the import repair block inside
     // remapAndValidateImport is not updated, the new table's rows would be brought in
     // without referential repair. This test ensures the import survives and preserves
-    // rows for every scoped table — a missing repair step silently drops or corrupts rows
+    // rows for every scoped table, a missing repair step silently drops or corrupts rows
     // in the affected table, causing this test to fail.
     const incoming: AppData = {
       ...emptyAppData(),
@@ -1763,7 +1763,7 @@ const registerRemapAndValidateImportPart15 = () => {
     };
     const { data, imported } = remapAndValidateImport(base(), A1, incoming, TS);
     // Every SCOPED_KEY must be present in the output and non-empty. `clients` carries TWO rows: the
-    // imported client plus the guaranteed built-in Internal (synthesised — the file had none).
+    // imported client plus the guaranteed built-in Internal (synthesised, the file had none).
     for (const key of SCOPED_KEYS) {
       const expectedLen = key === "clients" ? 2 : 1;
       expect(data[key], `key "${key}" must be non-empty after import`).toHaveLength(expectedLen);
@@ -1775,7 +1775,7 @@ const registerRemapAndValidateImportPart15 = () => {
 
 const registerRemapAndValidateImportPart16 = () => {
   it("assigns a FRESH id to a record that arrives WITHOUT one (never leaves id undefined)", () => {
-    // A hand-edited file can carry a record missing its id. It must still get a fresh newId() — not
+    // A hand-edited file can carry a record missing its id. It must still get a fresh newId(), not
     // land with an undefined primary key (which SQLite's NOT NULL would reject).
     const noId = {
       name: "NoId",
@@ -1791,7 +1791,7 @@ const registerRemapAndValidateImportPart16 = () => {
   });
 
   it("KEEPS a resource’s valid discipline and a placeholder’s valid project (does not over-unbind)", () => {
-    // The optional-FK repair must only unbind a DANGLING ref — a surviving discipline/project must be
+    // The optional-FK repair must only unbind a DANGLING ref. A surviving discipline/project must be
     // retained (and remapped), not nuked to undefined.
     const incoming: AppData = {
       ...emptyAppData(),
@@ -1828,7 +1828,7 @@ const registerRemapAndValidateImportPart17 = () => {
   });
 
   it("KEEPS a project activity’s valid phase and its kind (no over-unbind, no re-classify)", () => {
-    // A project activity whose phase belongs to its OWN project is coherent — the phase must stay, the
+    // A project activity whose phase belongs to its OWN project is coherent. The phase must stay, the
     // kind must remain 'project', and the projectId must be retained.
     const incoming: AppData = {
       ...emptyAppData(),
@@ -1859,7 +1859,7 @@ const registerRemapAndValidateImportPart18 = () => {
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const t = data.activities.find((x) => x.accountId === A1);
     expect(t?.kind).toBe("internal"); // kind preserved
-    expect(t?.projectId).toBeUndefined(); // project stripped — a project-less kind carries neither
+    expect(t?.projectId).toBeUndefined(); // project stripped, a project-less kind carries neither
     expect(t?.phaseId).toBeUndefined();
   });
 
@@ -1919,7 +1919,7 @@ const registerRemapAndValidateImportPart20 = () => {
       projects: [project("p", "src", "c")],
       activities: [activity({ id: "t", accountId: "src", projectId: "p" })],
       resources: [person("r", "src")],
-      // single-digit month/day — would fail the YYYY-MM-DD range check if not normalized.
+      // single-digit month/day, would fail the YYYY-MM-DD range check if not normalized.
       allocations: [
         allocation({
           id: "al",

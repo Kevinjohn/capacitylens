@@ -28,7 +28,7 @@ export function buildGesturePreviewDates({
   sourceDays,
   isReassignment,
 }: BuildGesturePreviewDatesInput): GesturePreviewResult {
-  // Snap ONCE per frame, against the lane the pointer is actually over — the drop-target gate
+  // Snap ONCE per frame, against the lane the pointer is actually over, the drop-target gate
   // below and the bar's own preview pixels then read the same range instead of each deriving it.
   // A zero-column resize moves nothing, so it keeps the view-model's placement (dates: null).
   // An empty memoised week ([]) is the collapsed "none" state: the commit below refuses the
@@ -63,7 +63,7 @@ export function buildGesturePreviewGeometry(
   let translateY = 0;
   if (preview) {
     if (preview.mode === "move") translateY = preview.deltaY;
-    // The snapped range is already on the preview (see onPreview) — all that is left per frame is
+    // The snapped range is already on the preview (see onPreview), all that is left per frame is
     // running it through the SAME ColumnGeometry the view-model placed bar.x / bar.width with, so
     // the preview stays pixel-identical to the committed bar even across a narrowed weekend.
     // Any gesture that carries a settled range draws it, zero-column reassignments included: a

@@ -7,7 +7,7 @@ import { signUp } from "./testHelpers/passwordAuth";
 
 // "Retire the open shared dataset": in the HOSTED (auth-on) posture
 // there must be ZERO unauthenticated /api access. The requireUser preHandler (app.ts) is the single
-// chokepoint — every /api/* route EXCEPT /api/health + /api/auth/* must 401 a no-session request,
+// chokepoint: every /api/* route EXCEPT /api/health + /api/auth/* must 401 a no-session request,
 // and the 401 body must be the plain no-data error (the open shared dataset never serialises). This
 // suite is the consolidated 401-matrix proof; it makes NO-session requests (it never attaches a
 // session cookie). OFF stays the trusted-local self-hoster default (asserted at the end). This suite
@@ -47,14 +47,14 @@ async function createAuthenticatedApp(): Promise<{ app: FastifyInstance; db: Db 
   };
 }
 
-/** Build an OFF (trusted-local) app — no authMode ⇒ off; allowReset on to mirror
+/** Build an OFF (trusted-local) app. No authMode ⇒ off; allowReset on to mirror
  * createAuthenticatedApp. */
 function createTrustedLocalApp(): FastifyInstance {
   return createApp(openDb(":memory:"), { allowReset: true });
 }
 
 // Every /api/* route EXCEPT /api/health + /api/auth/* MUST 401 unauthenticated in the hosted posture.
-// This table IS the contract: a future /api route is one line to add here — and a missing
+// This table IS the contract: a future /api route is one line to add here, and a missing
 // line is a visible gap. Each entry is a NO-session request (no cookie attached). Per the spec, the
 // route families covered are: the read endpoints; the generic per-entity CRUD; batch; import; orgs;
 // the invite flow; the member/invite management routes; and the test-only reset.
@@ -95,7 +95,7 @@ const BLOCKED_ROUTES: ReadonlyArray<{ name: string; opts: InjectOptions }> = [
   { name: "GET /api/accounts/:id/invites", opts: { method: "GET", url: "/api/accounts/a1/invites" } },
   { name: "DELETE /api/accounts/:id/invites/:id", opts: { method: "DELETE", url: "/api/accounts/a1/invites/i1" } },
   // allowReset is TRUE on this app, so a 401 here proves requireUser fires BEFORE the allowReset
-  // check — an unauthenticated reset can't wipe data in the hosted posture.
+  // check: an unauthenticated reset can't wipe data in the hosted posture.
   { name: "POST /api/test/reset", opts: { method: "POST", url: "/api/test/reset", payload: { seed: true } } },
 ];
 
@@ -104,8 +104,8 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
     const { app } = await createAuthenticatedApp();
     const res = await readResponse(app, opts);
     expect(res.statusCode).toBe(401);
-    // The retire proof: the blocked body is the plain requireUser 401 — the open shared dataset is
-    // never served. (requireUser's 401 is exactly `{ error: 'Sign in to continue.' }` — note it has
+    // The retire proof: the blocked body is the plain requireUser 401. The open shared dataset is
+    // never served. (requireUser's 401 is exactly `{ error: 'Sign in to continue.' }`, note it has
     // NO `authMode` key, which distinguishes it from the /api/auth/me 401 handled by the auth layer.)
     expect(res.json()).toEqual({ error: "Sign in to continue." });
   });
@@ -160,7 +160,7 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
 
   it("GET /api/auth/me is handled by the auth layer, NOT requireUser-blocked (401 carries authMode)", async () => {
     // /api/auth/* is exempt from requireUser; the auth layer answers it. A no-session /api/auth/me
-    // is reachable and 401s with the login-screen shape `{ authMode, error }` — the `authMode` key
+    // is reachable and 401s with the login-screen shape `{ authMode, error }`, the `authMode` key
     // (absent from requireUser's 401) is the tell that the auth layer, not requireUser, answered.
     const { app } = await createAuthenticatedApp();
     const res = await readResponse(app, { method: "GET", url: "/api/auth/me" });
@@ -176,7 +176,7 @@ describe("P1.17 — OFF stays the trusted-local self-hoster default (auth-off-by
   // 401'd (requireUser attaches DEMO_USER and continues). This pins OFF as unchanged.
   it("representative unauthenticated reads are NOT 401 in OFF (DEMO_USER, open dataset served)", async () => {
     const app = createTrustedLocalApp();
-    // No cookie, no session — yet OFF serves these (the open shared dataset is the default deploy).
+    // No cookie, no session, yet OFF serves these (the open shared dataset is the default deploy).
     expect((await readResponse(app, { method: "GET", url: "/api/accounts" })).statusCode).not.toBe(401);
     expect((await readResponse(app, { method: "GET", url: "/api/state?accountId=a1" })).statusCode).not.toBe(401);
     expect((await readResponse(app, { method: "GET", url: "/api/state" })).statusCode).toBe(200); // no-arg whole read retained in OFF

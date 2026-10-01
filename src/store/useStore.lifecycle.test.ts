@@ -24,7 +24,7 @@ beforeEach(() => {
   s().clearFilters();
 });
 
-// A correctly-typed person draft (Weekday[] working days) — the original name is the subject of the
+// A correctly-typed person draft (Weekday[] working days). The original name is the subject of the
 // soft-delete PII-scrub assertion below.
 const personDraft = makeResourceDraft({ name: "Ada Lovelace" });
 
@@ -41,7 +41,7 @@ describe("archiveEntity", () => {
     expect(row.archivedAt).toBeTruthy();
     expect(lifecycleStatus(row)).toBe("archived");
     // updatedAt is re-stamped to a fresh ISO timestamp. Deterministic: assert the SHAPE (a valid ISO
-    // instant), not time progression — a same-millisecond run made the old `>=` check tautological +
+    // instant), not time progression, a same-millisecond run made the old `>=` check tautological +
     // a real-timer sleep made it flaky. archivedAt being set already proves the archive landed.
     expect(typeof row.updatedAt).toBe("string");
     expect(new Date(row.updatedAt).toISOString()).toBe(row.updatedAt); // round-trips → a valid ISO instant
@@ -350,7 +350,7 @@ describe("purgeEntity", () => {
 
 describe("built-in Internal client is protected from every lifecycle action", () => {
   // resetStoreWithAccount seeds an account with NO clients, so mint the builtin via addAccount (the
-  // privileged path) — matching internalClient.test.ts.
+  // privileged path), matching internalClient.test.ts.
   const seedWithInternal = () => {
     s().replaceAll({ ...s().data, accounts: [], clients: [] });
     const a = s().addAccount({ name: "Ferris Co", color: "#6366f1" });
@@ -379,7 +379,7 @@ describe("viewer guard no-ops every lifecycle action (defense-in-depth)", () => 
 
     s().setActiveRole("viewer");
     s().unarchiveEntity("resources", r.id);
-    expect(s().data.resources[0]?.archivedAt).toBe(archivedAt); // unchanged — still archived
+    expect(s().data.resources[0]?.archivedAt).toBe(archivedAt); // unchanged: still archived
 
     s().archiveEntity("resources", r.id); // already archived; a viewer must no-op BEFORE the throw
     expect(s().data.resources[0]?.archivedAt).toBe(archivedAt);

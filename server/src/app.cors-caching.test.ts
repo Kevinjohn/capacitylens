@@ -14,7 +14,7 @@ function createCorsOriginConfigurationTests() {
       headers: { origin: "http://localhost:5173" },
     });
     expect(local.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
-    // …but an arbitrary site gets NO ACAO header (the browser blocks it) — the factory
+    // …but an arbitrary site gets NO ACAO header (the browser blocks it), the factory
     // never opens to '*' unless explicitly told to.
     const evil = await call(app, {
       method: "GET",
@@ -100,7 +100,7 @@ function createCorsCredentialAndRequestGateTests() {
 
   it("answers a write preflight with 204 + CORS headers (no OPTIONS route exists)", async () => {
     // Regression guard: every cross-origin write (JSON POST/PUT/PATCH/DELETE) is
-    // preflighted by the browser, and OPTIONS matches no route — the 204 comes from the
+    // preflighted by the browser, and OPTIONS matches no route. The 204 comes from the
     // ROOT-level onRequest hook on the not-found path. When the hook briefly moved into
     // the routes child plugin, preflights became bare 404s without CORS headers and the
     // db-backed e2e app could no longer save anything.
@@ -244,7 +244,7 @@ function createCorsTlsTerminationTests() {
     // FIX: with no Fetch Metadata and forwarded-proto NOT trusted, the standard TLS-termination
     // deploy has the browser-set Origin claim https:// while req.protocol sees http (cleartext hop
     // behind the proxy). When the Origin's host:port matches our Host and the ONLY difference is
-    // that scheme upgrade, it is same-origin — the browser sets the Origin host, so it can't be
+    // that scheme upgrade, it is same-origin, the browser sets the Origin host, so it can't be
     // forged from another site. No allow-list entry and no trustProxyHeaders here.
     const app = createApp(openDb(":memory:"), {
       allowReset: true,
@@ -283,7 +283,7 @@ function createCorsMalformedHostAndHeaderTests() {
   it("returns a clean 403 (not a 500) when a broken proxy sends a malformed Host header", async () => {
     // REGRESSION: the same-origin check reconstructs `${protocol}://${host}` from the Host header, an
     // untrusted, proxy-influenced string. A broken proxy (or a forged request) can send a Host that
-    // `new URL` rejects — here 'exa mple.com' (embedded space). That reconstruct MUST be guarded: an
+    // `new URL` rejects, here 'exa mple.com' (embedded space). That reconstruct MUST be guarded: an
     // unparseable Host is "cannot prove same-origin" → fail closed → clean cross-site 403. A refactor
     // once moved the reconstruct out of the try/catch, turning this into an uncaught TypeError → 500.
     const app = createApp(openDb(":memory:"), {

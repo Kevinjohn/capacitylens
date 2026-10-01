@@ -26,7 +26,7 @@ export function renderWithTooltip(ui: ReactNode, options?: Omit<RenderOptions, "
   return rtlRender(ui, { wrapper: TooltipProvider, ...options });
 }
 
-/** Uniform geometry over June at 48px/day (minimise off), origin 2026-06-01 — the standard
+/** Uniform geometry over June at 48px/day (minimise off), origin 2026-06-01, the standard
  * standalone-bar geometry: no drag crosses columns, so the resolver only needs to exist for the
  * prop contract. */
 export const GEOM = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 48, {
@@ -50,7 +50,7 @@ export async function chooseOption(
 }
 
 /** A minimal scheduler dataset: one discipline ("Design"), one person ("Bruce") in it, one client
- * ("Ferris"), one project ("Lightning"), one activity ("Wireframes") and one confirmed allocation —
+ * ("Ferris"), one project ("Lightning"), one activity ("Wireframes") and one confirmed allocation,
  * all filed under {@link DEFAULT_ACCOUNT_ID}. Override any AppData slice per test (e.g. add an
  * external resource, or replace `allocations`). */
 export function schedulerDataset(overrides: Partial<AppData> = {}): AppData {

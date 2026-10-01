@@ -30,7 +30,7 @@ describe("SchedulerToolbar weeks dropdown", () => {
     expect(trigger).toHaveAccessibleName("Weeks visible, 4 weeks");
 
     fireEvent.keyDown(trigger, { key: "ArrowDown" });
-    // Singular for 1, plural beyond it — and no leftover "4w" segment buttons.
+    // Singular for 1, plural beyond it, and no leftover "4w" segment buttons.
     expect(screen.getByRole("option", { name: "1 week" })).toBeInTheDocument();
     for (const weeks of [2, 4, 6, 8]) {
       expect(screen.getByRole("option", { name: `${weeks} weeks` })).toBeInTheDocument();
@@ -65,7 +65,7 @@ describe("SchedulerToolbar date navigation", () => {
     expect(panDays).toHaveBeenCalledWith(days);
   });
 
-  // The picker is hidden, not deleted — JumpToDateInput.test.tsx covers the component itself.
+  // The picker is hidden, not deleted, JumpToDateInput.test.tsx covers the component itself.
   it("does not render the jump-to-date picker", () => {
     render(<SchedulerToolbar />);
 
@@ -511,7 +511,7 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
     showFilters();
 
     const box = screen.getByLabelText("Search people") as HTMLInputElement;
-    // Type a new term — schedules a 180ms timer to setFilters({ search: 'bob' }); filters.search
+    // Type a new term, schedules a 180ms timer to setFilters({ search: 'bob' }); filters.search
     // is still 'alice' (the debounce hasn't fired).
     fireEvent.change(box, { target: { value: "bob" } });
     // Simulate the external reset an account switch performs (filters → emptyFilters).
@@ -528,7 +528,7 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
     const box = screen.getByLabelText("Search people") as HTMLInputElement;
 
     // Pending term: the store's search is '' and STAYS '' through the replacement below,
-    // so any logic keyed on the search VALUE cannot see this write — the race the palette
+    // so any logic keyed on the search VALUE cannot see this write, the race the palette
     // e2e spec kept tripping (the timer resurrected the stale term over the replacement).
     fireEvent.change(box, { target: { value: "zzz-nobody-matches-zzz" } });
     // What CommandPalette's project selection does: REPLACE the filters wholesale.

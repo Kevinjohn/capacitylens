@@ -53,7 +53,7 @@ export interface OwnershipTransferActorStanding {
  *
  * Role tier alone can never answer this. The nominated Admin's own consent (accept, withdraw,
  * decline) is performed at Admin tier, so a tier-only rule would let EVERY Admin consent on the
- * nominee's behalf — which is precisely the consent the ceremony exists to obtain. Participant
+ * nominee's behalf, which is precisely the consent the ceremony exists to obtain. Participant
  * identity is therefore part of the predicate, not a separate courtesy check.
  *
  * The two sides are deliberately asymmetric:
@@ -87,7 +87,7 @@ export function canActOnOwnershipTransfer(
   }
 }
 
-/** May this caller see this request at all? Participants only — a transfer in progress, and who it
+/** May this caller see this request at all? Participants only, a transfer in progress, and who it
  * names, is not ordinary member-management information, so other Admins and every lower role read
  * nothing rather than a redacted something. */
 export function canReadOwnershipTransfer({

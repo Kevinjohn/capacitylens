@@ -28,7 +28,7 @@ describe("resolveWeekStartSnapTarget — floor to the current week start (unifor
     const friX = geom.xForDateInGeom("2026-06-05"); // 192, > half of the 336px week
     const target = resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: friX, weekStartsOn: 1 });
     expect(target).toBe(mon1); // the CURRENT Monday, not the nearest
-    expect(target).toBeLessThan(mon2); // and strictly behind next Monday — proves "floor, not nearest"
+    expect(target).toBeLessThan(mon2); // and strictly behind next Monday, proves "floor, not nearest"
   });
 
   it("returns null when already exactly on a Monday (convergence — caller no-ops)", () => {
@@ -74,7 +74,7 @@ describe("resolveWeekStartSnapTarget — convergence boundary is <=, not <", () 
   });
 
   it("a distance EXACTLY equal to a custom epsilon still counts as converged (returns null)", () => {
-    // scrollLeft sits exactly `epsilon` px from the target (mon1) — the doc'd "within epsilon"
+    // scrollLeft sits exactly `epsilon` px from the target (mon1), the doc'd "within epsilon"
     // band is inclusive of the boundary itself, not just strictly inside it.
     expect(
       resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: mon1 + 2, weekStartsOn: 1, epsilon: 2 }),
@@ -86,7 +86,7 @@ describe("resolveWeekStartSnapTarget — degenerate inputs stay finite", () => {
   it("an out-of-range (negative / huge) scrollLeft falls back via days[0]/last day, never NaN", () => {
     // indexAt clamps px<=0 → 0 and px>=totalWidth → n-1, so the left day is always in-window.
     // A hugely-negative scrollLeft clamps to days[0] (Monday 06-01, offset 0); target 0 is far from
-    // -9999 so it's a real snap (not null) — and finite.
+    // -9999 so it's a real snap (not null), and finite.
     const lo = resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: -9999, weekStartsOn: 1 });
     expect(lo).toBe(0);
     expect(Number.isFinite(lo as number)).toBe(true);
@@ -119,7 +119,7 @@ describe("resolveWeekStartSnapTarget — degenerate inputs stay finite", () => {
 // Monday boundary (`mondayOffset - 0.4`) must NOT resolve to the previous (weekend) day and jump the
 // snap back a whole week. Run BOTH geometries: the minimised-weekend case is where it actually bites
 // (the narrow Sunday sits immediately before the Monday, so a strict floor lands on it and
-// startOfWeekISO of a Sunday is the PRIOR week's Monday — a full-week jump). These cases depend on
+// startOfWeekISO of a Sunday is the PRIOR week's Monday, a full-week jump). These cases depend on
 // the rounding owned by indexAtScroll, reached through resolveLeftEdgeDate.
 describe.each([
   ["minimise OFF", OFF],
@@ -127,7 +127,7 @@ describe.each([
 ] as const)("resolveWeekStartSnapTarget — sub-pixel left edge near a Monday boundary (%s)", (_label, opts) => {
   const geom = buildColumnGeometry(DAYS, DAY_W, opts);
   const mondayOffset = geom.xForDateInGeom("2026-06-08"); // week-2 Monday, an integer offset
-  const prevMonday = geom.xForDateInGeom("2026-06-01"); // week-1 Monday — the WRONG, week-back target
+  const prevMonday = geom.xForDateInGeom("2026-06-01"); // week-1 Monday, the WRONG, week-back target
 
   it("a position a sub-pixel BELOW the Monday boundary stays on that Monday (no week-back jump)", () => {
     const target = resolveWeekStartSnapTarget({
@@ -166,7 +166,7 @@ describe("resolveWeekStartSnapTarget — minimised-weekend geometry", () => {
     const mondayOfWeek2 = geom.xForDateInGeom("2026-06-08");
     const target = resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: wedX, weekStartsOn: 1 });
     expect(target).toBe(mondayOfWeek2);
-    // Offsets are integer under the rounded weekend width — the snap target must be too (a
+    // Offsets are integer under the rounded weekend width. The snap target must be too (a
     // fractional target was the bug that drifted the left-edge date a day on every zoom flip).
     expect(Number.isInteger(target as number)).toBe(true);
     // And it must agree with re-deriving the Monday through the date helpers (round-trip).

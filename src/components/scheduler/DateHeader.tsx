@@ -16,7 +16,7 @@ interface Span {
   key: string;
   label: string;
   days: number;
-  /** Index of the span's first day in `days` — lets the width come from `geom.spanWidth`
+  /** Index of the span's first day in `days`, lets the width come from `geom.spanWidth`
    * (so a span containing narrowed weekend columns is sized from their real widths). */
   start: number;
 }
@@ -177,7 +177,7 @@ export const DateHeader = memo(function DateHeader({
   const totalWidth = geometry.totalWidth;
   // Width of a span [start, start+days-1] from the real per-column widths.
   const resolveSpanWidth = (span: Span) => geometry.spanWidth(span.start, span.start + span.days - 1);
-  // Month/week groupings depend on `days` — recompute on the day set changing, not on a pure
+  // Month/week groupings depend on `days`, recompute on the day set changing, not on a pure
   // dayWidth (zoom) change that only re-widths the same blocks. `formatMonthYear` reads "MMM yyyy"
   // at every style, so the month spans are style-independent; the week labels are not.
   // Subscribing here is also what wakes this component at all: it is `memo()`d, and its props are
@@ -200,7 +200,7 @@ export const DateHeader = memo(function DateHeader({
       className="relative flex h-full shrink-0 flex-col"
       style={{ width: totalWidth }}
     >
-      {/* Month tier — padding-driven height (not a fixed px) so it scales with font size.
+      {/* Month tier, padding-driven height (not a fixed px) so it scales with font size.
           Wide 1/2-week views position an absolute wrapper over the intersection of the month
           and visible timeline. useSchedulerViewport publishes scrollLeft as a CSS variable,
           letting the browser track that wrapper without a React render per scroll pixel.
@@ -209,8 +209,8 @@ export const DateHeader = memo(function DateHeader({
       <DateMonthTier months={months} geometry={geometry} alignVisibleMonths={alignVisibleMonths} />
 
       {/* Week / day tier. flex-auto (basis auto, not flex-1's basis 0) so the cells'
-          real height counts toward the header — otherwise the date + weekday lines
-          overflow the row and get clipped — while still filling any slack height. */}
+          real height counts toward the header, otherwise the date + weekday lines
+          overflow the row and get clipped, while still filling any slack height. */}
       {showDays ? (
         <DateDayTier days={days} geometry={geometry} weekStartsOn={weekStartsOn} today={today} />
       ) : (

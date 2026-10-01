@@ -65,7 +65,7 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
   };
 }
 
-/** A complete person Resource — the stored counterpart of {@link makeResourceDraft}, for specs that
+/** A complete person Resource, the stored counterpart of {@link makeResourceDraft}, for specs that
  * build AppData directly instead of going through `addResource`. Override any field per test. */
 export function makeResource(overrides: Partial<Resource> = {}): Resource {
   return {
@@ -173,7 +173,7 @@ export function makeClosure(overrides: Partial<Closure> = {}): Closure {
   };
 }
 
-/** A positioned {@link BarLayout} — the scheduler model's per-allocation render bar. Wraps
+/** A positioned {@link BarLayout}, the scheduler model's per-allocation render bar. Wraps
  * {@link makeAllocation} for its nested `allocation`; override any field (including nested
  * `allocation` fields via a full replacement) per test. */
 export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
@@ -194,7 +194,7 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
 export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void {
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: accountId })] }));
   useStore.getState().setActiveAccount(accountId);
-  // replaceAll swaps only `data` — the singleton store's transient `notice` survives, so a prior
+  // replaceAll swaps only `data`, the singleton store's transient `notice` survives, so a prior
   // test's toast would leak into the next. Clear it here so every spec starts notice-free and
   // tests that assert on `notice` are order-independent (no per-test baseline needed).
   useStore.getState().setNotice(null);
@@ -207,7 +207,7 @@ export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void 
   useStore.getState().setActiveRole(null);
 }
 
-/** Toggle the per-account "show placeholders" view pref in unit tests — mirrors the app's Settings
+/** Toggle the per-account "show placeholders" view pref in unit tests, mirrors the app's Settings
  * toggle (updateAccount), replacing the retired device-global setter. Defaults to the active
  * default test account. */
 type SetPlaceholdersEnabledOptions = { on: boolean; accountId?: ID };
@@ -222,7 +222,7 @@ export function setExternalEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetEx
   useStore.getState().updateAccount(accountId, { externalEnabled: on });
 }
 
-/** A JSON `Response` for a stubbed `fetch`/client call — the shape the API clients' body decoders
+/** A JSON `Response` for a stubbed `fetch`/client call, the shape the API clients' body decoders
  * expect (a real `Response`, `Content-Type: application/json`, a JSON-encoded body).
  *
  * Call it PER INVOCATION, not once into a shared const: a `Response` body is a single-use stream, so
@@ -231,7 +231,7 @@ export function setExternalEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetEx
  *
  *  @param body   - anything `JSON.stringify` accepts; becomes the response body verbatim.
  *  @param status - defaults to 200. Pass a 4xx/5xx to exercise a client's non-ok branch (note the
- * `Response` constructor rejects 204 with a body — use a bare `new Response(null,
+ * `Response` constructor rejects 204 with a body, use a bare `new Response(null,
  * { status: 204 })` for those). */
 export function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

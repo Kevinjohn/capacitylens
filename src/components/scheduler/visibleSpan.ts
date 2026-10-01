@@ -49,8 +49,8 @@ export function buildVisibleSpanLabels(start: ISODate, end: ISODate): VisibleSpa
 }
 
 /** The window the DISPLAYED utilisation % runs over: `zoom * 7` inclusive calendar days anchored at
- * the scroll left-edge day. The inclusive end is `+ (zoom*7 - 1)` — a 1-week view is [L, L+6], not
- * 8 days — and is CLAMPED to the last timeline day so the window never reads past `days`.
+ * the scroll left-edge day. The inclusive end is `+ (zoom*7 - 1)` (a 1-week view is [L, L+6], not
+ * 8 days) and is CLAMPED to the last timeline day so the window never reads past `days`.
  *
  * Before the first scroll settles (`leftEdgeIndex === -1`) it anchors at `focusDate` (today by
  * default), NOT days[0]: that is the PAST_BUFFER_DAYS origin BEHIND today, which would open the

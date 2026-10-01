@@ -127,7 +127,7 @@ describe("ProjectList", () => {
 
   // The per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
   // the inline archive section). DEMO mode here → archiveEntity: the project gets `archivedAt`
-  // set (its activities are RETAINED — reversible) and vanishes from this active-only list.
+  // set (its activities are RETAINED, reversible) and vanishes from this active-only list.
   it("shows the Archive ConfirmDialog when the archive button is clicked", async () => {
     const user = userEvent.setup();
     const client = requireCreated(useStore.getState().addClient({ name: "Ferris Corp", color: "#111" }));

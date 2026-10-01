@@ -57,7 +57,7 @@ const CHANGED_FIELDS = ["state", "revision"] as const;
 
 /** Commit the expiry of a request whose deadline passed with nobody acting, and say so in the audit
  * trail: the mutation's own event reports a nomination being initiated, so without this one a
- * ceremony could end with no record of having ended — unlike every other expiry. */
+ * ceremony could end with no record of having ended, unlike every other expiry. */
 function commitLapsedRequest(
   context: TransferContext,
   { input, live, now }: { input: InitiateInput; live: OwnershipTransferRequest; now: string },
@@ -96,7 +96,7 @@ function replaceLiveRequest(context: TransferContext, input: InitiateInput, now:
   const named = live?.id === expectedRequestId && live.revision === expectedRevision;
   // An expired row is nobody's nomination: commit the expiry and carry on, so a forgotten request
   // cannot hold the company's only live slot until somebody runs a command purely to kill it. The
-  // caller's belief is still checked first — "replace exactly this one" must never quietly replace
+  // caller's belief is still checked first, "replace exactly this one" must never quietly replace
   // something else just because a deadline happened to pass.
   if (live && isOwnershipTransferExpired(live.expiresAt, Date.parse(now))) {
     if (expectedRequestId !== null && !named) {

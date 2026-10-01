@@ -277,14 +277,14 @@ export function createRefreshController({
   // server slice. This retains remote additions/lifecycle changes and avoids resurrecting rows,
   // while the rebased state is parked for an ordinary confirmed save after suspension lifts.
   //
-  // abortIfSaveFailed (refresh-on-focus + the lifecycle hook's post-mutation reload — NOT tenant
+  // abortIfSaveFailed (refresh-on-focus + the lifecycle hook's post-mutation reload, NOT tenant
   // switches): when the flush/await above still leaves a save FAILED, the refresh is ABANDONED.
   // Proceeding would loadAll+replaceAll the server's copy over the optimistic state AND re-seed the
   // diff snapshot to it, so the scheduled retry (which re-reads store state) would diff to ZERO ops,
-  // "succeed", and clear the failure — permanently discarding the user's un-persisted edit. Aborting
+  // "succeed", and clear the failure, permanently discarding the user's un-persisted edit. Aborting
   // keeps the edit in play: the retry/stranded-write machinery still holds it, and the persist banner
   // (raised via save's onError) already tells the user they're not synced. A tenant SWITCH deliberately
-  // does NOT abort — refusing the load would leave account A's data rendered under account B's id (a
+  // does NOT abort, refusing the load would leave account A's data rendered under account B's id (a
   // cross-tenant display, strictly worse); its flush failure is surfaced the same way and the loss is
   // bounded to the un-flushed edits.
 

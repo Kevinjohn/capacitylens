@@ -223,7 +223,7 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
   // retained for CLI/server clients; modern browsers supply at least one signal for a cross-site
   // unsafe request. This hook MUST live on the ROOT instance, not in the routes child
   // below: there are no OPTIONS routes, so a preflight takes the not-found path, and
-  // only root-level hooks run there — a child-scoped hook would leave preflights as
+  // only root-level hooks run there. A child-scoped hook would leave preflights as
   // bare 404s without CORS headers, silently blocking every cross-origin write.
   app.addHook("onRequest", async function enforceOriginPolicy(req: FastifyRequest, reply: FastifyReply) {
     const reqOrigin = req.headers.origin;
@@ -244,7 +244,7 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
     const unsafe = !["GET", "HEAD", "OPTIONS"].includes(req.method);
     // An Origin exactly on the credentialed CORS allow-list (listedOrigin, folded into `origin`
     // above) is the operator's EXPLICIT cross-site contract, so it passes the gate regardless of
-    // Fetch Metadata — a `Sec-Fetch-Site: cross-site` on an allow-listed Origin is exactly the
+    // Fetch Metadata, a `Sec-Fetch-Site: cross-site` on an allow-listed Origin is exactly the
     // legitimate configured cross-origin call, not an attack. We therefore block only when the
     // request resolved to NO trusted origin (`origin === null`, i.e. neither allow-listed nor
     // same-origin) AND there is a cross-site signal: an Origin header we could not trust, or an

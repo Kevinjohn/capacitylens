@@ -18,7 +18,7 @@ import { isRecord } from "@capacitylens/shared/lib/isRecord";
 // ONLY the target tenant (cross-tenant), and a member still in ANOTHER account is NOT erased.
 //
 // Each case asserts OBSERVABLE DB state via raw SELECT rather
-// than trusting a helper — the point is to prove the bytes are gone from the actual tables.
+// than trusting a helper. The point is to prove the bytes are gone from the actual tables.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
@@ -601,7 +601,7 @@ describe("P2.6b erasure — (f) OFF mode deletes the account WITHOUT touching au
       accounts: [account("a1")],
       clients: [client("c1", "a1")],
     } as unknown as AppData);
-    // A membership row exists even in OFF (control tables are created on every open) — proving the
+    // A membership row exists even in OFF (control tables are created on every open), proving the
     // member sweep still runs without the auth tables.
     upsertMember(db, { accountId: "a1", userId: "demo", role: "owner", status: "active", createdAt: TS });
     expect(memberCount(db, "a1")).toBe(1);

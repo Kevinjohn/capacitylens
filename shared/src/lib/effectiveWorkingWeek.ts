@@ -12,7 +12,7 @@ export function effectiveWeekIncludes(effectiveWeek: EffectiveWorkingWeek, weekd
 }
 
 /** Whether a normal (calendar-respecting) record placed at `weekday` starts outside the effective
- * week. Ignore-working-days placements are exempt by definition — which is why this is the
+ * week. Ignore-working-days placements are exempt by definition, which is why this is the
  * ADVISORY test (repeat occurrences), never the creation gate: creation has no ignored-creation
  * escape hatch and uses creationBlockedAt/creationBlockedForEffectiveWeek instead. */
 export function startsOnNonEffectiveWeekday(

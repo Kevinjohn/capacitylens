@@ -154,7 +154,7 @@ describe("CAPACITYLENS_LOG redaction (P0.5.5)", () => {
   });
 
   // End-to-end: a real request carrying secret headers. They don't appear because default
-  // serializers don't log headers — this guards against a future serializer change leaking them.
+  // serializers don't log headers. This guards against a future serializer change leaking them.
   it("keeps authorization/cookie headers off the request log lines", async () => {
     const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { log: true, logStream: stream });

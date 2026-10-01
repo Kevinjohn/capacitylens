@@ -68,7 +68,7 @@ interface AssertResourceExistsOptions {
  * A resource may only BE external if it carries no disallowed dependents. The v0.8.1 rule
  * ("an external / 3rd-party resource has no capacity, so no loaded allocation and no time off")
  * is enforced at the allocation/time-off write boundary by assertAllocationRefs /
- * assertResourceExists — but a resource's `kind` can be flipped to external AFTER it already owns
+ * assertResourceExists, but a resource's `kind` can be flipped to external AFTER it already owns
  * those dependents, which nothing re-validates: the scheduler then HIDES the now-external capacity
  * and time-off, recreating the invisible-orphan state v0.8.1 closed.
  *
@@ -79,7 +79,7 @@ interface AssertResourceExistsOptions {
  * external case (a person/placeholder write is unaffected). `mergedKind` is the kind the resource
  * WILL have after the write (`patch.kind ?? existing.kind` in the store, the merged row's kind on
  * the server); when it's not external this is a pure no-op. Import keeps RECONCILING instead
- * (remapAndValidateImport coerces the load to 0 and drops the time-off) — a bulk file is a
+ * (remapAndValidateImport coerces the load to 0 and drops the time-off). A bulk file is a
  * different contract from an interactive edit, so don't route it here.
  */
 function assertResourceKindAllowsDependentsWithOptions({
@@ -187,7 +187,7 @@ Object.defineProperty(assertResourceProjectAllowsDependents, "length", { value: 
  * fixed at its before/after values while the OTHER end is resolved per allocation, and
  * validateAllocationAssignment is always fed (resource, effective project id). Only NEWLY introduced
  * invalidity is rejected, so a legacy/corrupt pair never makes an unrelated edit the repair
- * boundary. Each caller keeps its own early-return guard — the two sides deliberately differ. */
+ * boundary. Each caller keeps its own early-return guard, the two sides deliberately differ. */
 function assertAllocationPairStaysValid({
   data,
   accountId,
@@ -288,7 +288,7 @@ export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
 }
 
 /**
- * Time off references a resource in the active account, exactly as an allocation does —
+ * Time off references a resource in the active account, exactly as an allocation does,
  * and that resource must be capacity-tracked. An external / 3rd party has no capacity, so
  * time off is meaningless for it (the scheduler hides external time-off entirely): the form
  * omits externals from the picker AND rejects a crafted pick, so enforce the SAME rule here

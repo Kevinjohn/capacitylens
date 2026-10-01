@@ -225,7 +225,7 @@ describe("ownership transfer membership binding", () => {
 
 describe("ownership transfer membership binding: writes that change nothing", () => {
   // Otherwise any Admin could end the Owner's nomination at will, repeatedly, by writing back the
-  // role its participant already holds — a change nobody could see having happened.
+  // role its participant already holds, a change nobody could see having happened.
   it("leaves a live request alone when a membership write changes nothing", async () => {
     const auditEvents: AccountAuditEvent[] = [];
     const port = seed(auditEvents);

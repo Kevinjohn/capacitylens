@@ -65,7 +65,7 @@ function createFrozenFieldPutTests(): void {
   it("an UNCHANGED PUT of the frozen fields → 200 (change-not-presence)", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    // The sync adapter re-sends the WHOLE row on any edit (e.g. a rename) — an unchanged
+    // The sync adapter re-sends the WHOLE row on any edit (e.g. a rename), an unchanged
     // frozen value present in the body must PASS.
     const res = await put({
       app,

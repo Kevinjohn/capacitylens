@@ -70,7 +70,7 @@ function registerCrossAccountLoadTests(): void {
   it("CROSS-ACCOUNT REGRESSION: re-seed to a2 then save a2 emits ONLY a2 ops — never deletes of a1", async () => {
     // The primary correctness guard (§5): after a switch, lastSynced (the diff snapshot) MUST be the NEW
     // account's slice. If it stayed a1's, the first a2 save would diff a1→a2 and emit DELETEs for a1's
-    // rows + PUTs for a2's — catastrophic cross-account data loss. The switch orchestrator (persist.ts)
+    // rows + PUTs for a2's, catastrophic cross-account data loss. The switch orchestrator (persist.ts)
     // achieves this by calling loadAll(a2), which re-seeds the snapshot to a2's slice.
     const a1c = client("c1"); // accountId 'a1'
     const a2c: Client = {
@@ -98,7 +98,7 @@ function registerCrossAccountLoadTests(): void {
     // Saving a2's slice now diffs a2→a2 = ZERO ops. Critically it does NOT emit a DELETE for c1 (a1).
     await a.saveAll(a2Slice);
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls).toHaveLength(0); // no batch at all — snapshot already equals a2's slice
+    expect(calls).toHaveLength(0); // no batch at all, snapshot already equals a2's slice
 
     // And an EDIT to a2 emits only the a2 op (a PUT c2), never a delete of c1.
     (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
@@ -133,7 +133,7 @@ function registerCrossAccountLoadTests(): void {
 function registerRollingLoadTests(): void {
   it("scoped loadAll TOLERATES a MISSING known table (rolling deploy) and hydrates it empty", async () => {
     // FIX 1: an older server may OMIT a table this newer client already knows. The scoped path must
-    // NOT throw "incomplete state payload" during the skew window — it hydrates the missing table
+    // NOT throw "incomplete state payload" during the skew window. It hydrates the missing table
     // empty, exactly like the unscoped migrate() path, while keeping cross-tenant strictness.
     const slice = omitKeys(scopedData("a1", { clients: [client("c1")] }), "disciplines"); // older server omits disciplines
     const a = new ServerSyncAdapter(
@@ -141,7 +141,7 @@ function registerRollingLoadTests(): void {
       vi.fn(async () => new Response(JSON.stringify(slice), { status: 200 })) as unknown as typeof fetch,
     );
     const loaded = await a.loadAll("a1");
-    expect(loaded.disciplines).toEqual([]); // missing table hydrated empty — no throw
+    expect(loaded.disciplines).toEqual([]); // missing table hydrated empty, no throw
     expect(loaded.clients.map((r) => r.id).sort()).toEqual(["c1", "internal:a1"]); // present rows intact
   });
 
@@ -249,7 +249,7 @@ function registerScopedValidationLoadTests(): void {
 
 function registerLoadWarningTests(): void {
   it("warns ONCE naming the missing table(s) when hydrating them empty (FIX 3)", async () => {
-    // FIX 3: a hydrated-empty missing key is DIAGNOSABLE — one console.warn per load listing every
+    // FIX 3: a hydrated-empty missing key is DIAGNOSABLE, one console.warn per load listing every
     // omitted table, so a same-version proxy/server bug that drops a table is visible, not silent.
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {

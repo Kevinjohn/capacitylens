@@ -23,7 +23,7 @@ export function unicodeCharacterCount(value: string): number {
   return Array.from(value).length;
 }
 
-// Stateless and reusable — build it ONCE at module scope (same idiom as GRAPHEME_SEGMENTER below)
+// Stateless and reusable, build it ONCE at module scope (same idiom as GRAPHEME_SEGMENTER below)
 // instead of allocating a fresh encoder on every length check.
 const TEXT_ENCODER = new TextEncoder();
 
@@ -33,19 +33,19 @@ export function utf8ByteLength(value: string): number {
 }
 
 // Characters refused in user text: emoji & pictographs (Extended_Pictographic), "other"
-// symbols (So — covers flag emoji / regional indicators, keycaps and dingbats that aren't
-// Extended_Pictographic, plus ™ © ® ° and the like), ENCLOSING marks (Me — the combining
+// symbols (So, covers flag emoji / regional indicators, keycaps and dingbats that aren't
+// Extended_Pictographic, plus ™ © ® ° and the like), ENCLOSING marks (Me, the combining
 // enclosing keycap U+20E3 that turns "1"/"#"/"*" into keycap emoji; no legitimate name
 // char is enclosing), the VARIATION SELECTORS (U+FE00–FE0F incl. emoji VS-16 U+FE0F, and
 // the supplement U+E0100–E01EF) that force emoji presentation, control chars (Cc), format
-// / zero-width chars (Cf — ZWJ, RTL overrides, …), lone surrogates (Cs), private-use (Co)
+// / zero-width chars (Cf, ZWJ, RTL overrides, …), lone surrogates (Cs), private-use (Co)
 // and unassigned (Cn) code points. Cn is deliberately conservative: a code point is refused until
 // the executing runtime knows its assigned category. Removing it would let an older runtime accept
 // a newly assigned symbol that a newer runtime rejects as So or Extended_Pictographic.
 // NOTE we deliberately do NOT ban Nonspacing_Mark (Mn)
-// wholesale — that would strip legitimate decomposed accents (e.g. "e" + U+0301) — we
+// wholesale: that would strip legitimate decomposed accents (e.g. "e" + U+0301), we
 // target only U+FE0F via the variation-selector range. Ordinary letters (incl. accents +
-// CJK), digits, whitespace, punctuation, and currency/math symbols (Sc/Sm — €, £, +, =)
+// CJK), digits, whitespace, punctuation, and currency/math symbols (Sc/Sm, €, £, +, =)
 // are allowed, so real names like "José Müller" or "O'Brien & Co" pass untouched.
 const DISALLOWED =
   /[\p{Extended_Pictographic}\p{So}\p{Me}\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}\u{FE00}-\u{FE0F}\u{E0100}-\u{E01EF}]/u;
@@ -62,7 +62,7 @@ export function hasDisallowedChars(value: string, options: { multiline?: boolean
 function stripDisallowedCharacters(value: string): string {
   let cleaned = "";
   for (const character of value.normalize("NFC")) {
-    // Newlines and tabs are whitespace, not junk — keep them through the strip pass and
+    // Newlines and tabs are whitespace, not junk, keep them through the strip pass and
     // let the normalisation step below decide (→ a space in single-line, preserved in multiline).
     if (character === "\n" || character === "\t" || !DISALLOWED.test(character)) cleaned += character;
   }

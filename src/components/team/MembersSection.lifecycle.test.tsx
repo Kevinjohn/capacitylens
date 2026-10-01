@@ -500,7 +500,7 @@ function registerLifecycleDisclosureTests(): void {
       .map((badge) => badge.textContent);
     expect(badges).toEqual([m.settings_member_status_disabled(), m.settings_member_status_archived()]);
 
-    // It closes again — this is a disclosure, not a one-way reveal.
+    // It closes again. This is a disclosure, not a one-way reveal.
     await user.click(toggle);
     expect(screen.queryByTestId("members-inactive-table")).not.toBeInTheDocument();
   });
@@ -711,7 +711,7 @@ function registerLifecycleConcurrencyTests(): void {
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /disable/i }));
 
     // While the first mutation is in flight the row's own affordances are disabled, so a second
-    // action cannot even be raised — the beginAction lock and the disabled state agree.
+    // action cannot even be raised, the beginAction lock and the disabled state agree.
     await waitFor(() => expect(within(editorRow).getByTestId("member-menu")).toBeDisabled());
     expect(within(editorRow).getByTestId("member-edit")).toBeDisabled();
     await user.click(within(editorRow).getByTestId("member-menu"));

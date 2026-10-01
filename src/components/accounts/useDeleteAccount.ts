@@ -13,22 +13,22 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
   const deleteAccount = useStore((state) => state.deleteAccount);
   const setAccountSummaries = useStore((state) => state.setAccountSummaries);
   const setNotice = useStore((state) => state.setNotice);
-  // True while the server-mode DELETE is in flight — passed to the dialog as `busy` so the armed
+  // True while the server-mode DELETE is in flight, passed to the dialog as `busy` so the armed
   // Delete button disarms during the round-trip. Without it a double-click sends an overlapping
   // command that may still be in progress and raises a spurious retry error after a successful
   // delete. Demo-mode delete is synchronous and never sets it.
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState<AccountSummary | null>(null);
-  // SERVER-mode delete calls the dedicated DELETE route (gated 'purge' — admin+ — server-side; it
+  // SERVER-mode delete calls the dedicated DELETE route (gated 'purge', admin+, server-side; it
   // erases the whole tenant transactionally). The store's local deleteAccount can NOT do this job in
   // server mode: persistence diffs AppData snapshots, and in server mode `data` holds only the loaded
-  // slice — "deleting" a company whose slice isn't loaded would diff to zero ops, delete nothing, and
+  // slice: "deleting" a company whose slice isn't loaded would diff to zero ops, delete nothing, and
   // the company would resurrect on the next summaries refetch. `data` is deliberately NOT mutated
   // here: the picker only renders with no active account, so a stale (now-deleted) slice in `data` is
   // invisible and gets replaced wholesale by the next account pick's loadAll.
   const deleteOrgOnServer = async (id: string) => {
     // In-flight guard, self-contained (the dialog's `busy` disable is the visible half): a second
-    // overlapping DELETE can race the first command — see the `deleting` state's comment.
+    // overlapping DELETE can race the first command, see the `deleting` state's comment.
     if (deleting) return;
     setDeleting(true);
     try {
@@ -52,12 +52,12 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
       // The delete flipped the facts /me computes: on a single-company instance, dropping the only
       // company back to zero accounts makes canCreateAccount true again (the bootstrap exemption).
       // Without this re-ask the picker would show the "ask an admin for an invite" empty state with
-      // NO "New company" button — a dead end until a manual reload. refreshAuth is TOTAL (an
+      // NO "New company" button, a dead end until a manual reload. refreshAuth is TOTAL (an
       // unresolved refresh keeps the stale value with a warn; the server 403 backstops), so
       // fire-and-forget is safe.
       void refreshAuth();
     } catch (e) {
-      // A timeout/abort says only that the BROWSER stopped waiting — the transactional erasure may
+      // A timeout/abort says only that the BROWSER stopped waiting. The transactional erasure may
       // already have COMMITTED server-side. Asserting "nothing was removed" here would leave a
       // now-deleted company in the picker (re-clicking it 403s) until a manual reload. Reconcile
       // instead: re-read the authoritative /api/accounts list and adopt it (the company drops out

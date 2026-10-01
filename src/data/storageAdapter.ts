@@ -4,7 +4,7 @@ import { API_BASE, isServerConfigured } from "./apiConfig";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
 
 // The persistence target the app actually boots against. By DEFAULT this is the SQLite-backed
-// server via the entity-level ServerSyncAdapter — a drop-in PersistenceAdapter, so nothing else
+// server via the entity-level ServerSyncAdapter, a drop-in PersistenceAdapter, so nothing else
 // in the app changes. An empty API_BASE means the SAME-ORIGIN server (relative `/api`); set
 // VITE_CAPACITYLENS_API (e.g. http://localhost:8787) to point at a different origin. The
 // in-memory backend is used ONLY in the demo build (VITE_CAPACITYLENS_DEMO=1). The env read

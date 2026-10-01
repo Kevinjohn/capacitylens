@@ -40,7 +40,7 @@ describe("sidebar preference", () => {
   });
 
   it("defaults open when matchMedia is unavailable (non-browser environment)", () => {
-    // jsdom has no matchMedia — the guard must fall back to a large-screen default
+    // jsdom has no matchMedia. The guard must fall back to a large-screen default
     // rather than throwing.
     expect(readDefaultSidebarOpen()).toBe(true);
   });
@@ -263,7 +263,7 @@ describe("bar-label display preferences", () => {
 
 describe("sidebar default (viewport-derived)", () => {
   afterEach(() => {
-    // @ts-expect-error jsdom has no matchMedia by default — restore that absence
+    // @ts-expect-error jsdom has no matchMedia by default, restore that absence
     delete window.matchMedia;
   });
 

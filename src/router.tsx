@@ -15,7 +15,7 @@ import { resolveCapacityOverviewAccess } from "./store/selectors";
 import { useDiagnosticsAccessDecision } from "./components/diagnostics/useDiagnosticsAccessDecision";
 
 // The scheduler is the index route (first paint) so it stays eager. The CRUD list
-// pages are split out — not needed until navigated to, which trims the initial
+// pages are split out, not needed until navigated to, which trims the initial
 // bundle. AppShell wraps <Outlet> in a Suspense boundary for these lazy chunks.
 const ResourceList = lazy(() =>
   import("./components/resources/ResourceList").then((resource) => ({ default: resource.ResourceList })),
@@ -63,7 +63,7 @@ const InviteAccept = lazy(() =>
 const JoinCompany = lazy(() =>
   import("./components/join/JoinCompany").then((module) => ({ default: module.JoinCompany })),
 );
-// Password reset is a top-level route outside AppShell, like InviteAccept — but unlike
+// Password reset is a top-level route outside AppShell, like InviteAccept, but unlike
 // an invite it must render for a visitor with NO session (they're locked out; that's the point), so
 // AuthProvider carves /reset-password/ out of the login wall (see the status 'login' branch there).
 // Lazy for the same bundle reason: the chunk loads only when a reset link is actually opened.
@@ -80,7 +80,7 @@ export function RouteLoading() {
 }
 
 // Disciplines is an optional feature (account.disciplinesEnabled). When off, the nav
-// entry is hidden — guard the route too so a direct URL / bookmark can't reach the page.
+// entry is hidden, guard the route too so a direct URL / bookmark can't reach the page.
 function DisciplineRoute() {
   const enabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   return enabled ? <DisciplineList /> : <Navigate to="/" replace />;
@@ -129,14 +129,14 @@ export const router = createBrowserRouter([
     path: "/",
     element: <AppShell />,
     // A render error in AppShell or ANY child route bubbles to this boundary and shows
-    // the branded recovery screen — otherwise the data router renders its bland default.
+    // the branded recovery screen, otherwise the data router renders its bland default.
     errorElement: <RouteError />,
     children: [
       { index: true, element: <SchedulerView /> },
       { path: "overview", element: <CapacityOverviewRoute /> },
       { path: "resources", element: <ResourceList /> },
       // External / 3rd parties moved into the Resources tab (behind the per-account
-      // `externalEnabled` setting). Keep the old path so saved bookmarks don't 404 — redirect
+      // `externalEnabled` setting). Keep the old path so saved bookmarks don't 404, redirect
       // it to /resources rather than leaving a dangling lazy chunk.
       { path: "external", element: <Navigate to="/resources" replace /> },
       { path: "disciplines", element: <DisciplineRoute /> },
@@ -176,7 +176,7 @@ export const router = createBrowserRouter([
   {
     // Password reset is a sibling of AppShell for the same reason as /invite (no tenant gate),
     // with its own errorElement + Suspense. AuthProvider additionally lets this path through the
-    // login wall — the visitor redeeming a reset link is exactly the person who cannot sign in.
+    // login wall, the visitor redeeming a reset link is exactly the person who cannot sign in.
     path: PUBLIC_AUTH_ENTRY_PATHS.passwordReset,
     errorElement: <RouteError />,
     element: (

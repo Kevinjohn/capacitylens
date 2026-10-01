@@ -84,7 +84,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
         changedFields: ["role", "preauthEmail", "expiresAt", "proposedResourceId"],
       },
     });
-    // Echo back what the caller needs to build the link — NOT createdAt/usedAt. preauthEmail is
+    // Echo back what the caller needs to build the link, NOT createdAt/usedAt. preauthEmail is
     // echoed (the admin set it; convenient confirmation of the NORMALIZED value), and only to this
     // already-authorised admin. Later privileged invitation-list reads also expose it, but no
     // public preview or bearer-token read does.

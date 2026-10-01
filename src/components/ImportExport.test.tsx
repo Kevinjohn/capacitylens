@@ -33,7 +33,7 @@ const refreshOverride = vi.hoisted(() => ({
   value: null as null | { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" },
 }));
 const resumeSpy = vi.hoisted(() => ({ calls: [] as unknown[] }));
-// When set, the mocked re-hydrate raises this error notice mid-flight — simulating the sticky
+// When set, the mocked re-hydrate raises this error notice mid-flight, simulating the sticky
 // parked-edit loss warning the real orchestrator surfaces via onError → setNotice.
 const refreshNotice = vi.hoisted(() => ({ error: null as string | null }));
 vi.mock("@/data/persist", async (importOriginal) => {
@@ -250,7 +250,7 @@ describe("ImportExport – Import", () => {
     const before = useStore.getState().data.clients.length;
     render(<ImportExport />);
 
-    // Import a PARTIAL file (only the resources section) — it would replace the whole
+    // Import a PARTIAL file (only the resources section). It would replace the whole
     // active-account slice, so the user must confirm first; nothing is applied until then.
     const partial = JSON.stringify({
       schemaVersion: 2,
@@ -684,7 +684,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   it('treats off-spec COUNTS (-1, 1.5, negatives) as a shape error — re-hydrate + plain success, never "-1 records"', async () => {
     // The counts are untrusted: a number that isn't a nonnegative safe integer must take the
     // off-spec committed-import path (breadcrumb + reload + numberless success), not the
-    // success-notice path (nonsense) or the zero-record error path (a lie — the server committed).
+    // success-notice path (nonsense) or the zero-record error path (a lie, the server committed).
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.stubGlobal(
       "fetch",
@@ -710,7 +710,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   beforeEach(setupServerMode);
   it("a committed import whose re-hydrate FAILS reports the honest stale-view message, not success", async () => {
     // The import POST committed but the follow-up slice load broke: claiming "Imported 3 records"
-    // over a view still rendering PRE-import data would be a lie — say both halves honestly.
+    // over a view still rendering PRE-import data would be a lie, say both halves honestly.
     refreshOverride.value = { kind: "failed" };
     vi.stubGlobal(
       "fetch",
@@ -821,13 +821,13 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     render(<ImportExport />);
     await importAndConfirm(incoming());
 
-    // POST held open — the non-dismissable "Importing…" dialog is up, the dirty-form semantics
+    // POST held open. The non-dismissable "Importing…" dialog is up, the dirty-form semantics
     // arm the beforeunload/keyboard guards, and both affordances are disabled for the duration.
     await waitFor(() => expect(screen.getByTestId("import-busy")).toBeInTheDocument());
     expect(useStore.getState().dirtyForm).toBe(true);
     expect(screen.getByTestId("import-data")).toBeDisabled();
     expect(screen.getByTestId("export-data")).toBeDisabled();
-    // Escape must NOT dismiss the lock — visibility is owned by importBusy alone.
+    // Escape must NOT dismiss the lock, visibility is owned by importBusy alone.
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.getByTestId("import-busy")).toBeInTheDocument();
 
@@ -851,7 +851,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
   beforeEach(setupServerMode);
   it("a loss warning raised DURING the re-hydrate is not overwritten by the success notice", async () => {
-    // The app holds one notice and a new one dismisses the old — the sticky parked-edit loss
+    // The app holds one notice and a new one dismisses the old, the sticky parked-edit loss
     // warning must outrank "Imported N records" (the user can verify the import from the data;
     // they cannot re-discover a silently overwritten loss warning).
     refreshNotice.error = "Your latest changes could not be saved — please re-apply them.";
@@ -880,7 +880,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   beforeEach(setupServerMode);
   it("a zero-record 200 UN-commits: the server refused the replace, so the parked-edit resume re-schedules (no drop)", async () => {
     // The server returns 200 {imported:0} WITHOUT replacing the slice (its replace is gated on
-    // imported > 0). Treating that as committed made resume DROP a parked edit — destroying a
+    // imported > 0). Treating that as committed made resume DROP a parked edit, destroying a
     // perfectly saveable edit over a replacement that never happened.
     vi.stubGlobal(
       "fetch",

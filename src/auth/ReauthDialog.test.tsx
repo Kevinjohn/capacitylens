@@ -7,7 +7,7 @@ import type { ReauthAction, ReauthResult } from "./reauthCoordinator";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
 import { m } from "@/i18n";
 
-// DEFECT B — the "Confirm it's you" step-up dialog. Better Auth's client is mocked so we can drive a
+// DEFECT B, the "Confirm it's you" step-up dialog. Better Auth's client is mocked so we can drive a
 // success / failure without a network. The dialog resolves the coordinator on success (which the
 // wrapper turns into a retry) and shows the failure INLINE without closing.
 
@@ -163,7 +163,7 @@ describe("ReauthDialog password rejection", () => {
     expect(alert).toHaveTextContent("Invalid email or password.");
     expect(password).toHaveAttribute("aria-invalid", "true");
     expect(password).toHaveAttribute("aria-describedby", alert.id);
-    // Still open, still pending — the user can try again.
+    // Still open, still pending. The user can try again.
     expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
     expect(isReauthPending()).toBe(true);
   });

@@ -83,7 +83,7 @@ describe("ErrorFallback", () => {
   });
 
   it("reloads the application from its sole recovery control", () => {
-    // The button reboots through lib/reloadPage — the one boundary over `location.reload()` — so
+    // The button reboots through lib/reloadPage, the one boundary over `location.reload()`, so
     // the spy is a module mock rather than a replacement window.location (jsdom's reload is
     // non-configurable). reloadPage.test.ts covers that the boundary really does reload.
     reloadMock.reloadPage.mockClear();

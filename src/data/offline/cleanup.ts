@@ -9,7 +9,7 @@ import { buildAuthKey, buildScopedKey } from "./keys";
  * preference-storage failure last so a deletion is never sacrificed to it. `mutate` may return a
  * promise that rejects on a request-level failure alongside the transaction's own outcome.
  * A user-scoped sign-out must TELL its caller when no records could be removed; the device-wide
- * wipe has nothing left to promise, so it returns instead — hence the explicit parameter. */
+ * wipe has nothing left to promise, so it returns instead, hence the explicit parameter. */
 async function clearOfflineRecords(
   onMissingIndexedDb: "throw" | "return",
   mutate: (tx: IDBTransaction, boundaryToken: string) => Promise<never> | void,

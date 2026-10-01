@@ -73,7 +73,7 @@ describe("ActivityList", () => {
     const dialog = screen.getByRole("dialog", { name: "Add activity" });
 
     await user.type(within(dialog).getByLabelText("Name"), "Internal sync");
-    // Pick the Internal kind — the project picker disappears (project-less).
+    // Pick the Internal kind, the project picker disappears (project-less).
     await user.click(within(dialog).getByRole("radio", { name: "Internal" }));
     expect(within(dialog).queryByLabelText("Project")).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -406,7 +406,7 @@ describe("ActivityList", () => {
     await user.click(screen.getByRole("button", { name: "Archive My Activity" }));
     expect(screen.getByRole("alertdialog")).toHaveTextContent(/Archive activity\?/i);
 
-    // Simulate a teammate/sync archiving the row while the dialog is still open and pointed at it —
+    // Simulate a teammate/sync archiving the row while the dialog is still open and pointed at it,
     // `confirming` keeps holding the now-stale activity object. The dialog must re-render with the
     // base message, not throw archiveImpact's "already_inactive" error into the component tree.
     act(() => {

@@ -1,6 +1,6 @@
 // Request a browser download of a text payload. Appends the anchor to the DOM (some
 // browsers won't honour a click on a detached anchor) and defers revoking the object URL
-// to a later task — revoking synchronously right after click() can cancel the browser's
+// to a later task, revoking synchronously right after click() can cancel the browser's
 // handling of the request. The anchor API cannot confirm that a file reached durable storage.
 
 import { m } from "@/i18n";
@@ -54,7 +54,7 @@ export function downloadTextFile(filename: string, content: string, type = "appl
   // error, so warn instead of letting it escape.
   setTimeout(() => {
     // `a`/`url` are typed `… | undefined` (declared before the try) but are always assigned by the
-    // time we reach here — the catch above re-throws. Guards retain that invariant defensively.
+    // time we reach here. The catch above re-throws. Guards retain that invariant defensively.
     cleanupDownloadArtifacts(anchor, url, "downloadTextFile: cleanup after download failed");
   }, 0);
 }

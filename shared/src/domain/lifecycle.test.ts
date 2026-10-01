@@ -47,7 +47,7 @@ const NOW = "2026-06-01T00:00:00.000Z"; // an arbitrary "now" used for archive/s
 
 const DAY_MS = 86_400_000;
 
-// `new Date(number).toISOString()` is deterministic/pure (a number in, never an ambient clock) — fine
+// `new Date(number).toISOString()` is deterministic/pure (a number in, never an ambient clock), fine
 // in a TEST. Used to build exact-age "now" values relative to the tombstone for the canPurge boundary.
 const nowAfterDelete = (days: number): string => new Date(Date.parse(T_DEL) + days * DAY_MS).toISOString();
 
@@ -171,7 +171,7 @@ describe("unarchive — archived → active (clears archivedAt as ABSENT, immuta
     const result = unarchive(input);
     expect("archivedAt" in result).toBe(false);
     expect(result.archivedAt).toBeUndefined();
-    // Rule 3: un-archive only clears archivedAt — it must NOT disturb deletedAt (which is already
+    // Rule 3: un-archive only clears archivedAt. It must NOT disturb deletedAt (which is already
     // absent on an 'archived' source). Lock that it stays absent rather than leaking a tombstone in.
     expect(result.deletedAt).toBeUndefined();
     expect(lifecycleStatus(result)).toBe("active");
@@ -275,7 +275,7 @@ describe("canPurge — deleted + age ≥ 30d, fail-closed", () => {
     expect(canPurge({ deletedAt: null } as unknown as LifecycleFields, NOW)).toBe(false);
   });
   it("exact MILLISECOND boundary: == PURGE_MIN_AGE_MS → true, one ms less → false (locks the >= edge)", () => {
-    // Day-granular cases (29d/30d/31d) can't catch a `>` vs `>=` or off-by-one ms regression — assert
+    // Day-granular cases (29d/30d/31d) can't catch a `>` vs `>=` or off-by-one ms regression, assert
     // both edges to the millisecond. `new Date(number).toISOString()` is pure (a number in, no clock).
     const PURGE_MIN_AGE_MS = PURGE_MIN_AGE_DAYS * DAY_MS;
     const atBoundary = new Date(Date.parse(T_DEL) + PURGE_MIN_AGE_MS).toISOString();
@@ -772,7 +772,7 @@ const registerActiveOnlyTest7 = (): void => {
     const input = makeActiveOnlyData();
     const snapshot = structuredClone(input);
     const out = activeOnly(input);
-    expect(input).toEqual(snapshot); // input deep-unchanged — every archived/deleted row still present
+    expect(input).toEqual(snapshot); // input deep-unchanged. Every archived/deleted row still present
     expect(input.resources).toHaveLength(3);
     expect(input.clients).toHaveLength(3);
     expect(input.projects).toHaveLength(4);

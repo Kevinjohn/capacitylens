@@ -107,10 +107,10 @@ function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
 // Client permission boundary. It resolves the caller's role for the active
 // account and provides it to the pure-`can`-driven affordance hooks (useRole / useCanEdit) so a
 // Viewer sees a read-only UI. It mounts INSIDE AppShell, around the app body subtree, AFTER the
-// tenant/intro gates — so `activeAccountId` is already set when this runs.
+// tenant/intro gates, so `activeAccountId` is already set when this runs.
 //
 // REGRESSION GUARD (load-bearing): in OFF mode OR the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
-// pure pass-through — `role: null`, ZERO fetches, ever (mirrors AuthProvider's demo-mode
+// pure pass-through, `role: null`, ZERO fetches, ever (mirrors AuthProvider's demo-mode
 // discipline). That is the shipped/default path and MUST stay byte-identical to today's app, which
 // `role: null` → fully editable (see permissionContext.ts) guarantees.
 //
@@ -122,13 +122,13 @@ function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
 /**
  * Resolve and provide the caller's role for the active account.
  *
- * - OFF mode OR the demo build (no server): `role: null`, no fetch — the must-stay-editable path.
+ * - OFF mode OR the demo build (no server): `role: null`, no fetch. The must-stay-editable path.
  * - auth-on + server + an active account: own the shared `GET /api/accounts` refresh for this
  *   generation, publish its validated summaries for the picker, and resolve the active role from
  *   that same result. Pending/failure/absence is viewer.
  *
  * The resolved role is ALSO pushed to the store (`setActiveRole`) so the store's defense-in-depth
- * mutation guard can no-op a viewer's optimistic local write — see useStore.assertCanWrite.
+ * mutation guard can no-op a viewer's optimistic local write, see useStore.assertCanWrite.
  */
 export function PermissionProvider({ children }: { children: ReactNode }) {
   const { authMode } = useAuth();
@@ -138,8 +138,8 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   const offline = useOfflineState();
   const offlineEpisode = readOfflineStateEpisode();
   // The FETCHED role TAGGED with the account it was resolved for. Only ever set behind an `await` in
-  // the effect's async IIFE (the MembersSection / AuthProvider idiom) — never synchronously in the
-  // effect body — so there's no cascading-render setState-in-effect. Tagging with `accountId` is what
+  // the effect's async IIFE (the MembersSection / AuthProvider idiom), never synchronously in the
+  // effect body, so there's no cascading-render setState-in-effect. Tagging with `accountId` is what
   // lets the value computation below DISCARD a prior tenant's role the instant the active account
   // changes (without a synchronous reset that the set-state-in-effect lint forbids): a stale entry
   // whose accountId/revision no longer matches reads as pending with a fail-closed Viewer projection
@@ -154,7 +154,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       setActiveRole("viewer", "unavailable");
       return;
     }
-    // OFF / demo / no active account: there is no membership role to enforce. Make NO request — the
+    // OFF / demo / no active account: there is no membership role to enforce. Make NO request, the
     // shipped default path stays byte-identical to today. The provided role is null either way (the
     // value computation below short-circuits to null when not enabled), so no local reset is needed.
     if (!enabled || !activeAccountId) {
@@ -179,7 +179,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   }, [enabled, activeAccountId, membershipRevision, offline.readOnly, offlineEpisode, setActiveRole]);
 
   // OFF / demo / no active account → null (editable). Otherwise use the fetched role ONLY when it was
-  // resolved for the CURRENTLY active account (the accountId tag) — a prior tenant's role can't leak
+  // resolved for the CURRENTLY active account (the accountId tag). A prior tenant's role can't leak
   // across a switch. This computation is what lets the OFF/demo branch above avoid a synchronous
   // setState (the set-state-in-effect lint).
   const currentFetched =
@@ -198,7 +198,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   });
 
   // Memoise the context value on `role` so a re-render that doesn't change the role keeps the SAME
-  // value reference — otherwise every consumer (the affordance hubs across the app) re-renders on any
+  // value reference, otherwise every consumer (the affordance hubs across the app) re-renders on any
   // parent re-render (e.g. AppShell re-rendering on a dirty-form keystroke), needless churn.
   const value = useMemo(() => ({ role, status }), [role, status]);
 

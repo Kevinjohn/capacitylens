@@ -126,7 +126,7 @@ function approvedAddition(table: string, row: SnapshotRow, fromVersion: number):
 }
 
 /** Column REMOVALS the migration chain deliberately makes. Every entry needs a version-scoped,
- * reviewed justification — an empty list means no populated column may ever disappear unexamined.
+ * reviewed justification. An empty list means no populated column may ever disappear unexamined.
  * Renames are modelled as removal+addition and must be approved on the removal side too. */
 function approvedColumnRemoval(): boolean {
   // Intentionally empty: no populated column removal is classified yet. Future migrations that

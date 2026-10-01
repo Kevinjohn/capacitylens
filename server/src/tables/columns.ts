@@ -82,7 +82,7 @@ const clientsColumns = [
   // absent → NULL → omitted on read, matching the client object. True only for the built-in
   // Internal pseudo-client (one per account).
   { name: "builtin", json: true, optional: true },
-  // Lifecycle timestamps — plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
+  // Lifecycle timestamps, plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
   { name: "archivedAt", optional: true },
   { name: "deletedAt", optional: true },
   ...META,
@@ -106,7 +106,7 @@ const projectsColumns = [
   // Optional privacy pair: absent = public. Stored code names exclude display quotation marks.
   { name: "isPrivate", json: true, optional: true },
   { name: "codeName", optional: true },
-  // Lifecycle timestamps — plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
+  // Lifecycle timestamps, plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
   { name: "archivedAt", optional: true },
   { name: "deletedAt", optional: true },
   ...META,
@@ -138,7 +138,7 @@ const resourcesColumns = [
   { name: "isFavourite", json: true, optional: true },
   { name: "firstAvailableDate", optional: true },
   { name: "lastAvailableDate", optional: true },
-  // Lifecycle timestamps — plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
+  // Lifecycle timestamps, plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
   { name: "archivedAt", optional: true },
   { name: "deletedAt", optional: true },
   ...META,

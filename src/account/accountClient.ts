@@ -282,7 +282,7 @@ export const accountClient = {
    *
    * `cancel` is the DELETE; the other four are POSTs to their own sub-path. The revision travels in
    * the body for all five, including the DELETE, because it is the compare half of the transition,
-   * not an identifier — and it is part of the command payload the server hashes, so a retry naming
+   * not an identifier, and it is part of the command payload the server hashes, so a retry naming
    * a different revision is refused rather than replayed.
    */
   commandOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<Response> {

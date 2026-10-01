@@ -34,7 +34,7 @@ export interface CreateCredentialUserInput {
 /** The narrow Better Auth surface the server actually uses. betterAuth()'s concrete
  * return type is invariant in its options generic (a plugin-parametrised instantiation
  * won't assign to Auth<BetterAuthOptions>), so authFromEnv collapses it to this
- * structural interface once at creation — everything downstream stays decoupled from
+ * structural interface once at creation, everything downstream stays decoupled from
  * the library's generics. */
 export interface Auth {
   mail: MailSender | null;
@@ -51,13 +51,13 @@ export interface Auth {
         expiresAt: string | null;
       };
     } | null>;
-    /** Better Auth's server-side reset-token mint — call it ONLY through
+    /** Better Auth's server-side reset-token mint, call it ONLY through
      * {@link mintPasswordResetToken}, which provides the AsyncLocalStorage capture context the
      * sendResetPassword callback delivers the token into. Anti-enumeration by design: it resolves
      * with a generic success whether or not the email matched a user. */
     requestPasswordReset: (input: { body: { email: string } }) => Promise<unknown>;
   };
-  /** Resolved options — what getMigrations needs to create the auth tables. */
+  /** Resolved options, what getMigrations needs to create the auth tables. */
   options: BetterAuthOptions;
   /** Configured external identity providers, safe to return to unauthenticated clients. */
   providers: AuthProviderInfo[];
@@ -72,12 +72,12 @@ export interface Auth {
   /** Verify every configured issuer/provider alias without writing (operator preflight). */
   assertProviderBindings?: () => void;
   /** Create a user + credential account as one SQLite transaction, bypassing the
-   * public sign-up ROUTE entirely (and with it, the route's minPasswordLength check —
+   * public sign-up ROUTE entirely (and with it, the route's minPasswordLength check,
    * internalAdapter.createUser never validates password shape, only the sign-up.mjs handler
    * does). This is why the instance-wide minPasswordLength floor no longer needs to be bent for
    * the bootstrap boot (see the comment on minPasswordLength below authFromEnv).
    *
-   * Deliberately the ONLY way to reach Better Auth's internalAdapter from outside this module —
+   * Deliberately the ONLY way to reach Better Auth's internalAdapter from outside this module,
    * earlier this exposed hashPassword/createUser/linkAccount as three independently callable
    * methods, an interface shape that invited a future caller to create a user with no credential
    * (an orphaned row that permanently locks out the bootstrap: {@link countUsers} > 0 forever,
@@ -85,7 +85,7 @@ export interface Auth {
    * and the transaction boundary, so that hazard can't recur. An optional local correlation
    * callback joins another same-database write (the invitation command's principal coordinate)
    * to that transaction. Resolves once Better Auth's async init context ($context) is ready;
-   * nothing else should call it — every other caller goes through the narrow api surface above.
+   * nothing else should call it. Every other caller goes through the narrow api surface above.
    *
    *  @throws when hashing or any transaction participant fails; SQLite rolls every credential and
    * correlation write back before the failure escapes.
@@ -116,7 +116,7 @@ export interface Auth {
   reconcileFederatedLinks?: () => void;
 }
 
-/** The identity attached to every request in 'off' mode — the seam Stage C will later
+/** The identity attached to every request in 'off' mode. The seam Stage C will later
  * replace with the session user to derive accountId server-side. Off is trusted-local, so
  * the synthetic principal is treated as verified (`emailVerified: true`) and given a clearly
  * non-routable `.local` demo email so nothing mistakes it for a real verified identity. */
@@ -141,7 +141,7 @@ export const DEFAULT_ACCOUNT_APPLICATION: BoundApplication = {
 
 /**
  * The normalized session principal the whole server depends on (membership lookups,
- * `/api/auth/me`, invite binding) — decoupled from Better Auth's richer user type.
+ * `/api/auth/me`, invite binding), decoupled from Better Auth's richer user type.
  *
  * `emailVerified` is the IdP-asserted verified-email flag. It defaults to `false` when a
  * provider omits it (see {@link buildSessionUser}): an unverifiable provider is treated as

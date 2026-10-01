@@ -1,7 +1,7 @@
 import type { Db } from "../db";
 
 // Print one clear "refusing to start" line and exit non-zero. Boot SHOULD crash on a bad
-// precondition (we never limp along half-configured) — this just makes the failure legible to an
+// precondition (we never limp along half-configured). This just makes the failure legible to an
 // operator instead of a raw stack, matching the framed AuthConfigError / resetForbidden paths.
 export function refuseToStart(reason: string): never {
   console.error(`capacitylens-server: refusing to start — ${reason}`);
@@ -33,7 +33,7 @@ export function closeDbSafely(candidate: Db | undefined): void {
 }
 
 // Fail-closed PORT parse (mirrors parseRateLimit): a typo like PORT=abc or an out-of-range value
-// must not silently fall through to a confusing app.listen error — reject it up front with a clear
+// must not silently fall through to a confusing app.listen error, reject it up front with a clear
 // message. Unset → the 8787 default.
 export function parsePort(raw: string | undefined): number {
   if (raw === undefined) return 8787;

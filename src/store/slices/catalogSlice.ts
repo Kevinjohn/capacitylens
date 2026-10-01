@@ -104,11 +104,11 @@ function createClientActions(internals: CatalogSliceInternals): Pick<CatalogSlic
   return {
     addClient: createGuardedAddAction(
       (input: Draft<Client>): Client => {
-        // STORE-STRIP enforcement point (1) of the single-Internal invariant — see the canonical doc
+        // STORE-STRIP enforcement point (1) of the single-Internal invariant, see the canonical doc
         // in shared/src/data/internalClient.ts (the other two points are import fold + server reject).
         // `builtin` is excluded from Draft<Client> at the type level (only seed/addAccount/migrate may
         // mint the one Internal per account). Strip it at runtime too so an untyped/cast payload can't
-        // smuggle `builtin: true` past the compile-time guard and create a SECOND builtin — that would
+        // smuggle `builtin: true` past the compile-time guard and create a SECOND builtin, that would
         // break the "exactly one Internal per account" invariant. See Draft<Client>.
         const stripped: Record<string, unknown> = { ...input };
         delete stripped.builtin;
@@ -140,7 +140,7 @@ function createClientActions(internals: CatalogSliceInternals): Pick<CatalogSlic
         id: id,
         patch: safe,
         prepare: (merged) => {
-          // The built-in Internal client can't be renamed (or recoloured) — a fixed bucket.
+          // The built-in Internal client can't be renamed (or recoloured), a fixed bucket.
           assertNotBuiltinClient("clients", id, "renamed");
           if (!hasUsablePrivateCodeName(merged as unknown as Record<string, unknown>)) {
             throw new Error("A private client requires a code name.");
@@ -212,7 +212,7 @@ function createPhaseActions(
         id: id,
         patch: patch,
         prepare: (_merged, existing) => {
-          // `existing` enables the unchanged-parent relaxation (see assertScopedRefs) — same
+          // `existing` enables the unchanged-parent relaxation (see assertScopedRefs), same
           // archived-parent rationale as updateProject above.
           assertScopedRefs(get().data, existing.accountId, "phases", patch, existing);
           return patch;

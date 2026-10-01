@@ -57,14 +57,14 @@ function productionPosture(overrides: ProductionEnv) {
   return evaluateProductionPosture(environmentWith(FULLY_HARDENED_PRODUCTION_CONTROLS, overrides));
 }
 
-// Once NODE_ENV=production, the dev/open posture is retired — the entrypoint refuses to
+// Once NODE_ENV=production, the dev/open posture is retired, the entrypoint refuses to
 // boot when auth is OFF (unless deliberately opted in) and warns on the softer posture concerns.
 // Outside production it is a strict no-op so dev / e2e / self-host are untouched. These tests
 // prove BOTH directions (it actually refuses, and a clean production config passes clean).
 
 describe("evaluateProductionPosture", () => {
   it("is a no-op outside production, even with the worst-looking env (dev/self-host untouched)", () => {
-    // CAPACITYLENS_MODE unset (off), open signup on — none of which may
+    // CAPACITYLENS_MODE unset (off), open signup on, none of which may
     // produce a refusal OR a warning unless NODE_ENV is explicitly 'production'.
     const worst = {
       CAPACITYLENS_MODE: undefined,
@@ -138,7 +138,7 @@ describe("production bootstrap and mandatory controls", () => {
       CAPACITYLENS_CREATE_ADMIN_ADMIN: "1",
     });
     expect(result.refusals).toHaveLength(1);
-    // The refusal must name the exact credential so the operator knows what to change — asserted
+    // The refusal must name the exact credential so the operator knows what to change, asserted
     // via the auth.ts exports, so a credential change can't leave this test passing on stale text.
     expect(
       result.refusals.some(
@@ -200,7 +200,7 @@ describe("production mandatory service controls", () => {
 describe("production rate limits and optional hardening", () => {
   // The guard must validate CAPACITYLENS_RATE_LIMIT with the SAME parser the limiter uses
   // (parseRateLimit), not a looser Number() check. A divergent Number()+isSafeInteger check accepted
-  // these values while parseRateLimit maps every one of them to 0 (off) — so production would boot
+  // these values while parseRateLimit maps every one of them to 0 (off), so production would boot
   // claiming a hardened posture with rate limiting silently disabled. Each must now REFUSE.
   it.each([
     ["a value over the 1,000,000 cap", "2000000"],

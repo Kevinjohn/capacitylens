@@ -73,7 +73,7 @@ function registerMovedSchedulerTests20101() {
     const d = dataset();
     // A resource whose displayName/name/role all collapse to the SAME single word, so there's no
     // duplicate occurrence anywhere in the searched string to coincidentally rescue an un-trimmed
-    // search — the only way 'zed ' (trailing space) matches is if it's trimmed to 'zed' first.
+    // search: the only way 'zed ' (trailing space) matches is if it's trimmed to 'zed' first.
     d.resources.push(
       makeResource({
         id: "r-zed",
@@ -279,7 +279,7 @@ function registerMovedSchedulerTests20107() {
       model.flatMap((g) => g.rows).find((r) => r.resource.id === "r1"),
       "r1 scheduler row",
     );
-    expect(r1.timeOff).toHaveLength(2); // both accumulate — neither write drops the other
+    expect(r1.timeOff).toHaveLength(2); // both accumulate, neither write drops the other
     const t1 = requireValue(
       r1.timeOff.find((t) => t.id === "to1"),
       "to1 time-off block",

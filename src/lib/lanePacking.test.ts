@@ -133,7 +133,7 @@ describe("packLanes — ordering and reuse", () => {
 
 describe("packLanes — invalid records and updates", () => {
   it("parks a record with an unparseable endDate without corrupting laneEnds", () => {
-    // Only the end is invalid (start is fine), so `s` is finite and `e` is not — this
+    // Only the end is invalid (start is fine), so `s` is finite and `e` is not, this
     // distinguishes the `||` from a mutated `&&` in the unpositionable check.
     const r = packLanes([iv("a", "2026-05-01", "")]);
     expect(laneOf(r, "a")).toBe(0);

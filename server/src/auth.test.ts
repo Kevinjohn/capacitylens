@@ -34,7 +34,7 @@ import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 // Session-cookie + session-lifetime hardening, asserted by INTROSPECTING the resolved
 // betterAuth options (auth.options is the exact object we passed; same robust point the provider tests use for
 // socialProviders). These are auth-ON-only: in OFF mode betterAuth is never constructed, so there
-// are no options to harden — authFromEnv returns { mode:'off', auth:null } untouched.
+// are no options to harden, authFromEnv returns { mode:'off', auth:null } untouched.
 
 const PASSWORD_ENV = {
   CAPACITYLENS_MODE: "password-only",

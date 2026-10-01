@@ -2,18 +2,18 @@ import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from "@capacitylens/shared/d
 import { m } from "@/i18n";
 
 // Plain .ts module (no component) so ResetPassword.tsx stays a components-only file and this helper
-// can be exported without tripping react-refresh/only-export-components — the controls.ts idiom.
+// can be exported without tripping react-refresh/only-export-components, the controls.ts idiom.
 
 /** Map the redeem endpoint's failure body to the surfaced message. Better Auth 400s carry a typed
  * `{ code }`: INVALID_TOKEN covers unknown/used/expired alike (single-use tokens are CONSUMED on
  * redeem, so "used" is indistinguishable from "unknown" by design). We map ONLY recognised codes and
- * otherwise fall back to our generic message — we deliberately do NOT surface a raw server
+ * otherwise fall back to our generic message. We deliberately do NOT surface a raw server
  * `body.message`, because an off-mode server (where this route isn't mounted) answers with Fastify's
  * internal "Route POST:/api/auth/reset-password not found" string, which must never reach the user.
- * Exported so this library-shape sniff is test-pinned per DEFENSIVE-CODING.md §2 — see
+ * Exported so this library-shape sniff is test-pinned per DEFENSIVE-CODING.md §2, see
  * ResetPassword.test.tsx. The caller casts an untyped `res.json()` result `as { code?: string }`
  * without runtime validation, so `body` itself is untrusted (a same-shape-JSON server could answer
- * `null`/a string/an array) — the nullable body check keeps that a safe `undefined` (→ generic fallback)
+ * `null`/a string/an array). The nullable body check keeps that a safe `undefined` (→ generic fallback)
  * instead of a `TypeError` crashing the submit handler. */
 export function resolveResetPasswordFailureMessage(body: { code?: string } | null, status?: number): string {
   if (status === 404) return m.reset_err_unavailable();

@@ -49,7 +49,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   // The internal/ordinary split + sort is the only non-trivial cost here; memoised on its actual
   // input (clients) so it isn't redone on every keystroke elsewhere in the form. The archived-option
   // append below stays OUTSIDE the memo: its label goes through `m.*()`, which must keep resolving
-  // fresh every render (a stale locale/account switch is otherwise possible — see validation.ts's
+  // fresh every render (a stale locale/account switch is otherwise possible, see validation.ts's
   // "getter, not module-scope const" note), so it's rebuilt un-cached each render.
   const baseClientOptions: Option[] = useMemo(() => {
     const internalClient = clients.find((client) => client.builtin === true);
@@ -65,7 +65,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   }, [clients]);
   // Editing a project whose client is ARCHIVED: the active-only options above don't contain it, so
   // without this the select would silently blank and an unrelated edit (rename, colour) couldn't
-  // round-trip the unchanged clientId. Append the current id as a DISABLED option — it stays
+  // round-trip the unchanged clientId. Append the current id as a DISABLED option, it stays
   // selected/submittable as the current value (the store's unchanged-parent relaxation accepts it),
   // but can't be picked back once the user chooses an active client.
   const clientOptions = resolveProjectClientOptions({ baseOptions: baseClientOptions, clients, rawClients, project });

@@ -16,12 +16,12 @@ export {
 // `accounts` is the one table in TABLES that is NOT tenant-scoped: it has no `accountId` column, so
 // every guard the generic /api/:entity routes derive from `row.accountId` (the isScopedTable
 // authorize gate, ownsRow's immutability check, the scoped DELETE's owner assertion) is a no-op for
-// it. The generic routes therefore grew ~25 hand-replicated `entity === "accounts"` branches — one
-// per verb per rule — and any rule added to one verb but not another silently applied SCOPED-entity
+// it. The generic routes therefore grew ~25 hand-replicated `entity === "accounts"` branches, one
+// per verb per rule, and any rule added to one verb but not another silently applied SCOPED-entity
 // semantics to an account row. These dedicated STATIC routes own the account rules once each;
 // Fastify matches them ahead of the parametric /api/:entity routes, which now refuse `accounts`
 // outright. POST /api/batch keeps its own account handling (a client sync diff genuinely carries
-// accounts PUT ops — see src/data/syncOps.ts) but shares every predicate exported below, so the two
+// accounts PUT ops, see src/data/syncOps.ts) but shares every predicate exported below, so the two
 // paths cannot drift.
 
 /**

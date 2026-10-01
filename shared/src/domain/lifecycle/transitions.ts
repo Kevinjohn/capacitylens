@@ -4,7 +4,7 @@ import { shortIdTag } from "../privateNames";
 import { lifecycleStatus, isValidTombstone, PURGE_MIN_AGE_MS, type LifecycleFields } from "./types";
 
 /**
- * May this entity be archived? PURE affordance predicate — true IFF the entity is currently
+ * May this entity be archived? PURE affordance predicate, true IFF the entity is currently
  * `'active'`. Lets a caller gate an "Archive" control without a try/catch; it is the SINGLE-SOURCE
  * guard the {@link archive} transition itself re-uses, so the affordance and the transition can't
  * disagree (mirrors access.ts's `can*` predicates).
@@ -17,7 +17,7 @@ export function canArchive(entity: LifecycleFields): boolean {
 }
 
 /**
- * May this entity be un-archived (restored to active)? PURE affordance predicate — true IFF the
+ * May this entity be un-archived (restored to active)? PURE affordance predicate, true IFF the
  * entity is currently `'archived'`. A `'deleted'` tombstone is NOT un-archivable (it must be
  * restored via a different path, not by clearing `archivedAt`), and an `'active'` entity has nothing
  * to undo.
@@ -30,12 +30,12 @@ export function canUnarchive(entity: LifecycleFields): boolean {
 }
 
 /**
- * May this entity be soft-deleted? PURE affordance predicate — true IFF the entity is currently
+ * May this entity be soft-deleted? PURE affordance predicate, true IFF the entity is currently
  * `'archived'`. The load-bearing CapacityLens Decisions rule: soft-delete requires PRIOR archival
  * (you cannot delete an active record directly), so this gates `'archived'`, not `'active'`.
  *
  * NOTE: this is currently the same predicate as {@link canUnarchive} (both gate `'archived'`), but
- * they are kept as DISTINCT named exports on purpose — they answer semantically different questions
+ * they are kept as DISTINCT named exports on purpose. They answer semantically different questions
  * and may diverge. This mirrors access.ts keeping `manageMembers`/`manageInvites`/`purge` distinct
  * though all three resolve to the admin tier today.
  *
@@ -83,7 +83,7 @@ export class LifecycleTransitionError extends Error {
  * concrete type, so `archive(aResource)` returns a `Resource`).
  *
  * STRICT: THROWS if the entity is not `'active'` (re-archiving an archived/deleted record is a caller
- * bug — see this module's DESIGN DECISION header). The guard is the shared {@link canArchive}
+ * bug, see this module's DESIGN DECISION header). The guard is the shared {@link canArchive}
  * predicate, so the throw condition can't drift from the affordance.
  *
  * @param entity - the entity to archive (must be `'active'`).
@@ -113,12 +113,12 @@ export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimesta
 }
 
 /**
- * Un-archive an entity (archived → active). Returns a NEW object with `archivedAt` CLEARED — the key
+ * Un-archive an entity (archived → active). Returns a NEW object with `archivedAt` CLEARED. The key
  * is REMOVED (not set to `undefined`) so it round-trips as ABSENT, matching the convention that
  * absent = active. The input is NOT mutated and `deletedAt` is untouched (un-archive only fires from
  * `'archived'`, where `deletedAt` is already absent).
  *
- * STRICT: THROWS if the entity is not `'archived'` — refusing to un-archive a `'deleted'` tombstone
+ * STRICT: THROWS if the entity is not `'archived'`, refusing to un-archive a `'deleted'` tombstone
  * (correct: a tombstone is not restored by clearing `archivedAt`) or an already-`'active'` record.
  * The guard is the shared {@link canUnarchive} predicate.
  *
@@ -145,12 +145,12 @@ export function unarchive<T extends LifecycleFields>(entity: T): T {
 
 /**
  * Soft-delete an entity (archived → deleted). Returns a NEW object with `deletedAt` set to a valid
- * canonical instant no earlier than `archivedAt`, PRESERVING `archivedAt` — the tombstone retains
+ * canonical instant no earlier than `archivedAt`, PRESERVING `archivedAt`. The tombstone retains
  * when it was archived; {@link lifecycleStatus} still reads `'deleted'` because `deletedAt` wins.
  * The input is NOT mutated. A caller clock behind the archive is clamped to the archive instant so
  * this transition cannot create ordering that import must later repair by dropping the deletion.
  *
- * STRICT: THROWS if the entity is not `'archived'` — enforcing the Decisions rule that soft-delete
+ * STRICT: THROWS if the entity is not `'archived'`, enforcing the Decisions rule that soft-delete
  * requires PRIOR archival (you cannot delete an active record directly), and refusing to re-delete an
  * existing tombstone. The guard is the shared {@link canSoftDelete} predicate.
  *

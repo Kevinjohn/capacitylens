@@ -6,7 +6,7 @@ import { insertRequest, upsertMember } from "./controlTables";
 // EXCLUSION proof: the `account_members` server-control table must be UNREACHABLE through the
 // generic entity machinery and ABSENT from the state read. openDb creates it on every open, so even
 // with a row present it must not leak through /api/:entity, GET /api/state (the state read/export
-// source; there is no separate /api/state/export route today — loadState IS the export source), or
+// source; there is no separate /api/state/export route today, loadState IS the export source), or
 // loadState itself.
 
 describe("account_members is excluded from the AppData path", () => {
@@ -18,7 +18,7 @@ describe("account_members is excluded from the AppData path", () => {
     expect(get.statusCode).toBe(404);
 
     // POST /api/:entity gates on isKnownTable → 404 "Unknown entity", the SAME refusal any unknown
-    // table gets — never a 200/201 that would persist a row through the entity path.
+    // table gets, never a 200/201 that would persist a row through the entity path.
     const post = await app.inject({
       method: "POST",
       url: "/api/account_members",

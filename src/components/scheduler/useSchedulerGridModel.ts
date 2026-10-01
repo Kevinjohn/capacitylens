@@ -216,7 +216,7 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
   const partiallyExposesNextColumnState = usePartiallyExposedNextColumn(viewport, ui.zoom);
   const { calendarTimeZone } = accountPreferences;
   const today = useCalendarToday(calendarTimeZone);
-  // FIXED forward window from today (overStart..overEnd): drives ONLY the `overSoon` red flag — a
+  // FIXED forward window from today (overStart..overEnd): drives ONLY the `overSoon` red flag, a
   // near-term, zoom/pan-INDEPENDENT "over soon" radar, so the per-resource overbooked warning fires
   // regardless of the visible range. Kept separate from the displayed % (which follows the view).
   const overStart = today;
@@ -224,7 +224,7 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
 
   // VISIBLE window [visibleStart, visibleEnd]: drives the DISPLAYED utilisation % (per-person, per-discipline
   // avg, overall). The visible span is `ui.zoom * 7` calendar days anchored at the scroll left-edge
-  // day; the inclusive end is `+ (zoom*7 - 1)` — a 1-week view is the 7 inclusive days [L, L+6], not
+  // day; the inclusive end is `+ (zoom*7 - 1)`. A 1-week view is the 7 inclusive days [L, L+6], not
   // +7 (8 days). The end is CLAMPED to the last timeline day so the window never reads past `days[]`.
   // Day-quantized via leftEdgeIndex so a scroll within a column doesn't rebuild the model.
   const { start: visibleStart, end: visibleEnd } = useMemo(
@@ -260,7 +260,7 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
 
   const filtersActive = hasActiveFilters(ui.filters);
 
-  // Derived from the model only — memoise so opening a modal / measuring the
+  // Derived from the model only, memoise so opening a modal / measuring the
   // container (frequent re-renders) doesn't re-flatMap + re-reduce every row.
   const overallUtil = useMemo(
     // External / 3rd-party rows are excluded inside the shared average; with none tracked, read 0%.

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// isServerConfigured() is the single switch between server persistence (the DEFAULT — same-origin or
+// isServerConfigured() is the single switch between server persistence (the DEFAULT, same-origin or
 // a configured API_BASE) and the in-memory demo build (VITE_CAPACITYLENS_DEMO=1). API_BASE is a
 // module-level const evaluated ONCE at import, so each
-// case must stub the env, reset the module registry, then dynamically re-import — importing at the
+// case must stub the env, reset the module registry, then dynamically re-import, importing at the
 // top would freeze API_BASE to '' before any stub runs and silently fail the "configured" case.
 
 afterEach(() => vi.unstubAllEnvs());

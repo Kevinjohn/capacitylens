@@ -51,7 +51,7 @@ function createSameBatchRearchiveTest() {
 
     expect(result.statusCode).toBe(200);
     // The first op archives the row; the second sees it already archived (mid-transaction) and its
-    // audit record is nulled out — `changed` must reflect only the first.
+    // audit record is nulled out, `changed` must reflect only the first.
     expect(result.json()).toMatchObject({ ok: true, applied: 2, changed: 1 });
   });
 }

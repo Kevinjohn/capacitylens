@@ -112,8 +112,8 @@ function applyDirtyFormSource({ state, source, dirty }: ApplyDirtyFormSourceOpti
 
 /** Device preferences and transient application/session state. */
 export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> = (set, get) => {
-  // Every device-global preference setter has the same body — write the pref to its own
-  // localStorage key, then publish it — so the shape is declared ONCE here and each setter below
+  // Every device-global preference setter has the same body, write the pref to its own
+  // localStorage key, then publish it, so the shape is declared ONCE here and each setter below
   // names only its key and its writer. setTheme stays bespoke: it also repaints the DOM.
   return {
     ...readRuntimeInitialState(),

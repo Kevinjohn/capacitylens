@@ -163,7 +163,7 @@ export function buildRepeatingAllocationAdvisory({
   }
   // Bucket the existing load by day ONCE for the whole batch and add each checked draft to that
   // SAME map, instead of handing buildCapacityAdvisory a comparison list that grows by one allocation
-  // per draft — which re-bucketed everything already seen, making a k-occurrence repeat O(k²) in
+  // per draft, which re-bucketed everything already seen, making a k-occurrence repeat O(k²) in
   // day-string work. Hours still land existing-load-first, then draft 0, 1, …, so every per-day sum
   // is bit-identical to the per-draft rebuild (float addition is not associative).
   const shared = createSharedLoad({ resource, existingLoad, proposedDrafts, effectiveWeek, timeOff, closures });

@@ -114,7 +114,7 @@ export function resolveUtilizationFromCapacity(days: Iterable<DayCapacity>): num
   let allocated = 0;
   let available = 0;
   for (const day of days) {
-    if (day.available === 0) continue; // not a working day — neither side counts
+    if (day.available === 0) continue; // not a working day. Neither side counts
     allocated += day.allocated;
     available += day.available;
   }
@@ -123,7 +123,7 @@ export function resolveUtilizationFromCapacity(days: Iterable<DayCapacity>): num
 
 /** Allocated / available over the window, counted over working days only.
  * Returns 0 when there is no availability. Non-working days (weekends / time off)
- * are skipped entirely — counting their allocated hours against zero availability
+ * are skipped entirely, counting their allocated hours against zero availability
  * would push a normal allocation that merely spans a weekend past 100%.
  * Like `buildCapacityWindow`, this is the straight-line definition; the render path reaches the same
  * number through `resolveUtilizationFromCapacity` over its memoised per-date capacity. */

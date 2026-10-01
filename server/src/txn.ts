@@ -124,7 +124,7 @@ function runTopLevelTransaction<Result>(db: Db, callback: () => Result, options:
     return result;
   } catch (e) {
     // Roll back, but NEVER let a ROLLBACK failure MASK the original error. If BEGIN never armed a
-    // transaction or the connection is gone, db.exec('ROLLBACK') itself throws — swallow ONLY that
+    // transaction or the connection is gone, db.exec('ROLLBACK') itself throws, swallow ONLY that
     // (after logging), then always rethrow `e`, the real cause, so the diagnostic chain stays
     // intact. The rare acceptable nested swallow: the original failure is still surfaced.
     try {

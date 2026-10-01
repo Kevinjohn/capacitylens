@@ -1,4 +1,4 @@
-// Fully-populated test fixtures — EVERY optional field set to a non-default value.
+// Fully-populated test fixtures. EVERY optional field set to a non-default value.
 // Used by the server round-trip tests (server/src/app.test.ts) and available for
 // future app-level tests. Pure data, no behaviour.
 import { externalCapacityDefaults, placeholderCapacityDefaults } from "../types/entities";
@@ -30,7 +30,7 @@ export const FIXTURE_ACCOUNT: Account = {
   workingDays: [0, 1, 2, 3],
   language: "en",
   disciplinesEnabled: false,
-  // Both true (the NON-default — absent reads as false/hidden) so the server round-trip test
+  // Both true (the NON-default, absent reads as false/hidden) so the server round-trip test
   // proves the new optional boolean columns persist a PRESENT value, not just absence.
   placeholdersEnabled: true,
   externalEnabled: true,
@@ -176,7 +176,7 @@ export const FIXTURE_ACTIVITY: Activity = {
 };
 
 /** The internal & repeatable kinds: project-less by definition, so they OMIT projectId /
- * phaseId entirely (not null — absent). Prove all three ActivityKind values round-trip through
+ * phaseId entirely (not null, absent). Prove all three ActivityKind values round-trip through
  * the server with the optional FK columns left NULL. */
 export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
   id: "fix-t2",

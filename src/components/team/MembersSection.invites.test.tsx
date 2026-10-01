@@ -192,7 +192,7 @@ function registerInviteMintTests(): void {
     const user = userEvent.setup();
     // Creating an invite fires a fire-and-forget reloadInvites() right after, whose result feeds
     // reconcileMintedInvite. The POST must return an `id` (as a real server does) so that reconcile
-    // ties the write-once link to it and the reload below is what proves the link survives — a
+    // ties the write-once link to it and the reload below is what proves the link survives, a
     // response missing `id` would leave mintedLink.inviteId null, and the null-guard in
     // reconcileMintedInvite would keep the link regardless of whether reconciliation itself works.
     let invites: Record<string, unknown>[] = [];
@@ -227,7 +227,7 @@ function registerInviteMintTests(): void {
     expect(useStore.getState().notice).toBeNull();
 
     // The post-create reload confirms the invite is still pending, so the write-once link must
-    // survive it — this is the reconciliation path the test's name actually promises.
+    // survive it, this is the reconciliation path the test's name actually promises.
     await waitFor(() => expect(invitesReads).toBeGreaterThanOrEqual(2));
     expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOK123");
 

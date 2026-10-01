@@ -45,7 +45,7 @@ describe("dedicated /api/accounts routes — route precedence", () => {
     // `accounts` is not a lifecycle entity (no archivedAt/deletedAt tombstones), so the lifecycle
     // handler must still MATCH and answer its own 404. If the new static /api/accounts/:id node
     // prevented find-my-way from backtracking to /api/:entity/:id/archive, this would become a bare
-    // 404 with no body — a silent routing regression rather than the handler's own refusal.
+    // 404 with no body, a silent routing regression rather than the handler's own refusal.
     const app = freshApp();
     await createAccount(app, "a1");
     const res = await call(app, {
@@ -78,7 +78,7 @@ describe("dedicated /api/accounts routes — route precedence", () => {
 describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
   it("DELETE /api/accounts/:id needs no ?accountId= (the scoped-delete assertion never applies)", async () => {
     // A scoped DELETE without ?accountId= is a 400 ("accountId is required to delete a scoped
-    // record."). An account is top-level and carries no accountId, so it must delete by id alone —
+    // record."). An account is top-level and carries no accountId, so it must delete by id alone,
     // this is exactly the rule that a missing special case would silently invert.
     const app = freshApp();
     await createAccount(app, "a1");

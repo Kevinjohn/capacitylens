@@ -49,9 +49,9 @@ function ExternalFormFields(props: ExternalFormFieldsProps) {
 }
 
 /**
- * Add/edit an external / 3rd-party party — a trimmed resource form. It captures only a COMPANY
+ * Add/edit an external / 3rd-party party, a trimmed resource form. It captures only a COMPANY
  * name (required) and an optional descriptor. The capacity fields (hours, working days, discipline,
- * employment, project) don't apply — externals have no capacity — so they're stored as unused
+ * employment, project) don't apply, externals have no capacity, so they're stored as unused
  * silent defaults the rest of the app never reads. Colour is the single neutral swatch (no picker),
  * per DECISIONS.md "external kind". Store rejections surface as a form error, like ResourceForm.
  */
@@ -75,7 +75,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
       kind: "external" as const,
       name: cleanName,
       role: cleanRole,
-      // Capacity fields don't apply to an external — store the unused silent defaults (ONE source,
+      // Capacity fields don't apply to an external, store the unused silent defaults (ONE source,
       // shared with seed + fixtures) so the entity stays valid (the store asserts a non-empty working
       // week + positive hours) while the scheduler / forms never show or read them.
       ...externalCapacityDefaults(),

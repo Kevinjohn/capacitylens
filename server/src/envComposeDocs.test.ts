@@ -125,7 +125,7 @@ describe("Compose exceptions in the environment register", () => {
   it("suppresses the nginx access log for exactly the invite bearers the app redacts", () => {
     // The invite token rides in the request path (preview, accept, signup). Its capability must be
     // kept out of logs at every hop, so nginx's `access_log off` location and the app's log-redaction
-    // regex must cover the identical action set — coupling them here means a future token-scoped
+    // regex must cover the identical action set, coupling them here means a future token-scoped
     // invite route that lands in one list but not the other fails this test instead of leaking.
     const nginxActions = inviteActionsAt(
       nginxConf,

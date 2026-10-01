@@ -10,7 +10,7 @@ import { readNextDataRevision } from "./revisions";
 
 /** How each tombstone table is physically removed at the END of the lifecycle (purgeEntity): the
  * row AND its children go together, via the SAME cascades the regular delete* actions use
- * (single-sourced from shared/lib/integrity.ts — no drift). The resource cascade re-stamps
+ * (single-sourced from shared/lib/integrity.ts, no drift). The resource cascade re-stamps
  * nothing, so it alone needs no fresh revision. */
 export const PURGE_CASCADES: Record<LifecycleEntity, (data: AppData, id: ID) => AppData> = {
   resources: (data, id) => deleteResourceCascade(data, id),

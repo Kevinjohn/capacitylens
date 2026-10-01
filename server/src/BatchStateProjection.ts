@@ -169,7 +169,7 @@ export class BatchStateProjection implements ValidationDataLookup {
 
   /** Mirror replaceGeneratedBuiltin's reparent-before-delete database sequence. */
   replaceGeneratedBuiltin(generatedId: string, row: Record<string, unknown>): void {
-    // Defensive re-check: see the matching comment in upsert() — sanitizeWrite's assertIdPresent
+    // Defensive re-check: see the matching comment in upsert(), sanitizeWrite's assertIdPresent
     // already guarantees this upstream of every caller.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
     const projectRelationship = this.resolveRelationshipIndex("clients", "projects", "clientId");

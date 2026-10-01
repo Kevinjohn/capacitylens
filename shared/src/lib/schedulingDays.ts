@@ -25,7 +25,7 @@ export interface DaysModeOpts {
   ignoreWeekends?: boolean;
 }
 
-/** Upper bound for a (days-over) span. ~100 working/calendar years — far beyond any real
+/** Upper bound for a (days-over) span. ~100 working/calendar years, far beyond any real
  * allocation. The SAME number as dateMath's materialisation ceiling (one constant, two names) so a
  * span that validates here can always be materialised. endDateForSpan also clamps this against the
  * days remaining in the four-digit ISO date domain because the fixed cap alone cannot protect a
@@ -96,7 +96,7 @@ export function daysOfWorkFor(hoursPerDay: number, daysOver: number, workingHour
 }
 
 /** Fraction of a working day a "blocks"-mode allocation consumes. Blocks are pure
- * bookings — the span is all that matters, so load is 0 for now. Kept as a single
+ * bookings. The span is all that matters, so load is 0 for now. Kept as a single
  * named knob because user feedback may later make this configurable (e.g. 1 = 100%). */
 export const BLOCK_LOAD_FRACTION = 0;
 

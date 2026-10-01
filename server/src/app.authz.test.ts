@@ -10,7 +10,7 @@ import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities"
 import { seed } from "@capacitylens/shared/data/seed";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 
-// requirePermission — the auth-on 403 matrix for the authorize() route gate, plus the primary
+// requirePermission: the auth-on 403 matrix for the authorize() route gate, plus the primary
 // invariant that OFF mode stays allow-all/no-op (cross-account ids included). The gate maps each
 // protected route onto a pure can(role, action) decision against the caller's membership role; this
 // suite drives those routes end-to-end (sign-up → membership → request) and asserts the resulting
@@ -76,7 +76,7 @@ const closure = (id: string, accountId: string) => ({
 });
 
 // A recognizable sentinel for a1's time-off note. Asserting it is ABSENT from the raw response
-// BODY (not just the parsed key) is what proves the redaction is SERVER-SIDE — the note never serialized.
+// BODY (not just the parsed key) is what proves the redaction is SERVER-SIDE. The note never serialized.
 const SENTINEL_TIMEOFF_NOTE = "SENTINEL_TIMEOFF_NOTE";
 
 /**
@@ -279,7 +279,7 @@ const putClient = ({ app, accountId, id, cookie }: PutClientInput) =>
     headers: cookie ? { cookie } : {},
   });
 
-/** PATCH the seeded client c1/c2 (no accountId in the body — it merges from the stored row). */
+/** PATCH the seeded client c1/c2 (no accountId in the body, it merges from the stored row). */
 const patchClient = (app: FastifyInstance, id: string, cookie?: string) =>
   call(app, {
     method: "PATCH",
@@ -533,7 +533,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     expect((await deleteProject({ app, accountId: "a1", id: "p1", cookie })).statusCode).toBe(204);
     expect((await batchInto({ app, accountId: "a1", id: "ec3", cookie })).statusCode).toBe(200);
     // Import is NOT an editor write: it replaces the whole slice AND (all ids remapped) bypasses
-    // the note pin — ultimately gated to owner. See the dedicated import-tier suite below.
+    // the note pin, ultimately gated to owner. See the dedicated import-tier suite below.
     expect((await importInto({ app, accountId: "a1", id: "ec4", cookie })).statusCode).toBe(403);
   });
 });
@@ -633,10 +633,10 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     // controlTables.ts now caches the prepared active-membership-role Statement per Db handle (see
     // `cachedStatement`), so `db.prepare()` for its SQL runs at most once per handle regardless of
     // how many times the role is actually looked up. SQLite's authorizer callback fires at PREPARE
-    // time, not at execution time, so counting it (as this test used to) would now undercount —
+    // time, not at execution time, so counting it (as this test used to) would now undercount,
     // it'd see one prepare no matter how many logical reads happen. Wrap `db.prepare` instead: when
     // the active-membership-role SQL is (once) prepared, instrument the returned Statement's `.get`
-    // so every actual execution against it — cached statement or not — still increments the count.
+    // so every actual execution against it, cached statement or not, still increments the count.
     let membershipRoleReads = 0;
     const originalPrepare = db.prepare.bind(db);
     db.prepare = ((sql: string) => {
@@ -915,7 +915,7 @@ describe("scoped generic writes conceal foreign row existence", () => {
 describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer never receive it", () => {
   // a1 carries a time-off row whose note === SENTINEL_TIMEOFF_NOTE (see seedTwo). The note is
   // owner/admin-only (canSeeTimeOffNote), redacted SERVER-SIDE in the scoped read. For editor/viewer
-  // we assert BOTH the parsed `note` is absent AND the sentinel appears NOWHERE in the raw body — the
+  // we assert BOTH the parsed `note` is absent AND the sentinel appears NOWHERE in the raw body, the
   // latter is what proves the redaction is server-side (the string was never serialized), not a
   // client-side hide.
   it.each([
@@ -978,7 +978,7 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
 function timeOffWriteFixture() {
   // The write-side counterpart of the read redaction above. An editor's reads have the `note`
-  // REDACTED, so every row they round-trip back (PUT / batch PUT — the client's real save paths)
+  // REDACTED, so every row they round-trip back (PUT / batch PUT, the client's real save paths)
   // is note-less by construction; without the sanitizeWrite pin, upsertRow would store NULL and
   // silently erase a note the editor never saw. Owner/admin (and OFF mode) writers keep full
   // control: they can still change or clear the note.
@@ -1090,7 +1090,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       "2026-02-05",
     );
     // The write's ECHO is a read: the pinned note must NOT ride the response back to the
-    // note-blind writer (redactNoteEcho) — same server-side proof as the read-redaction suite.
+    // note-blind writer (redactNoteEcho), same server-side proof as the read-redaction suite.
     expect(res.body).not.toContain(SENTINEL);
   });
 
@@ -1142,7 +1142,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     });
     expect(patched.statusCode).toBe(200);
     expect(noteInDb(db)).toBe(SENTINEL); // the crafted note change did not land
-    // PATCH's merge pulls the stored row (note included) into its echo — redactNoteEcho must strip
+    // PATCH's merge pulls the stored row (note included) into its echo, redactNoteEcho must strip
     // it for a note-blind patcher, closing the pre-existing merge-echo leak.
     expect(patched.body).not.toContain(SENTINEL);
   });
@@ -1158,7 +1158,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       payload: { ...timeOff({ id: "to2", accountId: "a1", resourceId: "r1" }), note: "smuggled onto a create" },
       headers: { cookie },
     });
-    expect(res.statusCode).toBe(201); // the create itself is fine — nothing existing to preserve
+    expect(res.statusCode).toBe(201); // the create itself is fine. Nothing existing to preserve
     expect((db.prepare(`SELECT note FROM timeOff WHERE id = 'to2'`).get() as { note: unknown }).note).toBeNull();
   });
 
@@ -1178,7 +1178,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       const cleared = await call(app, {
         method: "PUT",
         url: "/api/timeOff/to1",
-        payload: stampedTimeOff(), // note key absent — a note-visible writer clears it
+        payload: stampedTimeOff(), // note key absent, a note-visible writer clears it
         headers: { cookie },
       });
       expect(cleared.statusCode).toBe(200);
@@ -1218,7 +1218,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
     expect(await accountExists(app, "a1", admin.cookie)).toBe(true);
 
     expect((await batchDeleteAccount(app, "a1", cookie)).statusCode).toBe(400);
-    // Pre-scan rejected the batch before the tx opened — a1 left wholly intact.
+    // Pre-scan rejected the batch before the tx opened, a1 left wholly intact.
     expect(await accountExists(app, "a1", admin.cookie)).toBe(true);
   });
 
@@ -1248,7 +1248,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
     const res = await deleteAccount(app, "purgeMe", cookie);
     expect(res.statusCode).toBe(204);
     // This is now a TENANT ERASURE, not a bare row delete. The caller is the SOLE member, so the
-    // erasure also removes their identity and KILLS their session — their cookie no longer authenticates, so a
+    // erasure also removes their identity and KILLS their session, their cookie no longer authenticates, so a
     // read-back as them is 401 (not 200). "Account gone" is therefore asserted on observable DB state
     // directly: the accounts row, the membership row, and the member's auth session are all removed.
     expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeMe'`).get() as { n: number }).n).toBe(0);
@@ -1276,8 +1276,8 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
 });
 
 describe("P1.5 authorize — /api/import is owner-only", () => {
-  // Import is a destructive delete-all + re-insert of the tenant slice (replaceAccountSlice) — the
-  // purge tier's hard-delete semantics — AND it bypasses field-level write pins: every id is
+  // Import is a destructive delete-all + re-insert of the tenant slice (replaceAccountSlice), the
+  // purge tier's hard-delete semantics, AND it bypasses field-level write pins: every id is
   // remapped, so the timeOff note pin can never match a stored row. At 'write' tier a
   // note-blind editor could erase every owner-confidential note simply by importing their own
   // (note-redacted) export. Client/project privacy makes the final tier stricter still: an admin's
@@ -1285,7 +1285,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
   // mode stays open (see the OFF-mode allow-all suite).
 
   const importSlice = (app: FastifyInstance, accountId: string, cookie: string) => {
-    // A realistic attack payload: the editor's own export of a1 — note-LESS by construction
+    // A realistic attack payload: the editor's own export of a1, note-LESS by construction
     // (their reads are redacted), so importing it would silently erase the stored note.
     const data = {
       ...emptyAppData(),
@@ -1354,10 +1354,10 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
 function accountWriteFixture() {
   // The scoped tables carry accountId and pass through the isScopedTable() authorize gate; `accounts`
   // does NOT (top-level, no accountId column), so a bare account UPDATE (rename / colour / scheduling
-  // mode / feature toggles) needs its OWN gate — else any signed-in user could rewrite another tenant's
+  // mode / feature toggles) needs its OWN gate, else any signed-in user could rewrite another tenant's
   // company settings. An UPDATE (existing row) requires membership + write tier; a CREATE (no existing
   // row) is CLOSED auth-on (403 → POST /api/orgs; the old onboarding exemption is retired) and open
-  // only in OFF mode. OFF mode stays allow-all. (Regression for the cross-tenant account-write gap —
+  // only in OFF mode. OFF mode stays allow-all. (Regression for the cross-tenant account-write gap,
   // this is a deliberate compatibility boundary.)
 
   const putAccount = (app: FastifyInstance, id: string, cookie?: string) =>
@@ -1422,7 +1422,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 
 describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
   const { putAccount, batchPutAccount } = accountWriteFixture();
-  // Auth-on, a CREATE via any generic vector is CLOSED outright — 403 directing to POST /api/orgs
+  // Auth-on, a CREATE via any generic vector is CLOSED outright, 403 directing to POST /api/orgs
   // (the atomic account + Internal client + owner-membership path). The refusal is UNCONDITIONAL in
   // auth-on: it fires ahead of the single-company cap, at zero accounts (the bootstrap case now
   // belongs to /api/orgs too), and regardless of multiAccount. Three cases pin the full behaviour:
@@ -1434,7 +1434,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     expect(readErrorMessage(putRes)).toContain("/api/orgs");
     expect((put.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
 
-    const batch = await appWithAuth({ optimisticConcurrency: false }); // separate fresh instance — also zero accounts
+    const batch = await appWithAuth({ optimisticConcurrency: false }); // separate fresh instance, also zero accounts
     const { cookie: batchCookie } = await signUp(batch.app, "acct-onboard-batch@capacitylens.dev");
     const batchRes = await batchPutAccount(batch.app, "brandNew2", batchCookie);
     expect(batchRes.statusCode).toBe(403);
@@ -1454,7 +1454,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     const batch = await batchPutAccount(app, "brandNew4", cookie);
     expect(batch.statusCode).toBe(403);
     expect(readErrorMessage(batch)).toContain("/api/orgs");
-    // /api/orgs then applies the single-company cap itself (its own GATE 0) — see app.orgs.test.ts.
+    // /api/orgs then applies the single-company cap itself (its own GATE 0), see app.orgs.test.ts.
   });
 });
 
@@ -1668,7 +1668,7 @@ describe("private client/project names — owner-only server projection", () => 
 });
 
 describe("P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)", () => {
-  // No authMode ⇒ OFF (trusted-local). Every read/write succeeds, INCLUDING cross-account ids —
+  // No authMode ⇒ OFF (trusted-local). Every read/write succeeds, INCLUDING cross-account ids,
   // authorize() short-circuits to true on its first line, so membership/policy resolution never runs.
   function offApp(): FastifyInstance {
     const db = openDb(":memory:");

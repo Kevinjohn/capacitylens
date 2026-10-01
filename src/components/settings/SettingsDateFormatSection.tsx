@@ -12,7 +12,7 @@ import type { DateStyle } from "@capacitylens/shared/types/entities";
  * That is also why it is not in the Appearance section, which is explicitly this-device-only.
  *
  * Editor and up, like every account setting except Capacity Overview access. A viewer sees the
- * control disabled rather than hidden, matching the other account sections — and the server
+ * control disabled rather than hidden, matching the other account sections, and the server
  * authorises the write independently, so the disabled attribute is a courtesy, not the control.
  */
 export function SettingsDateFormatSection({

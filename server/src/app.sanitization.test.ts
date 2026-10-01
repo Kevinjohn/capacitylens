@@ -10,7 +10,7 @@ function createDirectWriteColourAndResourceSanitizationTests(): void {
   it("stores a validated account colour without surrounding whitespace", async () => {
     const { app } = freshApp();
     expect((await post(app, "accounts", { ...account("a1"), color: "  #aAbBcC  " })).statusCode).toBe(201);
-    // #aabbcc is not itself a preset — sanitizeWrite snaps it to its NEAREST preset (shared
+    // #aabbcc is not itself a preset, sanitizeWrite snaps it to its NEAREST preset (shared
     // snapToPresetColor), not a fixed fallback colour. See the "snaps a non-preset account
     // colour to its nearest preset" test below for the policy this replaced.
     expect((await readStateAccount(app)).color).toBe("#bed4f4");
@@ -20,12 +20,12 @@ function createDirectWriteColourAndResourceSanitizationTests(): void {
     // Regression guard for the old blanket-fallback bug: a colour close to one specific preset
     // must land on THAT preset, proving the guard is distance-based rather than always emitting
     // one fixed hex regardless of the input.
-    // multiAccount: true — this test deliberately creates a SECOND company on one instance (see
+    // multiAccount: true, this test deliberately creates a SECOND company on one instance (see
     // the identical note at the other multiAccount call sites above).
     const { app } = freshApp({ allowReset: true, extra: { multiAccount: true } });
     await post(app, "accounts", { ...account("a1"), color: "#7cd9e4" });
     expect((await readStateAccount(app)).color).toBe("#7adae3");
-    // A colour on the opposite side of the palette snaps to a DIFFERENT preset — proving the two
+    // A colour on the opposite side of the palette snaps to a DIFFERENT preset, proving the two
     // don't collapse onto the same fixed fallback.
     await post(app, "accounts", { ...account("a2"), color: "#f6c3bb" });
     const accounts = (await readValidatedState(app)).accounts;
@@ -91,7 +91,7 @@ function createDirectWriteAllocationValueSanitizationTest(): void {
     const a = readFirstAllocation((await readValidatedState(app)).allocations);
     expect(a.status).toBe("confirmed");
     // A finite out-of-range value clamps to the [0,24] FLOOR (0), matching the shared
-    // store clamp — import + store now use one clampHoursPerDay, so they can't diverge.
+    // store clamp, import + store now use one clampHoursPerDay, so they can't diverge.
     // (Only a missing / NaN value falls back to a full 8h day.)
     expect(a.hoursPerDay).toBe(0);
   });

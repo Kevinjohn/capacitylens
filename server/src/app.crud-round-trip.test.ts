@@ -175,7 +175,7 @@ function createCrudResourceMutationTests(): void {
   it("PATCH is a partial merge: omitted fields keep their stored value", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    // A real partial patch — only `role`. kind/employmentType/workingDays/etc. must
+    // A real partial patch, only `role`. kind/employmentType/workingDays/etc. must
     // survive (a blind column-wise UPDATE would null the NOT NULL columns → 500/400).
     const res = await patch({ app, entity: "resources", id: "r1", payload: { role: "Lead Designer" } });
     expect(res.statusCode).toBe(200);
@@ -278,7 +278,7 @@ function createCrudPersistenceTests(): void {
     expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: true });
     await del({ app, entity: "accounts", id: "a1" }); // user empties everything
     expect((await readValidatedState(app)).accounts).toHaveLength(0);
-    // Still "initialised" — a reload must NOT mistake an emptied dataset for a fresh one.
+    // Still "initialised", a reload must NOT mistake an emptied dataset for a fresh one.
     expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: true });
   });
 
@@ -295,7 +295,7 @@ function createCrudUpsertTests(): void {
     await post(app, "accounts", account("a1"));
     const c = client("c1", "a1");
     expect((await put({ app, entity: "clients", id: "c1", payload: c })).statusCode).toBe(200);
-    // Replay the SAME create — must not error (the sync adapter relies on this when
+    // Replay the SAME create, must not error (the sync adapter relies on this when
     // replaying a batch after a partial failure).
     const replay = await put({ app, entity: "clients", id: "c1", payload: c });
     expect(replay.statusCode).toBe(200);

@@ -135,13 +135,13 @@ function registerBaseLoadTests(): void {
     // DEPLOYMENT CONTRACT: a version-skewed OLDER server may OMIT a table this newer client already
     // knows about; that MISSING key hydrates as empty via migrate()/normalize rather than failing the
     // WHOLE load (which would be a total outage on every rolling deploy). But a key that is PRESENT
-    // and NOT an array is a corrupt/incomplete payload masquerading as empty data — a HARD failure.
+    // and NOT an array is a corrupt/incomplete payload masquerading as empty data, a HARD failure.
     const missing = new ServerSyncAdapter(
       "http://x",
       vi.fn(async () => new Response(JSON.stringify({ accounts: [] }), { status: 200 })) as unknown as typeof fetch,
     );
     const loaded = await missing.loadAll();
-    expect(loaded.clients).toEqual([]); // a missing table hydrated empty — no throw
+    expect(loaded.clients).toEqual([]); // a missing table hydrated empty, no throw
     expect(loaded.resources).toEqual([]);
 
     const wrongType = new ServerSyncAdapter(

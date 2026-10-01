@@ -23,7 +23,7 @@ const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 // Order + labels for the "what's in this file" import summary. Each `label` is a render-time
 // GETTER (`() => m.key()`), not a pre-resolved string (the nav LINKS / option-getter pattern):
 // this list is module-scope, so resolving `m.key()` here would freeze the label to the
-// load-time locale. The getter defers it to render — summarize() calls each at its call site.
+// load-time locale. The getter defers it to render, summarize() calls each at its call site.
 const SUMMARY: [keyof AppData, () => string][] = [
   ["resources", () => m.data_summary_resources()],
   ["disciplines", () => m.data_summary_disciplines()],
@@ -267,10 +267,10 @@ export function ImportExport() {
   // omitted: import re-stamps records into whichever account is active and preserves that
   // destination's identity, calendar, language, scheduling and visibility settings.
   // DELIBERATELY the RAW useScopedData, NOT useActiveScopedData: the export must NOT apply the
-  // view-only active filter — it serializes whatever the store actually holds. In the DEMO build the store
+  // view-only active filter. It serializes whatever the store actually holds. In the DEMO build the store
   // is the whole device blob, so archived + soft-deleted rows ARE retained in the backup. In SERVER
   // mode the store is hydrated from the active-only per-account read (readSlice `includeInactive:false`),
-  // so those rows are not present client-side — they remain in the server DB and belong to the
+  // so those rows are not present client-side. They remain in the server DB and belong to the
   // COMPLETE per-tenant export / the admin "Archived & deleted" view, not this client-side
   // snapshot. Using the raw hook keeps this export decoupled from the view-hiding rule (and complete in
   // the demo build); the normal VIEWS use the active-only projection, this export does not.
@@ -283,11 +283,11 @@ export function ImportExport() {
   // REPLACEMENT is destructive and id-remapping bypasses field-level write pins. In particular, an
   // admin's valid redacted export has no private codeName/real-name fields and must never be accepted
   // as a replacement that destroys those owner-confidential identities.
-  // `role === null` stays importable — that is the OFF/demo/no-provider regression guard
+  // `role === null` stays importable. That is the OFF/demo/no-provider regression guard
   // (see permissionContext.ts); the server 403 remains the authoritative backstop either way.
   const canImport = !serverMode || role === null || canSeePrivateNames(role);
   // A parsed-but-not-yet-applied import, awaiting the user's confirmation. Import
-  // is a full replace, so we never apply it silently — confirm first, and the
+  // is a full replace, so we never apply it silently, confirm first, and the
   // apply goes through the undoable history path so ⌘Z restores the old data.
   const {
     pending: pendingImport,
@@ -330,7 +330,7 @@ export function ImportExport() {
       />
 
       {/* The import UI LOCK (see importBusy above): a non-dismissable blocking dialog for the few
-          seconds of POST + re-hydrate. onClose is a deliberate no-op — visibility is owned by
+          seconds of POST + re-hydrate. onClose is a deliberate no-op, visibility is owned by
           importBusy alone, so Escape/backdrop cannot dismiss it. The body carries tabIndex={0} so
           the Modal's Tab-trap engages (it no-ops on a panel with zero focusables) and initial
           focus lands on the status text for screen readers. */}

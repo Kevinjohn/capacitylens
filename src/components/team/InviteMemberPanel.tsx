@@ -16,7 +16,7 @@ import { sortInvitationsForPresentation } from "./buildMemberDirectoryPresentati
 /**
  * A write-once "here is a freshly-minted link, copy it now" block (shared by the invite link and the
  * password-reset link). Renders the `break-all` <code> + ghost copy Button once; the token behind the
- * link is never read back. Pass `intro` (a <p>) to prepend an explanatory line — the reset block uses
+ * link is never read back. Pass `intro` (a <p>) to prepend an explanatory line, the reset block uses
  * it to name WHO/when; the invite block omits it. Structure is intentionally two shapes (the intro
  * variant needs an outer vertical stack) so both call sites keep their exact prior markup.
  */

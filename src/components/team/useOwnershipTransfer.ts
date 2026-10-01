@@ -40,7 +40,7 @@ interface OwnershipTransferReadState {
 
 export interface OwnershipTransferState extends OwnershipTransferReadState {
   /** The first read is still in flight. Derived, not stored: a projection is an object once the
-   * server has answered, so "no projection yet and no error" IS the loading state — and deriving
+   * server has answered, so "no projection yet and no error" IS the loading state, and deriving
    * it keeps the card from briefly claiming there is no transfer. */
   loading: boolean;
 }
@@ -72,8 +72,8 @@ interface CeremonyRead {
  * Read both halves of what the card shows.
  *
  * A failed half answers `null`, which the caller merges by KEEPING what it already had: the last
- * thing the server said is better evidence than nothing. A rejected request — offline, a dropped
- * connection, the request timeout aborting — is a failed read like any other and is reported, never
+ * thing the server said is better evidence than nothing. A rejected request (offline, a dropped
+ * connection, the request timeout aborting) is a failed read like any other and is reported, never
  * thrown: an exception here would leave the card loading or busy forever with nothing said.
  */
 async function readCeremony(accountId: string): Promise<CeremonyRead> {
@@ -100,7 +100,7 @@ async function readCeremony(accountId: string): Promise<CeremonyRead> {
 
 /**
  * @param keepStale Keep what the server last said when a half fails. True while the card is only
- * watching — the last answer is better evidence than nothing. FALSE after a command: the ceremony
+ * watching. The last answer is better evidence than nothing. FALSE after a command: the ceremony
  * has just moved, so the old projection would offer controls at a revision the server will now
  * refuse, and "I do not know" is the honest answer.
  */
@@ -117,7 +117,7 @@ function mergeCeremonyRead({ previous, next, keepStale = true }: MergeCeremonyRe
 /**
  * Is the answer we are holding still the one the card asked for LAST?
  *
- * Every answer this hook waits for — the first read, a command, the re-read that follows it — can
+ * Every answer this hook waits for (the first read, a command, the re-read that follows it) can
  * be overtaken. Comparing companies is not enough: two reads of the SAME company can resolve out of
  * order, and applying the older one puts a nomination back on screen that has already been accepted,
  * with a revision every later click would be refused for. A counter answers both cases.

@@ -29,8 +29,8 @@ function isSqliteConstraintError(error: unknown): boolean {
   );
 }
 
-// Map a thrown error to an HTTP status. Caller-fault errors — domain validation
-// (ValidationError) and DB constraint/FK violations — are 400; anything else is an
+// Map a thrown error to an HTTP status. Caller-fault errors, domain validation
+// (ValidationError) and DB constraint/FK violations, are 400; anything else is an
 // unexpected server/db bug and must surface as 500 (not be hidden as a 400).
 // Exported for unit testing the classification.
 export function resolveErrorStatus(error: unknown): number {
@@ -64,7 +64,7 @@ export function fail(reply: FastifyReply, error: unknown, logError: (e: unknown)
   }
   // 400s: a curated ValidationError message is safe AND useful (it's a friendly sentence we
   // authored). A raw DB-constraint message (e.g. "NOT NULL constraint failed: clients.color")
-  // leaks schema internals — genericise it, mirroring the 500 redaction one tier down.
+  // leaks schema internals, genericise it, mirroring the 500 redaction one tier down.
   const message = error instanceof ValidationError ? error.message : REPLY_ERRORS.constraintViolation;
   return reply.code(status).send({
     error: message,

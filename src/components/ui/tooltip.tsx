@@ -6,8 +6,8 @@ import { cn } from "@/lib/cn";
 // shadcn Tooltip primitives on the `radix-ui` umbrella. The stock content uses bg-primary
 // (shadcn's slate) + text-primary-foreground; capacitylens's --primary is the slate brand and would
 // clash with the blue identity, so the content is restyled with capacitylens's elevated-surface
-// tokens (bg-elevated/text-ink/ring-line/shadow-pop) — the SAME treatment as the hand-rolled
-// nav-rail hover label in AppShell — which is AA-safe in both themes. A tooltip is supplementary:
+// tokens (bg-elevated/text-ink/ring-line/shadow-pop), the SAME treatment as the hand-rolled
+// nav-rail hover label in AppShell, which is AA-safe in both themes. A tooltip is supplementary:
 // the trigger keeps its own aria-label so the tooltip is never the sole accessible name.
 
 function TooltipProvider({

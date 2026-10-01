@@ -25,7 +25,7 @@ import { seedMemberResourceLink } from "./fixtures/seedMemberResourceLink";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 import { FROZEN_REPLY_MESSAGES } from "@capacitylens/shared/api/replyMessages";
 
-// Entity-lifecycle routes — the SERVER half of the Active→Archived→Soft-deleted→Purged machine.
+// Entity-lifecycle routes, the SERVER half of the Active→Archived→Soft-deleted→Purged machine.
 // This suite drives archive/unarchive/delete/purge and admin inactive reads end-to-end, asserting
 // authorization, interlocks, cascades, persisted obfuscation and audit wiring. Pure transitions
 // remain unit-tested in shared/domain/lifecycle.test.ts.
@@ -479,7 +479,7 @@ function readDeletedResourceState(response: unknown, id: string): DeletedResourc
 }
 
 // One built-in Internal client whose id is captured so the built-in-guard test can target it (its id is
-// random per buildInternalClient call, so it MUST be built once and reused — not rebuilt at assert time).
+// random per buildInternalClient call, so it MUST be built once and reused, not rebuilt at assert time).
 const INTERNAL = buildInternalClient("a1", TS);
 
 /**
@@ -679,7 +679,7 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
 
 describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   // The freshness deadline is INCLUSIVE (`>=` in authorize()): a session exactly at the bound is
-  // stale. The bound is pinned here at millisecond precision — the coarse 16-minute test above
+  // stale. The bound is pinned here at millisecond precision, the coarse 16-minute test above
   // proves the wiring, these prove the operator.
   it.each([
     ["one millisecond inside the freshness window", ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000 - 1, 200],
@@ -861,7 +861,7 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     });
 
     // rDel is a soft-delete tombstone (deletedAt set). Unarchive accepts archived rows ONLY, so clearing
-    // archivedAt here would leave the tombstone still 'deleted' — the transition refuses outright.
+    // archivedAt here would leave the tombstone still 'deleted', the transition refuses outright.
     const res = await lifecycleAction({
       app,
       entity: "resources",
@@ -1362,7 +1362,7 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     const file = join(dir, "audit.jsonl");
     const db = openDb(":memory:");
     const app = createApp(db, { audit: createFileAuditSink(file, () => {}) });
-    // A resource whose name is a sentinel — to prove the audit line carries the field NAME, not the value.
+    // A resource whose name is a sentinel, to prove the audit line carries the field NAME, not the value.
     const SENTINEL = "AUDIT_SENTINEL_NAME";
     const d = emptyAppData() as unknown as Record<string, unknown[]>;
     d.accounts = [account("a1")];
@@ -1399,7 +1399,7 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     const file = join(dir, "audit.jsonl");
     const db = openDb(":memory:");
     const app = createApp(db, { audit: createFileAuditSink(file, () => {}) });
-    // An ALREADY-ARCHIVED resource (delete requires prior archival) whose name is a unique sentinel —
+    // An ALREADY-ARCHIVED resource (delete requires prior archival) whose name is a unique sentinel,
     // the delete route both obfuscates the name AND audits 'name' as a field NAME; neither must leak the value.
     const SENTINEL = "AUDIT_DELETE_SENTINEL_NAME";
     const NOTE_SENTINEL = "AUDIT_DELETE_SENTINEL_NOTE";
@@ -1526,9 +1526,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
   // Two integrity guards keeping the GENERIC write path (POST/PUT/PATCH/batch) from bypassing the
   // dedicated lifecycle routes: (1) sanitizeWrite PINS archivedAt/deletedAt to the stored row, so a
   // crafted body can neither SET a tombstone on an active row (skipping the archived-first interlock +
-  // the resource-name PII scrub, and — with a back-dated deletedAt — making it instantly purgeable) NOR
+  // the resource-name PII scrub, and, with a back-dated deletedAt, making it instantly purgeable) NOR
   // CLEAR an existing one via an unrelated edit (which would silently RESURRECT an archived/soft-deleted
-  // row — there is no un-delete route anywhere), and (2) validateWrite refuses to convert the built-in
+  // row: there is no un-delete route anywhere), and (2) validateWrite refuses to convert the built-in
   // Internal client back to a regular one. OFF mode is used (authorize is a no-op there), so these prove
   // the SANITIZE/VALIDATE layer itself, independent of the auth gate.
 
@@ -1549,7 +1549,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     const r1 = await rowById({ app, entity: "resources", accountId: "a1", id: "r1" });
     expect(r1?.deletedAt).toBeUndefined();
     expect(r1?.archivedAt).toBeUndefined();
-    // Still ACTIVE: it appears in the DEFAULT (active-only) read too — the forged delete never took.
+    // Still ACTIVE: it appears in the DEFAULT (active-only) read too. The forged delete never took.
     const active = await call(app, {
       method: "GET",
       url: "/api/state?accountId=a1",
@@ -1586,9 +1586,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       payload: { builtin: false },
     });
     expect(res.statusCode).toBe(400);
-    // The flag survived — the singleton is intact.
+    // The flag survived. The singleton is intact.
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: INTERNAL.id }))?.builtin).toBe(true);
-    // A regular client still updates normally (control — the guard is surgical, not a blanket clients lock).
+    // A regular client still updates normally (control, the guard is surgical, not a blanket clients lock).
     const ok = await call(app, {
       method: "PATCH",
       url: "/api/clients/c1",
@@ -1611,7 +1611,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(
       (await lifecycleAction({ app, entity: "resources", id: "r1", action: "archive", accountId: "a1" })).statusCode,
     ).toBe(200);
-    // Edit an unrelated field — the body never mentions archivedAt, but the merge spreads the stored
+    // Edit an unrelated field. The body never mentions archivedAt, but the merge spreads the stored
     // tombstone, and a blind strip would clear it. The pin keeps it.
     const res = await call(app, {
       method: "PATCH",
@@ -1622,7 +1622,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     const r1 = await rowById({ app, entity: "resources", accountId: "a1", id: "r1" });
     expect(typeof r1?.archivedAt).toBe("string"); // tombstone survived the edit
     expect(r1?.role).toBe("Senior Designer"); // the legit field DID change
-    // Still ARCHIVED: absent from the DEFAULT (active-only) read — it was NOT resurrected.
+    // Still ARCHIVED: absent from the DEFAULT (active-only) read. It was NOT resurrected.
     const active = await call(app, {
       method: "GET",
       url: "/api/state?accountId=a1",
@@ -1657,7 +1657,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(after?.deletedAt).toBe(before?.deletedAt); // soft-delete tombstone intact
     expect(after?.archivedAt).toBe(before?.archivedAt); // archive tombstone intact
     expect(after?.color).toBe(before?.color);
-    // Still DELETED: absent from the DEFAULT (active-only) read — not resurrected.
+    // Still DELETED: absent from the DEFAULT (active-only) read, not resurrected.
     const active = await call(app, {
       method: "GET",
       url: "/api/state?accountId=a1",
@@ -1854,7 +1854,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       "string",
     );
 
-    // Same via the batch sync path (the real client verb) — the changed call site is covered too.
+    // Same via the batch sync path (the real client verb). The changed call site is covered too.
     const archivedBatch = await rowById({ app, entity: "resources", accountId: "a1", id: "rBatch" });
     const batch = await call(app, {
       method: "POST",

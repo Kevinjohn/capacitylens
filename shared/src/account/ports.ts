@@ -109,7 +109,7 @@ export interface OwnershipTransferCommandInput {
 /** Persistence port for company memberships, invitations, ownership transfers and administration. */
 export interface AccountAdminPort extends JoiningPolicyAdminPort {
   listWorkspacesForPrincipal(input: { principalId: PrincipalId }): Promise<readonly WorkspaceMembershipSummary[]>;
-  /** Active membership by default — this is the read request authorization goes through, so a
+  /** Active membership by default. This is the read request authorization goes through, so a
    * disabled or archived row must look like no membership at all. `includeInactive` answers the
    * different question "does this relationship exist?" and is for identity administration only:
    * an admin disables a compromised account BEFORE rotating its password and killing its
@@ -120,7 +120,7 @@ export interface AccountAdminPort extends JoiningPolicyAdminPort {
     includeInactive?: boolean;
   }): Promise<Membership | null>;
   /** Active memberships by default. `includeInactive` additionally returns disabled and archived
-   * rows and exists for ONE caller — the administrative member directory, which must show an
+   * rows and exists for ONE caller. The administrative member directory, which must show an
    * administrator the state they applied so they can reverse it. `requireFresh` defaults to true
    * for administrative callers; the member-directory projection may set it false after the HTTP
    * authorization seam has established the caller's current role. Never widen an authorization

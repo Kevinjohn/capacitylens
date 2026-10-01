@@ -101,7 +101,7 @@ function createVisibleInactiveMemberTest(): void {
     expect(res.statusCode).toBe(200);
     const members = (res.json() as { members: Array<{ userId: string; status: string; role: string }> }).members;
     const row = members.find((m) => m.userId === ed.userId);
-    // An invisible non-active member would be an unreversible one — the admin needs the row to act on.
+    // An invisible non-active member would be an unreversible one. The admin needs the row to act on.
     if (!row) throw new Error("Expected the disabled member row.");
     expect(row.status).toBe("active");
     expect((row as typeof row & { accessDisabled: boolean }).accessDisabled).toBe(true);

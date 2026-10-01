@@ -3,8 +3,8 @@ import type { IsoInstant, PrincipalId, WorkspaceId } from "./types";
 /**
  * The durable workflow states of an ownership transfer.
  *
- * Ownership moves through a three-party ceremony — the Owner nominates, the nominated Admin
- * consents, the same Owner gives final approval — so the workflow spans sessions and days and
+ * Ownership moves through a three-party ceremony (the Owner nominates, the nominated Admin
+ * consents, the same Owner gives final approval) so the workflow spans sessions and days and
  * cannot be a single mutation. Only the two live states accept transitions; every other state is
  * terminal and immutable, because a terminal row is the durable evidence a participant who was
  * offline reads to learn what happened.
@@ -46,7 +46,7 @@ export function isLiveOwnershipTransferState(state: OwnershipTransferState): sta
 /** The wire shape of a committed terminal outcome: a 409 whose code identifies the ceremony as
  * DONE rather than rejected, carrying one of the non-live terminal states. Both HTTP clients that
  * decode this response (the ceremony reader and the generic unknown-outcome classifier) share this
- * predicate so they cannot drift — a malformed code or a live state must never match either. */
+ * predicate so they cannot drift, a malformed code or a live state must never match either. */
 export function isOwnershipTransferTerminalOutcomeBody(
   body: Record<string, unknown>,
 ): body is Record<string, unknown> & { code: "OWNERSHIP_TRANSFER_TERMINAL"; state: OwnershipTransferState } {
@@ -98,7 +98,7 @@ export type OwnershipTransferTerminalReason = (typeof OWNERSHIP_TRANSFER_TERMINA
  * `withdraw` returning `awaiting_owner` → `awaiting_target` is deliberately NOT a decline: it
  * removes the "accepted forever" trap without discarding the Owner's original nomination, so the
  * nominee may accept again before the deadline. Because accept → withdraw → accept returns to a
- * state it already held, a monotonic revision — not the state alone — is what stops a delayed
+ * state it already held, a monotonic revision, not the state alone, is what stops a delayed
  * command from applying to a later acceptance cycle.
  */
 const PERMITTED_TRANSITIONS = {
@@ -178,8 +178,8 @@ export interface OwnershipTransferRequest {
  *
  * Two independently nullable projections rather than a history list: the live request, and the most
  * recent terminal outcome this caller took part in. The second exists because an offline
- * participant must be able to tell a decline from a cancellation, an expiry and an invalidation —
- * a live-only read would hand them `null` for all four.
+ * participant must be able to tell a decline from a cancellation, an expiry and an invalidation.
+ * A live-only read would hand them `null` for all four.
  */
 export interface OwnershipTransferProjection {
   live: OwnershipTransferRequest | null;

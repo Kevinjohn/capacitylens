@@ -17,7 +17,7 @@ function readHealthBody(response: { json: () => unknown }): HealthBody {
 }
 
 // CAPACITYLENS_HEALTH_DEEP (opts.healthDeep): ON makes /api/health prove the DB
-// answers a constant SELECT 1; OFF keeps today's unconditional { ok: true } — the exact body
+// answers a constant SELECT 1; OFF keeps today's unconditional { ok: true }, the exact body
 // Playwright's webServer probe (and anything else pinned to it) depends on.
 
 function createHealthyTest(): void {
@@ -33,7 +33,7 @@ function createHealthyTest(): void {
 
 function createDegradedTest(): void {
   it("reports audit: degraded (still 200, db: true) when the audit sink has latched degraded", async () => {
-    // A degraded audit sink is a SOFT signal — the DB still answers, so the server stays
+    // A degraded audit sink is a SOFT signal. The DB still answers, so the server stays
     // healthy (200, db:true); only the `audit` field flips to 'degraded' so an external uptime
     // monitor can see the latched write failure without the server lying healthy OR going 503.
     // The fake matches the real AuditSink contract (append + the degraded latch).

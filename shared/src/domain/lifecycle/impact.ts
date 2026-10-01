@@ -5,11 +5,11 @@ import { LifecycleTransitionError } from "./transitions";
 
 /**
  * Per-table counts of currently-ACTIVE descendants that archiving ONE entity would additionally HIDE
- * from the {@link activeOnly} view projection — NOT counting the entity itself. Feeds the
+ * from the {@link activeOnly} view projection, NOT counting the entity itself. Feeds the
  * archive-confirmation warning ("this also hides N projects and M allocations").
  */
 export interface ArchiveImpact {
-  /** Active projects hidden — non-zero only when archiving a CLIENT. */
+  /** Active projects hidden, non-zero only when archiving a CLIENT. */
   projects: number;
   /** Active phases hidden beneath an archived client or project. */
   phases: number;
@@ -17,7 +17,7 @@ export interface ArchiveImpact {
   activities: number;
   /** Active allocation bars hidden. */
   allocations: number;
-  /** Active time-off entries hidden — non-zero only when archiving a RESOURCE. */
+  /** Active time-off entries hidden, non-zero only when archiving a RESOURCE. */
   timeOff: number;
 }
 
@@ -33,9 +33,9 @@ const ARCHIVE_IMPACT_SENTINEL = "2000-01-01T00:00:00.000Z" as ISOTimestamp;
  * counts can NEVER drift from the real view-projection rule (extend the cascade in activeOnly and
  * this follows for free). The entity's OWN row is excluded per type: a client's own row lives in
  * `clients`; a project has no descendant projects; a resource no descendant resources; an activity's
- * own row is excluded — so `projects` is reported only for a client and `timeOff` only for a resource.
+ * own row is excluded, so `projects` is reported only for a client and `timeOff` only for a resource.
  *
- * @param data   account-scoped AppData to measure against — pass the ACTIVE projection, since the
+ * @param data   account-scoped AppData to measure against, pass the ACTIVE projection, since the
  * counts are of currently-VISIBLE descendants that would disappear.
  * @param entity which lifecycle table the archived row lives in.
  * @param id     the row being archived; throws when it is missing or not active.

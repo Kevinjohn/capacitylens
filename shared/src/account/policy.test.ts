@@ -213,7 +213,7 @@ describe("canEditAnyMemberRole(actor, target) — 'may I touch this member's rol
   it("tracks removal authority for every actor/target pair", () => {
     // CURRENT TRUTH, not a contract. The two answer different questions ("may I retitle you" vs
     // "may I revoke you") and today they happen to agree. This sweep exists so that if either rule
-    // gains a condition, the divergence is a deliberate, visible decision here — NOT so that a
+    // gains a condition, the divergence is a deliberate, visible decision here, NOT so that a
     // future difference must be treated as a bug.
     for (const actor of ROLES) {
       for (const target of ROLES) {
@@ -246,7 +246,7 @@ describe("canManageMemberRole delegates to canEditAnyMemberRole without changing
 
   // Hand-derived from the rules, NOT from the implementation: the actor must hold manage-members
   // (admin tier), and neither demoting the Owner nor promoting anyone TO Owner is an ordinary role
-  // edit — both go through ownership transfer.
+  // edit: both go through ownership transfer.
   const oracle = (actor: Role, target: Role, next: Role): boolean =>
     (actor === "owner" || actor === "admin") && target !== "owner" && next !== "owner";
 

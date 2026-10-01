@@ -1,11 +1,11 @@
 import { TABLES, type TableSpec } from "../tables";
 import type { Db } from "../db";
 // `table` is interpolated DIRECTLY into the SQL strings below (SQL can't parameterise an
-// identifier), so it MUST be a vetted key of TABLES — this is the SQL-injection safety boundary.
+// identifier), so it MUST be a vetted key of TABLES. This is the SQL-injection safety boundary.
 // Every route already gates the table name through isKnownTable before reaching these primitives;
 // this assertion is defence-in-depth (a future caller can't turn an unchecked string into an
 // injection point) and turns a cryptic "cannot read properties of undefined" into a clear message.
-// One own-property lookup — `Object.hasOwn`, not `in`, so a prototype key like "constructor" can't
+// One own-property lookup, `Object.hasOwn`, not `in`, so a prototype key like "constructor" can't
 // masquerade as a table.
 export function assertKnownTable(table: string): void {
   if (!Object.hasOwn(TABLES, table)) {

@@ -96,7 +96,7 @@ function previewGesture(options: ControllerOptions, runtime: GestureRuntime, inp
   // A drop the commit will refuse must not be drawn as a reassignment: the preview would show the
   // destination's re-placement, then snap back on release. Fall back to the range this drag would
   // produce on the bar's OWN row, so it keeps following the pointer sideways while the row under it
-  // refuses the drop — suppressing the range entirely froze the bar's horizontal tracking.
+  // refuses the drop, suppressing the range entirely froze the bar's horizontal tracking.
   const blocked = isPreviewDropBlocked({
     workingDays: previewDays,
     result,

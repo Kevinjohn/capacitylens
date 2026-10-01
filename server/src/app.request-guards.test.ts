@@ -10,7 +10,7 @@ describe("batch op-count cap (MAX_BATCH_OPS)", () => {
   it(`rejects a batch of more than ${MAX_BATCH_OPS} ops with 400 before anything is written`, async () => {
     const { app } = freshApp();
     // Op count (not just body bytes) bounds parsing, authorization, scoped projection updates and
-    // writes — the cap must fire BEFORE the pre-scan/tx, leaving the DB untouched.
+    // writes: the cap must fire BEFORE the pre-scan/tx, leaving the DB untouched.
     const ops = Array.from({ length: MAX_BATCH_OPS + 1 }, (_, i) => ({
       method: "PUT",
       table: "accounts",
@@ -91,7 +91,7 @@ describe("null-id rejection (POST/batch without id → 400)", () => {
 
   it("batch PUT op with a missing/non-string id is rejected with 400", async () => {
     const { app } = freshApp();
-    // A batch op whose id field is not a string — the batch handler rejects it before
+    // A batch op whose id field is not a string, the batch handler rejects it before
     // it can reach sanitizeWrite (typeof id !== 'string' check).
     const res = await call(app, {
       method: "POST",
@@ -157,7 +157,7 @@ describe("absent/null request body on generic writes → 400, not 500", () => {
   });
 
   // The sibling handler: PATCH /api/:entity/:id ran entirely inside a try/catch, but a null body
-  // still surfaced as 500 — accountFieldsFrozen's `field in incoming` throws on null, and the
+  // still surfaced as 500. AccountFieldsFrozen's `field in incoming` throws on null, and the
   // caught TypeError isn't a ValidationError/constraint-failed, so statusFor mapped it to 500.
   it("PATCH /api/accounts/:id with a literal JSON null body is 400, not 500", async () => {
     const { app } = freshApp();

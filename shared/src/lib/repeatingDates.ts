@@ -80,7 +80,7 @@ export class RepeatingDateError extends RangeError {
 
 /** Range-guarded month length for this module's absolute-month arithmetic. The Gregorian leap rule
  * and month table live ONCE, in integrity.ts (shared with `isValidISODate`); the guards here are
- * this module's own contract — the month arithmetic below can compute an out-of-domain year, and
+ * this module's own contract. The month arithmetic below can compute an out-of-domain year, and
  * these typed RangeErrors are what the callers catch to clamp instead of emitting a pseudo-date. */
 function countDaysInMonth(year: number, month: number): number {
   if (!Number.isSafeInteger(year) || year < FIRST_SUPPORTED_YEAR || year > LAST_SUPPORTED_YEAR) {
@@ -138,7 +138,7 @@ export function defaultRepeatUntilDate(
     suggested = policy.defaultCutoff === "month-end" ? endOfCalendarMonth(target) : target;
   } catch (error) {
     // Past the domain ceiling there is no "two months on" month left to end on, so the last
-    // supported date IS the bounded suggestion — the same value the maximum clamps to. Clamping
+    // supported date IS the bounded suggestion, the same value the maximum clamps to. Clamping
     // rather than throwing is load-bearing: revealing the field must never create invalid state.
     if (error instanceof RangeError) suggested = MAX_ISO_DATE;
     else throw error;

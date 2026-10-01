@@ -93,7 +93,7 @@ function isPast(date: ISODate, limit: ISODate, direction: Direction): boolean {
 }
 
 /** The new position of ONE dragged resize edge. Both edges run through here: they were
- * hand-mirrored copies — down to the pin-and-re-snap over-drag fix — so the next correction
+ * hand-mirrored copies, down to the pin-and-re-snap over-drag fix, so the next correction
  * could easily have landed in only one of them. `weekendAwareDays` is non-null only when the
  * gesture is weekend-aware (see `applyGesture`). */
 function resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays }: ResolveResizedEdgeInput): ISODate {
@@ -105,13 +105,13 @@ function resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays }: Resolv
   const origin = edge === "start" ? range.startDate : range.endDate;
   let moved = addDaysISO(origin, deltaDays);
   // Weekend-aware: keep the dragged edge off non-working days (snap in the drag's direction),
-  // mirroring the move branch — otherwise a resize lands a weekend at the bar's edge and, in
+  // mirroring the move branch, otherwise a resize lands a weekend at the bar's edge and, in
   // days mode, desyncs the calendar span from the working-day count. A zero-delta drag is a no-op.
   const snapDays = deltaDays === 0 ? null : weekendAwareDays;
   if (snapDays) moved = snapToWorkingDay(moved, snapDays, deltaDays > 0 ? 1 : -1);
   if (isPast(moved, anchor, toAnchor)) {
     // Over-dragged past the opposite edge: pin to it, but when weekend-aware snap that pin BACK
-    // onto a working day — else the edge lands on a non-working day and the days-mode span
+    // onto a working day, else the edge lands on a non-working day and the days-mode span
     // collapses to zero working days (silently keeping old hours). Never past this edge's origin.
     const pinned = snapDays ? snapToWorkingDay(anchor, snapDays, toOrigin) : anchor;
     moved = isPast(pinned, origin, toOrigin) ? origin : pinned;
@@ -122,7 +122,7 @@ function resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays }: Resolv
 // Measure against the ORIGIN, place against the DESTINATION. Measuring under the destination
 // instead would reinterpret the old dates in a calendar that never produced them: two days of work
 // on a Tue/Thu week read as four on a Mon-Fri one, and the bar refuses to shrink. When both weeks
-// count in the same units — two full weeks, or an allocation that ignores them — this reduces to
+// count in the same units (two full weeks, or an allocation that ignores them) this reduces to
 // the plain calendar shift it has always been.
 function applyMove({ range, deltaDays, sourceSpan, placesIntoAnotherWeek, targetDays }: ApplyMoveInput): DateRange {
   const shiftedStart = addDaysISO(range.startDate, deltaDays);
@@ -132,7 +132,7 @@ function applyMove({ range, deltaDays, sourceSpan, placesIntoAnotherWeek, target
   // week there is nothing to re-place, and a range already sitting on non-working days stays put.
   const snaps = deltaDays !== 0 && targetDays && (sourceSpan > 0 || placesIntoAnotherWeek);
   const newStart = snaps ? snapToWorkingDay(shiftedStart, targetDays, deltaDays > 0 ? 1 : -1) : shiftedStart;
-  // An origin with no duration to carry — its range lands entirely on days it does not work, or
+  // An origin with no duration to carry, its range lands entirely on days it does not work, or
   // its working week has collapsed to none at all. Preserving the raw calendar span is the only
   // non-destructive answer; re-placing a zero span would silently delete the booking.
   const span = sourceSpan > 0 ? sourceSpan : daysInclusive(range.startDate, range.endDate);

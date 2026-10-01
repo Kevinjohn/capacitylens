@@ -310,7 +310,7 @@ function runImport(input: ImportInput) {
  * referential rule the store/server enforce is applied: a record whose REQUIRED
  * foreign key dangles after remap is dropped, a dangling OPTIONAL key is unbound,
  * and allocations / time-off with a broken range or placeholder-rule violation are
- * dropped. This matters doubly for the server import path — a leftover dangling ref
+ * dropped. This matters doubly for the server import path. A leftover dangling ref
  * would be rejected by SQLite's foreign keys and fail the whole import. Returns the
  * next AppData plus how many records landed vs. were skipped. `incoming` must be a structurally
  * complete AppData produced by the transfer parser/migrator; a non-array scoped table fails loudly

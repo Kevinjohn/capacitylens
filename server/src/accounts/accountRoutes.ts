@@ -71,7 +71,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
 
   // Invite CREATE: mint a single-use, expiring link that pre-sets a role for `accountId`.
   // Body: { accountId, role, expiresAt? }. GATED 'manageInvites' (admin+ of THAT account) via the
-  // same authorize seam every permissioned route uses — OFF mode is the allow-all no-op (the token
+  // same authorize seam every permissioned route uses, OFF mode is the allow-all no-op (the token
   // is minted as DEMO_USER's act), auth-on requires admin-tier membership of `accountId` (a
   // cross-tenant stranger → 403). The token is a 32-byte CSPRNG value, base64url-encoded; it is the
   // ONLY secret here, so it is NEVER logged (it's returned in the body to the authorised caller and
@@ -90,7 +90,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     setJoiningPolicy(req, reply, context),
   );
 
-  // Invite PREVIEW: public because a new invitee has no session yet, but still bearer-authorized —
+  // Invite PREVIEW: public because a new invitee has no session yet, but still bearer-authorized,
   // only someone holding the unguessable token can read this deliberately small display shape.
   // No membership/user table is touched. A bound invite exposes only its local part plus `@…`;
   // the full address and domain never leave the account adapter.
@@ -99,7 +99,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   );
 
   // Invite ACCEPT: a signed-in caller redeems a link, binding the invited role to THEIR
-  // membership. NO authorize() call — the membership is the OUTPUT of this route, not a precondition
+  // membership. NO authorize() call. The membership is the OUTPUT of this route, not a precondition
   // (requireUser upstream already proved a real session, or attached DEMO_USER in OFF mode). The
   // token-state checks ARE the gate: unknown → 404, already-used → 409, expired → 410. An
   // email-preauth gate AFTER those and BEFORE the bind: a non-null preauthEmail must match the
@@ -121,7 +121,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
 
   // LIST members. Joins the membership rows with Better Auth user identity (name/email, read ONLY
   // here, only for this authorized admin). isSelf marks the caller's own row (the client derives its
-  // role from it). A missing name/email degrades to null — never a throw.
+  // role from it). A missing name/email degrades to null, never a throw.
   app.get<AccountRoute>("/api/accounts/:accountId/members", async (req, reply) => listMembers(req, reply, context));
   app.get<AccountRoute>("/api/accounts/:accountId/resource-avatars", async (req, reply) =>
     listResourceAvatars(req, reply, context),
@@ -152,7 +152,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   );
 
   // CHANGE a member's lifecycle status: disable, archive, or restore to active. The role and join
-  // date are untouched — only the authority to enter the account changes, because every
+  // date are untouched, only the authority to enter the account changes, because every
   // authorization read narrows on status = 'active'. Owner targets and the caller's own membership
   // are refused by the pure guard (canChangeMemberStatus); an administrator must not be able to
   // strand the account without an Owner, nor lock themselves out of the account they administer.
@@ -171,11 +171,11 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
 
   // OWNERSHIP TRANSFER: the three-step consent ceremony that replaced the one-click
   // hand-over. The Owner nominates, the nominated Admin consents, the same Owner gives final
-  // approval — so ownership never moves on one person's say-so, and the nominee is never made
+  // approval: so ownership never moves on one person's say-so, and the nominee is never made
   // responsible for a company without agreeing to it.
   //
   // Seven explicit routes, not a generic state patch: each step has a different authorised caller.
-  // All seven gate on 'actOnOwnershipTransfer' at ADMIN tier, deliberately — the nominee acts at
+  // All seven gate on 'actOnOwnershipTransfer' at ADMIN tier, deliberately, the nominee acts at
   // Admin tier, and a demoted former Owner must still be able to replay their own command. Owner
   // authority and participant identity are asserted by the port INSIDE its transaction, where the
   // membership facts are still true. Every command carries `expectedRevision`, so a command formed
@@ -223,11 +223,11 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   // RESET PASSWORD: mint a single-use, 24h reset LINK token for a member. The app supports
   // optional self-service email, but this admin operation hands the link over out-of-band,
   // exactly like an invite. Gated 'manageMembers' + the account policy's identity-administration guard (an
-  // admin must never reset an OWNER — a reset link is an account-takeover capability, so this is
+  // admin must never reset an OWNER. A reset link is an account-takeover capability, so this is
   // the same escalation door the no-admin→owner-grant rule closes). Password mode ONLY: 'sso'
   // delegates credentials to the IdP (400, not a crash), and OFF has no credentials at all. The
   // token rides Better Auth's own verification store (single-use, expiring) and is WRITE-ONCE:
-  // returned exactly here, never listed or read back — same posture as the invite token.
+  // returned exactly here, never listed or read back, same posture as the invite token.
   app.post<MemberRoute>("/api/accounts/:accountId/members/:userId/reset-password", async (req, reply) =>
     resetPassword(req, reply, context),
   );
@@ -239,7 +239,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     revokeMemberSessions(req, reply, context),
   );
 
-  // LIST outstanding invites — NO token in the response (it's a write-once bearer secret; see
+  // LIST outstanding invites. NO token in the response (it's a write-once bearer secret; see
   // listInvitesForAccount). Gated 'manageInvites'. OFF → empty.
   app.get<AccountRoute>("/api/accounts/:accountId/invites", async (req, reply) => listInvitations(req, reply, context));
 

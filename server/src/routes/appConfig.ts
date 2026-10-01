@@ -40,7 +40,7 @@ export function resolveAppConfig(options: AppOptions) {
   if (applicationFailure) throw new Error(`buildApp: ${applicationFailure}`);
   const executeImportWorker = options.importWorker ?? runImportWorker;
   // One fail-never sink receives both legacy product mutation records and normalized account-flow
-  // events. Construct it before the account boundary so the coordinator—not its HTTP caller—owns
+  // events. Construct it before the account boundary so the coordinator, not its HTTP caller, owns
   // audit correlation for cross-port commands.
   const auditSink = options.audit ?? createNoopAuditSink();
   const logOn = options.log === true;

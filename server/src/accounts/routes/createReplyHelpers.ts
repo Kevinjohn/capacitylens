@@ -59,7 +59,7 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies): Acco
     });
 
   // Every mutation route audits its own record UNLESS the command was a replay (audit already
-  // happened on first execution) — `extra` lets a route fold in one more precondition (e.g.
+  // happened on first execution), `extra` lets a route fold in one more precondition (e.g.
   // "only if something actually changed") without re-deriving the replay check at each call site.
   const auditUnlessReplayed = ({ reply, result, record, extra = true }: AuditUnlessReplayedInput): void => {
     if (extra && !wasAccountCommandReplayed(result)) audit(reply, record);

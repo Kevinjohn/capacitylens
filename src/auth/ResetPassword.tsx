@@ -12,21 +12,21 @@ import { resolveResetPasswordFailureMessage } from "./resetPasswordFailure";
 import { m } from "@/i18n";
 import { createRequestSignal } from "@/data/requestTimeout";
 
-// Password-reset page for /reset-password/:token. The token arrives out-of-band — an
+// Password-reset page for /reset-password/:token. The token arrives out-of-band, an
 // Owner/Admin shared it from Team & access, or optional SMTP delivered a self-service reset.
 // This page collects the new password and POSTs Better
-// Auth's PUBLIC redeem endpoint, `${API_BASE}/api/auth/reset-password` — a plain fetch, not the
+// Auth's PUBLIC redeem endpoint, `${API_BASE}/api/auth/reset-password`, a plain fetch, not the
 // better-auth client, so this lazy chunk stays free of the auth bundle (the endpoint is one JSON
 // POST; the client library adds nothing here). The server is the authority: single-use consumption,
-// expiry, and password length all live there — this page only pre-checks what saves a round trip
+// expiry, and password length all live there. This page only pre-checks what saves a round trip
 // (mismatched confirmation, an obviously-short password) and renders the outcome.
 //
-// AUTH WALL: unlike /invite/:token this page must work with NO session — the visitor is exactly the
+// AUTH WALL: unlike /invite/:token this page must work with NO session. The visitor is exactly the
 // person who CANNOT sign in. AuthProvider carves this path out of the login wall (see the
 // status.kind === 'login' branch there); the redeem endpoint sits under /api/auth/*, which the
 // server's requireUser preHandler already exempts.
 
-type State = { kind: "form" } | { kind: "working" } | { kind: "done" } | { kind: "unknown" } | { kind: "local" }; // the demo build (no server) — password reset is a server-mode feature
+type State = { kind: "form" } | { kind: "working" } | { kind: "done" } | { kind: "unknown" } | { kind: "local" }; // the demo build (no server), password reset is a server-mode feature
 
 interface ResetPasswordViewProps {
   state: State;
@@ -144,7 +144,7 @@ function ResetPasswordView(props: ResetPasswordViewProps) {
  * Renders a new-password + confirmation form and redeems the admin-issued single-use token against
  * Better Auth's public reset endpoint. Success offers "Go to sign in" as a FULL page load (a plain
  * anchor, not a router <Link>): there is no session, so a clean boot is what lands the visitor on
- * the login screen — client-side navigation would leave AuthProvider's boot-time status stale. In
+ * the login screen, client-side navigation would leave AuthProvider's boot-time status stale. In
  * the demo build (VITE_CAPACITYLENS_DEMO=1) there is no server, so it shows a short note and makes no
  * request. Surface-not-swallow: every failure path lands on a visible message.
  */
@@ -154,13 +154,13 @@ export function ResetPassword() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
-  // Stable ids so both inputs can point at the shared form-level error (WCAG 3.3.1) — the
+  // Stable ids so both inputs can point at the shared form-level error (WCAG 3.3.1), the
   // LoginScreen idiom: describedby re-announces the reason as the user navigates back.
   const passwordId = useId();
   const confirmId = useId();
   const errorId = useId();
 
-  // Per-route document.title (WCAG 2.4.2) — this route renders OUTSIDE AppShell (see router.tsx),
+  // Per-route document.title (WCAG 2.4.2). This route renders OUTSIDE AppShell (see router.tsx),
   // so the shell's nav-driven title effect never covers it (the InviteAccept idiom).
   useResetPasswordTitle();
 
@@ -196,7 +196,7 @@ export function ResetPassword() {
       setError(resolveResetPasswordFailureMessage(body, res.status));
       setState({ kind: "form" });
     } catch (error) {
-      // A pre-response transport error (server down, DNS, offline) — surface a generic, actionable
+      // A pre-response transport error (server down, DNS, offline), surface a generic, actionable
       // message rather than a dead end, and log the real cause for debugging.
       console.error("ResetPassword: reset request failed", error);
       setError(null);

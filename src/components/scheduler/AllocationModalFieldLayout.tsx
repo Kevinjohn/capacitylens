@@ -38,7 +38,7 @@ export function AllocationSpanRow({
 
 /** The raw Start/End pair, for the modes that take a literal date range rather than deriving the
  * end from a span (see `usesTypedDateRange`). Both fields report the SAME `dates` error field, so
- * they are invalid together — which is the reason they live in one component instead of two
+ * they are invalid together, which is the reason they live in one component instead of two
  * hand-kept copies that could drift apart. */
 export function DateRangeFields({
   startDate,

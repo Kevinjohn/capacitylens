@@ -1,7 +1,7 @@
 // Explainer copy for the External / 3rd-party feature, shared by the Resources and Settings help
 // modals so the two never drift. Describes what External IS and IS NOT.
 //
-// EDITABLE COPY: this wording is product copy, not behaviour — refine it in messages/<locale>.json
+// EDITABLE COPY: this wording is product copy, not behaviour, refine it in messages/<locale>.json
 // (key `external_explainer`). It lives in one place on purpose; both surfaces call this getter.
 //
 // i18n: the copy resolves through Paraglide (`@/i18n`). This is a GETTER (`() => …`), not a

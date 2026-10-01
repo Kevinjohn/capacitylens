@@ -1,5 +1,5 @@
 // Colour-scheme preference. Device-global (one choice per browser), stored
-// separately from account data — see DECISIONS.md. The store holds the reactive
+// separately from account data, see DECISIONS.md. The store holds the reactive
 // preference; these are the pure read/write/resolve/apply helpers it leans on.
 //
 // Model: the *preference* is light | dark | system; what we actually paint is a
@@ -22,7 +22,7 @@ export function readStoredTheme(): ThemePreference {
   try {
     current = localStorage.getItem(STORAGE_KEY);
   } catch {
-    // storage blocked (private mode / quota) — fall through to the default
+    // storage blocked (private mode / quota), fall through to the default
     return "light";
   }
   return isThemePreference(current) ? current : "light";
@@ -34,7 +34,7 @@ export function writeStoredTheme(preference: ThemePreference): void {
   try {
     localStorage.setItem(STORAGE_KEY, preference);
   } catch {
-    // ignore — see readStoredTheme
+    // ignore: see readStoredTheme
   }
 }
 

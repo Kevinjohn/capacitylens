@@ -71,7 +71,7 @@ describe("the v41 migration body", () => {
   // The DDL spells the two unions out as literals because its text is folded into the ledger
   // checksum and may never be regenerated from a live shared constant. This is the drift guard that
   // makes that safe: it lives OUTSIDE the checksum, so adding a state to the shared contract fails
-  // here — where the answer is a new migration — rather than silently on someone's disk.
+  // here: where the answer is a new migration, rather than silently on someone's disk.
   it("pins the same states and terminal reasons as the shared contract", () => {
     for (const state of OWNERSHIP_TRANSFER_STATES) {
       expect(OWNERSHIP_TRANSFER_REQUESTS_V41_SQL).toContain(`'${state}'`);
@@ -372,7 +372,7 @@ describe("participant reads", () => {
 
   it("fails loud on a stored state outside the shared contract", () => {
     // Build the table WITHOUT its CHECK constraints. The mapper's throw is the second line of
-    // defence behind them, so proving it needs a row the constraints would have refused — and no
+    // defence behind them, so proving it needs a row the constraints would have refused, and no
     // write path in this module can produce one.
     const db = new DatabaseSync(":memory:") as unknown as Db;
     db.exec(`CREATE TABLE account_ownership_transfers (

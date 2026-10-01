@@ -1196,7 +1196,7 @@ function registerPreauthRefusalTests(): void {
     const res = await acceptReq(app, token, { cookie: b.cookie });
     expect(res.statusCode).toBe(403);
     expect(getMemberRole(db, "a1", b.userId)).toBeNull(); // no bind
-    expect(readInvite(db, token).usedAt).toBeNull(); // NOT consumed — still live for the right caller
+    expect(readInvite(db, token).usedAt).toBeNull(); // NOT consumed, still live for the right caller
   });
 }
 
@@ -1319,7 +1319,7 @@ describe("invites are excluded from the AppData path", () => {
       url: "/api/invites/some-token",
     });
     // NOTE: /api/invites/:token/accept is a real route; a bare GET on that shape is a 404 (no GET
-    // handler), and a GET on the collection path is likewise unhandled — neither lists rows.
+    // handler), and a GET on the collection path is likewise unhandled. Neither lists rows.
     expect([404, 405]).toContain(get.statusCode);
     const post = await app.inject({
       method: "POST",

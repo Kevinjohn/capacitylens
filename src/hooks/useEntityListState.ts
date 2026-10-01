@@ -2,8 +2,8 @@ import { useState } from "react";
 
 /** The create / edit / confirm-delete triple-state every list page hand-rolled
  * (six identical copies). `editing`/`confirming` hold the row being acted on, or
- * null. The setters are returned verbatim so call sites read exactly as before —
- * this collapses the boilerplate without imposing a new abstraction. */
+ * null. The setters are returned verbatim so call sites read exactly as before.
+ * This collapses the boilerplate without imposing a new abstraction. */
 export function useEntityListState<T>() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<T | null>(null);

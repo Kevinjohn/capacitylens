@@ -378,7 +378,7 @@ describe("ResourceList display", () => {
       color: "#a855f7",
       projectId: project.id,
     });
-    // Turn the feature off — the placeholder data still exists, it's just hidden.
+    // Turn the feature off. The placeholder data still exists, it's just hidden.
     setPlaceholdersEnabled({ on: false });
     render(<ResourceList />);
     // The person still renders; the placeholder section/heading/row do not.
@@ -425,7 +425,7 @@ describe("ResourceList display", () => {
     expect(within(aliceRow).queryByText("placeholder")).not.toBeInTheDocument();
     expect(within(aliceRow).queryByText("Temp")).not.toBeInTheDocument();
 
-    // Bob row (freelancer): no tags either — the Temp pill is parked
+    // Bob row (freelancer): no tags either. The Temp pill is parked
     const bobRow = requireValue(
       rows.find((r) => within(r).queryByText("Bob")),
       "Bob row",
@@ -446,7 +446,7 @@ describe("ResourceList display", () => {
   });
 });
 
-// The per-row "Delete" affordance now ARCHIVES (the simplest coherent flow — soft-delete is
+// The per-row "Delete" affordance now ARCHIVES (the simplest coherent flow, soft-delete is
 // reached LATER from the inline archive section on an archived row). DEMO build here, so the
 // archive affordance dispatches the store's archiveEntity directly (no fetch, no reload): the row
 // gets `archivedAt` set (still in `data`) and vanishes from this list (which reads
@@ -642,7 +642,7 @@ describe("ResourceList archive flow", () => {
     await user.click(screen.getByRole("button", { name: "Archive Placeholder" }));
     const dialog = screen.getByRole("alertdialog");
     // The confirm dialog names the placeholder by its DISPLAY name ("Placeholder"), matching the
-    // row above it — not its role ("Senior Designer"), which would read inconsistently.
+    // row above it, not its role ("Senior Designer"), which would read inconsistently.
     expect(dialog).toHaveTextContent(/Archive "Placeholder"/i);
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 

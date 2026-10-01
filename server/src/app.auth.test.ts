@@ -18,7 +18,7 @@ import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
 // CAPACITYLENS_MODE (opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
-// by running unchanged — these tests add the /api/auth/me surface and the absence of the
+// by running unchanged. These tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
 
@@ -125,7 +125,7 @@ function registerAuthOffSurfaceTests(): void {
       email: "demo@capacitylens.local",
       emailVerified: true,
     });
-    // A cookie-less write succeeds — no request that succeeds today may fail in off mode.
+    // A cookie-less write succeeds. No request that succeeds today may fail in off mode.
     const write = await call(app, {
       method: "POST",
       url: "/api/accounts",

@@ -27,7 +27,7 @@ export function createLifecycleSlice(
       // Data-lifecycle actions (DEMO-build path). See the StoreState block above for the
       // shared contract. Active → Archived → Soft-deleted → Purged is the ONLY removal path for the
       // tombstone-carrying tables (resources / clients / projects / activities); there is no immediate hard-delete
-      // action for them — a physical row removal happens only at the END of the lifecycle, in purgeEntity,
+      // action for them, a physical row removal happens only at the END of the lifecycle, in purgeEntity,
       // which composes the shared delete*Cascade so the tombstone AND its children go together (a
       // resource's allocations/time-off; a client's projects/activities/allocations; a project's
       // phases/activities/allocations). Single-sourced from shared/lib/integrity.ts so the purge cascade
@@ -35,7 +35,7 @@ export function createLifecycleSlice(
       archiveEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
         if (!resolveOwnedRow(get().data, entity, id)) return;
         assertNotBuiltinClient(entity, id, "archived");
-        // archive() THROWS if the row isn't 'active' (defense-in-depth — the UI gates via canArchive
+        // archive() THROWS if the row isn't 'active' (defense-in-depth, the UI gates via canArchive
         // first). Surface-not-swallow: let it throw, exactly like the builtin guards above.
         mutate((data) => ({
           ...data,
@@ -61,10 +61,10 @@ export function createLifecycleSlice(
       purgeEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
         const existing = resolveOwnedRow(get().data, entity, id);
         if (!existing) return;
-        // The built-in Internal client cannot be purged — every account must keep exactly one.
+        // The built-in Internal client cannot be purged. Every account must keep exactly one.
         assertNotBuiltinClient(entity, id, "deleted");
         // Enforce the grace window: canPurge is false unless this is a soft-deleted tombstone aged at
-        // least PURGE_MIN_AGE_DAYS. A refused purge is a gated affordance, NOT corruption — surface a
+        // least PURGE_MIN_AGE_DAYS. A refused purge is a gated affordance, NOT corruption, surface a
         // notice and no-op rather than throw (the throw idiom is reserved for tenancy/integrity bugs).
         // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would let
         // the client stay up to ~24h more conservative than the server's own boundary check.
@@ -88,7 +88,7 @@ function createSoftDeleteAction(internals: LifecycleSliceInternals, get: StoreAp
     assertNotBuiltinClient(entity, id, "deleted");
     // softDelete() THROWS unless the row is 'archived' (prior-archival rule). For a resource, COMPOSE
     // the shared obfuscateResource so the local tombstone carries NO original PII (the obfuscation
-    // string is single-sourced from lifecycle.ts — never hand-written here).
+    // string is single-sourced from lifecycle.ts, never hand-written here).
     const applyDelete = (data: AppData): AppData => ({
       ...data,
       [entity]: data[entity].map((lifecycleRow) => {

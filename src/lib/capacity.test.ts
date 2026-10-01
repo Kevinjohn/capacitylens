@@ -480,10 +480,10 @@ function registerWeekendRuleTests() {
         ignoreWeekends: true,
       }),
     ];
-    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-05", allocations: allocs })).toBe(8); // Fri (working — still covered)
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-05", allocations: allocs })).toBe(8); // Fri (working, still covered)
     expect(allocatedHoursOnDay({ resource: r, date: "2026-06-06", allocations: allocs })).toBe(8); // Sat (opted in)
     expect(allocatedHoursOnDay({ resource: r, date: "2026-06-07", allocations: allocs })).toBe(8); // Sun (opted in)
-    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-08", allocations: allocs })).toBe(8); // Mon (working — still covered)
+    expect(allocatedHoursOnDay({ resource: r, date: "2026-06-08", allocations: allocs })).toBe(8); // Mon (working, still covered)
   });
 }
 
@@ -552,7 +552,7 @@ function registerWeekendCapacityTests() {
 function registerTimeOffAndWeekdayTests() {
   const r = makeResource();
   it("work scheduled on a time-off day is still over (a real conflict, unlike a spanned weekend)", () => {
-    // Wed 06-03 is a working weekday the resource is on holiday — available 0, but the allocation
+    // Wed 06-03 is a working weekday the resource is on holiday, available 0, but the allocation
     // genuinely works that day, so it stays red. Time-off is deliberately distinct from weekends.
     const allocs = [
       makeAlloc({
@@ -720,7 +720,7 @@ function registerUtilizationWindowTests() {
   it("does not exceed 100% for a full booking that merely spans a weekend", () => {
     // Mon 06-01 .. Sun 06-14: 10 working days × 8h = 80h available. A continuous
     // 8h/day allocation across the whole window books weekend days too, but those
-    // hours must not inflate the ratio — a fully-booked person reads as 100%, not 140%.
+    // hours must not inflate the ratio. A fully-booked person reads as 100%, not 140%.
     const allocs = [
       makeAlloc({
         startDate: "2026-06-01",
@@ -756,7 +756,7 @@ function registerUtilizationWindowTests() {
 
   it("does not count hours on a zero-availability day (a weekend an allocation opts into) toward the ratio", () => {
     // Sat/Sun have 0 availability for a Mon-Fri resource. An ignoreWeekends allocation still puts
-    // hours there, but those days must be skipped entirely (neither side counted) — not just have
+    // hours there, but those days must be skipped entirely (neither side counted), not just have
     // their availability zeroed, which would otherwise inflate the ratio via the numerator alone.
     const allocs = [
       makeAlloc({
@@ -965,7 +965,7 @@ function registerWeekendAdvisoryTests() {
   const proposal = makeProposal(r);
   it("mirrors the over-marker for an ignoreWeekends weekend; weekend-aware does not", () => {
     // Fri–Sun: a weekend-aware proposal leaves Sat/Sun uncounted, but opting into weekends flags
-    // them — a Mon–Fri person has 0 weekend capacity, so the advisory matches the red over-marker.
+    // them: a Mon–Fri person has 0 weekend capacity, so the advisory matches the red over-marker.
     expect(
       capacityAdvisory({
         resource: r,
@@ -1090,7 +1090,7 @@ function registerBlocksAdvisoryTests() {
         timeOff: [],
       }).overDays,
     ).toBe(0);
-    // Blocks propose 0 load too, so nothing is over — whereas the RAW hourly rows would flag
+    // Blocks propose 0 load too, so nothing is over, whereas the RAW hourly rows would flag
     // nothing here either; the difference shows when the proposal itself carries hours.
     expect(
       capacityAdvisory({
@@ -1317,7 +1317,7 @@ describe("utilization", () => {
   registerUtilizationClosureTest();
 });
 
-// The near-term "over soon" radar is a `.some(day => day.over)` over the window's capacity — the
+// The near-term "over soon" radar is a `.some(day => day.over)` over the window's capacity, the
 // scheduler model runs it against its own memoised per-date capacity, so these cases pin the RULE
 // (which days may read as over) on the straight-line definition both paths agree on.
 describe("over-allocated inside a window", () => {

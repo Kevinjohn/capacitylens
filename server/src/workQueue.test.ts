@@ -175,7 +175,7 @@ function registerAbortAfterDequeueTest(registerTest: typeof it): void {
   registerTest("ignores an abort that fires after its work already left the queue via dequeue", async () => {
     // Regression for the shared removeFromWaiting withdrawal: the dequeue-on-settle path (execute()'s
     // finally) already shifted this item out of `waiting` and removed its abort listener before we
-    // call abort() below, so the abort handler must not fire at all — no reject, no double-settle, and
+    // call abort() below, so the abort handler must not fire at all. No reject, no double-settle, and
     // the now-running work must complete normally.
     const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 1, fullMessage: "busy" });
     let releaseActive: (() => void) | undefined;

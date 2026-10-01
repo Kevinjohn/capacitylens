@@ -5,7 +5,7 @@ import type { AppOptions } from "../app";
 // when logging is on; remove:true DELETES the key (so the value is gone entirely, not printed as
 // "[Redacted]"). DEFENSE-IN-DEPTH: Fastify's default req/res serializers don't log headers at all
 // (req → method/url/hostname/remoteAddress; res → statusCode/responseTime), so today nothing here
-// would emit these — but the moment a custom serializer logs headers, or someone logs a raw req/res,
+// would emit these, but the moment a custom serializer logs headers, or someone logs a raw req/res,
 // this is the backstop that keeps Authorization / Cookie / Set-Cookie out of stdout. If such a
 // serializer is ever added, extend this list to cover any new path it surfaces.
 const LOG_REDACT_PATHS = ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'];

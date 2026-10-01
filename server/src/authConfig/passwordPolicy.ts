@@ -143,8 +143,8 @@ export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<Bette
       disableSignUp: false,
       // PIN the minimum length to the shared constant rather than inheriting Better Auth's default,
       // so the server bound and the client reset-page pre-check (both read MIN_PASSWORD_LENGTH) can't
-      // drift — and a library-default change can't silently move the server's floor. UNCONDITIONAL:
-      // no boot, flagged or not, ever lowers this — see the bootstrap comment above for how the
+      // drift: and a library-default change can't silently move the server's floor. UNCONDITIONAL:
+      // no boot, flagged or not, ever lowers this, see the bootstrap comment above for how the
       // required operator-supplied bootstrap password must satisfy the same policy.
       minPasswordLength: MIN_PASSWORD_LENGTH,
       // Better Auth counts UTF-16 code units. Give its transport guard enough room for 128 astral

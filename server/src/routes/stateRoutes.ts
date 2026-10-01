@@ -78,7 +78,7 @@ async function listAccounts(
   if (authMode === "off") {
     // No membership in off mode: every account is visible. Map to the same AccountSummary shape
     // The account port maps to ({ id, name, role }) so the auth-on / auth-off shapes are identical on
-    // the wire. The role is 'owner' — the trusted-local full-access sentinel: OFF is byte-identical
+    // the wire. The role is 'owner', the trusted-local full-access sentinel: OFF is byte-identical
     // to today's no-login deploy, so the client's pure `can('owner', …)` keeps OFF fully editable
     // (and a Viewer read-only mode is reachable ONLY auth-on, where a real membership role exists).
     const accounts = listAccountSummaries(db);
@@ -147,7 +147,7 @@ function readStateRoute(
 
 function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDependencies): void {
   // The login → account list drives the AccountPicker. OFF mode is trusted-local:
-  // EVERY account is accessible, so return all summaries with NO membership gate — branch on
+  // EVERY account is accessible, so return all summaries with NO membership gate, branch on
   // authMode === 'off' BEFORE touching membership (the OFF guarantee). Auth-on returns ONLY the
   // caller's memberships through AccountAdminPort. Returns AccountSummary[] = [{ id, name, role }].
   app.get("/api/accounts", (req, reply) => listAccounts(req, reply, dependencies));
@@ -171,14 +171,14 @@ function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDepend
     // include everything; otherwise each gated field is included iff the role may see it.
     // `?includeInactive=1` asks for the full slice
     // (archived + soft-deleted rows retained), which is privileged: it is gated at the SAME tier as
-    // purge (admin+ with a fresh session) — the lifecycle-management tier — so an editor/viewer or
+    // purge (admin+ with a fresh session), the lifecycle-management tier, so an editor/viewer or
     // stale privileged session cannot pull tombstones. OFF mode is trusted-local ⇒ always allowed.
     // A refusal is explicit rather than silently falling back to the active-only read.
     //
     // This admin/'purge'-gated `?includeInactive=1` read is the complete per-tenant backup: exactly
     // one account's slice (the accountId guard
-    // above), retaining archived + soft-deleted rows so nothing is silently dropped from the backup
-    // — unlike the client's active-only "Export JSON", which projects via activeOnly and so
+    // above), retaining archived + soft-deleted rows so nothing is silently dropped from the backup,
+    // unlike the client's active-only "Export JSON", which projects via activeOnly and so
     // omits tombstones. The server-control tables (account_members / invites / Better Auth user|
     // session|account) are STRUCTURALLY excluded: readSlice only ever reads `accounts` + the scoped
     // tables, never the control plane, so membership/invite secrets/PII can never ride the export.
@@ -194,7 +194,7 @@ function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDepend
     // adapter treats this 400 on the NO-ARG read as "hydrate empty, show the picker" (see
     // ServerSyncAdapter.loadAll), so a no-arg bootstrap in auth-on lands on the picker, not an error.
     // OFF retains its trusted-local whole read. This whole read does not redact the
-    // time-off `note` — fine, OFF is trusted-local and includes it everywhere.)
+    // time-off `note`, fine, OFF is trusted-local and includes it everywhere.)
     return readStateRoute(req, reply, dependencies);
   });
 }
@@ -259,7 +259,7 @@ async function createOrganisation(
   const { authMode, auth, bootstrapToken, accountCommand, accountFail, sendFail } = dependencies;
 
   // Constrained org creation is the atomic "create a usable account" path and, with auth
-  // on — the ONLY account-create path: the generic vectors (POST /api/accounts, PUT-as-create,
+  // on: the ONLY account-create path: the generic vectors (POST /api/accounts, PUT-as-create,
   // batch PUT-as-create) now refuse auth-on creates with a 403 directing here (see
   // REPLY_ERRORS.accountCreateClosed; they stay open in OFF mode for the trusted-local client).
   // Unlike those bare row writes, /api/orgs ALSO mints the account's built-in Internal client and
@@ -276,22 +276,22 @@ async function createOrganisation(
   //
   //   (2) WHO may create it once the cap permits. AccountAdminPort applies the same four arms that
   //       /api/auth/me mirrors for its advisory canCreateAccount flag. Allowed iff ANY of:
-  //   (1) ZERO accounts exist — first-run bootstrap (anyone may create the very first org; this
+  //   (1) ZERO accounts exist, first-run bootstrap (anyone may create the very first org; this
   //       is also the only case GATE 0 lets through by default, so it's the common path).
-  //   (2) OFF mode (trusted-local) — mirrors the authorize() OFF no-op; req.user is DEMO_USER.
+  //   (2) OFF mode (trusted-local), mirrors the authorize() OFF no-op; req.user is DEMO_USER.
   //   (3) auth-on: the caller is an ACTIVE Owner/Admin of SOME existing account (can(role,
-  //       'manageMembers') = admin-tier) with fresh administrative assurance — an existing
+  //       'manageMembers') = admin-tier) with fresh administrative assurance, an existing
   //       operator may provision more orgs after the same step-up required for other Owner grants.
   //   (4) a valid bootstrap token in the `x-capacitylens-bootstrap-token` header (opts.bootstrapToken,
-  //       env CAPACITYLENS_BOOTSTRAP_TOKEN, OFF by default — disabled when unset/empty).
-  // Otherwise 403 — the acceptance criterion: a STRANGER cannot create an org once any account
+  //       env CAPACITYLENS_BOOTSTRAP_TOKEN, OFF by default, disabled when unset/empty).
+  // Otherwise 403, the acceptance criterion: a STRANGER cannot create an org once any account
   // exists, absent a bootstrap token. The gate runs in auth-on AND off; in off mode (1)/(2) already
   // allow, so the token/membership branches are moot there.
   try {
     if (!isRecord(req.body)) return reply.code(400).send({ error: REPLY_ERRORS.companyDetailsNotObject });
 
     // Build a VALID account row from the body (name required; colour repaired; junk schedulingMode
-    // dropped) via the SAME sanitize/validate the generic account create uses — so /api/orgs can't
+    // dropped) via the SAME sanitize/validate the generic account create uses, so /api/orgs can't
     // persist a row the generic path would reject. The id is generated server-side when the body
     // omits one (the org-create caller need not mint it, unlike the entity sync path); a provided id
     // is accepted and validated like any other write.

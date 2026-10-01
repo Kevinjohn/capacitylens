@@ -15,7 +15,7 @@ export const isWeekdaySet = (days: unknown): days is Weekday[] =>
 
 /** The first five weekdays in a company's configured week, stored as a stable set.
  * Both legal week starts (Sunday and Monday) run 0–4 / 1–5, i.e. already ascending, so taking the
- * presentation order's first five IS the stored set — no re-sort needed. */
+ * presentation order's first five IS the stored set. No re-sort needed. */
 export function defaultAccountWorkingDays(weekStartsOn: 0 | 1 = 1): Weekday[] {
   return orderedWeekdays(weekStartsOn).slice(0, DEFAULT_WORKING_DAY_COUNT);
 }

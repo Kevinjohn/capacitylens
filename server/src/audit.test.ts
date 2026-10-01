@@ -19,7 +19,7 @@ import {
 
 // CAPACITYLENS_AUDIT (opts.audit): an append-only JSONL line per AppData mutation,
 // {ts,userId,accountId,action,entity,id,changedFields}. The primary invariant proven here: changedFields
-// are field NAMES only — a tenant VALUE (a time-off note, a name) NEVER reaches a line. Plus the
+// are field NAMES only, a tenant VALUE (a time-off note, a name) NEVER reaches a line. Plus the
 // fail-never contract (append never throws; the request still 2xx; a uniform warning header; deep-
 // health latches degraded; ONE redacted error line) and the default-deploy byte-identity (noop sink
 // → no file, no warning header).
@@ -259,7 +259,7 @@ describe("NO PII (2) — the #1 invariant", () => {
     // ...but NO secret VALUE substring, on either line.
     expect(raw).not.toContain(SECRET);
     expect(raw).not.toContain(SECRET2);
-    // Belt-and-braces: no other field VALUE leaks — the only string values that COULD appear are
+    // Belt-and-braces: no other field VALUE leaks, the only string values that COULD appear are
     // the structural ids/dates we intend (a1/to1/r1/the date). Assert the human-typed value class
     // (the note, the resource role 'Designer') is absent.
     expect(raw).not.toContain("Designer");
@@ -289,11 +289,11 @@ describe("NO resource PII in the audit log (2b) — P2.3 acceptance", () => {
     });
     expect(patch.statusCode).toBe(200);
 
-    // The RAW audit JSONL must NEVER contain the name VALUE — on any line.
+    // The RAW audit JSONL must NEVER contain the name VALUE, on any line.
     const raw = readFileSync(file, "utf8");
     expect(raw).not.toContain(SENTINEL);
 
-    // ...yet the create line DID capture the field — 'name' is recorded as a changedFields KEY (the
+    // ...yet the create line DID capture the field, 'name' is recorded as a changedFields KEY (the
     // name of the field, never its value): the audit saw the create and stored only the key.
     const rec = requiredAt(lines(), createIdx);
     expect(rec.entity).toBe("resources");
@@ -394,7 +394,7 @@ describe("parseAuditConfig + default deploy (4)", () => {
   });
 });
 
-/** A sink whose append always fails — proves the fail-never + warning + degraded contract. */
+/** A sink whose append always fails, proves the fail-never + warning + degraded contract. */
 function brokenSink(): AuditSink {
   let degraded = false;
   return {
@@ -416,7 +416,7 @@ async function assertBrokenSinkKeepsMutationAvailable() {
   expect(res.headers["x-capacitylens-audit-warning"]).toBe("true");
 
   const health = await call(app, { method: "GET", url: "/api/health" });
-  expect(health.statusCode).toBe(200); // ok:true — audit-degraded is a SOFT signal
+  expect(health.statusCode).toBe(200); // ok:true: audit-degraded is a SOFT signal
   expect(health.json()).toEqual({ ok: true, db: true, audit: "degraded", auditPending: 2 });
 }
 
@@ -448,10 +448,10 @@ async function assertAppendFailureIsRedacted() {
     }),
   ).toBe(false);
   expect(sink.degraded).toBe(true);
-  expect(log).toHaveBeenCalledTimes(1); // loggedOnce guard — no spam
+  expect(log).toHaveBeenCalledTimes(1); // loggedOnce guard, no spam
   const msg = requiredAt(requiredAt(log.mock.calls, 0), 0) as string;
   expect(msg).toContain("audit write FAILED");
-  expect(msg).not.toContain("note"); // message-only — never the record
+  expect(msg).not.toContain("note"); // message-only: never the record
   expect(msg).not.toContain("a1");
   expect(msg).not.toContain("a2");
 }
@@ -812,18 +812,18 @@ function assertRotationKeepsFreshGeneration() {
   const file = join(dir, "audit.jsonl");
   const log = vi.fn();
   // maxBytes pinned to the size of exactly one line (every id here is 2 chars, so every line is
-  // the same length) — the SECOND append is therefore always the one that finds the cap reached.
+  // the same length). The SECOND append is therefore always the one that finds the cap reached.
   const lineBytes = Buffer.byteLength(JSON.stringify(rotationRecord("r1")) + "\n", "utf8");
   const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
 
-  expect(sink.append(rotationRecord("r1"))).toBe(true); // file didn't exist (size 0 < cap) — no rotation
+  expect(sink.append(rotationRecord("r1"))).toBe(true); // file didn't exist (size 0 < cap), no rotation
   expect(existsSync(`${file}.1`)).toBe(false);
 
   expect(sink.append(rotationRecord("r2"))).toBe(true); // size(file) === cap → rotate before writing
   expect(readFileSync(`${file}.1`, "utf8")).toBe(JSON.stringify(rotationRecord("r1")) + "\n");
   expect(readFileSync(file, "utf8")).toBe(JSON.stringify(rotationRecord("r2")) + "\n");
 
-  // The fresh file is now ALSO at the cap, so a third append rotates again — proving appends
+  // The fresh file is now ALSO at the cap, so a third append rotates again, proving appends
   // keep landing in a genuinely fresh file each cycle, not erroring or wedging on a second rotation.
   expect(sink.append(rotationRecord("r3"))).toBe(true);
   expect(readFileSync(`${file}.1`, "utf8")).toBe(JSON.stringify(rotationRecord("r2")) + "\n");
@@ -936,7 +936,7 @@ function assertPriorRotationIsReplaced() {
 function assertDefaultRotationLimitDoesNotRotate() {
   const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-"));
   const file = join(dir, "audit.jsonl");
-  const sink = createFileAuditSink(file, vi.fn()); // no opts — default applies
+  const sink = createFileAuditSink(file, vi.fn()); // no opts, default applies
   for (let i = 0; i < 50; i++) sink.append(rotationRecord(`r${i}`));
   expect(existsSync(`${file}.1`)).toBe(false);
 }
@@ -950,14 +950,14 @@ function assertRotationRenameFailureDegrades() {
   expect(sink.append(rotationRecord("r1"))).toBe(true); // creates the file, under cap
 
   // Pre-create a DIRECTORY at the rotation destination, so renameSync(file, `${file}.1`) fails
-  // with EISDIR (you cannot rename a file onto an existing directory) — a REAL fs failure, the
+  // with EISDIR (you cannot rename a file onto an existing directory), a REAL fs failure, the
   // same "no mocking" style the append-failure test above uses (directory-as-file for appendFileSync).
   mkdirSync(`${file}.1`);
 
   expect(() => sink.append(rotationRecord("r2"))).not.toThrow();
   expect(sink.append(rotationRecord("r2"))).toBe(false);
   expect(sink.degraded).toBe(true);
-  expect(log).toHaveBeenCalledTimes(1); // loggedOnce guard — no spam across repeated failures
+  expect(log).toHaveBeenCalledTimes(1); // loggedOnce guard, no spam across repeated failures
   const msg = requiredAt(requiredAt(log.mock.calls, 0), 0) as string;
   expect(msg).toContain("audit write FAILED");
 }

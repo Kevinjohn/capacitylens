@@ -99,7 +99,7 @@ export interface AdminPortContext {
       action: StandardAccountAuditAction;
       changedFields: readonly string[];
       /** Derive the event for a committed result. Failure and denial keep the static action, and
-       * `changedFields` above covers every outcome — a committed result names which event it was,
+       * `changedFields` above covers every outcome, a committed result names which event it was,
        * not which columns moved. */
       successAction?: (result: ReturnType<Execute>) => {
         action: StandardAccountAuditAction;

@@ -39,7 +39,7 @@ export function resolveFirstDateIndexAtOrAfter(dates: ISODate[], target: ISODate
 /** Bucket date-ranged rows (allocations, time off) onto the dates the model will actually ask about:
  * each row is listed under every queried date its [startDate, endDate] covers. A per-day capacity
  * lookup then passes only the handful of rows that touch that day instead of rescanning the
- * resource's whole list, making the day loop O(dates + coverage) rather than O(dates × rows) — the
+ * resource's whole list, making the day loop O(dates + coverage) rather than O(dates × rows), the
  * same trick `buildCapacityAdvisory` documents in capacity.ts. Insertion order inside each bucket follows
  * `rows`, so the hours capacity.ts sums are added in the SAME order as a full scan and the result is
  * bit-for-bit identical (float addition is not associative). */

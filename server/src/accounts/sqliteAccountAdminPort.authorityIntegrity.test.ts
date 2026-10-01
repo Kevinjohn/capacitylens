@@ -296,7 +296,7 @@ function registerSqliteAccountAdminPortTest18(): void {
 // Redeeming an invite is no longer a way back INTO a
 // non-active membership at any role, because it would let the suspended party reverse their own
 // suspension with no `member.status_changed` record. The escalation half of the old assertion is
-// kept and strengthened — the stale `owner` role must not survive either.
+// kept and strengthened. The stale `owner` role must not survive either.
 function registerSqliteAccountAdminPortTest19(): void {
   it("refuses an invite claim against a non-active membership, granting neither role", async () => {
     const db = openDb(":memory:");

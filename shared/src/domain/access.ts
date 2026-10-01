@@ -20,19 +20,19 @@ export type { Role } from "../account/types";
  * HTTP routes); `requirePermission` maps each protected route onto one of these before
  * calling {@link can}. The required tier is documented per member:
  *
- * - `'read'`             — view an account's scheduling data. ANY member (owner | admin | editor | viewer).
- * - `'write'`            — create / edit / delete scheduling records and ordinary account planning/display
+ * - `'read'`: view an account's scheduling data. ANY member (owner | admin | editor | viewer).
+ * - `'write'`: create / edit / delete scheduling records and ordinary account planning/display
  *                          configuration. Editor and up (owner | admin | editor); NOT viewer.
- * - `'manageInternalClient'` — adopt a legacy built-in Internal-client id and reparent its projects.
+ * - `'manageInternalClient'`: adopt a legacy built-in Internal-client id and reparent its projects.
  *                              Admin tier (owner | admin).
- * - `'manageMembers'`    — add / remove members and change their roles. Admin tier (owner | admin).
- * - `'manageInvites'`    — create / revoke invites (link + email-preauth). Admin tier (owner | admin).
- * - `'masquerade'`       — view the account through another active member's read projection. Admin tier.
- * - `'manageMemberSignInTracking'` — opt into coarse sign-in confirmation. Owner ONLY.
- * - `'purge'`            — hard-delete (purge) tombstoned data. Admin tier (owner | admin).
- * - `'deleteAccount'`    — erase an entire account and its members' orphaned identities. Owner ONLY.
- * - `'transferOwnership'`— propose, cancel or finally approve an ownership transfer. Owner ONLY.
- * - `'actOnOwnershipTransfer'` — reach the ownership-transfer ceremony at all. Admin tier, because
+ * - `'manageMembers'`: add / remove members and change their roles. Admin tier (owner | admin).
+ * - `'manageInvites'`: create / revoke invites (link + email-preauth). Admin tier (owner | admin).
+ * - `'masquerade'`: view the account through another active member's read projection. Admin tier.
+ * - `'manageMemberSignInTracking'`: opt into coarse sign-in confirmation. Owner ONLY.
+ * - `'purge'`: hard-delete (purge) tombstoned data. Admin tier (owner | admin).
+ * - `'deleteAccount'`: erase an entire account and its members' orphaned identities. Owner ONLY.
+ * - `'transferOwnership'`: propose, cancel or finally approve an ownership transfer. Owner ONLY.
+ * - `'actOnOwnershipTransfer'`: reach the ownership-transfer ceremony at all. Admin tier, because
  *   the nominated Admin must be able to give or withdraw their own consent; participant identity
  *   decides each specific action.
  *
@@ -90,7 +90,7 @@ type AccountAdministrationAction = Exclude<Action, ProductDataAction>;
  * same function for affordances, so the
  * permission decision is single-sourced and the two halves cannot drift.
  *
- * PURE by contract: no I/O, no session/Headers param, no Date, no randomness — just the role, the
+ * PURE by contract: no I/O, no session/Headers param, no Date, no randomness, just the role, the
  * action, and the static matrix. It is a leaf module (only depends on the {@link Role} type) so
  * both server and client can import it freely.
  *
@@ -118,8 +118,8 @@ export function can(role: Role, action: Action): boolean {
  * guards below build on, delegated to the neutral account policy so "and up" never drifts from
  * account administration.
  *
- * PURE: no I/O, no session — just the two roles. Fail-closed at an untyped boundary: an unrecognised
- * role makes a rank `undefined`, and any comparison with `undefined` is `false` — so it denies rather
+ * PURE: no I/O, no session, just the two roles. Fail-closed at an untyped boundary: an unrecognised
+ * role makes a rank `undefined`, and any comparison with `undefined` is `false`, so it denies rather
  * than falls open (mirrors {@link can}).
  *
  * @param role - the role being tested.
@@ -132,19 +132,19 @@ export function isAtLeast(role: Role, min: Role): boolean {
 
 /**
  * May `actorRole` change a member's role from `targetRole` to `nextRole`? The PURE policy behind
- * member-management role edits — single-sourced here so the client affordance and the server
+ * member-management role edits, single-sourced here so the client affordance and the server
  * route guard decide identically and cannot drift (the client uses it to hide controls; the server
  * is the backstop that actually enforces it).
  *
  * Rules (deny by default):
- * - The actor must hold `manageMembers` (admin-tier) at all — else `false`.
+ * - The actor must hold `manageMembers` (admin-tier) at all, else `false`.
  * - `owner` is never an ordinary role change. Promoting a non-owner or demoting the current Owner
  *   both require the explicit atomic ownership-transfer operation, so this guard refuses either.
  * - Admin may not touch the Owner; Owner may manage only non-owner membership roles here.
  *
  * The server database independently enforces the exactly-one-owner invariant.
  *
- * PURE: no I/O, no session — just the three roles.
+ * PURE: no I/O, no session, just the three roles.
  *
  * @param actorRole  - the acting member's role.
  * @param targetRole - the role the target member currently holds.
@@ -161,13 +161,13 @@ export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole:
  *
  * The question a member ROW asks before rendering a role control: {@link canManageMemberRole} also
  * judges a specific destination role, which a row that has not chosen one cannot supply without
- * inventing a representative value. Same PURE, no-drift reason for living here as its neighbours —
+ * inventing a representative value. Same PURE, no-drift reason for living here as its neighbours,
  * the client hides the control, the server enforces the eventual change.
  *
  * Rules (deny by default): admin tier at minimum, and never the Owner (whose role moves only through
  * the atomic ownership transfer).
  *
- * PURE: no I/O, no session — just the two roles.
+ * PURE: no I/O, no session, just the two roles.
  *
  * @param actorRole  - the acting member's role.
  * @param targetRole - the role the target member currently holds.
@@ -179,17 +179,17 @@ export function canEditAnyMemberRole(actorRole: Role, targetRole: Role): boolean
 
 /**
  * May `actorRole` remove (revoke) a member holding `targetRole`? The PURE policy behind member
- * removal — single-sourced here alongside {@link canManageMemberRole} for the same
+ * removal, single-sourced here alongside {@link canManageMemberRole} for the same
  * no-drift reason (client hides the control, server enforces it).
  *
  * Rules (deny by default):
- * - The actor must hold `manageMembers` (admin-tier) at all — else `false`.
+ * - The actor must hold `manageMembers` (admin-tier) at all, else `false`.
  * - The Owner is never removable. Ownership must first be transferred to another existing member;
  *   that atomic operation steps the former Owner down to Admin, after which ordinary removal applies.
  *
  * The server database independently enforces the exactly-one-owner invariant.
  *
- * PURE: no I/O, no session — just the two roles.
+ * PURE: no I/O, no session, just the two roles.
  *
  * @param actorRole  - the acting member's role.
  * @param targetRole - the role the member being removed currently holds.
@@ -202,7 +202,7 @@ export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
 /**
  * May `actorRole` disable, archive or restore the membership of a member holding `targetRole`?
  *
- * PURE: no I/O, no session — the two roles plus whether the target IS the actor.
+ * PURE: no I/O, no session, the two roles plus whether the target IS the actor.
  *
  * Same authority as {@link canRemoveMember} (suspension denies account entry exactly as removal
  * does) with self-operation refused, so an administrator cannot lock themselves out of the very
@@ -224,10 +224,10 @@ export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf:
  *
  * A reset link sets the target's Better Auth credential, which is account-GLOBAL: whoever redeems it
  * can sign in as the target into EVERY account the target is a member of. So the per-account
- * identity-administration check on the acting account alone is NOT enough — it would let an
+ * identity-administration check on the acting account alone is NOT enough. It would let an
  * admin of account X mint a link for a user who is a mere editor in X but the OWNER of account Y,
  * handing X's admin a takeover of Y (reachable under CAPACITYLENS_MULTI_ACCOUNT, where one identity
- * holds memberships in several accounts). Even an OWNER of X must not reset a user who owns Y — X's
+ * holds memberships in several accounts). Even an OWNER of X must not reset a user who owns Y. X's
  * owner has no standing in Y.
  *
  * The invariant: the actor may reset the target ONLY IF, in every account the target is a member of,
@@ -237,9 +237,9 @@ export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf:
  *
  * SELF-RESET EXEMPTION (`isSelf === true`): the cross-account escalation the loop defends against is
  * "actor mints a link that takes over SOMEONE ELSE's global identity". When actor === target there is
- * no such target — you cannot escalate against your own identity, because you already hold that
+ * no such target. You cannot escalate against your own identity, because you already hold that
  * session. So for a self-reset the cross-account authority check is skipped entirely and we require
- * only the fail-closed non-empty-map rule (`size > 0` — a self with zero memberships is not a real
+ * only the fail-closed non-empty-map rule (`size > 0`, a self with zero memberships is not a real
  * identity). This keeps a social-sign-in user setting their own password working under
  * CAPACITYLENS_MULTI_ACCOUNT:
  * without the exemption, an owner of account X who is also a plain editor in account Y could not reset
@@ -248,7 +248,7 @@ export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf:
  * route's `authorize(..., 'manageMembers')` gate still restricts who may call at all, and the
  * per-account matrix already passes `(admin,admin)`/`(owner,owner)` for a self-target in that account.
  *
- * PURE: no I/O — operates on the two role-by-account maps the caller reads from the membership table.
+ * PURE: no I/O, operates on the two role-by-account maps the caller reads from the membership table.
  * Fail-closed: a target with NO memberships, or ANY account where the actor lacks sufficient
  * authority (including not being a member there at all), yields `false`.
  *
@@ -269,14 +269,14 @@ export function canResetMemberAcrossAccounts(
 /**
  * Field-level visibility rule: only an owner or admin may see a time-off entry's `note`.
  *
- * Kept SEPARATE from the {@link Action} matrix on purpose — this is a *field-visibility* rule
+ * Kept SEPARATE from the {@link Action} matrix on purpose. This is a *field-visibility* rule
  * (which columns to project), not a *route action* (whether to allow a request). The server
  * enforces it by redacting `note` from the read slice for everyone below admin; the client
  * uses the same predicate to decide whether to render the field. It is not an `Action` because
- * there is no request to gate — the request (a read) is already allowed; this only narrows the
+ * there is no request to gate. The request (a read) is already allowed; this only narrows the
  * payload.
  *
- * PURE: no I/O, no session — just the role.
+ * PURE: no I/O, no session, just the role.
  *
  * @param role - the caller's resolved account role.
  * @returns `true` iff `role` is `'owner'` or `'admin'`.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-// A re-render alarm for lists whose rows change meaning when a DEADLINE passes — an invite that
+// A re-render alarm for lists whose rows change meaning when a DEADLINE passes, an invite that
 // becomes "expired", a tombstone that becomes purgeable. Those rows are derived from `Date.now()`,
 // and React has no reason to re-render when wall-clock time moves, so without an alarm the row keeps
 // claiming "expires in 2 minutes" until something unrelated re-renders the section. Two Settings
@@ -28,22 +28,22 @@ interface DeadlineClockInput {
  * GIVEN THE CLOCK THE HOOK IS ABOUT TO RETURN; while it answers non-null the hook arms a single
  * timeout for that instant, and when the timeout fires the clock is re-read and the component
  * re-renders. Any `now`-derived state (expired / purgeable / "in 3 days") is therefore recomputed
- * exactly when it changes and not before. Answer `null` when nothing is pending — no timer is armed.
+ * exactly when it changes and not before. Answer `null` when nothing is pending. No timer is armed.
  *
  * Passing the clock IN is what makes the chain self-sustaining. The caller's picker is nearly always
  * a `reduce` over rows that filters out deadlines already in the past, and the only clock that
  * filter may be compared against is this one: filtering against a fresh `Date.now()` would drop a
  * deadline the clock has not reached yet (the row would never be told it expired), and filtering
- * against a clock the caller holds separately makes each hook's state the other's input — the
+ * against a clock the caller holds separately makes each hook's state the other's input. The
  * circularity both call sites had grown independently.
  *
  * `pickNextDeadline` does NOT need to be stable, and inline arrows are the expected call shape: the effect
  * depends on the picked INSTANT, not on the function, so a new closure every render arms nothing new.
- * It must be pure — it runs during render, possibly more than once.
+ * It must be pure. It runs during render, possibly more than once.
  *
  * A deadline further out than {@link MAX_TIMEOUT_DELAY} wakes the timer early; that wake re-arms for
  * the remainder INSIDE the effect rather than advancing the clock, because a clock advanced before
- * the deadline would be a re-render with nothing to show — and, since the picked instant would be
+ * the deadline would be a re-render with nothing to show, and, since the picked instant would be
  * unchanged, the effect would not re-run to arm the next leg.
  *
  * This hook does NOT re-arm on `visibilitychange`/`pageshow`: a backgrounded tab may have its timers

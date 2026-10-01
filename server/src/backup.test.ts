@@ -33,7 +33,7 @@ import {
 } from "./db";
 import { seed } from "@capacitylens/shared/data/seed";
 
-// CAPACITYLENS_BACKUP_DIR: OFF (unset) means backups don't exist — parseBackupConfig
+// CAPACITYLENS_BACKUP_DIR: OFF (unset) means backups don't exist, parseBackupConfig
 // is the single gate. ON: snapshots are real, openable SQLite files holding the data, the
 // retention prunes oldest-first by filename, and stop() ends the timer AND waits for an
 // in-flight snapshot (the shutdown path closes the DB right after).
@@ -726,7 +726,7 @@ function registerInFlightIntervalSkipTest(): void {
     const backups = startBackups({ db, config: { dir, intervalMin: 1, keep: 48 }, log, now: tickingClock() });
     try {
       // The start-up snapshot is suspended at its async write (no microtask has run yet); firing
-      // the first interval tick NOW must hit the in-flight guard — skipped, with a loud notice.
+      // the first interval tick NOW must hit the in-flight guard, skipped, with a loud notice.
       vi.advanceTimersByTime(60_000);
       expect(log).toHaveBeenCalledWith(expect.stringContaining("backup skipped"));
       expect(log).toHaveBeenCalledWith(expect.stringContaining("still in flight"));
@@ -745,7 +745,7 @@ function registerIntervalSnapshotTest(): void {
   it("the interval timer keeps snapshotting until stop()", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
-    // 0.0005 min = 30ms — the injected tiny interval from the activity spec.
+    // 0.0005 min = 30ms, the injected tiny interval from the activity spec.
     const backups = startBackups({
       db,
       config: { dir, intervalMin: 0.0005, keep: 48 },
@@ -776,7 +776,7 @@ function registerStartupSnapshotDrainTest(): void {
     expect(files).toHaveLength(1);
     const snapshot = files[0];
     if (!snapshot) throw new Error("Expected one completed snapshot.");
-    // The file was COMPLETE before stop() resolved — it opens and holds the data.
+    // The file was COMPLETE before stop() resolved. It opens and holds the data.
     const restored = readState(openDb(join(dir, snapshot)));
     expect(restored.accounts.map((a) => a.name)).toContain("Wayne Enterprises");
   });
@@ -799,7 +799,7 @@ function registerRestartFilenameCollisionTest(): void {
     await second.stop();
 
     expect(after).not.toBe(before);
-    // Two files per instance (start-up shot + manual), all four distinct — nothing clobbered.
+    // Two files per instance (start-up shot + manual), all four distinct, nothing clobbered.
     await vi.waitFor(() => expect(snapshots(dir)).toHaveLength(4));
   });
 }
@@ -835,7 +835,7 @@ function registerStaleTempFileSweepTest(): void {
   it("sweeps only STALE .tmp files at start-up, sparing fresh ones and other files", async () => {
     const dir = tempDir();
     // A stale temp is a torn write from a crashed process; a FRESH one could be a sibling
-    // instance mid-snapshot during a rolling restart — the sweep must not delete its live file.
+    // instance mid-snapshot during a rolling restart. The sweep must not delete its live file.
     const stale = join(dir, "capacitylens-20260613-000000-000.db.tmp");
     const fresh = join(dir, "capacitylens-20260613-000000-001.db.tmp");
     writeFileSync(stale, "torn write from a crash");
@@ -863,7 +863,7 @@ function registerStaleTempFileSweepTest(): void {
 function registerUnstatableStartupEntryTest(): void {
   it("the start-up sweep skips (never throws on) an entry it cannot stat, and still boots", async () => {
     const dir = tempDir();
-    // A dangling symlink makes statSync throw ENOENT — the same failure shape as a tmp file a
+    // A dangling symlink makes statSync throw ENOENT, the same failure shape as a tmp file a
     // sibling process removes between the readdir and the stat. startBackups() runs at module
     // top level with no guard above it, so an unguarded throw here would kill the daemon at
     // boot; the sweep must warn, skip the entry, and carry on (named to sort FIRST, so an
@@ -889,9 +889,9 @@ function registerRetentionRemovalFailureTest(): void {
   it("a snapshot still succeeds when retention cannot remove an old entry (warn + skip)", async () => {
     const dir = tempDir();
     // A directory squatting on the oldest snapshot name: rmSync without `recursive` refuses
-    // it — the same "delete failed" shape as an EACCES, while `force: true` already absorbs
+    // it: the same "delete failed" shape as an EACCES, while `force: true` already absorbs
     // the ENOENT of a file pruned out from under us. Either way the new snapshot has ALREADY
-    // been renamed into place when prune() runs, so the caller must see success — a rejection
+    // been renamed into place when prune() runs, so the caller must see success, a rejection
     // here would be a false runbook alarm over a backup that exists.
     mkdirSync(join(dir, "capacitylens-20200101-000000-000.db"));
     const log = vi.fn();
@@ -927,7 +927,7 @@ function registerFailedSnapshotCleanupTest(): void {
     expect(backups.health.degraded).toBe(true);
     expect(backups.health.lastSuccessAt).toEqual(expect.any(String));
 
-    // The rejection surfaced to the caller AND no partial `.tmp` was orphaned — under a
+    // The rejection surfaced to the caller AND no partial `.tmp` was orphaned, under a
     // persistent fault (e.g. ENOSPC) each retry would otherwise leave one behind.
     expect(readdirSync(dir).filter((f) => f.endsWith(".tmp"))).toHaveLength(0);
     expect(snapshots(dir)).toHaveLength(2); // start-up shot + first manual, both intact
@@ -947,7 +947,7 @@ function registerConcurrentSnapshotSerializationTest(): void {
     });
     // Fire two overlapping calls without awaiting (both also overlap the start-up shot). An
     // unserialized implementation would run two writers at once and let the newer call null the
-    // guard stop() awaits while the older still runs — shutdown would close the DB under it.
+    // guard stop() awaits while the older still runs, shutdown would close the DB under it.
     const order: string[] = [];
     const a = backups.snapshotNow().then((f) => {
       order.push("a");
@@ -960,7 +960,7 @@ function registerConcurrentSnapshotSerializationTest(): void {
     await backups.stop();
     order.push("stop");
 
-    // stop() resolved only after BOTH queued snapshots finished, in submission order — so the
+    // stop() resolved only after BOTH queued snapshots finished, in submission order, so the
     // shutdown path (which closes the DB right after stop()) can never undercut a running write.
     expect(order).toEqual(["a", "b", "stop"]);
     const [fileA, fileB] = await Promise.all([a, b]);
@@ -986,14 +986,14 @@ function registerShutdownSnapshotRefusalTest(): void {
       now: tickingClock(),
     });
     const order: string[] = [];
-    // Queued behind the start-up shot, NOT awaited — stop() begins while both are pending.
+    // Queued behind the start-up shot, NOT awaited, stop() begins while both are pending.
     const a = backups.snapshotNow().then((f) => {
       order.push("a");
       return f;
     });
     const stopped = backups.stop().then(() => order.push("stop"));
     // Chained while stop() is already draining: the pre-fix stop() awaited only the promise it
-    // captured at the moment of the await, so a call here would run AFTER stop() resolved —
+    // captured at the moment of the await, so a call here would run AFTER stop() resolved,
     // i.e. under the DB close. It is refused instead, loudly, and writes nothing.
     await expect(backups.snapshotNow()).rejects.toThrow(/snapshot refused during shutdown/);
     await stopped;

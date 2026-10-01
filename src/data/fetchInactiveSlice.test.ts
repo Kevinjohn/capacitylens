@@ -4,7 +4,7 @@ import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } f
 
 // The shared reader of the purge-gated `?includeInactive=1` admin endpoint. The component suites
 // (DeleteCompanyDialog, ArchivedSection) prove each caller's SURFACE; this proves the helper's own
-// contract — the request shape, the typed errors and the pre-migrate structural gate — once,
+// contract (the request shape, the typed errors and the pre-migrate structural gate) once,
 // where both callers inherit it.
 
 afterEach(() => {
@@ -59,7 +59,7 @@ describe("fetchInactiveSlice", () => {
   });
 
   // The load-bearing gate: a 200 body missing any known table must be REFUSED before migrate()
-  // (which would coerce absent tables to [] and synthesize the Internal client — a nearly-empty
+  // (which would coerce absent tables to [] and synthesize the Internal client, a nearly-empty
   // AppData that reads as "nothing archived" / a complete backup). Partial = accounts row only.
   it("throws InactiveSliceShapeError on a structurally incomplete 200 body", async () => {
     for (const body of [null, [], { definitely: "not CapacityLens" }, { accounts: [{ id: "a1" }] }]) {

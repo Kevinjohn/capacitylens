@@ -1,6 +1,6 @@
 import { isAccountRole, type IdentityAdminAction, type Role } from "./types";
 
-/** Single-company-per-instance cap (owner policy — see AppOptions.multiAccount / CLAUDE.md). The
+/** Single-company-per-instance cap (owner policy, see AppOptions.multiAccount / CLAUDE.md). The
  * deployment defaults to hosting exactly ONE company; every route that could add a SECOND `accounts`
  * row shares this one message so the rule can't drift between PUT/batch/orgs. */
 export const SINGLE_COMPANY_CAP_MESSAGE =
@@ -33,7 +33,7 @@ const MIN_ADMIN_TIER = {
   "transfer-ownership": "owner",
   // Admin tier, NOT owner: this is the gate every ceremony route shares, and the nominated Admin
   // must pass it to give or withdraw their own consent. It is deliberately the weakest necessary
-  // gate — who may actually perform each ceremony action is decided by canActOnOwnershipTransfer,
+  // gate: who may actually perform each ceremony action is decided by canActOnOwnershipTransfer,
   // which knows participant identity, and by the owner-only "transfer-ownership" threshold above
   // for the Owner's three actions. Making this gate owner-only would lock the nominee out of
   // consenting; making it the ONLY check would let any Admin consent on the nominee's behalf.
@@ -65,7 +65,7 @@ export function canAdministerAccount(role: Role, action: AccountAdminAction): bo
 }
 
 /**
- * May `actor` edit `target`'s role AT ALL — i.e. is this member's role even a thing this actor can
+ * May `actor` edit `target`'s role AT ALL, i.e. is this member's role even a thing this actor can
  * touch, setting aside which role they would set it to?
  *
  * The question a member ROW asks: whether to render a role control for that member. It is separate
@@ -73,7 +73,7 @@ export function canAdministerAccount(role: Role, action: AccountAdminAction): bo
  * therefore the wrong question for a row that has not chosen one yet.
  *
  * Rules (deny by default): the actor must hold `manage-members` (admin tier), and the target must
- * not be the Owner — an Owner's role only ever moves through the atomic ownership transfer, so no
+ * not be the Owner, an Owner's role only ever moves through the atomic ownership transfer, so no
  * ordinary role edit reaches one. Fail-closed on an unrecognised target role.
  *
  * The rule is stated here in full rather than delegated to {@link canRemoveMember}: the two are
@@ -105,7 +105,7 @@ export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
  * Deliberately the SAME authority as removal, minus self-service: suspending a membership denies
  * account entry exactly as removal does, so it must not be reachable by anyone who could not also
  * remove the target. The Owner exclusion inside {@link canRemoveMember} is load-bearing beyond
- * policy taste — the physical single-active-Owner index and the boot assertion both key on
+ * policy taste, the physical single-active-Owner index and the boot assertion both key on
  * `role = 'owner' AND status = 'active'`, so disabling an Owner would leave a member-bearing
  * account ownerless and fail the next boot.
  *

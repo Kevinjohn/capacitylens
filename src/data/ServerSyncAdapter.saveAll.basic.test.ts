@@ -299,7 +299,7 @@ function registerScopedDeleteSaveTests(): void {
 function registerConflictSaveTests(): void {
   it("maps a 409 batch response to BatchConflictError carrying body.error (+ current)", async () => {
     // 409 is the server's optimistic-concurrency conflict signal ({ error, current }). It must
-    // surface as the TYPED BatchConflictError — persist.ts branches on it to resolve by reloading
+    // surface as the TYPED BatchConflictError, persist.ts branches on it to resolve by reloading
     // (server wins) instead of futilely retrying the same stale diff.
     const fetchImpl = vi.fn(async (url: string) => {
       if (url.endsWith("/api/batch")) {

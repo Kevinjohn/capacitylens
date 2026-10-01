@@ -8,13 +8,13 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 
 /**
- * `archiveImpact` THROWS when its target row is missing or already inactive — a real possibility at
+ * `archiveImpact` THROWS when its target row is missing or already inactive, a real possibility at
  * render time, not just at call time: the archive-confirm dialog holds the row it opened with, and
  * that row can stop being active in `data` before the user confirms (a teammate archives it, a
  * sync/reload lands, an undo restores an earlier tree, the active account changes). The three
  * archive-message builders (client/project/activity) all call this INSTEAD of `archiveImpact`
  * directly so every dialog tolerates that race the same way: `undefined` means "render the base
- * message, no cascade sentence" — never a thrown error, and never a zero-count sentence.
+ * message, no cascade sentence", never a thrown error, and never a zero-count sentence.
  *
  * Re-checks against the CURRENT row in `data` (not a possibly-stale `confirming` object a caller
  * might hold) using the same `canArchive` affordance predicate `archiveImpact`'s own precondition

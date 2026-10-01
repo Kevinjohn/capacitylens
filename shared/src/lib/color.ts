@@ -2,7 +2,7 @@ import { isExternalResource } from "../types/entities";
 import { effectiveProjectId } from "./integrity";
 import type { Allocation, Client, ID, Project, Resource, Activity } from "../types/entities";
 
-/** The single neutral grey — the bar/colour fallback AND the colour of external / 3rd-party
+/** The single neutral grey, the bar/colour fallback AND the colour of external / 3rd-party
  * identity (avatar, swatch, band, bars). Re-exported app-side as `NEUTRAL_COLOR` from
  * src/lib/palette so both sides share ONE definition. */
 export const NEUTRAL_COLOR = "#9ca3af";
@@ -69,7 +69,7 @@ const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
  * scan below runs on every persisted/imported colour, and re-parsing all 52 palette hex strings
  * per call was pure repeated work. Index-aligned with `PRESET_COLORS`, so palette order (the
  * deterministic tie-break) is preserved. An entry is `null` only if a palette member were not a
- * valid 6-digit hex — unreachable (pinned by a test), but kept nullable so such an entry is
+ * valid 6-digit hex, unreachable (pinned by a test), but kept nullable so such an entry is
  * SKIPPED rather than poisoning every distance with NaN. */
 const PRESET_RGB: readonly (RgbChannels | null)[] = PRESET_COLORS.map((preset) => parseRgb(preset));
 
@@ -79,16 +79,16 @@ export function isPresetColor(value: unknown): value is string {
 }
 
 /** Used by {@link snapToPresetColor} ONLY when the input can't be parsed as a 6-digit hex at
- * all (so no "nearest" distance can even be computed) — e.g. `null`, `undefined`, `"nope"`.
+ * all (so no "nearest" distance can even be computed), e.g. `null`, `undefined`, `"nope"`.
  * This is the ONE fixed colour left in the system; every *parseable* colour, however far off
- * the palette, is snapped to its nearest preset instead — see snapToPresetColor. */
+ * the palette, is snapped to its nearest preset instead, see snapToPresetColor. */
 export const FALLBACK_PRESET_COLOR = "#5c34d4";
 
 /**
  * Snap ANY colour value to the canonical `PRESET_COLORS` palette:
  *  - a value already in the palette is returned normalized (trimmed + lowercased);
  *  - any other parseable 6-digit hex is mapped to its NEAREST preset by RGB Euclidean distance
- *    (ties broken by palette order — the first minimal-distance preset wins, so the mapping is
+ *    (ties broken by palette order, the first minimal-distance preset wins, so the mapping is
  *    deterministic and reproducible);
  *  - an unparseable value (wrong shape, non-string, `null`/`undefined`) returns
  *    {@link FALLBACK_PRESET_COLOR}.
@@ -111,9 +111,9 @@ export function snapToPresetColor(value: unknown): string {
     const presetRgb = PRESET_RGB[i];
     if (!presetRgb) continue; // unreachable: every PRESET_COLORS entry is a valid 6-digit hex (pinned by a test)
     const { red: pr, green: pg, blue: pb } = presetRgb;
-    // Squared Euclidean distance in RGB space — no sqrt needed since we only compare magnitudes.
+    // Squared Euclidean distance in RGB space. No sqrt needed since we only compare magnitudes.
     const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
-    // Strict `<` (not `<=`) so the FIRST minimal-distance preset wins on a tie — palette order
+    // Strict `<` (not `<=`) so the FIRST minimal-distance preset wins on a tie, palette order
     // is the deterministic tie-break.
     if (distance < nearestDistance) {
       nearestDistance = distance;
@@ -263,8 +263,8 @@ function nudgeChannels(channels: RgbChannels, darken: boolean): void {
 /**
  * Bar label legibility: many mid-tone colours give neither white nor dark ink a
  * 4.5:1 ratio (e.g. the default indigo/blue/purple all land ~4.0–4.5). Keep the
- * chosen hue but nudge its lightness — darker under white ink, lighter under dark
- * ink — until the label clears WCAG AA. Returns the adjusted background + its ink.
+ * chosen hue but nudge its lightness (darker under white ink, lighter under dark
+ * ink) until the label clears WCAG AA. Returns the adjusted background + its ink.
  */
 export function resolveAccessibleBarColors(hex: string): { bg: string; ink: string } {
   const channels = parseRgb(hex);
@@ -277,7 +277,7 @@ export function resolveAccessibleBarColors(hex: string): { bg: string; ink: stri
   // now only the settled colour is formatted, after the loop.
   const inkLuminance = calculateRelativeLuminance(ink) ?? 0;
   // Score from the quantised bytes (`channelByte`), i.e. exactly the channels a re-parse of
-  // `toHex(...)` would yield — so the loop stops on precisely the same iteration as before.
+  // `toHex(...)` would yield, so the loop stops on precisely the same iteration as before.
   let nudged = false;
   for (let i = 0; i < 30 && contrastForChannels(nudgedChannels, inkLuminance) < AA_NORMAL; i++) {
     nudgeChannels(nudgedChannels, darken);

@@ -19,7 +19,7 @@ import { useOwnershipTransfer, type OwnershipTransferController } from "./useOwn
  *
  * The section renders NOTHING for anyone who is not a participant. That is not tidiness: a transfer in
  * progress, and who it names, is not ordinary member-management information, and the server returns
- * an empty projection to everyone else — so there is nothing to render even if this decided
+ * an empty projection to everyone else, so there is nothing to render even if this decided
  * otherwise. Every control's authority is re-checked by the server; hiding is never the mechanism.
  */
 
@@ -80,7 +80,7 @@ interface NominatePanelProps {
   replacing: boolean;
 }
 
-/** The Owner's half: choose an Admin and propose. Only active Admins are offered — the ceremony
+/** The Owner's half: choose an Admin and propose. Only active Admins are offered, the ceremony
  * hands the company to someone who already administers it, so a lower tier would be an elevation
  * of two steps on one person's say-so, and the server refuses it regardless. */
 function NominatePanel({ controller, candidates, replacing }: NominatePanelProps) {
@@ -302,7 +302,7 @@ function mayNominate(controller: OwnershipTransferController, principalId: strin
  *
  * Nothing live, nothing to explain and no standing to start one: render nothing rather than an
  * empty section that invites a question it cannot answer. A failure IS something to say, so it keeps
- * the entry point visible — a nominee whose read failed must not be shown the same blank page as a nominee
+ * the entry point visible. A nominee whose read failed must not be shown the same blank page as a nominee
  * who has no request at all.
  */
 type HasSomethingToSayOptions = { controller: OwnershipTransferController; nominatable: boolean };

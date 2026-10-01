@@ -18,14 +18,14 @@ export type CreateResult<T> = { kind: "created"; value: T } | { kind: "blocked" 
 /** The active account's entity create/update/delete and data-lifecycle actions on the store. */
 export interface StoreEntityActions {
   // --- Scoped entity CRUD (disciplines / resources / clients / projects / phases / activities /
-  // allocations / time off). CONTRACT — identical for every add*/update*/delete* below, and
+  // allocations / time off). CONTRACT, identical for every add*/update*/delete* below, and
   // invisible in the signatures, so it lives here:
   //  • Runs against the ACTIVE account and is undoable (⌘Z).
   //  • THROWS an Error whose message is SAFE TO DISPLAY on a tenancy/integrity violation (a
   //    cross-account id, a dangling required FK, a reversed date range, an empty working-day set,
   //    or no active account). The store is the LAST line of defence ("forms reject; store
-  //    backstops"), so these MUST throw — do not wrap them to swallow.
-  //  • Silently NO-OPS on a STALE id (update/delete of a row not owned by the active account — e.g.
+  //    backstops"), so these MUST throw, do not wrap them to swallow.
+  //  • Silently NO-OPS on a STALE id (update/delete of a row not owned by the active account, e.g.
   //    a drag committed after an undo removed the row). That's a benign race, not corruption.
   //  • Callers that take USER INPUT must wrap the call in try/catch and surface e.message (see
   //    TimeOffForm / AllocationModal). A throw left uncaught surfaces only as a React error.
@@ -96,16 +96,16 @@ export interface StoreEntityActions {
   deleteClosure: (id: ID) => void;
 
   // --- Data-lifecycle: the Active → Archived → Soft-deleted → Purged machine for the
-  // tombstone-carrying tables (resources / clients / projects / activities). These are the DEMO-build / OFF path —
+  // tombstone-carrying tables (resources / clients / projects / activities). These are the DEMO-build / OFF path,
   // they mutate the local `data` blob through the same mutate()/undo machinery as the CRUD above. In
   // SERVER mode the UI instead calls the dedicated routes (POST /api/:entity/:id/{archive,unarchive,
   // delete,purge}) directly, so the admin view only invokes these in the demo build. They COMPOSE
-  // the pure shared lifecycle helpers (shared/src/domain/lifecycle.ts) — the transition logic and the
+  // the pure shared lifecycle helpers (shared/src/domain/lifecycle.ts), the transition logic and the
   // soft-delete obfuscation string are NEVER re-derived here. Archive/unarchive are undoable;
   // soft-delete/purge clear both history stacks so erased data cannot be recovered from memory.
   // All four are viewer-no-op and stale-id-no-op, and invalid transitions throw a display-safe Error
   // (the UI gates with the can* predicates first; the throw is the defense-in-depth backstop).
-  /** Archive an entity (active → archived). DEMO-build path; surface-not-swallow — `archive` throws
+  /** Archive an entity (active → archived). DEMO-build path; surface-not-swallow, `archive` throws
    * if the row isn't active. @param entity which tombstone table. @param id the row to archive. */
   archiveEntity: (entity: LifecycleEntity, id: ID) => void;
   /** Un-archive an entity (archived → active). DEMO-build path; `unarchive` throws if the row isn't
@@ -113,7 +113,7 @@ export interface StoreEntityActions {
   unarchiveEntity: (entity: LifecycleEntity, id: ID) => void;
   /** Soft-delete an entity (archived → deleted tombstone). DEMO-build path; `softDelete` throws unless
    * the row is archived first (the lifecycle requires prior archival). For a `resources` row the
-   * tombstone's `name` is ALSO scrubbed via the shared `obfuscateResource` — the local copy retains
+   * tombstone's `name` is ALSO scrubbed via the shared `obfuscateResource`, the local copy retains
    * no original PII while it awaits purge. @param entity which tombstone table. @param id the row. */
   softDeleteEntity: (entity: LifecycleEntity, id: ID) => void;
   /** Hard-purge a soft-deleted tombstone (physically remove + cascade its children). DEMO-build path.

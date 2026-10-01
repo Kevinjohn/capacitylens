@@ -133,20 +133,20 @@ function DeleteCompanyMessages({
 // drops all of its data with no undo, so we (a) offer a one-click export of that
 // company's data first, and (b) require typing the exact name to arm the button.
 //
-// `account` is the minimal { id, name } the dialog needs — so the AccountPicker can pass an
+// `account` is the minimal { id, name } the dialog needs, so the AccountPicker can pass an
 // AccountSummary, which carries no colour/config.
 //
 // "Export first" sources per mode (this is a LAST backup before a no-undo cascade delete, so it
 // must be COMPLETE):
-//   • SERVER mode — the client store may hold NOTHING for this company (you can delete a company
+//   • SERVER mode, the client store may hold NOTHING for this company (you can delete a company
 //     you never switched into), and even a loaded slice is active-only (readSlice hides
 //     archived/soft-deleted rows). So fetch the COMPLETE slice from the purge-gated admin read,
-//     `GET /api/state?accountId=…&includeInactive=1` (the complete per-tenant backup — the
+//     `GET /api/state?accountId=…&includeInactive=1` (the complete per-tenant backup, the
 //     same endpoint ArchivedSection uses). A failed or structurally incomplete fetch THROWS into
 //     the inline error surface and no file is saved (DEFENSIVE-CODING §3: a failed backup never
-//     saves a partial file and surfaces loudly — but export stays OPTIONAL; the user may already
+//     saves a partial file and surfaces loudly, but export stays OPTIONAL; the user may already
 //     hold their own backup, so a failed export disarms nothing once it has settled).
-//   • DEMO build — the local blob IS the whole dataset (archived rows included), so
+//   • DEMO build, the local blob IS the whole dataset (archived rows included), so
 //     scopeData(data, id) is already complete; no fetch.
 // Either way, an export that would contain ZERO scoped records is refused with a loud inline
 // warning instead of silently saving an empty file the user would mistake for a real backup.
@@ -168,15 +168,15 @@ export function DeleteCompanyDialog({
   const [typed, setTyped] = useState("");
   const { exportError, exportEmpty, exporting, exportFirst } = useCompanyExport(account);
   const matches = typed.trim().normalize("NFC") === account.name.trim().normalize("NFC");
-  // Hint id so the disabled Delete button can point at the type-to-confirm instruction —
+  // Hint id so the disabled Delete button can point at the type-to-confirm instruction,
   // a screen reader then announces WHY Delete is unavailable, not just that it's disabled.
   const hintId = useId();
 
   // SERVER mode: fetch the COMPLETE per-tenant slice (archived + soft-deleted retained) via the
-  // shared, body-validating fetchInactiveSlice — see the header comment and that helper's TSDoc
+  // shared, body-validating fetchInactiveSlice, see the header comment and that helper's TSDoc
   // (it enforces the structural gate BEFORE migrate(), shared with ArchivedSection so the two
-  // readers of this endpoint can't drift on trust). Any failure — a non-OK response (including a
-  // 403 for a non-admin) or a structurally incomplete body — is re-thrown here with this dialog's
+  // readers of this endpoint can't drift on trust). Any failure, a non-OK response (including a
+  // 403 for a non-admin) or a structurally incomplete body, is re-thrown here with this dialog's
   // user-facing sentence so the export visibly fails inline and can never save a partial/empty
   // backup.
   // Export just this company's slice (same shape as the in-app export, which import

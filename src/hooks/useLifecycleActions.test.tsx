@@ -15,7 +15,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 
 // apiConfig mocked with a fixed API_BASE and isServerConfigured() => true so `run` takes the server
 // branch. The vi.hoisted box hoists above the mock factory (a bare `let` would throw "Cannot access
-// before initialization") — mirrors ArchivedSection.test.tsx's pattern.
+// before initialization"), mirrors ArchivedSection.test.tsx's pattern.
 const cfg = vi.hoisted(() => ({ base: "http://api.test" }));
 const refreshControl = vi.hoisted(() => ({
   outcome: { kind: "unattached" } as
@@ -33,7 +33,7 @@ vi.mock("@/data/persist", () => ({
   refreshActiveAccountSlice: (accountId: string) => refreshControl.call(accountId),
 }));
 
-// The reloaded slice the stubbed loadAll returns — a recognisable AppData so we can prove replaceAll
+// The reloaded slice the stubbed loadAll returns. A recognisable AppData so we can prove replaceAll
 // ran with EXACTLY this on the success path. Mocking the adapter means no real network/server.
 const reloadedSlice: AppData = makeAppData({
   clients: [
@@ -48,7 +48,7 @@ const reloadedSlice: AppData = makeAppData({
   ],
 });
 // The loadAll spy records the accountId it's called with (asserted via toHaveBeenCalledWith) and
-// resolves to the recognisable reloaded slice — the active-slice re-fetch the success path performs.
+// resolves to the recognisable reloaded slice, the active-slice re-fetch the success path performs.
 // Typed via vi.fn<…>() so the mocked adapter's loadAll(id) call type-checks AND the mock API
 // (mockResolvedValue / toHaveBeenCalledWith) stays available.
 const loadAll = vi.fn<(accountId: string) => Promise<AppData>>(() => Promise.resolve(reloadedSlice));
@@ -231,7 +231,7 @@ describe("useLifecycleActions — refresh callback", () => {
     });
     const { result } = renderHook(() => useLifecycleActions());
 
-    // The promise RESOLVES (never rejects) — a caller can `void` it safely.
+    // The promise RESOLVES (never rejects). A caller can `void` it safely.
     await expect(result.current.purge("clients", "c-young")).resolves.toBeUndefined();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -287,7 +287,7 @@ describe("useLifecycleActions — successful response variants", () => {
       ok: false,
       status: 204,
       json: async () => {
-        throw new Error("no content to parse"); // a 204 has no body — must never be parsed on this path
+        throw new Error("no content to parse"); // a 204 has no body, must never be parsed on this path
       },
     });
     const { result } = renderHook(() => useLifecycleActions());
@@ -306,7 +306,7 @@ describe("useLifecycleActions — account switching", () => {
     // The wrong-tenant race: the lifecycle POST resolves AFTER the user switched away from the
     // account the mutation ran in. The mutation committed server-side (it shows on that account's
     // next hydration); the NEW tenant's slice is owned by the switch orchestrator, and this stale
-    // reload must not fight it — reloading here would install the OLD tenant's slice under the new
+    // reload must not fight it, reloading here would install the OLD tenant's slice under the new
     // active id. Simulated by switching the active account inside the stubbed fetch (mid-flight).
     const fetchMock = vi
       .fn()
@@ -322,7 +322,7 @@ describe("useLifecycleActions — account switching", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1); // the mutation itself was dispatched
     expect(loadAll).not.toHaveBeenCalled(); // but the stale reload was skipped
-    // The store was left for the switch orchestrator — no stale slice installed.
+    // The store was left for the switch orchestrator. No stale slice installed.
     expect(useStore.getState().data.clients.some((c) => c.id === "c-reloaded")).toBe(false);
     expect(useStore.getState().notice).toBeNull(); // and no spurious error surfaced
 

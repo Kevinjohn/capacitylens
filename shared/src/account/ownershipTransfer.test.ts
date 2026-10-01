@@ -34,7 +34,7 @@ const ACTIONS = [
 ] as const satisfies readonly OwnershipTransferAction[];
 
 /** The whole state machine as a table, written from the product contract rather than derived from
- * the implementation — a table derived from the code under test would agree with any bug in it. */
+ * the implementation, a table derived from the code under test would agree with any bug in it. */
 const EXPECTED: Record<OwnershipTransferState, Record<OwnershipTransferAction, boolean>> = {
   awaiting_target: {
     initiate: false,

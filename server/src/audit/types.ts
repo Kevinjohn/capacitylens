@@ -1,7 +1,7 @@
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { ScopedEntityKey } from "@capacitylens/shared/types/entities";
 /**
- * One audit line. ALL fields are operational metadata — never tenant data.
+ * One audit line. ALL fields are operational metadata, never tenant data.
  *
  * `changedFields` is field NAMES ONLY (e.g. `['accountId','note','startDate']`), NEVER their
  * values. NEVER construct one of these by spreading a row/body; build `changedFields` with
@@ -19,7 +19,7 @@ export interface AuditRecord {
    * resource, scrubs the PII `name`), and `purge` is the HARD cascade row-delete of a ≥30-day-old
    * tombstone. They stay distinct from `delete` (the generic by-id row delete) so the audit trail
    * tells a reversible soft-delete apart from an irreversible purge. changedFields stay field NAMES
-   * only (e.g. `['archivedAt']`, `['deletedAt','name','allocations.note']`) — never values (the
+   * only (e.g. `['archivedAt']`, `['deletedAt','name','allocations.note']`), never values (the
    * no-PII invariant). */
   action:
     | "create"
@@ -56,7 +56,7 @@ export interface AuditRecord {
   entity: string;
   /** The affected row id (the import record uses the accountId as its id). */
   id: string;
-  /** Field NAMES that changed — Object.keys of the wire body/row. NEVER values. */
+  /** Field NAMES that changed, Object.keys of the wire body/row. NEVER values. */
   changedFields: string[];
   /** Counts only, never values: rows removed from each scoped table by an irreversible purge. */
   cascadeCounts?: Partial<Record<ScopedEntityKey, number>>;
@@ -75,7 +75,7 @@ export type AuditEntry = (AuditRecord | AccountAuditEvent) & AuditDeliveryMetada
  * The audit write port. `append` is SYNCHRONOUS and MUST NOT throw: a broken audit sink can never
  * fail a request (the mutation already committed). It returns `true` on a successful write, `false`
  * on a write failure; on the first failure it sets `degraded` (a latch deep-health reads) and logs
- * ONE redacted, message-only line (never the record — that could carry the very ids we keep, and
+ * ONE redacted, message-only line (never the record, that could carry the very ids we keep, and
  * keeps a broken sink from spamming the log).
  */
 export interface AuditSink {
@@ -83,14 +83,14 @@ export interface AuditSink {
   append(record: AuditEntry): boolean;
   /** Write a committed batch with one durability flush when supported. */
   appendMany?(records: readonly AuditEntry[]): boolean;
-  /** Latched true once any append failed — the soft signal deep-health surfaces. */
+  /** Latched true once any append failed, the soft signal deep-health surfaces. */
   readonly degraded: boolean;
 }
 
 /** fileAuditSink's rotation knob. */
 export interface FileAuditSinkOptions {
   /** Rotate before the next complete line would exceed this size, in bytes. A single larger line
-   * is rejected and degrades the sink. Default 64 MiB (see DEFAULT_MAX_BYTES) — an unbounded
+   * is rejected and degrades the sink. Default 64 MiB (see DEFAULT_MAX_BYTES), an unbounded
    * JSONL append-forever log eventually fills the disk, which then fails SQLite writes too. */
   maxBytes?: number;
   /** Test seam for the one-time existing-file permission pin. */

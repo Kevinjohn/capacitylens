@@ -63,11 +63,11 @@ export function resolveEffectiveWorkingDays(resource: Resource, accountWorkingDa
 }
 
 /** Why a schedule gesture may not begin on a date: the recurring company/personal calendars reject
- * it, or the resource is on time off. Distinct because the two are separately overridable — an
+ * it, or the resource is on time off. Distinct because the two are separately overridable, an
  * allocation-level `ignoreWorkingDays` bypasses the calendars only. */
 export type CreationBlockReason = "non-working" | "time-off";
 
-/** No time off to consider — a move gate asks the calendars only, and a shared empty array keeps
+/** No time off to consider, a move gate asks the calendars only, and a shared empty array keeps
  * that from allocating on a per-pointermove path. */
 const NO_TIME_OFF: TimeOff[] = [];
 const NO_CLOSURES: Closure[] = [];
@@ -113,7 +113,7 @@ function resolveCalendarCreationBlockReason({
 
 /** The resolved-week variant of `resolveCreationBlockReason`, for callers (the scheduler rows, the modal's
  * typed-date gate) that already hold the effective week. Same rules, same reasons: the creation
- * gate never honors the allocation-level override — there is no ignored-creation escape hatch. */
+ * gate never honors the allocation-level override. There is no ignored-creation escape hatch. */
 export function resolveEffectiveWeekCreationBlockReason({
   resource,
   date,

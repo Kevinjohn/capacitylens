@@ -70,7 +70,7 @@ export function AppSidebar({
   // properties on the sidebar root rather than threaded as props: the nav is assembled from several
   // groups (the primary destinations, the pinned admin group, the account footer), and the rules
   // below key off the shadcn primitives' own `data-slot` hooks, so every menu inside the sidebar
-  // picks the rhythm up without each one having to read the store. Only GAPS and PADDING move — item
+  // picks the rhythm up without each one having to read the store. Only GAPS and PADDING move, item
   // height is untouched, so the collapsed icon rail (which pins each button square) is unaffected.
   // See src/index.css.
   const density = SCHEDULER_DENSITY;
@@ -206,8 +206,8 @@ function SidebarAccountFooter({
 }
 
 /** One menu of nav destinations. Shared by the primary list and the pinned admin group so both
- * render identical markup — same active matching, same `data-nav` tour anchor, same collapsed-rail
- * tooltip — and can never drift apart. */
+ * render identical markup (same active matching, same `data-nav` tour anchor, same collapsed-rail
+ * tooltip) and can never drift apart. */
 function NavMenu({
   links,
   onNavigate,

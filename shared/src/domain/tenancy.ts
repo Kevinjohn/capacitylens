@@ -2,7 +2,7 @@ import type { ID, ScopedEntity } from "../types/entities";
 
 // THE tenant boundary, in one place. Multi-tenancy is the app's core invariant: every scoped row
 // belongs to exactly one account, every read is narrowed to the active account, and every write
-// is guarded against a cross-account id. That boundary is a single membership test — written ONCE
+// is guarded against a cross-account id. That boundary is a single membership test, written ONCE
 // here so a read filter, a write guard, and a cascade can never drift in how they decide "does this
 // row belong to account X". This module is a types-only leaf (no runtime deps) so the hot read
 // seam (useScopedData) can import it without pulling in the mutation/import machinery.

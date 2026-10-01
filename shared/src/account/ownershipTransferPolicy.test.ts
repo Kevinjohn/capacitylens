@@ -23,7 +23,7 @@ const STANDINGS = [
  * The authorisation matrix, written from the product contract.
  *
  * The rows that matter most are the Admin ones: `admin/target` may accept, withdraw and decline,
- * and `admin/bystander` may do NOTHING. If tier alone decided, those two rows would be identical —
+ * and `admin/bystander` may do NOTHING. If tier alone decided, those two rows would be identical,
  * and every Admin in the company could consent on the nominee's behalf, which is the exact consent
  * the ceremony exists to obtain.
  */

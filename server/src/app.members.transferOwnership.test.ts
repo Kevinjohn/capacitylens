@@ -100,7 +100,7 @@ function registerOwnershipCeremonySuccessTest(): void {
     ).toBe(200);
     expect(getMemberRole(db, "a1", admin.userId)).toBe("owner");
     expect(getMemberRole(db, "a1", owner.userId)).toBe("admin");
-    // createdAt is the immutable JOIN timestamp — the exchange (a role change on both rows) must NOT
+    // createdAt is the immutable JOIN timestamp, the exchange (a role change on both rows) must NOT
     // reset it, else both users jump to the bottom of the createdAt-ordered member list and show the
     // transfer moment as their "joined" date.
     const createdAtOf = (userId: string) =>

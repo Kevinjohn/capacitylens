@@ -246,7 +246,7 @@ describe("migrate account and client defaults", () => {
 describe("migrate schedule visibility defaults", () => {
   it("leaves a v8 account without the schedule view prefs absent so they read as shown/enabled (v8 → v9)", () => {
     // v8→v9 is a metadata-only step (like v7→v8): the three new optional booleans stay ABSENT so the
-    // client's `?? true` reads them as shown/enabled — the migration materialises no defaults.
+    // client's `?? true` reads them as shown/enabled, the migration materialises no defaults.
     const data = {
       ...emptyAppData(),
       accounts: [

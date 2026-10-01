@@ -27,7 +27,7 @@ function registerDownloadScenarios(): void {
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(clickSpy).toHaveBeenCalledOnce();
     expect(result).toBeUndefined();
-    expect(revokeObjectURL).not.toHaveBeenCalled(); // not synchronous — the browser is handling the request
+    expect(revokeObjectURL).not.toHaveBeenCalled(); // not synchronous, the browser is handling the request
 
     await new Promise((r) => setTimeout(r, 0));
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:abc");

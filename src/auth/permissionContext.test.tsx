@@ -8,7 +8,7 @@ import { useStore } from "@/store/useStore";
 
 // The generalised affordance gate. Two things must hold and neither is visible from a component
 // test: a RESOLVED role delegates to the pure `can` matrix untouched (so client affordances and the
-// server's route guard cannot diverge), and a NULL role permits everything — the OFF/demo/no-provider
+// server's route guard cannot diverge), and a NULL role permits everything, the OFF/demo/no-provider
 // regression guard that keeps the shipped no-login deploy byte-identical to the app before
 // permissions existed. permissionGating.test.tsx covers what the components then DO with the answer.
 

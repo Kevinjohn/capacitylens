@@ -42,7 +42,7 @@ export function resolveSharedActiveData(data: AppData): AppData {
 /**
  * The read-side seam for multi-tenancy. Components receive only the active account's entities.
  *
- * Memoised on `(data, activeAccountId)` so the scoped object is stable between renders — avoiding the
+ * Memoised on `(data, activeAccountId)` so the scoped object is stable between renders, avoiding the
  * `useSyncExternalStore` fresh-object trap.
  *
  * @returns The active account's {@link AppData} slice, or an empty `AppData` when no account is active.
@@ -54,7 +54,7 @@ export function useScopedData(): AppData {
 /**
  * The active-only view projection: the same scoped AppData as {@link useScopedData}, but with
  * every NON-active (archived OR soft-deleted) resource/client/project/activity removed via the SHARED
- * `activeOnly` helper — so the rule is single-sourced with the server's per-account read.
+ * `activeOnly` helper, so the rule is single-sourced with the server's per-account read.
  *
  * Use this in the NORMAL app VIEWS (scheduler, lists, forms' option-pickers, command palette, toolbar
  * filters); use the raw {@link useScopedData} only for consumers such as export that must retain
@@ -70,7 +70,7 @@ export function useActiveScopedData(): AppData {
 }
 
 /**
- * The inactive-data source for the client-admin view — the counterpart to
+ * The inactive-data source for the client-admin view, the counterpart to
  * {@link useActiveScopedData}. It returns the RAW scoped AppData (every row: active, archived AND
  * soft-deleted) WITHOUT the active-only projection, so the admin view can partition the rows by
  * `lifecycleStatus(e)` and list the archived / deleted ones the normal views hide.

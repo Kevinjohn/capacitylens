@@ -58,7 +58,7 @@ describe("AllocationModal blocks mode", () => {
       />,
     );
 
-    // Blocks drops every load field — no End, no Hours/day, no Days of work.
+    // Blocks drops every load field. No End, no Hours/day, no Days of work.
     expect(screen.queryByLabelText("End")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Hours / day")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Days of work")).not.toBeInTheDocument();
@@ -113,7 +113,7 @@ describe("AllocationModal blocks mode", () => {
     enableBlocks();
     capacityAdvisoryMock.mockClear();
     renderCreate();
-    // Blocks carry placement but no hourly load — the advisory must not see the legacy 8h and warn
+    // Blocks carry placement but no hourly load. The advisory must not see the legacy 8h and warn
     // "over capacity" on days the grid's over-markers leave clean.
     expect(lastAdvisoryOthers()).toEqual([expect.objectContaining({ hoursPerDay: 0 })]);
   });

@@ -8,7 +8,7 @@ import { hasColumn, isNotNull, tableExists } from "./introspection";
  * written by an OLDER server still has a `tasks` table and an `allocations.taskId` FK column.
  * Rename them in place to `activities` / `activityId` BEFORE openDb runs `CREATE TABLE IF NOT
  * EXISTS activities` (which would otherwise leave the old `tasks` table orphaned and create a
- * fresh, EMPTY `activities` — silently abandoning the user's rows). A pure structural rename:
+ * fresh, EMPTY `activities`, silently abandoning the user's rows). A pure structural rename:
  * no rows or values change, and the kind strings are untouched.
  *
  * IDEMPOTENT + introspection-gated: it acts ONLY when the legacy shape is present (`tasks` table
@@ -16,7 +16,7 @@ import { hasColumn, isNotNull, tableExists } from "./introspection";
  * fresh, current, or already-migrated DB falls straight through with no transaction. Runs with
  * foreign keys OFF (openDb enables them afterwards) so renaming a referenced table is safe.
  *
- * MUST run before the baseline DDL (SCHEMA_V8_SQL in the v8 baseline migration) — otherwise the
+ * MUST run before the baseline DDL (SCHEMA_V8_SQL in the v8 baseline migration), otherwise the
  * IF-NOT-EXISTS create of `activities` wins the race and the rename's guard (`activities` absent)
  * never fires, abandoning the legacy rows.
  */
@@ -44,7 +44,7 @@ export function renameLegacyActivityTables(db: Db): void {
  *
  * INTROSPECTION-GATED and idempotent: it inspects the live shape (PRAGMA table_info) and
  * acts only when something is missing, so a fresh / current / :memory: DB falls straight
- * through with no transaction. It is also GENERIC — every additive OPTIONAL column in the
+ * through with no transaction. It is also GENERIC. Every additive OPTIONAL column in the
  * current spec is added automatically, so a new optional field never silently drifts
  * between the client schema and the server DB (the old version-gated pass froze after the
  * first migration and would skip later additions). SQLite can't ALTER-ADD a NOT NULL
@@ -72,7 +72,7 @@ function migrateSchemaVersion(
   // to the current shape (nullable projectId, kind backfilled from projectId presence).
   const activitiesHadKind = hasColumn(db, "activities", "kind");
   const needsActivitiesRebuild = isNotNull(db, "activities", "projectId") || !activitiesHadKind;
-  if (additions.length === 0 && !needsActivitiesRebuild) return; // already current — nothing to do
+  if (additions.length === 0 && !needsActivitiesRebuild) return; // already current, nothing to do
 
   tx(db, () => {
     // Optional columns are nullable TEXT (json columns are TEXT too), so a plain ADD
@@ -113,9 +113,9 @@ export function migrateSchema(db: Db): void {
 }
 
 /** Rebuild the `activities` table (the SQLite-docs 'create new + copy + drop + rename' approach,
- * simplified — there are no indexes/triggers/views to carry over, see the ASSUMPTION below) to bring
- * it to the pre-v36 shape —
- * nullable projectId AND a required `kind` column — while preserving rows + the foreign keys
+ * simplified, since there are no indexes/triggers/views to carry over; see the ASSUMPTION below) to bring
+ * it to the pre-v36 shape, with a
+ * nullable projectId AND a required `kind` column, while preserving rows + the foreign keys
  * other tables hold against activities(id). The target DDL mirrors the pre-v36 `activities` block
  * in SCHEMA_V8_SQL; v36 adds the lifecycle columns explicitly afterward.
  * `kind` is preserved when the source schema already has it. Only genuinely pre-kind schemas
@@ -123,7 +123,7 @@ export function migrateSchema(db: Db): void {
  *
  * ASSUMPTION (true today, verified): `activities` has NO indexes, triggers, or extra constraints
  * beyond the inline column ones. The drop+rename silently discards any such auxiliary object, so
- * if one is ever added to `activities`, this rebuild must be updated to recreate it AFTER the rename —
+ * if one is ever added to `activities`, this rebuild must be updated to recreate it AFTER the rename,
  * otherwise a migration would quietly lose it. (If that risk grows, gate with a PRAGMA index_list
  * check that throws on anything unexpected.) */
 function rebuildActivitiesTable(db: Db, sourceHasKind: boolean): void {

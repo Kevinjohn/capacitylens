@@ -48,7 +48,7 @@ async function expectDurableAckAcrossUnrelatedSaves(): Promise<void> {
   const batches = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.map((call) =>
     batchOps(call).map((op) => op.id),
   );
-  // c1 is PUT exactly once (its first save) and never re-appears — no phantom re-PUT on alternate saves.
+  // c1 is PUT exactly once (its first save) and never re-appears. No phantom re-PUT on alternate saves.
   expect(batches).toEqual([["c1"], ["c2"], ["c3"], ["c4"]]);
 }
 
@@ -107,7 +107,7 @@ describe("ServerSyncAdapter — durable acknowledged-revision translation (phant
     await a.saveAll(withData({ clients: [client("c1", TS1)] }));
     const wire = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]);
     expect(wire.map((o) => o.id)).toEqual(["c1"]);
-    expect(requiredRecord(required(wire[0]).row, "expected recreated client row").updatedAt).toBe(TS1); // NOT 'TS1::server' — the stale translation was cleared
+    expect(requiredRecord(required(wire[0]).row, "expected recreated client row").updatedAt).toBe(TS1); // NOT 'TS1::server'. The stale translation was cleared
   });
 
   it("prunes a translation after committed deletion so an id can reuse its client stamp safely", async () => {
@@ -136,7 +136,7 @@ describe("ServerSyncAdapter — durable acknowledged-revision translation (phant
 // writers at the dedicated lifecycle routes. The old client emitted those deletes IN the batch, so a
 // single undo of a synced create (add client → sync → Cmd-Z) poisoned every later batch until a
 // reload discarded the edits. The adapter now splits lifecycle deletes out and converges each by
-// ARCHIVING ONLY (POST /api/{table}/{id}/archive — action 'write', editor-allowed, never
+// ARCHIVING ONLY (POST /api/{table}/{id}/archive, action 'write', editor-allowed, never
 // freshness-gated) AFTER the batch. It deliberately does NOT call /delete: soft-delete is
 // irreversible, admin-gated and step-up-gated, so it is never emitted by background sync. The
 // sync-originated disappearance parks the row as ARCHIVED (reversible); it lingers in the archived

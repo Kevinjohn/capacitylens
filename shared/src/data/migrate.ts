@@ -44,7 +44,7 @@ interface MigrationStep {
 // The ordered step list, split where `repairBase` is captured (immediately before the only step that
 // SYNTHESISES a row). Every version marker is listed, no-op steps included: an explicit entry
 // documents that the version bump was structural metadata only, rather than an omitted migration.
-// There is deliberately no v2→v3 step — that version only added `accountId`, which needs no
+// There is deliberately no v2→v3 step. That version only added `accountId`, which needs no
 // transform here.
 const PRE_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
   { version: 2, apply: migrateV1toV2 },
@@ -77,7 +77,7 @@ const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
 // vice versa): the last POST_REPAIR_BASE_STEPS version is the ceiling migrate() can bring data up to.
 // This is a development-time mistake, not a runtime condition, but it must never throw merely from
 // IMPORTING this module (shared/data/migrate is on the app's entry graph, before any error boundary
-// exists — see migrate.test.ts). The mismatch is instead asserted lazily, the first time migrate()
+// exists: see migrate.test.ts). The mismatch is instead asserted lazily, the first time migrate()
 // actually runs, and covered directly by a dedicated test so CI catches it regardless of whether any
 // other test happens to call migrate().
 const lastPostRepairBaseVersion = POST_REPAIR_BASE_STEPS[POST_REPAIR_BASE_STEPS.length - 1]?.version;

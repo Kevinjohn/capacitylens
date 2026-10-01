@@ -135,12 +135,12 @@ export function readActorRolesByWorkspaceId(
  * The same map for a TARGET of identity administration, counting memberships of every lifecycle
  * status. Deliberately NOT `roleMap`, and the asymmetry is the point in both directions:
  *
- * - An actor's authority must come only from ACTIVE memberships — a disabled admin administers
- *   nobody — so actors keep using `roleMap`.
+ * - An actor's authority must come only from ACTIVE memberships, a disabled admin administers
+ *   nobody, so actors keep using `roleMap`.
  * - A target's non-active memberships must still COUNT. Dropping them made an empty map, which
  *   `authorityDecisions` reads as `target-not-member` and denies: disabling a member was therefore
  *   the act that destroyed the administrator's ability to revoke that member's live sessions or
- *   reset their password — exactly backwards for the compromised-account case that motivates
+ *   reset their password, exactly backwards for the compromised-account case that motivates
  *   disabling someone in the first place.
  *
  * Widening here cannot weaken the standing rule. `canAdministerIdentityAcrossWorkspaces` demands
@@ -309,7 +309,7 @@ function assertIdentityRepairAuthority({
   assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
   assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
   // Status-agnostic: this asks "is there a membership here to repair?", not "may this login act?".
-  // An active-only probe would 404 the compromised-account case that identity repair exists for —
+  // An active-only probe would 404 the compromised-account case that identity repair exists for,
   // an admin disables the account FIRST and then kills its sessions / rotates its password, and
   // an active-only read here reports the person they just disabled as a non-member. The
   // authority question is answered below by evaluateAuthority, which still ranks roles.

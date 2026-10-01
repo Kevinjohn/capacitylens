@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 // This test reads the built site off disk, so it is type-checked under
 // tsconfig.node.json (which carries the node types) and excluded from the
-// browser-only tsconfig.app.json — it is listed in both, like its siblings.
+// browser-only tsconfig.app.json. It is listed in both, like its siblings.
 import { cwd } from "node:process";
 
 // Docs screenshots open full size in a CSS-only lightbox (docs-src/.vitepress/lightbox.mts
@@ -18,7 +18,7 @@ import { cwd } from "node:process";
 // grows, or if the plugin stops wrapping some images.
 //
 // What this does NOT check: that docs/ is up to date with docs-src/. Rebuilding and
-// diffing here would be far too slow for a unit test — that is why
+// diffing here would be far too slow for a unit test. That is why
 // .github/workflows/docs.yml rebuilds the site and fails on any diff against the
 // committed docs/. Without that step these assertions could pass against stale HTML
 // while the published pages shipped without the fix.
@@ -51,8 +51,8 @@ const articleOf = (html: string) => {
 
 // The plugin deliberately leaves an image alone when it is already inside a
 // link, because a <label> nested in an <a> is invalid. Dropping anchors before
-// counting keeps that supported authoring pattern from reading as a regression
-// — otherwise the coverage check below fails on a page that is entirely correct
+// counting keeps that supported authoring pattern from reading as a regression,
+// otherwise the coverage check below fails on a page that is entirely correct
 // and the only way to get green is to weaken the check.
 const withoutLinks = (html: string) => html.replace(/<a\b[^>]*>[\s\S]*?<\/a>/g, "");
 
@@ -122,7 +122,7 @@ describe("docs image lightbox", () => {
   it("ships only the single inline standalone enhancement script", () => {
     // docs-standalone.mjs strips every script except the data-cl-keep one; if others
     // come back, a script-based lightbox could look like it works locally while being
-    // deleted from the real artifact. The allowlist is checked strictly — an external
+    // deleted from the real artifact. The allowlist is checked strictly, an external
     // src would be a request the file:// build cannot make, and a second inline script
     // means the exception has quietly become a general-purpose escape hatch.
     const offenders = pages.flatMap((page) => {

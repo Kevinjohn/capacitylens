@@ -116,7 +116,7 @@ function registerDeadlineClockRearming(): void {
     const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(first, second))));
 
     act(() => void vi.advanceTimersByTime(5_001));
-    // The first has fired, so the picker — asked with the clock it just produced — drops it as past
+    // The first has fired, so the picker, asked with the clock it just produced, drops it as past
     // and answers with the second; a picker asked with any OTHER clock could not have done that.
     expect(result.current).toBe(first + 1);
 
@@ -128,7 +128,7 @@ function registerDeadlineClockRearming(): void {
   });
 
   it("does not re-arm when only the picker's identity changes", () => {
-    // The picker is expected to be an inline arrow — a NEW function every render. The effect keys on
+    // The picker is expected to be an inline arrow, a NEW function every render. The effect keys on
     // the instant it returns, so re-renders that change nothing else must leave the timer alone.
     const deadline = START + 60_000;
     const { rerender } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));

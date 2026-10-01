@@ -90,10 +90,10 @@ function includeRenderableDateRange<T extends { id: string; startDate: ISODate; 
 
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,
-// grouped by discipline. No React — independently unit-testable.
+// grouped by discipline. No React, independently unit-testable.
 //
 // The model OWNS the shapes the view renders (one-way data -> model -> view), so
-// these live here and the presentational components import them from the model —
+// these live here and the presentational components import them from the model,
 // not the other way round.
 
 function projectVisibleLanes({
@@ -312,7 +312,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   const groupByEngagement = hasSupplementaryResources(data.resources);
   // ONE i18n read per build for the placeholder label: the sort below calls the display name
   // O(n log n) times and every placeholder resolves the same word. Per BUILD CALL, never module
-  // scope — a Paraglide message must be called at use time so it follows the active locale.
+  // scope: a Paraglide message must be called at use time so it follows the active locale.
   const placeholderLabel = resolvePlaceholderDisplayName();
   const resolveDisplayName = (resource: Resource): string =>
     resource.kind === "placeholder" ? placeholderLabel : resolveResourceDisplayName(resource);

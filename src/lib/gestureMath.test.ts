@@ -3,7 +3,7 @@ import { applyGesture, type DateRange } from "./gestureMath";
 import type { Weekday } from "@capacitylens/shared/types/entities";
 
 // Pixel→day snapping no longer lives here: the drag hook derives the day delta from the
-// ColumnGeometry inverse (geom.indexAt), so each endpoint snaps to a column independently —
+// ColumnGeometry inverse (geom.indexAt), so each endpoint snaps to a column independently,
 // correct even across narrowed weekend columns. See columnGeometry.test.ts. applyGesture
 // (the weekend-aware DATE math) is unchanged and still owned here.
 
@@ -50,7 +50,7 @@ describe("applyGesture: move", () => {
 
 describe("applyGesture: move across resources with different working weeks", () => {
   // 2026-08-13 is a Thursday, 08-14 a Friday, 08-17 a Monday, 08-18 a Tuesday.
-  // "Mid" works Tue/Wed/Thu — neither Friday nor Monday; "full" works Mon-Fri.
+  // "Mid" works Tue/Wed/Thu. Neither Friday nor Monday; "full" works Mon-Fri.
   const mid = [2, 3, 4] as Weekday[];
   const monToFri = [1, 2, 3, 4, 5] as Weekday[];
   const wholeWeek = [0, 1, 2, 3, 4, 5, 6] as Weekday[];
@@ -120,7 +120,7 @@ describe("applyGesture: move across resources with different working weeks", () 
   it("preserves the calendar span when the origin sees no working days in the range", () => {
     // Fri 14 - Sun 16: zero working days for Mid, so there is no duration to carry across. The
     // destination DOES work the Friday, so measuring under it instead would collapse this to a
-    // single day — the discriminating case for which week is consulted.
+    // single day, the discriminating case for which week is consulted.
     expect(
       applyGesture({
         mode: "move",
@@ -133,7 +133,7 @@ describe("applyGesture: move across resources with different working weeks", () 
 
   it("snaps the start onto the destination's week even when the origin carries no duration", () => {
     // Fri 14 alone: zero working days for Mid, so nothing is carried. Dragging it one column right
-    // lands on Sat 15, which Mon-Fri does not work — the commit would refuse it. The destination's
+    // lands on Sat 15, which Mon-Fri does not work. The commit would refuse it. The destination's
     // week decides the START whatever the origin measured, so this must reach Mon 17.
     expect(
       applyGesture({
@@ -258,7 +258,7 @@ function registerWeekendAwareResizeScenarios(): void {
   });
 
   it("resize-start over-dragged past a WEEKEND end pins to a working day (no zero-span)", () => {
-    // 2026-06-01 Mon … 2026-06-06 Sat — the end is a Saturday.
+    // 2026-06-01 Mon … 2026-06-06 Sat. The end is a Saturday.
     const r: DateRange = { startDate: "2026-06-01", endDate: "2026-06-06" };
     const out = applyGesture({ mode: "resize-start", range: r, deltaDays: 99, options: wd });
     expect(out.startDate).toBe("2026-06-05"); // Friday, NOT the Saturday end (was: 06-06, 0 working days)
@@ -266,7 +266,7 @@ function registerWeekendAwareResizeScenarios(): void {
   });
 
   it("resize-end over-dragged past a WEEKEND start pins to a working day", () => {
-    // 2026-06-07 Sun … 2026-06-12 Fri — the start is a Sunday.
+    // 2026-06-07 Sun … 2026-06-12 Fri. The start is a Sunday.
     const r: DateRange = { startDate: "2026-06-07", endDate: "2026-06-12" };
     const out = applyGesture({ mode: "resize-end", range: r, deltaDays: -99, options: wd });
     expect(out.endDate).toBe("2026-06-08"); // Monday, NOT the Sunday start
@@ -302,7 +302,7 @@ function registerWeekendAwareResizeEdgeScenarios(): void {
   });
 
   it("resize-start with a zero delta (no drag) is a no-op, even resting on a non-working day", () => {
-    // No actual drag happened (deltaDays 0) — weekend-awareness must NOT kick in and snap a
+    // No actual drag happened (deltaDays 0), weekend-awareness must NOT kick in and snap a
     // start that was already sitting on a non-working day away from its current position.
     const r: DateRange = { startDate: "2026-06-06", endDate: "2026-06-10" }; // Sat … Wed
     expect(applyGesture({ mode: "resize-start", range: r, deltaDays: 0, options: wd })).toEqual({

@@ -7,7 +7,7 @@
  *
  * INVARIANT: this is the ONLY place the brand string is literal in code. Every user-facing
  * "CapacityLens" (wordmarks, copy, feedback subjects, server log/backup prefixes) reads through this
- * constant — change it here and the whole app/server follows. Do not re-hardcode the name elsewhere.
+ * constant, change it here and the whole app/server follows. Do not re-hardcode the name elsewhere.
  * The sole documented exception is `index.html`: it is static HTML served before any module loads,
  * so it cannot import this constant and keeps the brand literal in its <title>/no-JS copy.
  */

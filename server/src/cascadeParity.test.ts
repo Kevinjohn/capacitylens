@@ -24,8 +24,8 @@ import { createSqliteTenantStore } from "./tenantStore";
 //
 // Rather than generate all three from one source (over-engineering for a schema this stable), this
 // suite runs the SAME fixture through the TS transform and through the real database, then asserts
-// the surviving rows match: ids, the FK columns each side is supposed to clear, and — on the purge
-// paths — WHICH rows were restamped. The exact revision value differs by construction (the store
+// the surviving rows match: ids, the FK columns each side is supposed to clear, and, on the purge
+// paths: WHICH rows were restamped. The exact revision value differs by construction (the store
 // passes its own clock, the server derives nextServerRevision), so parity is asserted on "was this
 // row restamped", not on the literal timestamp.
 
@@ -33,7 +33,7 @@ const ACCOUNT = "a1";
 /** A second, untouched tenant: every case below must leave its rows exactly as seeded. */
 const OTHER_ACCOUNT = "a2";
 const SEEDED_AT = "2026-01-01T00:00:00.000Z";
-/** The revision the TS cascades stamp on survivors — any value later than SEEDED_AT works. */
+/** The revision the TS cascades stamp on survivors, any value later than SEEDED_AT works. */
 const REV = "2026-06-01T00:00:00.000Z";
 const meta = { createdAt: SEEDED_AT, updatedAt: SEEDED_AT };
 
@@ -118,7 +118,7 @@ function seed(): AppData {
   seedCatalog(d);
   d.resources = [
     resource("r1", { disciplineId: "d1" }),
-    // Placeholders bound to a project — the SET NULL / unbind (never delete) rule.
+    // Placeholders bound to a project. The SET NULL / unbind (never delete) rule.
     resource("r2", { kind: "placeholder", projectId: "p1", disciplineId: "d1" }),
     resource("r3", { kind: "placeholder", projectId: "p3" }),
     resource("r9", { accountId: OTHER_ACCOUNT, projectId: "p9" }),
@@ -183,7 +183,7 @@ function survivors({ data, withRestamps }: SurvivorsOptions): Survivors {
 }
 
 function withSeededDb<T>(use: (db: Db) => T): T {
-  // openDb(':memory:') turns PRAGMA foreign_keys ON — without it the FK actions never fire.
+  // openDb(':memory:') turns PRAGMA foreign_keys ON, without it the FK actions never fire.
   const db = openDb(":memory:");
   try {
     insertAll(db, seed());
@@ -195,7 +195,7 @@ function withSeededDb<T>(use: (db: Db) => T): T {
 
 /**
  * Run the same delete both ways and compare the survivors.
- * @param sql  the real database path — a purge through the TenantStore, or a plain deleteRow for a
+ * @param sql  the real database path, a purge through the TenantStore, or a plain deleteRow for a
  * table with no lifecycle purge (where only the FK clauses act).
  */
 function expectParity(
@@ -212,7 +212,7 @@ function expectParity(
 
 const purge = (entity: "resources" | "clients" | "projects", id: string) => (db: Db) => {
   const result = createSqliteTenantStore(db).purgeLifecycleRow(ACCOUNT, entity, id);
-  // A null result means the row was not found/owned — the parity assertion would then trivially
+  // A null result means the row was not found/owned. The parity assertion would then trivially
   // "pass" against an untouched database, so fail loudly here instead.
   expect(result).not.toBeNull();
 };

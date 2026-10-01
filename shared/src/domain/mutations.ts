@@ -26,12 +26,12 @@ export {
 // compute the next AppData. All cascade/transform helpers return a NEW AppData.
 //
 // Account resolution itself (the "no active account" guard) deliberately stays in
-// the store — it reads live UI state. Every function here takes `accountId`
+// the store, it reads live UI state. Every function here takes `accountId`
 // explicitly so it has no ambient dependency.
 
 /**
  * Cascade-drop an account and every scoped entity belonging to it. Returns a new
- * AppData (mutating a fresh copy in place — scopedTables returns the same ref).
+ * AppData (mutating a fresh copy in place, scopedTables returns the same ref).
  */
 export function deleteAccountCascade(data: AppData, accountId: ID): AppData {
   const next: AppData = {

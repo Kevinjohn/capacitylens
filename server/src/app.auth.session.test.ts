@@ -17,7 +17,7 @@ import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
 // CAPACITYLENS_MODE (opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
-// by running unchanged — these tests add the /api/auth/me surface and the absence of the
+// by running unchanged. These tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
 
@@ -478,13 +478,13 @@ describe("CAPACITYLENS_MODE password", () => {
     expect(parseAuthMeResponse(me).mfaRequired).toBe(false);
     expect(me.json()).toMatchObject({ requireMfa: false });
     // emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
-    // verification infra, so Better Auth leaves the flag false — confirming the normalized flag
+    // verification infra, so Better Auth leaves the flag false, confirming the normalized flag
     // is present and defaults correctly (the invite-bind gate depends on it).
     expect(parseAuthMeResponse(me).user.emailVerified).toBe(false);
 
     // The GENERIC account create is CLOSED auth-on (403 → POST /api/orgs): the bare row write never
-    // minted a membership, so it could only produce orphan accounts — /api/orgs is the atomic path.
-    // A session is still proven to authenticate (403, an authz refusal — not the session-less 401).
+    // minted a membership, so it could only produce orphan accounts, /api/orgs is the atomic path.
+    // A session is still proven to authenticate (403, an authz refusal, not the session-less 401).
     const write = await call(app, {
       method: "POST",
       url: "/api/accounts",
@@ -502,7 +502,7 @@ describe("CAPACITYLENS_MODE password", () => {
     });
     expect(noArg.statusCode).toBe(400);
     // No membership exists for this fresh user, so the membership-existence guard 403s a scoped read
-    // of 'a1' — the slice path itself is exercised in app.accounts.test.ts (member → 200). Here we
+    // of 'a1', the slice path itself is exercised in app.accounts.test.ts (member → 200). Here we
     // only pin that no-arg is closed.
     const scoped = await call(app, {
       method: "GET",
@@ -566,7 +566,7 @@ describe("CAPACITYLENS_MODE password", () => {
         },
       });
       const cookie = cookiesOf(signUp);
-      // ISO-8601 text is what Better Auth's node:sqlite adapter actually stores — writing the
+      // ISO-8601 text is what Better Auth's node:sqlite adapter actually stores, writing the
       // production representation here is what makes this a regression test for the CAS that
       // silently never matched integer-vs-text.
       db.prepare(`UPDATE session SET updatedAt = ?`).run(

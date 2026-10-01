@@ -131,7 +131,7 @@ function recordRecovery({ db, context, target, token }: RecordRecoveryInput): Ow
     occurredAt: new Date().toISOString(),
     applicationId,
     workspaceId: null,
-    // No in-product actor exists for this ceremony — that absence is the auditable fact.
+    // No in-product actor exists for this ceremony. That absence is the auditable fact.
     actorPrincipalId: null,
     targetPrincipalId: target.userId,
     commandId: null,
@@ -147,7 +147,7 @@ function recordRecovery({ db, context, target, token }: RecordRecoveryInput): Ow
 /**
  * Operator recovery for the one credential state no in-product actor can repair: the sole active
  * Owner's lost password. `canAdministerIdentity` bars every non-Owner from administering an Owner,
- * and the single-active-Owner index guarantees there is no second Owner to help — so recovery is a
+ * and the single-active-Owner index guarantees there is no second Owner to help, so recovery is a
  * stopped-server CLI ceremony, not a product feature. The tool drives the ordinary Better Auth
  * reset ceremony (same token store, expiry, single-use consumption, password policy, session
  * revocation); it never writes a credential directly and never relaxes in-app policy.

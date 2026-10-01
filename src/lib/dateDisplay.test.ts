@@ -394,7 +394,7 @@ describe("formatInstant / formatInstantDate", () => {
 describe("an unrecognised active style", () => {
   it("reads as the default instead of throwing out of every formatter", () => {
     // Belt and braces behind `resolveDateStyle`: the mirror is a plain setter, so anything that
-    // writes it — a future caller, a test, a hydration path — must not be able to take the whole
+    // writes it (a future caller, a test, a hydration path) must not be able to take the whole
     // product's dates down with a value that has no descriptor.
     setActiveDateStyle("year-month-day" as DateStyle);
 

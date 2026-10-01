@@ -101,7 +101,7 @@ export const listValidationAllocations = ({
 
 /** `codes[0]`/`errors[0]` are guaranteed present: every validator sets ok=false and pushes a message
  * in the same step, so `!validation.ok` always implies non-empty arrays. (Documented coupling between
- * ValidationResult.ok and errors — don't split the two without revisiting this read.) */
+ * ValidationResult.ok and errors, don't split the two without revisiting this read.) */
 export const assertValid = (validation: ValidationResult): void => {
   if (validation.ok) return;
   const code = validation.codes[0];

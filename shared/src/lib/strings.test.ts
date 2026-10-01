@@ -11,7 +11,7 @@ const ZWJ = String.fromCodePoint(0x200d); // zero-width joiner (format)
 const RLO = String.fromCodePoint(0x202e); // right-to-left override (format)
 const VS16 = String.fromCodePoint(0xfe0f); // emoji variation selector-16 (Mn)
 const KEYCAP = String.fromCodePoint(0x20e3); // combining enclosing keycap (Me)
-const ACUTE = String.fromCodePoint(0x0301); // combining acute accent (Mn — legitimate)
+const ACUTE = String.fromCodePoint(0x0301); // combining acute accent (Mn, legitimate)
 const UNASSIGNED = String.fromCodePoint(0x0378); // unassigned in the supported runtime baseline
 const PRIVATE_USE = String.fromCodePoint(0xe000); // Co
 const LONE_SURROGATE = String.fromCharCode(0xd800); // Cs
@@ -119,7 +119,7 @@ describe("cleanText", () => {
 
   it("keeps a tab as-is (exempt from stripping) rather than dropping it", () => {
     // A tab is a Cc control char and WOULD be caught by DISALLOWED if the '\n'/'\t'
-    // exemption in the copy loop were narrowed to just '\n' — it would then be
+    // exemption in the copy loop were narrowed to just '\n'. It would then be
     // dropped outright instead of kept-then-collapsed-to-a-space.
     expect(cleanText("a\tb")).toBe("a b");
   });

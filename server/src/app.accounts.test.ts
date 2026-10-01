@@ -11,7 +11,7 @@ import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // Endpoint coverage: GET /api/accounts + the new ?accountId= form of GET /api/state, in both
 // OFF (trusted-local, no gate) and auth-on (membership-existence guard) postures. The no-arg
-// GET /api/state whole read must stay byte-for-byte (backward-compat) — asserted here AND by the
+// GET /api/state whole read must stay byte-for-byte (backward-compat), asserted here AND by the
 // whole existing app.test.ts suite running unchanged.
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -126,10 +126,10 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
 describe("auth-on (password) — membership-existence guard", () => {
   it("a member reads their account slice (200); a non-member is 403; /api/accounts lists only memberships", async () => {
     const { app, db } = await appWithAuth();
-    // Seed two accounts (directly — account creation flows aren't under test here).
+    // Seed two accounts (directly, account creation flows aren't under test here).
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "member@capacitylens.dev");
-    // Make the login an active member of a1 ONLY (as an editor — asserted on /api/accounts below).
+    // Make the login an active member of a1 ONLY (as an editor, asserted on /api/accounts below).
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
     // Their account → 200 slice scoped to a1.
@@ -166,7 +166,7 @@ describe("PATCH /api/accounts/:id foreign-accountId parity with PUT", () => {
       url: "/api/accounts/a2",
       payload: { ...account("a2"), accountId: "a1" },
     });
-    expect(put.statusCode).toBe(404); // ownsRow concealment — the established PUT contract
+    expect(put.statusCode).toBe(404); // ownsRow concealment, the established PUT contract
 
     const patch = await app.inject({
       method: "PATCH",
