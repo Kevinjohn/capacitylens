@@ -12,6 +12,27 @@ It takes about five minutes.
 
 With Viewer access, start with [Read the schedule](/using/read-the-schedule).
 
+## Make your first schedule useful
+
+When a company is new, **Getting started** shows five milestones: add someone to the schedule,
+add a client, add a project to that client, add an Activity, and schedule the first piece of work.
+Each step completes from the company's records, including imported data. You can create records
+in any order. Internal work is available at any time, though it does not complete the client or
+project steps.
+
+The 0–5 progress bar appears across the application, including Settings. The checklist opens on
+Schedule while setup is incomplete and can be shown or hidden from the bar on any page. At 5/5 it
+starts closed, but stays available until an Owner or Admin dismisses it. If work remains, dismissal
+asks for confirmation. Dismissing hides
+the guidance for everyone in that company. Editors can view and toggle the checklist; Viewers do
+not see it.
+
+To see a working schedule before entering your own data, an Owner or Admin can choose **Settings,
+Example data, Add example data**. It adds two people, a client, a project and a few bookings, and
+is offered only while the company has no people, clients, projects or allocations.
+
+![Getting started progress at 0/5 with the five setup milestones on Schedule](../screenshots/flows/getting_started_five_steps.png)
+
 ## Client
 
 ![Add client form for Queen Consolidated](../screenshots/flows/quick_start_client.png)

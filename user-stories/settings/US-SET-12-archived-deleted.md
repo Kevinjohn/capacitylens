@@ -2,7 +2,7 @@
 
 **Area:** Settings · **Persona:** Studio manager / admin · **Linked E2E:** `e2e/archived.spec.ts` → "archive a resource → it vanishes from the schedule + active list → inline restore → re-archive → delete → Settings tombstone (purge locked)"
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 

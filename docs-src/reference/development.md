@@ -8,7 +8,7 @@ description: Set up the CapacityLens repository, run it locally, and run the che
 ::: tip This page is for contributors, not users
 It's for anyone changing the CapacityLens code. If you just run or use CapacityLens,
 you don't need it — see the [glossary](/reference/glossary) or the
-[guide](/guide/the-schedule) instead.
+[guide](/using/read-the-schedule) instead.
 :::
 
 This page gets the CapacityLens source running on your machine, explains how the
@@ -700,7 +700,7 @@ mutation score is not evidence for the Zustand store, React orchestration, or th
 Fastify/Better Auth implementation — those are covered by focused unit/component tests,
 the server integration gate and E2E. Review surviving, timed-out and uncovered mutants
 rather than accepting the aggregate score alone. The latest triage is recorded in
-[`docs-src/security/mutation-review-2026-07-18.md`](/security/mutation-review-2026-07-18).
+[`docs-src/security/reviews/mutation-review-2026-07-18.md`](/security/reviews/mutation-review-2026-07-18).
 
 ### Cross-browser checks
 
@@ -846,7 +846,7 @@ on every gate run. Because a scheduled or `main` run has no reviewer watching it
 failure there — or a cancellation that leaves the run with nothing to read — opens or
 comments on a `security-scan-failure` issue, and a later clean run closes it. A
 cancellation caused by a newer push is not reported, since that's `cancel-in-progress`
-working as intended. See `docs-src/security/security-review-2026-07-14.md` for assessment
+working as intended. See `docs-src/security/reviews/security-review-2026-07-14.md` for assessment
 scope and residual controls.
 
 `main` is protected against deletion and force pushes, and changes must arrive through a pull

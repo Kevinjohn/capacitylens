@@ -35,4 +35,4 @@ Select Add placeholder in Resources and choose its Bound project. The placeholde
 
 If Add placeholder is missing, enable Show placeholders in [Settings](/admin/company-settings).
 
-[Working patterns, placeholders and external resources](/guide/people-and-placeholders)
+[Working patterns, placeholders and external resources](/using/resources)

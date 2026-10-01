@@ -17,4 +17,4 @@ If you sign in with a local password, select **Change password** to open the pas
 
 Select **Sign out** on this page when you have finished.
 
-[Account controls](/guide/settings#your-personal-account)
+[Account controls](/using/settings#your-personal-account)

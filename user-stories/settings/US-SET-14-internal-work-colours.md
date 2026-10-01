@@ -2,7 +2,7 @@
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/internal-colours.spec.ts`
 
-**Documentation:** [Projects and allocations](../../docs-src/guide/projects-and-allocations.md)
+**Documentation:** [Schedule and change work](../../docs-src/using/schedule-work.md)
 
 ## Goal
 

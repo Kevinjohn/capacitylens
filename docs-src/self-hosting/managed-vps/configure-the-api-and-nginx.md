@@ -87,7 +87,7 @@ CAPACITYLENS_ALLOW_OPEN_SIGNUP
 ```
 
 Unset is different from `0` for some environment parsers. Remove the lines unless the
-[Configure the service](/installation/configure-the-service) page specifically says that an empty value has meaning.
+[Configuration](/self-hosting/configuration) page specifically says that an empty value has meaning.
 
 If the platform already emits an HSTS header, set `CAPACITYLENS_HTTPS=0` to avoid duplicate
 headers; otherwise leave it unset and an `https` public URL makes the API emit host-only HSTS. The public origin must still use HTTPS.
@@ -97,7 +97,7 @@ automatically trusts the `X-Forwarded-For` and `X-Forwarded-Proto` headers that 
 next page, so rate limiting and audit records show the real visitor address rather than the proxy's.
 Keep the API on loopback. If you ever bind it to another address, you must also set
 `CAPACITYLENS_TRUST_PROXY_HEADERS=1`, and only when the API accepts connections from your proxy
-alone — see [Configure the service](/installation/configure-the-service).
+alone — see [Configuration](/self-hosting/configuration).
 
 ## 3. Create the background process
 

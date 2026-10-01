@@ -2,8 +2,8 @@
 
 **Area:** Allocation editor and schedule details · **Persona:** Studio manager
 
-**Documentation:** [Settings — Allocation task field](../../docs-src/guide/settings.md#allocation-task-field)
-and [Projects and allocations](../../docs-src/guide/projects-and-allocations.md#create-an-allocation)
+**Documentation:** [Settings — Allocation task field](../../docs-src/using/settings.md#allocation-task-field)
+and [Schedule and change work](../../docs-src/using/schedule-work.md#create-an-allocation)
 
 ## Goal
 

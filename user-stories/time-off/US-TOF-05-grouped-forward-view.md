@@ -23,7 +23,7 @@ multiple entries for one person and an entry that ended before the current compa
 3. Within a resource section, read its time-off rows from top to bottom.
 4. Edit or delete one dated row using its date-specific action.
 
-See [Review current and upcoming time off](../../docs-src/guide/time-off.md#review-current-and-upcoming-time-off).
+See [Review current and upcoming time off](../../docs-src/using/time-off.md#review-current-and-upcoming-time-off).
 
 ## Acceptance criteria
 

@@ -2,7 +2,7 @@
 
 **Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/features.spec.ts` → "dragging an allocation onto another row reassigns it" and "rejects a vertical reassignment onto a non-working start date"
 
-**Documentation:** [Projects and allocations → Edit, move and remove allocations](../../docs-src/guide/projects-and-allocations.md#edit-move-and-remove-allocations)
+**Documentation:** [Schedule and change work → Edit, move and remove allocations](../../docs-src/using/schedule-work.md#edit-move-and-remove-allocations)
 
 ## Goal
 

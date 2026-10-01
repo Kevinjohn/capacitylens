@@ -3,10 +3,10 @@ title: Install with Docker
 description: Install CapacityLens with Docker Compose, from cloning the repository to a running, health-checked instance.
 prev:
   text: Install CapacityLens
-  link: /getting-started/install
+  link: /self-hosting/install
 next:
-  text: Configure the service
-  link: /installation/configure-the-service
+  text: Configuration
+  link: /self-hosting/configuration
 ---
 
 # Install with Docker
@@ -72,7 +72,7 @@ installed, most of it waiting for the first build.
 
    Keep the host's Docker volumes and off-host backup destination on storage encrypted at
    rest; CapacityLens does not encrypt a volume itself. `CAPACITYLENS_PUBLIC_URL` must be the exact browser-facing origin. See
-   [Configure the service](/installation/configure-the-service) for what every other variable does.
+   [Configuration](/self-hosting/configuration) for what every other variable does.
 
 4. Build and start the stack:
 
@@ -119,9 +119,9 @@ installed, most of it waiting for the first build.
    company. Once both exist, remove `CAPACITYLENS_SETUP_TOKEN` from `.env` and
    run `docker compose up -d --force-recreate api` to discard the setup credential
    from the running container. Continue to
-   [verify and hand over the installation](/installation/verify-and-hand-over).
-   See [Secure the connection](/installation/secure-the-connection) for the proxy and
-   [Configure the service](/installation/configure-the-service#sign-in-mode) for the
+   [verify and hand over the installation](/self-hosting/verify-and-hand-over).
+   See [TLS and networking](/self-hosting/tls-and-networking) for the proxy and
+   [Configuration](/self-hosting/configuration#sign-in-mode) for the
    sign-in settings.
 
 ::: tip
@@ -131,9 +131,9 @@ it until you add the reverse proxy in the next page.
 
 ## What's next
 
-- [Configure the service](/installation/configure-the-service) to understand every environment variable
+- [Configuration](/self-hosting/configuration) to understand every environment variable
   you just set, plus the ones you didn't.
-- [Secure the connection](/installation/secure-the-connection) to put a real domain and
+- [TLS and networking](/self-hosting/tls-and-networking) to put a real domain and
   certificate in front of the stack.
 - [Try a local demo](/getting-started/try-the-demo) for the disposable, in-memory
   interface. It is separate from this persistent installation.

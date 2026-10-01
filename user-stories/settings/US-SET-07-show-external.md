@@ -2,7 +2,7 @@
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/external.spec.ts` → "hidden by default: the seeded external is absent from the schedule and the Resources tab", "turning it on reveals the External section with help in Resources and the band on the schedule", "the choice survives a reload (per-account pref)"
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 

@@ -52,6 +52,6 @@ My display changes only the current browser. Let teammates choose their own [dis
 
 Week start and time zone are fixed after company creation. Check them under Data and support → Company details.
 
-[Full settings reference](/guide/settings)
+[Full settings reference](/using/settings)
 
-[Offline access](/guide/offline-access)
+[Offline access](/using/settings#offline-access)

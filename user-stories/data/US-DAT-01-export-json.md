@@ -2,7 +2,7 @@
 
 **Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/crud.spec.ts`
 
-**Documentation:** [Settings — Import and export](../../docs-src/guide/settings.md#everything-else-on-the-page)
+**Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#everything-else-on-the-page)
 
 ## Goal
 

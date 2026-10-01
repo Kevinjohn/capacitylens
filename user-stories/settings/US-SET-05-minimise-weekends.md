@@ -2,7 +2,7 @@
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/minimise-weekends.spec.ts` → "ON by default: weekend columns are narrow and labelled \"S\"", "toggling it off in Settings restores full-width Sat/Sun columns", "the choice survives a reload (device-global pref)", "a bar dragged across the narrowed weekend commits a later date (no crash)"
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 

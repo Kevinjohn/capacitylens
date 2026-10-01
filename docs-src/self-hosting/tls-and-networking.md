@@ -5,8 +5,6 @@ description: How to put a domain and TLS certificate in front of CapacityLens, a
 
 # TLS and networking
 
-<!-- #region guide-content -->
-
 CapacityLens expects to sit behind a TLS-terminating reverse proxy on the same origin
 the browser uses. This page covers that proxy, the internal TLS hop Docker sets up for
 you, and the header and port details that make sign-in cookies work correctly.
@@ -237,11 +235,9 @@ HTTP.
 | 8080 | nginx (web app + `/api/` proxy) | Loopback by default; your reverse proxy                                     |
 | 8787 | The API (Fastify)               | Only nginx, over the internal TLS hop in Compose, or loopback on bare metal |
 
-<!-- #endregion guide-content -->
-
 ## What's next
 
-- [Install CapacityLens](/getting-started/install) if you're setting this up for the first
+- [Install CapacityLens](/self-hosting/install) if you're setting this up for the first
   time.
 - [Monitoring and health checks](/self-hosting/monitoring) to watch certificate expiry
   and proxy health once it's running.

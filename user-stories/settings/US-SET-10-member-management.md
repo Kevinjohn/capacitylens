@@ -12,7 +12,7 @@ status column are unavailable in this UI. Ownership transfer is not part of this
 (since #175) and now has its own three-step ceremony and section — see
 [US-SET-18](US-SET-18-ownership-transfer.md).
 
-**Guide:** [Invite your team](../../docs-src/getting-started/invite-your-team.md) and
+**Guide:** [Invite teammates and manage access](../../docs-src/admin/invite-teammates.md) and
 [Company sign-in](../../docs-src/company-login/set-up-company-login.md).
 
 An Owner or Admin opens **Team & access** from the sidebar. Linking, changing or removing a
