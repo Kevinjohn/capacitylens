@@ -903,7 +903,7 @@ When SMTP is configured in a password-capable mode, `forgot-password` reveals th
 `forgot-password-confirmation`: **If an account uses that address, we've emailed a reset link.**
 
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
-server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `SMALLSASS_ACCOUNT_MODE=password-only`, `password-and-sso` or
+server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `CAPACITYLENS_MODE=password-only`, `password-and-sso` or
 `sso-only`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
@@ -1004,7 +1004,7 @@ itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
 On a mixed deployment, every configured external provider remains available below
 the setup form. Google uses the branded **Sign in with Google** action; other providers use
 their branded sign-in action. Named Google/Microsoft bootstrap uses
-`SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. Microsoft asks for the intended email before starting
+`CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`. Microsoft asks for the intended email before starting
 and proves it during first connection; provider-required setup does not ask for a password. The
 operator does not need a temporary password identity.
 

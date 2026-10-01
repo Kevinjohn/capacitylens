@@ -10,9 +10,9 @@ type Environment = Record<string, string | undefined>;
 
 const MINIMAL_PRODUCTION: Environment = {
   NODE_ENV: "production",
-  SMALLSASS_ACCOUNT_PUBLIC_URL: "https://schedule.example.test",
-  SMALLSASS_ACCOUNT_SECRET: "0123456789abcdef0123456789abcdef",
-  SMALLSASS_ACCOUNT_SETUP_TOKEN: "setup-token-for-the-first-owner",
+  CAPACITYLENS_PUBLIC_URL: "https://schedule.example.test",
+  CAPACITYLENS_SECRET: "0123456789abcdef0123456789abcdef",
+  CAPACITYLENS_SETUP_TOKEN: "setup-token-for-the-first-owner",
   CAPACITYLENS_DB: "/srv/capacitylens/data/capacitylens.db",
 };
 
@@ -30,12 +30,12 @@ describe("applyProductionDefaults", () => {
       CAPACITYLENS_LOG: "1",
       CAPACITYLENS_HEALTH_DEEP: "1",
       CAPACITYLENS_AUDIT_STDOUT: "1",
-      SMALLSASS_ACCOUNT_MODE: "password-only",
+      CAPACITYLENS_MODE: "password-only",
       CAPACITYLENS_CORS_ORIGIN: "https://schedule.example.test",
       CAPACITYLENS_BACKUP_DIR: "/srv/capacitylens/data/backups",
     });
     expect(parseRateLimit(environment.CAPACITYLENS_RATE_LIMIT)).toBe(300);
-    expect(parseAuthMode(environment.SMALLSASS_ACCOUNT_MODE)).toBe("password-only");
+    expect(parseAuthMode(environment.CAPACITYLENS_MODE)).toBe("password-only");
     expect(parseBackupConfig(environment)?.dir).toBe("/srv/capacitylens/data/backups");
   });
 
@@ -59,7 +59,7 @@ describe("applyProductionDefaults", () => {
       CAPACITYLENS_LOG: "0",
       CAPACITYLENS_HEALTH_DEEP: "0",
       CAPACITYLENS_AUDIT_STDOUT: "0",
-      SMALLSASS_ACCOUNT_MODE: "sso-only",
+      CAPACITYLENS_MODE: "sso-only",
       CAPACITYLENS_BACKUP_DIR: "",
     };
     const environment = defaulted(explicit);
@@ -68,9 +68,9 @@ describe("applyProductionDefaults", () => {
   });
 
   it("leaves an explicit invalid value to be refused by its parser", () => {
-    const environment = defaulted({ CAPACITYLENS_RATE_LIMIT: "1e3", SMALLSASS_ACCOUNT_MODE: "bogus" });
+    const environment = defaulted({ CAPACITYLENS_RATE_LIMIT: "1e3", CAPACITYLENS_MODE: "bogus" });
     expect(environment.CAPACITYLENS_RATE_LIMIT).toBe("1e3");
-    expect(environment.SMALLSASS_ACCOUNT_MODE).toBe("bogus");
+    expect(environment.CAPACITYLENS_MODE).toBe("bogus");
     const { refusals } = evaluateProductionPosture(environment);
     expect(refusals).toHaveLength(2);
   });
@@ -78,10 +78,10 @@ describe("applyProductionDefaults", () => {
 
 describe("applyProductionDefaults explicit choices and backups", () => {
   it("keeps an explicit off mode refused unless the open posture is explicitly allowed", () => {
-    const refused = evaluateProductionPosture(defaulted({ SMALLSASS_ACCOUNT_MODE: "off" }));
+    const refused = evaluateProductionPosture(defaulted({ CAPACITYLENS_MODE: "off" }));
     expect(refused.refusals).toHaveLength(1);
     const allowed = evaluateProductionPosture(
-      defaulted({ SMALLSASS_ACCOUNT_MODE: "off", CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1" }),
+      defaulted({ CAPACITYLENS_MODE: "off", CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1" }),
     );
     expect(allowed.refusals).toEqual([]);
   });
@@ -89,7 +89,7 @@ describe("applyProductionDefaults explicit choices and backups", () => {
   it.each([
     [
       "the public URL's origin when unset",
-      { SMALLSASS_ACCOUNT_PUBLIC_URL: " https://Schedule.example.test:8443/ " },
+      { CAPACITYLENS_PUBLIC_URL: " https://Schedule.example.test:8443/ " },
       "https://schedule.example.test:8443",
     ],
     [
@@ -98,14 +98,14 @@ describe("applyProductionDefaults explicit choices and backups", () => {
       "https://client.example.test",
     ],
     ["an explicitly empty allow-list empty (fail-closed)", { CAPACITYLENS_CORS_ORIGIN: "" }, ""],
-    ["no origin without a public URL", { SMALLSASS_ACCOUNT_PUBLIC_URL: undefined }, undefined],
-    ["no origin for an unparseable public URL", { SMALLSASS_ACCOUNT_PUBLIC_URL: "not a url" }, undefined],
+    ["no origin without a public URL", { CAPACITYLENS_PUBLIC_URL: undefined }, undefined],
+    ["no origin for an unparseable public URL", { CAPACITYLENS_PUBLIC_URL: "not a url" }, undefined],
   ] as const)("sets the CORS allow-list to %s", (_label, overrides, expected) => {
     expect(defaulted(overrides).CAPACITYLENS_CORS_ORIGIN).toBe(expected);
   });
 
   it("treats an empty mode (a compose pass-through of an unset variable) as unset", () => {
-    expect(defaulted({ SMALLSASS_ACCOUNT_MODE: "" }).SMALLSASS_ACCOUNT_MODE).toBe("password-only");
+    expect(defaulted({ CAPACITYLENS_MODE: "" }).CAPACITYLENS_MODE).toBe("password-only");
   });
   it.each([
     ["a relative database", "capacitylens.db", "backups"],
@@ -126,24 +126,12 @@ describe("applyProductionDefaults explicit choices and backups", () => {
 
 describe("resolveHttps", () => {
   it.each([
-    ["an https public URL", { SMALLSASS_ACCOUNT_PUBLIC_URL: "https://schedule.example.test" }, true],
-    ["an http public URL", { SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787" }, false],
+    ["an https public URL", { CAPACITYLENS_PUBLIC_URL: "https://schedule.example.test" }, true],
+    ["an http public URL", { CAPACITYLENS_PUBLIC_URL: "http://localhost:8787" }, false],
     ["no public URL", {}, false],
-    [
-      "an explicit 1 over an http URL",
-      { CAPACITYLENS_HTTPS: "1", SMALLSASS_ACCOUNT_PUBLIC_URL: "http://x.test" },
-      true,
-    ],
-    [
-      "an explicit 0 over an https URL",
-      { CAPACITYLENS_HTTPS: "0", SMALLSASS_ACCOUNT_PUBLIC_URL: "https://x.test" },
-      false,
-    ],
-    [
-      "an empty flag over an https URL",
-      { CAPACITYLENS_HTTPS: "", SMALLSASS_ACCOUNT_PUBLIC_URL: "https://x.test" },
-      true,
-    ],
+    ["an explicit 1 over an http URL", { CAPACITYLENS_HTTPS: "1", CAPACITYLENS_PUBLIC_URL: "http://x.test" }, true],
+    ["an explicit 0 over an https URL", { CAPACITYLENS_HTTPS: "0", CAPACITYLENS_PUBLIC_URL: "https://x.test" }, false],
+    ["an empty flag over an https URL", { CAPACITYLENS_HTTPS: "", CAPACITYLENS_PUBLIC_URL: "https://x.test" }, true],
   ])("is decided by %s", (_label, environment, expected) => {
     expect(resolveHttps(environment)).toBe(expected);
   });

@@ -16,7 +16,7 @@ function boot(overrides: NodeJS.ProcessEnv) {
     NODE_ENV: "development",
     CAPACITYLENS_DB: ":memory:",
     CAPACITYLENS_AUDIT: "off",
-    SMALLSASS_ACCOUNT_MODE: "off",
+    CAPACITYLENS_MODE: "off",
     NODE_NO_WARNINGS: "1",
     ...overrides,
   };
@@ -55,9 +55,9 @@ async function createSsoCutoverDatabase(): Promise<{ database: string; directory
   const database = join(directory, "capacitylens.db");
   const db = openDb(database);
   const { auth } = createAuthFromEnvironment(db, {
-    SMALLSASS_ACCOUNT_MODE: "password-only",
-    SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
-    SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+    CAPACITYLENS_MODE: "password-only",
+    CAPACITYLENS_SECRET: "startup-test-secret-0123456789abcdef",
+    CAPACITYLENS_PUBLIC_URL: "http://localhost:8787",
   });
   if (auth === null) throw new Error("Expected password auth for the startup fixture");
   await runAuthMigrations(auth);
@@ -114,14 +114,14 @@ function createSsoWorkspace(db: ReturnType<typeof openDb>): void {
 
 function buildSsoEnvironment(profile?: string): NodeJS.ProcessEnv {
   const environment = {
-    SMALLSASS_ACCOUNT_MODE: "sso-only",
-    SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
-    SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+    CAPACITYLENS_MODE: "sso-only",
+    CAPACITYLENS_SECRET: "startup-test-secret-0123456789abcdef",
+    CAPACITYLENS_PUBLIC_URL: "http://localhost:8787",
+    CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
 
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+    CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
   };
-  return profile === undefined ? environment : { ...environment, SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: profile };
+  return profile === undefined ? environment : { ...environment, CAPACITYLENS_DEPLOYMENT_PROFILE: profile };
 }
 
 function assertPreservedSsoState(database: string): void {
@@ -154,8 +154,8 @@ async function acceptsNamedCompanyConnection(): Promise<void> {
       CAPACITYLENS_DB: database,
       CAPACITYLENS_BACKUP_DIR: backupPath,
       ...buildSsoEnvironment("self-hosted-sso-only"),
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("could not be initialized");

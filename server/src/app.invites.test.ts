@@ -715,8 +715,8 @@ async function createClosedSignupInviteContext() {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: undefined,
-    SMALLSASS_ACCOUNT_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
+    CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
+    CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
   });
   const requiredAuth = requireValue(auth, "password authentication");
   await runAuthMigrations(requiredAuth);
@@ -1050,12 +1050,12 @@ async function createSsoProviderInviteContext() {
   const db = openDb(":memory:");
   const configured = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+    CAPACITYLENS_MODE: "password-and-sso",
+    CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
 
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
-    SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client-id",
-    SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-client-secret",
+    CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+    CAPACITYLENS_GITHUB_CLIENT_ID: "github-client-id",
+    CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-client-secret",
   });
   const configuredAuth = requireValue(configured.auth, "configured authentication");
   await runAuthMigrations(configuredAuth);

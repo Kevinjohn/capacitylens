@@ -133,9 +133,9 @@ jobs:
       # scheduled backups.
       # http:// is permitted for the public URL because localhost is a loopback origin;
       # production account configuration refuses plaintext for non-loopback origins.
-      SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: self-hosted-password
-      SMALLSASS_ACCOUNT_MODE: password-only
-      SMALLSASS_ACCOUNT_PUBLIC_URL: http://localhost:8080
+      CAPACITYLENS_DEPLOYMENT_PROFILE: self-hosted-password
+      CAPACITYLENS_MODE: password-only
+      CAPACITYLENS_PUBLIC_URL: http://localhost:8080
       CAPACITYLENS_BACKUP_INTERVAL_MIN: "60"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -151,8 +151,8 @@ jobs:
           setup_token="$(openssl rand -hex 32)"
           echo "::add-mask::$auth_secret"
           echo "::add-mask::$setup_token"
-          echo "SMALLSASS_ACCOUNT_SECRET=$auth_secret" >> "$GITHUB_ENV"
-          echo "SMALLSASS_ACCOUNT_SETUP_TOKEN=$setup_token" >> "$GITHUB_ENV"
+          echo "CAPACITYLENS_SECRET=$auth_secret" >> "$GITHUB_ENV"
+          echo "CAPACITYLENS_SETUP_TOKEN=$setup_token" >> "$GITHUB_ENV"
       - name: Start production stack
         run: docker compose up --build --detach
       - name: Wait for the proxied API
@@ -193,7 +193,7 @@ jobs:
       # password-only, so this job opts in to the open instance and leaves every optional
       # hardening off to document that posture's residual surface.
       CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
-      SMALLSASS_ACCOUNT_MODE: "off"
+      CAPACITYLENS_MODE: "off"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

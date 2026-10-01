@@ -57,8 +57,8 @@ use its version instead; the `VERSION` file in the archive names the one you hav
    ```
 
    Fill in the three empty lines: the address people will open, and two different values pasted
-   from `openssl rand -base64 48`. The first is `SMALLSASS_ACCOUNT_SECRET`; the second is
-   `SMALLSASS_ACCOUNT_SETUP_TOKEN`. Everything else has a default, including
+   from `openssl rand -base64 48`. The first is `CAPACITYLENS_SECRET`; the second is
+   `CAPACITYLENS_SETUP_TOKEN`. Everything else has a default, including
    `CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db`. The server refuses to start while a
    required line is empty, and names it. [Configure the service](/installation/configure-the-service)
    lists every other setting.
@@ -76,7 +76,7 @@ use its version instead; the `VERSION` file in the archive names the one you hav
    Then put HTTPS in front of it, as described in [HTTPS](#https).
 
 5. Open the address and create your company. The page asks for the setup token: it is the
-   `SMALLSASS_ACCOUNT_SETUP_TOKEN` line in `/etc/capacitylens.env`.
+   `CAPACITYLENS_SETUP_TOKEN` line in `/etc/capacitylens.env`.
 
 ## Check that it is healthy
 
@@ -131,7 +131,7 @@ sudo ln -s /etc/nginx/sites-available/capacitylens /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-The server sends HSTS itself when the address in `SMALLSASS_ACCOUNT_PUBLIC_URL` is `https`.
+The server sends HSTS itself when the address in `CAPACITYLENS_PUBLIC_URL` is `https`.
 [TLS and networking](/self-hosting/tls-and-networking) covers the proxy requirements.
 
 Open the public address and check it through the proxy too:
@@ -142,10 +142,10 @@ curl -fsS https://capacity.example.com/api/health
 
 ## Hand over the setup token
 
-Give the intended Owner the address and the `SMALLSASS_ACCOUNT_SETUP_TOKEN` value through a
+Give the intended Owner the address and the `CAPACITYLENS_SETUP_TOKEN` value through a
 private channel. They enter it once, on the first-owner screen. Do not create the Owner for them.
 
-After the Owner has signed in, delete the `SMALLSASS_ACCOUNT_SETUP_TOKEN` line from
+After the Owner has signed in, delete the `CAPACITYLENS_SETUP_TOKEN` line from
 `/etc/capacitylens.env` and restart the service:
 
 ```bash
@@ -194,7 +194,7 @@ This replaces step 3 with fresh secrets. It refuses to overwrite an existing fil
 again cannot replace keys. Change the address first:
 
 ```bash
-sudo sh -c 'set -C; umask 077; secret="$(openssl rand -base64 48)" && token="$(openssl rand -base64 48)" && printf "NODE_ENV=production\nSMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com\nSMALLSASS_ACCOUNT_SECRET=%s\nSMALLSASS_ACCOUNT_SETUP_TOKEN=%s\nCAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db\n" "$secret" "$token" > /etc/capacitylens.env'
+sudo sh -c 'set -C; umask 077; secret="$(openssl rand -base64 48)" && token="$(openssl rand -base64 48)" && printf "NODE_ENV=production\nCAPACITYLENS_PUBLIC_URL=https://capacity.example.com\nCAPACITYLENS_SECRET=%s\nCAPACITYLENS_SETUP_TOKEN=%s\nCAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db\n" "$secret" "$token" > /etc/capacitylens.env'
 ```
 
 ## What's next

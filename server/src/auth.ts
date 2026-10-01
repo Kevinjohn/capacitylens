@@ -31,7 +31,7 @@ export {
 } from "./authConfig/federatedIdentitySchema";
 export { runAuthMigrations, planAuthSchemaMigrations, BOOTSTRAP_ADMIN_EMAIL } from "./authConfig/bootstrapAdmin";
 
-// Better Auth owns session, credential, and named provider sign-in. With SMALLSASS_ACCOUNT_MODE unset or
+// Better Auth owns session, credential, and named provider sign-in. With CAPACITYLENS_MODE unset or
 // `off`, authFromEnv returns before initializing Better Auth, reading credentials, or creating auth
 // tables. Better Auth tables — user, session, account, and verification — share the SQLite file
 // and are created by runAuthMigrations. They are not AppData entities: the entity lists (KNOWN_KEYS /
@@ -141,11 +141,11 @@ export function parseAuthMode(raw: string | undefined): AccountMode {
   if (mode === "off" || mode === "password-only" || mode === "sso-only" || mode === "password-and-sso") return mode;
   if (mode === "password" || mode === "sso") {
     throw new AuthConfigError(
-      `SMALLSASS_ACCOUNT_MODE=${mode} was removed. Use ${mode === "sso" ? "sso-only" : "password-only or password-and-sso (if provider sign-in is intended)"}.`,
+      `CAPACITYLENS_MODE=${mode} was removed. Use ${mode === "sso" ? "sso-only" : "password-only or password-and-sso (if provider sign-in is intended)"}.`,
     );
   }
   throw new AuthConfigError(
-    `SMALLSASS_ACCOUNT_MODE must be 'off', 'password-only', 'sso-only' or 'password-and-sso' — got '${raw}'.`,
+    `CAPACITYLENS_MODE must be 'off', 'password-only', 'sso-only' or 'password-and-sso' — got '${raw}'.`,
   );
 }
 

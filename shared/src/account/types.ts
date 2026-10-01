@@ -2,7 +2,7 @@
  * Provider-, framework-, and persistence-neutral account contract types.
  *
  * This module is deliberately a pure leaf. It must remain safe to consume from the browser,
- * server, fakes, and a future sibling package without importing Better Auth, SQLite, Fastify, or
+ * server, fakes, and a future account package without importing Better Auth, SQLite, Fastify, or
  * React.
  */
 

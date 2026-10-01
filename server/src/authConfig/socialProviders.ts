@@ -27,7 +27,7 @@ export function resolveMicrosoftTenantId(value: string | undefined, ErrorType: A
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(tenant) ||
     tenant === MICROSOFT_CONSUMER_TENANT_ID
   ) {
-    throw new ErrorType("SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID must be a specific work or school tenant GUID.");
+    throw new ErrorType("CAPACITYLENS_MICROSOFT_TENANT_ID must be a specific work or school tenant GUID.");
   }
   return tenant;
 }
@@ -163,7 +163,7 @@ export function parseSocialProvidersFromEnvironment({
   const providers: SocialProviders = {};
   const pair = (idKey: string, secretKey: string, label: string) =>
     parseCredentialPair({ environment, idKey, secretKey, label, ErrorType });
-  const google = pair("SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID", "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET", "Google sign-in");
+  const google = pair("CAPACITYLENS_GOOGLE_CLIENT_ID", "CAPACITYLENS_GOOGLE_CLIENT_SECRET", "Google sign-in");
   if (google)
     providers.google = {
       clientId: google[0],
@@ -174,15 +174,15 @@ export function parseSocialProvidersFromEnvironment({
       },
     };
   const microsoft = pair(
-    "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID",
-    "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET",
+    "CAPACITYLENS_MICROSOFT_CLIENT_ID",
+    "CAPACITYLENS_MICROSOFT_CLIENT_SECRET",
     "Microsoft sign-in",
   );
   if (microsoft) {
-    const tenantId = resolveMicrosoftTenantId(environment.SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID, ErrorType);
+    const tenantId = resolveMicrosoftTenantId(environment.CAPACITYLENS_MICROSOFT_TENANT_ID, ErrorType);
     providers.microsoft = configuredMicrosoftProvider({ pair: microsoft, tenantId, db, proof: microsoftProof });
   }
-  const github = pair("SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID", "SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET", "GitHub sign-in");
+  const github = pair("CAPACITYLENS_GITHUB_CLIENT_ID", "CAPACITYLENS_GITHUB_CLIENT_SECRET", "GitHub sign-in");
   if (github) providers.github = configuredGithubProvider(db, github);
   return providers;
 }

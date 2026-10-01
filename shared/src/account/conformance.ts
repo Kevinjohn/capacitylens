@@ -1,7 +1,7 @@
 /**
  * Version markers carried by implementations and CI evidence.
  *
- * They are repository-local until the first sibling triggers package promotion. At that review the
+ * They are repository-local until a second consumer triggers package promotion. At that review the
  * same values become package metadata; consumers must never infer security currency from the
  * product version alone.
  */

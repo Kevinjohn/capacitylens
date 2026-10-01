@@ -18,7 +18,7 @@ takes its own pre-migration snapshot automatically. See
 
 ## Upgrading to 0.71.0-alpha.1
 
-Before deploying this release, update `SMALLSASS_ACCOUNT_MODE` on every installation. The old
+Before deploying this release, update `CAPACITYLENS_MODE` on every installation. The old
 `password` and `sso` values now stop startup with a migration error. Choose the replacement by
 the sign-in methods people actually use:
 

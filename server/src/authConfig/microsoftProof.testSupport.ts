@@ -24,18 +24,18 @@ vi.mock("nodemailer", () => ({
 export const tenant = "01234567-89ab-cdef-0123-456789abcdef";
 export const origin = "http://localhost:8787";
 export const environments = {
-  SMALLSASS_ACCOUNT_MODE: "sso-only",
-  SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123",
-  SMALLSASS_ACCOUNT_PUBLIC_URL: origin,
-  SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: "bruce@example.com",
-  SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-client",
-  SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
-  SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: tenant,
-  SMALLSASS_ACCOUNT_MAIL_HOST: "mail.example.test",
-  SMALLSASS_ACCOUNT_MAIL_PORT: "587",
-  SMALLSASS_ACCOUNT_MAIL_USER: "mailer",
-  SMALLSASS_ACCOUNT_MAIL_PASSWORD: "mail-secret",
-  SMALLSASS_ACCOUNT_MAIL_FROM: "identity@example.com",
+  CAPACITYLENS_MODE: "sso-only",
+  CAPACITYLENS_SECRET: "unit-test-secret-0123456789abcdef-0123",
+  CAPACITYLENS_PUBLIC_URL: origin,
+  CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS: "bruce@example.com",
+  CAPACITYLENS_MICROSOFT_CLIENT_ID: "microsoft-client",
+  CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
+  CAPACITYLENS_MICROSOFT_TENANT_ID: tenant,
+  CAPACITYLENS_MAIL_HOST: "mail.example.test",
+  CAPACITYLENS_MAIL_PORT: "587",
+  CAPACITYLENS_MAIL_USER: "mailer",
+  CAPACITYLENS_MAIL_PASSWORD: "mail-secret",
+  CAPACITYLENS_MAIL_FROM: "identity@example.com",
 };
 
 function jwt(claims: Record<string, unknown>): string {
@@ -88,7 +88,7 @@ export async function configured(mode: "sso-only" | "password-and-sso" = "sso-on
   const db = openDb(":memory:");
   const { auth } = createAuthFromEnvironment(
     db,
-    { ...environments, SMALLSASS_ACCOUNT_MODE: mode },
+    { ...environments, CAPACITYLENS_MODE: mode },
     {
       externalIdentityAdmission: ({ email, emailVerified, providerId }) =>
         providerId === "microsoft" && emailVerified === true && email === "bruce@example.com",

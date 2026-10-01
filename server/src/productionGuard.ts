@@ -35,12 +35,12 @@ export interface ProductionPostureResult {
 
 interface ProductionEnvironment {
   NODE_ENV?: string;
-  SMALLSASS_ACCOUNT_MODE?: string;
-  SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP?: string;
+  CAPACITYLENS_MODE?: string;
+  CAPACITYLENS_ALLOW_OPEN_SIGNUP?: string;
   CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION?: string;
   CAPACITYLENS_CREATE_ADMIN_ADMIN?: string;
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD?: string;
-  SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK?: string;
+  CAPACITYLENS_PASSWORD_BREACH_CHECK?: string;
   CAPACITYLENS_RATE_LIMIT?: string;
   CAPACITYLENS_AUDIT?: string;
   CAPACITYLENS_AUDIT_STDOUT?: string;
@@ -54,17 +54,17 @@ function inspectAuthentication(
 ): ReturnType<typeof parseAuthMode> | null {
   let mode: ReturnType<typeof parseAuthMode> | null = null;
   try {
-    mode = parseAuthMode(environment.SMALLSASS_ACCOUNT_MODE);
+    mode = parseAuthMode(environment.CAPACITYLENS_MODE);
   } catch (error) {
     refusals.push(error instanceof Error ? error.message : String(error));
   }
   if (mode === "off" && environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === "1") {
     warnings.push(
-      "auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set SMALLSASS_ACCOUNT_MODE=password-only, password-and-sso or sso-only to require login.",
+      "auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set CAPACITYLENS_MODE=password-only, password-and-sso or sso-only to require login.",
     );
   } else if (mode === "off") {
     refusals.push(
-      "auth is OFF (SMALLSASS_ACCOUNT_MODE=off) under NODE_ENV=production — the open/demo dataset (DEMO_USER, no login) would be world-readable and world-writable. Set SMALLSASS_ACCOUNT_MODE=password-only, password-and-sso or sso-only to require login, or set CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 to deliberately run the open/demo posture.",
+      "auth is OFF (CAPACITYLENS_MODE=off) under NODE_ENV=production — the open/demo dataset (DEMO_USER, no login) would be world-readable and world-writable. Set CAPACITYLENS_MODE=password-only, password-and-sso or sso-only to require login, or set CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 to deliberately run the open/demo posture.",
     );
   }
   return mode;
@@ -75,9 +75,9 @@ function inspectAuthenticationHardening(
   mode: ReturnType<typeof parseAuthMode> | null,
   warnings: string[],
 ): void {
-  if (mode && allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK === "off") {
+  if (mode && allowsPasswordSignIn(mode) && environment.CAPACITYLENS_PASSWORD_BREACH_CHECK === "off") {
     warnings.push(
-      "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.",
+      "CAPACITYLENS_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.",
     );
   }
 }
@@ -121,7 +121,7 @@ function inspectOperationalHardening(
  * reasoning bootGuard's resetForbidden uses).
  *
  * In production it evaluates, in order:
- * - **Refusal — auth off:** `parseAuthMode(env.SMALLSASS_ACCOUNT_MODE) === 'off'` is the dev/open
+ * - **Refusal — auth off:** `parseAuthMode(env.CAPACITYLENS_MODE) === 'off'` is the dev/open
  *   posture P3.1 retires; it would leave the demo dataset world-readable+writable. This is a
  *   refusal UNLESS the operator has deliberately opted in via
  *   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1'`, in which case it is DOWNGRADED to a warning
@@ -130,7 +130,7 @@ function inspectOperationalHardening(
  * - **Warning — optional hardening absent:** disabled breached-password screening, absent audit
  *   streaming and an absent internal TLS identity each warn. A small self-hosted installation can
  *   deliberately operate without external infrastructure.
- * - **Warning — open signup on:** `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
+ * - **Warning — open signup on:** `CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
  *   registration, which should normally stay closed/invite-only in production.
  * - **Refusal — bootstrap password:** the headless bootstrap flags are development-only because
  *   those initial passwords cannot be forced to expire after first use. Production uses the
@@ -167,9 +167,9 @@ export function evaluateProductionPosture(environment: ProductionEnvironment): P
   inspectOperationalHardening(environment, result);
 
   // Production concerns are evaluated regardless of auth mode by the helper above.
-  if (environment.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1") {
+  if (environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
     warnings.push(
-      "SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 under NODE_ENV=production enables open self-registration. Self-service signup should normally be closed/invite-only in production; unset SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP unless you intend open registration.",
+      "CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 under NODE_ENV=production enables open self-registration. Self-service signup should normally be closed/invite-only in production; unset CAPACITYLENS_ALLOW_OPEN_SIGNUP unless you intend open registration.",
     );
   }
   if (environment.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1") {

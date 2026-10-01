@@ -14,7 +14,7 @@ next: false
 Open the CapacityLens address supplied by your installer.
 
 For password sign-in, enter your name, email and password. Paste the value of
-`SMALLSASS_ACCOUNT_SETUP_TOKEN` from the server `.env` file into Owner setup token. Ask the person
+`CAPACITYLENS_SETUP_TOKEN` from the server `.env` file into Owner setup token. Ask the person
 who installed CapacityLens if you need it. Select Create my sign-in.
 
 For company login, choose the configured provider and use the verified email approved by your installer.

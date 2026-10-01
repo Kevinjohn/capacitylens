@@ -126,7 +126,7 @@ in the documentation. It builds from a checkout rather than from this archive.
 ## On a laptop, or for an agent
 
 Save the five lines as `capacitylens.env` beside the unpacked folder, with
-`SMALLSASS_ACCOUNT_PUBLIC_URL=http://localhost:8787` and a `CAPACITYLENS_DB` path you can write,
+`CAPACITYLENS_PUBLIC_URL=http://localhost:8787` and a `CAPACITYLENS_DB` path you can write,
 then run from the unpacked folder:
 
 ```bash
@@ -155,7 +155,7 @@ Write `/etc/capacitylens.env` in one command instead of step 3, with fresh secre
 overwrite an existing file, so running it again cannot replace keys. Change the address first:
 
 ```bash
-sudo sh -c 'set -C; umask 077; secret="$(openssl rand -base64 48)" && token="$(openssl rand -base64 48)" && printf "NODE_ENV=production\nSMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com\nSMALLSASS_ACCOUNT_SECRET=%s\nSMALLSASS_ACCOUNT_SETUP_TOKEN=%s\nCAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db\n" "$secret" "$token" > /etc/capacitylens.env'
+sudo sh -c 'set -C; umask 077; secret="$(openssl rand -base64 48)" && token="$(openssl rand -base64 48)" && printf "NODE_ENV=production\nCAPACITYLENS_PUBLIC_URL=https://capacity.example.com\nCAPACITYLENS_SECRET=%s\nCAPACITYLENS_SETUP_TOKEN=%s\nCAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db\n" "$secret" "$token" > /etc/capacitylens.env'
 ```
 
 Recover a lost Owner password. Stop the service first. The single-use reset link is printed to

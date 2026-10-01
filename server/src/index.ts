@@ -156,14 +156,14 @@ try {
   // Resolve every auth/provider option while the database is still at its original version.
   // Auth-control verification and lease maintenance are deferred until app migration succeeds.
   const joiningProviderCallbacks =
-    accountEnv.SMALLSASS_ACCOUNT_SECRET &&
-    accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL &&
-    URL.canParse(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL)
+    accountEnv.CAPACITYLENS_SECRET &&
+    accountEnv.CAPACITYLENS_PUBLIC_URL &&
+    URL.canParse(accountEnv.CAPACITYLENS_PUBLIC_URL)
       ? createJoiningProviderCallbacks({
           db,
           applicationId: ACCOUNT_APPLICATION.applicationId,
-          secret: accountEnv.SMALLSASS_ACCOUNT_SECRET,
-          secureCookies: new URL(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL).protocol === "https:",
+          secret: accountEnv.CAPACITYLENS_SECRET,
+          secureCookies: new URL(accountEnv.CAPACITYLENS_PUBLIC_URL).protocol === "https:",
         })
       : null;
   ({ mode: authMode, auth } = createAuthFromEnvironment(db, accountEnv, {
@@ -176,7 +176,7 @@ try {
     ...(joiningProviderCallbacks ? { joiningProviderCallbacks } : {}),
     externalIdentityAdmission: (candidate) =>
       canAdmitLocalExternalIdentity({
-        bootstrapEmails: accountEnv.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS,
+        bootstrapEmails: accountEnv.CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS,
         candidate,
         identityHasAnyPrincipal: () => countUsers(db) !== 0,
         hasLivePreauthorizedInvitation: (email) => hasLivePreauthorizedInvitation(db, email),
@@ -256,11 +256,11 @@ try {
   if (
     allowsPasswordSignIn(authMode) &&
     userCount === 0 &&
-    accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP !== "1" &&
-    !accountEnv.SMALLSASS_ACCOUNT_SETUP_TOKEN
+    accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP !== "1" &&
+    !accountEnv.CAPACITYLENS_SETUP_TOKEN
   ) {
     throw new AuthConfigError(
-      "A fresh password instance requires SMALLSASS_ACCOUNT_SETUP_TOKEN (or an explicit bootstrap-admin/open-signup override).",
+      "A fresh password instance requires CAPACITYLENS_SETUP_TOKEN (or an explicit bootstrap-admin/open-signup override).",
     );
   }
 } catch (e) {
@@ -304,15 +304,15 @@ startServerRuntime({
     ...(bootstrapToken === undefined ? {} : { bootstrapToken }),
     authMode,
     auth,
-    ...(authMode === "off" || !accountEnv.SMALLSASS_ACCOUNT_SECRET || !accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL
+    ...(authMode === "off" || !accountEnv.CAPACITYLENS_SECRET || !accountEnv.CAPACITYLENS_PUBLIC_URL
       ? {}
       : {
           joiningProof: {
-            secret: accountEnv.SMALLSASS_ACCOUNT_SECRET,
-            publicUrl: new URL(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL),
+            secret: accountEnv.CAPACITYLENS_SECRET,
+            publicUrl: new URL(accountEnv.CAPACITYLENS_PUBLIC_URL),
           },
         }),
-    allowOpenSignup: accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1",
+    allowOpenSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
     ...(webDir === undefined ? {} : { webDir }),
   },
   backupConfig,

@@ -87,8 +87,8 @@ async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db; tokens: st
       authMode: mode,
       auth: requiredAuth,
       joiningProof: {
-        secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
-        publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
+        secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
+        publicUrl: new URL(PASSWORD_ENV.CAPACITYLENS_PUBLIC_URL),
       },
     }),
     db,
@@ -106,8 +106,8 @@ async function closedSignupProposalContext(): Promise<{
   const tokens: string[] = [];
   const { mode, auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: undefined,
-    SMALLSASS_ACCOUNT_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
+    CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
+    CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
   });
   const requiredAuth = requireValue(auth, "password authentication");
   await runAuthMigrations(requiredAuth);
@@ -120,8 +120,8 @@ async function closedSignupProposalContext(): Promise<{
     authMode: mode,
     auth: requiredAuth,
     joiningProof: {
-      secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
-      publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
+      secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
+      publicUrl: new URL(PASSWORD_ENV.CAPACITYLENS_PUBLIC_URL),
     },
   });
   seedOne(db);

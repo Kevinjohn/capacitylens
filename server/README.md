@@ -34,7 +34,7 @@ The authoritative environment register is `.env.example`. See the
 
 ## Authentication
 
-`SMALLSASS_ACCOUNT_MODE=off|password-only|sso-only|password-and-sso`. Named Google and Microsoft
+`CAPACITYLENS_MODE=off|password-only|sso-only|password-and-sso`. Named Google and Microsoft
 providers are supported; GitHub remains experimental. `password-and-sso` requires at least one
 configured provider, while `sso-only` requires Google or tenant-specific Microsoft. External
 identities need verified email and an invitation, with an explicit bootstrap email allow-list for

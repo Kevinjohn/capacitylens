@@ -204,8 +204,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 - Password authentication and named Google/Microsoft company providers are implemented. GitHub
   remains experimental in mixed mode. `hosted-sso-only` requires mode `sso-only` and complete Google
   and/or tenant-specific Microsoft configuration; it forbids password, GitHub and open signup.
-  Removed configuration names (generic OIDC settings, `hosted-oidc-only`, pre-`SMALLSASS_ACCOUNT_*`
-  account names) are simply unknown: no alias, refusal or migration code remains for them.
+  Removed configuration names (generic OIDC settings, `hosted-oidc-only`, earlier account-setting
+  prefixes) are simply unknown: no alias, refusal or migration code remains for them.
   Deterministic checks are not evidence of live-provider validation.
 - Production password mode defaults to breached-password screening; fixed twelve-hour sessions and
   fresh administrative actions remain mandatory. The fresh-session gate applies only to:
@@ -214,7 +214,7 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   actions need only the actor's role. Data export
   is served under the `read` action, which the freshness check short-circuits; it is not gated.
 - New external principals require verified email plus an unused pre-authorised invitation. The
-  first named-provider identity uses `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. Explicit
+  first named-provider identity uses `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`. Explicit
   named-provider linking requires a fresh,
   verified local principal and proof of the matching address without another invitation. Microsoft
   may establish mailbox proof through its single-use, same-browser email ceremony. Returning
