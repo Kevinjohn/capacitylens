@@ -4,6 +4,22 @@ Thank you for helping. Small, focused pull requests with tests are easiest to re
 For feature proposals, first check the deliberate scope in [DECISIONS.md](DECISIONS.md): budgets,
 timesheets, hour-by-hour workflows and mobile scheduling are not planned.
 
+## Your first change
+
+1. Check [DECISIONS.md](DECISIONS.md) and the open issues; for anything beyond a small fix, open an
+   issue and agree the approach before writing code.
+2. Fork the repository and create a branch from `main`.
+3. Follow [Set up](#set-up) below to install and run the app.
+4. Make one focused change. Keep unrelated formatting and refactors out.
+5. Typo and documentation changes: run `pnpm run format`, and `pnpm run docs:build` if you edited
+   `docs-src/`. No other checks are needed.
+6. Code changes: add a test that fails without the change, then run the checks in
+   [Before opening a pull request](#before-opening-a-pull-request).
+7. Add an entry under `CHANGELOG.md` → `Unreleased` if users will notice the change.
+8. Commit with a sign-off: `git commit -s -m "Describe the change"` (see [Pull requests](#pull-requests)).
+9. Push your branch and open a pull request; the template lists what to include.
+10. Leave the pull request open and respond to review. Merging is the maintainer's decision.
+
 ## Set up
 
 ```bash
@@ -40,19 +56,8 @@ pnpm run test:account-conformance
 ```
 
 Run `pnpm run rehearse:migrations` whenever a change touches a database migration, persisted
-authentication shape or Better Auth version.
-
-### Account-security versioning
-
-When account-security behavior changes, update the version at the boundary that owns the rule:
-
-- portable identity behavior: the account contract and every `IdentityPort` conformance fixture;
-- database/auth-library behavior: the minimum-security or schema version and its migration/rehearsal evidence;
-- browser/server propagation: the shared command version and the tests proving every implementation accepts it.
-
-The pull-request description should name the changed version and link the conformance, migration,
-or propagation test that proves all implementations moved together. If no version changes, explain
-why the change preserves the existing contract.
+authentication shape or Better Auth version. Account-security changes also follow
+[account-security versioning](docs-src/reference/development.md#account-security-versioning).
 
 ## Formatting
 
@@ -101,9 +106,8 @@ changes must remain secure when configuration is missing, partial or malicious.
 
 ## Pull requests
 
-- Create pull requests on GitHub and leave them open for review. A request or agreement to create a
-  pull request is not permission to merge it; each merge requires explicit maintainer authorisation
-  for that specific pull request.
+- Create pull requests on GitHub and leave them open for review; merging follows
+  [GOVERNANCE.md](GOVERNANCE.md).
 - Explain what changed and why.
 - Link an issue when one exists.
 - Keep unrelated formatting and refactors out of the patch.

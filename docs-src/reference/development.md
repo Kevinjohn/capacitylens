@@ -494,6 +494,18 @@ JavaScript and TypeScript files, so small commits stay fast. Each push runs the 
 lint to catch configuration and cross-file effects. Set `SKIP_SIMPLE_GIT_HOOKS=1` for a single Git
 operation only when diagnosing a hook problem; pull-request checks remain authoritative.
 
+### Account-security versioning
+
+When account-security behavior changes, update the version at the boundary that owns the rule:
+
+- portable identity behavior: the account contract and every `IdentityPort` conformance fixture;
+- database/auth-library behavior: the minimum-security or schema version and its migration/rehearsal evidence;
+- browser/server propagation: the shared command version and the tests proving every implementation accepts it.
+
+The pull-request description should name the changed version and link the conformance, migration,
+or propagation test that proves all implementations moved together. If no version changes, explain
+why the change preserves the existing contract.
+
 ### What `gate` checks
 
 `gate` compiles translations, type-checks, lints with zero warnings, runs Vitest with
@@ -877,6 +889,9 @@ gates nothing.
 The version pull request described in `AGENTS.md` → "Version and CI policy" ends when it merges.
 Publishing is a separate maintainer task. Nothing in `.github/` or `scripts/` creates tags or
 releases.
+
+There is one version bump per batch of changes, and every bump is published as a GitHub release.
+Releases before 0.41.0-alpha.3 are kept in `CHANGELOG-ARCHIVE.md`.
 
 1. Find the merged release commit and build the release package from it once, as the
    `release-provenance` workflow will after publication:
