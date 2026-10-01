@@ -324,7 +324,7 @@ function registerMovedSchedulerTests201017() {
 }
 
 function registerMovedSchedulerTests201018() {
-  it("uses one Unassigned fallback for a Studio-only company", () => {
+  it("uses one fallback band for a Studio-only company: Unassigned with disciplines, Resources without", () => {
     const d = withExternal();
     const firstResource = d.resources[0];
     expect(firstResource).toBeDefined();
@@ -360,8 +360,8 @@ function registerMovedSchedulerTests201018() {
         externalEnabled: true,
       },
     });
-    expect(withoutDisciplines.map((group) => group.title)).toEqual(["Unassigned", "External / 3rd party"]);
-    expect(requireValue(withoutDisciplines[0], "unassigned group").rows).toHaveLength(2);
+    expect(withoutDisciplines.map((group) => group.title)).toEqual(["Resources", "External / 3rd party"]);
+    expect(requireValue(withoutDisciplines[0], "resources group").rows).toHaveLength(2);
   });
 }
 

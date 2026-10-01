@@ -785,10 +785,10 @@ function registerBuildSchedulerModelTest24() {
 }
 
 function registerBuildSchedulerModelTest25() {
-  it("disciplines off → a Studio-only company is one flat band", () => {
+  it("disciplines off → a Studio-only company is one flat Resources band", () => {
     const model = build({ filters: buildEmptyFilters(), disciplinesEnabled: false });
     expect(model).toHaveLength(1);
-    expect(model[0]).toMatchObject({ key: "unassigned", title: "Unassigned" });
+    expect(model[0]).toMatchObject({ key: "resources", title: "Resources" });
     expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
     expect(model[0]).not.toHaveProperty("color"); // no discipline colour → avatar falls back to resource colour
     expect(barIds(model)).toEqual(["a1", "a2", "a3"]);
@@ -817,7 +817,7 @@ function registerBuildSchedulerModelTest26() {
   it("disciplines off → the discipline filter is ignored (everyone still shown)", () => {
     const model = build({ filters: { ...buildEmptyFilters(), disciplineId: "d-dev" }, disciplinesEnabled: false });
     expect(model).toHaveLength(1);
-    expect(model[0]?.title).toBe("Unassigned");
+    expect(model[0]?.title).toBe("Resources");
     expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
   });
 }
@@ -1167,8 +1167,8 @@ function registerMovedSchedulerTests12743(buildExt: (options?: BuildExtOptions) 
 function registerMovedSchedulerTests12744(buildExt: (options?: BuildExtOptions) => GroupModel[]) {
   it("disciplines off → external STILL forms its own trailing band after the people", () => {
     const model = buildExt({ disciplinesEnabled: false });
-    expect(model).toHaveLength(2); // Unassigned (Studio-only, so flat) + external
-    expect(model[0]?.title).toBe("Unassigned");
+    expect(model).toHaveLength(2); // Resources (Studio-only, so flat) + external
+    expect(model[0]?.title).toBe("Resources");
     expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
     expect(model[1]?.key).toBe("external");
     expect(model[1]?.rows.map((r) => r.resource.id)).toEqual(["ext1"]);

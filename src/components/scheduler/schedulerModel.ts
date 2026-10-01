@@ -54,6 +54,8 @@ interface BuildResourceGroupsInput {
 interface BuildFallbackGroupsInput {
   resources: Resource[];
   groupByEngagement: boolean;
+  /** The single band used when engagement grouping is off. */
+  ungrouped: { key: string; title: string };
 }
 
 interface CreateResourceComparatorInput {
@@ -194,9 +196,18 @@ export function applyVisibleUtilization({
   });
 }
 
-function buildFallbackGroups({ resources, groupByEngagement }: BuildFallbackGroupsInput): SchedulerResourceGroup[] {
+// With disciplines on, the single band holds people without a discipline ("Unassigned"); with
+// disciplines off it holds everyone, so it takes the neutral navigation label instead.
+const UNASSIGNED_BAND = { key: "unassigned", title: "Unassigned" };
+const ALL_RESOURCES_BAND = { key: "resources", title: "Resources" };
+
+function buildFallbackGroups({
+  resources,
+  groupByEngagement,
+  ungrouped,
+}: BuildFallbackGroupsInput): SchedulerResourceGroup[] {
   if (!groupByEngagement) {
-    return resources.length ? [{ key: "unassigned", title: "Unassigned", discipline: null, resources }] : [];
+    return resources.length ? [{ ...ungrouped, discipline: null, resources }] : [];
   }
   return [
     {
@@ -233,9 +244,15 @@ function buildResourceGroups({
       }
     }
     const unassigned = disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
-    groups.push(...buildFallbackGroups({ resources: unassigned, groupByEngagement }));
+    groups.push(...buildFallbackGroups({ resources: unassigned, groupByEngagement, ungrouped: UNASSIGNED_BAND }));
   } else {
-    groups.push(...buildFallbackGroups({ resources: data.resources.filter(isCapacityTracked), groupByEngagement }));
+    groups.push(
+      ...buildFallbackGroups({
+        resources: data.resources.filter(isCapacityTracked),
+        groupByEngagement,
+        ungrouped: ALL_RESOURCES_BAND,
+      }),
+    );
   }
   const external = buildExternalBand(data.resources);
   if (external) {

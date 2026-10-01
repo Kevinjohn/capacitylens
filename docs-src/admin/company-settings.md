@@ -31,8 +31,8 @@ Editors can change most company settings. Only Owners and Admins can change Over
 
 ![Settings: Scheduling features with the Company features switches visible](../screenshots/flows/admin_company_settings_2.png)
 
-The **Company features** section holds every company-wide switch. A new company starts with all of
-them off.
+The **Company features** section holds every company-wide switch. **Use disciplines** starts on for a
+new company; the other four start off.
 
 | Setting                     | What it changes                                                          |
 | --------------------------- | ------------------------------------------------------------------------ |

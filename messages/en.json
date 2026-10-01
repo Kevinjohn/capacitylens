@@ -117,7 +117,7 @@
   "settings_timezone_label": "Time zone",
   "settings_timezone_gmt": "GMT",
   "settings_company_features_heading": "Company features",
-  "settings_company_features_intro": "Company-wide options shared by everyone. Turning an option off hides it without deleting any data, and it returns when you turn the option back on. A new company starts with every option off.",
+  "settings_company_features_intro": "Company-wide options shared by everyone. Turning an option off hides it without deleting any data, and it returns when you turn the option back on. Use disciplines starts on; the other options start off.",
   "settings_disciplines_intro": "A company-wide setting for grouping people by discipline across the app. Turn this off if your team doesn't use disciplines — they're then hidden from the schedule, resource form and navigation. Your existing discipline data is kept and reappears if you turn it back on.",
   "settings_disciplines_toggle": "Use disciplines",
   "settings_schedule_heading": "Schedule on this device",

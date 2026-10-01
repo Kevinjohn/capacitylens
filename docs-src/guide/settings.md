@@ -98,8 +98,8 @@ access**. The setting controls both the sidebar link and direct access to the pa
 
 The **Company features** section holds every company-wide switch, in this order: **Use
 disciplines**, **Show placeholders**, **Show external resources**, **Inline activity creation** and
-**Show task field in schedule**. Editors and above can change them. A new company starts with every
-switch off. Turning a switch off hides that feature without deleting any data, and it returns when
+**Show task field in schedule**. Editors and above can change them. **Use disciplines** starts on for a
+new company; the other four switches start off. Turning a switch off hides that feature without deleting any data, and it returns when
 you turn the switch back on.
 
 Internal projects and activities are always shown and always use neutral grey bars, so there is no
