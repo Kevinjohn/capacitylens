@@ -1,10 +1,11 @@
-import { NO_REPROMPT, type AuthorizeRouteInput } from "./routeShared";
+import type { AuthorizeRouteInput } from "./routeShared";
 import { buildUnknownEntityMessage, FROZEN_REPLY_MESSAGES, REPLY_ERRORS } from "./replyErrors";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord } from "../audit";
 import type { AccountMode } from "../auth";
-import { deleteRow, getRow, insertRow, type Db, type RewrittenAllocationRevision, upsertRow } from "../db";
+import { deleteRow, getRow, insertRow, upsertRow } from "../db";
+import type { Db, RewrittenAllocationRevision } from "../db";
 import type { SanitizeWriteOptions } from "../fieldPolicy";
 import type { AccountStore } from "../accountStore";
 import { listAppliedRequestedFieldNames, sanitizeWrite, assertValidWrite } from "../validate";
@@ -14,9 +15,10 @@ import {
   prepareScopedWrite,
   replaceGeneratedBuiltin,
   stampServerRevision,
-  type PreparedWrite,
 } from "../writePipeline";
+import type { PreparedWrite } from "../writePipeline";
 import {
+  NO_REPROMPT,
   isGenericEntity,
   isLifecycleEntity,
   isScopedTable,
@@ -25,7 +27,6 @@ import {
   shapeActivityWriteEcho,
   writeActivityRow,
 } from "./routeShared";
-
 export interface EntityRouteDependencies {
   db: Db;
   store: AccountStore;

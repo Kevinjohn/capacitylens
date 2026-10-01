@@ -1,7 +1,8 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { StrictMode, useState } from "react";
-import { AuthContext, type AuthContextValue } from "@/auth/authContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 import { m } from "@/i18n";
 import { SecuritySection } from "./SecuritySection";
 import { completeReauth, isReauthPending } from "@/auth/reauthCoordinator";

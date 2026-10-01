@@ -7,12 +7,14 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import type { KeyedOperationLock } from "../accounts/KeyedOperationLock";
 import type { AuditRecord } from "../audit";
 import type { AccountMode } from "../auth";
-import { insertRow, type Db } from "../db";
+import { insertRow } from "../db";
+import type { Db } from "../db";
 import type { Row } from "../rowCodec";
 import { SCOPED_ORDER } from "../tables";
 import type { AccountStore } from "../accountStore";
 import { REPLY_ERRORS } from "./replyErrors";
-import { NO_REPROMPT, type AuthorizeRouteInput } from "./routeShared";
+import { NO_REPROMPT } from "./routeShared";
+import type { AuthorizeRouteInput } from "./routeShared";
 
 class CompanyNotEmptyError extends Error {
   constructor() {

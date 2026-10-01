@@ -1,9 +1,12 @@
-import { assertTableColumns, type ExpectedColumn } from "../schema/introspection";
+import { assertTableColumns } from "../schema/introspection";
+import type { ExpectedColumn } from "../schema/introspection";
 import {
   isOwnershipTransferState,
   OWNERSHIP_TRANSFER_TERMINAL_REASONS,
-  type OwnershipTransferRequest,
-  type OwnershipTransferTerminalReason,
+} from "@capacitylens/shared/account/ownershipTransfer";
+import type {
+  OwnershipTransferRequest,
+  OwnershipTransferTerminalReason,
 } from "@capacitylens/shared/account/ownershipTransfer";
 import type { Db } from "../db";
 

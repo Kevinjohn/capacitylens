@@ -4,9 +4,11 @@ import {
   canTransitionOwnershipTransfer,
   isLiveOwnershipTransferState,
   nextOwnershipTransferState,
-  type OwnershipTransferAction,
-  type OwnershipTransferOutcome,
-  type OwnershipTransferRequest,
+} from "@capacitylens/shared/account/ownershipTransfer";
+import type {
+  OwnershipTransferAction,
+  OwnershipTransferOutcome,
+  OwnershipTransferRequest,
 } from "@capacitylens/shared/account/ownershipTransfer";
 import {
   canActOnOwnershipTransfer,
@@ -29,8 +31,8 @@ import {
   projectExpiry,
   readRequiredRequest,
   terminaliseRequest,
-  type TransferContext,
 } from "./ownershipTransferRequests";
+import type { TransferContext } from "./ownershipTransferRequests";
 import { createAccountFailure } from "./failures";
 import { exchangeOwnershipInTx } from "./membership";
 

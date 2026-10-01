@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { resolveLaneTop, packLanes, resolveRowHeightForLanes, type Interval } from "./lanePacking";
+import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from "./lanePacking";
+import type { Interval } from "./lanePacking";
 
 const iv = (id: string, startDate: string, endDate: string): Interval => ({ id, startDate, endDate });
 

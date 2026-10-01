@@ -23,7 +23,8 @@ import { Item, ItemGroup } from "@/components/ui/item";
 import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
 import { TimeZoneField } from "./TimeZoneField";
 import { AccountPickerHeader } from "./AccountPickerHeader";
-import { useCreateAccountForm, type ExampleDataChoice } from "./useCreateAccountForm";
+import { useCreateAccountForm } from "./useCreateAccountForm";
+import type { ExampleDataChoice } from "./useCreateAccountForm";
 import { useDeleteAccount } from "./useDeleteAccount";
 
 interface AccountItemsProps {

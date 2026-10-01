@@ -3,7 +3,7 @@ import { isLifecycleEntityKey, LIFECYCLE_ENTITY_KEYS } from "@capacitylens/share
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
 import { noteAuditWarning } from "@/lib/auditWarning";
 import { API_REQUEST_TIMEOUT_MS } from "@/data/requestTimeout";
-import { type Op } from "@/data/syncOps";
+import type { Op } from "@/data/syncOps";
 import { LifecycleRestoreError } from "./batchErrors";
 import {
   MAX_DIAGNOSTIC_BODY_LENGTH,
@@ -11,8 +11,8 @@ import {
   createSafeResponseError,
   hasSameEntityContent,
   writeRows,
-  type CommittedRevision,
 } from "./revisions";
+import type { CommittedRevision } from "./revisions";
 import { rememberRevisions } from "./snapshot";
 import type { SyncState } from "./SyncState";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";

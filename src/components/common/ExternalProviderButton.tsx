@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
-import { hasGoogleProviderBrand, type AuthProviderInfo } from "@/auth/authContext";
+import { hasGoogleProviderBrand } from "@/auth/authContext";
+import type { AuthProviderInfo } from "@/auth/authContext";
 import { cn } from "@/lib/cn";
 import googleSignInDark from "@/assets/google-sign-in-dark.png";
 import googleSignInLight from "@/assets/google-sign-in-light.png";

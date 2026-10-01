@@ -5,11 +5,8 @@ import { useResourceAvatars } from "@/account/useResourceAvatars";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData, Resource } from "@capacitylens/shared/types/entities";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
-import {
-  buildCapacityOverviewModel,
-  type CapacityOverviewModel,
-  type CapacityOverviewPeriodResult,
-} from "./capacityOverviewModel";
+import { buildCapacityOverviewModel } from "./capacityOverviewModel";
+import type { CapacityOverviewModel, CapacityOverviewPeriodResult } from "./capacityOverviewModel";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
 import { resetStoreWithAccount, makeAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";

@@ -7,9 +7,8 @@ import {
   nextOwnershipTransferState,
   OWNERSHIP_TRANSFER_ACTIONS,
   OWNERSHIP_TRANSFER_STATES,
-  type OwnershipTransferAction,
-  type OwnershipTransferState,
 } from "./ownershipTransfer";
+import type { OwnershipTransferAction, OwnershipTransferState } from "./ownershipTransfer";
 
 // The closed vocabularies. Written out rather than imported so the sweep is its own source of
 // truth; the `satisfies` ties each list to its union, so a new member that is not listed here is a

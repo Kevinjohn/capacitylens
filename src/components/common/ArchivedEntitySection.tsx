@@ -1,9 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
-import {
-  inspectLifecycleAncestry,
-  lifecycleStatus,
-  type LifecycleAncestryRow,
-} from "@capacitylens/shared/domain/lifecycle";
+import { inspectLifecycleAncestry, lifecycleStatus } from "@capacitylens/shared/domain/lifecycle";
+import type { LifecycleAncestryRow } from "@capacitylens/shared/domain/lifecycle";
 import type { Activity, AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import type { AppDataKey } from "@capacitylens/shared/types/entities";
 import { Link } from "react-router-dom";

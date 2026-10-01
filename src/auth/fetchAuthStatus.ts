@@ -6,7 +6,8 @@ import { isTransportFailure } from "@/data/requestTimeout";
 import { readApiError } from "@/lib/readApiError";
 import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";
-import { isAuthMode, parseAuthProviders, resolveBooleanField, type AuthStatusResult } from "./authStatus";
+import { isAuthMode, parseAuthProviders, resolveBooleanField } from "./authStatus";
+import type { AuthStatusResult } from "./authStatus";
 import { parseAuthUser } from "./validateAuthUser";
 
 interface AuthResponseFields {

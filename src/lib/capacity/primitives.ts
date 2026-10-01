@@ -1,7 +1,8 @@
 import { allocationWorksOnDay } from "@capacitylens/shared/lib/dateMath";
 import { blockHoursPerDay } from "@capacitylens/shared/lib/schedulingDays";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { FULL_DAY_HOURS, type Allocation } from "@capacitylens/shared/types/entities";
+import { FULL_DAY_HOURS } from "@capacitylens/shared/types/entities";
+import type { Allocation } from "@capacitylens/shared/types/entities";
 
 // Arithmetic-only tolerance: one nanohour is 3.6 microseconds, far below any scheduling input,
 // while comfortably absorbing the few-ULP drift from summing days-mode fractional allocations.

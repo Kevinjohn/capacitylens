@@ -1,4 +1,5 @@
-import { test, expect, type Locator, type Page } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { Locator, Page } from "./fixtures";
 import {
   boundingBoxOrThrow as box,
   disableWeekSnap,

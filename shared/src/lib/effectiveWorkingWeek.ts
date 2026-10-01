@@ -1,5 +1,6 @@
 import { canonicalWeekdaySet } from "./accountWorkingDays";
-import { hasPersonalWorkingPattern, type Resource, type Weekday } from "../types/entities";
+import { hasPersonalWorkingPattern } from "../types/entities";
+import type { Resource, Weekday } from "../types/entities";
 
 /** The recurring weekdays effective for a resource. The `days` variant is guaranteed to contain
  * at least one weekday, with duplicates removed and values stored in ascending order. */

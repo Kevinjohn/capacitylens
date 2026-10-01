@@ -3,7 +3,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { InviteAccept } from "./InviteAccept";
-import { AuthContext, type AuthContextValue } from "@/auth/authContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 
 const authClientMock = vi.hoisted(() => ({ signInSocial: vi.fn(async () => ({ error: null })) }));
 vi.mock("@/auth/authClient", () => ({

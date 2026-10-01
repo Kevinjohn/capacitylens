@@ -1,6 +1,7 @@
 import { apiFetch, API_REQUEST_TIMEOUT_MS } from "@/data/requestTimeout";
 import { readApiErrorCode } from "@/lib/readApiError";
-import { readReauthResolution, requestReauth, type ReauthAction } from "./reauthCoordinator";
+import { readReauthResolution, requestReauth } from "./reauthCoordinator";
+import type { ReauthAction } from "./reauthCoordinator";
 import { m } from "@/i18n";
 
 // The step-up interception seam (defect B). A drop-in replacement for `apiFetch` used only at

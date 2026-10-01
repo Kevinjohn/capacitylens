@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { OWNERSHIP_TRANSFER_ACTIONS, type OwnershipTransferAction } from "./ownershipTransfer";
+import { OWNERSHIP_TRANSFER_ACTIONS } from "./ownershipTransfer";
+import type { OwnershipTransferAction } from "./ownershipTransfer";
 import {
   canActOnOwnershipTransfer,
   canReadOwnershipTransfer,
@@ -7,7 +8,8 @@ import {
   OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS,
   OWNERSHIP_TRANSFER_TTL_MS,
 } from "./ownershipTransferPolicy";
-import { ACCOUNT_ROLES, type Role } from "./types";
+import { ACCOUNT_ROLES } from "./types";
+import type { Role } from "./types";
 
 const ROLES: readonly Role[] = ACCOUNT_ROLES;
 

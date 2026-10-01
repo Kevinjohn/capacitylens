@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { Page } from "./fixtures";
 import { openApp } from "./browserTestSupport";
 
 async function editOrder(page: Page, rowTestId: string): Promise<string[]> {

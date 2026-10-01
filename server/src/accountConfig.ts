@@ -1,8 +1,5 @@
-import {
-  ACCOUNT_PROFILE_CAPABILITIES,
-  isAccountDeploymentProfile,
-  type AccountDeploymentProfile,
-} from "@capacitylens/shared/account/conformance";
+import { ACCOUNT_PROFILE_CAPABILITIES, isAccountDeploymentProfile } from "@capacitylens/shared/account/conformance";
+import type { AccountDeploymentProfile } from "@capacitylens/shared/account/conformance";
 
 export type { AccountDeploymentProfile } from "@capacitylens/shared/account/conformance";
 

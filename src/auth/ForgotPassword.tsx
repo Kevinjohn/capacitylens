@@ -1,4 +1,5 @@
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState } from "react";
+import type { FormEvent } from "react";
 import { m } from "@/i18n";
 import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { API_BASE } from "@/data/apiConfig";

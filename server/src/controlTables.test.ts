@@ -29,9 +29,9 @@ import {
   InviteAlreadyUsedError,
   looksLikeEmail,
   inviteTokenHash,
-  type AccountMember,
   ensureAccountMemberResources,
 } from "./controlTables";
+import type { AccountMember } from "./controlTables";
 import { ensureAccountBoundaryState } from "./accounts/state";
 import { ACCESS_RESTRICTIONS_V47_SQL } from "./db/migrations/accessRestrictionsV47";
 import type { Db } from "./db";

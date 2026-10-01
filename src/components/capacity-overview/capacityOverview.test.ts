@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { Allocation, AppData, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { buildCapacityOverviewPeriods } from "./capacityOverviewDates";
-import { buildCapacityOverviewModel, type CapacityOverviewModel } from "./capacityOverviewModel";
+import { buildCapacityOverviewModel } from "./capacityOverviewModel";
+import type { CapacityOverviewModel } from "./capacityOverviewModel";
 
 const ACCOUNT_ID = "account-1";
 const BASE = { accountId: ACCOUNT_ID, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" };

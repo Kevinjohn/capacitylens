@@ -1,4 +1,5 @@
-import { render as rtlRender, screen, fireEvent, type RenderOptions } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent } from "@testing-library/react";
+import type { RenderOptions } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";

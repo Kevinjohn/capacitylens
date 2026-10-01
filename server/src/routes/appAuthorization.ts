@@ -1,14 +1,11 @@
 import type { AuthorizeRouteInput } from "./routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import {
-  type Role,
-  type IdentityAdminAction,
-  type IdentityAdminAuthorityDecision,
-} from "@capacitylens/shared/account/types";
+import type { Role, IdentityAdminAction, IdentityAdminAuthorityDecision } from "@capacitylens/shared/account/types";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import { ALL_FIELDS_VISIBLE } from "./routeShared";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
-import { redactGatedEcho, hasGatedFields, resolveVisibilityForRole, type SanitizeWriteOptions } from "../fieldPolicy";
+import { redactGatedEcho, hasGatedFields, resolveVisibilityForRole } from "../fieldPolicy";
+import type { SanitizeWriteOptions } from "../fieldPolicy";
 import { can } from "@capacitylens/shared/domain/access";
 import { resolveCorsOrigin, isSameRequestOrigin } from "./appOriginPolicy";
 import type { resolveAppConfig } from "./appConfig";

@@ -1,19 +1,16 @@
-import {
-  isLiveOwnershipTransferState,
-  type OwnershipTransferRequest,
-  type OwnershipTransferState,
-  type OwnershipTransferTerminalReason,
+import { isLiveOwnershipTransferState } from "@capacitylens/shared/account/ownershipTransfer";
+import type {
+  OwnershipTransferRequest,
+  OwnershipTransferState,
+  OwnershipTransferTerminalReason,
 } from "@capacitylens/shared/account/ownershipTransfer";
 import { OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS } from "@capacitylens/shared/account/ownershipTransferPolicy";
 import { createTableExistenceProbe } from "../authConfig/tableAccess";
 import type { Db } from "../db";
-import { cachedStatement, type PreparedStatement } from "./preparedStatement";
-import {
-  LIVE_STATES_PREDICATE,
-  type OwnershipTransferRow,
-  SELECTED_COLUMNS,
-  toOwnershipTransferRequest,
-} from "./ownershipTransfersSchema";
+import { cachedStatement } from "./preparedStatement";
+import type { PreparedStatement } from "./preparedStatement";
+import { LIVE_STATES_PREDICATE, SELECTED_COLUMNS, toOwnershipTransferRequest } from "./ownershipTransfersSchema";
+import type { OwnershipTransferRow } from "./ownershipTransfersSchema";
 
 /**
  * Storage operations over the `account_ownership_transfers` control table.

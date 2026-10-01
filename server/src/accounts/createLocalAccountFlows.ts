@@ -8,7 +8,8 @@ import type {
 import type { ActorContext, CommandIdentity, PasswordResetCeremony } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import { tx } from "../txn";
-import { createAccountAuditWriter, type AccountAuditInput } from "./accountFlowRuntime";
+import { createAccountAuditWriter } from "./accountFlowRuntime";
+import type { AccountAuditInput } from "./accountFlowRuntime";
 import type { LocalIdentityPort } from "./betterAuthIdentityPort";
 import { getAccountCommandById, readAccountCommandAndFlagStalePending, terminateCommand } from "./commands";
 import type { DenyIdentityAdminCommandInput } from "./flows/context";
@@ -19,7 +20,7 @@ import { createAccountReadFlows } from "./flows/reads";
 import { parseStoredReconciliationRepair } from "./flows/reconciliationRepair";
 import { createSessionRevocationFlows } from "./flows/sessionRevocation";
 import { createWorkspaceLifecycleFlows } from "./flows/workspaceLifecycle";
-import { KeyedOperationLock } from "./KeyedOperationLock";
+import type { KeyedOperationLock } from "./KeyedOperationLock";
 import type { LocalAccountAdminPort } from "./sqliteAccountAdminPort";
 import { WriteOnceSecretReplay } from "./WriteOnceSecretReplay";
 export { buildActorContextFromSession } from "./flows/actorContext";

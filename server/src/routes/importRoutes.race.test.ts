@@ -1,12 +1,15 @@
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify from "fastify";
+import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Role } from "@capacitylens/shared/account/types";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { KeyedOperationLock } from "../accounts/KeyedOperationLock";
 import type { Db } from "../db";
 import type { AccountStore } from "../accountStore";
 import { deferred } from "../testHelpers/deferred";
-import { registerImportRoutes, type ImportRouteDependencies } from "./importRoutes";
+import { registerImportRoutes } from "./importRoutes";
+import type { ImportRouteDependencies } from "./importRoutes";
 
 const apps: FastifyInstance[] = [];
 

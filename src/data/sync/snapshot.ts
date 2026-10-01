@@ -1,13 +1,8 @@
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
-import { type AllocationRewriteRevision } from "@/data/PersistenceAdapter";
-import { type Op } from "@/data/syncOps";
-import {
-  applyCommittedRevision,
-  buildRowKey,
-  rowKeyParts,
-  type AcknowledgedRevision,
-  type CommittedRevision,
-} from "./revisions";
+import type { AllocationRewriteRevision } from "@/data/PersistenceAdapter";
+import type { Op } from "@/data/syncOps";
+import { applyCommittedRevision, buildRowKey, rowKeyParts } from "./revisions";
+import type { AcknowledgedRevision, CommittedRevision } from "./revisions";
 import type { SyncState } from "./SyncState";
 
 /** Regroup the flat key→translation map into table→(id→translation) once per pass, so a whole-table

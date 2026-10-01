@@ -1,5 +1,6 @@
 import { m } from "@/i18n";
-import { SwitchField, TextField, type ProductFieldLayout } from "./ui";
+import { SwitchField, TextField } from "./ui";
+import type { ProductFieldLayout } from "./ui";
 import type { PrivateNameFieldsState } from "./usePrivateNameFields";
 
 export function PrivateNameFields({

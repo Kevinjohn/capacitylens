@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { AccountContractError, type AccountErrorCode } from "@capacitylens/shared/account/errors";
+import { AccountContractError } from "@capacitylens/shared/account/errors";
+import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
 import type { CommandIdentity, PrincipalId } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import {
@@ -11,8 +12,8 @@ import {
   getAccountCommandById,
   readAccountCommandAndFlagStalePending,
   reserveAccountCommand,
-  type AccountCommandRecord,
 } from "./state";
+import type { AccountCommandRecord } from "./state";
 
 // The coordinator owns durable command lifecycles, but not their SQLite representation. Re-export
 // the complete ledger vocabulary through this seam so orchestration never reaches state.ts directly.

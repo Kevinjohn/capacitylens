@@ -10,11 +10,13 @@ import { useFieldError } from "@/hooks/useFieldError";
 import { useStore } from "@/store/useStore";
 import type { StoreState } from "@/store/types";
 import { useTeamDirectory } from "./useTeamDirectory";
-import { useMemberInvites, type InvitationPersonOption } from "./useMemberInvites";
+import { useMemberInvites } from "./useMemberInvites";
+import type { InvitationPersonOption } from "./useMemberInvites";
 import { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 import { createMemberMutations } from "./createMemberMutations";
 import { startMasquerade } from "@/auth/accountTransition";
-import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
+import { STATUS_FOR_ACTION } from "./memberConfirmationCopy";
+import type { MemberConfirmation, MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
 import { useResourceListModel } from "@/components/resources/useResourceListModel";
 

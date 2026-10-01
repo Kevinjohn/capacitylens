@@ -1,4 +1,5 @@
-import { applyGesture, type DateRange, type DragMode, type GestureOptions } from "@/lib/gestureMath";
+import { applyGesture } from "@/lib/gestureMath";
+import type { DateRange, DragMode, GestureOptions } from "@/lib/gestureMath";
 import { resolveScheduledHoursOnDay } from "@/lib/capacity";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { spanDays } from "@capacitylens/shared/lib/schedulingDays";

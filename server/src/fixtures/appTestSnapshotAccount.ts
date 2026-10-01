@@ -7,11 +7,8 @@ import {
   readOptionalString,
   readRequiredString,
   assertModeledKeys,
-  type AccountSnapshot,
-  type ClosureSnapshot,
-  type ResourceSnapshot,
-  type TimeOffSnapshot,
 } from "./appTestSnapshotCore";
+import type { AccountSnapshot, ClosureSnapshot, ResourceSnapshot, TimeOffSnapshot } from "./appTestSnapshotCore";
 import { readProjectBindings, readResourceSnapshot } from "./appTestSnapshotSchedule";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 export function addAccountDisplayOptions(snapshot: AccountSnapshot, row: Record<string, unknown>): void {

@@ -1,9 +1,6 @@
 import { addDaysISO, daysInclusive, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import {
-  lacksEffectiveWorkingDays,
-  startsOnNonEffectiveWeekday,
-  type EffectiveWorkingWeek,
-} from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import { lacksEffectiveWorkingDays, startsOnNonEffectiveWeekday } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { endDateForSpan, maxSpanDaysForStart, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import type { RepeatPattern } from "@capacitylens/shared/lib/repeatingDates";
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
@@ -16,13 +13,8 @@ import type {
   TimeOff,
 } from "@capacitylens/shared/types/entities";
 import type { Draft } from "@/store/useStore";
-import {
-  addCapacityLoad,
-  bucketCapacityLoad,
-  buildCapacityAdvisory,
-  buildCapacityAdvisoryFromLoad,
-  type CapacityAllocationInput,
-} from "./capacity";
+import { addCapacityLoad, bucketCapacityLoad, buildCapacityAdvisory, buildCapacityAdvisoryFromLoad } from "./capacity";
+import type { CapacityAllocationInput } from "./capacity";
 
 interface BuildRepeatingAllocationAdvisoryInput {
   resource: Resource;

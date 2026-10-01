@@ -4,7 +4,7 @@ import { m } from "@/i18n";
 import { formatDayMonth, formatMonthYear } from "@/lib/dateDisplay";
 import { useDateStyle } from "@/store/useDateStyle";
 import { parseDate, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { type WeeksZoom } from "@/lib/schedulerConfig";
+import type { WeeksZoom } from "@/lib/schedulerConfig";
 import { LAYOUT } from "./layout";
 import type { ColumnGeometry } from "./columnGeometry";
 import { buildVisibleSpanInsets } from "./visibleSpanInsets";

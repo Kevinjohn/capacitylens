@@ -3,7 +3,8 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import type { StoreState } from "@/store/useStore";
 import { incrementPersistenceDiagnostic, setPersistenceSuspended } from "@/data/persistenceDiagnostics";
 import { BatchReconciliationError } from "@/data/ServerSyncAdapter";
-import { ReloadDiscardedEditError, type RefreshOutcome } from "./facades";
+import { ReloadDiscardedEditError } from "./facades";
+import type { RefreshOutcome } from "./facades";
 
 interface OwnerBeginSuspensionInput {
   external: boolean;

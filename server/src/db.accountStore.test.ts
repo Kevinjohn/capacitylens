@@ -12,10 +12,9 @@ import {
   readFullSlice,
   readSlice,
   replaceAccountSlice,
-  type CompleteAccountSlice,
-  type Db,
   buildCompleteAccountSlice,
 } from "./db";
+import type { CompleteAccountSlice, Db } from "./db";
 import { createSqliteAccountStore } from "./accountStore";
 import { tx } from "./txn";
 

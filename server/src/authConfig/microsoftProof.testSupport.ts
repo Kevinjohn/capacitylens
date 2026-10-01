@@ -1,5 +1,6 @@
 import { vi } from "vitest";
-import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "../auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "../auth";
+import type { Auth } from "../auth";
 import { insertRow, openDb } from "../db";
 
 const sentMessages = vi.hoisted(() => [] as Array<{ to: string; text: string }>);

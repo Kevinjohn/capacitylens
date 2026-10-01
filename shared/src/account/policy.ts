@@ -1,4 +1,5 @@
-import { isAccountRole, type IdentityAdminAction, type Role } from "./types";
+import { isAccountRole } from "./types";
+import type { IdentityAdminAction, Role } from "./types";
 
 /** Single-company-per-instance cap (owner policy, see AppOptions.multiAccount). The
  * deployment defaults to hosting exactly one company; every route that could add a second `accounts`

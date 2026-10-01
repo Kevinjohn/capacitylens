@@ -1,4 +1,5 @@
-import { TABLES, type TableSpec } from "../tables";
+import { TABLES } from "../tables";
+import type { TableSpec } from "../tables";
 import type { Db } from "../db";
 // `table` is interpolated directly into the SQL strings below (SQL can't parameterise an
 // identifier), so it must be a vetted key of TABLES. This is the SQL-injection safety boundary.

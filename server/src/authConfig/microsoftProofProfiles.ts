@@ -2,8 +2,9 @@ import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
 import { tx } from "../txn";
 import { microsoftCallbackCapture } from "./captureContexts";
-import { createMicrosoftProofAuthorization } from "./microsoftProofAuthorization";
-import { MicrosoftProofError, hasVerifiedMicrosoftEmail, type MicrosoftProofIntent } from "./microsoftProofPrimitives";
+import type { createMicrosoftProofAuthorization } from "./microsoftProofAuthorization";
+import { MicrosoftProofError, hasVerifiedMicrosoftEmail } from "./microsoftProofPrimitives";
+import type { MicrosoftProofIntent } from "./microsoftProofPrimitives";
 
 type Intent = MicrosoftProofIntent;
 

@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
+import { openDb, insertAll } from "./db";
+import type { Db } from "./db";
 import { upsertMember, createInvite } from "./controlTables";
 import { countUsers } from "./auth";
 import { call, signUp } from "./testHelpers/passwordAuth";
 import { appWithAuth } from "./fixtures/appWithAuth";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 

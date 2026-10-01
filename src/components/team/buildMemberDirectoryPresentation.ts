@@ -1,5 +1,6 @@
 import { ACCOUNT_ROLES } from "@capacitylens/shared/account/types";
-import { can, type Role } from "@capacitylens/shared/domain/access";
+import { can } from "@capacitylens/shared/domain/access";
+import type { Role } from "@capacitylens/shared/domain/access";
 import type { TeamMember as Member } from "@/account/teamAccessClient";
 import type { TeamInvitation } from "@/account/teamAccessClient";
 import { resolveRoleLabel } from "@/lib/accessCopy";

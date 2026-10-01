@@ -3,7 +3,8 @@ import { IDBFactory } from "fake-indexeddb";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, Allocation, AppData, Client, Project, TimeOff } from "@capacitylens/shared/types/entities";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
-import { cacheAuthSnapshot, clearAllOfflineData, setOfflineReadState, type OfflineAuthSnapshot } from "./offlineCache";
+import { cacheAuthSnapshot, clearAllOfflineData, setOfflineReadState } from "./offlineCache";
+import type { OfflineAuthSnapshot } from "./offlineCache";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 export const TS1 = "2026-01-01T00:00:00.000Z";

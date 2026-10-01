@@ -4,7 +4,8 @@ import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { buildEmptyFilters } from "@/store/useStore";
 import { makeAllocation, makeResource, requireValue } from "@/test/fixtures";
 import { isCreationStartBlocked } from "./creationAvailability";
-import { buildSchedulerModel, type GroupModel } from "./schedulerModel";
+import { buildSchedulerModel } from "./schedulerModel";
+import type { GroupModel } from "./schedulerModel";
 import { buildColumnGeometry } from "./columnGeometry";
 import {
   DEFAULT_ACCOUNT_WORKING_DAYS,

@@ -1,4 +1,5 @@
-import { expect, type APIRequestContext } from "@playwright/test";
+import { expect } from "@playwright/test";
+import type { APIRequestContext } from "@playwright/test";
 import { ports } from "../scripts/ports.mjs";
 import { serverTestApiOrigin } from "../scripts/playwrightRunMode.mjs";
 

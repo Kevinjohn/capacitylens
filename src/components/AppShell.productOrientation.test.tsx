@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { AppShell } from "./AppShell";
-import { AuthContext, type AuthContextValue } from "@/auth/authContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 import { buildProductOrientationKey } from "@/lib/productOrientation";
 
 const serverFlag = vi.hoisted(() => ({ on: false }));

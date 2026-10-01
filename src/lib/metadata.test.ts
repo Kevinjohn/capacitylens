@@ -13,8 +13,8 @@ import {
   resolvePlaceholderDisplayName,
   buildLabels,
   buildLabelOptions,
-  type LabelMessages,
 } from "./metadata";
+import type { LabelMessages } from "./metadata";
 import type { AllocationStatus, Resource, TimeOffType } from "@capacitylens/shared/types/entities";
 
 const makeResource = (over: Partial<Resource> = {}): Resource => ({

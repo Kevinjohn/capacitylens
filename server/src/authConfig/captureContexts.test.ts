@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createAuthFromEnvironment, mintPasswordResetToken, runAuthMigrations, type Auth } from "../auth";
+import { createAuthFromEnvironment, mintPasswordResetToken, runAuthMigrations } from "../auth";
+import type { Auth } from "../auth";
 import { openDb } from "../db";
 import { PASSWORD_ENV } from "../testHelpers/passwordAuth";
 import { registerServerFixtureCleanup } from "../testHelpers/registerServerFixtureCleanup";

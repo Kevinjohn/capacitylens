@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 import { m } from "@/i18n";
 import { Modal } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";

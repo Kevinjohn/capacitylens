@@ -1,7 +1,7 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { buildInternalClient, isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import { archive } from "@capacitylens/shared/domain/lifecycle";
-import { type AppDataKey } from "@capacitylens/shared/types/entities";
+import type { AppDataKey } from "@capacitylens/shared/types/entities";
 import { deleteRow, getRow, upsertRow } from "../../db";
 import { createServerRevision } from "../../revision";
 import { isSameSessionSuccessor } from "../../syncOrdering";
@@ -18,7 +18,7 @@ import { isLifecycleEntity, isScopedTable, isStaleWrite, ownsRow, writeActivityR
 
 import { isMatchingMintedInternalClient } from "./appData";
 import { StaleWriteError } from "./errors";
-import { type ApplyBatchOperationParameters, type BatchPutOp, type BatchDeleteOp, type BatchArchiveOp } from "./types";
+import type { ApplyBatchOperationParameters, BatchPutOp, BatchDeleteOp, BatchArchiveOp } from "./types";
 import { FROZEN_REPLY_MESSAGES, REPLY_ERRORS } from "../replyErrors";
 
 type OperationParameters = Omit<ApplyBatchOperationParameters, "opIndex" | "op"> &

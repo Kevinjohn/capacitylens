@@ -14,15 +14,15 @@ import {
   removeMember as removeMemberRow,
   setMemberStatus,
   upsertMember,
-  type AccountMember,
 } from "../../controlTables";
+import type { AccountMember } from "../../controlTables";
 import type { Db } from "../../db";
 import type { AccountAuditInput } from "../accountFlowRuntime";
 import { createOperationReceipt } from "../accountFlowRuntime";
 import { bumpSecurityRevision } from "../state";
 import { assertAccountAuthority, assertAdministrativeAssurance } from "./authority";
-import type { AdminPortContext } from "./contracts";
-import { ACCOUNT_POLICY_VERSION, SsoCutoverAccountAdminPort } from "./contracts";
+import type { AdminPortContext, SsoCutoverAccountAdminPort } from "./contracts";
+import { ACCOUNT_POLICY_VERSION } from "./contracts";
 import { assertInvitationRole, createAccountFailure } from "./failures";
 import { readMembership } from "./mappers";
 import { createMembershipReads } from "./memberReads";

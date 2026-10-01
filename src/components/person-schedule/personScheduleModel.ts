@@ -1,19 +1,17 @@
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
 import { resolveBarColor } from "@capacitylens/shared/lib/color";
 import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
-import {
-  carriesHourlyLoad,
-  isCapacityTracked,
-  isExternalResource,
-  type Activity,
-  type Allocation,
-  type AppData,
-  type Client,
-  type ID,
-  type ISODate,
-  type Project,
-  type Resource,
-  type SchedulingMode,
+import { carriesHourlyLoad, isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
+import type {
+  Activity,
+  Allocation,
+  AppData,
+  Client,
+  ID,
+  ISODate,
+  Project,
+  Resource,
+  SchedulingMode,
 } from "@capacitylens/shared/types/entities";
 import { buildAllocationAttribution } from "@/components/scheduler/buildAllocationAttribution";
 import { hasRenderableDateRange } from "@/components/scheduler/schedulerModelIndexing";

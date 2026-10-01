@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
-import { authTransactionGateFor, type GateSlot } from "./authTransactionGate";
+import { authTransactionGateFor } from "./authTransactionGate";
+import type { GateSlot } from "./authTransactionGate";
 import { deferred } from "./testHelpers/deferred";
 
 const openSlot = (): GateSlot => ({ held: false, closed: false });

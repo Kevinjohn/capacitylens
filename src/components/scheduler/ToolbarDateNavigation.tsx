@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { m } from "@/i18n";
-import { ZOOM_LEVELS, type WeeksZoom } from "@/lib/schedulerConfig";
+import { ZOOM_LEVELS } from "@/lib/schedulerConfig";
+import type { WeeksZoom } from "@/lib/schedulerConfig";
 import { JumpToDateInput } from "./JumpToDateInput";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

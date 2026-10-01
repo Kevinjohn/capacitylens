@@ -6,7 +6,8 @@ import type { Allocation, ISODate } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { formatShortDate } from "@/lib/dateDisplay";
-import { resolveRepeatPattern, type RepeatSelection } from "@/lib/repeatingAllocations";
+import { resolveRepeatPattern } from "@/lib/repeatingAllocations";
+import type { RepeatSelection } from "@/lib/repeatingAllocations";
 
 // The allocation form's decision layer, lifted out of AllocationModal so the rules can be read (and
 // tested) without a render. Nothing here touches React or the store: the modal supplies the already-

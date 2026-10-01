@@ -2,7 +2,8 @@ import { cleanText } from "../strings";
 import { isValidISODate, parseISOTimestamp } from "../integrity";
 import { normalizeCodeName, privateCodeNameFallback } from "../../domain/privateNames";
 import { defaultAccountWorkingDays } from "../accountWorkingDays";
-import { clampHoursPerDay, clampWorkingHoursPerDay, FULL_DAY_HOURS, type Weekday } from "../../types/entities";
+import { clampHoursPerDay, clampWorkingHoursPerDay, FULL_DAY_HOURS } from "../../types/entities";
+import type { Weekday } from "../../types/entities";
 
 /** Allocation statuses import accepts. */
 export const VALID_STATUS = ["confirmed", "tentative", "completed"] as const;

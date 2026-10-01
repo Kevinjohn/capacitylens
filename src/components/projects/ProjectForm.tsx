@@ -9,15 +9,8 @@ import { validateProjectClient } from "@capacitylens/shared/lib/integrity";
 import { DEFAULT_COLORS } from "@/lib/palette";
 import { byName } from "@/lib/displayOrder";
 import { m } from "@/i18n";
-import {
-  ColorField,
-  FormActions,
-  Modal,
-  RequiredLegend,
-  SelectField,
-  TextField,
-  type Option,
-} from "@/components/common/ui";
+import { ColorField, FormActions, Modal, RequiredLegend, SelectField, TextField } from "@/components/common/ui";
+import type { Option } from "@/components/common/ui";
 import { PrivateNameFields } from "@/components/common/PrivateNameFields";
 import { usePrivateNameFields } from "@/components/common/usePrivateNameFields";
 import { FieldError } from "@/components/ui/field";

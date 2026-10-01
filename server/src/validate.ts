@@ -4,12 +4,8 @@ import {
   wouldAddSecondBuiltin,
 } from "@capacitylens/shared/data/internalClient";
 import { DomainError } from "@capacitylens/shared/domain/errors";
-import {
-  inspectLifecycleAncestry,
-  isLifecycleEntityKey,
-  type LifecycleAncestryLookup,
-  type LifecycleAncestryRow,
-} from "@capacitylens/shared/domain/lifecycle";
+import { inspectLifecycleAncestry, isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
+import type { LifecycleAncestryLookup, LifecycleAncestryRow } from "@capacitylens/shared/domain/lifecycle";
 import {
   assertActivityProjectAllowsDependents,
   assertAllocationWithinResourceAvailability,
@@ -20,18 +16,10 @@ import {
   assertResourceProjectAllowsDependents,
   validateResourceAvailabilityPair,
   assertScopedRefs,
-  type ValidationDataLookup,
 } from "@capacitylens/shared/domain/mutations";
-import {
-  APP_DATA_KEYS,
-  isScopedEntityKey,
-  type Activity,
-  type Allocation,
-  type AppData,
-  type AppDataKey,
-  type Resource,
-  type TimeOff,
-} from "@capacitylens/shared/types/entities";
+import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
+import { APP_DATA_KEYS, isScopedEntityKey } from "@capacitylens/shared/types/entities";
+import type { Activity, Allocation, AppData, AppDataKey, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { ValidationError } from "./validate/errors";
 export { assertIdPresent, ValidationError } from "./validate/errors";

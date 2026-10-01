@@ -1,9 +1,5 @@
-import {
-  isAccountRole,
-  isMembershipStatus,
-  type MembershipStatus,
-  type Role,
-} from "@capacitylens/shared/account/types";
+import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
+import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
 
 /**
  * The lifecycle status of one membership row: `'active' | 'disabled' | 'archived'`.

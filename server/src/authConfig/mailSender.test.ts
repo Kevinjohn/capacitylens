@@ -1,4 +1,5 @@
-import { createServer, type Socket } from "node:net";
+import { createServer } from "node:net";
+import type { Socket } from "node:net";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it, vi } from "vitest";
 import { MailBudgetExceededError, createMailSender, resolveMailDeliveryCause, withSendBudget } from "./mailSender";

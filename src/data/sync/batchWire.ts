@@ -5,7 +5,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { announceAuditWarning, noteAuditWarning } from "@/lib/auditWarning";
 import { extractApiErrorMessage } from "@/lib/readApiError";
 import { API_BULK_TIMEOUT_MS, isTransportFailure, readMasqueradeErrorCode } from "@/data/requestTimeout";
-import { type Op } from "@/data/syncOps";
+import type { Op } from "@/data/syncOps";
 import {
   BatchCommitUncertainError,
   BatchConflictError,
@@ -16,13 +16,8 @@ import {
   KeepaliveNotDispatchedError,
   MAX_BATCH_OPS,
 } from "./batchErrors";
-import {
-  buildRowKey,
-  createSafeResponseError,
-  warnCompatibilityOnce,
-  type BatchCommitReceipt,
-  type CommittedRevision,
-} from "./revisions";
+import { buildRowKey, createSafeResponseError, warnCompatibilityOnce } from "./revisions";
+import type { BatchCommitReceipt, CommittedRevision } from "./revisions";
 import type { SyncState } from "./SyncState";
 import { addResourceAvailabilityClearMarkers } from "./resourceAvailabilityWire";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";

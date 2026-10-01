@@ -1,16 +1,12 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
-import {
-  allowsPasswordSignIn,
-  allowsProviderSignIn,
-  type ApplicationSession,
-  type OperationReceipt,
-  type SessionSummary,
-} from "@capacitylens/shared/account/types";
+import { allowsPasswordSignIn, allowsProviderSignIn } from "@capacitylens/shared/account/types";
+import type { ApplicationSession, OperationReceipt, SessionSummary } from "@capacitylens/shared/account/types";
 import { SESSION_ABSOLUTE_TTL_SECONDS, SESSION_FRESH_AGE_SECONDS, SESSION_INACTIVITY_TTL_SECONDS } from "../../auth";
 import { tx } from "../../txn";
 import { createOperationReceipt } from "../accountFlowRuntime";
 import { buildApplicationSessionHandle } from "../buildApplicationSessionHandle";
-import { getSessionAuthentication, removeSessionAssurance, type RecordedSessionAuthentication } from "../state";
+import { getSessionAuthentication, removeSessionAssurance } from "../state";
+import type { RecordedSessionAuthentication } from "../state";
 import type { IdentityPortContext } from "./contracts";
 import type { SsoCutoverIdentityPort } from "./contracts";
 import {

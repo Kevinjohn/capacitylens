@@ -6,7 +6,8 @@ import { readActiveDateLocale, m } from "@/i18n";
 import { formatScheduleDateRange } from "@/lib/dateDisplay";
 import type { TimeOffRepeatChoice } from "./useTimeOffRepeat";
 import type { buildRepeatedTimeOffDrafts } from "@/lib/repeatingTimeOff";
-import { DateField, SelectField, type Option } from "@/components/common/ui";
+import { DateField, SelectField } from "@/components/common/ui";
+import type { Option } from "@/components/common/ui";
 
 type RepeatProjection = ReturnType<typeof buildRepeatedTimeOffDrafts>;
 

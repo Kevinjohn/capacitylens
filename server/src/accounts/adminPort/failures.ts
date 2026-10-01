@@ -1,8 +1,5 @@
-import {
-  AccountContractError,
-  assertRetryAfterSeconds,
-  type AccountErrorCode,
-} from "@capacitylens/shared/account/errors";
+import { AccountContractError, assertRetryAfterSeconds } from "@capacitylens/shared/account/errors";
+import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
 import type { InvitationRole, Role } from "@capacitylens/shared/account/types";
 
 export function createAccountFailure(

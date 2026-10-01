@@ -1,7 +1,7 @@
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { IdentityPort } from "@capacitylens/shared/account/ports";
 import type { ProvisionalPrincipal } from "@capacitylens/shared/account/types";
-import { type Auth, type AccountMode } from "../../auth";
+import type { Auth, AccountMode } from "../../auth";
 import type { Db } from "../../db";
 
 export interface MasqueradeSessionLifecycle {

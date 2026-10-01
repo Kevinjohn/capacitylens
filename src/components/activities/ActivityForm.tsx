@@ -6,15 +6,8 @@ import { resolveErrorMessage } from "@/lib/errorMessage";
 import { parseName } from "@/lib/validation";
 import { isStaleEdit } from "@/lib/isStaleEdit";
 import { m } from "@/i18n";
-import {
-  FormActions,
-  Modal,
-  RequiredLegend,
-  SegmentedField,
-  SelectField,
-  TextField,
-  type Option,
-} from "@/components/common/ui";
+import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField } from "@/components/common/ui";
+import type { Option } from "@/components/common/ui";
 import { FieldError } from "@/components/ui/field";
 import type { Activity, ActivityKind, Client, Project } from "@capacitylens/shared/types/entities";
 import { ACTIVITY_KIND_ORDER } from "./activityKinds";

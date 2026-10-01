@@ -1,13 +1,15 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp as buildAppRaw } from "./app";
-import { openDb as openDbRaw, insertAll, type Db } from "./db";
+import { openDb as openDbRaw, insertAll } from "./db";
+import type { Db } from "./db";
 import { upsertMember } from "./controlTables";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers/passwordAuth";
 import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 
 // Admin-issued password-reset links. This suite drives the whole loop end-to-end against a
 // real (in-memory) Better Auth instance: mint (the admin-gated route) → redeem (Better Auth's public

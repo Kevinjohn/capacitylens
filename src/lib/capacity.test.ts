@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 import {
-  type DayCapacity,
   applyCapacityMode,
   resolveAllocatedHoursOnDay as allocatedHoursOnDayWithWeek,
   resolveAvailableHoursOnDay as availableHoursOnDayWithWeek,
@@ -15,8 +14,8 @@ import {
   resolveScheduledHoursOnDay as scheduledHoursOnDayWithWeek,
   resolveUtilization as utilizationWithWeek,
   resolveUtilizationFromCapacity,
-  type CapacityAllocationInput,
 } from "./capacity";
+import type { DayCapacity, CapacityAllocationInput } from "./capacity";
 import { addDaysISO, eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";

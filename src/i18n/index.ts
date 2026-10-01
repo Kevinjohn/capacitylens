@@ -11,7 +11,8 @@
 // is ready for later locales without touching call sites.
 
 import { m } from "@/paraglide/messages.js";
-import { baseLocale, getLocale, isLocale, setLocale, type Locale } from "@/paraglide/runtime.js";
+import { baseLocale, getLocale, isLocale, setLocale } from "@/paraglide/runtime.js";
+import type { Locale } from "@/paraglide/runtime.js";
 import { enGB } from "date-fns/locale";
 import type { Locale as DateFnsLocale } from "date-fns";
 

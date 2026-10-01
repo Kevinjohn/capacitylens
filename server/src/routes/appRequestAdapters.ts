@@ -1,6 +1,6 @@
 import type { FastifyRequest } from "fastify";
-import { type SessionUser } from "../auth";
-import { type ApplicationSession, type CommandIdentity } from "@capacitylens/shared/account/types";
+import type { SessionUser } from "../auth";
+import type { ApplicationSession, CommandIdentity } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isAccountCommandId, isAccountIdempotencyKey } from "@capacitylens/shared/account/validation";
 import { newId } from "@capacitylens/shared/lib/id";

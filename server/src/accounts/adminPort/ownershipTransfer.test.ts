@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { ActorContext, CommandIdentity } from "@capacitylens/shared/account/types";
-import { insertRow, openDb, type Db } from "../../db";
+import { insertRow, openDb } from "../../db";
+import type { Db } from "../../db";
 import { upsertMember } from "../../controlTables";
 import { readRequestById } from "../../controlTables/ownershipTransfers";
 import { KeyedOperationLock } from "../KeyedOperationLock";

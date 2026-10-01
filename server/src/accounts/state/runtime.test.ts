@@ -1,5 +1,6 @@
 import { afterEach, expect, it } from "vitest";
-import { openDb, type Db } from "../../db";
+import { openDb } from "../../db";
+import type { Db } from "../../db";
 import { createCachedStatement } from "./runtime";
 
 const databases: Db[] = [];

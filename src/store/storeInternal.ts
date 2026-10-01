@@ -9,14 +9,8 @@ import {
 } from "@capacitylens/shared/domain/mutations";
 import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, Entity, ID, ScopedEntityKey, TimeOff } from "@capacitylens/shared/types/entities";
-import {
-  clearEntityLenses,
-  type Draft,
-  type ImportSummary,
-  type Patch,
-  type ScopedRow,
-  type StoreState,
-} from "./types";
+import { clearEntityLenses } from "./types";
+import type { Draft, ImportSummary, Patch, ScopedRow, StoreState } from "./types";
 import { stamp, touch, touchAfter } from "./revisions";
 import { HISTORY_LIMIT } from "./history";
 import { resetSchedulerView } from "./storeConstants";

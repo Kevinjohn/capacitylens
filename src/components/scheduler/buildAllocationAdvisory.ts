@@ -9,7 +9,7 @@ import {
 import { buildRepeatingAllocationAdvisory } from "@/lib/repeatingAllocations";
 
 import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
-import { buildRepeatProjection } from "./buildRepeatProjection";
+import type { buildRepeatProjection } from "./buildRepeatProjection";
 
 type AdvisoryInput = Pick<
   AllocationModalSnapshot,

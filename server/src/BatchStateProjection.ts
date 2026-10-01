@@ -1,10 +1,5 @@
-import {
-  APP_DATA_KEYS,
-  SCOPED_KEYS,
-  type Allocation,
-  type AppData,
-  type AppDataKey,
-} from "@capacitylens/shared/types/entities";
+import { APP_DATA_KEYS, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
+import type { Allocation, AppData, AppDataKey } from "@capacitylens/shared/types/entities";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
 import type { RewrittenAllocationRevision } from "./db";

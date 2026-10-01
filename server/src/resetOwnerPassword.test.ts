@@ -4,13 +4,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { createApp as buildAppRaw } from "./app";
-import { openDb as openDbRaw, openDbConnection, insertAll, type Db } from "./db";
+import { openDb as openDbRaw, openDbConnection, insertAll } from "./db";
+import type { Db } from "./db";
 import { upsertMember } from "./controlTables";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { isAuditEntry } from "./auditOutbox";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers/passwordAuth";
 import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { resetOwnerPassword } from "./resetOwnerPassword";
 
 // Sole-Owner credential recovery (playbook _sole-owner-recovery-playbook-2026-08-05.md).

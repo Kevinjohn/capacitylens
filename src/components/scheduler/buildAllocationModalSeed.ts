@@ -1,4 +1,4 @@
-import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
+import type { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { daysInclusive, eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek, lacksEffectiveWorkingDays } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { spanDays } from "@capacitylens/shared/lib/schedulingDays";

@@ -4,7 +4,8 @@ import type { Db } from "../db";
 import { enqueueAudit } from "../auditOutbox";
 import { beginCommand, completeCommand, markAccountCommandReplay } from "./commands";
 import { assertAccountAuthority } from "./adminPort/authority";
-import { tx, type SynchronousCallback } from "../txn";
+import { tx } from "../txn";
+import type { SynchronousCallback } from "../txn";
 import {
   clearAccountMemberResourceLink,
   listAccountMemberResourceLinks,

@@ -9,7 +9,8 @@ import type {
   Membership,
   PasswordResetCeremony,
 } from "@capacitylens/shared/account/types";
-import { openDb, type Db } from "../../db";
+import { openDb } from "../../db";
+import type { Db } from "../../db";
 import type { LocalIdentityPort } from "../betterAuthIdentityPort";
 import { wasAccountCommandReplayed } from "../commands";
 import { createLocalAccountFlows } from "../createLocalAccountFlows";

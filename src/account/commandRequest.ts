@@ -4,8 +4,8 @@ import {
   beginCommandCohort,
   finishCommandCohort,
   markCommandCohortUnknown,
-  type BrowserAccountCommand,
 } from "./accountCommands";
+import type { BrowserAccountCommand } from "./accountCommands";
 import { commandOutcomeDecisions, readUnknownAccountCommandOutcome } from "./commandOutcome";
 
 interface RunCommandInput {

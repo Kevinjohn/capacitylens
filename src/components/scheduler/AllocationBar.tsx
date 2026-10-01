@@ -1,4 +1,5 @@
-import { memo, useMemo, useState, type KeyboardEventHandler, type PointerEventHandler } from "react";
+import { memo, useMemo, useState } from "react";
+import type { KeyboardEventHandler, PointerEventHandler } from "react";
 import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
 import type { ID } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";

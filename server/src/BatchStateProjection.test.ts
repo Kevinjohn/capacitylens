@@ -8,7 +8,8 @@ import {
   deleteResourceCascade,
 } from "@capacitylens/shared/lib/integrity";
 import { deleteAccountCascade } from "@capacitylens/shared/domain/mutations";
-import { APP_DATA_KEYS, emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { APP_DATA_KEYS, emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { BatchStateProjection } from "./BatchStateProjection";
 import { assertValidWrite } from "./validate";
 

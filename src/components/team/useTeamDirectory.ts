@@ -2,13 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { m } from "@/i18n";
 import { resolveErrorMessage } from "@/lib/errorMessage";
-import {
-  teamAccessClient,
-  type TeamAccessResult,
-  type TeamDirectory,
-  type TeamInvitation,
-  type TeamMember,
-} from "@/account/teamAccessClient";
+import { teamAccessClient } from "@/account/teamAccessClient";
+import type { TeamAccessResult, TeamDirectory, TeamInvitation, TeamMember } from "@/account/teamAccessClient";
 import type { FieldError } from "@/hooks/useFieldError";
 
 interface TeamDirectoryOptions {

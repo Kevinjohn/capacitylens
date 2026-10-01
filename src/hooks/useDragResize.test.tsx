@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { type DragResizePreviewInput, useDragResize } from "./useDragResize";
+import { useDragResize } from "./useDragResize";
+import type { DragResizePreviewInput } from "./useDragResize";
 import type { DragMode } from "@/lib/gestureMath";
 
 interface HarnessProps {

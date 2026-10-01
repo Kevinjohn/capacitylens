@@ -1,9 +1,11 @@
-import { createMailSender, type MailSender } from "./mailSender";
+import { createMailSender } from "./mailSender";
+import type { MailSender } from "./mailSender";
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { randomBytes } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
-import { allowsProviderSignIn, type BoundApplication } from "@capacitylens/shared/account/types";
+import { allowsProviderSignIn } from "@capacitylens/shared/account/types";
+import type { BoundApplication } from "@capacitylens/shared/account/types";
 import { boundApplicationFailure } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
 import { gateLibraryTransactions } from "./gateLibraryTransactions";
@@ -15,7 +17,8 @@ import { buildDatabaseHooks } from "./databaseHooks";
 import { buildRequestHooks } from "./requestHooks";
 import { buildSessionPolicy } from "./sessionPolicy";
 import { buildPlugins } from "./plugins";
-import { DEFAULT_ACCOUNT_APPLICATION, type Auth, type AccountMode } from "./authTypes";
+import { DEFAULT_ACCOUNT_APPLICATION } from "./authTypes";
+import type { Auth, AccountMode } from "./authTypes";
 import {
   MIN_BETTER_AUTH_SECRET_LENGTH,
   RESET_LINK_TTL_SECONDS,
@@ -34,10 +37,8 @@ import type { createAuthAdapterFactory } from "./authAdapter";
 import type { MicrosoftProof } from "./microsoftProof";
 import { createConfiguredMicrosoftProof } from "./microsoftProofSetup";
 import { parsePublicUrl } from "./publicUrlConfig";
-import {
-  currentJoiningProviderFacts,
-  type createJoiningProviderCallbacks,
-} from "../accounts/adminPort/joiningProviderCallbacks";
+import { currentJoiningProviderFacts } from "../accounts/adminPort/joiningProviderCallbacks";
+import type { createJoiningProviderCallbacks } from "../accounts/adminPort/joiningProviderCallbacks";
 
 type Env = Record<string, string | undefined>;
 type AuthFromEnvOptions = {

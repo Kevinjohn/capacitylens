@@ -1,4 +1,5 @@
-import { canSeePrivateNames, canSeeTimeOffNote, type Role } from "@capacitylens/shared/domain/access";
+import { canSeePrivateNames, canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
+import type { Role } from "@capacitylens/shared/domain/access";
 import { redactPrivateName } from "@capacitylens/shared/domain/privateNames";
 import type { Client, Project } from "@capacitylens/shared/types/entities";
 

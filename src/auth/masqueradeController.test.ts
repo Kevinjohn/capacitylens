@@ -3,7 +3,8 @@ import type { MasqueradeState, MasqueradeStatus } from "@capacitylens/shared/dom
 import { resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import type { FlushPendingWritesResult } from "@/data/persist";
-import { MasqueradeController, type MasqueradeControllerDependencies } from "./masqueradeController";
+import { MasqueradeController } from "./masqueradeController";
+import type { MasqueradeControllerDependencies } from "./masqueradeController";
 
 const state: MasqueradeState = {
   accountId: "a-studio",

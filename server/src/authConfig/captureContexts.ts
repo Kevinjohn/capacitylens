@@ -1,5 +1,6 @@
 import type { Db } from "../db";
-import { resolveMailDeliveryCause, type MailSender } from "./mailSender";
+import { resolveMailDeliveryCause } from "./mailSender";
+import type { MailSender } from "./mailSender";
 import { hasPasswordCredential } from "./tableAccess";
 import { AsyncLocalStorage } from "node:async_hooks";
 

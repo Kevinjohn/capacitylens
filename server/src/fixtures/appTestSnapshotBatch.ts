@@ -9,15 +9,17 @@ import {
   readRequiredString,
   readStateArray,
   assertModeledKeys,
-  type ActivitySnapshot,
-  type ActivityWriteResponse,
-  type BatchReceipt,
-  type BatchRevisionSnapshot,
-  type ClientResponse,
-  type ClientSnapshot,
-  type ImportSummary,
-  type ProjectBinding,
-  type ValidatedStateResponse,
+} from "./appTestSnapshotCore";
+import type {
+  ActivitySnapshot,
+  ActivityWriteResponse,
+  BatchReceipt,
+  BatchRevisionSnapshot,
+  ClientResponse,
+  ClientSnapshot,
+  ImportSummary,
+  ProjectBinding,
+  ValidatedStateResponse,
 } from "./appTestSnapshotCore";
 import {
   readAccountSnapshots,

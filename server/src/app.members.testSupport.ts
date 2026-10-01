@@ -1,5 +1,7 @@
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
-import { insertAll, type Db } from "./db";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
+import { insertAll } from "./db";
+import type { Db } from "./db";
 
 const TS = "2026-01-01T00:00:00.000Z";
 

@@ -4,14 +4,8 @@ import { rangesOverlap, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { resolveBarColor } from "@capacitylens/shared/lib/color";
 import { resolveTimeOffTypeLabel } from "@/lib/metadata";
-import {
-  isExternalResource,
-  type Allocation,
-  type ID,
-  type ISODate,
-  type Resource,
-  type TimeOff,
-} from "@capacitylens/shared/types/entities";
+import { isExternalResource } from "@capacitylens/shared/types/entities";
+import type { Allocation, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { isCreationStartBlockedForEffectiveWeek } from "./creationAvailability";
 import { hasRenderableDateRange, reportInvalidScheduleDateRangeOnce } from "./schedulerModelIndexing";
 import type { createAllocationFilters } from "./schedulerModelFilters";

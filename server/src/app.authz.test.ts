@@ -1,12 +1,15 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, getRow, type Db } from "./db";
+import { openDb, insertAll, getRow } from "./db";
+import type { Db } from "./db";
 import { upsertMember } from "./controlTables";
 import { call, signUp } from "./testHelpers/passwordAuth";
 import { appWithAuth } from "./fixtures/appWithAuth";
-import { can, type Role } from "@capacitylens/shared/domain/access";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { can } from "@capacitylens/shared/domain/access";
+import type { Role } from "@capacitylens/shared/domain/access";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 

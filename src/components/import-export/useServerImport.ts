@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { API_BASE } from "@/data/apiConfig";
-import {
-  flushPendingWrites,
-  refreshActiveAccountSlice,
-  suspendServerWrites,
-  type RefreshOutcome,
-} from "@/data/persist";
+import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from "@/data/persist";
+import type { RefreshOutcome } from "@/data/persist";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { readApiError } from "@/lib/readApiError";

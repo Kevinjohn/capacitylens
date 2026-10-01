@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ActorContext } from "@capacitylens/shared/account/types";
 import { getInvite, upsertMember } from "../controlTables";
-import { openDb, insertRow, type Db } from "../db";
+import { openDb, insertRow } from "../db";
+import type { Db } from "../db";
 import { KeyedOperationLock } from "./KeyedOperationLock";
 import { createSqliteAccountAdminPort } from "./sqliteAccountAdminPort";
 

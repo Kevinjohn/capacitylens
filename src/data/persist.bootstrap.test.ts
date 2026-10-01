@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { bootstrap } from "./persist";
 import { InMemoryDemoAdapter } from "./InMemoryDemoAdapter";
-import { LoadError, type PersistenceAdapter } from "./PersistenceAdapter";
+import { LoadError } from "./PersistenceAdapter";
+import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";

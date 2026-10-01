@@ -1,4 +1,5 @@
-import { isAccountFlowOperation, type AccountFlowOperation } from "@capacitylens/shared/account/ports";
+import { isAccountFlowOperation } from "@capacitylens/shared/account/ports";
+import type { AccountFlowOperation } from "@capacitylens/shared/account/ports";
 import type { CommandIdentity } from "@capacitylens/shared/account/types";
 import { isAccountCommandId, isAccountIdempotencyKey } from "@capacitylens/shared/account/validation";
 import type { FastifyReply, FastifyRequest } from "fastify";

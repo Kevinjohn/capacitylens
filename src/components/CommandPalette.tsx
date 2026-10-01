@@ -14,7 +14,8 @@ import { m } from "@/i18n";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "./ui/command";
 import { cn } from "@/lib/cn";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
-import { buildPaletteItems, type PaletteItem } from "./buildPaletteItems";
+import { buildPaletteItems } from "./buildPaletteItems";
+import type { PaletteItem } from "./buildPaletteItems";
 import { useDiagnosticsAccessDecision } from "./diagnostics/useDiagnosticsAccessDecision";
 
 function groupPaletteItems(items: PaletteItem[]) {

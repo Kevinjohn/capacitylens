@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import type userEvent from "@testing-library/user-event";
 import { expect, vi } from "vitest";
-import { AuthContext, type AuthContextValue } from "@/auth/authContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 import { DEFAULT_ACCOUNT_ID, jsonResponse } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";

@@ -1,11 +1,15 @@
-import { useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { m } from "@/i18n";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
-import { MAX_HOURS_PER_DAY, type Allocation, type ID, type Weekday } from "@capacitylens/shared/types/entities";
-import { useDragResize, type DragResizePreviewInput, type Pointer } from "@/hooks/useDragResize";
+import { MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
+import type { Allocation, ID, Weekday } from "@capacitylens/shared/types/entities";
+import { useDragResize } from "@/hooks/useDragResize";
+import type { DragResizePreviewInput, Pointer } from "@/hooks/useDragResize";
 import { resolveErrorMessage } from "@/lib/errorMessage";
-import { applyGesture, type DateRange, type DragMode } from "@/lib/gestureMath";
+import { applyGesture } from "@/lib/gestureMath";
+import type { DateRange, DragMode } from "@/lib/gestureMath";
 import { buildUndoShortcut } from "@/lib/keyboardShortcuts";
 import { buildVisibleRange, listAccountWorkingDays } from "@/store/selectors";
 import { useStore } from "@/store/useStore";
@@ -19,9 +23,11 @@ import {
   readWorkingDays,
   resolveMemoisedWorkingDays,
 } from "./gestureWorkingWeeks";
-import { readLaneSnapshots, resolveLaneAt, type LaneSnapshot } from "./gestureLanes";
+import { readLaneSnapshots, resolveLaneAt } from "./gestureLanes";
+import type { LaneSnapshot } from "./gestureLanes";
 import type { BarLayout } from "./schedulerModel";
-import { useAllocationFocus, type ScheduleAllocationFocus } from "./useAllocationFocus";
+import { useAllocationFocus } from "./useAllocationFocus";
+import type { ScheduleAllocationFocus } from "./useAllocationFocus";
 
 interface GesturePreview {
   mode: DragMode;

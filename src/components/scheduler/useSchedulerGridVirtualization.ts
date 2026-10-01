@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
-import { useStore, type SchedulerUI } from "@/store/useStore";
+import { useStore } from "@/store/useStore";
+import type { SchedulerUI } from "@/store/useStore";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { GroupModel, RowModel } from "./schedulerModel";
 import type { buildSchedulerDensity } from "./layout";

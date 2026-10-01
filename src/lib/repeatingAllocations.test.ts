@@ -8,8 +8,8 @@ import {
   buildRepeatedAllocationDrafts,
   buildRepeatingAllocationAdvisory as repeatingAllocationAdvisoryWithWeek,
   resolveRepeatPattern,
-  type RepeatProjectionContext,
 } from "./repeatingAllocations";
+import type { RepeatProjectionContext } from "./repeatingAllocations";
 
 interface RepeatContextTestInput {
   schedulingMode: RepeatProjectionContext["schedulingMode"];

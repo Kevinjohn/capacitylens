@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { isExternalResource, type Resource } from "@capacitylens/shared/types/entities";
+import { isExternalResource } from "@capacitylens/shared/types/entities";
+import type { Resource } from "@capacitylens/shared/types/entities";
 import { useStore } from "@/store/useStore";
 import {
   hasDisciplinesEnabled,

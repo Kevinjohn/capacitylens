@@ -16,8 +16,8 @@ import {
   rawMember,
   renderSection,
   saveRoleVia,
-  type RawMember,
 } from "./MembersSection.testSupport";
+import type { RawMember } from "./MembersSection.testSupport";
 
 interface InviteFailureCaseInput {
   status: number;

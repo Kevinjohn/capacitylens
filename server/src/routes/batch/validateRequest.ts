@@ -9,7 +9,8 @@ import {
   buildUnknownOpMethodMessage,
   REPLY_ERRORS,
 } from "../replyErrors";
-import { isKnownTable, isLifecycleEntity, isScopedTable, type ParseResult } from "../routeShared";
+import { isKnownTable, isLifecycleEntity, isScopedTable } from "../routeShared";
+import type { ParseResult } from "../routeShared";
 
 import { MAX_BATCH_OPS } from "./types";
 import type { BatchOp, ParsedBatchRequest } from "./types";

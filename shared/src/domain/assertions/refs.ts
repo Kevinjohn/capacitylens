@@ -4,13 +4,8 @@ import type { Activity, Allocation, AppData, ID, Resource, ScopedEntity, ScopedE
 import { belongsToAccount } from "../tenancy";
 import { throwDomainError } from "../errors";
 import { parseResourceAvatarUrl } from "../resourceAvatarUrl";
-import {
-  resolveValidationRow,
-  resolveOwnedRow,
-  assertValid,
-  isEffectivelyActive,
-  type ValidationDataLookup,
-} from "../validationLookup";
+import { resolveValidationRow, resolveOwnedRow, assertValid, isEffectivelyActive } from "../validationLookup";
+import type { ValidationDataLookup } from "../validationLookup";
 
 const RESOURCE_KINDS: ReadonlySet<unknown> = new Set(["person", "placeholder", "external"]);
 

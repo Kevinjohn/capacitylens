@@ -1,4 +1,5 @@
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState } from "react";
+import type { FormEvent } from "react";
 import type { AuthProviderInfo } from "@/auth/authContext";
 import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";

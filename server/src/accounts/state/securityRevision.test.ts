@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { openDb, type Db } from "../../db";
+import { openDb } from "../../db";
+import type { Db } from "../../db";
 import { bumpSecurityRevision, readSecurityRevision, removeSecurityRevision } from "../state";
 
 describe("account security revisions", () => {

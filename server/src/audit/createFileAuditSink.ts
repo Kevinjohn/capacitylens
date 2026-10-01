@@ -1,13 +1,8 @@
 import { chmodSync, closeSync, existsSync, fsyncSync, openSync, renameSync, writeFileSync } from "node:fs";
-import { createAuditRecovery, type AuditRecoveryState } from "./createAuditRecovery";
-import {
-  AUDIT_RECOVERY_SCAN_BYTES,
-  DEFAULT_MAX_BYTES,
-  MAX_AUDIT_BYTES,
-  type AuditEntry,
-  type AuditSink,
-  type FileAuditSinkOptions,
-} from "./types";
+import { createAuditRecovery } from "./createAuditRecovery";
+import type { AuditRecoveryState } from "./createAuditRecovery";
+import { AUDIT_RECOVERY_SCAN_BYTES, DEFAULT_MAX_BYTES, MAX_AUDIT_BYTES } from "./types";
+import type { AuditEntry, AuditSink, FileAuditSinkOptions } from "./types";
 
 interface AppendContext {
   file: string;

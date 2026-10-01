@@ -1,4 +1,5 @@
-import { repairSsoCutover, type CutoverRepairOperation } from "../src/cutoverRepair";
+import { repairSsoCutover } from "../src/cutoverRepair";
+import type { CutoverRepairOperation } from "../src/cutoverRepair";
 
 const args = process.argv.slice(2).filter((arg, index) => !(index === 0 && arg === "--"));
 const [databasePath, operationName, ...operationArgs] = args;

@@ -1,4 +1,4 @@
-import { type DomainErrorCode } from "@capacitylens/shared/domain/errors";
+import type { DomainErrorCode } from "@capacitylens/shared/domain/errors";
 
 /**
  * Thrown when POST /api/batch answers **409**, the server's optimistic-concurrency conflict

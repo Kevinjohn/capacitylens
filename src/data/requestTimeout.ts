@@ -1,4 +1,5 @@
-import { MASQUERADE_ERROR_CODES, type MasqueradeErrorCode } from "@capacitylens/shared/domain/masquerade";
+import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
+import type { MasqueradeErrorCode } from "@capacitylens/shared/domain/masquerade";
 import { noteAuditWarning } from "@/lib/auditWarning";
 import { readApiErrorCode } from "@/lib/readApiError";
 

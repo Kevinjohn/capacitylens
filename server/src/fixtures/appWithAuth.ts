@@ -1,7 +1,10 @@
 import type { FastifyInstance } from "fastify";
-import { createApp, type AppOptions } from "../app";
-import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "../auth";
-import { openDb, type Db } from "../db";
+import { createApp } from "../app";
+import type { AppOptions } from "../app";
+import { createAuthFromEnvironment, runAuthMigrations } from "../auth";
+import type { Auth } from "../auth";
+import { openDb } from "../db";
+import type { Db } from "../db";
 import { PASSWORD_ENV } from "../testHelpers/passwordAuth";
 import type { registerServerFixtureCleanup } from "../testHelpers/registerServerFixtureCleanup";
 

@@ -2,12 +2,8 @@ import type { Allocation, AppData, AppDataKey, ID, ScopedEntity, Weekday } from 
 import type { ValidationResult } from "../lib/integrity";
 import { belongsToAccount } from "./tenancy";
 import { throwDomainError } from "./errors";
-import {
-  inspectLifecycleAncestry,
-  lifecycleStatus,
-  type LifecycleAncestryRow,
-  type LifecycleFields,
-} from "./lifecycle";
+import { inspectLifecycleAncestry, lifecycleStatus } from "./lifecycle";
+import type { LifecycleAncestryRow, LifecycleFields } from "./lifecycle";
 
 interface ValidationRowOptions {
   data: AppData;

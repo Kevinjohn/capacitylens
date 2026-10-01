@@ -1,11 +1,14 @@
 import type { Db } from "../db";
-import { type AppData, emptyAppData } from "@capacitylens/shared/types/entities";
-import { type Row, fromRow } from "../rowCodec";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
+import { fromRow } from "../rowCodec";
+import type { Row } from "../rowCodec";
 import { createStatementCache, createCachedTableStatement } from "./statementCache";
 import { CREATE_ORDER, SCOPED_ORDER } from "../tables";
 import { resolveTable, tableExists } from "./introspection";
 import { tx } from "../txn";
-import { type SanitizeWriteOptions, hasGatedFields, redactGatedEcho } from "../fieldPolicy";
+import { hasGatedFields, redactGatedEcho } from "../fieldPolicy";
+import type { SanitizeWriteOptions } from "../fieldPolicy";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 /** Assemble the whole AppData tree from the tables. */
 export function readState(db: Db): AppData {

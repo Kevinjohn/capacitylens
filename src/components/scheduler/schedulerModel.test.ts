@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildSchedulerModel, applyVisibleUtilization, type GroupModel } from "./schedulerModel";
+import { buildSchedulerModel, applyVisibleUtilization } from "./schedulerModel";
+import type { GroupModel } from "./schedulerModel";
 import { buildColumnGeometry } from "./columnGeometry";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { buildEmptyFilters } from "@/store/useStore";

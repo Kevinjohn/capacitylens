@@ -1,5 +1,6 @@
 import { isWithin, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { effectiveWeekIncludes, type EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import { effectiveWeekIncludes } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import {
   FULL_DAY_HOURS,
   HALF_DAY_HOURS,

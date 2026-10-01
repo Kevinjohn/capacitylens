@@ -2,7 +2,8 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { InjectOptions, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { getRow, insertRow, openDb } from "./db";
-import { emptyAppData, type AppData, type Discipline, type Resource } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData, Discipline, Resource } from "@capacitylens/shared/types/entities";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 
 interface SyncAdapter {

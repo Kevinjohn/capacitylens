@@ -1,4 +1,5 @@
-import { MAX_RECOVERY_DELIVERY_IDS, type AuditSink } from "./types";
+import { MAX_RECOVERY_DELIVERY_IDS } from "./types";
+import type { AuditSink } from "./types";
 /**
  * The no-op sink: every `append` succeeds (returns true) and `degraded` is always false. This is
  * the factory default (buildApp) so the default local/no-server deploy and the whole test suite are

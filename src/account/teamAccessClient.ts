@@ -4,7 +4,8 @@ import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomai
 import type { Role } from "@capacitylens/shared/domain/access";
 import { accountClient } from "./accountClient";
 import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
-import { isNullableString, isTimestamp, readCommandResult, readResult, type TeamAccessResult } from "./accessResult";
+import { isNullableString, isTimestamp, readCommandResult, readResult } from "./accessResult";
+import type { TeamAccessResult } from "./accessResult";
 import { ownershipTransferAccess } from "./ownershipTransferAccess";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 import type { TeamMember, TeamDirectory, TeamInvitation, OneTimeToken } from "./teamAccessTypes";

@@ -1,4 +1,5 @@
-import { expect, request as playwrightRequest, type APIRequestContext } from "@playwright/test";
+import { expect, request as playwrightRequest } from "@playwright/test";
+import type { APIRequestContext } from "@playwright/test";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { ports } from "../scripts/ports.mjs";

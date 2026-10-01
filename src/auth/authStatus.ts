@@ -1,10 +1,5 @@
-import {
-  isSupportedSocialProviderId,
-  type AccountMode,
-  type AuthProviderBrand,
-  type AuthProviderInfo,
-  type AuthUser,
-} from "./authContext";
+import { isSupportedSocialProviderId } from "./authContext";
+import type { AccountMode, AuthProviderBrand, AuthProviderInfo, AuthUser } from "./authContext";
 import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
 
 export type AuthStatusResult =

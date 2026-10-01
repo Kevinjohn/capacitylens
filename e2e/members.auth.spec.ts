@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext, type Page } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { APIRequestContext, Page } from "./fixtures";
 import type { BrowserContext } from "@playwright/test";
 import {
   AUTH_API as API,

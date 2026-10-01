@@ -5,9 +5,12 @@ import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
 import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
 import { resetPersistenceDiagnostics } from "@/data/persistenceDiagnostics";
 import { persistenceCoordinator } from "./coordinator";
-import { createAttachmentState, type AttachmentState } from "./attachmentState";
-import { createWriteQueue, type WriteQueue } from "./writeQueue";
-import { createRefreshController, type RefreshController } from "./refreshController";
+import { createAttachmentState } from "./attachmentState";
+import type { AttachmentState } from "./attachmentState";
+import { createWriteQueue } from "./writeQueue";
+import type { WriteQueue } from "./writeQueue";
+import { createRefreshController } from "./refreshController";
+import type { RefreshController } from "./refreshController";
 import { attachAccountSwitch } from "./accountSwitch";
 import { attachDomListeners } from "./domListeners";
 

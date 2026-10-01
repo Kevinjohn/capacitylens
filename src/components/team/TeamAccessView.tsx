@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { can, canSeePrivateNames, canSeeTimeOffNote, type Role } from "@capacitylens/shared/domain/access";
+import { can, canSeePrivateNames, canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
+import type { Role } from "@capacitylens/shared/domain/access";
 import { usePermissionStatus, useRole } from "@/auth/permissionContext";
 import { useAuth } from "@/auth/authContext";
 import { resolveAccessLabel, resolveAccessSummary } from "@/lib/accessCopy";

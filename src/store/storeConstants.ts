@@ -5,7 +5,8 @@ import {
   deleteResourceCascade,
 } from "@capacitylens/shared/lib/integrity";
 import type { AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
-import { buildEmptyFilters, type LifecycleEntity, type SchedulerUI } from "./types";
+import { buildEmptyFilters } from "./types";
+import type { LifecycleEntity, SchedulerUI } from "./types";
 import { readNextDataRevision } from "./revisions";
 
 /** How each tombstone table is physically removed at the end of the lifecycle (purgeEntity): the
