@@ -13,12 +13,13 @@ import {
   replaceGeneratedBuiltin,
   stampServerRevision,
 } from "../../writePipeline";
-import { ACCOUNT_FROZEN_FIELDS_MESSAGE, hasFrozenAccountFieldChanges } from "../accountEntityRoutes";
+import { hasFrozenAccountFieldChanges } from "../accountEntityRoutes";
 import { isLifecycleEntity, isScopedTable, isStaleWrite, ownsRow, writeActivityRow } from "../routeShared";
 
 import { isMatchingMintedInternalClient } from "./appData";
 import { StaleWriteError } from "./errors";
 import { type ApplyBatchOperationParameters, type BatchPutOp, type BatchDeleteOp, type BatchArchiveOp } from "./types";
+import { FROZEN_REPLY_MESSAGES, REPLY_ERRORS } from "../replyErrors";
 
 type OperationParameters = Omit<ApplyBatchOperationParameters, "opIndex" | "op"> &
   Pick<ApplyBatchOperationParameters, "opIndex">;
@@ -38,7 +39,7 @@ function recordMintedInternalClient(
   const { mintedInternalIds, revisions, auditRecords, opIndex } = parameters;
   if (table !== "clients" || existing?.builtin !== true || !mintedInternalIds.has(id)) return false;
   if (!isMatchingMintedInternalClient(existing, row)) {
-    throw new ValidationError("The same-batch built-in Internal client must match the generated server row.");
+    throw new ValidationError(REPLY_ERRORS.batchInternalClientMismatch);
   }
   revisions.push({
     table,
@@ -107,7 +108,7 @@ function persistPut(
 function readPutRow(op: BatchPutOp): Record<string, unknown> {
   const row = op.row;
   if (row.id !== op.id) {
-    throw new ValidationError("Each PUT op needs a row whose id matches the op id.");
+    throw new ValidationError(REPLY_ERRORS.batchPutRowIdMismatch);
   }
   return row;
 }
@@ -118,7 +119,7 @@ function sanitizePut(parameters: OperationParameters, state: PutRowState): Recor
   const builtinRejection = resolveBuiltinWriteRejection({ verb: "replace", entity: table, existing, incoming: row });
   if (builtinRejection) throw new ValidationError(builtinRejection.error);
   if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
-    throw new AccountContractError({ code: "NOT_FOUND", message: "Not found", retryable: false });
+    throw new AccountContractError({ code: "NOT_FOUND", message: FROZEN_REPLY_MESSAGES.notFound, retryable: false });
   }
   const sanitizedRow = sanitizeWrite({
     table,
@@ -127,7 +128,7 @@ function sanitizePut(parameters: OperationParameters, state: PutRowState): Recor
     options: fieldVisFor(table, table === "accounts" ? id : (row as { accountId?: unknown }).accountId),
   });
   if (table === "accounts" && hasFrozenAccountFieldChanges(existing, sanitizedRow)) {
-    throw new AccountContractError({ code: "CONFLICT", message: ACCOUNT_FROZEN_FIELDS_MESSAGE, retryable: false });
+    throw new AccountContractError({ code: "CONFLICT", message: REPLY_ERRORS.accountFrozenFields, retryable: false });
   }
   return sanitizedRow;
 }
@@ -200,17 +201,17 @@ function recordExistingArchive(
 function applyArchive(parameters: OperationParameters, op: BatchArchiveOp): void {
   const { db, store, projection, lifecycleArchives } = parameters;
   const { table, id } = op;
-  if (!isLifecycleEntity(table)) throw new ValidationError("ARCHIVE is supported only for lifecycle entities.");
+  if (!isLifecycleEntity(table)) throw new ValidationError(REPLY_ERRORS.batchArchiveNotLifecycle);
   const existing = getRow(db, table, id) ?? undefined;
   if (!ownsRow(existing, op.accountId)) {
-    throw new AccountContractError({ code: "NOT_FOUND", message: "Not found", retryable: false });
+    throw new AccountContractError({ code: "NOT_FOUND", message: FROZEN_REPLY_MESSAGES.notFound, retryable: false });
   }
   if (!existing) {
     lifecycleArchives.push({ table, id, archived: false });
     return;
   }
   if (table === "clients" && isBuiltinClient(existing)) {
-    throw new ValidationError("The built-in Internal client cannot be archived.");
+    throw new ValidationError(REPLY_ERRORS.batchArchiveInternalClient);
   }
   rejectStaleArchive(parameters, op, existing);
   if (recordExistingArchive(parameters, { table, id, existing })) return;
@@ -224,15 +225,15 @@ function applyArchive(parameters: OperationParameters, op: BatchArchiveOp): void
 function applyDelete(parameters: OperationParameters, op: BatchDeleteOp): void {
   const { db, projection, syncOrder, redactWriteEcho, fieldVisFor } = parameters;
   const { table, id } = op;
-  if (table === "accounts") throw new ValidationError("Use the dedicated company deletion endpoint.");
+  if (table === "accounts") throw new ValidationError(REPLY_ERRORS.batchDeleteAccount);
   const existing = getRow(db, table, id) ?? undefined;
   // Scoped deletes assert ownership before stale-write evaluation, matching the direct route.
   if (isScopedTable(table)) {
     if (typeof op.accountId !== "string") {
-      throw new ValidationError("accountId is required to delete a scoped record.");
+      throw new ValidationError(REPLY_ERRORS.accountIdRequiredForScopedDelete);
     }
     if (!ownsRow(existing, op.accountId)) {
-      throw new AccountContractError({ code: "NOT_FOUND", message: "Not found", retryable: false });
+      throw new AccountContractError({ code: "NOT_FOUND", message: FROZEN_REPLY_MESSAGES.notFound, retryable: false });
     }
   }
   if (syncOrder) {

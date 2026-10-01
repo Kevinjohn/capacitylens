@@ -20,6 +20,7 @@
     "./account/ssoCutover": "./src/account/ssoCutover.ts",
     "./account/types": "./src/account/types.ts",
     "./account/validation": "./src/account/validation.ts",
+    "./api/replyMessages": "./src/api/replyMessages.ts",
     "./brand": "./src/brand.ts",
     "./data/exampleCompany": "./src/data/exampleCompany.ts",
     "./data/fixtures": "./src/data/fixtures.ts",

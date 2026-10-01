@@ -1,4 +1,4 @@
-import type { AuthorizeBasicInput } from "./routeShared";
+import type { AuthorizeBasicInput, ParseResult } from "./routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Action } from "@capacitylens/shared/domain/access";
 import {
@@ -16,6 +16,13 @@ import type { LifecycleRow, TenantStore } from "../tenantStore";
 import { createServerRevision } from "../revision";
 import type { Resource } from "@capacitylens/shared/types/entities";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
+import type { WriteRejection } from "../writePipeline";
+import {
+  buildProtectedClientMessage,
+  buildUnknownEntityMessage,
+  FROZEN_REPLY_MESSAGES,
+  REPLY_ERRORS,
+} from "./replyErrors";
 
 export interface LifecycleRedactionInput {
   req: FastifyRequest;
@@ -96,19 +103,21 @@ interface LifecycleRequestInput {
   accountId: string;
 }
 
-function readLifecycleRequest(req: FastifyRequest, reply: FastifyReply): LifecycleRequestInput | null {
-  if (!isRecord(req.params) || typeof req.params.entity !== "string" || typeof req.params.id !== "string") {
-    throw new Error("Expected lifecycle route parameters.");
-  }
-  if (!isLifecycleEntityKey(req.params.entity)) {
-    reply.code(404).send({ error: `Unknown entity: ${req.params.entity}` });
-    return null;
+interface LifecycleRoute {
+  Params: { entity: string; id: string };
+}
+
+function parseLifecycleRequest(
+  req: FastifyRequest<LifecycleRoute>,
+): ParseResult<LifecycleRequestInput, WriteRejection> {
+  const { entity, id } = req.params;
+  if (!isLifecycleEntityKey(entity)) {
+    return { kind: "invalid", failure: { status: 404, error: buildUnknownEntityMessage(entity) } };
   }
   if (!isRecord(req.body) || typeof req.body.accountId !== "string" || req.body.accountId.length === 0) {
-    reply.code(400).send({ error: "accountId is required." });
-    return null;
+    return { kind: "invalid", failure: { status: 400, error: REPLY_ERRORS.accountIdRequired } };
   }
-  return { entity: req.params.entity, id: req.params.id, accountId: req.body.accountId };
+  return { kind: "parsed", value: { entity, id, accountId: req.body.accountId } };
 }
 
 function assertUserId(req: FastifyRequest): string {
@@ -132,7 +141,7 @@ function applyDeletedRowObfuscation(entity: LifecycleEntityKey, row: LifecycleRo
 
 interface ApplyTransitionMutationInput {
   dependencies: LifecycleRouteDependencies;
-  req: FastifyRequest;
+  req: FastifyRequest<LifecycleRoute>;
   reply: FastifyReply;
   request: LifecycleRequestInput;
   spec: TransitionSpec;
@@ -158,13 +167,9 @@ function applyTransitionMutation({
   let response: Record<string, unknown> | undefined;
   dependencies.commit(reply, auditRecord, () => {
     const row = dependencies.store.readLifecycleRow(accountId, entity, id);
-    if (!row) throw new LifecycleResponseError(404, "Not found");
+    if (!row) throw new LifecycleResponseError(404, FROZEN_REPLY_MESSAGES.notFound);
     if (entity === "clients" && isBuiltinLifecycleRow(row)) {
-      throw new LifecycleResponseError(
-        409,
-        `The built-in Internal client cannot be ${spec.protectedVerb}.`,
-        "protected_entity",
-      );
+      throw new LifecycleResponseError(409, buildProtectedClientMessage(spec.protectedVerb), "protected_entity");
     }
 
     const result = spec.apply({ row, entity, accountId, id });
@@ -188,7 +193,7 @@ function applyTransitionMutation({
 
 interface SendTransitionResponseInput {
   dependencies: LifecycleRouteDependencies;
-  req: FastifyRequest;
+  req: FastifyRequest<LifecycleRoute>;
   reply: FastifyReply;
   spec: TransitionSpec;
 }
@@ -199,8 +204,9 @@ function sendTransitionResponse({
   reply,
   spec,
 }: SendTransitionResponseInput): FastifyReply | undefined {
-  const request = readLifecycleRequest(req, reply);
-  if (!request) return reply;
+  const parsed = parseLifecycleRequest(req);
+  if (parsed.kind === "invalid") return reply.code(parsed.failure.status).send({ error: parsed.failure.error });
+  const request = parsed.value;
   if (!dependencies.authorize({ req, reply, accountId: request.accountId, action: spec.permission })) return;
 
   try {
@@ -219,7 +225,9 @@ function registerTransition(
   dependencies: LifecycleRouteDependencies,
   spec: TransitionSpec,
 ): void {
-  app.post(`/api/:entity/:id/${spec.path}`, (req, reply) => sendTransitionResponse({ dependencies, req, reply, spec }));
+  app.post<LifecycleRoute>(`/api/:entity/:id/${spec.path}`, (req, reply) =>
+    sendTransitionResponse({ dependencies, req, reply, spec }),
+  );
 }
 
 /** Dedicated plugin-style registration for all tombstone lifecycle routes. */
@@ -274,11 +282,11 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     successStatus: 204,
     apply: ({ row, entity, accountId, id }: LifecycleTransitionInput) => {
       if (!canPurge(row, new Date().toISOString())) {
-        throw new LifecycleResponseError(409, "Cannot purge: must be a soft-deleted tombstone at least 30 days old.");
+        throw new LifecycleResponseError(409, REPLY_ERRORS.purgeTooRecent);
       }
       const purged = dependencies.store.purgeLifecycleRow(accountId, entity, id);
       if (!purged) {
-        throw new LifecycleResponseError(404, "Not found");
+        throw new LifecycleResponseError(404, FROZEN_REPLY_MESSAGES.notFound);
       }
       return { kind: "purge", cascadeCounts: purged.removedCounts };
     },

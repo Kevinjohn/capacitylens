@@ -4,6 +4,9 @@ import type {
 } from "@capacitylens/shared/account/ownershipTransfer";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { REPLY_ERRORS } from "../../../routes/replyErrors";
+import type { ParseResult } from "../../../routes/routeShared";
+import type { AccountRoute, OwnershipTransferRequestRoute } from "../accountRouteDependencies";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAuthenticatedPrincipal } from "./authenticatedPrincipal";
 
@@ -42,7 +45,7 @@ function toWire(request: OwnershipTransferRequest) {
  */
 function sendTerminal(reply: FastifyReply, outcome: Extract<OwnershipTransferOutcome, { kind: "terminal" }>) {
   return reply.code(409).send({
-    error: "This ownership transfer is no longer open.",
+    error: REPLY_ERRORS.ownershipTransferClosed,
     code: "OWNERSHIP_TRANSFER_TERMINAL",
     state: outcome.state,
     reason: outcome.reason,
@@ -50,42 +53,42 @@ function sendTerminal(reply: FastifyReply, outcome: Extract<OwnershipTransferOut
 }
 
 /**
- * Refuse the ceremony read while masquerading.
+ * Send the refusal for a ceremony read while masquerading; null when the read may proceed.
  *
  * The global masquerade policy already refuses every unsafe method, which covers the six commands.
  * It deliberately does not cover GET — so this read, which names who is being handed the company,
  * refuses here. Concealment, not redaction: a masquerading session is not the participant whose
  * ceremony this is.
  */
-function refuseUnderMasquerade(
+function sendMasqueradeRefusal(
   req: FastifyRequest,
   reply: FastifyReply,
   context: Pick<AccountRouteContext, "isMasquerading">,
-): boolean {
-  if (!context.isMasquerading(req)) return false;
-  void reply.code(403).send({ error: "Masquerade is read-only.", code: MASQUERADE_ERROR_CODES.readOnly });
-  return true;
+): FastifyReply | null {
+  if (!context.isMasquerading(req)) return null;
+  return reply.code(403).send({ error: REPLY_ERRORS.masqueradeReadOnly, code: MASQUERADE_ERROR_CODES.readOnly });
 }
 
 export async function readOwnershipTransfer(
-  req: FastifyRequest,
+  req: FastifyRequest<AccountRoute>,
   reply: FastifyReply,
   context: Pick<AccountRouteContext, "administration" | "authMode" | "authorize" | "fail" | "isMasquerading">,
 ) {
   const { administration, authMode, authorize, fail: accountFail } = context;
-  const { accountId } = req.params as { accountId: string };
+  const { accountId } = req.params;
   if (!authorize({ req, reply, accountId, action: "actOnOwnershipTransfer", options: { requireFreshSession: false } }))
     return;
   // OFF mode has no owner model at all, so an honest empty projection beats a crash or a claim.
-  if (authMode === "off") return { live: null, latestOutcome: null };
-  if (refuseUnderMasquerade(req, reply, context)) return;
+  if (authMode === "off") return reply.code(200).send({ live: null, latestOutcome: null });
+  const masqueradeRefusal = sendMasqueradeRefusal(req, reply, context);
+  if (masqueradeRefusal) return masqueradeRefusal;
   try {
     const { actor } = requireAuthenticatedPrincipal(req);
     const projection = await administration.readOwnershipTransfer({ actor, workspaceId: accountId });
-    return {
+    return reply.code(200).send({
       live: projection.live ? toWire(projection.live) : null,
       latestOutcome: projection.latestOutcome ? toWire(projection.latestOutcome) : null,
-    };
+    });
   } catch (error) {
     return accountFail(reply, error);
   }
@@ -97,18 +100,40 @@ interface ReplacementPredicate {
 }
 
 /**
- * Read the replacement predicate from an initiation body.
+ * Parse an initiation body: the nominee, then the replacement predicate.
  *
- * Both absent means "there must be no live request"; both present means "replace exactly this one,
- * at exactly this revision". One without the other is a malformed intent, not a lenient default:
- * accepting it would let a client replace whatever happened to be live.
+ * Both predicate fields absent means "there must be no live request"; both present means "replace
+ * exactly this one, at exactly this revision". One without the other is a malformed intent, not a
+ * lenient default: accepting it would let a client replace whatever happened to be live.
  */
-function readReplacementPredicate(body: Record<string, unknown>): ReplacementPredicate | null {
+function parseInitiation(value: unknown): ParseResult<{ toUserId: string; predicate: ReplacementPredicate }, string> {
+  const body = (value ?? {}) as Record<string, unknown>;
+  if (typeof body.toUserId !== "string" || body.toUserId.length === 0) {
+    return { kind: "invalid", failure: REPLY_ERRORS.ownershipTransferTargetRequired };
+  }
   const id = body.expectedRequestId;
   const revision = body.expectedRevision;
-  if (id === undefined && revision === undefined) return { expectedRequestId: null, expectedRevision: null };
-  if (typeof id !== "string" || id.length === 0 || typeof revision !== "string" || revision.length === 0) return null;
-  return { expectedRequestId: id, expectedRevision: revision };
+  if (id === undefined && revision === undefined) {
+    return {
+      kind: "parsed",
+      value: { toUserId: body.toUserId, predicate: { expectedRequestId: null, expectedRevision: null } },
+    };
+  }
+  if (typeof id !== "string" || id.length === 0 || typeof revision !== "string" || revision.length === 0) {
+    return { kind: "invalid", failure: REPLY_ERRORS.ownershipTransferReplacementInvalid };
+  }
+  return {
+    kind: "parsed",
+    value: { toUserId: body.toUserId, predicate: { expectedRequestId: id, expectedRevision: revision } },
+  };
+}
+
+function parseExpectedRevision(value: unknown): ParseResult<string, string> {
+  const body = (value ?? {}) as Record<string, unknown>;
+  if (typeof body.expectedRevision !== "string" || body.expectedRevision.length === 0) {
+    return { kind: "invalid", failure: REPLY_ERRORS.ownershipTransferRevisionRequired };
+  }
+  return { kind: "parsed", value: body.expectedRevision };
 }
 
 type InitiateOwnershipTransferContext = Pick<
@@ -117,23 +142,15 @@ type InitiateOwnershipTransferContext = Pick<
 >;
 
 export async function initiateOwnershipTransfer(
-  req: FastifyRequest,
+  req: FastifyRequest<AccountRoute>,
   reply: FastifyReply,
   context: InitiateOwnershipTransferContext,
 ) {
   const { administration, command: accountCommand, fail: accountFail, auditUnlessReplayed } = context;
-  const { accountId } = req.params as { accountId: string };
-  const body = (req.body ?? {}) as Record<string, unknown>;
-  if (typeof body.toUserId !== "string" || body.toUserId.length === 0) {
-    return reply.code(400).send({ error: "toUserId must be a non-empty string." });
-  }
-  const predicate = readReplacementPredicate(body);
-  if (!predicate) {
-    return reply
-      .code(400)
-      .send({ error: "expectedRequestId and expectedRevision must be supplied together as non-empty strings." });
-  }
-  const toUserId = body.toUserId;
+  const { accountId } = req.params;
+  const parsed = parseInitiation(req.body);
+  if (parsed.kind === "invalid") return reply.code(400).send({ error: parsed.failure });
+  const { toUserId, predicate } = parsed.value;
   if (!context.authorizeMemberMutation({ req, reply, accountId, action: "actOnOwnershipTransfer" })) return;
   try {
     const { actor, user } = requireAuthenticatedPrincipal(req);
@@ -167,7 +184,7 @@ export async function initiateOwnershipTransfer(
 type RowCommand = "accept" | "withdraw" | "decline" | "cancel" | "complete";
 
 interface RowCommandInput {
-  req: FastifyRequest;
+  req: FastifyRequest<OwnershipTransferRequestRoute>;
   reply: FastifyReply;
   context: Pick<
     AccountRouteContext,
@@ -202,12 +219,10 @@ function commandFor(context: Pick<AccountRouteContext, "administration">, action
  */
 async function runRowCommand({ req, reply, context, action }: RowCommandInput) {
   const { command: accountCommand, fail: accountFail, auditUnlessReplayed } = context;
-  const { accountId, requestId } = req.params as { accountId: string; requestId: string };
-  const body = (req.body ?? {}) as Record<string, unknown>;
-  if (typeof body.expectedRevision !== "string" || body.expectedRevision.length === 0) {
-    return reply.code(400).send({ error: "expectedRevision must be a non-empty string." });
-  }
-  const expectedRevision = body.expectedRevision;
+  const { accountId, requestId } = req.params;
+  const parsed = parseExpectedRevision(req.body);
+  if (parsed.kind === "invalid") return reply.code(400).send({ error: parsed.failure });
+  const expectedRevision = parsed.value;
   if (!context.authorizeMemberMutation({ req, reply, accountId, action: "actOnOwnershipTransfer" })) return;
   try {
     const { actor, user } = requireAuthenticatedPrincipal(req);
@@ -242,7 +257,7 @@ async function runRowCommand({ req, reply, context, action }: RowCommandInput) {
 }
 
 export const acceptOwnershipTransfer = (
-  req: FastifyRequest,
+  req: FastifyRequest<OwnershipTransferRequestRoute>,
   reply: FastifyReply,
   context: Pick<
     AccountRouteContext,
@@ -251,7 +266,7 @@ export const acceptOwnershipTransfer = (
 ) => runRowCommand({ req, reply, context, action: "accept" });
 
 export const withdrawOwnershipTransfer = (
-  req: FastifyRequest,
+  req: FastifyRequest<OwnershipTransferRequestRoute>,
   reply: FastifyReply,
   context: Pick<
     AccountRouteContext,
@@ -260,7 +275,7 @@ export const withdrawOwnershipTransfer = (
 ) => runRowCommand({ req, reply, context, action: "withdraw" });
 
 export const declineOwnershipTransfer = (
-  req: FastifyRequest,
+  req: FastifyRequest<OwnershipTransferRequestRoute>,
   reply: FastifyReply,
   context: Pick<
     AccountRouteContext,
@@ -269,7 +284,7 @@ export const declineOwnershipTransfer = (
 ) => runRowCommand({ req, reply, context, action: "decline" });
 
 export const cancelOwnershipTransfer = (
-  req: FastifyRequest,
+  req: FastifyRequest<OwnershipTransferRequestRoute>,
   reply: FastifyReply,
   context: Pick<
     AccountRouteContext,
@@ -278,7 +293,7 @@ export const cancelOwnershipTransfer = (
 ) => runRowCommand({ req, reply, context, action: "cancel" });
 
 export const completeOwnershipTransfer = (
-  req: FastifyRequest,
+  req: FastifyRequest<OwnershipTransferRequestRoute>,
   reply: FastifyReply,
   context: Pick<
     AccountRouteContext,

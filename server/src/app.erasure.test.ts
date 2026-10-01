@@ -423,7 +423,7 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
 
     const res = await deleteAccountRoute({ app, id: "a1", cookie: u1.cookie });
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toEqual({ error: "Internal server error" });
+    expect(res.json()).toEqual({ error: "Internal server error." });
 
     // Fail closed and atomically: neither product account, either membership nor either local
     // identity is altered when erasure containment cannot be proved.

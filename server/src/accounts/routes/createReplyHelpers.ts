@@ -4,6 +4,7 @@ import { isAccountRole } from "@capacitylens/shared/account/types";
 import type { Action } from "@capacitylens/shared/domain/access";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AuditRecord } from "../../audit";
+import { REPLY_ERRORS } from "../../routes/replyErrors";
 import type { AuthorizeRouteInput } from "../../routes/routeShared";
 import { wasAccountCommandReplayed } from "../commands";
 import type { AccountRouteDependencies } from "./accountRouteDependencies";
@@ -52,7 +53,7 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies): Acco
   const createMemberNotFoundError = (command: CommandIdentity) =>
     new AccountContractError({
       code: "NOT_FOUND",
-      message: "Not a member of this account.",
+      message: REPLY_ERRORS.notAMember,
       retryable: false,
       commandId: command.commandId,
     });
@@ -76,7 +77,7 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies): Acco
   // explicitly report the unavailable capability instead of claiming an inert request committed.
   const rejectTrustedLocalMemberMutation = (reply: FastifyReply): unknown =>
     reply.code(400).send({
-      error: "Member management is unavailable in trusted-local mode.",
+      error: REPLY_ERRORS.trustedLocalMemberManagement,
     });
 
   // Gate shared by every member-mutation route below: admin-tier authorize() first (it sends its own

@@ -1,3 +1,5 @@
+import { REPLY_ERRORS } from "../replyErrors";
+
 /** Batch-internal stale-write signal (optimistic concurrency, fix parity with the direct PUT
  * route). Carries the STORED row so the batch handler can send the direct route's exact 409
  * shape (`{ error, current }`). It is thrown from INSIDE tx(), so by construction the whole
@@ -6,7 +8,7 @@
  * malformed request (400), and it must never be re-classified by statusFor. */
 export class StaleWriteError extends Error {
   constructor(readonly current: Record<string, unknown>) {
-    super("The record was modified more recently on the server.");
+    super(REPLY_ERRORS.staleWrite);
     this.name = "StaleWriteError";
   }
 }

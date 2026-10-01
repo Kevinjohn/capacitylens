@@ -50,6 +50,11 @@ export interface StaticWebOptions {
   webDir: string;
 }
 
+// `/` has no wildcard segment, so the file name is optional; only a file-like path reads it.
+interface WebPageRoute {
+  Params: { "*"?: string };
+}
+
 export function registerStaticWeb(app: FastifyInstance, { webDir }: StaticWebOptions): void {
   // Encapsulated so sendFile and the routes below exist only for the web app.
   void app.register(async (web) => {
@@ -73,31 +78,28 @@ export function registerStaticWeb(app: FastifyInstance, { webDir }: StaticWebOpt
     // case-insensitive disk) as a 403 error. The edge answers those as plain misses, so do the same
     // instead of letting the API's error funnel turn them into a 500. Everything else is delegated.
     const inheritedErrorHandler = web.errorHandler;
-    web.setErrorHandler((error, request, reply) => {
+    web.setErrorHandler((error, req, reply) => {
       if ((error as { statusCode?: unknown }).statusCode === 403) return reply.callNotFound();
-      return inheritedErrorHandler.call(web, error, request, reply);
+      return inheritedErrorHandler.call(web, error, req, reply);
     });
 
     // config.rateLimit:false — page loads and assets must never consume the API's request budget.
     const config = { rateLimit: false } as const;
 
-    web.get(ASSETS_ROUTE, { config }, async (request, reply) => {
+    web.get<{ Params: { "*": string } }>(ASSETS_ROUTE, { config }, async (req, reply) => {
       applyWebHeaders(reply, NO_STORE);
-      const { "*": file } = request.params as { "*": string };
-      return reply.sendFile(`assets/${file}`);
+      return reply.sendFile(`assets/${req.params["*"]}`);
     });
 
-    const serveRoute = async (request: { url: string; params: unknown }, reply: FastifyReply) => {
-      const urlPath = new URL(request.url, "http://capacitylens.invalid").pathname;
+    const serveRoute = async (req: { url: string; params: WebPageRoute["Params"] }, reply: FastifyReply) => {
+      const urlPath = new URL(req.url, "http://capacitylens.invalid").pathname;
       if (isApiPath(urlPath)) return reply.callNotFound();
       applyWebHeaders(reply, NO_STORE);
-      if (FILE_LIKE_RE.test(urlPath)) {
-        const { "*": file } = request.params as { "*": string };
-        return reply.sendFile(file);
-      }
+      const file = req.params["*"];
+      if (FILE_LIKE_RE.test(urlPath) && file !== undefined) return reply.sendFile(file);
       return reply.sendFile("index.html");
     };
-    web.get("/", { config }, serveRoute);
-    web.get("/*", { config }, serveRoute);
+    web.get<WebPageRoute>("/", { config }, serveRoute);
+    web.get<WebPageRoute>("/*", { config }, serveRoute);
   });
 }

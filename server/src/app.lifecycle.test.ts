@@ -23,6 +23,7 @@ import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/
 import type { TenantStore } from "./tenantStore";
 import { seedMemberResourceLink } from "./fixtures/seedMemberResourceLink";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
+import { FROZEN_REPLY_MESSAGES } from "@capacitylens/shared/api/replyMessages";
 
 // P2.5a entity-lifecycle routes — the SERVER half of the Active→Archived→Soft-deleted→Purged machine.
 // This suite drives archive/unarchive/delete/purge and admin inactive reads end-to-end, asserting
@@ -960,11 +961,18 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       headers: { cookie },
     });
     expect(noAcct.statusCode).toBe(400);
-    // a row that isn't there → 404 (after authorize passes).
-    expect(
-      (await lifecycleAction({ app, entity: "clients", id: "nope", action: "archive", accountId: "a1", cookie }))
-        .statusCode,
-    ).toBe(404);
+    // a row that isn't there → 404 (after authorize passes). The body text is the frozen wire
+    // contract the client's archive sync matches to treat the row as already gone.
+    const missing = await lifecycleAction({
+      app,
+      entity: "clients",
+      id: "nope",
+      action: "archive",
+      accountId: "a1",
+      cookie,
+    });
+    expect(missing.statusCode).toBe(404);
+    expect(missing.json()).toEqual({ error: FROZEN_REPLY_MESSAGES.notFound });
   });
 });
 

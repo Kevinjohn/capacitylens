@@ -1,3 +1,4 @@
+import { FROZEN_REPLY_MESSAGES } from "@capacitylens/shared/api/replyMessages";
 import { isLifecycleEntityKey, LIFECYCLE_ENTITY_KEYS } from "@capacitylens/shared/domain/lifecycle";
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
 import { noteAuditWarning } from "@/lib/auditWarning";
@@ -211,7 +212,7 @@ function recordArchiveResponse({ state, op, res, detail, envelope }: ApplyArchiv
     state.archivedBySync.add(buildLifecycleKey(op));
     return;
   }
-  if (res.status === 404 && envelope?.error === "Not found") {
+  if (res.status === 404 && envelope?.error === FROZEN_REPLY_MESSAGES.notFound) {
     state.archivedBySync.delete(buildLifecycleKey(op));
     return;
   }

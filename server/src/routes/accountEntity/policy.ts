@@ -2,22 +2,12 @@ import { SINGLE_COMPANY_CAP_MESSAGE } from "@capacitylens/shared/account/policy"
 import { type Db } from "../../db";
 import { IMMUTABLE_ACCOUNT_FIELDS } from "../../validate";
 
-/** Auth-on closure of generic account-create paths. POST /api/orgs atomically creates an account,
- * built-in Internal client, and owner membership. Generic create vectors refuse in auth-on mode so
- * accounts cannot be created without membership; trusted-local OFF mode retains generic creation. */
-export const ACCOUNT_CREATE_CLOSED_MESSAGE =
-  "Accounts cannot be created through this endpoint when authentication is on. Use POST /api/orgs.";
-
 // SINGLE_COMPANY_CAP_MESSAGE (owner policy — see AppOptions.multiAccount / CLAUDE.md) now lives in
 // @capacitylens/shared/account/policy: every route that could add a SECOND `accounts` row — this
 // PUT, the batch loop, POST /api/orgs — shares that one shared-package constant so the rule can't
 // drift between vectors. Re-exported here so app.ts's existing `from "./routes/accountEntityRoutes"`
 // import keeps working unchanged.
 export { SINGLE_COMPANY_CAP_MESSAGE };
-
-/** Frozen-field refusal shared by PUT, PATCH, and the batch loop. */
-export const ACCOUNT_FROZEN_FIELDS_MESSAGE =
-  "Language, week start and time zone are set when the company is created and cannot be changed.";
 
 /** SELECT COUNT(*) FROM accounts — the cap's sole precondition. Same query POST /api/orgs used
  *  before the cap existed; kept as one function so every enforcement point reads the identical

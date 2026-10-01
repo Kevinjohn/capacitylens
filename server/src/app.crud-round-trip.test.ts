@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getRow } from "./db";
+import { REPLY_ERRORS } from "./routes/replyErrors";
 import {
   meta,
   withoutRevision,
@@ -249,15 +250,6 @@ function createCrudScopingTests(): void {
     ).toBe(204);
     expect((await readValidatedState(app)).disciplines).toHaveLength(0);
   });
-
-  it("refuses a scoped delete that omits accountId (the by-id bypass is closed → 400)", async () => {
-    const { app } = freshApp();
-    await scaffold(app);
-    // A scoped delete MUST assert its owner; omitting accountId can't prove ownership, so
-    // it is a 400 rather than an unscoped delete-by-id (the old tenant-guard bypass).
-    expect((await call(app, { method: "DELETE", url: "/api/clients/c1" })).statusCode).toBe(400);
-    expect(await readStateClients(app)).toHaveLength(1); // not deleted
-  });
 }
 
 function createCrudPersistenceTests(): void {
@@ -381,5 +373,45 @@ describe("generic lifecycle deletion guard", () => {
     expect(s.disciplines).toHaveLength(0);
     expect(s.resources).toHaveLength(1);
     expect(readFirstResource(s.resources).disciplineId).toBeUndefined();
+  });
+});
+
+describe("generic delete accountId query", () => {
+  // A scoped delete must assert its owner; a missing or repeated accountId cannot prove
+  // ownership, so it is a 400 rather than an unscoped delete-by-id. Disciplines are used because
+  // a lifecycle entity such as clients is refused earlier, before the query is read.
+  it("refuses a scoped delete that omits accountId (the by-id bypass is closed → 400)", async () => {
+    const { app } = freshApp();
+    await scaffold(app);
+    await post(app, "disciplines", {
+      id: "d1",
+      accountId: "a1",
+      name: "Design",
+      color: "#5c34d4",
+      sortOrder: 0,
+      ...meta(),
+    });
+    const response = await call(app, { method: "DELETE", url: "/api/disciplines/d1" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: REPLY_ERRORS.accountIdRequiredForScopedDelete });
+    expect((await readValidatedState(app)).disciplines).toHaveLength(1); // not deleted
+  });
+
+  it("refuses a scoped delete whose accountId query repeats (an array cannot name one owner → 400)", async () => {
+    const { app } = freshApp();
+    await scaffold(app);
+    await post(app, "accounts", account("a2"));
+    await post(app, "disciplines", {
+      id: "d1",
+      accountId: "a1",
+      name: "Design",
+      color: "#5c34d4",
+      sortOrder: 0,
+      ...meta(),
+    });
+    const response = await call(app, { method: "DELETE", url: "/api/disciplines/d1?accountId=a1&accountId=a2" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: REPLY_ERRORS.accountIdRequiredForScopedDelete });
+    expect((await readValidatedState(app)).disciplines).toHaveLength(1); // not deleted
   });
 });

@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { ValidationError } from "../validate";
+import { REPLY_ERRORS } from "./replyErrors";
 
 // SQLite extended constraint codes that describe caller-supplied row data. Deliberately exclude
 // TRIGGER (1811), FUNCTION (1043), VTAB (2323), COMMIT_HOOK (531) and other internal constraint
@@ -59,15 +60,12 @@ export function fail(reply: FastifyReply, error: unknown, logError: (e: unknown)
   // GENERIC body so we never leak internals (stack-ish messages, SQL, paths).
   if (status === 500) {
     logError(error);
-    return reply.code(500).send({ error: "Internal server error" });
+    return reply.code(500).send({ error: REPLY_ERRORS.internalServerError });
   }
   // 400s: a curated ValidationError message is safe AND useful (it's a friendly sentence we
   // authored). A raw DB-constraint message (e.g. "NOT NULL constraint failed: clients.color")
   // leaks schema internals — genericise it, mirroring the 500 redaction one tier down.
-  const message =
-    error instanceof ValidationError
-      ? error.message
-      : "That change references missing data or conflicts with an existing record.";
+  const message = error instanceof ValidationError ? error.message : REPLY_ERRORS.constraintViolation;
   return reply.code(status).send({
     error: message,
     ...(error instanceof ValidationError && error.code ? { code: error.code } : {}),

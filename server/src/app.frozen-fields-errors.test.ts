@@ -341,7 +341,7 @@ describe("global error redaction", () => {
       });
 
       expect(response.statusCode).toBe(500);
-      expect(response.json()).toEqual({ error: "Internal server error" });
+      expect(response.json()).toEqual({ error: "Internal server error." });
       expect(response.body).not.toContain(sentinel);
       expect(consoleError).toHaveBeenCalledWith(cause);
 
@@ -350,7 +350,7 @@ describe("global error redaction", () => {
         url: "/api/test/spoofed-framework-error",
       });
       expect(spoofed.statusCode).toBe(413);
-      expect(spoofed.json()).toEqual({ error: "Request body is too large" });
+      expect(spoofed.json()).toEqual({ error: "Request body is too large." });
       expect(spoofed.body).not.toContain(sentinel);
 
       consoleError.mockClear();
@@ -359,7 +359,7 @@ describe("global error redaction", () => {
         url: "/api/test/non-sqlite-constraint-phrase",
       });
       expect(unrelated.statusCode).toBe(500);
-      expect(unrelated.json()).toEqual({ error: "Internal server error" });
+      expect(unrelated.json()).toEqual({ error: "Internal server error." });
       expect(unrelated.body).not.toContain(constraintPhraseCause.message);
       expect(consoleError).toHaveBeenCalledWith(constraintPhraseCause);
     } finally {

@@ -13,6 +13,7 @@ import { resolveRequestClientIp } from "./appErrors";
 import { buildSessionUser, hasRequiredSessionMfa, toWebHeaders } from "./appRequestAdapters";
 import type { createAppRuntime } from "./appRuntime";
 import { enqueueMasqueradeEndAudit } from "./masqueradeRoutes";
+import { REPLY_ERRORS } from "./replyErrors";
 
 export interface ResolveIncomingSessionInput {
   req: FastifyRequest;
@@ -146,7 +147,10 @@ interface ApplyMasqueradePolicyInput {
   unsafe: boolean;
 }
 
-async function applyMasqueradePolicy(input: ApplyMasqueradePolicyInput): Promise<boolean> {
+/** Send the read-only refusal for a masqueraded write, or end the masquerade on sign-out. Returns
+ * the sent refusal, or null when the request continues. Synchronous so the reply is not unwrapped
+ * as a thenable before the caller can test it. */
+function applyMasqueradePolicy(input: ApplyMasqueradePolicyInput): FastifyReply | null {
   const { dependencies, path, reply, req, resolution, unsafe } = input;
   const activeMasquerade =
     resolution.kind === "verified" ? dependencies.masquerades.lookup(resolution.session.id) : null;
@@ -159,8 +163,7 @@ async function applyMasqueradePolicy(input: ApplyMasqueradePolicyInput): Promise
       method: req.method,
       path,
     });
-    await reply.code(403).send({ error: "Masquerade is read-only.", code: MASQUERADE_ERROR_CODES.readOnly });
-    return true;
+    return reply.code(403).send({ error: REPLY_ERRORS.masqueradeReadOnly, code: MASQUERADE_ERROR_CODES.readOnly });
   }
   const signingOut =
     activeMasquerade && req.method === "POST" && (path === "/api/account/sign-out" || path === "/api/auth/sign-out");
@@ -172,7 +175,7 @@ async function applyMasqueradePolicy(input: ApplyMasqueradePolicyInput): Promise
       activeMasquerade,
     });
   }
-  return false;
+  return null;
 }
 
 interface RequireApplicationSessionInput {
@@ -183,7 +186,7 @@ interface RequireApplicationSessionInput {
   resolution: SessionResolutionResult;
 }
 
-async function requireApplicationSession(input: RequireApplicationSessionInput): Promise<void> {
+async function requireApplicationSession(input: RequireApplicationSessionInput): Promise<FastifyReply | undefined> {
   const { dependencies, path, reply, req } = input;
   let { resolution } = input;
   if (resolution.kind === "absent_or_invalid") {
@@ -192,8 +195,7 @@ async function requireApplicationSession(input: RequireApplicationSessionInput):
   }
   if (resolution.kind === "backend_failure") {
     req.log.error(resolution.error);
-    await reply.code(503).send({ error: "Sign-in is temporarily unavailable." });
-    return;
+    return reply.code(503).send({ error: REPLY_ERRORS.signInUnavailable });
   }
   if (resolution.kind === "absent_or_invalid") {
     dependencies.securityEvent({
@@ -203,8 +205,7 @@ async function requireApplicationSession(input: RequireApplicationSessionInput):
       path,
       remoteIp: resolveRequestClientIp({ request: req, trustProxyHeaders: dependencies.trustProxyHeaders }),
     });
-    await reply.code(401).send({ error: "Sign in to continue." });
-    return;
+    return reply.code(401).send({ error: REPLY_ERRORS.signInRequired });
   }
   const user = buildSessionUser(resolution.session);
   if (
@@ -219,29 +220,33 @@ async function requireApplicationSession(input: RequireApplicationSessionInput):
       path,
       userId: user.id,
     });
-    await reply.code(403).send({
-      error: "Multi-factor authentication enrollment is required.",
+    return reply.code(403).send({
+      error: REPLY_ERRORS.mfaEnrollmentRequired,
       code: "MFA_ENROLLMENT_REQUIRED",
     });
   }
+  return undefined;
 }
 
 function createSessionPreHandler(dependencies: CreateSessionPreHandlerInput) {
-  return async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  return async (req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply | undefined> => {
     const path = req.url.split("?", 1)[0] ?? req.url;
     if (!path.startsWith("/api/") || isPublicApiPath(path)) return;
     const resolution = await dependencies.resolveIncomingSession({ req });
     if (resolution.kind === "verified") attachVerifiedSession(req, resolution.session);
     const unsafe = isUnsafeMethod(req.method);
-    if (await applyMasqueradePolicy({ dependencies, path, reply, req, resolution, unsafe })) return;
+    const masqueradeRefusal = applyMasqueradePolicy({ dependencies, path, reply, req, resolution, unsafe });
+    if (masqueradeRefusal) return masqueradeRefusal;
     if (resolution.kind === "backend_failure" && unsafe) {
       req.log.error(resolution.error);
-      await reply.code(503).send({ error: "Sign-in is temporarily unavailable." });
-      return;
+      return reply.code(503).send({ error: REPLY_ERRORS.signInUnavailable });
     }
     if (path.startsWith("/api/auth/") || isUnauthenticatedApplicationPath(req.method, path)) return;
-    if (dependencies.authMode === "off") return attachTrustedLocalActor(req);
-    await requireApplicationSession({ dependencies, path, reply, req, resolution });
+    if (dependencies.authMode === "off") {
+      attachTrustedLocalActor(req);
+      return undefined;
+    }
+    return requireApplicationSession({ dependencies, path, reply, req, resolution });
   };
 }
 
