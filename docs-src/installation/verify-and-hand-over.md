@@ -24,7 +24,10 @@ Use the check for your route:
   curl -fsS http://127.0.0.1:8787/api/health
   ```
 
-- Managed VPS, and the final public check for every route:
+- Managed VPS: open `https://capacity.example.com/api/health` in a browser, with your own
+  address.
+
+- The final public check for every other route:
 
   ```bash
   curl -fsS https://capacity.example.com/api/health

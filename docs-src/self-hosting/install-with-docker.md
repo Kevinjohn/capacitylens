@@ -2,7 +2,7 @@
 title: Install with Docker
 description: Install CapacityLens with Docker Compose, from cloning the repository to a running, health-checked instance.
 prev:
-  text: Choose how to install
+  text: Install CapacityLens
   link: /getting-started/install
 next:
   text: Configure the service

@@ -19,7 +19,8 @@ everything specific to the app itself uses `CAPACITYLENS_`.
 
 ## Listener and development settings
 
-For a bare-metal run, use Node 24 or newer and run `pnpm --filter capacitylens-server start`.
+For a source checkout, use Node 24 or newer and run `pnpm --filter capacitylens-server start`.
+A release archive needs no pnpm: it starts with `node --env-file=<your env file> server/dist/index.mjs`.
 The server binds to localhost by default. Set the host explicitly to expose it on a network.
 
 | Variable | What it does |
@@ -247,8 +248,9 @@ See [Monitoring and health checks](/self-hosting/monitoring) for what to do with
 | `VITE_CAPACITYLENS_FEEDBACK_MAILTO` | Optional email address for the in-app feedback link. Leave empty to hide the link.                                                                                                                |
 
 Any of these needs a rebuild to take effect. Use `docker compose build web` for the
-packaged production stack, or `pnpm run build` for a direct Node installation, then
-redeploy the rebuilt web files. Setting them only in a running process does nothing.
+packaged production stack, or `pnpm run build` for a source build, then redeploy the rebuilt
+web files. A release archive's web app is already built with the same-origin defaults, so these
+settings do not apply to it. Setting them only in a running process does nothing.
 
 ## Removed account variable names
 

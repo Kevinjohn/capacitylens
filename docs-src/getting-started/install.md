@@ -38,7 +38,8 @@ file to check the download against.
 https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capacitylens-0.73.0-alpha.1.tar.gz
 ```
 
-- **Managed host:** put the download, unpack and link commands in the site's deploy script.
+- **Managed host:** put the data-folder, download, unpack and link commands in the site's deploy
+  script. The first line creates the data folder from step 2, so no terminal is needed.
 - **Linux host:** unpack it into `/opt/capacitylens` and link `current` to the release folder.
 
 ## 2. Pick a folder for the data
@@ -46,13 +47,15 @@ https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capa
 The database file is created in this folder on first start. Keep it outside the unpacked release,
 so an upgrade never touches it.
 
-- **Managed host:** `/home/forge/capacitylens-data`, next to the site folder.
+- **Managed host:** `/home/forge/capacitylens-data`, next to the site folder. The deploy script
+  creates it. `forge` is the site's user; a site with website isolation uses its own user, so
+  use that name in this path and in `CAPACITYLENS_DB`.
 - **Linux host:** `/var/lib/capacitylens`, owned by a `capacitylens` user.
 
 ## 3. Configure
 
-Copy `capacitylens.env.example` from the archive and fill in its three empty lines. Everything
-else has a default.
+Copy `capacitylens.env.example` from the archive and fill in its three empty lines. Then set
+`CAPACITYLENS_DB` to a file in the data folder from step 2. Everything else has a default.
 
 ```dotenv
 NODE_ENV=production
@@ -69,16 +72,19 @@ CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db
 
 The server refuses to start while any of the three is empty, and names the one that is missing.
 
-- **Managed host:** paste the lines into the site's environment editor.
-- **Linux host:** save them as `/etc/capacitylens.env`.
+- **Managed host:** paste the lines into the site's environment editor, with `CAPACITYLENS_DB`
+  set to `/home/forge/capacitylens-data/capacitylens.db` (or your site user's folder).
+- **Linux host:** save them as `/etc/capacitylens.env`. The example's
+  `CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db` already matches step 2.
 
 ## 4. Start it
 
 This is the step that differs.
 
 - **Managed host:** add a background process (daemon) that runs
-  `node --env-file=../.env server/dist/index.mjs` in the site's `current` folder, and point
-  the site's nginx at port 8787.
+  `node --env-file=../.env server/dist/index.mjs` in the site's `current` folder. In the site's
+  nginx file, replace the generated `location /` block with the locations on the managed host
+  page, which proxy to port 8787.
 - **Linux host:** install the `capacitylens.service` file from the archive as a systemd service,
   and put Caddy or nginx in front.
 
@@ -96,7 +102,7 @@ the `SMALLSASS_ACCOUNT_SETUP_TOKEN` line from step 3. From there, the
 - [Deploy on a managed VPS platform](/self-hosting/managed-vps/) such as Forge, Ploi or
   RunCloud. You work in the platform's screens; no terminal is needed.
 - [Install without Docker](/self-hosting/install-without-docker) on a Linux host that you manage
-  yourself. Each step is one command, and Caddy handles HTTPS.
+  yourself. Caddy handles HTTPS.
 
 Both end with the same checks. Then [secure the connection](/installation/secure-the-connection)
 and [verify and hand over](/installation/verify-and-hand-over); [configure the

@@ -142,10 +142,11 @@ session revocation — and never writes a credential directly.
 
    An exit status other than 0 means no link was issued; the message above it says why. On a
    managed host, run this from the site's `current` folder, in the platform's command box or
-   a shell, after stopping the background process:
+   a shell, after stopping the background process. The command box starts in the site's root
+   folder, so the line begins with `cd current`:
 
    ```bash
-   node --env-file=../.env server/dist/reset-owner-password.mjs /home/forge/capacitylens-data/capacitylens.db owner@example.com --confirm-server-stopped
+   cd current && node --env-file=../.env server/dist/reset-owner-password.mjs /home/forge/capacitylens-data/capacitylens.db owner@example.com --confirm-server-stopped
    ```
 
    From a source checkout, or a Docker install using the throwaway container above, the

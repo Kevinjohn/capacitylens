@@ -12,8 +12,8 @@ next:
 # Install without Docker
 
 This installs CapacityLens on a Linux host you manage yourself, from the release archive. It
-takes the five steps from [Install CapacityLens](/getting-started/install), with one command
-for each. Each `sudo` line does what a managed host does when you create a site: a user, a
+takes the five steps from [Install CapacityLens](/getting-started/install), with a command or
+two for each of the first four. Each `sudo` line does what a managed host does when you create a site: a user, a
 folder, a service and a proxy. The target is ten minutes on a host that already has Node 24
 and a hostname pointing at it.
 

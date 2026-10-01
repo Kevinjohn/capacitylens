@@ -21,15 +21,19 @@ things.
 - Node 24 on the server. The platform's server settings show the installed version.
 - Nothing to build: the archive holds the built app, the server and the pieces it needs.
 
-`/home/forge/capacity.example.com` below stands for your site's folder; use yours. The commands
+`/home/forge/capacity.example.com` below stands for your site's folder; use yours. `forge` is
+the site's user; a site with website isolation uses its own user, so use that name in every
+`/home/forge` path below and in `CAPACITYLENS_DB`. The commands
 name release 0.73.0-alpha.1, the first to carry the archive. For a newer release, use its
 version instead.
 
 ## The five steps
 
-1. **Deploy script:** download, unpack and switch the `current` link to the release.
+1. **Deploy script:** create the data folder, then download, unpack and switch the `current` link
+   to the release.
 
    ```bash
+   mkdir -p /home/forge/capacitylens-data
    cd /home/forge/capacity.example.com
    curl -fsSLO https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capacitylens-0.73.0-alpha.1.tar.gz
    tar -xzf capacitylens-0.73.0-alpha.1.tar.gz && ln -sfn capacitylens-0.73.0-alpha.1 current
@@ -39,8 +43,7 @@ version instead.
    background process from step 4 so it runs the new release.
 
 2. **Data folder:** `/home/forge/capacitylens-data`, outside the release so upgrades keep it.
-   Create it once from the platform's file manager or its command box:
-   `mkdir -p /home/forge/capacitylens-data`.
+   The first line of the deploy script creates it, so there is nothing to do by hand.
 
 3. **Environment:** paste these five lines into the site's environment editor. Fill in the
    address and two different values, each pasted from `openssl rand -base64 48`; the second is
@@ -64,8 +67,10 @@ version instead.
    node --env-file=../.env server/dist/index.mjs
    ```
 
-   Then, in the site's nginx file, send every request to the server. It serves the web app
-   itself:
+   Then, in the site's nginx file, replace the generated `location /` block with these
+   locations, which send every request to the server. It serves the web app itself. Keep the
+   platform's other generated lines, and do not add a second `location /`, which fails the
+   platform's configuration test:
 
    ```nginx
    client_max_body_size 6m;
@@ -118,13 +123,8 @@ the background process after the deploy script instead.
 
 ## After the first start
 
-Check that the server is healthy from the platform's command box, or from any machine:
-
-```bash
-curl -fsS https://capacity.example.com/api/health
-```
-
-Expect `"ok":true`, `"db":true`, `"audit":"ok"` and a `backup` whose `status` is `"ok"`. It reads
+Check that the server is healthy: open `https://capacity.example.com/api/health` in a browser,
+with your own address. Expect `"ok":true`, `"db":true`, `"audit":"ok"` and a `backup` whose `status` is `"ok"`. It reads
 `"pending"` for a moment after the first start.
 
 Then work through these pages:
