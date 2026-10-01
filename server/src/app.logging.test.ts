@@ -5,7 +5,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { createApp, createRequestLoggerOptions } from "./app";
 import { openDb } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations, type AccountMode, type Auth } from "./auth";
-import { call, PASSWORD_ENV, signUp } from "./testHelpers";
+import { call, PASSWORD_ENV, signUp } from "./testHelpers/passwordAuth";
 import { redactSecretUrl } from "./routes/appLogging";
 import type { Db } from "./db";
 

@@ -1,6 +1,6 @@
 import { m } from "@/i18n";
-import { DateField, WorkingDayPicker } from "../common/ui";
-import { Separator } from "../ui/separator";
+import { DateField, WorkingDayPicker } from "@/components/common/ui";
+import { Separator } from "@/components/ui/separator";
 import type { ResourceFormState } from "./useResourceFormState";
 
 type ResourceAvailabilityFieldsState = Pick<

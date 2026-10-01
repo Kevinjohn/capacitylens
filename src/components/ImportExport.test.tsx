@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ImportExport } from "./ImportExport";
-import { useStore } from "../store/useStore";
-import { PermissionContext } from "../auth/permissionContext";
+import { useStore } from "@/store/useStore";
+import { PermissionContext } from "@/auth/permissionContext";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";
 import { parseData, serializeData } from "@capacitylens/shared/data/transfer";
-import { makeAccount, makeResourceDraft, resetStoreWithAccount } from "../test/fixtures";
+import { makeAccount, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
 
 function dispatchAnchorClick(this: HTMLAnchorElement): void {
   this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
@@ -18,12 +18,12 @@ function dispatchAnchorClick(this: HTMLAnchorElement): void {
 // import tests below are the DEMO-build behaviour.
 const serverFlag = { on: false };
 const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
-vi.mock("../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isServerConfigured: () => serverFlag.on,
   isDemoMode: () => !serverFlag.on,
 }));
-vi.mock("../lib/reloadPage", () => reloadMock);
+vi.mock("@/lib/reloadPage", () => reloadMock);
 
 // Partial persist mock: everything real EXCEPT refreshActiveAccountSlice, which one test forces
 // to 'failed' (a committed import whose re-hydrate breaks), and suspendServerWrites, whose resume
@@ -36,8 +36,8 @@ const resumeSpy = vi.hoisted(() => ({ calls: [] as unknown[] }));
 // When set, the mocked re-hydrate raises this error notice mid-flight — simulating the sticky
 // parked-edit loss warning the real orchestrator surfaces via onError → setNotice.
 const refreshNotice = vi.hoisted(() => ({ error: null as string | null }));
-vi.mock("../data/persist", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../data/persist")>();
+vi.mock("@/data/persist", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/data/persist")>();
   return {
     ...actual,
     refreshActiveAccountSlice: async (id: string) => {

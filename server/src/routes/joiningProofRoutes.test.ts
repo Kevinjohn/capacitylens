@@ -6,7 +6,8 @@ import { upsertMember } from "../controlTables";
 import { createInvite } from "../controlTables/invites";
 import { writeJoiningPolicy } from "../controlTables/joiningPolicies";
 import { insertRow, openDb, type Db } from "../db";
-import { PASSWORD_ENV, registerServerFixtureCleanup, signUp } from "../testHelpers";
+import { PASSWORD_ENV, signUp } from "../testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "../testHelpers/registerServerFixtureCleanup";
 
 const fixtures = registerServerFixtureCleanup();
 

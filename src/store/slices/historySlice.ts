@@ -7,9 +7,9 @@ import {
   prepareHistoryTarget,
   resetSchedulerView,
   type StoreInternals,
-} from "../storeInternal";
+} from "@/store/storeInternal";
 import { readCurrentWeekAnchor } from "./schedulerSlice";
-import type { StoreState } from "../types";
+import type { StoreState } from "@/store/types";
 
 type HistorySlice = Pick<StoreState, "past" | "future" | "replaceAll" | "importData" | "undo" | "redo">;
 type HistorySliceInternals = Pick<StoreInternals, "createGuardedAction" | "importSlice" | "requireAccount">;

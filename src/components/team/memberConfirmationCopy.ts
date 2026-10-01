@@ -1,7 +1,7 @@
 import { m } from "@/i18n";
 import type { MembershipStatus } from "@capacitylens/shared/account/types";
 import { APP_NAME } from "@capacitylens/shared/brand";
-import type { TeamMember } from "../../account/teamAccessClient";
+import type { TeamMember } from "@/account/teamAccessClient";
 
 // Pure copy and status tables for member confirmations. They live apart from the
 // MemberConfirmations component so that file exports only components (react-refresh).

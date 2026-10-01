@@ -11,26 +11,8 @@ import {
   BOOTSTRAP_ADMIN_EMAIL,
 } from "./auth";
 import { MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
-import { call, PASSWORD_ENV } from "./testHelpers";
-
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function headerValues(value: string | string[] | undefined): string[] {
-  if (Array.isArray(value)) return value;
-  if (value === undefined) return [];
-  return [value];
-}
-
-// This suite keeps its own cookie reader rather than testHelpers' readCookies. readCookies models
-// a browser cookie jar: it de-duplicates by name and drops expired cookies. This one reports every
-// Set-Cookie the server actually sent. The difference is load-bearing in app.auth.bootstrap.test.ts,
-// whose assertions require that a rejected sign-up set no session cookie at all — a cleared cookie
-// must still be visible to fail them. Kept in every file of the suite so the reader is consistent.
-function cookiesOf(res: LightMyRequestResponse): string {
-  const raw = res.headers["set-cookie"];
-  return headerValues(raw)
-    .map((c) => String(c).split(";")[0])
-    .join("; ");
-}
+import { call, PASSWORD_ENV, cookiesOf } from "./testHelpers/passwordAuth";
+import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
 // P3.1/P3.2/P3.5 (flag CAPACITYLENS_MODE → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
@@ -77,11 +59,6 @@ function parseCreatedUserId(value: unknown): string {
   return value.id;
 }
 
-function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
-  if (auth === null) throw new Error("Expected authentication to be configured.");
-  return auth;
-}
-
 const SSO_ENV = {
   ...PASSWORD_ENV,
   CAPACITYLENS_MODE: "sso-only",
@@ -106,16 +83,9 @@ const signUpWithSetupToken = (app: FastifyInstance, email = "late@capacitylens.d
     payload: { email, password: "password-123456", name: "Late" },
   });
 
-async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, env);
-  await runAuthMigrations(parseConfiguredAuth(auth));
-  return createApp(db, { authMode: mode, auth });
-}
-
 function registerClosedSignupLifecycleTests(): void {
   it("allows the first sign-up only with the operator setup token, then closes live", async () => {
-    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
+    const { app } = await appWithAuth({ env: CLOSED_SIGNUP_ENV });
     const first = await signUpWithSetupToken(app, "owner@capacitylens.dev");
     expect(first.statusCode).toBe(200);
     expect(cookiesOf(first)).toContain("capacitylens.session_token");
@@ -128,7 +98,7 @@ function registerClosedSignupLifecycleTests(): void {
   });
 
   it("serializes concurrent first-owner sign-ups so exactly one identity is created", async () => {
-    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
+    const { app } = await appWithAuth({ env: CLOSED_SIGNUP_ENV });
     const results = await Promise.all([
       signUpWithSetupToken(app, "owner-one@capacitylens.dev"),
       signUpWithSetupToken(app, "owner-two@capacitylens.dev"),
@@ -175,7 +145,7 @@ function registerClosedSignupRejectionTests(): void {
   });
 
   it("refuses a network visitor who lacks the fresh-instance setup token", async () => {
-    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
+    const { app } = await appWithAuth({ env: CLOSED_SIGNUP_ENV });
     const missing = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -203,9 +173,11 @@ function registerClosedSignupRejectionTests(): void {
 
 function registerOpenSignupEscapeTests(): void {
   it("allows sign-up with users already present only when CAPACITYLENS_ALLOW_OPEN_SIGNUP=1", async () => {
-    const app = await appWithAuth({
-      ...CLOSED_SIGNUP_ENV,
-      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+    const { app } = await appWithAuth({
+      env: {
+        ...CLOSED_SIGNUP_ENV,
+        CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+      },
     });
     // First user consumes the bootstrap exception; the second still succeeds because the flag
     // re-opens sign-up unconditionally.
@@ -251,7 +223,7 @@ function registerClosedSignupStatusTests(): void {
   });
 
   it("reports needsSetup on the /api/auth/me 401 at zero users, and drops it once a user exists", async () => {
-    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
+    const { app } = await appWithAuth({ env: CLOSED_SIGNUP_ENV });
     // Zero users: the login screen must offer "Create the owner account" instead of a dead end.
     const before = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(before.statusCode).toBe(401);

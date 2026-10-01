@@ -1,8 +1,8 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthContext } from "../../auth/authContext";
-import { incrementPersistenceDiagnostic, resetPersistenceDiagnostics } from "../../data/persistenceDiagnostics";
+import { AuthContext } from "@/auth/authContext";
+import { incrementPersistenceDiagnostic, resetPersistenceDiagnostics } from "@/data/persistenceDiagnostics";
 import { DiagnosticsView } from "./DiagnosticsView";
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));

@@ -2,12 +2,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { SchedulerGrid } from "./SchedulerGrid";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { DEFAULT_ACCOUNT_ID, makeAllocation, makeClosure, makeResource, makeTimeOff } from "../../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAllocation, makeClosure, makeResource, makeTimeOff } from "@/test/fixtures";
 import { schedulerDataset } from "./__tests__/schedulerTestKit";
 import { LAYOUT, laneLayout, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from "./layout";
-import { resolveRowHeightForLanes } from "../../lib/lanePacking";
+import { resolveRowHeightForLanes } from "@/lib/lanePacking";
 import { buildVisibleSpanInsets } from "./visibleSpanInsets";
 
 const ACC = DEFAULT_ACCOUNT_ID;

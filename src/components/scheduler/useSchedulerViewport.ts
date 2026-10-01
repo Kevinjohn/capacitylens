@@ -17,9 +17,9 @@ import {
   WEEK_SNAP_IDLE_MS,
   WEEKEND_COLUMN_REM,
   resolveColumnFit,
-} from "../../lib/schedulerConfig";
-import { buildVisibleRange } from "../../store/selectors";
-import { useStore, type SchedulerUI } from "../../store/useStore";
+} from "@/lib/schedulerConfig";
+import { buildVisibleRange } from "@/store/selectors";
+import { useStore, type SchedulerUI } from "@/store/useStore";
 import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";
 import { LAYOUT } from "./layout";
 import { resolveWeekStartSnapTarget } from "./resolveWeekStartSnapTarget";

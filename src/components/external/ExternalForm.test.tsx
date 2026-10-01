@@ -1,9 +1,9 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { resetStoreWithAccount } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
+import { resetStoreWithAccount } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
 import { ExternalForm } from "./ExternalForm";
 
 beforeEach(() => resetStoreWithAccount());

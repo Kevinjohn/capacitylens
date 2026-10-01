@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Draft } from "../store/useStore";
+import type { Draft } from "@/store/useStore";
 import type { TimeOff } from "@capacitylens/shared/types/entities";
 import { buildRepeatedTimeOffDrafts, resolveTimeOffRepeatPattern } from "./repeatingTimeOff";
 

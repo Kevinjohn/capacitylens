@@ -6,8 +6,8 @@ import type {
   StartMasqueradePayload,
 } from "@capacitylens/shared/domain/masquerade";
 import { isAccountRole } from "@capacitylens/shared/account/types";
-import { accountClient } from "../account/accountClient";
-import { extractApiErrorMessage } from "../lib/readApiError";
+import { accountClient } from "@/account/accountClient";
+import { extractApiErrorMessage } from "@/lib/readApiError";
 
 function parseMasqueradeState(value: unknown): MasqueradeState | null {
   if (typeof value !== "object" || value === null) return null;

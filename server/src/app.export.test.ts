@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import type { FastifyInstance } from "fastify";
 import { createApp as buildAppRaw } from "./app";
 import { openDb as openDbRaw, insertAll, type Db } from "./db";
 import { upsertMember, createInvite, newInviteId } from "./controlTables";
-import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, signUp, registerServerFixtureCleanup } from "./testHelpers";
+import { signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 
 // P2.6a — TEST-LOCK for the COMPLETE PER-TENANT EXPORT.
@@ -48,15 +48,6 @@ const person = (id: string, accountId: string, extra: Record<string, unknown> = 
 // archival) and a plain ARCHIVED marker — the two non-active states a complete backup must retain.
 const ARCHIVED = { archivedAt: TS };
 const TOMBSTONE = { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" };
-
-/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!auth) throw new Error("Password auth fixture was not created.");
-  await runAuthMigrations(auth);
-  return { app: buildApp(db, { authMode: mode, auth }), db };
-}
 
 /**
  * Seed account a1 with three resources spanning every lifecycle state the backup must retain:
@@ -171,7 +162,7 @@ describe("P2.6a complete per-tenant export — server-control tables / PII struc
 
 describe("P2.6a complete per-tenant export — admin/purge-tier gating (auth-on)", () => {
   it("a non-admin (editor) requesting ?includeInactive=1 → 403 (no backup for non-admins)", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedResources(db);
     const { cookie, userId } = await signUp(app, "editor-export@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });

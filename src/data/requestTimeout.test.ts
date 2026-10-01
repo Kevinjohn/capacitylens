@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
+import { AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
 import {
   apiFetch,
   isTransportFailure,

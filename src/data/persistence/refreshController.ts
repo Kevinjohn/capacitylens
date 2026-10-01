@@ -1,10 +1,10 @@
 import type { RefreshOutcome } from "./facades";
 import type { StoreApi } from "zustand";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import type { StoreState } from "../../store/useStore";
-import type { PersistenceAdapter } from "../PersistenceAdapter";
-import { applyOps, diffOps } from "../syncOps";
-import { incrementPersistenceDiagnostic } from "../persistenceDiagnostics";
+import type { StoreState } from "@/store/useStore";
+import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
+import { applyOps, diffOps } from "@/data/syncOps";
+import { incrementPersistenceDiagnostic } from "@/data/persistenceDiagnostics";
 import type { AttachmentState } from "./attachmentState";
 import type { WriteQueue } from "./writeQueue";
 

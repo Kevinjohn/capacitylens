@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
-import { call } from "./testHelpers";
+import { call } from "./testHelpers/passwordAuth";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 

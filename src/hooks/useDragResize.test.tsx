@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { type DragResizePreviewInput, useDragResize } from "./useDragResize";
-import type { DragMode } from "../lib/gestureMath";
+import type { DragMode } from "@/lib/gestureMath";
 
 interface HarnessProps {
   // A uniform-grid stand-in for the lane's geometry inverse: clientX → day index at 48px/day,

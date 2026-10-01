@@ -1,11 +1,11 @@
 import { m } from "@/i18n";
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { CapacityOverviewAccess, DateStyle, SchedulingMode } from "@capacitylens/shared/types/entities";
-import { externalExplainer } from "../../lib/externalCopy";
-import { buildLabels, buildLabelOptions } from "../../lib/metadata";
-import { listAccountWorkingDays } from "../../store/selectors";
-import type { StoreState } from "../../store/useStore";
-import { SegmentedControl, SwitchField } from "../common/ui";
+import { externalExplainer } from "@/lib/externalCopy";
+import { buildLabels, buildLabelOptions } from "@/lib/metadata";
+import { listAccountWorkingDays } from "@/store/selectors";
+import type { StoreState } from "@/store/useStore";
+import { SegmentedControl, SwitchField } from "@/components/common/ui";
 import { SettingsSection } from "./SettingsSection";
 import { SettingsDateFormatSection } from "./SettingsDateFormatSection";
 import { SettingsWorkingDaysSection } from "./SettingsWorkingDaysSection";

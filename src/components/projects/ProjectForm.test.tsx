@@ -1,11 +1,11 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProjectForm } from "./ProjectForm";
-import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
-import { PermissionContext } from "../../auth/permissionContext";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
+import { PermissionContext } from "@/auth/permissionContext";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 
 beforeEach(() => resetStoreWithAccount());

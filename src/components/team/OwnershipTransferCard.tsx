@@ -4,14 +4,14 @@ import type {
   OwnershipTransferState,
   OwnershipTransferTerminalReason,
 } from "@capacitylens/shared/account/ownershipTransfer";
-import type { OwnershipTransferView, TeamMember } from "../../account/teamAccessClient";
-import { useAuth } from "../../auth/authContext";
-import { useStore } from "../../store/useStore";
+import type { OwnershipTransferView, TeamMember } from "@/account/teamAccessClient";
+import { useAuth } from "@/auth/authContext";
+import { useStore } from "@/store/useStore";
 import { formatInstant, formatInstantDate } from "@/lib/dateDisplay";
-import { Modal } from "../common/ui";
-import { SelectField } from "../common/fields/SelectField";
-import { Alert, AlertDescription } from "../ui/alert";
-import { Button } from "../ui/button";
+import { Modal } from "@/components/common/ui";
+import { SelectField } from "@/components/common/fields/SelectField";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { useOwnershipTransfer, type OwnershipTransferController } from "./useOwnershipTransfer";
 
 /**

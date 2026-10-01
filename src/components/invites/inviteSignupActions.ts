@@ -5,16 +5,16 @@ import {
   readUnknownAccountCommandOutcome,
   createBrowserAccountCommand,
   type BrowserAccountCommand,
-} from "../../account/accountClient";
+} from "@/account/accountClient";
 import { m } from "@/i18n";
 import { readAccountFailure, resolveMessageForStatus } from "./inviteResponses";
-import { authClient } from "../../auth/authClient";
-import { reloadPage } from "../../lib/reloadPage";
-import { parseText } from "../../lib/validation";
+import { authClient } from "@/auth/authClient";
+import { reloadPage } from "@/lib/reloadPage";
+import { parseText } from "@/lib/validation";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import { isAccountRole } from "@capacitylens/shared/account/types";
-import { isTransportFailure } from "../../data/requestTimeout";
+import { isTransportFailure } from "@/data/requestTimeout";
 
 interface Dependencies {
   token: string | undefined;

@@ -1,15 +1,15 @@
 import { useId, useState } from "react";
-import { useStore } from "../../store/useStore";
-import { scopeData } from "../../store/selectors";
+import { useStore } from "@/store/useStore";
+import { scopeData } from "@/store/selectors";
 import { serializeData } from "@capacitylens/shared/data/transfer";
 import { todayISO } from "@capacitylens/shared/lib/dateMath";
-import { isServerConfigured } from "../../data/apiConfig";
-import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "../../data/fetchInactiveSlice";
-import { downloadTextFile } from "../../lib/download";
-import { resolveErrorMessage } from "../../lib/errorMessage";
+import { isServerConfigured } from "@/data/apiConfig";
+import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "@/data/fetchInactiveSlice";
+import { downloadTextFile } from "@/lib/download";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 import { m } from "@/i18n";
-import { Modal, TextField } from "../common/ui";
-import { Button } from "../ui/button";
+import { Modal, TextField } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
 import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
 

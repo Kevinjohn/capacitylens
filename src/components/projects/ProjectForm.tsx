@@ -1,18 +1,26 @@
 import { useMemo, useState } from "react";
-import { useStore } from "../../store/useStore";
-import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
-import { useFieldError } from "../../hooks/useFieldError";
-import { resolveDomainErrorMessage, resolveErrorMessage } from "../../lib/errorMessage";
-import { validatePresetColor, parseName } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/isStaleEdit";
+import { useStore } from "@/store/useStore";
+import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
+import { useFieldError } from "@/hooks/useFieldError";
+import { resolveDomainErrorMessage, resolveErrorMessage } from "@/lib/errorMessage";
+import { validatePresetColor, parseName } from "@/lib/validation";
+import { isStaleEdit } from "@/lib/isStaleEdit";
 import { validateProjectClient } from "@capacitylens/shared/lib/integrity";
-import { DEFAULT_COLORS } from "../../lib/palette";
-import { byName } from "../../lib/displayOrder";
+import { DEFAULT_COLORS } from "@/lib/palette";
+import { byName } from "@/lib/displayOrder";
 import { m } from "@/i18n";
-import { ColorField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
-import { PrivateNameFields } from "../common/PrivateNameFields";
-import { usePrivateNameFields } from "../common/usePrivateNameFields";
-import { FieldError } from "../ui/field";
+import {
+  ColorField,
+  FormActions,
+  Modal,
+  RequiredLegend,
+  SelectField,
+  TextField,
+  type Option,
+} from "@/components/common/ui";
+import { PrivateNameFields } from "@/components/common/PrivateNameFields";
+import { usePrivateNameFields } from "@/components/common/usePrivateNameFields";
+import { FieldError } from "@/components/ui/field";
 import type { Project } from "@capacitylens/shared/types/entities";
 
 type ProjectPrivacy = NonNullable<ReturnType<ReturnType<typeof usePrivateNameFields>["parsePrivacyPatch"]>>;

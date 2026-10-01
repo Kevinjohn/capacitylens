@@ -1,11 +1,11 @@
 import { useEffect, useId, useState } from "react";
 import type { FormEvent } from "react";
 import { APP_NAME } from "@capacitylens/shared/brand";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Checkbox } from "../components/ui/checkbox";
-import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from "../components/ui/field";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authClient } from "./authClient";
 import type { PublicAuthEntry } from "./authEntryRoute";
 import { m } from "@/i18n";

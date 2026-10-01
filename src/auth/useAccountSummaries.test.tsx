@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, render } from "@testing-library/react";
 import { fetchAccountSummaries, refreshAccountSummaries, useAccountSummaries } from "./useAccountSummaries";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import {
   cacheAccountSummaries,
   readOfflineStateSnapshot,
   readCachedAccountSummaries,
   setOfflineReadState,
-} from "../data/offlineCache";
+} from "@/data/offlineCache";
 import { m } from "@/i18n";
 
-vi.mock("../data/offlineCache", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../data/offlineCache")>();
+vi.mock("@/data/offlineCache", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/data/offlineCache")>();
   return {
     ...actual,
     cacheAccountSummaries: vi.fn(actual.cacheAccountSummaries),

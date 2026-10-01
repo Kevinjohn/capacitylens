@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiFetch = vi.hoisted(() => vi.fn<(url: string, init?: RequestInit) => Promise<Response>>());
-vi.mock("../data/apiConfig", () => ({ API_BASE: "https://app.example" }));
-vi.mock("../data/requestTimeout", () => ({ apiFetch }));
+vi.mock("@/data/apiConfig", () => ({ API_BASE: "https://app.example" }));
+vi.mock("@/data/requestTimeout", () => ({ apiFetch }));
 
 import { gettingStartedClient } from "./gettingStartedClient";
 

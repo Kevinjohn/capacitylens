@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { PermissionContext, useCan, useCanEdit } from "./permissionContext";
 import { can } from "@capacitylens/shared/domain/access";
 import type { Action, Role } from "@capacitylens/shared/domain/access";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 
 // The generalised affordance gate. Two things must hold and neither is visible from a component
 // test: a RESOLVED role delegates to the pure `can` matrix untouched (so client affordances and the

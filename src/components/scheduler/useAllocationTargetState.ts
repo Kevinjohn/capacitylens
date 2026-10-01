@@ -4,10 +4,10 @@ import type { Activity, Resource } from "@capacitylens/shared/types/entities";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
-import { resolveResourceDisplayName } from "../../lib/metadata";
-import { parseText } from "../../lib/validation";
-import type { useStore } from "../../store/useStore";
-import type { Option } from "../common/ui";
+import { resolveResourceDisplayName } from "@/lib/metadata";
+import { parseText } from "@/lib/validation";
+import type { useStore } from "@/store/useStore";
+import type { Option } from "@/components/common/ui";
 import {
   buildActivityOptions,
   resolveGroupKeyForKind,
@@ -16,7 +16,7 @@ import {
 } from "./activityOptions";
 
 import type { AppData } from "@capacitylens/shared/types/entities";
-import type { FieldError } from "../../hooks/useFieldError";
+import type { FieldError } from "@/hooks/useFieldError";
 import type { AllocationModalSeed } from "./buildAllocationModalSeed";
 import {
   isActivityInProjectSelection,

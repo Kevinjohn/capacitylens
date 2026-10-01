@@ -1,12 +1,12 @@
 import { Star } from "lucide-react";
 import type { Resource } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { useStore } from "../../store/useStore";
-import { useCanEdit } from "../../auth/permissionContext";
-import { resolveResourceDisplayName } from "../../lib/metadata";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { cn } from "../../lib/cn";
-import { Button } from "../ui/button";
+import { useStore } from "@/store/useStore";
+import { useCanEdit } from "@/auth/permissionContext";
+import { resolveResourceDisplayName } from "@/lib/metadata";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/button";
 
 export function FavouriteButton({ resource }: { resource: Resource }) {
   const canEdit = useCanEdit();

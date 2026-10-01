@@ -1,14 +1,14 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { it, expect, beforeEach, vi } from "vitest";
 import { attachPersistence, hasUnsavedPersistenceWrites } from "./persist";
 import { InMemoryDemoAdapter } from "./InMemoryDemoAdapter";
 import { ServerSyncAdapter, BatchConflictError } from "./ServerSyncAdapter";
 import type { AllocationRewriteRevision, PersistenceAdapter } from "./PersistenceAdapter";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { deleteProjectCascade } from "@capacitylens/shared/lib/integrity";
-import { resetStoreWithAccount, requireValue } from "../test/fixtures";
+import { resetStoreWithAccount, requireValue } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import { requireCallback, a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 

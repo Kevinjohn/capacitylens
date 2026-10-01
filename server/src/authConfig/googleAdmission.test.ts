@@ -5,7 +5,8 @@ import { insertRow, openDb } from "../db";
 import { createInvite, getInvite, upsertMember } from "../controlTables";
 import { canAdmitLocalExternalIdentity } from "../accounts/externalIdentityAdmission";
 import { hasLivePreauthorizedInvitation } from "../accounts/sqliteAccountAdminPort";
-import { PASSWORD_ENV, readCookies, registerServerFixtureCleanup, signUp } from "../testHelpers";
+import { PASSWORD_ENV, readCookies, signUp } from "../testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "../testHelpers/registerServerFixtureCleanup";
 
 const fixtures = registerServerFixtureCleanup();
 const origin = "http://localhost:8787";

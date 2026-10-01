@@ -3,7 +3,8 @@ import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { call, PASSWORD_ENV, registerServerFixtureCleanup } from "./testHelpers";
+import { call, PASSWORD_ENV } from "./testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 
 // Better Auth reads NODE_ENV once at import and enables its limiter only in production.
 vi.hoisted(() => {

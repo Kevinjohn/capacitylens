@@ -1,17 +1,17 @@
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { useState } from "react";
-import { accountClient } from "../../account/accountClient";
-import { useAuth } from "../../auth/authContext";
-import { useCan } from "../../auth/permissionContext";
-import { refreshActiveAccountSlice } from "../../data/persist";
-import { useOfflineState } from "../../data/useOfflineState";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { readApiError } from "../../lib/readApiError";
-import { useScopedData } from "../../store/useScopedData";
-import { useStore } from "../../store/useStore";
-import { ConfirmDialog, SwitchField } from "../common/ui";
-import { Button } from "../ui/button";
+import { accountClient } from "@/account/accountClient";
+import { useAuth } from "@/auth/authContext";
+import { useCan } from "@/auth/permissionContext";
+import { refreshActiveAccountSlice } from "@/data/persist";
+import { useOfflineState } from "@/data/useOfflineState";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { readApiError } from "@/lib/readApiError";
+import { useScopedData } from "@/store/useScopedData";
+import { useStore } from "@/store/useStore";
+import { ConfirmDialog, SwitchField } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
 import { SettingsSection } from "./SettingsSection";
 
 import type { useLocalDataActions } from "./useLocalDataActions";

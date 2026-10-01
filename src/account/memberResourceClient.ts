@@ -1,5 +1,5 @@
-import { API_BASE } from "../data/apiConfig";
-import { apiFetch } from "../data/requestTimeout";
+import { API_BASE } from "@/data/apiConfig";
+import { apiFetch } from "@/data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
 import { buildCommandRequestInit, runCommand } from "./commandRequest";
 

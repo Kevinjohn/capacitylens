@@ -9,8 +9,8 @@ import {
 } from "@capacitylens/shared/domain/lifecycle";
 import { m } from "@/i18n";
 import type { AppData, ID, Resource } from "@capacitylens/shared/types/entities";
-import { PURGE_CASCADES, touchAfter, type StoreInternals } from "../storeInternal";
-import type { LifecycleEntity, StoreState } from "../types";
+import { PURGE_CASCADES, touchAfter, type StoreInternals } from "@/store/storeInternal";
+import type { LifecycleEntity, StoreState } from "@/store/types";
 
 type LifecycleSlice = Pick<StoreState, "archiveEntity" | "unarchiveEntity" | "softDeleteEntity" | "purgeEntity">;
 type LifecycleSliceInternals = Pick<

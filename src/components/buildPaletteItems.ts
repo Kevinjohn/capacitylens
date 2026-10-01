@@ -2,12 +2,12 @@ import { m } from "@/i18n";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { isExternalResource, type Activity } from "@capacitylens/shared/types/entities";
 import type { useNavigate } from "react-router-dom";
-import { fuzzyFilter } from "../lib/fuzzy";
-import { resolveResourceDisplayName } from "../lib/metadata";
-import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "../lib/navLinks";
-import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "../lib/tourAnchors";
-import type { useActiveScopedData } from "../store/useScopedData";
-import { buildEmptyFilters, type Filters } from "../store/useStore";
+import { fuzzyFilter } from "@/lib/fuzzy";
+import { resolveResourceDisplayName } from "@/lib/metadata";
+import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "@/lib/navLinks";
+import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "@/lib/tourAnchors";
+import type { useActiveScopedData } from "@/store/useScopedData";
+import { buildEmptyFilters, type Filters } from "@/store/useStore";
 
 export interface PaletteItem {
   id: string;

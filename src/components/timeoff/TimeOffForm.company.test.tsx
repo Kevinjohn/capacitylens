@@ -1,9 +1,9 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { TimeOffForm } from "./TimeOffForm";
-import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount, setPlaceholdersEnabled, WORKDAYS } from "../../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount, setPlaceholdersEnabled, WORKDAYS } from "@/test/fixtures";
 
 const personDraft = {
   kind: "person" as const,

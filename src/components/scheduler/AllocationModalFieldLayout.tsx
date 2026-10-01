@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { DateField } from "../common/ui";
+import { DateField } from "@/components/common/ui";
 
 /** Keeps compound controls and their supporting text inside the shared 75% control column. */
 export function AllocationControlColumn({ children }: { children: ReactNode }) {

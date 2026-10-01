@@ -3,10 +3,10 @@ import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import { isAccountEmail } from "@capacitylens/shared/account/validation";
-import { resolveRejectionMessage, teamAccessClient, type TeamInvitation } from "../../account/teamAccessClient";
-import type { useAuth } from "../../auth/authContext";
-import type { FieldError } from "../../hooks/useFieldError";
-import { resolveErrorMessage } from "../../lib/errorMessage";
+import { resolveRejectionMessage, teamAccessClient, type TeamInvitation } from "@/account/teamAccessClient";
+import type { useAuth } from "@/auth/authContext";
+import type { FieldError } from "@/hooks/useFieldError";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 

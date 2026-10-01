@@ -1,13 +1,13 @@
 import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
-import type { TeamMember } from "../../account/teamAccessClient";
+import type { TeamMember } from "@/account/teamAccessClient";
 import { buildMemberConfirmationCopy, resolveMemberLabel, type MemberConfirmation } from "./memberConfirmationCopy";
 
 export type { MemberConfirmation, MemberConfirmationAction } from "./memberConfirmationCopy";
-import { resolveRoleSummary } from "../../lib/accessCopy";
-import { ConfirmDialog, Modal, SelectField } from "../common/ui";
-import { Button } from "../ui/button";
+import { resolveRoleSummary } from "@/lib/accessCopy";
+import { ConfirmDialog, Modal, SelectField } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
 
 export type MemberRoleEdit = { member: TeamMember; nextRole: Role };
 

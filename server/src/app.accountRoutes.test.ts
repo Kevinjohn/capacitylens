@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import type { FastifyInstance, InjectOptions } from "fastify";
 import { createApp } from "./app";
 import { getRow, openDb } from "./db";
-import { call } from "./testHelpers";
+import { call } from "./testHelpers/passwordAuth";
+import { deferred } from "./testHelpers/deferred";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 
 // ROUTING-BOUNDARY contract for the dedicated `accounts` write routes (routes/accountEntityRoutes.ts).
@@ -11,14 +12,6 @@ import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 // swallow deeper parametric routes or let an account write fall back into scoped-entity semantics.
 
 const TS = "2026-01-01T00:00:00.000Z";
-
-function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
 
 function freshApp(): FastifyInstance {
   return createApp(openDb(":memory:"), { optimisticConcurrency: false });

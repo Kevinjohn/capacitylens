@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
-import { Button } from "../components/ui/button";
-import { Card, CardContent } from "../components/ui/card";
-import { FieldError } from "../components/ui/field";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { FieldError } from "@/components/ui/field";
 import {
   cancelMicrosoftConnection,
   confirmMicrosoftConnection,

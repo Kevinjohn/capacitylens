@@ -1,34 +1,12 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { createApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
+import type { Db } from "./db";
 import { upsertMember, getMemberRole } from "./controlTables";
-import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
+import { seedTwo } from "./app.members.testSupport";
 
 const TS = "2026-01-01T00:00:00.000Z";
-const meta = () => ({ createdAt: TS, updatedAt: TS });
-const account = (id: string) => ({
-  id,
-  name: `Studio ${id}`,
-  color: "#3b82f6",
-  ...meta(),
-});
-
-function seedTwo(db: Db): void {
-  const d = emptyAppData() as unknown as Record<string, unknown[]>;
-  d.accounts = [account("a1"), account("a2")];
-  insertAll(db, d as unknown as AppData);
-}
-
-async function appWithAuth(options: { rateLimit?: number } = {}): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!auth) throw new Error("Expected auth configuration.");
-  await runAuthMigrations(auth);
-  return { app: createApp(db, { authMode: mode, auth, ...options }), db };
-}
 
 function parseErrorCode(value: unknown): string {
   if (typeof value !== "object" || value === null || !("code" in value) || typeof value.code !== "string") {

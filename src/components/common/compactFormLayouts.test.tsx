@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { resetStoreWithAccount } from "../../test/fixtures";
-import { ExternalForm } from "../external/ExternalForm";
-import { DisciplineForm } from "../disciplines/DisciplineForm";
-import { ClientForm } from "../clients/ClientForm";
-import { ProjectForm } from "../projects/ProjectForm";
-import { ActivityForm } from "../activities/ActivityForm";
-import { TimeOffForm } from "../timeoff/TimeOffForm";
+import { resetStoreWithAccount } from "@/test/fixtures";
+import { ExternalForm } from "@/components/external/ExternalForm";
+import { DisciplineForm } from "@/components/disciplines/DisciplineForm";
+import { ClientForm } from "@/components/clients/ClientForm";
+import { ProjectForm } from "@/components/projects/ProjectForm";
+import { ActivityForm } from "@/components/activities/ActivityForm";
+import { TimeOffForm } from "@/components/timeoff/TimeOffForm";
 
 beforeEach(() => resetStoreWithAccount());
 

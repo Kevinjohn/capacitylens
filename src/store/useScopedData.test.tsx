@@ -11,7 +11,7 @@ import {
   makeResource,
   makeTimeOff,
   requireValue,
-} from "../test/fixtures";
+} from "@/test/fixtures";
 import {
   resolveSharedActiveData,
   resolveSharedScopedData,

@@ -28,7 +28,7 @@ const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
   hasLivePreauthorizedInvitation: (email: string) => hasLivePreauthorizedInvitation(db, email),
 });
 import { TENANT_ENTITY_ACCOUNT_INDEXES_V21 } from "./tenantIndexes";
-import { registerServerFixtureCleanup } from "./testHelpers";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 
 // P1.16 — session-cookie + session-lifetime hardening, asserted by INTROSPECTING the resolved

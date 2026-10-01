@@ -1,18 +1,18 @@
-import { useActiveScopedData } from "../../store/useScopedData";
-import { useEntityListState } from "../../hooks/useEntityListState";
-import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { useEntityListState } from "@/hooks/useEntityListState";
+import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "@/components/common/ui";
 import { ProjectForm } from "./ProjectForm";
 import type { AppData, Client, ID, Project } from "@capacitylens/shared/types/entities";
-import { useLifecycleActions } from "../../hooks/useLifecycleActions";
+import { useLifecycleActions } from "@/hooks/useLifecycleActions";
 import { m } from "@/i18n";
 import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
 import { resolveProjectColor } from "@capacitylens/shared/lib/color";
 import { Fragment, useMemo } from "react";
 import { Folder, Plus } from "lucide-react";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { buildProjectArchiveImpactCopy, safeArchiveImpact } from "../../lib/archiveImpactCopy";
-import { createClientProjectDisplayNameComparator } from "../../lib/displayOrder";
-import { ArchivedEntitySection } from "../common/ArchivedEntitySection";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
+import { buildProjectArchiveImpactCopy, safeArchiveImpact } from "@/lib/archiveImpactCopy";
+import { createClientProjectDisplayNameComparator } from "@/lib/displayOrder";
+import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
 
 /** Build the archive-confirm message for a project, appending the allocation-count cascade warning
  *  when the project has active allocations that archiving would pull out of the schedule. Uses

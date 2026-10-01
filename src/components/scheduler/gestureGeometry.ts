@@ -1,4 +1,4 @@
-import { applyGesture, type DateRange, type DragMode } from "../../lib/gestureMath";
+import { applyGesture, type DateRange, type DragMode } from "@/lib/gestureMath";
 import type { Allocation, Weekday } from "@capacitylens/shared/types/entities";
 import type { BarLayout } from "./schedulerModel";
 import type { ColumnGeometry } from "./columnGeometry";

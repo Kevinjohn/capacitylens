@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Allocation, AppData, ISODate, Resource } from "@capacitylens/shared/types/entities";
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { buildEmptyFilters } from "../../store/useStore";
-import { makeAllocation, makeResource, requireValue } from "../../test/fixtures";
+import { buildEmptyFilters } from "@/store/useStore";
+import { makeAllocation, makeResource, requireValue } from "@/test/fixtures";
 import { isCreationStartBlocked } from "./creationAvailability";
 import { buildSchedulerModel, type GroupModel } from "./schedulerModel";
 import { buildColumnGeometry } from "./columnGeometry";

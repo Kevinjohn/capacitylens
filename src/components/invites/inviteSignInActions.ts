@@ -1,14 +1,14 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { InviteAcceptState } from "./InviteAcceptView";
 import { m } from "@/i18n";
-import type { AuthProviderInfo } from "../../auth/authContext";
-import { startMicrosoftConnection } from "../../auth/microsoftConnectionClient";
-import { authClient } from "../../auth/authClient";
-import { reloadPage } from "../../lib/reloadPage";
-import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
-import { useStore } from "../../store/useStore";
-import { replaceWithAccountPicker, replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
-import { buildExternalSignInErrorUrl } from "../../auth/externalSignInError";
+import type { AuthProviderInfo } from "@/auth/authContext";
+import { startMicrosoftConnection } from "@/auth/microsoftConnectionClient";
+import { authClient } from "@/auth/authClient";
+import { reloadPage } from "@/lib/reloadPage";
+import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
+import { useStore } from "@/store/useStore";
+import { replaceWithAccountPicker, replaceWithJoinedAccount } from "@/lib/joinedAccountHandoff";
+import { buildExternalSignInErrorUrl } from "@/auth/externalSignInError";
 import { runExternalSignIn } from "./externalSignIn";
 import type { FormEvent } from "react";
 

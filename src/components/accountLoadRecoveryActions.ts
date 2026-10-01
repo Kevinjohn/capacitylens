@@ -1,6 +1,6 @@
 import type { NavigateFunction } from "react-router-dom";
-import { transitionAccount } from "../auth/accountTransition";
-import { useStore } from "../store/useStore";
+import { transitionAccount } from "@/auth/accountTransition";
+import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";
 
 /** The recovery screen's only exit: leave a company whose data failed to load. A silent failure

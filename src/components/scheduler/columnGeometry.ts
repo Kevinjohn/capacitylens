@@ -1,5 +1,5 @@
 import { dayIndex, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from "../../lib/schedulerConfig";
+import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from "@/lib/schedulerConfig";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
 // Scheduler column geometry is the source of truth for px↔day↔date mapping. Prefix-summed

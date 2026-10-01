@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { AppShell } from "./AppShell";
-import { useStore } from "../store/useStore";
-import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
-import { stubMatchMedia } from "../test/stubMatchMedia";
+import { useStore } from "@/store/useStore";
+import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { stubMatchMedia } from "@/test/stubMatchMedia";
 
-vi.mock("../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isDemoMode: () => true,
   isServerConfigured: () => false,

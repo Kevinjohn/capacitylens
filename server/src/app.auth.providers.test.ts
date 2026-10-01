@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { call, PASSWORD_ENV, signUp } from "./testHelpers";
+import { call, PASSWORD_ENV, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 import {
   createInvite,
   listResourceAvatarProjection,
@@ -17,11 +17,6 @@ import { microsoftCallbackCapture } from "./authConfig/captureContexts";
 // by running unchanged — these tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
-
-function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
-  if (auth === null) throw new Error("Expected authentication to be configured.");
-  return auth;
-}
 
 const MICROSOFT_ENV = {
   CAPACITYLENS_MICROSOFT_CLIENT_ID: "ms-id",
@@ -41,16 +36,9 @@ const NAMED_SSO_ENV = {
   CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
-async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, env);
-  await runAuthMigrations(parseConfiguredAuth(auth));
-  return createApp(db, { authMode: mode, auth });
-}
-
 function registerSsoClosedRouteTests(): void {
   it("publishes the configured Google provider to signed-out clients", async () => {
-    const app = await appWithAuth(NAMED_SSO_ENV);
+    const { app } = await appWithAuth({ env: NAMED_SSO_ENV });
     const response = await call(app, { method: "GET", url: "/api/auth/me" });
 
     expect(response.statusCode).toBe(401);
@@ -61,7 +49,7 @@ function registerSsoClosedRouteTests(): void {
   });
 
   it("keeps password mutation and invitation password signup closed", async () => {
-    const app = await appWithAuth(NAMED_SSO_ENV);
+    const { app } = await appWithAuth({ env: NAMED_SSO_ENV });
     try {
       expect(
         (
@@ -101,7 +89,7 @@ function registerSsoClosedRouteTests(): void {
 }
 
 it("publishes Microsoft first-owner setup in provider-required mode", async () => {
-  const app = await appWithAuth({ ...PASSWORD_ENV, ...MICROSOFT_ENV, CAPACITYLENS_MODE: "sso-only" });
+  const { app } = await appWithAuth({ env: { ...PASSWORD_ENV, ...MICROSOFT_ENV, CAPACITYLENS_MODE: "sso-only" } });
   try {
     const response = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(response.statusCode).toBe(401);
@@ -120,7 +108,7 @@ describe("CAPACITYLENS_MODE sso", () => {
   registerSsoClosedRouteTests();
 
   it("issues a stateful Google authorization redirect", async () => {
-    const app = await appWithAuth(NAMED_SSO_ENV);
+    const { app } = await appWithAuth({ env: NAMED_SSO_ENV });
     try {
       const response = await call(app, {
         method: "POST",

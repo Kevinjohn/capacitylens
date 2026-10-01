@@ -24,10 +24,10 @@ const me = (status: number, body: unknown) =>
 async function freshProvider() {
   vi.resetModules();
   const { AuthProvider } = await import("./AuthProvider");
-  const { useStore } = await import("../store/useStore");
-  const { attachPersistence } = await import("../data/persist");
-  const { resetStoreWithAccount } = await import("../test/fixtures");
-  const { cacheAuthSnapshot, readOfflineStateSnapshot, setOfflineReadState } = await import("../data/offlineCache");
+  const { useStore } = await import("@/store/useStore");
+  const { attachPersistence } = await import("@/data/persist");
+  const { resetStoreWithAccount } = await import("@/test/fixtures");
+  const { cacheAuthSnapshot, readOfflineStateSnapshot, setOfflineReadState } = await import("@/data/offlineCache");
   // authContext must come from the SAME fresh module graph as AuthProvider (which imports it
   // internally): a statically-imported useAuth from before vi.resetModules() would read the
   // context object's DEFAULT value, not whatever this AuthProvider instance provides.

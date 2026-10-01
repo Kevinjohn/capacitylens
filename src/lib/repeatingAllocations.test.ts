@@ -3,7 +3,7 @@ import type { Allocation, Closure, Resource, TimeOff, Weekday } from "@capacityl
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
-import type { Draft } from "../store/useStore";
+import type { Draft } from "@/store/useStore";
 import {
   buildRepeatedAllocationDrafts,
   buildRepeatingAllocationAdvisory as repeatingAllocationAdvisoryWithWeek,

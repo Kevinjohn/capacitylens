@@ -1,21 +1,21 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render as rtlRender, screen, type RenderOptions } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { PermissionContext } from "./permissionContext";
-import { TooltipProvider } from "../components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // AllocationBar now uses a provider-less TooltipRoot (the single TooltipProvider is hoisted to
 // SchedulerGrid), so isolated bar renders here must supply their own provider.
 const render = (ui: ReactNode, options?: Omit<RenderOptions, "wrapper">) =>
   rtlRender(ui, { wrapper: TooltipProvider, ...options });
-import { AddButton, ListPage } from "../components/common/ui";
-import { AllocationBar } from "../components/scheduler/AllocationBar";
-import { buildColumnGeometry } from "../components/scheduler/columnGeometry";
-import type { BarLayout } from "../components/scheduler/schedulerModel";
+import { AddButton, ListPage } from "@/components/common/ui";
+import { AllocationBar } from "@/components/scheduler/AllocationBar";
+import { buildColumnGeometry } from "@/components/scheduler/columnGeometry";
+import type { BarLayout } from "@/components/scheduler/schedulerModel";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
-import { useStore } from "../store/useStore";
-import { resetStoreWithAccount, makeResourceDraft, requireValue } from "../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount, makeResourceDraft, requireValue } from "@/test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation } from "@capacitylens/shared/types/entities";
 import type { Role } from "@capacitylens/shared/domain/access";

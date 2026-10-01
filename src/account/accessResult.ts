@@ -1,6 +1,6 @@
 import { isIsoInstant } from "@capacitylens/shared/account/types";
 import { commandOutcomeDecisions, readUnknownAccountCommandOutcome } from "./commandOutcome";
-import { extractApiErrorMessage, readApiError } from "../lib/readApiError";
+import { extractApiErrorMessage, readApiError } from "@/lib/readApiError";
 
 /**
  * The shared shape of every account-administration answer, and the Response handling that produces

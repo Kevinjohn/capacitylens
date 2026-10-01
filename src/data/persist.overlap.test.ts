@@ -1,4 +1,4 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
@@ -10,8 +10,8 @@ import {
   refreshActiveAccountSlice,
   switchAndAwaitHydration,
 } from "./persist";
-import { useStore } from "../store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAccount, makeAppData, resetStoreWithAccount } from "../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

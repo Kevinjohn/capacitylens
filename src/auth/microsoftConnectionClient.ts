@@ -1,5 +1,5 @@
-import { API_BASE } from "../data/apiConfig";
-import { apiFetch } from "../data/requestTimeout";
+import { API_BASE } from "@/data/apiConfig";
+import { apiFetch } from "@/data/requestTimeout";
 
 export type MicrosoftConnectionPurpose = "bootstrap" | "invite" | "link";
 export type MicrosoftConnectionStatus = {

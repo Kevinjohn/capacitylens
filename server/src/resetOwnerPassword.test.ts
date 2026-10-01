@@ -8,7 +8,8 @@ import { openDb as openDbRaw, openDbConnection, insertAll, type Db } from "./db"
 import { upsertMember } from "./controlTables";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { isAuditEntry } from "./auditOutbox";
-import { PASSWORD_ENV, call, signUp, registerServerFixtureCleanup } from "./testHelpers";
+import { PASSWORD_ENV, call, signUp } from "./testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { resetOwnerPassword } from "./resetOwnerPassword";
 

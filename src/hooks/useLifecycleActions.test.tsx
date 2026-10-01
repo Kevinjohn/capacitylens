@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { useLifecycleActions } from "./useLifecycleActions";
-import { useStore } from "../store/useStore";
-import { makeAccount, makeAppData, resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { makeAccount, makeAppData, resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
 // SERVER-mode coverage for the lifecycle dispatch hook (the LOCAL/store path is covered by
@@ -25,11 +25,11 @@ const refreshControl = vi.hoisted(() => ({
     return refreshControl.outcome;
   }),
 }));
-vi.mock("../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: cfg.base,
   isServerConfigured: () => true,
 }));
-vi.mock("../data/persist", () => ({
+vi.mock("@/data/persist", () => ({
   refreshActiveAccountSlice: (accountId: string) => refreshControl.call(accountId),
 }));
 
@@ -52,7 +52,7 @@ const reloadedSlice: AppData = makeAppData({
 // Typed via vi.fn<…>() so the mocked adapter's loadAll(id) call type-checks AND the mock API
 // (mockResolvedValue / toHaveBeenCalledWith) stays available.
 const loadAll = vi.fn<(accountId: string) => Promise<AppData>>(() => Promise.resolve(reloadedSlice));
-vi.mock("../data/storageAdapter", () => ({
+vi.mock("@/data/storageAdapter", () => ({
   persistenceAdapter: { loadAll: (id: string) => loadAll(id) },
 }));
 

@@ -1,9 +1,4 @@
-import {
-  applyCapacityMode,
-  buildDayCapacity,
-  resolveUtilizationFromCapacity,
-  type DayCapacity,
-} from "../../lib/capacity";
+import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity, type DayCapacity } from "@/lib/capacity";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import {

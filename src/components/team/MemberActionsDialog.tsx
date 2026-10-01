@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { m } from "@/i18n";
-import { Modal } from "../common/ui";
-import { Button } from "../ui/button";
+import { Modal } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 
 export function MemberActionsDialog({

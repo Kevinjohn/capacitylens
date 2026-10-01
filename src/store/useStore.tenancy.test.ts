@@ -1,7 +1,7 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useStore } from "./useStore";
-import { makeAccount, makeAppData, WORKDAYS } from "../test/fixtures";
+import { makeAccount, makeAppData, WORKDAYS } from "@/test/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
 // The store is the strict per-account WRITE boundary: an update/delete must own

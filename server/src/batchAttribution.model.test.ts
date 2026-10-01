@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance, InjectOptions } from "fastify";
 import { createApp } from "./app";
 import { getRow, openDb, upsertRow, type Db } from "./db";
-import { call } from "./testHelpers";
+import { call } from "./testHelpers/passwordAuth";
 
 const ACCOUNT_ID = "a1";
 const ACTIVITY_ID = "activity";

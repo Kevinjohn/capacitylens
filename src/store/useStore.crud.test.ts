@@ -1,4 +1,4 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -13,7 +13,7 @@ import {
   requireValue,
   resetStoreWithAccount,
   WORKDAYS,
-} from "../test/fixtures";
+} from "@/test/fixtures";
 
 const s = () => useStore.getState();
 

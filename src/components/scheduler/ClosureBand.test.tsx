@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { makeClosure } from "../../test/fixtures";
+import { makeClosure } from "@/test/fixtures";
 import { GEOM } from "./__tests__/schedulerTestKit";
 import { ClosureBand } from "./ClosureBand";
 import { buildColumnGeometry } from "./columnGeometry";

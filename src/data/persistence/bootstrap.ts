@@ -1,9 +1,9 @@
 import type { StoreApi } from "zustand";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import type { StoreState } from "../../store/useStore";
-import type { PersistenceAdapter } from "../PersistenceAdapter";
+import type { StoreState } from "@/store/useStore";
+import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
 import { emptyAppData, isEmpty } from "@capacitylens/shared/types/entities";
-import { LoadError } from "../PersistenceAdapter";
+import { LoadError } from "@/data/PersistenceAdapter";
 import { attachPersistence } from "./attachPersistence";
 
 interface BootstrapOptions {

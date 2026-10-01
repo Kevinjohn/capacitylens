@@ -6,7 +6,8 @@ import { createApp } from "./app";
 import { upsertMember } from "./controlTables";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { insertAll, openDb, type Db } from "./db";
-import { PASSWORD_ENV, call, registerServerFixtureCleanup, signUp } from "./testHelpers";
+import { PASSWORD_ENV, call, signUp } from "./testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 const TS = "2026-09-01T10:00:00.000Z";

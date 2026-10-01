@@ -1,5 +1,5 @@
-import { API_BASE } from "../data/apiConfig";
-import { apiFetch } from "../data/requestTimeout";
+import { API_BASE } from "@/data/apiConfig";
+import { apiFetch } from "@/data/requestTimeout";
 
 function post(path: string, body?: unknown, signal?: AbortSignal): Promise<Response> {
   return apiFetch(`${API_BASE}${path}`, {

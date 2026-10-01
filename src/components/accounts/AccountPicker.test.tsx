@@ -3,24 +3,24 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
-import { AppShell } from "../AppShell";
+import { AppShell } from "@/components/AppShell";
 import { AccountPicker } from "./AccountPicker";
-import { AuthContext } from "../../auth/authContext";
-import { AuthProvider } from "../../auth/AuthProvider";
-import { useStore } from "../../store/useStore";
+import { AuthContext } from "@/auth/authContext";
+import { AuthProvider } from "@/auth/AuthProvider";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
-import { resolveBrowserTimeZone } from "../../lib/timezones";
+import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { resolveBrowserTimeZone } from "@/lib/timezones";
 
 // Mutable API configuration lets server-mode tests opt in while the rest exercise demo-store paths.
 const serverFlag = vi.hoisted(() => ({ on: false }));
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isDemoMode: () => !serverFlag.on,
   isServerConfigured: () => serverFlag.on,
 }));
 
-vi.mock("../../auth/accountTransition", () => ({
+vi.mock("@/auth/accountTransition", () => ({
   transitionAccount: vi.fn(async (id: string | null) => {
     useStore.getState().setActiveAccount(id);
     return true;

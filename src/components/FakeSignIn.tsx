@@ -1,5 +1,5 @@
-import avatarUrl from "../assets/avatar-demo.svg";
-import { FAKE_USER } from "../lib/fakeAuth";
+import avatarUrl from "@/assets/avatar-demo.svg";
+import { FAKE_USER } from "@/lib/fakeAuth";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";

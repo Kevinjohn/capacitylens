@@ -2,12 +2,12 @@ import { useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
-import { TextField } from "../common/ui";
-import { Button } from "../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { FieldError } from "../ui/field";
+import { TextField } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldError } from "@/components/ui/field";
 import { useCompanyJoin } from "./useCompanyJoin";
-import { ExternalProviderButton } from "../common/ExternalProviderButton";
+import { ExternalProviderButton } from "@/components/common/ExternalProviderButton";
 
 type Flow = ReturnType<typeof useCompanyJoin>;
 

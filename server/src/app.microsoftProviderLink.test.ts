@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "./app";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { openDb } from "./db";
-import { PASSWORD_ENV, readCookies, registerServerFixtureCleanup } from "./testHelpers";
+import { PASSWORD_ENV, readCookies } from "./testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 
 const fixtures = registerServerFixtureCleanup();
 const origin = "http://localhost:8787";

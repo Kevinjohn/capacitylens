@@ -1,7 +1,7 @@
 import { m } from "@/i18n";
-import { ListPage } from "../common/ui";
-import { SettingsSection } from "../settings/SettingsSection";
-import { Button } from "../ui/button";
+import { ListPage } from "@/components/common/ui";
+import { SettingsSection } from "@/components/settings/SettingsSection";
+import { Button } from "@/components/ui/button";
 import { useDiagnosticsController } from "./useDiagnosticsController";
 
 /** Shows the privacy-safe support report exactly as it is copied, for Owners and Admins. */

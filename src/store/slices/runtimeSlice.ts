@@ -12,9 +12,9 @@ import {
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
   writeStoredUtilizationPrefs,
-} from "../../lib/displayPrefs";
-import { applyThemeToDom, readStoredTheme, writeStoredTheme } from "../../lib/theme";
-import type { StoreState } from "../types";
+} from "@/lib/displayPrefs";
+import { applyThemeToDom, readStoredTheme, writeStoredTheme } from "@/lib/theme";
+import type { StoreState } from "@/store/types";
 
 type RuntimeSliceKeys =
   | "hydrated"

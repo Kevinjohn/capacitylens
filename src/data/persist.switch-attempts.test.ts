@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { resetStoreWithAccount } from "../test/fixtures";
-import { useStore } from "../store/useStore";
+import { resetStoreWithAccount } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
 import { attachPersistence, switchAndAwaitHydration } from "./persist";
 
 beforeEach(() => resetStoreWithAccount());

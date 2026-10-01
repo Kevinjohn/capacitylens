@@ -1,8 +1,8 @@
 import { useId, type ReactNode } from "react";
-import { Switch } from "../../ui/switch";
-import { Checkbox } from "../../ui/checkbox";
-import { Field, FieldContent, FieldDescription, FieldLabel } from "../../ui/field";
-import { useMarkFormDirty } from "../formDirty";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { useMarkFormDirty } from "@/components/common/formDirty";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
 

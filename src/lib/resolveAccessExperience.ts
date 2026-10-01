@@ -1,5 +1,5 @@
-import type { AccountMode } from "../auth/authContext";
-import { isDemoMode } from "../data/apiConfig";
+import type { AccountMode } from "@/auth/authContext";
+import { isDemoMode } from "@/data/apiConfig";
 
 /** Product-facing access posture. Authentication being off on a persisted server is deliberately
  * distinct from the disposable in-memory demo; neither is represented as a fictional Owner role. */

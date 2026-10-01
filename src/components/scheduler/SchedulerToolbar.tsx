@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import { useCanEdit } from "../../auth/permissionContext";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { hasActiveFilters, useStore } from "../../store/useStore";
-import { hasDisciplinesEnabled } from "../../store/selectors";
-import { useActiveScopedData } from "../../store/useScopedData";
+import { useCanEdit } from "@/auth/permissionContext";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { hasActiveFilters, useStore } from "@/store/useStore";
+import { hasDisciplinesEnabled } from "@/store/selectors";
+import { useActiveScopedData } from "@/store/useScopedData";
 import { SCHEDULER_DENSITY } from "./layout";
 import { SchedulerToolbarChrome, SchedulerToolbarFilters } from "./SchedulerToolbarSections";
 import { buildFilterOptions } from "./toolbarFilterOptions";

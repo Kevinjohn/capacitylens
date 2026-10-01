@@ -3,7 +3,7 @@ import { createApp } from "./app";
 import { recordSessionAssurance } from "./accounts/state";
 import { createAuthFromEnvironment, parseAuthMode, runAuthMigrations } from "./auth";
 import { openDb } from "./db";
-import { PASSWORD_ENV, readCookies } from "./testHelpers";
+import { PASSWORD_ENV, readCookies } from "./testHelpers/passwordAuth";
 
 const google = {
   CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",

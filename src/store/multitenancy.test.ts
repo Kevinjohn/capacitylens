@@ -1,10 +1,10 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
 import { scopeData } from "./selectors";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { makeAccount, WORKDAYS } from "../test/fixtures";
+import { makeAccount, WORKDAYS } from "@/test/fixtures";
 
 const s = () => useStore.getState();
 
