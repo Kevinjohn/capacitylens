@@ -15,7 +15,7 @@ import { isRecord } from "@capacitylens/shared/lib/isRecord";
 // old open-create behaviour. Run entirely in off mode: the cap is deliberately not an authz rule (it
 // applies in every auth mode, including off's otherwise-trusted-local allow-all), so it is fully
 // exercisable here with no Better Auth harness, auth-on coverage of the same cap already lives
-// alongside the authz matrix in app.authz.test.ts and app.orgs.test.ts (POST /api/orgs has its own
+// alongside the authz matrix in app.authz.test.ts and app.companyCreation.test.ts (POST /api/orgs has its own
 // dedicated cap suite there).
 
 const TS = "2026-01-01T00:00:00.000Z";
