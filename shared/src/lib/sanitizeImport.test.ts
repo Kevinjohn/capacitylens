@@ -573,13 +573,6 @@ function registerAccountFeatureTests(): void {
     expect(sanitizeAccount({ disciplinesEnabled: true }).disciplinesEnabled).toBe(true);
   });
 
-  it("keeps boolean engagement grouping and drops malformed values", () => {
-    expect(sanitizeAccount({ groupResourcesByEngagement: false }).groupResourcesByEngagement).toBe(false);
-    expect(sanitizeAccount({ groupResourcesByEngagement: true }).groupResourcesByEngagement).toBe(true);
-    expect(sanitizeAccount({ groupResourcesByEngagement: "yes" }).groupResourcesByEngagement).toBeUndefined();
-    expect(sanitizeAccount({ groupResourcesByEngagement: null }).groupResourcesByEngagement).toBeUndefined();
-  });
-
   it("strips a non-boolean placeholdersEnabled", () => {
     expect(sanitizeAccount({ placeholdersEnabled: "yes" }).placeholdersEnabled).toBeUndefined();
     expect(sanitizeAccount({ placeholdersEnabled: 1 }).placeholdersEnabled).toBeUndefined();
@@ -604,35 +597,6 @@ function registerAccountFeatureTests(): void {
 }
 
 function registerAccountVisibilityTests(): void {
-  it("keeps the two Internal colour modes and drops unknown values to the grey-by-absence default", () => {
-    expect(sanitizeAccount({ internalColourMode: "grey" }).internalColourMode).toBe("grey");
-    expect(sanitizeAccount({ internalColourMode: "palette" }).internalColourMode).toBe("palette");
-    expect(sanitizeAccount({ internalColourMode: "rainbow" }).internalColourMode).toBeUndefined();
-    expect(sanitizeAccount({ internalColourMode: 1 }).internalColourMode).toBeUndefined();
-  });
-
-  it("strips a non-boolean showInternalProjects", () => {
-    expect(sanitizeAccount({ showInternalProjects: "yes" }).showInternalProjects).toBeUndefined();
-    expect(sanitizeAccount({ showInternalProjects: 1 }).showInternalProjects).toBeUndefined();
-    expect(sanitizeAccount({ showInternalProjects: null }).showInternalProjects).toBeUndefined();
-  });
-
-  it("keeps a boolean showInternalProjects (both true and false survive import)", () => {
-    expect(sanitizeAccount({ showInternalProjects: false }).showInternalProjects).toBe(false);
-    expect(sanitizeAccount({ showInternalProjects: true }).showInternalProjects).toBe(true);
-  });
-
-  it("strips a non-boolean showInternalActivities", () => {
-    expect(sanitizeAccount({ showInternalActivities: "yes" }).showInternalActivities).toBeUndefined();
-    expect(sanitizeAccount({ showInternalActivities: 1 }).showInternalActivities).toBeUndefined();
-    expect(sanitizeAccount({ showInternalActivities: null }).showInternalActivities).toBeUndefined();
-  });
-
-  it("keeps a boolean showInternalActivities (both true and false survive import)", () => {
-    expect(sanitizeAccount({ showInternalActivities: false }).showInternalActivities).toBe(false);
-    expect(sanitizeAccount({ showInternalActivities: true }).showInternalActivities).toBe(true);
-  });
-
   it("strips a non-boolean inlineActivityCreateEnabled", () => {
     expect(sanitizeAccount({ inlineActivityCreateEnabled: "yes" }).inlineActivityCreateEnabled).toBeUndefined();
     expect(sanitizeAccount({ inlineActivityCreateEnabled: 1 }).inlineActivityCreateEnabled).toBeUndefined();

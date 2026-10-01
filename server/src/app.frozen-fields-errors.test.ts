@@ -185,7 +185,7 @@ function createFrozenFieldSanitizationTest(): void {
 }
 
 function createFrozenFieldPreferenceAndBatchTests(): void {
-  it("PATCH mutable account preferences, including engagement grouping", async () => {
+  it("PATCH mutable account preferences and drops a retired preference on write", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { name: "New Name" } })).statusCode).toBe(200);
@@ -193,12 +193,18 @@ function createFrozenFieldPreferenceAndBatchTests(): void {
       200,
     );
     expect(
-      (await patch({ app, entity: "accounts", id: "a1", payload: { groupResourcesByEngagement: false } })).statusCode,
+      (
+        await patch({
+          app,
+          entity: "accounts",
+          id: "a1",
+          payload: { schedulingMode: "blocks", groupResourcesByEngagement: false },
+        })
+      ).statusCode,
     ).toBe(200);
-    expect((await patch({ app, entity: "accounts", id: "a1", payload: { schedulingMode: "blocks" } })).statusCode).toBe(
-      200,
-    );
-    expect((await readStateAccount(app)).groupResourcesByEngagement).toBe(false);
+    const account = await readStateAccount(app);
+    expect(account).toMatchObject({ name: "New Name", disciplinesEnabled: true, schedulingMode: "blocks" });
+    expect(account).not.toHaveProperty("groupResourcesByEngagement");
   });
 
   it("a batch PUT changing a frozen field returns the same reloadable 409 as direct writes", async () => {

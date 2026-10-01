@@ -302,29 +302,9 @@ function registerSchedulerUiPart2(): void {
 }
 
 function registerSchedulerUiPart3(): void {
-  it("setSnapToWeekStart persists to its own key, is OFF the undo stack, and is NOT in export", () => {
-    // Device-global pref (default ON). Turning it off writes the 'off' literal and updates the
-    // reactive store value.
-    s().setSnapToWeekStart(false);
-    expect(localStorage.getItem("capacitylens/snapToWeekStart")).toBe("off");
-    expect(s().snapToWeekStart).toBe(false);
-
-    // It is a device pref, NOT a data mutation, so undo must not revert it (mirrors theme /
-    // minimiseWeekends — those never touch the undo/redo stack either).
-    s().addClient({ name: "Ferris", color: "#1" }); // a real mutation to give undo something to pop
-    s().undo();
-    expect(s().snapToWeekStart).toBe(false); // still off — the pref rode through the undo untouched
-
-    // And it never leaks into exported AppData (it lives on the store, not in `data`). Serialize the
-    // active company's data the way the export/delete-backup paths do and confirm the key is absent —
-    // same contract the e2e reload covers for theme / minimiseWeekends.
-    const json = serializeData(s().data);
-    expect(json).not.toContain("snapToWeekStart");
-    expect(s().data).not.toHaveProperty("snapToWeekStart");
-
-    // Restore the default — the store is a singleton, so leaving it off (and the 'off' key set)
-    // would bleed into later specs that read the pref.
-    s().setSnapToWeekStart(true);
+  it("snaps free scrolling to the week start when no test override is stored", () => {
+    // There is no user setting; only a browser-test storage override can turn the snap off.
+    expect(s().weekSnapEnabled).toBe(true);
   });
 
   it("the date format is account data: undoable, exported, and mirrored to the formatters", () => {

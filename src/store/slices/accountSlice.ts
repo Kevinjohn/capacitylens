@@ -58,7 +58,6 @@ function createAddAccountAction({ internals, set }: AccountActionContext): Store
       placeholdersEnabled: false,
       externalEnabled: false,
       inlineActivityCreateEnabled: false,
-      internalColourMode: "grey",
       ...input,
       workingDays: normalizeAccountWorkingDays(input.workingDays, weekStartsOn),
       color: snapColor({ color: input.color }),

@@ -1,6 +1,7 @@
 import { expect, test } from "./fixtures";
 import {
   boundingBoxOrThrow,
+  disableWeekSnap,
   dismissLandscapeHint,
   focusByKeyboard,
   goToSeedWeek,
@@ -57,12 +58,8 @@ async function assertGridPreserved(
 
 async function prepareFilteredGrid(page: import("@playwright/test").Page) {
   await page.setViewportSize({ width: 1440, height: 900 });
+  await disableWeekSnap(page);
   await openApp(page);
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
-  const snap = page.getByRole("switch", { name: "Snap to week start" });
-  await snap.click();
-  await expect(snap).toHaveAttribute("aria-checked", "false");
-  await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 4);
   await goToSeedWeek(page);
   await showScheduleFilters(page);
@@ -101,7 +98,7 @@ function registerPreservationScenario() {
 }
 
 function registerLayoutScenario() {
-  test("traps focus, closes with Escape, and fits compact and narrow layouts", async ({ page }) => {
+  test("traps focus, closes with Escape, and fits a narrow layout", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openApp(page);
     const normalTrigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
@@ -121,20 +118,6 @@ function registerLayoutScenario() {
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
     await expect(normalTrigger).toBeFocused();
-
-    await page.getByRole("link", { name: "Settings", exact: true }).click();
-    const compact = page.getByRole("switch", { name: "Compact view" });
-    await compact.click();
-    await expect(compact).toHaveAttribute("aria-checked", "true");
-    await page.getByRole("link", { name: "Schedule" }).click();
-    const compactRow = page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" });
-    const compactRowBox = await compactRow.boundingBox();
-    expect(compactRowBox).not.toBeNull();
-    expect(compactRowBox!.height).toBeLessThan(normalRowBox!.height);
-    await compactRow.getByRole("button", { name: "View Bruce Wayne's schedule" }).click();
-    await expect(page.getByRole("dialog", { name: "Bruce Wayne's schedule" })).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: "Bruce Wayne's schedule" })).toHaveCount(0);
 
     await page.setViewportSize({ width: 520, height: 800 });
     await dismissLandscapeHint(page);

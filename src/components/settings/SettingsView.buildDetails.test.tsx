@@ -31,10 +31,11 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("SettingsView — build details", () => {
-  it("renders no stamp when VITE_CAPACITYLENS_BUILD_SHA is unset but keeps server diagnostics", () => {
+  it("omits the build details row in server mode when unstamped and without feedback", () => {
     render(<SettingsView />);
     expect(screen.queryByTestId("build-stamp")).not.toBeInTheDocument();
-    expect(screen.getByTestId("persistence-diagnostics")).toHaveTextContent("Failed saves: 0");
+    expect(screen.queryByTestId("settings-build-details")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("persistence-diagnostics")).not.toBeInTheDocument();
   });
 
   it("omits the build details row for an unstamped demo without feedback", () => {

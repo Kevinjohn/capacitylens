@@ -3,7 +3,7 @@ import { addDaysISO, eachDayISO, rangesOverlap } from "@capacitylens/shared/lib/
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from "../../lib/metadata";
-import { buildExternalBand, buildDisciplineGroups } from "../../store/selectors";
+import { buildExternalBand, buildDisciplineGroups, hasSupplementaryResources } from "../../store/selectors";
 import {
   isCapacityTracked,
   isExternalResource,
@@ -48,16 +48,18 @@ interface ApplyVisibleUtilizationInput {
 interface BuildResourceGroupsInput {
   data: AppData;
   disciplinesEnabled: boolean;
-  groupResourcesByEngagement: boolean;
+  groupByEngagement: boolean;
 }
 
 interface BuildFallbackGroupsInput {
   resources: Resource[];
-  groupResourcesByEngagement: boolean;
+  groupByEngagement: boolean;
+  /** The single band used when engagement grouping is off. */
+  ungrouped: { key: string; title: string };
 }
 
 interface CreateResourceComparatorInput {
-  groupResourcesByEngagement: boolean;
+  groupByEngagement: boolean;
   comparators: {
     byDisplayName: (a: Resource, b: Resource) => number;
     byFavouriteDisplayName: (a: Resource, b: Resource) => number;
@@ -194,12 +196,18 @@ export function applyVisibleUtilization({
   });
 }
 
+// With disciplines on, the single band holds people without a discipline ("Unassigned"); with
+// disciplines off it holds everyone, so it takes the neutral navigation label instead.
+const UNASSIGNED_BAND = { key: "unassigned", title: "Unassigned" };
+const ALL_RESOURCES_BAND = { key: "resources", title: "Resources" };
+
 function buildFallbackGroups({
   resources,
-  groupResourcesByEngagement,
+  groupByEngagement,
+  ungrouped,
 }: BuildFallbackGroupsInput): SchedulerResourceGroup[] {
-  if (!groupResourcesByEngagement) {
-    return resources.length ? [{ key: "unassigned", title: "Unassigned", discipline: null, resources }] : [];
+  if (!groupByEngagement) {
+    return resources.length ? [{ ...ungrouped, discipline: null, resources }] : [];
   }
   return [
     {
@@ -220,7 +228,7 @@ function buildFallbackGroups({
 function buildResourceGroups({
   data,
   disciplinesEnabled,
-  groupResourcesByEngagement,
+  groupByEngagement,
 }: BuildResourceGroupsInput): SchedulerResourceGroup[] {
   const groups: SchedulerResourceGroup[] = [];
   if (disciplinesEnabled) {
@@ -236,10 +244,14 @@ function buildResourceGroups({
       }
     }
     const unassigned = disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
-    groups.push(...buildFallbackGroups({ resources: unassigned, groupResourcesByEngagement }));
+    groups.push(...buildFallbackGroups({ resources: unassigned, groupByEngagement, ungrouped: UNASSIGNED_BAND }));
   } else {
     groups.push(
-      ...buildFallbackGroups({ resources: data.resources.filter(isCapacityTracked), groupResourcesByEngagement }),
+      ...buildFallbackGroups({
+        resources: data.resources.filter(isCapacityTracked),
+        groupByEngagement,
+        ungrouped: ALL_RESOURCES_BAND,
+      }),
     );
   }
   const external = buildExternalBand(data.resources);
@@ -250,10 +262,10 @@ function buildResourceGroups({
 }
 
 function createResourceComparator({
-  groupResourcesByEngagement,
+  groupByEngagement,
   comparators,
 }: CreateResourceComparatorInput): (a: Resource, b: Resource) => number {
-  const comparePeople = groupResourcesByEngagement
+  const comparePeople = groupByEngagement
     ? comparators.byEngagementFavouriteDisplayName
     : comparators.byFavouriteDisplayName;
   return (a, b) => {
@@ -294,12 +306,10 @@ function createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode }: 
 
 export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[] {
   const { data, filters, preferences } = options;
-  const {
-    disciplinesEnabled,
-    accountWorkingDays = [1, 2, 3, 4, 5],
-    groupResourcesByEngagement = true,
-    blocksMode = false,
-  } = preferences;
+  const { disciplinesEnabled, accountWorkingDays = [1, 2, 3, 4, 5], blocksMode = false } = preferences;
+  // Derived from the people themselves: Studio/Supplementary partitioning applies only once the
+  // company has an active Supplementary resource, so a Studio-only company reads as one list.
+  const groupByEngagement = hasSupplementaryResources(data.resources);
   // ONE i18n read per build for the placeholder label: the sort below calls the display name
   // O(n log n) times and every placeholder resolves the same word. Per BUILD CALL, never module
   // scope — a Paraglide message must be called at use time so it follows the active locale.
@@ -311,7 +321,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
     createEngagementFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
   const byResourceDisplayName = createDisplayNameComparator<Resource>(resolveDisplayName);
   const byResourceOrder = createResourceComparator({
-    groupResourcesByEngagement,
+    groupByEngagement,
     comparators: {
       byDisplayName: byResourceDisplayName,
       byFavouriteDisplayName: byFavouriteResourceDisplayName,
@@ -323,7 +333,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   // Assigned resources retain canonical discipline order. Every unassigned capacity-tracked row
   // then receives a useful engagement home; with disciplines off, that fallback becomes the whole
   // capacity grouping. External / 3rd party is deliberately appended last in both modes.
-  const groups = buildResourceGroups({ data, disciplinesEnabled, groupResourcesByEngagement });
+  const groups = buildResourceGroups({ data, disciplinesEnabled, groupByEngagement });
   return groups
     .map((group) => ({
       key: group.key,
@@ -331,7 +341,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
       ...(group.color ? { color: group.color } : {}),
       external: !!group.external,
       // Keep discipline/external grouping intact. People are Studio then Supplementary when the
-      // default-on account preference is enabled, with favourites first alphabetically inside each
+      // company has Supplementary people, with favourites first alphabetically inside each
       // partition. Placeholders remain after all people and have no favourite affordance.
       rows: group.resources
         .filter(resourceVisible)

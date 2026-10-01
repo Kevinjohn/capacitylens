@@ -28,7 +28,7 @@ not shared account data, so each person sets it to taste. It defaults **on** —
 
 ## Acceptance criteria
 
-- The **Schedule on this device** row starts **My display**, before **Allocation labels on this device**. It contains **Minimise weekends**, **Snap to week start** and **Compact view** switches.
+- The **Schedule on this device** row starts **My display**, before **Allocation labels on this device**. It contains the **Minimise weekends** switch.
 - The switch defaults to **on** (`aria-checked="true"`).
 - With it on (fine zoom): each weekend column is narrowed to roughly the width of a two-digit date, the weekday label for **both** Sat and Sun is just **"S"**, and the date number still shows.
 - With it off: weekend columns return to full `dayWidth` and read `Sat` / `Sun`.

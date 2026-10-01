@@ -202,25 +202,6 @@ describe("migrate versionless resource data", () => {
   });
 });
 
-describe("migrate privacy defaults", () => {
-  it("leaves a v7 account without internalColourMode absent so it reads as grey", () => {
-    const data = {
-      ...emptyAppData(),
-      accounts: [
-        {
-          id: "a1",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Studio",
-          color: "#2d75da",
-        },
-      ],
-    };
-    const out = migrate({ schemaVersion: 7, data });
-    expect(out.accounts[0]?.internalColourMode).toBeUndefined();
-  });
-});
-
 describe("migrate account and client defaults", () => {
   it("keeps schema-v6 clients and projects without privacy fields public", () => {
     const out = migrate({
@@ -279,14 +260,12 @@ describe("migrate schedule visibility defaults", () => {
       ],
     };
     const out = migrate({ schemaVersion: 8, data });
-    expect(out.accounts[0]?.showInternalProjects).toBeUndefined();
-    expect(out.accounts[0]?.showInternalActivities).toBeUndefined();
     expect(out.accounts[0]?.inlineActivityCreateEnabled).toBeUndefined();
   });
 });
 
 describe("migrate schedule preference defaults", () => {
-  it("preserves explicit false schedule view prefs across migration (v8 → v9)", () => {
+  it("preserves an explicit false schedule preference across migration (v8 → v9)", () => {
     const data = {
       ...emptyAppData(),
       accounts: [
@@ -296,15 +275,11 @@ describe("migrate schedule preference defaults", () => {
           updatedAt: "t",
           name: "Studio",
           color: "#2d75da",
-          showInternalProjects: false,
-          showInternalActivities: false,
           inlineActivityCreateEnabled: false,
         },
       ],
     };
     const out = migrate({ schemaVersion: 8, data });
-    expect(out.accounts[0]?.showInternalProjects).toBe(false);
-    expect(out.accounts[0]?.showInternalActivities).toBe(false);
     expect(out.accounts[0]?.inlineActivityCreateEnabled).toBe(false);
   });
 });
@@ -399,7 +374,7 @@ describe("migrate engagement defaults", () => {
     expect(out.resources[0]).toEqual(resource);
   });
 
-  it("leaves v12 engagement grouping absent so the default-on selector applies", () => {
+  it("adds no account fields beyond working days when migrating v12", () => {
     const account = {
       id: "a1",
       createdAt: "t",
@@ -410,7 +385,6 @@ describe("migrate engagement defaults", () => {
 
     const out = migrate({ schemaVersion: 12, data: { ...emptyAppData(), accounts: [account] } });
     expect(out.accounts[0]).toEqual({ ...account, workingDays: [1, 2, 3, 4, 5] });
-    expect(out.accounts[0]?.groupResourcesByEngagement).toBeUndefined();
   });
 });
 

@@ -3,16 +3,7 @@ import type { DayCapacity } from "../../lib/capacity";
 import type { DisciplineGroup } from "../../store/selectors";
 import type { ColumnGeometry } from "./columnGeometry";
 import type { Filters } from "../../store/useStore";
-import type {
-  Allocation,
-  AppData,
-  ID,
-  InternalColourMode,
-  ISODate,
-  Resource,
-  TimeOff,
-  Weekday,
-} from "@capacitylens/shared/types/entities";
+import type { Allocation, AppData, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
 /** A positioned allocation bar. */
 export interface BarLayout {
@@ -111,7 +102,7 @@ export interface SchedulerModelOptions {
   preferences: {
     // When false (account.disciplinesEnabled === false), discipline bands disappear and the
     // discipline filter is ignored. Capacity-tracked rows instead use the engagement fallback
-    // bands described by groupResourcesByEngagement below.
+    // bands, derived from the data (see hasSupplementaryResources in store/selectors.ts).
     disciplinesEnabled: boolean;
     // Per-account view pref (default OFF). When false, placeholder ("slot") resources are dropped
     // by `resourceVisible` below — this ONE filter removes the lane, its bars/day-states, AND its
@@ -128,27 +119,12 @@ export interface SchedulerModelOptions {
     externalEnabled: boolean;
     /** Account-wide hard boundary for the start of a schedule creation gesture. */
     accountWorkingDays?: Weekday[];
-    /** Default-on company preference: Studio then Supplementary, favourites first within each.
-     *  It also owns the unassigned schedule fallback; false produces one Unassigned band. */
-    groupResourcesByEngagement?: boolean;
     blocksMode?: boolean;
-    // Per-account Internal-work display preference. Grey is the absent/default mode; palette mode
-    // restores the normal project/resource colour path without changing persisted entity colours.
-    internalColourMode?: InternalColourMode;
-    // Per-account BAR-ONLY view prefs (both default ON). When false they hide, from the schedule bars
-    // ONLY, allocations on internal PROJECTS (activity kind 'project' whose project's client is the
-    // built-in Internal client) / internal ACTIVITIES (kind 'internal' ONLY — all-projects
-    // 'repeatable' work is a distinct third group and is never hidden) respectively. See the
-    // `barVisibleByInternalPref` filter below for the truthful-utilisation guarantee.
-    showInternalProjects?: boolean;
-    showInternalActivities?: boolean;
   };
-  // Vertical geometry for the current density ("Compact view" device pref — see
-  // components/scheduler/layout.ts). It feeds `resolveLaneTop` / `resolveRowHeightForLanes` below, so every bar's
-  // `top` and every row's `rowHeight` derive from it. SchedulerGrid passes `buildLaneLayout(compact)`
-  // and lists it as a memo dependency, or a density change would leave stale row heights behind.
-  // Defaults to the compact geometry so callers that don't care about density (tests, and any
-  // consumer measuring this layout) keep their existing numbers.
+  // Vertical lane geometry (see components/scheduler/layout.ts). It feeds `resolveLaneTop` /
+  // `resolveRowHeightForLanes` below, so every bar's `top` and every row's `rowHeight` derive from it.
+  // The grid passes `SCHEDULER_LANE_LAYOUT`. Defaults to the base `laneLayout` so callers that don't
+  // care about density (tests, and any consumer measuring this layout) keep their existing numbers.
   laneLayout?: LaneLayout;
 }
 

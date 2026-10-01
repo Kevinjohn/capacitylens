@@ -60,8 +60,8 @@ and shows its client in grey as supporting information.
 
 Every company starts with one built-in client called **Internal** for non-billable
 work — general admin, internal meetings, anything that isn't client work. It can't be
-renamed or deleted, and its colour on the schedule is controlled from
-[Settings](/guide/settings).
+renamed or deleted. Its projects, and every internal activity, always appear in neutral grey on the
+schedule, so the project form hides the colour picker once **Internal** is the client.
 
 If a client or project name shouldn't be visible to most of the team — an
 unannounced prospect, for example — turn on **Use code name** when you create or edit

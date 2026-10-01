@@ -121,10 +121,11 @@ span.
 
 ## Find people quickly
 
-By default, the Resources page separates people into **Studio** and **Supplementary** sections,
-followed by the existing Placeholders and External sections. An Editor, Admin or Owner can turn
-**Group resources by engagement** off in [Settings](/guide/settings) to combine people into one
-list. Rows in each section are alphabetical, while the Disciplines page is alphabetical too.
+Once anyone is marked **Supplementary**, the Resources page separates people into **Studio** and
+**Supplementary** sections, followed by the existing Placeholders and External sections. A team
+with only Studio people sees one People list, and there is no setting to change this. Archived
+people and External / 3rd parties do not count. Rows in each section are alphabetical, while the
+Disciplines page is alphabetical too.
 
 ![The Resources page with Barry Allen, Bruce Wayne and Clark Kent in Studio, and Diana Prince in Supplementary](../screenshots/flows/resources_engagement_groups.jpg)
 
@@ -132,7 +133,7 @@ People and external parties have a star beside their edit and archive actions. S
 to add that row to the company's favourites; the star fills yellow and the row moves to
 the top of its engagement section while favourites and non-favourites each stay alphabetical. The
 schedule likewise keeps Studio before Supplementary within each discipline and favourites first
-inside each partition. When grouping is off, favourites lead the combined People list and each
+inside each partition. For a Studio-only team, favourites lead the combined People list and each
 discipline instead. The External group keeps its own favourites-first order.
 Favourites are shared company data, so everyone sees the same order. Placeholders cannot
 be favourited.

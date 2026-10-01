@@ -17,7 +17,6 @@ export function SettingsAccountOptions({
     [m.settings_company_name_label(), activeAccount.name],
     [m.settings_week_start_label(), weekStartLabel],
     [m.settings_timezone_label(), resolveTimeZoneOptionLabel(scheduling.timezone)],
-    [m.settings_language_label(), m.settings_language_value()],
   ];
   return (
     <SettingsSection
@@ -33,14 +32,12 @@ export function SettingsAccountOptions({
     >
       <table className="w-full table-fixed text-sm">
         <tbody className="divide-y divide-line">
-          {rows.map(([label, value], index) => (
+          {rows.map(([label, value]) => (
             <tr key={label}>
               <th scope="row" className="py-1 pr-4 text-left font-medium text-muted-foreground">
                 {label}
               </th>
-              <td className="py-1 text-right text-ink" {...(index === 3 ? { "data-testid": "settings-language" } : {})}>
-                {value}
-              </td>
+              <td className="py-1 text-right text-ink">{value}</td>
             </tr>
           ))}
         </tbody>
@@ -49,13 +46,8 @@ export function SettingsAccountOptions({
   );
 }
 
-export function SettingsBuildDetails({
-  serverMode,
-  persistenceDiagnostics,
-  stamp,
-  feedback,
-}: Pick<Controller, "serverMode" | "persistenceDiagnostics" | "stamp" | "feedback">) {
-  if (!serverMode && !stamp && !feedback) return null;
+export function SettingsBuildDetails({ stamp, feedback }: Pick<Controller, "stamp" | "feedback">) {
+  if (!stamp && !feedback) return null;
 
   return (
     <SettingsSection
@@ -65,34 +57,14 @@ export function SettingsBuildDetails({
       testId="settings-build-details"
       contentClassName="gap-0"
     >
-      {(stamp ?? feedback) && (
-        <p className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          {stamp && <span data-testid="build-stamp">{stamp}</span>}
-          {feedback && (
-            <a data-testid="send-feedback" href={feedback} className="underline underline-offset-2 hover:text-ink">
-              {m.settings_feedback_link()}
-            </a>
-          )}
-        </p>
-      )}
-      {serverMode && (
-        <details className="text-xs text-muted-foreground" data-testid="persistence-diagnostics">
-          <summary className="cursor-pointer">{m.settings_persistence_diagnostics()}</summary>
-          <p className="mt-1 font-mono [overflow-wrap:anywhere]">
-            {m.settings_persistence_diagnostics_summary({
-              failed: persistenceDiagnostics.savesFailed,
-              retries: persistenceDiagnostics.retriesArmed,
-              reconciliations: persistenceDiagnostics.reconciliationsResolved,
-              superseded: persistenceDiagnostics.reloadsSuperseded,
-              rebased: persistenceDiagnostics.editsRebased,
-              discarded: persistenceDiagnostics.editsDiscarded,
-              suspended: persistenceDiagnostics.suspended
-                ? m.settings_persistence_suspended_yes()
-                : m.settings_persistence_suspended_no(),
-            })}
-          </p>
-        </details>
-      )}
+      <p className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        {stamp && <span data-testid="build-stamp">{stamp}</span>}
+        {feedback && (
+          <a data-testid="send-feedback" href={feedback} className="underline underline-offset-2 hover:text-ink">
+            {m.settings_feedback_link()}
+          </a>
+        )}
+      </p>
     </SettingsSection>
   );
 }

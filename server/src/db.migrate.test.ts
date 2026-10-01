@@ -877,9 +877,6 @@ function assertPresentAccountViewPreferences(db: Db): void {
   const row = getRow(db, "accounts", "a2");
   expect(row?.placeholdersEnabled).toBe(true);
   expect(row?.externalEnabled).toBe(true);
-  expect(row?.groupResourcesByEngagement).toBe(false);
-  expect(row?.showInternalProjects).toBe(false);
-  expect(row?.showInternalActivities).toBe(false);
   expect(row?.inlineActivityCreateEnabled).toBe(false);
 }
 
@@ -887,9 +884,6 @@ function assertAbsentAccountViewPreferences(db: Db): void {
   const oldRow = getRow(db, "accounts", "a1");
   expect(oldRow?.placeholdersEnabled).toBeUndefined();
   expect(oldRow?.externalEnabled).toBeUndefined();
-  expect(oldRow?.groupResourcesByEngagement).toBeUndefined();
-  expect(oldRow?.showInternalProjects).toBeUndefined();
-  expect(oldRow?.showInternalActivities).toBeUndefined();
   expect(oldRow?.inlineActivityCreateEnabled).toBeUndefined();
 }
 
@@ -1881,18 +1875,14 @@ describe("schema migration of an existing on-disk DB", () => {
       old.close();
 
       const db = openDb(path);
-      // After migration, both new optional columns exist and round-trip a present boolean. The v9/v16
-      // additive columns (internalColourMode + the three schedule view prefs) also come in via the
-      // migration chain and round-trip.
+      // After migration, both new optional columns exist and round-trip a present boolean, as does
+      // the v16 inline-activity preference added by the migration chain.
       insertRow(db, "accounts", {
         id: "a2",
         name: "New Studio",
         color: "#222",
         placeholdersEnabled: true,
         externalEnabled: true,
-        groupResourcesByEngagement: false,
-        showInternalProjects: false,
-        showInternalActivities: false,
         inlineActivityCreateEnabled: false,
         createdAt: TS,
         updatedAt: TS,

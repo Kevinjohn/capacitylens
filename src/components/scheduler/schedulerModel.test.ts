@@ -176,19 +176,19 @@ it("keeps discipline groups while ordering engagement partitions and externals d
   ]);
   expect(requireValue(model[2], "external group").rows.map((row) => row.resource.name)).toEqual(["Zeta", "Ferris"]);
 
+  // The same people with nobody Supplementary: the partition is derived, so the list goes flat.
+  const studioOnly = {
+    ...data,
+    resources: data.resources.map((resource) => ({ ...resource, engagement: "studio" as const })),
+  };
   const ungroupedByEngagement = buildSchedulerModel({
-    data,
+    data: studioOnly,
     geom,
     days,
     visibleWindow: { start, end },
     overSoonWindow: { start, end },
     filters: buildEmptyFilters(),
-    preferences: {
-      disciplinesEnabled: true,
-      placeholdersEnabled: true,
-      externalEnabled: true,
-      groupResourcesByEngagement: false,
-    },
+    preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
   });
   expect(requireValue(ungroupedByEngagement[0], "ungrouped design group").rows.map((row) => row.resource.name)).toEqual(
     ["Beta", "Zulu", "Alpha", "Gamma"],
@@ -785,14 +785,31 @@ function registerBuildSchedulerModelTest24() {
 }
 
 function registerBuildSchedulerModelTest25() {
-  it("disciplines off → one Studio band holds the all-Studio fixture", () => {
+  it("disciplines off → a Studio-only company is one flat Resources band", () => {
     const model = build({ filters: buildEmptyFilters(), disciplinesEnabled: false });
     expect(model).toHaveLength(1);
-    expect(model[0]).toMatchObject({ key: "engagement-studio", title: "Studio" });
+    expect(model[0]).toMatchObject({ key: "resources", title: "Resources" });
     expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
-    expect(model).toHaveLength(1);
     expect(model[0]).not.toHaveProperty("color"); // no discipline colour → avatar falls back to resource colour
     expect(barIds(model)).toEqual(["a1", "a2", "a3"]);
+  });
+
+  it("disciplines off → one Supplementary person splits the company into Studio then Supplementary", () => {
+    const data = dataset();
+    data.resources = data.resources.map((resource) =>
+      resource.id === "r2" ? { ...resource, engagement: "supplementary" as const } : resource,
+    );
+    const model = buildSchedulerModel({
+      data,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: buildEmptyFilters(),
+      preferences: { disciplinesEnabled: false, placeholdersEnabled: true, externalEnabled: true },
+    });
+    expect(model.map((group) => group.key)).toEqual(["engagement-studio", "engagement-supplementary"]);
+    expect(model.map((group) => group.rows.map((row) => row.resource.id))).toEqual([["r1"], ["r2"]]);
   });
 }
 
@@ -800,7 +817,7 @@ function registerBuildSchedulerModelTest26() {
   it("disciplines off → the discipline filter is ignored (everyone still shown)", () => {
     const model = build({ filters: { ...buildEmptyFilters(), disciplineId: "d-dev" }, disciplinesEnabled: false });
     expect(model).toHaveLength(1);
-    expect(model[0]?.title).toBe("Studio");
+    expect(model[0]?.title).toBe("Resources");
     expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
   });
 }
@@ -1148,10 +1165,10 @@ function registerMovedSchedulerTests12743(buildExt: (options?: BuildExtOptions) 
 }
 
 function registerMovedSchedulerTests12744(buildExt: (options?: BuildExtOptions) => GroupModel[]) {
-  it("disciplines off → external STILL forms its own trailing band after engagement", () => {
+  it("disciplines off → external STILL forms its own trailing band after the people", () => {
     const model = buildExt({ disciplinesEnabled: false });
-    expect(model).toHaveLength(2); // Studio + external
-    expect(model[0]?.title).toBe("Studio");
+    expect(model).toHaveLength(2); // Resources (Studio-only, so flat) + external
+    expect(model[0]?.title).toBe("Resources");
     expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
     expect(model[1]?.key).toBe("external");
     expect(model[1]?.rows.map((r) => r.resource.id)).toEqual(["ext1"]);
@@ -1404,7 +1421,7 @@ function registerMovedSchedulerTests14853(
   });
 }
 
-type BuildDanglingOptions = { filters?: ReturnType<typeof buildEmptyFilters>; showInternalProjects?: boolean };
+type BuildDanglingOptions = { filters?: ReturnType<typeof buildEmptyFilters> };
 function registerMovedSchedulerTests14854(withInternal: () => AppData, internalId: string) {
   it("does not bucket an unattributed dangling-activity allocation under any client or project", () => {
     const data = withInternal();
@@ -1435,7 +1452,7 @@ function registerMovedSchedulerTests14854(withInternal: () => AppData, internalI
         status: "confirmed",
       },
     );
-    const buildDangling = ({ filters = buildEmptyFilters(), showInternalProjects = true }: BuildDanglingOptions = {}) =>
+    const buildDangling = ({ filters = buildEmptyFilters() }: BuildDanglingOptions = {}) =>
       buildSchedulerModel({
         data,
         geom,
@@ -1447,7 +1464,6 @@ function registerMovedSchedulerTests14854(withInternal: () => AppData, internalI
           disciplinesEnabled: true,
           placeholdersEnabled: true,
           externalEnabled: true,
-          showInternalProjects,
         },
       });
 
@@ -1460,9 +1476,7 @@ function registerMovedSchedulerTests14854(withInternal: () => AppData, internalI
     expect(barIds(buildDangling({ filters: { ...buildEmptyFilters(), projectId: "p1" } }))).not.toContain(
       "dangling-unattributed",
     );
-    expect(barIds(buildDangling({ filters: buildEmptyFilters(), showInternalProjects: false }))).toContain(
-      "dangling-unattributed",
-    );
+    expect(barIds(buildDangling({ filters: buildEmptyFilters() }))).toContain("dangling-unattributed");
     expect(barIds(buildDangling({ filters: { ...buildEmptyFilters(), clientId: "c1" } }))).toContain(
       "dangling-attributed",
     );
@@ -1505,115 +1519,6 @@ describe("built-in Internal client bucketing + filter", () => {
   registerMovedSchedulerTests14854(withInternal, internalId);
 });
 
-// Per-account BAR-ONLY hide prefs for internal work (showInternalProjects / showInternalActivities).
-// withInternal() gives r1 four allocations: a1 (Ferris project), aIntProj (a project under the built-in
-// Internal client), aIntNoProj (a project-less internal-KIND activity), plus a2 (tentative Ferris); we
-// add an unattributed repeatable allocation and one attributed to the Internal-owned project to pin
-// the revised OWNER DECISION (2026-08-19): only unattributed all-projects work keeps the derived
-// Internal label without becoming an Internal-project bar. The
-// two prefs are the two LAST positional args after blocksMode + internalColourMode.
-function registerMovedSchedulerTests16011(withInternal: () => AppData) {
-  it("(d) defaults (absent fields → true) show every internal bar", () => {
-    // No prefs passed at all: the params default to true, so nothing is hidden.
-    const model = buildSchedulerModel({
-      data: withInternal(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: true,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-      },
-    });
-    const ids = barIds(model);
-    expect(ids).toContain("aIntProj"); // internal-client project bar
-    expect(ids).toContain("aIntNoProj"); // internal-kind activity bar
-  });
-}
-
-function registerMovedSchedulerTests16012(buildPrefs: (options: BuildPrefsOptions) => GroupModel[]) {
-  it("(a) showInternalActivities=false hides internal-KIND bars only (all-projects + internal-client project stay)", () => {
-    const ids = barIds(buildPrefs({ showInternalProjects: true, showInternalActivities: false }));
-    expect(ids).not.toContain("aIntNoProj"); // kind 'internal' — hidden
-    expect(ids).toContain("aRep"); // kind 'repeatable' — a distinct group, NEVER hidden by this toggle
-    expect(ids).toContain("aRepAttributedInternal"); // effective client does not change the activity kind
-    expect(ids).toContain("aIntProj"); // a 'project' activity — NOT an internal activity, still shown
-    expect(ids).toContain("a1"); // ordinary Ferris work untouched
-  });
-}
-
-function registerMovedSchedulerTests16013(buildPrefs: (options: BuildPrefsOptions) => GroupModel[]) {
-  it("(b) showInternalProjects=false hides internal-CLIENT project bars only (project-less activities stay)", () => {
-    const ids = barIds(buildPrefs({ showInternalProjects: false, showInternalActivities: true }));
-    expect(ids).not.toContain("aIntProj"); // project under the built-in Internal client — hidden
-    expect(ids).not.toContain("aRepAttributedInternal"); // attributed repeatable work follows that project
-    expect(ids).toContain("aIntNoProj"); // project-less internal-kind activity — still shown
-    expect(ids).toContain("aRep"); // project-less repeatable activity — still shown
-    expect(ids).toContain("a1"); // ordinary Ferris project (non-Internal client) untouched
-  });
-}
-
-function registerMovedSchedulerTests16014(buildPrefs: (options: BuildPrefsOptions) => GroupModel[]) {
-  it("both false hides internal projects + internal activities, but unattributed all-projects and ordinary work survive", () => {
-    const ids = barIds(buildPrefs({ showInternalProjects: false, showInternalActivities: false }));
-    expect(ids).not.toContain("aIntProj");
-    expect(ids).not.toContain("aIntNoProj");
-    expect(ids).not.toContain("aRepAttributedInternal");
-    expect(ids).toContain("aRep"); // all-projects is the third group — visible with BOTH toggles off
-    expect(ids).toContain("a1");
-  });
-}
-
-function registerMovedSchedulerTests16015(withInternalAndRepeatable: () => AppData) {
-  it("does not retain full-opacity ghost rows when the active lens targets preference-hidden internal work", () => {
-    const model = buildSchedulerModel({
-      data: withInternalAndRepeatable(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
-      filters: { ...buildEmptyFilters(), activityKind: "internal", showUnmatched: false },
-      preferences: {
-        disciplinesEnabled: true,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-        showInternalProjects: true,
-        showInternalActivities: false,
-      },
-    });
-
-    expect(model.flatMap((group) => group.rows)).toHaveLength(0);
-  });
-}
-
-function registerMovedSchedulerTests16016(
-  buildPrefs: (options: BuildPrefsOptions) => GroupModel[],
-  r1Util: (model: GroupModel[]) => number,
-) {
-  it("(c) utilisation is IDENTICAL with the toggles on and off — hidden internal work still counts", () => {
-    // THE product guarantee: hiding internal bars must NEVER change capacity/utilisation. r1 is booked
-    // on internal work; its utilisation with everything shown must equal its utilisation with both
-    // internal prefs OFF (bars gone, load unchanged).
-    const shown = r1Util(buildPrefs({ showInternalProjects: true, showInternalActivities: true }));
-    const hidden = r1Util(buildPrefs({ showInternalProjects: false, showInternalActivities: false }));
-    expect(hidden).toBe(shown);
-    // Sanity: r1 genuinely carries load (so the equality isn't a trivial 0 === 0), and the bar count
-    // really did drop — proving the toggles took effect while utilisation held.
-    expect(shown).toBeGreaterThan(0);
-    expect(barIds(buildPrefs({ showInternalProjects: true, showInternalActivities: true }))).toContain(
-      "aRepAttributedInternal",
-    );
-    expect(barIds(buildPrefs({ showInternalProjects: false, showInternalActivities: true }))).not.toContain(
-      "aRepAttributedInternal",
-    );
-    expect(barIds(buildPrefs({ showInternalProjects: false, showInternalActivities: false })).length).toBeLessThan(
-      barIds(buildPrefs({ showInternalProjects: true, showInternalActivities: true })).length,
-    );
-  });
-}
 function buildInternalAndRepeatableData(): AppData {
   const d = withInternal();
   d.activities.push({
@@ -1654,52 +1559,24 @@ function buildInternalAndRepeatableData(): AppData {
   return d;
 }
 
-type BuildPrefsOptions = { showInternalProjects: boolean; showInternalActivities: boolean };
-function registerInternalWorkPreferenceTests() {
-  const buildPrefs = ({ showInternalProjects, showInternalActivities }: BuildPrefsOptions) =>
-    buildSchedulerModel({
-      data: buildInternalAndRepeatableData(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: true,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-        blocksMode: false,
-        internalColourMode: "grey",
-        showInternalProjects: showInternalProjects,
-        showInternalActivities: showInternalActivities,
-      },
-    });
-
-  const r1Util = (m: GroupModel[]) =>
-    requireValue(
-      m.flatMap((g) => g.rows).find((r) => r.resource.id === "r1"),
-      "r1 scheduler row",
-    ).utilization;
-
-  // barIds (module scope, above) covers the same flatten+sort — reused here rather than redefined.
-
-  registerMovedSchedulerTests16011(withInternal);
-
-  registerMovedSchedulerTests16012(buildPrefs);
-
-  registerMovedSchedulerTests16013(buildPrefs);
-
-  registerMovedSchedulerTests16014(buildPrefs);
-
-  registerMovedSchedulerTests16015(buildInternalAndRepeatableData);
-
-  registerMovedSchedulerTests16016(buildPrefs, r1Util);
-}
-
-describe(
-  "internal-work bar-only hide prefs (showInternalProjects / showInternalActivities)",
-  registerInternalWorkPreferenceTests,
-);
+// Internal work is always shown: internal-client projects, internal-kind activities and all-projects
+// work (attributed or not) each keep their bars alongside ordinary project work.
+describe("internal-work bars", () => {
+  it("shows every internal and all-projects bar alongside ordinary work", () => {
+    const ids = barIds(
+      buildSchedulerModel({
+        data: buildInternalAndRepeatableData(),
+        geom: geom,
+        days: days,
+        visibleWindow: { start: start, end: end },
+        overSoonWindow: { start: start, end: end },
+        filters: buildEmptyFilters(),
+        preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+      }),
+    );
+    for (const id of ["aIntProj", "aIntNoProj", "aRep", "aRepAttributedInternal", "a1"]) expect(ids).toContain(id);
+  });
+});
 
 // P2.4: the scheduler renders the ACTIVE-ONLY projection (SchedulerGrid reads useActiveScopedData,
 // which runs the SAME shared `activeOnly` exercised here). Prove that an archived resource and a

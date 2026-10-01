@@ -40,24 +40,13 @@ function LocationProbe() {
   return <output data-testid="location-probe">{`${location.pathname}${location.hash}`}</output>;
 }
 
-function addInternalSearchItems({
-  showInternalProjects,
-  showInternalActivities,
-}: {
-  showInternalProjects: boolean;
-  showInternalActivities: boolean;
-}) {
+function addInternalSearchItems() {
   const data = useStore.getState().data;
   const internal =
     data.clients.find((client) => client.builtin === true) ??
     buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z");
   useStore.getState().replaceAll({
     ...data,
-    accounts: data.accounts.map((account) => ({
-      ...account,
-      showInternalProjects,
-      showInternalActivities,
-    })),
     clients: data.clients.some((client) => client.id === internal.id) ? data.clients : [...data.clients, internal],
   });
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
@@ -281,25 +270,8 @@ describe("CommandPalette", () => {
 });
 
 describe("CommandPalette", () => {
-  it("omits an Internal project whose destination bars are hidden from the schedule", () => {
-    addInternalSearchItems({
-      showInternalProjects: false,
-      showInternalActivities: false,
-    });
-    renderPalette();
-
-    fireEvent.change(screen.getByTestId("command-palette-input"), {
-      target: { value: "Obsidian Programme" },
-    });
-
-    expect(screen.queryByText("Obsidian Programme")).not.toBeInTheDocument();
-  });
-
-  it("keeps an Internal project searchable when its destination bars are shown", () => {
-    addInternalSearchItems({
-      showInternalProjects: true,
-      showInternalActivities: false,
-    });
+  it("keeps an Internal project searchable", () => {
+    addInternalSearchItems();
     renderPalette();
 
     fireEvent.change(screen.getByTestId("command-palette-input"), {
@@ -309,11 +281,8 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Obsidian Programme")).toBeInTheDocument();
   });
 
-  it("keeps an Internal activity searchable when its schedule bars are hidden", () => {
-    addInternalSearchItems({
-      showInternalProjects: false,
-      showInternalActivities: false,
-    });
+  it("keeps an Internal activity searchable", () => {
+    addInternalSearchItems();
     renderPalette();
 
     fireEvent.change(screen.getByTestId("command-palette-input"), {

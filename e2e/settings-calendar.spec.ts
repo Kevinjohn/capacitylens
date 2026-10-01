@@ -29,7 +29,7 @@ test.describe("Company details", () => {
     }
   });
 
-  test("renders the four frozen values without disabled form controls", async ({ page }) => {
+  test("renders the frozen values without disabled form controls", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
 
     const heading = page.getByRole("heading", { name: "Company details", exact: true });
@@ -37,8 +37,7 @@ test.describe("Company details", () => {
     await expect(card.getByRole("row", { name: "Company name Wayne Enterprises" })).toBeVisible();
     await expect(card.getByRole("row", { name: "Week starts on Monday" })).toBeVisible();
     await expect(card.getByRole("row", { name: "Time zone GMT (UTC+00:00)" })).toBeVisible();
-    await expect(card.getByRole("row", { name: "Language English" })).toBeVisible();
-    await expect(page.getByTestId("settings-language")).toHaveText("English");
+    await expect(card.getByRole("row", { name: /^Language/ })).toHaveCount(0);
     await expect(page.getByLabel("Company name")).toHaveCount(0);
     await expect(page.getByRole("radiogroup", { name: "Week starts on" })).toHaveCount(0);
     await expect(page.getByRole("combobox", { name: "Time zone" })).toHaveCount(0);

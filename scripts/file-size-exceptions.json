@@ -114,11 +114,6 @@
       "reason": "test-size ratchet baseline; split when touched"
     },
     {
-      "path": "src/components/settings/SettingsView.test.tsx",
-      "baseline": 840,
-      "reason": "test-size ratchet baseline; split when touched"
-    },
-    {
       "path": "src/lib/capacity.test.ts",
       "baseline": 1416,
       "reason": "test-size ratchet baseline; split when touched"

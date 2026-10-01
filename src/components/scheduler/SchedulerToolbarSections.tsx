@@ -10,14 +10,14 @@ import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
 import { Separator } from "../ui/separator";
 import { FilterSelect } from "./FilterSelect";
-import type { useSchedulerDensity } from "./layout";
+import type { SchedulerDensity } from "./layout";
 import type { buildFilterOptions } from "./toolbarFilterOptions";
 import { ToolbarActivityFilter } from "./ToolbarActivityFilter";
 import { ToolbarDateNavigation } from "./ToolbarDateNavigation";
 
 type Options = ReturnType<typeof buildFilterOptions>;
 interface ChromeProps {
-  density: ReturnType<typeof useSchedulerDensity>;
+  density: SchedulerDensity;
   zoom: StoreState["ui"]["zoom"];
   setZoom: StoreState["setZoom"];
   panDays: StoreState["panDays"];
@@ -32,7 +32,6 @@ interface ChromeProps {
   setFiltersOpen: (value: boolean | ((open: boolean) => boolean)) => void;
 }
 export interface FiltersProps extends Options {
-  compactView: boolean;
   disciplinesEnabled: boolean;
   filters: StoreState["ui"]["filters"];
   filtersActive: boolean;
@@ -196,7 +195,7 @@ export function SchedulerToolbarFilters(props: FiltersProps) {
     <div
       id="scheduler-filters"
       data-chrome-band="filterbar"
-      className={`flex flex-wrap items-center gap-x-2 border-b border-chrome-filterbar-border bg-chrome-filterbar px-4 text-sm text-chrome-filterbar-ink ${props.compactView ? "gap-y-2 py-2" : "gap-y-3 py-3"}`}
+      className="flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-chrome-filterbar-border bg-chrome-filterbar px-4 py-3 text-sm text-chrome-filterbar-ink"
     >
       <Input
         value={props.searchInput}

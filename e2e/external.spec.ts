@@ -49,8 +49,8 @@ function registerTurningRevealsExternalSectionHelpTest() {
     await enableExternal(page);
 
     // Settings keeps the fuller explainer behind the section's help action.
-    await page.getByRole("button", { name: "About Placeholders and external resources" }).click();
-    const helpDialog = page.getByRole("dialog", { name: "Placeholders and external resources" });
+    await page.getByRole("button", { name: "About Company features" }).click();
+    const helpDialog = page.getByRole("dialog", { name: "Company features" });
     await expect(helpDialog.getByText(/outside companies you hand work to but/i)).toBeVisible();
     await helpDialog.getByRole("button", { name: "Close" }).click();
 

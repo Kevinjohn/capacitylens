@@ -6,11 +6,7 @@ import { ArchivedSection } from "./ArchivedSection";
 import { SettingsAccountOptions, SettingsBuildDetails, SettingsDiagnostics } from "./SettingsAccountSections";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
 import { SettingsDataSection } from "./SettingsDataSection";
-import {
-  ScheduleViewSection,
-  SettingsCompanySetupSections,
-  SchedulingFeatureSections,
-} from "./SettingsSchedulingSection";
+import { CompanyFeaturesSection, ScheduleViewSection, SettingsCompanySetupSections } from "./SettingsSchedulingSection";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsSection } from "./SettingsSection";
 import { useSettingsViewController } from "./useSettingsViewController";
@@ -51,12 +47,7 @@ function SettingsBottomSections({ controller }: { controller: Controller }) {
       <ArchivedSection collapsible defaultOpen={false} />
       <SettingsImportSection />
       <SettingsAccountOptions activeAccount={controller.activeAccount} scheduling={scheduling} />
-      <SettingsBuildDetails
-        serverMode={controller.serverMode}
-        persistenceDiagnostics={controller.persistenceDiagnostics}
-        stamp={controller.stamp}
-        feedback={controller.feedback}
-      />
+      <SettingsBuildDetails stamp={controller.stamp} feedback={controller.feedback} />
       <SettingsDiagnostics
         diagnostics={controller.diagnostics}
         diagnosticsCopyState={controller.diagnosticsCopyState}
@@ -88,14 +79,17 @@ export function SettingsView() {
           />
         </SettingsGroup>
         <SettingsGroup title={m.settings_features_heading()} description={m.settings_features_description()}>
-          <SchedulingFeatureSections
+          <CompanyFeaturesSection
             canEdit={controller.canEdit}
             {...scheduling}
             updateSetting={controller.updateSetting}
           />
         </SettingsGroup>
         <SettingsGroup title={m.settings_display_heading()} description={m.settings_display_description()}>
-          <ScheduleViewSection {...display} />
+          <ScheduleViewSection
+            minimiseWeekends={display.minimiseWeekends}
+            setMinimiseWeekends={display.setMinimiseWeekends}
+          />
           <SettingsAppearanceSection
             barLabelPrefs={display.barLabelPrefs}
             setBarLabelPref={display.setBarLabelPref}

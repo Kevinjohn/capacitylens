@@ -304,7 +304,7 @@ function registerMovedSchedulerTests201017() {
         filters: buildEmptyFilters(),
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       }).map((group) => group.title),
-    ).toEqual(["Studio"]);
+    ).toEqual(["Unassigned"]);
 
     const externalOnly = withExternal();
     externalOnly.disciplines = [];
@@ -324,7 +324,7 @@ function registerMovedSchedulerTests201017() {
 }
 
 function registerMovedSchedulerTests201018() {
-  it("uses one Unassigned fallback when engagement grouping is disabled", () => {
+  it("uses one fallback band for a Studio-only company: Unassigned with disciplines, Resources without", () => {
     const d = withExternal();
     const firstResource = d.resources[0];
     expect(firstResource).toBeDefined();
@@ -343,7 +343,6 @@ function registerMovedSchedulerTests201018() {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
         externalEnabled: true,
-        groupResourcesByEngagement: false,
       },
     });
     expect(withDisciplines.map((group) => group.title)).toEqual(["Development", "Unassigned", "External / 3rd party"]);
@@ -359,11 +358,10 @@ function registerMovedSchedulerTests201018() {
         disciplinesEnabled: false,
         placeholdersEnabled: true,
         externalEnabled: true,
-        groupResourcesByEngagement: false,
       },
     });
-    expect(withoutDisciplines.map((group) => group.title)).toEqual(["Unassigned", "External / 3rd party"]);
-    expect(requireValue(withoutDisciplines[0], "unassigned group").rows).toHaveLength(2);
+    expect(withoutDisciplines.map((group) => group.title)).toEqual(["Resources", "External / 3rd party"]);
+    expect(requireValue(withoutDisciplines[0], "resources group").rows).toHaveLength(2);
   });
 }
 

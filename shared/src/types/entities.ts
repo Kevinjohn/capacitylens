@@ -40,10 +40,6 @@ export type DateStyle = "day-month" | "day-ordinal-month" | "month-day" | "month
 export const DATE_STYLES: DateStyle[] = ["day-month", "day-ordinal-month", "month-day", "month-day-ordinal"];
 /** The format an absent `dateStyle` reads back as. */
 export const DEFAULT_DATE_STYLE: DateStyle = "day-month";
-/** How work filed under the built-in Internal client is coloured. */
-export type InternalColourMode = "grey" | "palette";
-/** Runtime list used by the server/import sanitiser to reject an unknown Internal colour mode. */
-export const INTERNAL_COLOUR_MODES: InternalColourMode[] = ["grey", "palette"];
 /**
  * What a resource row represents:
  * - `person`      — a real team member with capacity (the default).
@@ -78,7 +74,8 @@ export interface Entity {
   updatedAt: ISOTimestamp;
 }
 
-/** A tenant. Top-level: not scoped to any other account. */
+/** A tenant. Top-level: not scoped to any other account. Retired preferences keep their SQLite
+ *  columns (listed in server/src/schema/historicalSpecs.ts) but are no longer part of this shape. */
 export interface Account extends Entity {
   name: string;
   color: string;
@@ -91,15 +88,12 @@ export interface Account extends Entity {
   /** Weekdays on which schedule creation may start. Stored as a set; presentation follows weekStartsOn. */
   workingDays?: Weekday[];
   /** UI language for this company. Absent = 'en'. English-only until P1.5.1 (Paraglide).
-   *  Frozen after creation — see P1.14. */
+   *  Frozen after creation — see P1.14. Not shown in Settings while English is the only option. */
   language?: string;
   /** Whether this company uses disciplines. Absent = true (the original behaviour).
    *  When false, disciplines are hidden across the whole UI (nav, resource form,
    *  schedule grouping + filter, lists, command palette) — the data is preserved. */
   disciplinesEnabled?: boolean;
-  /** Whether people are partitioned as Studio then Supplementary in Resources and the schedule.
-   *  Absent = true, preserving the default-on company view without rewriting legacy accounts. */
-  groupResourcesByEngagement?: boolean;
   /** Whether this company surfaces placeholder ("slot") resources. Absent = false
    *  (hidden out of the box — NOT `?? true` like disciplinesEnabled) so new companies start
    *  with placeholders OFF. When false, placeholders are hidden across the UI; the data is
@@ -109,18 +103,6 @@ export interface Account extends Entity {
    *  of the box, like placeholdersEnabled) so new companies start with external OFF. When false,
    *  external resources are hidden across the UI; the data is preserved and returns when re-enabled. */
   externalEnabled?: boolean;
-  /** Whether Internal activities/projects use neutral grey or their normal palette-derived colour.
-   *  Absent = 'grey', the out-of-the-box behaviour. Saved project colours are preserved in grey mode. */
-  internalColourMode?: InternalColourMode;
-  /** Whether the schedule shows allocation bars for INTERNAL PROJECTS — activities whose project
-   *  belongs to the built-in Internal client (`Client.builtin === true`). Absent = true (shown),
-   *  contrast placeholdersEnabled's `?? false`. A pure VIEW pref: when false only the BARS are
-   *  hidden — the work stays in the data and in capacity/utilisation, and reappears when re-enabled. */
-  showInternalProjects?: boolean;
-  /** Whether the schedule shows allocation bars for INTERNAL ACTIVITIES — activities of `kind:
-   *  'internal'`. Absent = true (shown). A pure VIEW pref exactly like showInternalProjects: hiding
-   *  removes only the bars, never the underlying load from capacity/utilisation. */
-  showInternalActivities?: boolean;
   /** Whether the scheduler's Allocation modal offers the inline "Add activity" input + button.
    *  Absent = false (hidden). When false the inline creator is not rendered; the Activity picker
    *  itself still works normally. */
@@ -334,14 +316,14 @@ export type { AppDataKey, ScopedEntityKey } from "./entityKeys";
  *  v5 renamed the domain concept Task→Activity: the `tasks` table → `activities` and
  *  `Allocation.taskId` → `activityId`; v6 ensures every account has one built-in `Client`
  *  with `builtin: true` — the "Internal" pseudo-client; v7 adds optional client/project privacy
- *  fields, whose absent values already represent the public default; v8 adds the optional
- *  per-account Internal work colour mode, whose absence means grey; v9 adds the optional per-account
- *  schedule view prefs showInternalProjects / showInternalActivities / inlineActivityCreateEnabled,
- *  whose absence means shown/enabled — read at `?? true`; v10 adds optional Resource.isFavourite,
+ *  fields, whose absent values already represent the public default; v8 adds an optional
+ *  per-account Internal work colour mode (since retired); v9 adds optional per-account schedule
+ *  view prefs — two internal-work visibility toggles (since retired) and inlineActivityCreateEnabled,
+ *  whose absence means disabled; v10 adds optional Resource.isFavourite,
  *  whose absence means not favourite; v11 adds required Resource.halfDays, initially empty for
  *  legacy resources so every previously selected weekday remains a full day; v12 adds required
- *  Resource.engagement, defaulting legacy resources to Studio; v13 adds the optional account-wide
- *  groupResourcesByEngagement view preference, whose absence means enabled; v14 adds account-wide
+ *  Resource.engagement, defaulting legacy resources to Studio; v13 adds an optional account-wide
+ *  engagement-grouping view preference (since retired; grouping is now derived); v14 adds account-wide
  *  working days, defaulting legacy accounts to the first five days of their configured week; v15
  *  adds optional Allocation.seriesId without inferring links for legacy repeat batches; v16 widens
  *  TimeOff.resourceId to nullable, where null represents company-wide time off for Everyone; v17

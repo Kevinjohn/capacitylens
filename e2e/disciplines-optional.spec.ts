@@ -20,7 +20,7 @@ async function restoreDisciplines(page: Page) {
   await expect(page.getByTestId("discipline-group").first()).toBeVisible();
 }
 
-// The account-level "Use disciplines" toggle (Settings → Disciplines). Off should hide
+// The account-level "Use disciplines" toggle (Settings → Company features). Off should hide
 // discipline surfaces and use engagement fallback bands on the schedule; on restores disciplines.
 test("turning disciplines off hides every surface; turning it back on restores them", async ({ page }) => {
   await openApp(page, "Wayne Enterprises", "/resources");

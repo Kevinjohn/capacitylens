@@ -4,7 +4,7 @@ import { resolveErrorMessage } from "../../lib/errorMessage";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { hasDisciplinesEnabled } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
-import { useSchedulerDensity } from "./layout";
+import { SCHEDULER_DENSITY } from "./layout";
 import { SchedulerToolbarChrome, SchedulerToolbarFilters } from "./SchedulerToolbarSections";
 import { buildFilterOptions } from "./toolbarFilterOptions";
 import { useToolbarSearch } from "./useToolbarSearch";
@@ -27,8 +27,6 @@ function useToolbarHistory() {
 
 export function SchedulerToolbar() {
   const canEdit = useCanEdit();
-  const compactView = useStore((state) => state.compactView);
-  const density = useSchedulerDensity();
   const zoom = useStore((state) => state.ui.zoom);
   const setZoom = useStore((state) => state.setZoom);
   const panDays = useStore((state) => state.panDays);
@@ -49,7 +47,7 @@ export function SchedulerToolbar() {
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const search = useToolbarSearch({ filters, activeAccountId, setFilters, clearFilters });
   const chromeProps = {
-    density,
+    density: SCHEDULER_DENSITY,
     zoom,
     setZoom,
     panDays,
@@ -61,7 +59,6 @@ export function SchedulerToolbar() {
   };
   const filterProps = {
     ...options,
-    compactView,
     disciplinesEnabled,
     filters,
     filtersActive,

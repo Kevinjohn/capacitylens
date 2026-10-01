@@ -28,7 +28,7 @@ import {
 } from "./ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { m } from "@/i18n";
-import { buildSchedulerDensity } from "./scheduler/layout";
+import { SCHEDULER_DENSITY } from "./scheduler/layout";
 import { useStore } from "../store/useStore";
 import { resolveTheme, subscribeToSystemScheme } from "../lib/theme";
 import { useSyncExternalStore } from "react";
@@ -59,7 +59,6 @@ export function AppSidebar({
   const { pathname } = useLocation();
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
   const expanded = isMobile ? openMobile : open;
-  const compactView = useStore((state) => state.compactView);
   const toggleLabel = expanded ? m.nav_collapse_menu() : m.nav_expand_menu();
   // On mobile the sidebar is an overlay sheet; following a link must dismiss it or the destination
   // stays hidden behind the nav. On desktop the sidebar is persistent, so this is a no-op.
@@ -67,14 +66,14 @@ export function AppSidebar({
     if (isMobile) setOpenMobile(false);
   };
 
-  // Vertical density ("Compact view" device pref, default OFF = roomier). Published as CSS custom
+  // Vertical density (the schedule's roomy rhythm). Published as CSS custom
   // properties on the sidebar root rather than threaded as props: the nav is assembled from several
   // groups (the primary destinations, the pinned admin group, the account footer), and the rules
   // below key off the shadcn primitives' own `data-slot` hooks, so every menu inside the sidebar
   // picks the rhythm up without each one having to read the store. Only GAPS and PADDING move — item
   // height is untouched, so the collapsed icon rail (which pins each button square) is unaffected.
   // See src/index.css.
-  const density = buildSchedulerDensity({ compact: compactView });
+  const density = SCHEDULER_DENSITY;
 
   return (
     <Sidebar

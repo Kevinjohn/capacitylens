@@ -1,12 +1,6 @@
 import { m } from "@/i18n";
-import type { ReactNode } from "react";
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
-import type {
-  CapacityOverviewAccess,
-  DateStyle,
-  InternalColourMode,
-  SchedulingMode,
-} from "@capacitylens/shared/types/entities";
+import type { CapacityOverviewAccess, DateStyle, SchedulingMode } from "@capacitylens/shared/types/entities";
 import { externalExplainer } from "../../lib/externalCopy";
 import { buildLabels, buildLabelOptions } from "../../lib/metadata";
 import { listAccountWorkingDays } from "../../store/selectors";
@@ -15,7 +9,7 @@ import { SegmentedControl, SwitchField } from "../common/ui";
 import { SettingsSection } from "./SettingsSection";
 import { SettingsDateFormatSection } from "./SettingsDateFormatSection";
 import { SettingsWorkingDaysSection } from "./SettingsWorkingDaysSection";
-import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, INTERNAL_COLOUR_MESSAGES, SCHEDULING_MESSAGES } from "./settingsLabels";
+import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, SCHEDULING_MESSAGES } from "./settingsLabels";
 
 type UpdateSetting = (patch: Parameters<StoreState["updateAccount"]>[1]) => void;
 type SettingsSchedulingSectionProps = {
@@ -29,14 +23,10 @@ type SettingsSchedulingSectionProps = {
   dateStyle: DateStyle;
   updateSetting: UpdateSetting;
   disciplinesEnabled: boolean;
-  groupResourcesByEngagement: boolean;
   placeholdersEnabled: boolean;
   externalEnabled: boolean;
-  showInternalProjects: boolean;
-  showInternalActivities: boolean;
   inlineActivityCreateEnabled: boolean;
   showTaskFieldInSchedule: boolean;
-  internalColourMode: InternalColourMode;
 };
 
 function CapacityOverviewAccessSection({
@@ -104,41 +94,7 @@ function SchedulingModeSection({
   );
 }
 
-function AccountToggleSection({
-  title,
-  help,
-  label,
-  checked,
-  canEdit,
-  onChange,
-}: {
-  title: string;
-  help: ReactNode;
-  label: string;
-  checked: boolean;
-  canEdit: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <SettingsSection title={title} help={help}>
-      <div>
-        <SwitchField label={label} checked={checked} onChange={onChange} disabled={!canEdit} />
-      </div>
-    </SettingsSection>
-  );
-}
-
-export function ScheduleViewSection(
-  props: Pick<
-    StoreState,
-    | "minimiseWeekends"
-    | "setMinimiseWeekends"
-    | "snapToWeekStart"
-    | "setSnapToWeekStart"
-    | "compactView"
-    | "setCompactView"
-  >,
-) {
+export function ScheduleViewSection(props: Pick<StoreState, "minimiseWeekends" | "setMinimiseWeekends">) {
   return (
     <SettingsSection title={m.settings_schedule_heading()} help={m.settings_schedule_intro()}>
       <div className="flex flex-col gap-3">
@@ -147,159 +103,71 @@ export function ScheduleViewSection(
           checked={props.minimiseWeekends}
           onChange={props.setMinimiseWeekends}
         />
-        <SwitchField
-          label={m.settings_schedule_snap_week_start()}
-          checked={props.snapToWeekStart}
-          onChange={props.setSnapToWeekStart}
-        />
-        <SwitchField
-          label={m.settings_schedule_compact_view()}
-          checked={props.compactView}
-          onChange={props.setCompactView}
-        />
       </div>
     </SettingsSection>
   );
 }
 
-function InternalColourSection({
-  canEdit,
-  internalColourMode,
-  updateSetting,
-}: Pick<SettingsSchedulingSectionProps, "canEdit" | "internalColourMode" | "updateSetting">) {
-  return (
-    <SettingsSection title={m.settings_internal_colours_heading()} help={m.settings_internal_colours_intro()}>
-      <SegmentedControl
-        variant="recessed"
-        ariaLabel={m.settings_internal_colours_aria()}
-        value={internalColourMode}
-        onChange={(value) => updateSetting({ internalColourMode: value })}
-        options={buildLabelOptions(buildLabels(INTERNAL_COLOUR_MESSAGES))}
-        disabled={!canEdit}
-      />
-    </SettingsSection>
-  );
-}
-
-function InternalVisibilitySection({
-  canEdit,
-  showInternalProjects,
-  showInternalActivities,
-  updateSetting,
-}: Pick<
-  SettingsSchedulingSectionProps,
-  "canEdit" | "showInternalProjects" | "showInternalActivities" | "updateSetting"
->) {
-  return (
-    <SettingsSection title={m.settings_internal_visibility_heading()} help={m.settings_internal_visibility_intro()}>
-      <div className="flex flex-col gap-3">
-        <SwitchField
-          label={m.settings_show_internal_projects_toggle()}
-          checked={showInternalProjects}
-          onChange={(next) => updateSetting({ showInternalProjects: next })}
-          disabled={!canEdit}
-        />
-        <SwitchField
-          label={m.settings_show_internal_activities_toggle()}
-          checked={showInternalActivities}
-          onChange={(next) => updateSetting({ showInternalActivities: next })}
-          disabled={!canEdit}
-        />
-      </div>
-    </SettingsSection>
-  );
-}
-
-type SchedulingFeatureSectionProps = Pick<
+type CompanyFeaturesSectionProps = Pick<
   SettingsSchedulingSectionProps,
   | "canEdit"
-  | "internalColourMode"
+  | "disciplinesEnabled"
   | "placeholdersEnabled"
   | "externalEnabled"
-  | "showInternalProjects"
-  | "showInternalActivities"
   | "inlineActivityCreateEnabled"
   | "showTaskFieldInSchedule"
   | "updateSetting"
 >;
 
-function AdditionalResourcingSection({
-  canEdit,
-  placeholdersEnabled,
-  externalEnabled,
-  updateSetting,
-}: Pick<SettingsSchedulingSectionProps, "canEdit" | "placeholdersEnabled" | "externalEnabled" | "updateSetting">) {
+/** Every company-wide on/off option in one section, so the toggles read as one list. */
+export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
+  const { canEdit, updateSetting } = props;
   const help = (
     <>
-      <p>{m.settings_additional_resourcing_intro()}</p>
+      <p>{m.settings_company_features_intro()}</p>
+      <p>{m.settings_disciplines_intro()}</p>
       <p>{m.settings_placeholders_intro()}</p>
       <p>{m.settings_external_intro()}</p>
       <p>{externalExplainer()}</p>
+      <p>{m.settings_activity_create_intro()}</p>
+      <p>{m.settings_task_field_intro()}</p>
     </>
   );
   return (
-    <SettingsSection title={m.settings_additional_resourcing_heading()} help={help}>
+    <SettingsSection title={m.settings_company_features_heading()} help={help}>
       <div className="flex flex-col gap-3">
         <SwitchField
+          label={m.settings_disciplines_toggle()}
+          checked={props.disciplinesEnabled}
+          onChange={(next) => updateSetting({ disciplinesEnabled: next })}
+          disabled={!canEdit}
+        />
+        <SwitchField
           label={m.settings_placeholders_toggle()}
-          checked={placeholdersEnabled}
+          checked={props.placeholdersEnabled}
           onChange={(next) => updateSetting({ placeholdersEnabled: next })}
           disabled={!canEdit}
         />
         <SwitchField
           label={m.settings_external_toggle()}
-          checked={externalEnabled}
+          checked={props.externalEnabled}
           onChange={(next) => updateSetting({ externalEnabled: next })}
+          disabled={!canEdit}
+        />
+        <SwitchField
+          label={m.settings_inline_activity_create_toggle()}
+          checked={props.inlineActivityCreateEnabled}
+          onChange={(next) => updateSetting({ inlineActivityCreateEnabled: next })}
+          disabled={!canEdit}
+        />
+        <SwitchField
+          label={m.settings_task_field_toggle()}
+          checked={props.showTaskFieldInSchedule}
+          onChange={(next) => updateSetting({ showTaskFieldInSchedule: next })}
           disabled={!canEdit}
         />
       </div>
     </SettingsSection>
-  );
-}
-
-export function SchedulingFeatureSections({
-  canEdit,
-  placeholdersEnabled,
-  externalEnabled,
-  showInternalProjects,
-  showInternalActivities,
-  inlineActivityCreateEnabled,
-  showTaskFieldInSchedule,
-  updateSetting,
-  internalColourMode,
-}: SchedulingFeatureSectionProps) {
-  return (
-    <>
-      <AdditionalResourcingSection
-        canEdit={canEdit}
-        placeholdersEnabled={placeholdersEnabled}
-        externalEnabled={externalEnabled}
-        updateSetting={updateSetting}
-      />
-      <InternalColourSection canEdit={canEdit} internalColourMode={internalColourMode} updateSetting={updateSetting} />
-      <InternalVisibilitySection
-        canEdit={canEdit}
-        showInternalProjects={showInternalProjects}
-        showInternalActivities={showInternalActivities}
-        updateSetting={updateSetting}
-      />
-      <AccountToggleSection
-        title={m.settings_activity_create_heading()}
-        help={m.settings_activity_create_intro()}
-        label={m.settings_inline_activity_create_toggle()}
-        checked={inlineActivityCreateEnabled}
-        canEdit={canEdit}
-        onChange={(next) => updateSetting({ inlineActivityCreateEnabled: next })}
-      />
-      <AccountToggleSection
-        title={m.settings_task_field_heading()}
-        help={m.settings_task_field_intro()}
-        label={m.settings_task_field_toggle()}
-        checked={showTaskFieldInSchedule}
-        canEdit={canEdit}
-        onChange={(next) => updateSetting({ showTaskFieldInSchedule: next })}
-      />
-    </>
   );
 }
 
@@ -328,14 +196,7 @@ function SchedulingFoundationSections(props: SchedulingFoundationSectionsProps) 
 }
 
 type SettingsCompanySetupSectionsProps = SchedulingFoundationSectionsProps &
-  Pick<
-    SettingsSchedulingSectionProps,
-    | "disciplinesEnabled"
-    | "groupResourcesByEngagement"
-    | "canManageCapacityOverviewAccess"
-    | "capacityOverviewAccess"
-    | "dateStyle"
-  >;
+  Pick<SettingsSchedulingSectionProps, "canManageCapacityOverviewAccess" | "capacityOverviewAccess" | "dateStyle">;
 
 export function SettingsCompanySetupSections(props: SettingsCompanySetupSectionsProps) {
   return (
@@ -345,22 +206,6 @@ export function SettingsCompanySetupSections(props: SettingsCompanySetupSections
         canEdit={props.canEdit}
         dateStyle={props.dateStyle}
         onChange={(dateStyle) => props.updateSetting({ dateStyle })}
-      />
-      <AccountToggleSection
-        title={m.settings_disciplines_heading()}
-        help={m.settings_disciplines_intro()}
-        label={m.settings_disciplines_toggle()}
-        checked={props.disciplinesEnabled}
-        canEdit={props.canEdit}
-        onChange={(next) => props.updateSetting({ disciplinesEnabled: next })}
-      />
-      <AccountToggleSection
-        title={m.settings_engagement_grouping_heading()}
-        help={m.settings_engagement_grouping_intro()}
-        label={m.settings_engagement_grouping_toggle()}
-        checked={props.groupResourcesByEngagement}
-        canEdit={props.canEdit}
-        onChange={(next) => props.updateSetting({ groupResourcesByEngagement: next })}
       />
       <CapacityOverviewAccessSection
         canManageCapacityOverviewAccess={props.canManageCapacityOverviewAccess}

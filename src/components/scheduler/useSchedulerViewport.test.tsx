@@ -15,18 +15,18 @@ import { useStore } from "../../store/useStore";
 // but stripped to just the viewport hook, no grid chrome.
 function Harness({
   minimiseWeekends = false,
-  snapToWeekStart = false,
+  weekSnapEnabled = false,
   calendarWeekStartsOn = 1,
 }: {
   minimiseWeekends?: boolean;
-  snapToWeekStart?: boolean;
+  weekSnapEnabled?: boolean;
   calendarWeekStartsOn?: 0 | 1;
 }) {
   const ui = useStore((s) => s.ui);
   const { scrollRef, leftEdgeIdx, onScroll, visibleStartDate, geom } = useSchedulerViewport({
     ui,
     minimiseWeekends,
-    snapToWeekStart,
+    weekSnapEnabled,
     calendarWeekStartsOn,
   });
   return (
@@ -181,7 +181,7 @@ describe("useSchedulerViewport — pending week snapping", () => {
   });
 
   it("cancels an idle snap when snapping is disabled before the timer fires", () => {
-    const { rerender } = render(<Harness snapToWeekStart />);
+    const { rerender } = render(<Harness weekSnapEnabled />);
     const grid = screen.getByTestId("scroll");
     const boundary = Number(screen.getByTestId("boundary-2").textContent);
 
@@ -189,7 +189,7 @@ describe("useSchedulerViewport — pending week snapping", () => {
       grid.scrollLeft = boundary;
       grid.dispatchEvent(new Event("scroll"));
     });
-    rerender(<Harness snapToWeekStart={false} />);
+    rerender(<Harness weekSnapEnabled={false} />);
     expect(vi.getTimerCount()).toBe(0);
     act(() => {
       vi.runAllTimers();
@@ -199,7 +199,7 @@ describe("useSchedulerViewport — pending week snapping", () => {
   });
 
   it("cancels an idle snap when the calendar week changes", () => {
-    const { rerender } = render(<Harness snapToWeekStart calendarWeekStartsOn={1} />);
+    const { rerender } = render(<Harness weekSnapEnabled calendarWeekStartsOn={1} />);
     const grid = screen.getByTestId("scroll");
     const boundary = Number(screen.getByTestId("boundary-2").textContent);
 
@@ -207,7 +207,7 @@ describe("useSchedulerViewport — pending week snapping", () => {
       grid.scrollLeft = boundary;
       grid.dispatchEvent(new Event("scroll"));
     });
-    rerender(<Harness snapToWeekStart calendarWeekStartsOn={0} />);
+    rerender(<Harness weekSnapEnabled calendarWeekStartsOn={0} />);
     expect(vi.getTimerCount()).toBe(0);
     act(() => {
       vi.runAllTimers();
@@ -217,7 +217,7 @@ describe("useSchedulerViewport — pending week snapping", () => {
   });
 
   it("cancels an idle snap when zoom changes semantic geometry", () => {
-    render(<Harness snapToWeekStart />);
+    render(<Harness weekSnapEnabled />);
     const grid = screen.getByTestId("scroll");
 
     act(() => {
@@ -245,13 +245,13 @@ describe("useSchedulerViewport — week snap lifecycle", () => {
   it("cancels a pending animation frame and permits new scroll work after semantics change", () => {
     const requestFrame = vi.mocked(window.requestAnimationFrame).mockImplementation(() => 42);
     const cancelFrame = vi.spyOn(window, "cancelAnimationFrame");
-    const { rerender } = render(<Harness snapToWeekStart />);
+    const { rerender } = render(<Harness weekSnapEnabled />);
     const grid = screen.getByTestId("scroll");
 
     act(() => {
       grid.dispatchEvent(new Event("scroll"));
     });
-    rerender(<Harness snapToWeekStart={false} />);
+    rerender(<Harness weekSnapEnabled={false} />);
 
     expect(cancelFrame).toHaveBeenCalledWith(42);
     act(() => {
@@ -261,7 +261,7 @@ describe("useSchedulerViewport — week snap lifecycle", () => {
   });
 
   it("snaps normally when its semantics remain current", () => {
-    render(<Harness snapToWeekStart />);
+    render(<Harness weekSnapEnabled />);
     const grid = screen.getByTestId("scroll");
     const boundary = Number(screen.getByTestId("boundary-2").textContent);
 
@@ -275,7 +275,7 @@ describe("useSchedulerViewport — week snap lifecycle", () => {
   });
 
   it("clears an idle snap when the viewport unmounts", () => {
-    const { unmount } = render(<Harness snapToWeekStart />);
+    const { unmount } = render(<Harness weekSnapEnabled />);
     const grid = screen.getByTestId("scroll");
 
     act(() => {

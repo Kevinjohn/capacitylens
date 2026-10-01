@@ -84,7 +84,6 @@ async function createServerAccount({
       language: DEFAULT_LANGUAGE,
       schedulingMode: "days",
       inlineActivityCreateEnabled: false,
-      internalColourMode: "grey",
     });
     if (!response.ok) {
       if (hasUnknownAccountCommandOutcome(response)) {
@@ -150,7 +149,6 @@ function createAccountSubmit(input: CreateAccountSubmitInput): () => void {
         language: DEFAULT_LANGUAGE,
         schedulingMode: "days",
         inlineActivityCreateEnabled: false,
-        internalColourMode: "grey",
       });
       if (account === null) return;
       input.resetForm();

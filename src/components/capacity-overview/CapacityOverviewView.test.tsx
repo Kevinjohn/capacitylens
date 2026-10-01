@@ -89,7 +89,7 @@ describe("CapacityOverviewView", () => {
     const user = userEvent.setup();
     renderOverview();
 
-    const groupToggle = screen.getByRole("button", { name: /Studio/ });
+    const groupToggle = screen.getByRole("button", { name: /Overall/ });
     await user.click(groupToggle);
     await user.click(screen.getByRole("radio", { name: "12 weeks" }));
 

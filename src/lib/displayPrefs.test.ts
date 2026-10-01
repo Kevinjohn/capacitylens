@@ -5,10 +5,8 @@ import {
   writeStoredSidebarOpen,
   readStoredMinimiseWeekends,
   writeStoredMinimiseWeekends,
-  readStoredSnapToWeekStart,
-  writeStoredSnapToWeekStart,
-  readStoredCompactView,
-  writeStoredCompactView,
+  readStoredWeekSnapOverride,
+  WEEK_SNAP_OVERRIDE_KEY,
   readStoredFakeSignedIn,
   writeStoredFakeSignedIn,
   readStoredUtilizationPrefs,
@@ -18,6 +16,7 @@ import {
   writeStoredBarLabelPrefs,
   DEFAULT_BAR_LABEL_PREFS,
 } from "./displayPrefs";
+import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
 
 describe("sidebar preference", () => {
   beforeEach(() => {
@@ -74,86 +73,35 @@ describe("minimise-weekends preference", () => {
   });
 });
 
-// Compact view is the ONE device pref here that defaults OFF-as-in-roomier: off is the density the
-// product ships, and turning it on restores the older tighter spacing. So "unset" must read false.
-describe("compact-view preference", () => {
+// The week snap has no Settings control; its storage key survives only as a browser-test override.
+describe("week-snap test override", () => {
+  const storageKey = `${STORAGE_KEY_PREFIX}${WEEK_SNAP_OVERRIDE_KEY}`;
   beforeEach(() => {
-    localStorage.removeItem("capacitylens/compactView");
+    localStorage.removeItem(storageKey);
   });
 
-  it("defaults to FALSE (roomy) when the user has never chosen", () => {
-    expect(readStoredCompactView()).toBe(false);
+  it("reads TRUE (snapping on) when nothing is stored", () => {
+    expect(readStoredWeekSnapOverride()).toBe(true);
   });
 
-  it("round-trips an explicit on/off choice", () => {
-    writeStoredCompactView(true);
-    expect(readStoredCompactView()).toBe(true);
-    writeStoredCompactView(false);
-    expect(readStoredCompactView()).toBe(false);
-  });
-
-  it("treats an unrecognised stored value as the default (roomy)", () => {
-    localStorage.setItem("capacitylens/compactView", "maybe");
-    expect(readStoredCompactView()).toBe(false);
-  });
-
-  it("persists under the documented storage key", () => {
-    writeStoredCompactView(true);
-    expect(localStorage.getItem("capacitylens/compactView")).toBe("on");
-  });
-
-  it("swallows a blocked read to the default (roomy)", () => {
-    const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new DOMException("blocked", "SecurityError");
-    });
-    expect(readStoredCompactView()).toBe(false);
-    spy.mockRestore();
-  });
-});
-
-describe("snap-to-week-start preference", () => {
-  beforeEach(() => {
-    localStorage.removeItem("capacitylens/snapToWeekStart");
-  });
-
-  it("defaults to TRUE (on) when the user has never chosen", () => {
-    expect(readStoredSnapToWeekStart()).toBe(true);
-  });
-
-  it("round-trips an explicit on/off choice", () => {
-    writeStoredSnapToWeekStart(false);
-    expect(readStoredSnapToWeekStart()).toBe(false);
-    writeStoredSnapToWeekStart(true);
-    expect(readStoredSnapToWeekStart()).toBe(true);
+  it("reads a stored 'off' as snapping disabled", () => {
+    localStorage.setItem(storageKey, "off");
+    expect(readStoredWeekSnapOverride()).toBe(false);
   });
 
   it("treats an unrecognised stored value as the default (on)", () => {
-    localStorage.setItem("capacitylens/snapToWeekStart", "maybe");
-    expect(readStoredSnapToWeekStart()).toBe(true);
+    localStorage.setItem(storageKey, "maybe");
+    expect(readStoredWeekSnapOverride()).toBe(true);
   });
 
-  it("swallows a blocked read to the default (on) — a device pref can never corrupt account data", () => {
+  it("swallows a blocked read to the default (on)", () => {
     // Private mode / quota / a sandboxed iframe can make getItem THROW (not just return null). The
-    // read must degrade to the documented default rather than crash boot (DEFENSIVE-CODING.md §5:
-    // the ONE category where swallow-to-default is correct — a non-tenant view toggle).
+    // read must degrade to the default rather than crash boot (DEFENSIVE-CODING.md §5).
     const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new DOMException("blocked", "SecurityError");
     });
     try {
-      expect(readStoredSnapToWeekStart()).toBe(true);
-    } finally {
-      spy.mockRestore();
-    }
-  });
-
-  it("does not throw when the write is blocked (best-effort persist)", () => {
-    // A blocked/full setItem must not bubble — the in-memory store still honours the choice for the
-    // session; only persistence across reloads is lost.
-    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new DOMException("quota", "QuotaExceededError");
-    });
-    try {
-      expect(() => writeStoredSnapToWeekStart(false)).not.toThrow();
+      expect(readStoredWeekSnapOverride()).toBe(true);
     } finally {
       spy.mockRestore();
     }
