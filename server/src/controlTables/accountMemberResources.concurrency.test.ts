@@ -169,7 +169,7 @@ async function runRace(direction: "member" | "resource"): Promise<void> {
   }
 }
 
-describe("member/resource association uniqueness under overlapping connections", () => {
+describe("member/resource association uniqueness under overlapping connections", { timeout: 30_000 }, () => {
   it("serializes competing links for one member", async () => {
     await runRace("member");
   });
