@@ -58,6 +58,14 @@ fixtures include the optional `resources.avatarUrl` column and passed `quick_che
 - `v42-off.db`: `aaf03cb94a0ec9c957ae9df26218e1d723831af785f903531db24558f6b32ede`
 - `v42-password.db`: `17ff851ace5acbffa62cf7882e7fe7375b6ce511c17e6ec1ca03986f1f70c2be`
 
+The v51 password artifact is a pre-upgrade Better Auth compatibility fixture, not a released
+fixture pair. It was generated from a copy of the sanitised v46 password fixture with base
+revision `f2f7715262d7331a4b2f455c81452216a8260b8e`, Better Auth 1.7.6, Node 24.21.0 and pnpm
+11.4.0. It contains one synthetic `.invalid` user, credential account and session. The fixture
+passed `quick_check` and `foreign_key_check` before the Better Auth update:
+
+- `v51-password.db`: `aad54aacb99c72971ea5f76b245568852e356b6edc8df012ce289008d069a967`
+
 Tests copy a fixture to a temporary path before opening it; committed artifacts must never be
 migrated in place. Add one fixture for each future `DB_SCHEMA_VERSION` that actually ships, retain
 old fixtures indefinitely, and generate them with the released build before changing migration
