@@ -10,11 +10,14 @@ next: false
 
 # Appoint an Admin
 
-![Team & access showing Invite someone with Admin, email, No Resource linked and Create invite](../screenshots/flows/owner_appoint_an_admin_1.png)
+![Team & access showing Invite someone with Admin, email, No Resource linked and Create invite](../screenshots/flows/invite_admin_role_form.jpg)
 
-Open Team & access in the left menu and find Invite someone.
+After creating the company, open **Team & access** in the left menu and select **Invite someone**.
 
-Set Role to Admin and enter the person's email. Leave No Resource linked selected unless their scheduled person already exists.
+Set **Role** to **Admin** and enter the person's email. Leave **No Resource linked** selected
+unless their scheduled person already exists. An invitation gives sign-in access; it does not add
+someone to the schedule. You can link an existing scheduled person without changing the new Admin's
+role.
 
 Select **Create invite**. When SMTP is configured and email sending is available, CapacityLens
 emails the addressed invitation. If email is unavailable or sending fails, select **Copy** and send
@@ -22,9 +25,12 @@ the link privately. The link remains available either way.
 
 ## Hand over
 
-![Team & access: accepted member showing Admin role](../screenshots/flows/admin_invite_teammates_2.png)
+![Team & access: accepted member showing Admin role](../screenshots/flows/owner_members_current.jpg)
 
-After they accept, check that the members list shows their Admin role.
+After they accept, check **Team & access** and confirm their row shows **Admin**. If the invite is
+still pending, ask whether they received the email or copied link. If delivery is unavailable, copy
+the link from the invitation result. A lost link cannot be recovered: revoke that invite and create
+a replacement.
 
 Send them the [Admin and settings guide](/admin/). They can complete the setup from here.
 

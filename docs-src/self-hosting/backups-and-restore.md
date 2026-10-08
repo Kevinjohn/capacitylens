@@ -85,8 +85,10 @@ drill_dir="$(mktemp -d /var/tmp/capacitylens-restore-drill.XXXXXX)" && install -
 
 Start the API with an empty inherited environment, the same sign-in mode and deployment
 profile as production, and separate storage paths. The example below is for password mode.
-For SSO or mixed mode, use the stored issuer and its discovery URL with non-production
-drill client credentials; this storage drill does not attempt provider sign-in.
+For Google or Microsoft company login, use an isolated staging origin and that provider's
+non-production client registration and callback to rehearse sign-in separately. CapacityLens
+supports those named providers; generic OIDC configuration is retired. This loopback storage
+drill does not attempt provider sign-in.
 
 ```bash
 env -i PATH="$PATH" NODE_ENV=production \
@@ -132,7 +134,8 @@ you start — steps 1-2 below do this for you.
 
 1. Stop the API cleanly and wait for it to exit.
 2. Copy the live database and its `-wal`/`-shm` sidecars somewhere safe, in case you need
-   to roll back the restore itself.
+   to roll back the restore itself. Preserve the current and rotated audit logs separately;
+   a scheduled database snapshot does not replace those files.
 3. Copy a selected dated `capacitylens-utc-YYYYMMDD-HHMMSS-sss.db` (or older
    `capacitylens-YYYYMMDD-HHMMSS-sss.db`) scheduled snapshot to the configured database
    path. Don't select a `capacitylens-pre-migration-*` file here — those belong to the

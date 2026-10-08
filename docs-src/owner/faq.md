@@ -42,6 +42,25 @@ Only another active Admin can be nominated. Use the Admin invitation flow first,
 
 [Owner responsibilities](/owner/responsibilities)
 
+## Who can change the joining policy?
+
+Only the Owner can change **Who can join** under **Team & access**. Admins can read the current
+policy and copy the joining link. Policy-based joins give new members Viewer access; send an
+addressed invitation when someone needs another role. See [Decide who can join](/owner/responsibilities#decide-who-can-join).
+
+## What if I cannot find Delete company?
+
+In a signed-in installation, **Switch company** appears only when you can access two or more
+companies. Only the company's Owner sees **Delete** in the chooser. If the switch is missing, ask
+the service operator for the supported way to remove that company. When the confirmation appears,
+select **Export first** if you need a copy and type the exact company name before selecting **Delete**.
+
+## What happens if an ownership transfer ends?
+
+Open **Manage ownership** in **Team & access** to see the latest outcome. The request may have been
+declined, cancelled, replaced, expired after seven days, or ended when a participant's membership
+changed. No transfer occurs unless the nominee agrees and the Owner confirms.
+
 ## Can there be more than one Owner?
 
 No. Give other company managers the Admin role.
