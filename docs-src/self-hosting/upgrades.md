@@ -69,9 +69,8 @@ proof described in the [company-login guide](/company-login/set-up-company-login
 
 ## Better Auth 1.7.7 authentication update
 
-This release updates Better Auth from 1.7.6 to 1.7.7. The new release namespaces
-database-backed provider sign-in state. A provider sign-in or account-linking flow already
-underway during the upgrade will not complete with its old state. Start that flow again after
+This release updates Better Auth from 1.7.6 to 1.7.7. A provider sign-in or account-linking
+flow already underway during the upgrade will not complete. Start that flow again after
 the new server is running. This also applies if someone has just completed the Microsoft mailbox
 proof and is still returning from the provider.
 
