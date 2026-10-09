@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Config, Driver } from "driver.js";
-import { buildRoleTour } from "./tourSteps";
 
 // driver.js itself is loaded lazily inside startTour (see the file header comment in tour.ts), so
 // the mock only needs to cover the dynamic `import("driver.js")`, not a static import binding.
@@ -184,10 +183,11 @@ function registerLifecycleTests() {
     expect(navigate).toHaveBeenCalledWith("/");
   });
 
-  it("builds the selected role's own segment and lower stops", () => {
-    expect(buildRoleTour({ role: "viewer", serverMode: true }).map((step) => step.id)).toEqual([
-      "viewer-grid",
-      "viewer-toolbar",
+  it("launches only the two reading stops for a Viewer", async () => {
+    await startTour({ role: "viewer", navigate, serverMode: true });
+    expect(getDriverConfig().steps?.map((step) => step.element)).toEqual([
+      '[data-testid="scheduler-grid"]',
+      '[data-testid="scheduler-toolbar"]',
     ]);
   });
 }

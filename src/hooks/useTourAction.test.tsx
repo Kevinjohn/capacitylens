@@ -61,21 +61,24 @@ beforeEach(() => {
   apiMode.demo = false;
   offlineMode.readOnly = false;
   setNotice.mockReset();
-  actionRef.current = undefined;
+  actionRef.current = null;
 });
 afterEach(() => vi.restoreAllMocks());
 
 describe("useTourAction", () => {
-  it.each(["pending", "unavailable"] as const)("disables the launcher while permissions are %s", (status) => {
+  it.each(["pending", "unavailable"] as const)("disables the launcher while permissions are %s", async (status) => {
     renderHarness({ role: "viewer", status });
     expect(screen.getByRole("button", { name: "Tour" })).toBeDisabled();
+    await act(async () => actionRef.current?.());
     expect(tourMock.startTour).not.toHaveBeenCalled();
   });
 
-  it("disables the launcher for a read-only offline snapshot", () => {
+  it("disables the launcher for a read-only offline snapshot", async () => {
     offlineMode.readOnly = true;
     renderHarness({ role: "owner", status: "resolved" });
     expect(screen.getByRole("button", { name: "Tour" })).toBeDisabled();
+    await act(async () => actionRef.current?.());
+    expect(tourMock.startTour).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -115,5 +118,8 @@ describe("useTourAction", () => {
     renderHarness({ role: "admin", status: "resolved" });
     await act(async () => actionRef.current?.());
     expect(setNotice).toHaveBeenCalledWith("The tour could not start. Check your connection and try again.", "error");
+    expect(screen.getByRole("button", { name: "Tour" })).toBeEnabled();
+    await act(async () => actionRef.current?.());
+    expect(tourMock.startTour).toHaveBeenCalledTimes(2);
   });
 });

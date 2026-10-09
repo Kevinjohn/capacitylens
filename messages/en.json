@@ -1249,7 +1249,7 @@
   "role_tour_admin_example_data_title": "Admin: Start with example data",
   "role_tour_admin_example_data_desc": "In Settings, add example data to an empty company to explore a fictional schedule.",
   "role_tour_editor_resources_title": "Editor: Resources",
-  "role_tour_editor_resources_desc": "Add people as schedule resources; they don't need a CapacityLens sign-in.",
+  "role_tour_editor_resources_desc": "Add people as schedule resources; they don't need a sign-in.",
   "role_tour_editor_hierarchy_title": "Clients, Projects and Activities",
   "role_tour_editor_hierarchy_desc": "Clients contain Projects, and Projects contain the Activities assigned to scheduled work.",
   "role_tour_editor_book_title": "Editor: Book in Work mode",
