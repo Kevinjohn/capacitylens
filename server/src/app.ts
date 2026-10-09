@@ -92,9 +92,6 @@ export interface AppOptions {
     secret: string;
     publicUrl: URL;
   };
-  /** Require an enrolled and completed TOTP second factor before password users may access tenant
-   * data. Auth endpoints and /api/auth/me remain available so an existing user can enroll. */
-  requireMfa?: boolean;
   /** Resolved registration posture used by the SSO cutover verifier. */
   allowOpenSignup?: boolean;
   /** CORS allow-list: a comma-separated list of explicit origins. Wildcards are rejected because

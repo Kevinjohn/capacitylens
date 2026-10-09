@@ -24,9 +24,8 @@ const command = { commandId: "command-1", idempotencyKey: "idempotency-1" };
 const actor: ActorContext = {
   principalId: "actor-1",
   sessionId: "session-1",
-  assurance: "mfa",
+  assurance: "password",
   fresh: true,
-  mfaSatisfied: true,
 };
 const member: Membership = {
   workspaceId: "workspace-1",
@@ -49,7 +48,7 @@ const session: ApplicationSession = {
   createdAt: "2026-01-01T00:00:00.000Z",
   expiresAt: "2026-01-01T12:00:00.000Z",
   freshUntil: "2026-01-01T00:15:00.000Z",
-  assurance: "mfa",
+  assurance: "password",
 };
 
 function contractError(code: ConstructorParameters<typeof AccountContractError>[0]["code"]) {

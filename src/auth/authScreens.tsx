@@ -38,7 +38,7 @@ export function ReauthMount({
   const pending = useSyncExternalStore(subscribeReauth, isReauthPending);
   const action = readReauthAction();
   // This host exists only while the authenticated subtree is rendered. A concurrent 401 or
-  // mandatory-MFA transition removes it; settle every outside-React waiter before disappearing.
+  // A sign-out transition removes it; settle every outside-React waiter before disappearing.
   useEffect(() => () => completeReauth({ reauthenticated: false }), []);
   if (!pending) return null;
   return (

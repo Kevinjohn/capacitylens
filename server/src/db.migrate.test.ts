@@ -194,6 +194,11 @@ const V51_MIGRATION = {
   name: "bind-microsoft-company-joining-browser",
   checksum: "07d02c213db96189e3b8feec9b2920802cd585ee626c9a77771463d6b6d73117",
 } as const;
+const V52_MIGRATION = {
+  version: 52,
+  name: "retire-local-second-factor-auth-shape",
+  checksum: "063c0c9c2c67d56a9771cd0ed28083b405e21585bf543961f4c00e6bd57262b4",
+} as const;
 
 // eslint-disable-next-line max-lines-per-function -- The rehearsal builds and checks the complete pre-v50 proof row.
 it("v50 preserves a pending Microsoft ceremony while adding the explicit company joining purpose", () => {
@@ -225,7 +230,7 @@ it("v50 preserves a pending Microsoft ceremony while adding the explicit company
       Date.now(),
       Date.now(),
     );
-    expect(planDatabaseMigrations(db).migrations).toEqual([V50_MIGRATION, V51_MIGRATION]);
+    expect(planDatabaseMigrations(db).migrations).toEqual([V50_MIGRATION, V51_MIGRATION, V52_MIGRATION]);
     initializeOpenDb(db, ":memory:");
     expect(
       db
@@ -278,7 +283,7 @@ describe("v47 company access restriction upgrade", () => {
       DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_after;
       DROP TABLE microsoft_identity_proofs;
       ${MICROSOFT_PROOF_V46_SQL}
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version IN (47, 48, 49, 50, 51);
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version IN (47, 48, 49, 50, 51, 52);
       PRAGMA user_version = 46;
       CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL, emailVerified INTEGER NOT NULL);`);
     db.exec(`INSERT INTO user (id, email, emailVerified) VALUES
@@ -335,7 +340,7 @@ it("replaces the installed v46 Microsoft completion trigger during the v48 upgra
       DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_after;
       DROP TABLE microsoft_identity_proofs;
       ${MICROSOFT_PROOF_V46_SQL}
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version IN (48, 49, 50, 51);
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version IN (48, 49, 50, 51, 52);
       PRAGMA user_version = 47;
       CREATE TRIGGER capacitylens_microsoft_account_proof_after
       AFTER INSERT ON account WHEN NEW.providerId = 'microsoft' BEGIN
@@ -490,6 +495,7 @@ const RELEASED_MIGRATION_HISTORY = [
   V49_MIGRATION,
   V50_MIGRATION,
   V51_MIGRATION,
+  V52_MIGRATION,
 ] as const;
 const V25_TO_CURRENT_MIGRATIONS = [
   {
@@ -523,6 +529,7 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V49_MIGRATION,
   V50_MIGRATION,
   V51_MIGRATION,
+  V52_MIGRATION,
 ] as const;
 /** The same list without its v25 head, what a database rolled back to v25 still has pending. */
 const V26_TO_CURRENT_MIGRATIONS = V25_TO_CURRENT_MIGRATIONS.slice(1);
@@ -604,6 +611,14 @@ const schemaFingerprint = (db: DatabaseSync): unknown[] =>
       sql: string | null;
     }>
   ).map((entry) => ({ ...entry, sql: normalizeSchemaSql(entry.sql) }));
+
+function activeAuthSchemaFingerprint(db: DatabaseSync): unknown[] {
+  return (schemaFingerprint(db) as Array<{ name: string; tbl_name: string; sql: string | null }>)
+    .filter((entry) => entry.name !== "twoFactor" && entry.tbl_name !== "twoFactor")
+    .map((entry) =>
+      entry.name === "user" ? { ...entry, sql: entry.sql?.replace(', "twoFactorEnabled" integer', "") } : entry,
+    );
+}
 
 // The shape as it shipped before the Task→Activity rename (and before general tasks +
 // scheduling modes): the table was `tasks` (projectId NOT NULL), the allocation FK was
@@ -2023,7 +2038,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
       expect(plannedBeforeWinner).toEqual([
         17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
-        45, 46, 47, 48, 49, 50, 51,
+        45, 46, 47, 48, 49, 50, 51, 52,
       ]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
@@ -2057,7 +2072,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
       17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
-      45, 46, 47, 48, 49, 50, 51,
+      45, 46, 47, 48, 49, 50, 51, 52,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -2376,7 +2391,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
       20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-      48, 49, 50, 51,
+      48, 49, 50, 51, 52,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -2453,6 +2468,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V49_MIGRATION,
       V50_MIGRATION,
       V51_MIGRATION,
+      V52_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2520,6 +2536,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V49_MIGRATION,
       V50_MIGRATION,
       V51_MIGRATION,
+      V52_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2544,6 +2561,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
 // eslint-disable-next-line max-lines-per-function -- The migration ledger lists every retained revision.
 describe("schema migration of an existing on-disk DB", () => {
+  // eslint-disable-next-line max-lines-per-function -- The expected plan enumerates every retained migration.
   it("v23 adds every foreign-key child index through one explicit ledger step", () => {
     const db = openDb(":memory:");
     for (const { index } of FOREIGN_KEY_CHILD_INDEXES_V23) db.exec(`DROP INDEX ${index}`);
@@ -2594,6 +2612,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V49_MIGRATION,
       V50_MIGRATION,
       V51_MIGRATION,
+      V52_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2649,6 +2668,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V49_MIGRATION,
       V50_MIGRATION,
       V51_MIGRATION,
+      V52_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2961,6 +2981,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V49_MIGRATION,
       V50_MIGRATION,
       V51_MIGRATION,
+      V52_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -3128,6 +3149,7 @@ function registerActivityLifecycleMigrationTest(): void {
       V49_MIGRATION,
       V50_MIGRATION,
       V51_MIGRATION,
+      V52_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(db.prepare("PRAGMA table_info(activities)").all()).toEqual(
@@ -3182,6 +3204,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V49_MIGRATION,
       V50_MIGRATION,
       V51_MIGRATION,
+      V52_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -3230,6 +3253,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V49_MIGRATION,
       V50_MIGRATION,
       V51_MIGRATION,
+      V52_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -3283,6 +3307,7 @@ describe("schema migration of an existing on-disk DB", () => {
           V49_MIGRATION,
           V50_MIGRATION,
           V51_MIGRATION,
+          V52_MIGRATION,
         ]);
         initializeOpenDb(db, copied.path);
 
@@ -3693,7 +3718,7 @@ describe("Better Auth package upgrade compatibility", () => {
 
 describe("schema migration of an existing on-disk DB", () => {
   it.each(DATABASE_FIXTURE_VERSIONS)(
-    "upgrades the versioned v%s password fixture, preserves auth data, and converges with a fresh schema",
+    "upgrades the versioned v%s password fixture, preserves auth data, and converges on active schema",
     async (version) => {
       const copied = copyFixture(`v${version}-password.db`);
       try {
@@ -3726,7 +3751,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
         const fresh = openDb(":memory:");
         await runAuthMigrations(createFixtureAuth(fresh));
-        expect(schemaFingerprint(db)).toEqual(schemaFingerprint(fresh));
+        expect(activeAuthSchemaFingerprint(db)).toEqual(activeAuthSchemaFingerprint(fresh));
         fresh.close();
         db.close();
 

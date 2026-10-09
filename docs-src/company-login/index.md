@@ -7,7 +7,10 @@ description: Sign in with a password, Google Workspace or Microsoft, connect an 
 
 CapacityLens can use passwords, Google Workspace or Microsoft Entra ID for
 company sign-in. The person running the server chooses which options appear.
-The demo and trusted-local mode have no sign-in.
+The demo and trusted-local mode have no sign-in. Google or Microsoft may require an additional
+sign-in step when an agency enables MFA with that provider. CapacityLens does not provide local
+MFA or infer whether a provider challenge occurred. Enabling company sign-in alone does not
+enable MFA.
 
 With company sign-in, CapacityLens sends you to Google or Microsoft and receives
 you back after authentication. It never sees your provider password. An agency

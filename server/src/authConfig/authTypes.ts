@@ -124,7 +124,6 @@ export const DEMO_USER: SessionUser = {
   name: "Demo",
   email: "demo@capacitylens.local",
   emailVerified: true,
-  twoFactorEnabled: true,
   image: null,
 };
 
@@ -132,7 +131,6 @@ export const DEFAULT_ACCOUNT_APPLICATION: BoundApplication = {
   applicationId: "capacitylens",
   displayName: APP_NAME,
   branding: {
-    totpIssuer: APP_NAME,
     passwordContextWords: PASSWORD_CONTEXT_WORDS,
     defaultProviderLabel: "Single sign-on",
   },
@@ -153,7 +151,6 @@ export interface SessionUser {
   id: string;
   email: string;
   emailVerified: boolean;
-  twoFactorEnabled?: boolean;
   name: string;
   /** A provider avatar URL mapped into Better Auth's `user.image` column.
    * `null` for accounts/providers that carry no picture. The session boundary checks HTTPS. */
@@ -170,6 +167,5 @@ export interface RawSessionUser {
   email: string;
   name: string;
   emailVerified?: boolean | null | undefined;
-  twoFactorEnabled?: boolean | null;
   image?: string | null;
 }

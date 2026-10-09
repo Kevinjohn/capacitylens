@@ -9,7 +9,6 @@ vi.mock("./authClient", () => ({
   authClient: {
     signIn: { email: (...args: unknown[]) => signInEmail(...args), social: vi.fn() },
     signUp: { email: vi.fn() },
-    twoFactor: { verifyTotp: vi.fn(), verifyBackupCode: vi.fn() },
   },
 }));
 
@@ -156,21 +155,6 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
     expect(name.compareDocumentPosition(googleButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
     expect(separators).toHaveLength(1);
-  });
-
-  it("hides the promoted action and fallback while password MFA is pending", async () => {
-    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-    render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
-
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-
-    const code = await screen.findByLabelText("Authentication code");
-    expect(code).toBeInTheDocument();
-    expect(code).toHaveFocus();
-    expect(screen.queryByRole("button", { name: "Sign in with Google" })).not.toBeInTheDocument();
-    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
   });
 
   it("keeps password errors associated with both controls after Google promotion", async () => {

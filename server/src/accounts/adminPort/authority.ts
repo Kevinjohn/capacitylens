@@ -50,7 +50,6 @@ export function assertAccountAuthority({
 
 interface AssertAdministrativeAssuranceInput {
   actor: ActorContext;
-  requireMfa: boolean;
   trustedLocal: boolean;
   commandId?: string | undefined;
   requireFresh?: boolean;
@@ -58,7 +57,6 @@ interface AssertAdministrativeAssuranceInput {
 
 export function assertAdministrativeAssurance({
   actor,
-  requireMfa,
   trustedLocal,
   commandId,
   requireFresh = true,
@@ -71,19 +69,11 @@ export function assertAdministrativeAssurance({
       commandId,
     );
   }
-  if (requireMfa && !actor.mfaSatisfied) {
-    throw createAccountFailure(
-      "MFA_REQUIRED",
-      "Multi-factor authentication is required for this account operation.",
-      commandId,
-    );
-  }
 }
 
 interface AssertInvitationAuthorityInput {
   db: Db;
   actor: ActorContext;
-  requireMfa: boolean;
   trustedLocal: boolean;
   workspaceId: string;
   commandId: string;
@@ -94,17 +84,16 @@ interface AssertInvitationAuthorityInput {
  * assertAccountAuthority already asserts the workspace exists as its own first statement, so
  * neither closure needs a trailing assertWorkspaceExists of its own. `requireFresh` defaults to
  * true here as it does in assertAdministrativeAssurance: a caller opts an ordinary administrative
- * action out of the re-prompt explicitly, and role and MFA checks are unaffected either way. */
+ * action out of the re-prompt explicitly, and role checks are unaffected either way. */
 export function assertInvitationAuthority({
   db,
   actor,
-  requireMfa,
   trustedLocal,
   workspaceId,
   commandId,
   requireFresh = true,
 }: AssertInvitationAuthorityInput): void {
-  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId, requireFresh });
+  assertAdministrativeAssurance({ actor, trustedLocal, commandId, requireFresh });
   assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
 }
 
@@ -288,7 +277,6 @@ export function evaluateAuthority({
 interface AssertIdentityRepairAuthorityInput {
   db: Db;
   trustedLocal: boolean;
-  requireMfa: boolean;
   actor: ActorContext;
   workspaceId: string;
   targetPrincipalId: string;
@@ -299,14 +287,13 @@ interface AssertIdentityRepairAuthorityInput {
 function assertIdentityRepairAuthority({
   db,
   trustedLocal,
-  requireMfa,
   actor,
   workspaceId,
   targetPrincipalId,
   action,
   expectedRevision,
 }: AssertIdentityRepairAuthorityInput): void {
-  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+  assertAdministrativeAssurance({ actor, trustedLocal });
   assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
   // Status-agnostic: this asks "is there a membership here to repair?", not "may this login act?".
   // An active-only probe would 404 the compromised-account case that identity repair exists for,
@@ -329,7 +316,7 @@ function assertIdentityRepairAuthority({
 }
 
 export function createAuthority(
-  context: Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa">,
+  context: Pick<AdminPortContext, "db" | "trustedLocal">,
 ): Pick<
   SsoCutoverAccountAdminPort,
   | "evaluateIdentityAdminAuthority"
@@ -339,7 +326,7 @@ export function createAuthority(
   | "confirmIdentityAdminAuthority"
   | "assertIdentityRepairAuthorityInTx"
 > {
-  const { db, trustedLocal, requireMfa } = context;
+  const { db, trustedLocal } = context;
 
   return {
     async evaluateIdentityAdminAuthority({
@@ -347,7 +334,7 @@ export function createAuthority(
       targetPrincipalId,
       action,
     }): Promise<IdentityAdminAuthorityDecision> {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      assertAdministrativeAssurance({ actor, trustedLocal });
       return evaluateAuthority({ db, actor, targetPrincipalId, action });
     },
     async evaluateIdentityAdminAuthorities({
@@ -355,7 +342,7 @@ export function createAuthority(
       targetPrincipalId,
       actions,
     }): Promise<ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>> {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      assertAdministrativeAssurance({ actor, trustedLocal });
       return evaluateAuthorities({ db, actor, targetPrincipalId, actions });
     },
     async evaluateIdentityAdminAuthoritiesForTargets({
@@ -363,14 +350,14 @@ export function createAuthority(
       targetPrincipalIds,
       actions,
     }): Promise<ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>> {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      assertAdministrativeAssurance({ actor, trustedLocal });
       return evaluateAuthoritiesForTargets({ db, actorPrincipalId: actor.principalId, targetPrincipalIds, actions });
     },
     projectIdentityAdminAuthoritiesForTargets({ principalId, targetPrincipalIds, actions }) {
       return evaluateAuthoritiesForTargets({ db, actorPrincipalId: principalId, targetPrincipalIds, actions });
     },
     async confirmIdentityAdminAuthority({ actor, targetPrincipalId, action, expectedRevision }) {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      assertAdministrativeAssurance({ actor, trustedLocal });
       const current = evaluateAuthority({ db, actor, targetPrincipalId, action });
       return current.allowed && current.revision === expectedRevision;
     },
@@ -378,7 +365,6 @@ export function createAuthority(
       assertIdentityRepairAuthority({
         db,
         trustedLocal,
-        requireMfa,
         actor,
         workspaceId,
         targetPrincipalId,

@@ -5,6 +5,8 @@ description: An alpha4 source-code security reassessment against OWASP ASVS 5.0.
 
 # Security review — 2026-08-18
 
+> Current state (2026-10-09): CapacityLens no longer provides local MFA. Claims below about local TOTP describe the review date. Google and Microsoft company-provider policy owns MFA; enabling company sign-in alone does not enable it.
+
 ## Executive conclusion
 
 CapacityLens 0.55.0-alpha.4 remains suitable for continued community review and public CI. The

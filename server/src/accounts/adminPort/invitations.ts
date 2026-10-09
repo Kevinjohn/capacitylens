@@ -50,10 +50,7 @@ export function hasLivePreauthorizedInvitation(db: Db, normalizedEmail: string, 
   return rows.some((row) => !inviteIsExpired(row.expiresAt, now));
 }
 
-type InvitationsContext = Pick<
-  AdminPortContext,
-  "db" | "trustedLocal" | "requireMfa" | "invitationSecretReplay" | "runMutation"
->;
+type InvitationsContext = Pick<AdminPortContext, "db" | "trustedLocal" | "invitationSecretReplay" | "runMutation">;
 type InvitationMethod<Name extends keyof SsoCutoverAccountAdminPort> = SsoCutoverAccountAdminPort[Name];
 type InvitationInput<Name extends keyof SsoCutoverAccountAdminPort> = Parameters<InvitationMethod<Name>>[0];
 
@@ -61,8 +58,8 @@ async function listInvitations(
   context: InvitationsContext,
   { actor, workspaceId, requireFresh = true }: InvitationInput<"listInvitations">,
 ) {
-  const { db, requireMfa, trustedLocal } = context;
-  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, requireFresh });
+  const { db, trustedLocal } = context;
+  assertAdministrativeAssurance({ actor, trustedLocal, requireFresh });
   assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
   return listInvitesForAccount(db, workspaceId).flatMap((invite) => {
     // Reads remain pure. Hide an expired unused bearer from the live management view without
@@ -232,7 +229,7 @@ async function createInvitation(
   input: InvitationInput<"createInvitation">,
 ): Promise<CreatedInvitation> {
   const { actor, workspaceId, role, preauthorizedEmail, expiresAt, proposedResourceId, command } = input;
-  const { db, trustedLocal, requireMfa, invitationSecretReplay, runMutation } = context;
+  const { db, trustedLocal, invitationSecretReplay, runMutation } = context;
   assertInvitationRole(role, command.commandId);
   if (trustedLocal && proposedResourceId !== undefined) {
     throw createAccountFailure(
@@ -283,7 +280,6 @@ async function createInvitation(
       assertInvitationAuthority({
         db,
         actor,
-        requireMfa,
         trustedLocal,
         workspaceId,
         commandId: command.commandId,
@@ -296,7 +292,6 @@ async function createInvitation(
       assertInvitationAuthority({
         db,
         actor,
-        requireMfa,
         trustedLocal,
         workspaceId,
         commandId: command.commandId,
@@ -309,7 +304,7 @@ async function createInvitation(
 
 async function revokeInvitation(context: InvitationsContext, input: InvitationInput<"revokeInvitation">) {
   const { actor, workspaceId, invitationId, command } = input;
-  const { db, trustedLocal, requireMfa, invitationSecretReplay, runMutation } = context;
+  const { db, trustedLocal, invitationSecretReplay, runMutation } = context;
   return runMutation({
     operation: "revoke-invitation",
     actorPrincipalId: actor.principalId,
@@ -322,7 +317,6 @@ async function revokeInvitation(context: InvitationsContext, input: InvitationIn
     execute: () => {
       assertAdministrativeAssurance({
         actor,
-        requireMfa,
         trustedLocal,
         commandId: command.commandId,
         requireFresh: false,

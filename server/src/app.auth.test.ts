@@ -391,10 +391,9 @@ describe("normalizeSessionUser (P1.7a)", () => {
       email: "u1@capacitylens.dev",
       emailVerified: true,
       name: "U One",
-      twoFactorEnabled: false,
       image: null,
     });
-    expect(Object.keys(out).sort()).toEqual(["email", "emailVerified", "id", "image", "name", "twoFactorEnabled"]);
+    expect(Object.keys(out).sort()).toEqual(["email", "emailVerified", "id", "image", "name"]);
   });
 
   it("carries a validated https avatar URL through as image", () => {
@@ -445,12 +444,40 @@ describe("CAPACITYLENS_MODE password", () => {
     }
     expect((await call(app, { method: "GET", url: "/api/auth/future-read-route" })).statusCode).toBe(404);
     expect((await call(app, { method: "GET", url: "/api/auth/get-session" })).statusCode).not.toBe(404);
-    expect((await call(app, { method: "POST", url: "/api/auth/two-factor/disable", payload: {} })).statusCode).not.toBe(
-      404,
-    );
-    expect(
-      (await call(app, { method: "POST", url: "/api/auth/two-factor/generate-backup-codes", payload: {} })).statusCode,
-    ).not.toBe(404);
+    for (const url of [
+      "/api/auth/two-factor/enable",
+      "/api/auth/two-factor/disable",
+      "/api/auth/two-factor/generate-backup-codes",
+      "/api/auth/two-factor/verify-totp",
+      "/api/auth/two-factor/verify-backup-code",
+    ]) {
+      expect((await call(app, { method: "POST", url, payload: {} })).statusCode, url).toBe(404);
+    }
+  });
+});
+
+describe("removed second-factor operations", () => {
+  it.each([
+    ["password", PASSWORD_ENV],
+    ["mixed", { ...SSO_ENV, CAPACITYLENS_MODE: "password-and-sso" }],
+  ])("keeps removed second-factor operations closed to authenticated users in %s mode", async (_mode, env) => {
+    const { app } = await appWithAuth({ env });
+    const signUp = await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email: "owner@example.com", password: "password-123456", name: "Password Owner" },
+    });
+    expect(signUp.statusCode).toBe(200);
+    const cookie = cookiesOf(signUp);
+    for (const url of [
+      "/api/auth/two-factor/enable",
+      "/api/auth/two-factor/disable",
+      "/api/auth/two-factor/generate-backup-codes",
+      "/api/auth/two-factor/verify-totp",
+      "/api/auth/two-factor/verify-backup-code",
+    ]) {
+      expect((await call(app, { method: "POST", url, headers: { cookie }, payload: {} })).statusCode, url).toBe(404);
+    }
   });
 });
 

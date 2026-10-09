@@ -58,7 +58,7 @@ export function isAtLeast(role: Role, minimum: Role): boolean {
 
 /**
  * Whether `role` meets the minimum tier for one account administration `action`. This is the role
- * check only; the server still applies session, MFA and fresh-session policy separately.
+ * check only; the server still applies session and fresh-session policy separately.
  */
 export function canAdministerAccount(role: Role, action: AccountAdminAction): boolean {
   const minimum = MIN_ADMIN_TIER[action];

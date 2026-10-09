@@ -152,7 +152,7 @@ function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvit
 
 async function acceptInvitation(context: InvitationClaimContext, input: AcceptInvitationInput) {
   const { actor, token, principalEmail, emailVerified, command } = input;
-  const passwordMode = actor.assurance === "password" || actor.assurance === "mfa";
+  const passwordMode = actor.assurance === "password";
   const operation = `accept-invitation:actor:${actor.principalId}`;
   const payload = { tokenHash: createHashForToken(token), passwordMode };
   const resumed = resumeExistingCommand<Membership>({

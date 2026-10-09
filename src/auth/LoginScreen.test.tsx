@@ -7,8 +7,6 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 const signInEmail = vi.fn();
 const signInSocial = vi.fn();
 const signUpEmail = vi.fn();
-const verifyTotp = vi.fn();
-const verifyBackupCode = vi.fn();
 vi.mock("./authClient", () => ({
   authClient: {
     signIn: {
@@ -16,10 +14,6 @@ vi.mock("./authClient", () => ({
       social: (...args: unknown[]) => signInSocial(...args),
     },
     signUp: { email: (...args: unknown[]) => signUpEmail(...args) },
-    twoFactor: {
-      verifyTotp: (...args: unknown[]) => verifyTotp(...args),
-      verifyBackupCode: (...args: unknown[]) => verifyBackupCode(...args),
-    },
   },
 }));
 
@@ -32,8 +26,6 @@ beforeEach(() => {
   signInEmail.mockReset();
   signInSocial.mockReset();
   signUpEmail.mockReset();
-  verifyTotp.mockReset();
-  verifyBackupCode.mockReset();
 });
 
 function setsDescriptiveTitleOutsideAppShell() {
@@ -122,99 +114,16 @@ describe("LoginScreen — external callback failures", () => {
   );
 });
 
-async function enterTotpChallenge(onSignedIn = vi.fn()) {
-  signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-  render(<LoginScreen authMode="password-only" onSignedIn={onSignedIn} />);
-  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
-  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
-  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-  await screen.findByLabelText("Authentication code");
-  return onSignedIn;
-}
-
-async function completesAuthenticatorChallengeBeforeSigningIn() {
-  signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-  verifyTotp.mockResolvedValue({ data: { status: true }, error: null });
-  const onSignedIn = vi.fn();
-  render(<LoginScreen authMode="password-only" onSignedIn={onSignedIn} />);
-
-  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
-  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
-  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-  expect(await screen.findByLabelText("Authentication code")).toHaveAttribute("autocomplete", "one-time-code");
-  expect(onSignedIn).not.toHaveBeenCalled();
-
-  fireEvent.change(screen.getByTestId("mfa-code"), { target: { value: "123456" } });
-  fireEvent.click(screen.getByTestId("mfa-submit"));
-  await waitFor(() => expect(onSignedIn).toHaveBeenCalledTimes(1));
-  expect(verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false });
-}
-
-describe("LoginScreen — multi-factor challenge", () => {
-  it("does not enter the app until the authenticator code succeeds", completesAuthenticatorChallengeBeforeSigningIn);
-
-  it("hides external providers while a password second-factor challenge is pending", async () => {
-    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-    render(
-      <LoginScreen
-        authMode="password-and-sso"
-        providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
-        onSignedIn={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-
-    expect(await screen.findByLabelText("Authentication code")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Sign in with Microsoft" })).not.toBeInTheDocument();
-  });
-
-  it("supports a recovery code without marking the browser as trusted", async () => {
-    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-    verifyBackupCode.mockResolvedValue({ data: { status: true }, error: null });
+describe("LoginScreen — password sign-in", () => {
+  it("opens the app after a successful password sign-in without a local challenge", async () => {
+    signInEmail.mockResolvedValue({ data: {}, error: null });
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password-only" onSignedIn={onSignedIn} />);
-
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    await screen.findByLabelText("Authentication code");
-    fireEvent.click(screen.getByRole("button", { name: "Use a recovery code" }));
-    fireEvent.change(screen.getByLabelText("Recovery code"), { target: { value: "recover-me" } });
-    fireEvent.click(screen.getByTestId("mfa-submit"));
-
-    await waitFor(() => expect(onSignedIn).toHaveBeenCalledTimes(1));
-    expect(verifyBackupCode).toHaveBeenCalledWith({ code: "recover-me", trustDevice: false });
-  });
-
-  it("keeps the code field open and associated with a rejected authenticator code", async () => {
-    verifyTotp.mockResolvedValue({ error: { message: "Authentication code is incorrect." } });
-    const onSignedIn = await enterTotpChallenge();
-
-    const code = screen.getByTestId("mfa-code");
-    fireEvent.change(code, { target: { value: "123456" } });
-    fireEvent.click(screen.getByTestId("mfa-submit"));
-
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Authentication code is incorrect.");
-    expect(code).toHaveAttribute("aria-describedby", alert.id);
-    expect(code).toBeInTheDocument();
-    expect(onSignedIn).not.toHaveBeenCalled();
-  });
-
-  it("surfaces a network error and clears busy when authenticator verification throws", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    verifyTotp.mockRejectedValue(new TypeError("offline"));
-    await enterTotpChallenge();
-
-    fireEvent.change(screen.getByTestId("mfa-code"), { target: { value: "123456" } });
-    fireEvent.click(screen.getByTestId("mfa-submit"));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
-    expect(screen.getByTestId("mfa-submit")).toBeEnabled();
+    await waitFor(() => expect(onSignedIn).toHaveBeenCalledOnce());
+    expect(screen.queryByLabelText("Authentication code")).not.toBeInTheDocument();
   });
 });
 

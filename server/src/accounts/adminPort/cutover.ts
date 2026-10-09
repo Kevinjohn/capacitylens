@@ -90,12 +90,12 @@ function createCutoverInspection(
 }
 
 function createCutoverAdministration(
-  context: Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa">,
+  context: Pick<AdminPortContext, "db" | "trustedLocal">,
 ): Pick<
   SsoCutoverAccountAdminPort,
   "provisionOwnerMembershipInTx" | "assertWorkspaceErasureAuthorityInTx" | "eraseWorkspaceAdministrationInTx"
 > {
-  const { db, trustedLocal, requireMfa } = context;
+  const { db, trustedLocal } = context;
   return {
     provisionOwnerMembershipInTx({ workspaceId, principalId, joinedAt }) {
       upsertMember(db, {
@@ -110,7 +110,7 @@ function createCutoverAdministration(
       return readMembership(db, row);
     },
     assertWorkspaceErasureAuthorityInTx(actor, workspaceId): void {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      assertAdministrativeAssurance({ actor, trustedLocal });
       const role = assertAccountAuthority({ db, actor, workspaceId, action: "erase-workspace", trustedLocal });
       if (role !== "owner") throw createAccountFailure("FORBIDDEN", "Only the workspace owner may erase it.");
     },
@@ -146,7 +146,7 @@ function createCutoverAdministration(
 }
 
 export function createCutover(
-  context: Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa">,
+  context: Pick<AdminPortContext, "db" | "trustedLocal">,
 ): Pick<
   SsoCutoverAccountAdminPort,
   | "inspectSsoCutoverWorkspaces"
@@ -158,7 +158,7 @@ export function createCutover(
   | "assertWorkspaceErasureAuthorityInTx"
   | "eraseWorkspaceAdministrationInTx"
 > {
-  const { db, trustedLocal, requireMfa } = context;
+  const { db, trustedLocal } = context;
 
   return {
     ...createCutoverInspection(db),
@@ -185,7 +185,7 @@ export function createCutover(
       // This arm converts existing account administration into a new Owner grant. Apply the same
       // step-up boundary as membership and invitation administration after proving the role, so a
       // lower-privilege caller still receives the ordinary authority refusal.
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+      assertAdministrativeAssurance({ actor, trustedLocal });
       return { allowed: true };
     },
   };

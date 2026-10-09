@@ -17,7 +17,6 @@ export interface AuthUser {
   id: string;
   name?: string;
   email?: string;
-  twoFactorEnabled?: boolean;
   /** IdP-asserted avatar URL (OIDC `picture`), https-validated server-side. `null`/absent when the
    * provider carries no picture; only the signed-in user's own avatar is ever surfaced. */
   image?: string | null;
@@ -64,8 +63,6 @@ export interface AuthContextValue {
    * is the one gating decision (it also covers the zero-accounts bootstrap exemption); this exists
    * because it costs nothing to carry alongside it. Same fail-open `true` default as above. */
   multiAccount: boolean;
-  /** Operator policy, distinct from an unfinished MFA enrollment challenge. */
-  requireMfa?: boolean;
   /** Current identity's method for fresh authentication. */
   reauthMethod?: "password" | "provider";
   /** Re-asks GET /api/auth/me mid-session. The server recomputes `canCreateAccount` per request

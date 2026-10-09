@@ -68,9 +68,8 @@ export function allowsProviderSignIn(mode: AccountMode): boolean {
   return mode === "sso-only" || mode === "password-and-sso";
 }
 
-/** Product-specific wording an account adapter embeds in authenticator and password-screening flows. */
+/** Product-specific wording an account adapter embeds in password-screening flows. */
 export interface AccountBranding {
-  totpIssuer: string;
   passwordContextWords: readonly string[];
   defaultProviderLabel: string;
 }
@@ -126,7 +125,6 @@ export interface ActorContext {
   sessionId: SessionId;
   assurance: ApplicationSession["assurance"];
   fresh: boolean;
-  mfaSatisfied: boolean;
 }
 
 /** Durable upstream identity key. Email is explicitly not an identity-link key. */
@@ -173,7 +171,7 @@ export type ApplicationSession = ApplicationSessionBase &
         providerId: string;
       }
     | {
-        assurance: "trusted-local" | "password" | "mfa";
+        assurance: "trusted-local" | "password";
         providerId?: null;
       }
   );

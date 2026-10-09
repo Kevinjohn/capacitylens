@@ -40,14 +40,13 @@ configured provider, while `sso-only` requires Google or tenant-specific Microso
 identities need verified email and an invitation, with an explicit bootstrap email allow-list for
 the first identity. Provider configuration is fail-closed; incomplete credentials refuse startup.
 
-Production password mode defaults to breached-password screening and supports opt-in required TOTP
-MFA. Sessions retain a fixed twelve-hour lifetime and thirty-minute inactivity timeout. HTTPS
+Production password mode defaults to breached-password screening. CapacityLens has no local MFA;
+Google or Microsoft company providers own any MFA policy. Sessions retain a fixed twelve-hour lifetime and thirty-minute inactivity timeout. HTTPS
 cookies use the host-only `__Host-` prefix. New credentials use a versioned OWASP-strength scrypt
-profile; legacy Better Auth hashes are accepted only for compatibility. When MFA is required,
-tenant operations are blocked until enrollment. A session no older than fifteen minutes is required
+profile; legacy Better Auth hashes are accepted only for compatibility. A session no older than fifteen minutes is required
 to transfer company ownership, reset another member's password, revoke another member's sessions,
 delete a company, import or purge data, or link or repair an SSO identity. Other administrative
-actions require the actor's role and MFA policy. Data export does not require a fresh session.
+actions require the actor's role. Data export does not require a fresh session.
 
 Production refuses auth-off unless `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1` explicitly accepts the
 risk. That escape hatch is for trusted/local use, not an internet deployment.

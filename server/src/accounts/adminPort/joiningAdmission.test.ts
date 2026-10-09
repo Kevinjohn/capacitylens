@@ -89,10 +89,9 @@ describe("company admission transaction", () => {
         sessionId: "diana-session",
         assurance: "federated",
         fresh: false,
-        mfaSatisfied: true,
       } as const;
       expect(() =>
-        callbacks.complete({ headers, actor, providerId: "google", invitationToken: "admin-token", requireMfa: false }),
+        callbacks.complete({ headers, actor, providerId: "google", invitationToken: "admin-token" }),
       ).toThrow();
       expect(getInvite(db, "admin-token")?.usedAt).toBeNull();
       expect(
@@ -101,7 +100,6 @@ describe("company admission transaction", () => {
           actor,
           providerId: "google",
           invitationToken: "invite-token",
-          requireMfa: false,
         }),
       ).toMatchObject({ role: "viewer" });
     } finally {

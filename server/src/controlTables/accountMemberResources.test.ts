@@ -27,9 +27,8 @@ function actorContext(principalId: string): ActorContext {
   return {
     principalId,
     sessionId: `session-${principalId}`,
-    assurance: "mfa",
+    assurance: "password",
     fresh: true,
-    mfaSatisfied: true,
   };
 }
 

@@ -9,9 +9,8 @@ import { createSqliteAccountAdminPort } from "./sqliteAccountAdminPort";
 const actor: ActorContext = {
   principalId: "owner-1",
   sessionId: "session-1",
-  assurance: "mfa",
+  assurance: "password",
   fresh: true,
-  mfaSatisfied: true,
 };
 
 function expectFailureCode(operation: () => unknown, code: string): void {
@@ -192,7 +191,6 @@ function registerSqliteAccountAdminPortTest16(): void {
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
-        requireMfa: true,
       });
 
       await expect(
@@ -201,12 +199,6 @@ function registerSqliteAccountAdminPortTest16(): void {
           workspaceId: "workspace-1",
         }),
       ).rejects.toMatchObject({ failure: { code: "SESSION_NOT_FRESH" } });
-      await expect(
-        port.listInvitations({
-          actor: { ...actor, assurance: "password", mfaSatisfied: false },
-          workspaceId: "workspace-1",
-        }),
-      ).rejects.toMatchObject({ failure: { code: "MFA_REQUIRED" } });
     } finally {
       db.close();
     }
@@ -235,7 +227,6 @@ function registerSqliteAccountAdminPortTest17(): void {
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
-        requireMfa: true,
       });
       const evaluate = (candidate: ActorContext) =>
         port.evaluateWorkspaceProvisioningAuthorityInTx({
@@ -245,7 +236,6 @@ function registerSqliteAccountAdminPortTest17(): void {
         });
 
       expectFailureCode(() => evaluate({ ...actor, fresh: false }), "SESSION_NOT_FRESH");
-      expectFailureCode(() => evaluate({ ...actor, assurance: "password", mfaSatisfied: false }), "MFA_REQUIRED");
       expect(evaluate(actor)).toEqual({ allowed: true });
     } finally {
       db.close();
@@ -622,7 +612,6 @@ function registerSqliteAccountAdminPortTest30(): void {
         applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
-        requireMfa: true,
       });
       const authority = await port.evaluateIdentityAdminAuthority({
         actor,
@@ -633,16 +622,14 @@ function registerSqliteAccountAdminPortTest30(): void {
       const injectedInput: Parameters<typeof port.assertIdentityRepairAuthorityInTx>[0] & {
         db: Db;
         trustedLocal: boolean;
-        requireMfa: boolean;
       } = {
-        actor: { ...actor, fresh: false, mfaSatisfied: false },
+        actor: { ...actor, fresh: false },
         workspaceId: "workspace-b",
         targetPrincipalId: "target-1",
         action: "correct-email",
         expectedRevision: authority.revision,
         db: injectedDb,
         trustedLocal: true,
-        requireMfa: false,
       };
 
       expectFailureCode(() => port.assertIdentityRepairAuthorityInTx(injectedInput), "SESSION_NOT_FRESH");

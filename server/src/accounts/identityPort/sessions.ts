@@ -89,9 +89,7 @@ function buildVerifiedApplicationSession(
     freshUntil: new Date(Date.parse(createdAt) + SESSION_FRESH_AGE_SECONDS * 1000).toISOString(),
   };
   if (federatedIdentity) return { ...base, assurance: "federated", providerId: federatedIdentity.providerId };
-  let assurance: "password" | "mfa" = "password";
-  if (authentication?.assurance === "mfa") assurance = "mfa";
-  return { ...base, assurance, providerId: null };
+  return { ...base, assurance: "password", providerId: null };
 }
 
 function sessionMethodAllowed(
@@ -150,7 +148,7 @@ function assertTrustworthyLegacySession(
   // Sessions created before the assurance migration may continue only when the principal is
   // unambiguously credential-only. An external or mixed principal without per-session
   // provenance must sign in again; treating it as password-authenticated would erase the
-  // issuer/subject binding and could weaken an MFA or SSO policy.
+  // issuer/subject binding and could weaken an SSO policy.
   if (providerRows.length === 0 || providerRows.some((row) => row.providerId !== "credential")) {
     throw createInvalidProviderSessionError("The session has no trustworthy authentication-method provenance.");
   }

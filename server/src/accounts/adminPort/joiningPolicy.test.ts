@@ -8,9 +8,8 @@ import { createSqliteAccountAdminPort } from "../sqliteAccountAdminPort";
 const actor = (principalId: string): ActorContext => ({
   principalId,
   sessionId: `${principalId}-session`,
-  assurance: "mfa",
+  assurance: "password",
   fresh: false,
-  mfaSatisfied: true,
 });
 
 describe("joining policy administration", () => {

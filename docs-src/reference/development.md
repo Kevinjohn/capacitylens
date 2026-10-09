@@ -1111,7 +1111,7 @@ pnpm run rehearse:migrations
 
 Also run it against a representative long-lived installation. The command uses SQLite's
 online backup API and never opens the source for writes. It remaps ids, replaces
-names/notes/emails and credential/session/invite/MFA material, enables secure deletion and
+names/notes/emails and credential/session/invite/historical MFA material, enables secure deletion and
 vacuums the temporary copy before testing it. Unknown tables fail closed until their
 sensitive columns are reviewed. Temporary artifacts are deleted by default:
 
