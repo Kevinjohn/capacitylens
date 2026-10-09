@@ -1,7 +1,6 @@
 import type { Role } from "@capacitylens/shared/domain/access";
 import { ROUTE_CLIENTS, ROUTE_RESOURCES, ROUTE_SETTINGS, ROUTE_TEAM } from "./tourAnchors";
 
-/** Stable names for the role tour's ordered stops. */
 /** Stable stop identity shared by role selection and translated tour copy. */
 export type RoleTourStepId =
   | "owner-import"
@@ -13,7 +12,6 @@ export type RoleTourStepId =
   | "viewer-grid"
   | "viewer-toolbar";
 
-/** The route anchor and permission segment required to show a tour stop. */
 /** A role-scoped tour anchor, independent of browser and translation capabilities. */
 export interface RoleTourStep {
   readonly id: RoleTourStepId;
