@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-132 stories across 17 areas. The **Automated coverage** column names the spec file(s) whose
+133 stories across 17 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -44,9 +44,10 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Login screen (flag-gated; account mode enabled)                | `e2e/login.auth.spec.ts` (auth-backed project)                                                                       |
 | [US-NAV-11](navigation/US-NAV-11-fake-sign-in.md)              | Trusted-local fake sign-in                                     | `e2e/navigation.spec.ts`                                                                                             |
 | [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Non-blocking, reusable product orientation                     | `ProductOrientation.test.tsx` + `AppShell.productOrientation.test.tsx` + `e2e/fake-signin.spec.ts`                   |
-| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Five company setup milestones, progress and dismissal          | `e2e/getting-started.spec.ts` + auth E2E + `GettingStarted.test.tsx`                                                 |
+| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Setup milestones, progress, dismissal and role-based tour      | `e2e/getting-started.spec.ts` + `e2e/getting-started.db.spec.ts` + auth E2E + `GettingStarted.test.tsx`              |
 | [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Company picker and company-creation choices                    | `src/components/accounts/AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts`            |
 | [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Blue identity, green positive actions, red destructive actions | `e2e/navigation.spec.ts` + `src/components/common/ui.test.tsx` + `src/lib/designTokens.test.ts` + `e2e/a11y.spec.ts` |
+| [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and start the role-based tour                        | `HelpView.test.tsx` + navigation, mobile and role-auth E2E                                                           |
 
 ## Overview — `capacity-overview/`
 

@@ -25,6 +25,7 @@ company.
 After joining, open **Team & access** near the bottom of the menu to check your company and role.
 If several companies are available, use **Switch company** to select the intended one. Ask an
 Owner or Admin when that company is missing or when your duties require a different role.
+Open **Help** just above Account for a short Viewer tour and links to the user guides.
 
 Your scheduled resource is separate from membership. An Admin can link your membership to the
 right person on the schedule. If there is no link yet, you can still find that person's row by
@@ -77,7 +78,7 @@ Use [Resources](/using/resources), [Clients and projects](/using/projects),
 
 ## Make the display comfortable
 
-![Viewer Settings showing editable My display controls beneath read-only company controls](../screenshots/flows/viewer_my_display.jpg)
+![Viewer Settings showing editable My display controls and device preferences](../screenshots/flows/viewer_my_display.jpg)
 
 Open **Settings → My display** for spacing, booking labels, utilisation figures and appearance.
 These preferences apply to this browser. Company-wide controls are read-only for a Viewer;

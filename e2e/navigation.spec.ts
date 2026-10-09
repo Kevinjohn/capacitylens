@@ -14,6 +14,7 @@ const deepDestinations = [
   ["/settings", "Settings"],
   ["/diagnostics", "Diagnostics"],
   ["/account", "Account"],
+  ["/help", "Help"],
 ] as const;
 
 // #216: exercise real document navigations, not React Router transitions. The Vite history
@@ -95,6 +96,7 @@ function registerSidebarLinksRouteSectionTest() {
         "Settings",
         async () => void (await expect(page.getByRole("heading", { name: "Company details" })).toBeVisible()),
       ],
+      ["Help", async () => void (await expect(page.getByTestId("show-tour")).toBeVisible())],
       ["Account", async () => void (await expect(page.getByRole("heading", { name: "Your identity" })).toBeVisible())],
     ];
     for (const [link, assert] of sections) {
@@ -129,9 +131,15 @@ function registerPinsTeamAccessSettingsBelowTest() {
       "/diagnostics",
     ]);
 
-    // Demo keeps company switching in the footer; Account is the only session row.
+    // Demo keeps company switching in the footer, with Help directly above Account.
     await expect(page.getByRole("button", { name: "Switch company" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Help", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Account", exact: true })).toBeVisible();
+    const footerHrefs = await page
+      .getByTestId("app-sidebar")
+      .locator("a")
+      .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+    expect(footerHrefs.slice(-2)).toEqual(["/help", "/account"]);
     await expect(page.getByTestId("nav-sign-out")).toHaveCount(0);
 
     // Import/export is gone from the sidebar and lives on Settings instead (#169).
@@ -176,6 +184,9 @@ function registerRouteSetsDescriptiveDistinctDocumentTest() {
 
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page).toHaveTitle("Settings · CapacityLens");
+
+    await page.getByRole("link", { name: "Help", exact: true }).click();
+    await expect(page).toHaveTitle("Help · CapacityLens");
 
     // Distinct from the static fallback and from each other (the bug was every route == "CapacityLens").
     await page.getByRole("link", { name: "Schedule", exact: true }).click();

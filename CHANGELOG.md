@@ -13,6 +13,10 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- A role-based schedule tour that begins with the caller's role, includes lower-role guidance, and
+  disables its Getting started launcher while permissions are unresolved or an offline snapshot is read-only (#969).
+- A shared Help page above Account in the sidebar and command palette. Every role can start its
+  tour there and browse the user guides, including Viewers and people who dismissed Getting started (#1430).
 - The README states the project's status, and the documentation gains three pages: how
   CapacityLens compares with other tools, how it is tested, and the product philosophy.
 - A new company can start with example data: a **Start with example data** box on the create-company

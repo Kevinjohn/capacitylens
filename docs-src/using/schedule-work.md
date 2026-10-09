@@ -13,7 +13,7 @@ activities come first: see [Clients and projects](/using/projects) and [Activiti
 
 ## Schedule work
 
-![Schedule with the Add allocation plus button on James Gordon's row focused](../screenshots/flows/using_schedule_work_1.png)
+![Schedule with the Add allocation plus button on Bruce Wayne's row focused](../screenshots/flows/using_schedule_work_1.png)
 
 <span id="prerequisites"></span>
 <span id="steps"></span>
@@ -33,7 +33,7 @@ Check the dates, amount and status, then select Save. The booking appears on the
 
 ## Change or remove scheduled work
 
-![Schedule with James Gordon's booking focused](../screenshots/flows/using_change_work_1.png)
+![Schedule with Bruce Wayne's booking focused](../screenshots/flows/using_change_work_1.png)
 
 Editors, Admins and Owners can change bookings. Open Schedule in the left menu.
 

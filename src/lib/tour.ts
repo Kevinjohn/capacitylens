@@ -1,8 +1,5 @@
-// The "Show me around" orientation tour (driver.js). A loose tour by design: five spotlight
-// stops that say where things live (schedule grid, toolbar, People, Clients & projects,
-// Settings): it never navigates, never opens forms, and never waits on user actions. The
-// task-by-task onboarding lives in the GettingStarted checklist instead (state-driven, so it
-// can't get out of step with reality the way a scripted do-this-now tour would).
+// The role tour uses the current role's segment and lower-role stops. It explains where
+// permitted work happens without opening forms or asking the user to perform tasks.
 //
 // Anchors: the scheduler's existing `data-testid` hooks plus the sidebar's `data-nav="<route>"`
 // attribute (carried by both the open-menu links and the collapsed icon rail, so the selector
@@ -19,13 +16,67 @@
 // driver.js itself (~25kB) is imported lazily below (inside startTour), not at module top level:
 // this file is reachable from the eagerly-loaded GettingStarted card, so a static import would land
 // the whole library in the main chunk for a click-only feature nearly nobody triggers per session.
+import type { Role } from "@capacitylens/shared/domain/access";
 import { m } from "@/i18n";
-import { TOUR_ANCHORS } from "./tourAnchors";
+import { buildRoleTour } from "./tourSteps";
+import type { RoleTourStepId } from "./tourSteps";
 
-/** Launch the orientation tour. Builds steps fresh (locale-correct copy) and drives from stop 1.
- * Async so the driver.js import can be dynamic (see the file header). Callers must `void` or
- * `await` it. */
-export async function startTour(): Promise<void> {
+const tourCopy: Record<RoleTourStepId, { title: () => string; description: () => string }> = {
+  "owner-import": { title: () => m.role_tour_owner_import_title(), description: () => m.role_tour_owner_import_desc() },
+  "admin-invite": { title: () => m.role_tour_admin_invite_title(), description: () => m.role_tour_admin_invite_desc() },
+  "admin-example-data": {
+    title: () => m.role_tour_admin_example_data_title(),
+    description: () => m.role_tour_admin_example_data_desc(),
+  },
+  "editor-resources": {
+    title: () => m.role_tour_editor_resources_title(),
+    description: () => m.role_tour_editor_resources_desc(),
+  },
+  "editor-hierarchy": {
+    title: () => m.role_tour_editor_hierarchy_title(),
+    description: () => m.role_tour_editor_hierarchy_desc(),
+  },
+  "editor-book": { title: () => m.role_tour_editor_book_title(), description: () => m.role_tour_editor_book_desc() },
+  "viewer-grid": { title: () => m.role_tour_viewer_grid_title(), description: () => m.role_tour_viewer_grid_desc() },
+  "viewer-toolbar": {
+    title: () => m.role_tour_viewer_toolbar_title(),
+    description: () => m.role_tour_viewer_toolbar_desc(),
+  },
+};
+
+function buildDriverSteps(steps: ReturnType<typeof buildRoleTour>) {
+  return steps.map((step) => {
+    const copy = tourCopy[step.id];
+    return {
+      element: step.anchor,
+      ...(step.waitForElement ? { waitForElement: step.waitForElement } : {}),
+      popover: {
+        title: copy.title(),
+        description: copy.description(),
+        ...(step.anchor.startsWith("[data-nav=") ? { side: "right" as const } : {}),
+      },
+    };
+  });
+}
+
+interface TourInput {
+  role: Role | null;
+  navigate: (path: string) => void;
+  serverMode: boolean;
+}
+
+let currentTour: Promise<void> | null = null;
+
+/** Launch the role tour, sharing its lifecycle across launchers until it closes. */
+export function startTour(input: TourInput): Promise<void> {
+  currentTour ??= runTour(input).finally(() => {
+    currentTour = null;
+  });
+  return currentTour;
+}
+
+async function runTour({ role, navigate, serverMode }: TourInput): Promise<void> {
+  if (window.location.pathname !== "/") navigate("/");
   const { driver } = await import("driver.js");
   await new Promise<void>((resolve, reject) => {
     let observer: MutationObserver | null = null;
@@ -48,30 +99,7 @@ export async function startTour(): Promise<void> {
         disableActiveInteraction: true,
         // Defining onDestroyStarted transfers cleanup ownership to the callback in driver.js.
         onDestroyStarted: (_element, _step, { driver: activeTour }) => activeTour.destroy(),
-        steps: [
-          {
-            element: TOUR_ANCHORS[0],
-            popover: { title: m.tour_grid_title(), description: m.tour_grid_desc() },
-          },
-          {
-            element: TOUR_ANCHORS[1],
-            popover: { title: m.tour_toolbar_title(), description: m.tour_toolbar_desc() },
-          },
-          // The three nav stops pin the popover to the right of the sidebar, auto placement drops
-          // it below the small link, on top of the neighbouring nav rows it's pointing at.
-          {
-            element: TOUR_ANCHORS[2],
-            popover: { title: m.tour_people_title(), description: m.tour_people_desc(), side: "right" },
-          },
-          {
-            element: TOUR_ANCHORS[3],
-            popover: { title: m.tour_clients_title(), description: m.tour_clients_desc(), side: "right" },
-          },
-          {
-            element: TOUR_ANCHORS[4],
-            popover: { title: m.tour_settings_title(), description: m.tour_settings_desc(), side: "right" },
-          },
-        ],
+        steps: buildDriverSteps(buildRoleTour({ role, serverMode })),
       });
       // driver.js 1.7 does not call onDestroyed when teardown lands during some transition states.
       // The body class is its authoritative lifecycle marker, so observe that actual state instead

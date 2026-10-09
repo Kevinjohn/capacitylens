@@ -27,6 +27,15 @@ asks for confirmation. Dismissing hides
 the guidance for everyone in that company. Editors can view and toggle the checklist; Viewers do
 not see it.
 
+![Owner tour highlighting Settings for imports, with progress 1 of 8](../screenshots/flows/tour_owner.png)
+
+Owners, Admins and Editors can select **Show me around** on the Getting started card. Viewers do not
+see that card. Everyone can open **Help** from the sidebar to start the tour for their role and find
+the user guides. Help remains available after Getting started is dismissed. The tour opens Schedule
+first if you are on another page. See
+[Roles and permissions](/getting-started/roles-and-permissions#take-a-role-based-tour) for what each
+role sees.
+
 To see a working schedule before entering your own data, an Owner or Admin can choose **Settings,
 Example data, Add example data**. It adds two people, a client, a project and a few bookings, and
 is offered only while the company has no people, clients, projects or allocations.

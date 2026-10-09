@@ -437,7 +437,17 @@ function registerExpectedNavigationLinksTest(): void {
     expect(screen.getByRole("link", { name: "Activities" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Time off" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Help" })).toHaveAttribute("href", "/help");
     expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
+    const footerHrefs = screen.getByTestId("app-sidebar").querySelectorAll("a");
+    expect(Array.from(footerHrefs, (link) => link.getAttribute("href")).slice(-2)).toEqual(["/help", "/account"]);
+  });
+
+  it("marks Help active and sets its page title on direct navigation", async () => {
+    renderAppShell({ initialEntries: ["/help"] });
+
+    expect(screen.getByRole("link", { name: "Help" })).toHaveAttribute("aria-current", "page");
+    await waitFor(() => expect(document.title).toBe("Help · CapacityLens"));
   });
 }
 

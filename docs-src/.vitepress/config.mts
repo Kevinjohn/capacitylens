@@ -53,6 +53,7 @@ const usingSidebar = [
         items: [
           { text: "Schedule and change work", link: "/using/schedule-work" },
           { text: "Settings", link: "/using/settings" },
+          { text: "Help", link: "/using/help" },
           { text: "Account", link: "/using/account" },
           { text: "Team & access", link: "/using/team-access" },
           { text: "FAQ", link: "/using/faq" },

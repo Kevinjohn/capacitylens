@@ -3,9 +3,9 @@ import { Link, useLocation } from "react-router-dom";
 import { Check } from "lucide-react";
 import { useRole } from "@/auth/permissionContext";
 import { isDemoMode } from "@/data/apiConfig";
+import { useTourAction } from "@/hooks/useTourAction";
 import { gettingStartedClient } from "@/account/gettingStartedClient";
 import { buildGettingStartedSteps } from "@/lib/gettingStarted";
-import { startTour } from "@/lib/tour";
 import { useActiveScopedData } from "@/store/useScopedData";
 import { useStore } from "@/store/useStore";
 import { Button } from "./ui/button";
@@ -68,7 +68,7 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
   const open = openChoice?.path === pathname ? openChoice.open : shouldOpenChecklistByDefault(pathname, done);
   const setOpen = (value: boolean) => setOpenChoice({ path: pathname, open: value });
   const showButton = useRef<HTMLButtonElement>(null);
-  const { tourBusy, showTour } = useTourAction(setNotice);
+  const { canShowTour, tourBusy, showTour } = useTourAction(setNotice);
   const { dismissed, loaded, loadFailed, retryLoad, confirmOpen, setConfirmOpen, saving, dismiss } =
     useCompanyDismissal(accountId, pathname, setNotice);
   const requestDismiss = () => {
@@ -112,6 +112,7 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
       {open && (
         <GettingStartedCard
           steps={steps}
+          canShowTour={canShowTour}
           tourBusy={tourBusy}
           showTour={showTour}
           canDismiss={canDismiss}
@@ -148,6 +149,7 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
 
 function GettingStartedCard({
   steps,
+  canShowTour,
   tourBusy,
   showTour,
   canDismiss,
@@ -155,6 +157,7 @@ function GettingStartedCard({
   hide,
 }: {
   steps: ReturnType<typeof buildGettingStartedSteps>;
+  canShowTour: boolean;
   tourBusy: boolean;
   showTour: () => Promise<void>;
   canDismiss: boolean;
@@ -175,7 +178,7 @@ function GettingStartedCard({
           size="sm"
           onClick={() => void showTour()}
           data-testid="getting-started-tour"
-          disabled={tourBusy}
+          disabled={!canShowTour || tourBusy}
           aria-busy={tourBusy || undefined}
         >
           {m.gs_show_me_around()}
@@ -268,24 +271,4 @@ function useCompanyDismissal(accountId: string, pathname: string, setNotice: (me
     saving,
     dismiss,
   };
-}
-
-function useTourAction(setNotice: (message: string, tone: "error") => void) {
-  const tourInFlight = useRef(false);
-  const [tourBusy, setTourBusy] = useState(false);
-  const showTour = async (): Promise<void> => {
-    if (tourInFlight.current) return;
-    tourInFlight.current = true;
-    setTourBusy(true);
-    try {
-      await startTour();
-    } catch {
-      console.error("GettingStarted: tour failed to start");
-      setNotice(m.gs_tour_failed(), "error");
-    } finally {
-      tourInFlight.current = false;
-      setTourBusy(false);
-    }
-  };
-  return { tourBusy, showTour };
 }

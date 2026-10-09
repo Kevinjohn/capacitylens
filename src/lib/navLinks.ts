@@ -2,6 +2,7 @@ import {
   BriefcaseIcon,
   CalendarIcon,
   ChartNoAxesColumnIncreasingIcon,
+  CircleHelpIcon,
   ClipboardCheckIcon,
   FolderIcon,
   ShieldCheckIcon,
@@ -21,6 +22,7 @@ import {
   ROUTE_CLIENTS,
   ROUTE_DIAGNOSTICS,
   ROUTE_DISCIPLINES,
+  ROUTE_HELP,
   ROUTE_PROJECTS,
   ROUTE_RESOURCES,
   ROUTE_SCHEDULE,
@@ -78,4 +80,11 @@ export const ACCOUNT_LINK: NavigationLinkDefinition = {
   to: ROUTE_ACCOUNT,
   label: () => m.nav_account(),
   icon: UserRoundIcon,
+};
+
+/** The shared Help destination rendered immediately above the personal Account footer row. */
+export const HELP_LINK: NavigationLinkDefinition = {
+  to: ROUTE_HELP,
+  label: () => m.nav_help(),
+  icon: CircleHelpIcon,
 };

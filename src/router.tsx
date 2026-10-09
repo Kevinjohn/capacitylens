@@ -13,6 +13,7 @@ import { usePermissionStatus, useRole } from "./auth/permissionContext";
 import { resolveCapacityOverviewAccessDecision } from "./auth/capacityOverviewAccess";
 import { resolveCapacityOverviewAccess } from "./store/selectors";
 import { useDiagnosticsAccessDecision } from "./components/diagnostics/useDiagnosticsAccessDecision";
+import { ROUTE_HELP } from "./lib/tourAnchors";
 
 // The scheduler is the index route (first paint) so it stays eager. The CRUD list
 // pages are split out, not needed until navigated to, which trims the initial
@@ -52,6 +53,7 @@ const DiagnosticsView = lazy(() =>
 const AccountView = lazy(() =>
   import("./components/account/AccountView").then((module) => ({ default: module.AccountView })),
 );
+const HelpView = lazy(() => import("./components/HelpView").then((module) => ({ default: module.HelpView })));
 // Invite accept: its own top-level route, outside AppShell's tenant/account gate so the safe
 // preview and invite-specific onboarding render before a company is selected. AuthProvider carves
 // this route out of the password login wall: an unauthenticated visitor signs in on the invite page,
@@ -148,6 +150,7 @@ export const router = createBrowserRouter([
       { path: "settings", element: <SettingsView /> },
       { path: "diagnostics", element: <DiagnosticsRoute /> },
       { path: "account", element: <AccountView /> },
+      { path: ROUTE_HELP.slice(1), element: <HelpView /> },
     ],
   },
   {

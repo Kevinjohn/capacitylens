@@ -18,6 +18,8 @@ export const ROUTE_SETTINGS = "/settings";
 export const ROUTE_DIAGNOSTICS = "/diagnostics";
 /** Route path for the signed-in person's account page. */
 export const ROUTE_ACCOUNT = "/account";
+/** Route path for the shared Help page and its role-aware tour launcher. */
+export const ROUTE_HELP = "/help";
 
 export const TOUR_ANCHORS = [
   '[data-testid="scheduler-grid"]',
@@ -25,4 +27,5 @@ export const TOUR_ANCHORS = [
   `[data-nav="${ROUTE_RESOURCES}"]`,
   `[data-nav="${ROUTE_CLIENTS}"]`,
   `[data-nav="${ROUTE_SETTINGS}"]`,
+  `[data-nav="${ROUTE_TEAM}"]`,
 ] as const;

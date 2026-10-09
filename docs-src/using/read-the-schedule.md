@@ -10,7 +10,7 @@ next: false
 
 # Schedule
 
-![Schedule with Schedule menu item, James Gordon's row and avatar button](../screenshots/flows/using_read_the_schedule_1.png)
+![Schedule with Schedule menu item, Bruce Wayne's row and avatar button](../screenshots/flows/using_read_the_schedule_1.png)
 
 Open Schedule in the left menu. Select the avatar beside your name to open your work list.
 
@@ -18,7 +18,7 @@ Hover over the avatar or move keyboard focus to it to reveal the eye icon.
 
 ## Your work list
 
-![James Gordon's four-week schedule drawer showing bookings and holiday](../screenshots/flows/using_read_the_schedule_2.png)
+![Bruce Wayne's four-week schedule drawer showing bookings and holiday](../screenshots/flows/using_read_the_schedule_2.png)
 
 The list covers the current company week and the following three weeks.
 
@@ -94,7 +94,7 @@ single band instead: **Unassigned** for people without a discipline while discip
 Select a group heading to collapse it when you need more vertical space. The heading
 stays visible and reports how many rows are hidden; select it again to expand the group.
 
-![The Supplementary schedule band collapsed to a heading that reports one hidden resource](../screenshots/flows/schedule_group_collapsed.jpg)
+![The schedule with the Copywriting group collapsed](../screenshots/flows/schedule_group_collapsed.jpg)
 
 ## Columns: the visible weeks
 
@@ -197,7 +197,7 @@ appears once as a named band across every person and placeholder it covers, incl
 people added later. It does not cover the External group. A personal time-off block can
 overlap the band; both remain visible because they record independent facts.
 
-![The schedule with a Summer shutdown band across 24–26 August and overlapping allocations marked red](../screenshots/flows/schedule_closure_band.jpg)
+![The schedule with a Studio shutdown band across 7–9 October and overlapping allocations marked red](../screenshots/flows/schedule_closure_band.jpg)
 
 An Hours or Days allocation that exceeds the remaining availability gets the usual red
 over-capacity band. Blocks deliberately carry no hours and keep utilisation at 0%, but
