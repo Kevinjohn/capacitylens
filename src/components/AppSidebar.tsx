@@ -9,7 +9,7 @@ import { FAKE_USER } from "@/lib/fakeAuth";
 import demoAvatarUrl from "@/assets/avatar-demo.svg";
 import { DEFAULT_COLORS } from "@/lib/palette";
 import { Avatar } from "./common/ui";
-import { ACCOUNT_LINK } from "@/lib/navLinks";
+import { ACCOUNT_LINK, HELP_LINK } from "@/lib/navLinks";
 import type { NavigationLinkDefinition } from "@/lib/navLinks";
 import { Badge } from "./ui/badge";
 import {
@@ -200,9 +200,29 @@ function SidebarAccountFooter({
         </div>
       )}
       <SidebarMenu>
+        <HelpMenuItem onNavigate={onNavigate} pathname={pathname} />
         <SessionMenuItem demoAuthActive={demoAuthActive} onNavigate={onNavigate} pathname={pathname} />
       </SidebarMenu>
     </SidebarFooter>
+  );
+}
+
+function HelpMenuItem({ onNavigate, pathname }: { onNavigate: () => void; pathname: string }) {
+  const HelpIcon = HELP_LINK.icon;
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        size="sm"
+        isActive={matchPath({ path: HELP_LINK.to, end: true }, pathname) !== null}
+        tooltip={HELP_LINK.label()}
+      >
+        <NavLink to={HELP_LINK.to} onClick={onNavigate}>
+          <HelpIcon aria-hidden="true" focusable="false" />
+          <span>{HELP_LINK.label()}</span>
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 

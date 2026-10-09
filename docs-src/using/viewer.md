@@ -25,6 +25,7 @@ company.
 After joining, open **Team & access** near the bottom of the menu to check your company and role.
 If several companies are available, use **Switch company** to select the intended one. Ask an
 Owner or Admin when that company is missing or when your duties require a different role.
+Open **Help** just above Account for a short Viewer tour and links to the user guides.
 
 Your scheduled resource is separate from membership. An Admin can link your membership to the
 right person on the schedule. If there is no link yet, you can still find that person's row by

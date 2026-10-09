@@ -27,9 +27,10 @@ asks for confirmation. Dismissing hides
 the guidance for everyone in that company. Editors can view and toggle the checklist; Viewers do
 not see it.
 
-Owners, Admins and Editors can select **Show me around** for a short tour that starts with their
-role and continues through lower role sections. It opens Schedule first if they are on another page.
-Viewers do not see this launcher. See
+Owners, Admins and Editors can select **Show me around** on the Getting started card. Viewers do not
+see that card. Everyone can open **Help** from the sidebar to start the tour for their role and find
+the user guides. Help remains available after Getting started is dismissed. The tour opens Schedule
+first if you are on another page. See
 [Roles and permissions](/getting-started/roles-and-permissions#take-a-role-based-tour) for what each
 role sees.
 

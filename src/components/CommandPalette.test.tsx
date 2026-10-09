@@ -1,6 +1,7 @@
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, within, fireEvent, act, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
 import { PermissionContext } from "@/auth/permissionContext";
@@ -150,6 +151,7 @@ describe("CommandPalette", () => {
       "Team & access",
       "Settings",
       "Diagnostics",
+      "Help",
       "Account",
     ];
     const expectedWithoutDisciplines = [
@@ -163,6 +165,7 @@ describe("CommandPalette", () => {
       "Team & access",
       "Settings",
       "Diagnostics",
+      "Help",
       "Account",
     ];
     const pageLabels = () =>
@@ -226,6 +229,15 @@ describe("CommandPalette", () => {
     fireEvent.change(input, { target: { value: "xyzzyxyzzy" } });
     expect(screen.queryAllByRole("option")).toHaveLength(0);
     await waitFor(() => expect(input).not.toHaveAttribute("aria-activedescendant"));
+  });
+
+  it("navigates to Help from its page command", async () => {
+    const user = userEvent.setup();
+    renderPalette();
+
+    await user.click(screen.getByText("Help", { exact: true }));
+
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/help");
   });
 });
 

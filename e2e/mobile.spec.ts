@@ -70,6 +70,16 @@ test.describe("portrait phone", () => {
     await sidebar.getByRole("link", { name: "Projects" }).click();
     await expect(page).toHaveURL(/\/projects$/);
     await expect(sidebar).toBeHidden();
+
+    await trigger.click();
+    await expect(sidebar).toBeVisible();
+    const footerHrefs = await sidebar
+      .locator("a")
+      .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+    expect(footerHrefs.slice(-2)).toEqual(["/help", "/account"]);
+    await sidebar.getByRole("link", { name: "Help" }).click();
+    await expect(page.getByTestId("show-tour")).toBeVisible();
+    await expect(sidebar).toBeHidden();
   });
 });
 
@@ -91,6 +101,13 @@ test.describe("landscape phone", () => {
     await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
     await expect(page.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
     await expect(page.getByRole("link", { name: "Projects" })).toBeVisible();
+    const footerHrefs = await page
+      .getByTestId("app-sidebar")
+      .locator("a")
+      .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+    expect(footerHrefs.slice(-2)).toEqual(["/help", "/account"]);
+    await page.getByRole("link", { name: "Help" }).click();
+    await expect(page.getByTestId("show-tour")).toBeVisible();
   });
 });
 
@@ -108,6 +125,7 @@ test.describe("desktop", () => {
       "Activities",
       "Time off",
       "Settings",
+      "Help",
     ]) {
       const link = page.getByRole("link", { name, exact: true });
       await expect(link).toBeVisible();

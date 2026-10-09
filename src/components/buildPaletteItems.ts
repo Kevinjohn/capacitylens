@@ -5,7 +5,7 @@ import type { Activity } from "@capacitylens/shared/types/entities";
 import type { useNavigate } from "react-router-dom";
 import { fuzzyFilter } from "@/lib/fuzzy";
 import { resolveResourceDisplayName } from "@/lib/metadata";
-import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "@/lib/navLinks";
+import { ACCOUNT_LINK, ADMIN_LINKS, HELP_LINK, LINKS } from "@/lib/navLinks";
 import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "@/lib/tourAnchors";
 import type { useActiveScopedData } from "@/store/useScopedData";
 import { buildEmptyFilters } from "@/store/useStore";
@@ -84,7 +84,7 @@ function buildPageItems({
   navigate,
   onClose,
 }: BuildPaletteItemsInput): PaletteItem[] {
-  return [...LINKS, ...ADMIN_LINKS, ACCOUNT_LINK]
+  return [...LINKS, ...ADMIN_LINKS, HELP_LINK, ACCOUNT_LINK]
     .filter(({ to }) => disciplinesEnabled || to !== "/disciplines")
     .filter(({ to }) => showCapacityOverview || to !== ROUTE_CAPACITY_OVERVIEW)
     .filter(({ to }) => showDiagnostics || to !== ROUTE_DIAGNOSTICS)

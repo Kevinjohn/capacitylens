@@ -138,9 +138,11 @@ accept responses never include it.
    **Show me around** (`data-testid="getting-started-tour"`) runs a role-based driver.js
    spotlight tour from the current Owner, Admin or Editor section through the lower roles. Owners
    see eight server-backed stops, Admins seven and Editors five; the Editor tour ends with two
-   read-only Viewer stops. Viewers see neither the Getting started bar nor its launcher. Server-backed
-   companies include the Admin example-data stop, while the in-memory demo omits it. Starting on
-   another page returns to Schedule first.
+   read-only Viewer stops. Viewers see neither the Getting started bar nor its launcher, and can
+   start their two-stop read-only tour from Help. The Help route is `/help`, appears above Account
+   in the sidebar footer for every role, and links to the user guides. Server-backed companies
+   include the Admin example-data stop, while the in-memory demo omits it. Starting on another page
+   returns to Schedule first.
    Next/Back/Done buttons, Escape bails, and the highlighted controls remain inert during the tour.
    The button is disabled while permissions are unresolved or unavailable, while an offline snapshot
    is read-only, and while the tour is running. If that code cannot load or start, the
@@ -173,6 +175,7 @@ The sidebar links, in order, route to:
 | Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                                                                                                                                                                                     |
 | Settings      | `/settings`    | Settings (Company setup, Scheduling features, My display, Data and support)                                                                                                                                                                                                                                           |
 | Diagnostics   | `/diagnostics` | Support report with **Copy diagnostics**; Owners and Admins only (everyone when sign-in is off)                                                                                                                                                                                                                       |
+| Help          | `/help`        | Shared tour launcher and link to the user guides                                                                                                                                                                                                                                                                      |
 | Account       | `/account`     | Signed-in identity and personal security controls                                                                                                                                                                                                                                                                     |
 
 **Team & access**, **Settings** and **Diagnostics** form a separate **administration group** pinned
@@ -181,7 +184,7 @@ above. All three remain ordinary first-class routes (same markup, same icons, sa
 entries); only their placement differs, so administration stays out of the way of the app's
 day-to-day purpose and role-gated controls don't sit among everyone's destinations.
 
-Owners and Admins see **twelve** sections by default — **eleven** when the company turns disciplines off (the
+Owners and Admins see **thirteen** sections by default — **twelve** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see _Disciplines optional_ under Domain rules). External / 3rd
 parties no longer have their own nav link — they moved INTO the **Resources** tab behind a setting
 (see _External / 3rd parties_ under Domain rules); the old `/external` URL still resolves but
@@ -237,8 +240,10 @@ If the import may have committed but the reload cannot prove the resulting state
 blocked behind an explicit reload action; parked pre-import edits are never replayed over the
 replacement. File reads and confirmations remain bound to the company that was active when the file
 was selected, and export/import actions suppress duplicate in-flight requests.
-The account block is pinned to the very **bottom** of the sidebar, below a divider beneath the
-administration group. It contains exactly one avatar-led **Account** destination. In real
+The footer puts **Help** immediately above the account block, with the same small button and tooltip
+in expanded, collapsed and mobile navigation. The account block stays at the very **bottom** of the
+sidebar, below a divider beneath the administration group. It contains exactly one avatar-led
+**Account** destination. In real
 authentication, the active company name, role badge and **Switch company** control are shown only
 when two or more companies are accessible; with one accessible company they are hidden. Auth-off
 and demo builds retain their company context and switching exception. (Keeping the context at the
