@@ -19,7 +19,8 @@ function run(label, command, args) {
 }
 
 function capture(command, args) {
-  const result = spawnSync(command, args, { cwd: root, encoding: "utf8" });
+  const options = { cwd: root, encoding: "utf8" };
+  const result = command === "pnpm" ? spawnPnpmSync(args, options) : spawnSync(command, args, options);
   const status = reportSpawnFailureAndResolveExitStatus(command, result);
   if (status !== 0) throw new Error(`${command} failed with exit status ${status}: ${result.stderr}`);
   return result.stdout.trim();
