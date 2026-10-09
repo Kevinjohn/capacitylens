@@ -26,10 +26,9 @@ async function expectBlockedStart(page: Page, lane: Locator, date: string): Prom
 test("sets global working days and gates schedule creation starts", async ({ page }, testInfo) => {
   await openApp(page, "Wayne Enterprises", "/settings");
 
-  const weekdays = page.getByRole("group", { name: "Company working days" }).getByRole("checkbox");
-  const table = page.getByRole("table", { name: "Company working days" });
-  await expect(table.getByRole("row")).toHaveCount(2);
-  await expect(table.getByRole("columnheader")).toHaveText(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+  const settings = page.getByRole("group", { name: "Company working days" });
+  const weekdays = settings.getByRole("checkbox");
+  await expect(settings.locator("label")).toHaveText(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
   await expect(weekdays).toHaveCount(7);
   await expect
     .poll(() => weekdays.evaluateAll((controls) => controls.map((control) => control.id)))

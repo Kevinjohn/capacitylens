@@ -10,7 +10,7 @@ next: false
 
 # Choose company settings
 
-![Settings: Company setup with Hours selected and Overview access set to Everyone](../screenshots/flows/admin_company_settings_1.png)
+![Settings: Company setup with Hours selected and Overview access set to Admins](../screenshots/flows/admin_company_settings_1.png)
 
 Open Settings near the bottom of the left menu. Company setup and Scheduling features affect everyone.
 

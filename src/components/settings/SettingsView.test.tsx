@@ -167,18 +167,18 @@ describe("SettingsView — section help", () => {
   });
 });
 
-it("renders one abbreviated heading row above one checkbox row", () => {
+it("renders seven ordered weekday labels with full checkbox names", () => {
   render(<SettingsView />);
 
-  const table = screen.getByRole("table", { name: "Company working days" });
-  expect(within(table).getAllByRole("row")).toHaveLength(2);
+  const group = screen.getByRole("group", { name: "Company working days" });
   expect(
-    within(table)
-      .getAllByRole("columnheader")
-      .map((heading) => heading.textContent),
+    within(group)
+      .getAllByText(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/)
+      .map((label) => label.textContent),
   ).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+  expect(within(group).getAllByRole("checkbox")).toHaveLength(7);
   for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
-    expect(within(table).getByRole("checkbox", { name: day })).toBeInTheDocument();
+    expect(within(group).getByRole("checkbox", { name: day })).toBeInTheDocument();
   }
 });
 
@@ -197,6 +197,21 @@ it("defaults to the first five days and persists checkbox changes", async () => 
 
   expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.workingDays).toEqual([
     1, 2, 3, 4, 6,
+  ]);
+});
+
+it("toggles a company working day when its visible weekday label is clicked", async () => {
+  const user = userEvent.setup();
+  render(<SettingsView />);
+
+  const saturday = screen.getByText("Sat", { exact: true });
+  expect(saturday).toBeVisible();
+  expect(saturday).not.toHaveClass("sr-only");
+  await user.click(saturday);
+
+  expect(screen.getByRole("checkbox", { name: "Saturday" })).toBeChecked();
+  expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.workingDays).toEqual([
+    1, 2, 3, 4, 5, 6,
   ]);
 });
 
@@ -232,15 +247,12 @@ it("reorders from Sunday without changing an explicit saved selection", () => {
     "account-working-day-5",
     "account-working-day-6",
   ]);
-  expect(screen.getAllByRole("columnheader").map((heading) => heading.textContent)).toEqual([
-    "Sun",
-    "Mon",
-    "Tue",
-    "Wed",
-    "Thu",
-    "Fri",
-    "Sat",
-  ]);
+  const companyDays = screen.getByRole("group", { name: "Company working days" });
+  expect(
+    within(companyDays)
+      .getAllByText(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)$/)
+      .map((label) => label.textContent),
+  ).toEqual(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
   expect(screen.getByRole("checkbox", { name: "Monday" })).toBeChecked();
   expect(screen.getByRole("checkbox", { name: "Wednesday" })).toBeChecked();
   expect(screen.getByRole("checkbox", { name: "Friday" })).toBeChecked();
@@ -262,8 +274,10 @@ describe("SettingsView — minimum company working week", () => {
     expect(friday).toBeDisabled();
     expect(explanation).toBeVisible();
     expect(friday).toHaveAttribute("aria-describedby", explanation.id);
+    const fridayLabel = screen.getByText("Fri", { exact: true }).closest("label");
+    expect(fridayLabel).toHaveAttribute("data-disabled", "true");
 
-    await user.click(friday);
+    await user.click(screen.getByText("Fri", { exact: true }));
 
     expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.workingDays).toEqual(
       [5],

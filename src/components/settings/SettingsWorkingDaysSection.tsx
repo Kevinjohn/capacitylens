@@ -25,21 +25,24 @@ function WorkingDayCheckbox({
 }) {
   const id = `account-working-day-${day}`;
   const checked = workingDays.includes(day);
-  // Live-disable rather than submit-time validation: this table saves per toggle, so a refused
-  // click must be impossible rather than rejected after it appears to save.
+  // Live-disable rather than submit-time validation: each toggle saves immediately, so a refused
+  // change must be impossible rather than rejected after it appears to save.
   const isOnlyWorkingDay = checked && workingDays.length === 1;
+  const disabled = !canEdit || isOnlyWorkingDay;
 
   return (
-    <td className="px-1 text-center">
-      <Field
-        orientation="horizontal"
-        data-disabled={!canEdit || isOnlyWorkingDay || undefined}
-        className="justify-center gap-0"
+    <Field orientation="horizontal" data-disabled={disabled || undefined} className="justify-center gap-0">
+      <FieldLabel
+        htmlFor={id}
+        data-disabled={disabled || undefined}
+        className="min-h-12 min-w-12 cursor-pointer flex-col items-center justify-center gap-1 py-1 text-xs data-[disabled=true]:cursor-not-allowed"
       >
+        <span>{resolveWeekdayShortLabel(day)}</span>
         <Checkbox
           id={id}
           checked={checked}
-          disabled={!canEdit || isOnlyWorkingDay}
+          disabled={disabled}
+          aria-label={resolveWeekdayLabel(day)}
           aria-describedby={isOnlyWorkingDay ? workingDaysMinimumId : undefined}
           onCheckedChange={() =>
             updateSetting({
@@ -49,11 +52,8 @@ function WorkingDayCheckbox({
             })
           }
         />
-        <FieldLabel htmlFor={id} className="sr-only">
-          {resolveWeekdayLabel(day)}
-        </FieldLabel>
-      </Field>
-    </td>
+      </FieldLabel>
+    </Field>
   );
 }
 
@@ -84,31 +84,18 @@ export function SettingsWorkingDaysSection({
         <FieldLegend variant="label" className="sr-only">
           {m.settings_working_days_legend()}
         </FieldLegend>
-        <table aria-label={m.settings_working_days_legend()} className="w-full table-fixed border-collapse">
-          <thead>
-            <tr>
-              {workingDayOrder.map((day) => (
-                <th key={day} scope="col" className="px-1 pb-2 text-center text-sm font-medium">
-                  {resolveWeekdayShortLabel(day)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              {workingDayOrder.map((day) => (
-                <WorkingDayCheckbox
-                  key={day}
-                  canEdit={canEdit}
-                  day={day}
-                  workingDays={workingDays}
-                  workingDaysMinimumId={workingDaysMinimumId}
-                  updateSetting={updateSetting}
-                />
-              ))}
-            </tr>
-          </tbody>
-        </table>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(3rem,1fr))] gap-1">
+          {workingDayOrder.map((day) => (
+            <WorkingDayCheckbox
+              key={day}
+              canEdit={canEdit}
+              day={day}
+              workingDays={workingDays}
+              workingDaysMinimumId={workingDaysMinimumId}
+              updateSetting={updateSetting}
+            />
+          ))}
+        </div>
         {workingDays.length === 1 && (
           <FieldDescription id={workingDaysMinimumId}>{m.settings_working_days_min_one()}</FieldDescription>
         )}

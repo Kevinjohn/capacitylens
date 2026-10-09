@@ -32,14 +32,30 @@ async function assertReflow(page: Page) {
   }));
   expect(overflow.document).toBeLessThanOrEqual(1);
   expect(overflow.main).toBeLessThanOrEqual(1);
-  const table = page.getByRole("table", { name: "Company working days" });
-  await expect(table).toBeVisible();
-  await expect(table.getByRole("columnheader")).toHaveText(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
-  await expect(table.getByRole("checkbox")).toHaveCount(7);
-  const box = await table.boundingBox();
+  const group = page.getByRole("group", { name: "Company working days" });
+  await expect(group).toBeVisible();
+  const weekdays = group.getByRole("checkbox");
+  await expect(weekdays).toHaveCount(7);
+  const labels = group.locator("label");
+  await expect(labels).toHaveCount(7);
+  await expect(labels).toHaveText(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+  const box = await group.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+  for (const label of await labels.all()) {
+    const target = await label.boundingBox();
+    expect(target).not.toBeNull();
+    expect(target!.width).toBeGreaterThanOrEqual(48);
+    expect(target!.height).toBeGreaterThanOrEqual(48);
+  }
+  const saturdayLabel = group.getByText("Sat", { exact: true });
+  await saturdayLabel.click();
+  const saturdayCheckbox = group.getByRole("checkbox", { name: "Saturday" });
+  await expect(saturdayCheckbox).toBeChecked();
+  await saturdayCheckbox.focus();
+  await page.keyboard.press("Space");
+  await expect(saturdayCheckbox).not.toBeChecked();
   const switches = await page.getByRole("switch").all();
   expect(switches.length).toBeGreaterThan(0);
   for (const control of switches) {
@@ -87,6 +103,16 @@ for (const width of [1280, 390, 320]) {
     await expect(page.getByRole("heading", { name: "Deleted items" })).toHaveCount(0);
   });
 }
+
+test("Settings working-day controls remain accessible in light and dark themes", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await openApp(page, "Wayne Enterprises", "/settings");
+  await page.getByRole("radio", { name: "Light", exact: true }).click();
+  await assertAccessible(page);
+
+  await page.getByRole("radio", { name: "Dark", exact: true }).click();
+  await assertAccessible(page);
+});
 
 test("help restores focus and removed maintenance sections stay hidden", async ({ page }) => {
   await openApp(page, "Wayne Enterprises", "/settings");

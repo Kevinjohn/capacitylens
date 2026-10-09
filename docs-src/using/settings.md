@@ -47,10 +47,12 @@ start with Days; existing choices are preserved. See [Schedule and change work](
 ### Company-wide working days
 
 **Company-wide working days** is the company's shared working week. Seven abbreviated
-weekday headings sit in one row with their checkboxes directly underneath, beginning with the first
-day of the company's configured week. New companies select the first five days. You can select any
-combination, but at least one day must stay checked: when only one remains, its checkbox is
-disabled with an explanation until another day is selected.
+weekday labels appear with their checkboxes, beginning with the first day of the company's
+configured week. Each label and checkbox share a larger clickable target, while the checkbox
+remains keyboard-operable and keeps the full weekday name for assistive technology. The targets
+wrap on narrow screens. New companies select the first five days. You can select any combination,
+but at least one day must stay checked: when only one remains, its checkbox and label are disabled
+with an explanation until another day is selected.
 
 ![Company-wide working days in Settings with Monday as the only selected day and an explanation that at least one working day must remain](../screenshots/flows/settings_working_days_guard.png)
 

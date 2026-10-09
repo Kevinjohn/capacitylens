@@ -50,7 +50,7 @@ describe("SettingsView — grouped information architecture", () => {
     const support = screen.getByRole("region", { name: "Data and support" });
     expect(within(company).queryByText(/Company setting/)).not.toBeInTheDocument();
     expect(within(company).getByRole("radio", { name: "Days" })).toBeVisible();
-    expect(within(company).getByRole("table", { name: "Company working days" })).toBeVisible();
+    expect(within(company).getByRole("group", { name: "Company working days" })).toBeVisible();
     expect(within(company).getByRole("heading", { name: "Date format", level: 3 })).toBeVisible();
     expect(within(company).getByRole("radio", { name: "Everyone" })).toBeVisible();
     expect(within(features).getByRole("heading", { name: "Company features", level: 3 })).toBeVisible();
