@@ -4,8 +4,8 @@ import { createErrorRedirect } from "./errorRedirect";
 
 const fallbackUrl = new URL("https://app.example.test/auth/error");
 const trustedOrigin = "https://trusted.example.test";
-// SHA-256("opaque") encoded as base64url, fixed independently of the production implementation.
-const opaqueStateIdentifier = "bSKYhMEmi7CrMtjaMV0P5S-RRyKL2DCje8n7KKlUlA0";
+// SHA-256("auth-state:opaque") encoded as base64url, fixed independently of production code.
+const opaqueStateIdentifier = "_Ttjt7gzliXdQWyIXRlNJ7Fvsul5PmG9d9t3uPlxvcg";
 
 function createRedirect(values: readonly string[] | null = null) {
   const readVerificationValues = vi.fn<(storedIdentifier: string) => readonly string[] | null>(() => values);
@@ -38,7 +38,7 @@ describe("createErrorRedirect", () => {
     expect(readVerificationValues).not.toHaveBeenCalled();
   });
 
-  it("uses the indexed SHA-256 identifier for a callback state", () => {
+  it("uses Better Auth's namespaced hashed identifier for a callback state", () => {
     const { readVerificationValues, redirect } = createRedirect();
     expect(redirect(callbackRequest("opaque"))).toEqual(fallbackUrl);
     expect(readVerificationValues).toHaveBeenCalledWith(opaqueStateIdentifier);
