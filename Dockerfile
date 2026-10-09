@@ -1,8 +1,8 @@
-# syntax=docker/dockerfile:1
+# Use BuildKit's bundled frontend to avoid a separate Docker Hub syntax-image pull.
 # One reproducible build, two non-root runtime targets (SQLite API and nginx SPA) plus a
 # one-shot, least-privilege initializer for the per-install internal TLS certificate set.
 
-# ECR Public serves the same pinned official image without Docker Hub's anonymous pull quota.
+# Publisher mirrors retain the pinned images without Docker Hub's anonymous pull quota.
 FROM public.ecr.aws/docker/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS deps
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -68,12 +68,12 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD ["node", "scripts/check-health.mjs"]
 CMD ["sh", "-c", "node scripts/check-node.mjs && exec node dist/index.mjs"]
 
-FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS internal-tls
+FROM public.ecr.aws/docker/library/alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS internal-tls
 RUN apk add --no-cache openssl
 COPY scripts/internal-tls.sh /usr/local/bin/capacitylens-internal-tls
 ENTRYPOINT ["/usr/local/bin/capacitylens-internal-tls"]
 
-FROM nginxinc/nginx-unprivileged:1.31.6-alpine@sha256:26b0bf6fbf07297983cb341998d79c831508787de26627dd2a112321b9c3a4af AS web-runtime
+FROM ghcr.io/nginx/nginx-unprivileged:1.31.6-alpine@sha256:26b0bf6fbf07297983cb341998d79c831508787de26627dd2a112321b9c3a4af AS web-runtime
 USER root
 # The base installs curl for its generic entrypoint, which this image deliberately does not use.
 # Remove curl/libcurl rather than retaining an unnecessary network client and its CVE surface.
