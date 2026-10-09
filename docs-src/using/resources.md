@@ -210,8 +210,8 @@ picker but keeps their history, so past allocations and reports aren't rewritten
 
 Owners and administrators see grouped archived resources at the bottom of the Resources page:
 **Archived Studio**, **Archived Supplementary** and **Archived External**, followed by
-**Archived placeholders** when needed. Restore someone there, or delete the archived record to begin the 30-day
-retention period before permanent deletion becomes available in [Settings](/using/settings).
+**Archived placeholders** when needed. Restore someone there, or delete the archived record to
+remove them from those lists. Permanent deletion is not currently available in the app.
 
 ## What's next
 

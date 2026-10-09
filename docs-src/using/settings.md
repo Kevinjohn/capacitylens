@@ -25,14 +25,14 @@ scrollable page. Four groups are always present:
 | Company setup | Allocation units, working days, date format and Overview access. Editors and above can change planning settings; only Owners and Admins manage Overview access. |
 | Scheduling features | One **Company features** section of company-wide switches. Editors and above can change them. |
 | My display | Preferences saved in this browser. Everyone can adjust them without changing a teammate's display. |
-| Data and support | Device data, company data, read-only company details and support information. Each row states its scope; available actions depend on your access. |
+| Data and support | Example data when available, import and export, offline access, and read-only company details. Available actions depend on your access. |
 
 Labels and controls sit beside each other on wide screens and stack on narrow screens.
 Each row has a question-mark button labelled **About &lt;section&gt;**: hover it
 for that short label, or activate it to open the fuller explanation without keeping that
 text on the page.
 
-![Settings with the Company setup group, compact rows and company-wide scope explanation](../screenshots/flows/settings_overview.png)
+![Settings with the Company setup group, full-width choices and compact rows](../screenshots/flows/settings_overview.png)
 
 ## Company setup
 
@@ -183,12 +183,12 @@ For a quick explicit switch between light and dark, use the moon or sun button d
 
 ## Data and support
 
-This group combines device maintenance, company data, read-only company details and support
-information. Each row states its scope, and available actions depend on your access.
+This group contains example data when available, import and export, read-only company details and
+offline access. Available actions depend on your access.
 
-**Device data**, **Deleted items** and **Import and export** are independent disclosures and start
-closed. Opening one does not close another. Destructive actions explain their consequences in the
-confirmation dialog.
+Settings does not show the Device data or Deleted items sections. Archived items remain available
+from their Resources, Clients, Projects or Activities pages. The destructive device-data cleanup
+control is also not available in Settings.
 
 ### Offline access
 
@@ -247,19 +247,13 @@ back to old data — so you're never looking at a stale schedule without knowing
 
 Turning off **Make this device available offline** in Settings — or signing out —
 clears the cached snapshot and everything CapacityLens stored to protect it on that
-device. To wipe the same snapshot together with the rest of your local preferences,
-open **Device data** further down the page and choose **Clear device data**.
+device. Settings currently has no control to clear all CapacityLens preferences from the browser.
 
 ::: warning
 Don't turn on offline access on a shared or borrowed device. The cached snapshot is
 encrypted on disk, but anyone using the browser while you're signed in can still see it
 through the app itself, same as any other page.
 :::
-
-### Device data
-
-Clear CapacityLens preferences and opt-in offline snapshots from this browser, leaving company
-data on the server unchanged.
 
 ### Example data
 
@@ -268,12 +262,6 @@ allocations. **Add example data** adds two people, a client, a project and a few
 week and next. They are ordinary records, so delete them like any others. The server refuses the
 request if the company already holds any of these, including archived or deleted people, clients and
 projects.
-
-### Deleted items
-
-Permanently delete items after their 30-day retention period. Archived items are restored or
-deleted from the bottom of their Resources, Clients, Projects or Activities page.
-See [Resources](/using/resources).
 
 <!-- Compatibility anchor for existing links to import and export. -->
 <span id="everything-else-on-the-page"></span>
@@ -298,16 +286,10 @@ Both choices are frozen after the company is created. Settings shows them in the
 read-only **Data and support → Company details** summary so everyone can check the
 company-wide values, but nobody can change them there.
 
-### Build details
-
-The **Build details** row provides support context without exposing company data. A stamped
-deployment shows its build revision and, when configured, a **Send feedback** link. A build with
-neither omits the row.
-
-Owners and Admins copy a fuller support report from the separate
+Owners and Admins can find build details and copy a fuller support report on the separate
 [Diagnostics](/admin/diagnostics) page.
 
-![Appearance preferences above Data and support, with Device data and Import and export closed](../screenshots/flows/settings_account_disclosures.png)
+![Appearance preferences above Data and support, with Import and export closed](../screenshots/flows/settings_account_disclosures.png)
 
 ## Your personal account
 

@@ -30,8 +30,7 @@ so the seed bars and time off are in view. **Bruce Wayne** has both allocations
 A departing or paused team member must be removed from the schedule cleanly, but a mis-click
 shouldn't quietly destroy months of allocations and booked leave. Archiving is reversible: the data
 stays, the row simply leaves the active views. Soft-delete (which anonymises) and permanent removal
-are deliberately separate, later steps reached from the resource archive sections and Settings → Deleted items — so the
-confirm-warn-undo flow here is safe.
+are separate lifecycle steps. Settings no longer exposes the Deleted items section.
 
 ## Acceptance criteria
 

@@ -54,8 +54,9 @@ part of a company export.
 
 [Offline access](/using/settings#offline-access) is optional. When turned on, it stores your last verified
 identity, your list of companies and a snapshot of each company's data in the browser's IndexedDB,
-for up to seven days. Signing out clears your own cached snapshots; using "Clear device data"
-clears every CapacityLens user's cache from that browser profile. The offline snapshot is
+for up to seven days. Signing out clears your own cached snapshots. The Settings page currently has
+no control to clear all CapacityLens preferences and cached snapshots from the browser profile.
+The offline snapshot is
 read-only — it never queues changes to send later — and is encrypted with a key that lives only in
 that browser and cannot be extracted from it. That said, anyone who can use an unlocked browser
 profile signed in as you can still trigger that key, so protect the device the same way you would

@@ -384,7 +384,8 @@ shell. The service worker lives at `public/offline-worker.js`.
 **Tests:** Start with the `src/data/offlineCache.*.test.ts` suites and
 `src/data/offlineWorker.test.ts`; include the offline transport cases in
 `src/data/ServerSyncAdapter.diff.test.ts` and
-`e2e/clear-local-storage.spec.ts` when cleanup or browser storage boundaries change.
+`src/data/clearLocalStorage.test.ts` and the `src/data/offlineCache.*.test.ts` suites when cleanup
+or browser storage boundaries change.
 
 #### Installation package {#task-installation-package}
 

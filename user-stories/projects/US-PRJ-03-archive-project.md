@@ -5,17 +5,15 @@
 ## Goal
 
 Remove a project from the active views **reversibly** — archive it (with a clear warning and one-step
-undo) so the project and its phases/activities/allocations are retained and it can be restored, or
-later permanently deleted from Settings → Deleted items.
+undo) so the project and its phases/activities/allocations are retained and it can be restored.
 
 ## Why
 
 When a project pauses or is cancelled, the manager wants it off the schedule in one step — but without
 destroying its scheduled work. Archiving hides the project from the active views while keeping its
-data; soft-delete and permanent removal are separate, later steps reached from Archived projects
-& deleted. Permanent removal cascades project-specific work and unbinds placeholders, while shared
-All-projects bookings remain and become unattributed. Archiving is
-reversible, so the action is undoable.
+data. Owners and Admins can soft-delete it from Archived projects. Permanent removal cascades project-specific work and unbinds placeholders, while shared
+All-projects bookings remain and become unattributed. Archiving is reversible, so the action is
+undoable. Settings no longer exposes the Deleted items section.
 
 ## How (end-to-end)
 

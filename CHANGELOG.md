@@ -40,6 +40,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Settings uses full-width multiple-choice controls, hides Device data and Deleted items, and moves Build details to Diagnostics. The Settings scope paragraphs are removed (#1439).
 - Require Node 24.19.0 or newer within 24.x for the supported runtime. Admit Node 26.9.0 or
   newer within 26.x experimentally, with a focused local compatibility check and no scheduled
   Node 26 CI. Source and packaged entrypoints enforce the same minimums (#710).

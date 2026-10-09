@@ -69,3 +69,10 @@ describe("standing documentation contracts", () => {
     expect(messages.filter((message) => message.includes("(s)"))).toEqual([]);
   });
 });
+
+describe("user guide destinations", () => {
+  // Settings no longer offers Deleted items, so no guide may send readers there to purge records.
+  it("does not send readers to Settings for permanent deletion", () => {
+    expect(read("docs-src/using/resources.md")).not.toMatch(/permanent deletion[^.]*\]\(\/using\/settings\)/i);
+  });
+});

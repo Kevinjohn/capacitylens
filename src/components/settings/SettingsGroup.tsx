@@ -4,14 +4,14 @@ import { SettingsGroupContext } from "./settingsGroupContext";
 
 export function SettingsGroup({
   title,
-  description,
   children,
   id,
+  description,
 }: {
   title: string;
-  description: string;
   children: ReactNode;
   id?: string;
+  description?: string;
 }) {
   const headingId = useId();
   return (
@@ -25,7 +25,7 @@ export function SettingsGroup({
         <h2 id={headingId} className="text-base font-semibold">
           {title}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </header>
       <SettingsGroupContext.Provider value={true}>
         <div className="divide-y">{children}</div>
