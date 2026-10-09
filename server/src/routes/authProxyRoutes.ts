@@ -43,17 +43,9 @@ function isBetterAuthProxyRouteAllowed(
   }
   if (!allowsPasswordSignIn(authMode)) return false;
   if (method === "POST" && pathname === "/request-password-reset") return mailEnabled;
-  return new Set([
-    "POST /sign-up/email",
-    "POST /sign-in/email",
-    "POST /reset-password",
-    "POST /change-password",
-    "POST /two-factor/enable",
-    "POST /two-factor/disable",
-    "POST /two-factor/generate-backup-codes",
-    "POST /two-factor/verify-totp",
-    "POST /two-factor/verify-backup-code",
-  ]).has(`${method} ${pathname}`);
+  return new Set(["POST /sign-up/email", "POST /sign-in/email", "POST /reset-password", "POST /change-password"]).has(
+    `${method} ${pathname}`,
+  );
 }
 
 interface ResolveAuthenticationUserIdInput {
@@ -134,12 +126,10 @@ export interface AuthProxyRouteDependencies {
   auth: Auth | null;
   db: Parameters<typeof countAccounts>[0];
   multiAccount: boolean;
-  requireMfa: boolean;
   accountAdminPort: AccountAdminPort;
   masquerades: MasqueradeRegistry;
   resolveIncomingSession: (input: ResolveIncomingSessionInput) => Promise<SessionResolutionResult>;
   sessionUserFromApplicationSession: (session: ApplicationSession) => SessionUser;
-  sessionSatisfiesRequiredMfa: (session: ApplicationSession) => boolean;
   toWebHeaders: (raw: FastifyRequest["headers"]) => Headers;
   logOn: boolean;
 }
@@ -151,9 +141,7 @@ interface IdentityRouteDependencies {
   db: Parameters<typeof countAccounts>[0];
   masquerades: MasqueradeRegistry;
   multiAccount: boolean;
-  requireMfa: boolean;
   resolveIncomingSession: (input: ResolveIncomingSessionInput) => Promise<SessionResolutionResult>;
-  sessionSatisfiesRequiredMfa: (session: ApplicationSession) => boolean;
   sessionUserFromApplicationSession: (session: ApplicationSession) => SessionUser;
 }
 
@@ -198,7 +186,7 @@ async function canAuthenticatedUserCreateAccount({
 }
 
 async function readAuthenticatedIdentity({ dependencies, session, capAllows }: ReadAuthenticatedIdentityOptions) {
-  const { auth, authMode, multiAccount, requireMfa } = dependencies;
+  const { auth, authMode, multiAccount } = dependencies;
   const user = dependencies.sessionUserFromApplicationSession(session);
   const canCreateAccount = await canAuthenticatedUserCreateAccount({
     dependencies,
@@ -209,8 +197,6 @@ async function readAuthenticatedIdentity({ dependencies, session, capAllows }: R
   return {
     authMode,
     user,
-    mfaRequired: allowsPasswordSignIn(authMode) && requireMfa && !dependencies.sessionSatisfiesRequiredMfa(session),
-    requireMfa: allowsPasswordSignIn(authMode) && requireMfa,
     reauthMethod: session.assurance === "federated" ? "provider" : "password",
     reauthProviderId: session.providerId ?? null,
     providers: auth?.providers ?? [],

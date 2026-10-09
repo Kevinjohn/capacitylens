@@ -16,7 +16,6 @@ import { buildPasswordPolicy } from "./passwordPolicy";
 import { buildDatabaseHooks } from "./databaseHooks";
 import { buildRequestHooks } from "./requestHooks";
 import { buildSessionPolicy } from "./sessionPolicy";
-import { buildPlugins } from "./plugins";
 import { DEFAULT_ACCOUNT_APPLICATION } from "./authTypes";
 import type { Auth, AccountMode } from "./authTypes";
 import {
@@ -32,7 +31,7 @@ import {
   microsoftCallbackCapture,
 } from "./captureContexts";
 import { hashPasswordWithBackpressure, verifyPasswordWithBackpressure } from "./passwordBackpressure";
-import { enforceSessionActivity, createTwoFactorEnabledLookupStatement } from "./sessionActivity";
+import { enforceSessionActivity } from "./sessionActivity";
 import type { createAuthAdapterFactory } from "./authAdapter";
 import type { MicrosoftProof } from "./microsoftProof";
 import { createConfiguredMicrosoftProof } from "./microsoftProofSetup";
@@ -208,11 +207,7 @@ export function createAuthFromEnvironmentFactory(dependencies: FactoryDependenci
 }
 
 function buildProviderPolicies(context: EnabledAuthContext, microsoftProof: MicrosoftProof | null) {
-  const { db, environment, mode, application, options, dependencies } = context;
-  const pluginOptions = buildPlugins({
-    mode,
-    totpIssuer: application.branding.totpIssuer,
-  });
+  const { db, environment, mode, options, dependencies } = context;
   // Signup is invite-only by default. The before hook checks the live user count and
   // setup token, allowing exactly one first-owner bootstrap; static disableSignUp would
   // leave signup open after that owner existed. ALLOW_OPEN_SIGNUP remains the explicit
@@ -237,7 +232,7 @@ function buildProviderPolicies(context: EnabledAuthContext, microsoftProof: Micr
       "CAPACITYLENS_MODE=sso-only requires Google or tenant-specific Microsoft; GitHub is experimental.",
     );
   }
-  return { pluginOptions, allowOpenSignup, setupToken, providerConfig };
+  return { allowOpenSignup, setupToken, providerConfig };
 }
 
 function browserAuthErrorTarget(publicUrl: URL): URL {
@@ -298,7 +293,6 @@ function buildAuthPolicies(
     },
     providerIdFromExternalContext: dependencies.providerIdFromExternalContext,
     countUsers: dependencies.countUsers,
-    twoFactorEnabledLookupStatement: createTwoFactorEnabledLookupStatement,
     externalIdentityPath: dependencies.externalIdentityPath,
   });
   const requestHookOptions = buildRequestHooks({
@@ -324,7 +318,7 @@ function createBetterAuthInstance(
   policies: ReturnType<typeof buildAuthPolicies>,
   db: Db,
 ): unknown {
-  const { providerConfig, pluginOptions } = providers;
+  const { providerConfig } = providers;
   const { passwordPolicy, sessionPolicy, databaseHookOptions, requestHookOptions } = policies;
   const instance: unknown = betterAuth({
     database: db,
@@ -340,7 +334,6 @@ function createBetterAuthInstance(
     // An empty object means no provider is configured.
     socialProviders: providerConfig.configuredSocialProviders,
     hooks: requestHookOptions.hooks,
-    plugins: pluginOptions.plugins,
     trustedOrigins: providerConfig.trustedOrigins,
     advanced: sessionPolicy.advanced,
     session: sessionPolicy.session,

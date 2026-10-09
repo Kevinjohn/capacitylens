@@ -511,7 +511,7 @@ const registerStartupDiscoverySuccessTest = () => {
     });
     const configured = assertPresent(auth, "Google auth");
     expect(configured.federatedIssuers.get("google")).toBe("https://accounts.google.com");
-    expect(configured.options.plugins?.some((plugin) => plugin.id === "generic-oauth")).toBe(false);
+    expect(configured.options.plugins?.some((plugin) => plugin.id === "generic-oauth") ?? false).toBe(false);
   });
 };
 
@@ -681,7 +681,7 @@ describe("resolved auth options", () => {
       name: "password",
       env: PASSWORD_ENV,
       trustedOrigins: undefined,
-      pluginIds: ["two-factor"],
+      pluginIds: [],
     },
     {
       name: "password with providers",
@@ -692,7 +692,7 @@ describe("resolved auth options", () => {
         CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
       },
       trustedOrigins: ["https://admin.example", "https://capacity.example"],
-      pluginIds: ["two-factor"],
+      pluginIds: [],
     },
     {
       name: "sso",
@@ -710,7 +710,7 @@ describe("resolved auth options", () => {
 
     expect(configuredAuth.options.telemetry?.enabled).toBe(false);
     expect(configuredAuth.options.verification?.storeIdentifier).toBe("hashed");
-    expect(configuredAuth.options.plugins?.map((plugin) => plugin.id)).toEqual(pluginIds);
+    expect(configuredAuth.options.plugins?.map((plugin) => plugin.id) ?? []).toEqual(pluginIds);
     expect(configuredAuth.options.trustedOrigins).toEqual(trustedOrigins);
     db.close();
   });
@@ -902,7 +902,7 @@ const registerExternalSsoProviderTest = () => {
 };
 
 const registerExternalSessionAssuranceTest = () => {
-  it("creates a company-provider session without querying password-only MFA columns", async () => {
+  it("creates a company-provider session without local MFA columns", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
@@ -943,6 +943,20 @@ const registerExternalSessionAssuranceTest = () => {
     });
   });
 };
+
+it("creates a fresh password schema without local MFA storage", async () => {
+  const db = openDb(":memory:");
+  const auth = assertPresent(createAuthFromEnvironment(db, PASSWORD_ENV).auth, "password auth");
+  await runAuthMigrations(auth);
+  expect(
+    (db.prepare("PRAGMA table_info(user)").all() as Array<{ name: string }>).some(
+      ({ name }) => name === "twoFactorEnabled",
+    ),
+  ).toBe(false);
+  expect(
+    db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'twoFactor'").get(),
+  ).toBeUndefined();
+});
 
 const registerExternalBootstrapAdmissionTests = () => {
   it("keeps the first-external-identity claim control when email registration is open", () => {

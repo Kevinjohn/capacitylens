@@ -152,7 +152,7 @@ function createRequest(input: InitiateInput, now: number): OwnershipTransferRequ
 }
 
 function initiateOwnershipTransfer(context: TransferContext, input: InitiateInput): Promise<OwnershipTransferOutcome> {
-  const { db, trustedLocal, requireMfa, runMutation } = context;
+  const { db, trustedLocal, runMutation } = context;
   const { actor, workspaceId, targetPrincipalId, expectedRequestId, expectedRevision, command } = input;
   let replaced = false;
   return runMutation({
@@ -178,7 +178,7 @@ function initiateOwnershipTransfer(context: TransferContext, input: InitiateInpu
       }),
     },
     execute: (): OwnershipTransferOutcome => {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+      assertAdministrativeAssurance({ actor, trustedLocal, commandId: command.commandId });
       assertAccountAuthority({ db, actor, workspaceId, action: "transfer-ownership", trustedLocal });
       assertInitiationTarget(context, input);
       const now = Date.now();
@@ -221,8 +221,8 @@ function executeRowCommand(
   action: RowAction,
 ): OwnershipTransferOutcome {
   const { actor, workspaceId, command, expectedRevision } = input;
-  const { db, trustedLocal, requireMfa } = context;
-  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+  const { db, trustedLocal } = context;
+  assertAdministrativeAssurance({ actor, trustedLocal, commandId: command.commandId });
   const row = assertCommandParticipant(context, input, action);
   const instant = Date.now();
   const now = new Date(instant).toISOString();
@@ -308,7 +308,6 @@ export function createOwnershipTransferOperations(context: TransferContext): Tra
       // nomination they are being asked to approve.
       assertAdministrativeAssurance({
         actor,
-        requireMfa: context.requireMfa,
         trustedLocal: context.trustedLocal,
         requireFresh: false,
       });

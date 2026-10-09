@@ -209,7 +209,6 @@ export function createJoiningProviderCallbacks(input: {
     actor: ActorContext;
     providerId: string | null;
     invitationToken?: string;
-    requireMfa: boolean;
   }) {
     const intent = readCurrent(input.headers);
     if (
@@ -219,7 +218,7 @@ export function createJoiningProviderCallbacks(input: {
       (intent.providerId !== "google" && intent.providerId !== "github") ||
       input.providerId !== intent.providerId ||
       intent.principalId !== input.actor.principalId ||
-      (input.requireMfa && !input.actor.mfaSatisfied)
+      input.actor.assurance !== "federated"
     ) {
       throw createAccountFailure("AUTHENTICATION_REQUIRED", "Sign in with the verified provider to continue.");
     }

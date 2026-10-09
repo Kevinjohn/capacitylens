@@ -152,7 +152,7 @@ async function enableAndConfirmMemberSignIn({
   expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(true);
 }
 
-async function assertMemberSignInResetAndMfa({
+async function assertMemberSignInResetAndSignIn({
   app,
   db,
   ownerCookie,
@@ -165,16 +165,14 @@ async function assertMemberSignInResetAndMfa({
   let directory = await readSignInDirectory(app, ownerCookie);
   expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(false);
 
-  db.prepare("UPDATE user SET twoFactorEnabled = 1 WHERE id = ?").run(editorId);
-  const awaitingMfa = await call(app, {
+  const signedIn = await call(app, {
     method: "POST",
     url: "/api/auth/sign-in/email",
     payload: { email: editorEmail, password: "password-123456" },
   });
-  expect(awaitingMfa.statusCode).toBe(200);
-  expect(awaitingMfa.json()).toMatchObject({ twoFactorRedirect: true });
+  expect(signedIn.statusCode).toBe(200);
   directory = await readSignInDirectory(app, ownerCookie);
-  expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(false);
+  expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(true);
 
   expect(
     (await memberSignInTrackingReq({ app, accountId: "a1", enabled: false, headers: { cookie: ownerCookie } }))
@@ -440,7 +438,7 @@ describe("member sign-in confirmation", () => {
     } satisfies SignInScenarioInput;
     await assertSignInTrackingDefaults(scenario);
     await enableAndConfirmMemberSignIn(scenario);
-    await assertMemberSignInResetAndMfa(scenario);
+    await assertMemberSignInResetAndSignIn(scenario);
   });
 });
 

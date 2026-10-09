@@ -71,7 +71,7 @@
     },
     {
       "path": "server/src/authConfig/authFromEnv.ts",
-      "purpose": "192-bit CSPRNG claim tokens for first-owner signup and Better Auth MFA/session configuration"
+      "purpose": "192-bit CSPRNG claim tokens for first-owner signup and Better Auth session configuration"
     },
     {
       "path": "server/src/authConfig/bootstrapAdmin.ts",

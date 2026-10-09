@@ -12,14 +12,13 @@ import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS } from "./WriteOnceSecretReplay";
 const actor: ActorContext = {
   principalId: "owner-1",
   sessionId: "session-1",
-  assurance: "mfa",
+  assurance: "password",
   fresh: true,
-  mfaSatisfied: true,
 };
 
 const command = { commandId: "command-1", idempotencyKey: "idempotency-1" };
 
-function seedMfaAuditFixture(db: Db): {
+function seedAuditFixture(db: Db): {
   auditEvents: AccountAuditEvent[];
   port: ReturnType<typeof createSqliteAccountAdminPort>;
 } {
@@ -50,7 +49,6 @@ function seedMfaAuditFixture(db: Db): {
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
-      requireMfa: true,
       audit,
     }),
   };
@@ -569,14 +567,13 @@ function registerSqliteAccountAdminPortTest12(): void {
 }
 
 function registerSqliteAccountAdminPortTest13(): void {
-  it("enforces MFA-backed administration, admits a stale-session invitation and emits normalized audits", async () => {
+  it("admits a stale-session invitation and emits normalized audits", async () => {
     db = openDb(":memory:");
-    const { auditEvents, port } = seedMfaAuditFixture(db);
+    const { auditEvents, port } = seedAuditFixture(db);
     const expiresAt = new Date(Date.now() + 60_000).toISOString();
     const staleActor = { ...actor, fresh: false };
-    const passwordActor = { ...actor, assurance: "password" as const, mfaSatisfied: false };
 
-    // Creating an invitation is an ordinary administrative action: role and MFA still gate it, a
+    // Creating an invitation is an ordinary administrative action: role still gates it, but a
     // recent sign-in does not. Only the high-impact actions keep the re-prompt.
     await port.createInvitation({
       actor: staleActor,
@@ -586,16 +583,6 @@ function registerSqliteAccountAdminPortTest13(): void {
       expiresAt,
       command: { commandId: "stale-command", idempotencyKey: "stale-idempotency" },
     });
-    await expect(
-      port.createInvitation({
-        actor: passwordActor,
-        workspaceId: "workspace-1",
-        role: "editor",
-        preauthorizedEmail: "person@example.com",
-        expiresAt,
-        command: { commandId: "mfa-command", idempotencyKey: "mfa-idempotency" },
-      }),
-    ).rejects.toMatchObject({ failure: { code: "MFA_REQUIRED" } });
     const created = await port.createInvitation({
       actor,
       workspaceId: "workspace-1",
@@ -607,11 +594,10 @@ function registerSqliteAccountAdminPortTest13(): void {
 
     expect(auditEvents.map(({ action, outcome, commandId }) => ({ action, outcome, commandId }))).toEqual([
       { action: "invitation.created", outcome: "success", commandId: "stale-command" },
-      { action: "invitation.created", outcome: "denied", commandId: "mfa-command" },
       { action: "invitation.created", outcome: "success", commandId: "success-command" },
     ]);
     expect(JSON.stringify(auditEvents)).not.toContain(created.token);
-    expect(auditEvents[2]).toMatchObject({
+    expect(auditEvents[1]).toMatchObject({
       applicationId: "test-application",
       workspaceId: "workspace-1",
       actorPrincipalId: actor.principalId,
@@ -621,9 +607,9 @@ function registerSqliteAccountAdminPortTest13(): void {
 }
 
 function registerStaleInvitationReplayTest(): void {
-  it("replays a created invitation for a now-stale actor while still rechecking MFA and authority", async () => {
+  it("replays a created invitation for a now-stale actor while rechecking authority", async () => {
     db = openDb(":memory:");
-    const { port } = seedMfaAuditFixture(db);
+    const { port } = seedAuditFixture(db);
     const expiresAt = new Date(Date.now() + 60_000).toISOString();
     const command = { commandId: "replay-command", idempotencyKey: "replay-idempotency" };
     const created = await port.createInvitation({
@@ -647,18 +633,20 @@ function registerStaleInvitationReplayTest(): void {
     });
     expect(replayed).toMatchObject({ id: created.id, token: created.token });
 
-    // …while the guard's other checks still decide it. (A replay from a different principal never
-    // reaches the guard: the command ledger rejects it as an idempotency conflict first.)
+    db.prepare("UPDATE account_members SET role = 'viewer' WHERE accountId = ? AND userId = ?").run(
+      "workspace-1",
+      actor.principalId,
+    );
     await expect(
       port.createInvitation({
-        actor: { ...actor, assurance: "password" as const, mfaSatisfied: false },
+        actor,
         workspaceId: "workspace-1",
         role: "editor",
         preauthorizedEmail: "person@example.com",
         expiresAt,
         command,
       }),
-    ).rejects.toMatchObject({ failure: { code: "MFA_REQUIRED" } });
+    ).rejects.toMatchObject({ failure: { code: "FORBIDDEN" } });
   });
 }
 

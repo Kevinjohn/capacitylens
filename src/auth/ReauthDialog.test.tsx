@@ -13,17 +13,11 @@ import { m } from "@/i18n";
 
 const signInEmail = vi.fn();
 const signInSocial = vi.fn();
-const verifyTotp = vi.fn();
-const verifyBackupCode = vi.fn();
 vi.mock("./authClient", () => ({
   authClient: {
     signIn: {
       email: (...args: unknown[]) => signInEmail(...args),
       social: (...args: unknown[]) => signInSocial(...args),
-    },
-    twoFactor: {
-      verifyTotp: (...args: unknown[]) => verifyTotp(...args),
-      verifyBackupCode: (...args: unknown[]) => verifyBackupCode(...args),
     },
   },
 }));
@@ -64,23 +58,10 @@ afterEach(() => {
   if (isReauthPending()) completeReauth({ reauthenticated: false });
   signInEmail.mockReset();
   signInSocial.mockReset();
-  verifyTotp.mockReset();
-  verifyBackupCode.mockReset();
   window.history.replaceState({}, "", "/");
 });
 
 const user: AuthUser = { id: "u1", email: "owner@acme.test" };
-
-async function enterSecondFactor() {
-  signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-  render(<Harness user={user} />);
-  const outcome = requestReauth();
-  await screen.findByRole("heading", { name: "Confirm it's you" });
-  fireEvent.change(screen.getByTestId("reauth-password"), { target: { value: "correct horse" } });
-  fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
-  await screen.findByTestId("reauth-2fa-code");
-  return { outcome };
-}
 
 describe("ReauthDialog password step-up", () => {
   it("a pending re-auth request triggers the dialog", async () => {
@@ -193,76 +174,6 @@ describe("ReauthDialog password failures", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
     expect(screen.getByRole("button", { name: "Confirm" })).toBeEnabled();
-  });
-});
-
-describe("ReauthDialog second-factor step-up", () => {
-  it("associates a rejected second factor with its authentication-code input", async () => {
-    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-    verifyTotp.mockResolvedValue({ data: null, error: { message: "Authentication code is incorrect." } });
-    render(<Harness user={user} />);
-    void requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-    fireEvent.change(screen.getByTestId("reauth-password"), { target: { value: "correct horse" } });
-    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
-
-    const code = await screen.findByTestId("reauth-2fa-code");
-    fireEvent.change(code, { target: { value: "123456" } });
-    fireEvent.click(screen.getByTestId("reauth-2fa-submit"));
-
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Authentication code is incorrect.");
-    expect(code).toHaveAttribute("aria-invalid", "true");
-    expect(code).toHaveAttribute("aria-describedby", alert.id);
-  });
-
-  it("surfaces a network error and re-enables verification when the second factor throws", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    verifyTotp.mockRejectedValue(new TypeError("offline"));
-    await enterSecondFactor();
-
-    fireEvent.change(screen.getByTestId("reauth-2fa-code"), { target: { value: "123456" } });
-    fireEvent.click(screen.getByTestId("reauth-2fa-submit"));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
-    expect(screen.getByTestId("reauth-2fa-submit")).toBeEnabled();
-  });
-
-  it("guards a double second-factor submission while verification is in flight", async () => {
-    verifyTotp.mockImplementation(() => new Promise(() => {}));
-    await enterSecondFactor();
-    fireEvent.change(screen.getByTestId("reauth-2fa-code"), { target: { value: "123456" } });
-
-    const submit = screen.getByTestId("reauth-2fa-submit");
-    fireEvent.click(submit);
-    fireEvent.click(submit);
-
-    await waitFor(() => expect(verifyTotp).toHaveBeenCalledTimes(1));
-  });
-});
-
-describe("ReauthDialog recovery-code step-up", () => {
-  it("uses a recovery code for in-place step-up without trusting the browser", async () => {
-    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-    verifyBackupCode.mockResolvedValue({ data: { status: true }, error: null });
-    render(<Harness user={user} />);
-    const outcome = requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-    fireEvent.change(screen.getByTestId("reauth-password"), { target: { value: "correct horse" } });
-    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
-
-    const authenticatorCode = await screen.findByLabelText("Authentication code");
-    fireEvent.click(screen.getByRole("button", { name: "Use a recovery code" }));
-    expect(authenticatorCode).toHaveValue("");
-    const recoveryCode = screen.getByLabelText("Recovery code");
-    expect(recoveryCode).toHaveAttribute("inputmode", "text");
-    fireEvent.change(recoveryCode, { target: { value: "backup-code-1" } });
-    fireEvent.click(screen.getByTestId("reauth-2fa-submit"));
-
-    await expect(outcome).resolves.toEqual({ kind: "authenticated" });
-    expect(verifyBackupCode).toHaveBeenCalledWith({ code: "backup-code-1", trustDevice: false });
-    expect(verifyTotp).not.toHaveBeenCalled();
-    expect(screen.queryByRole("heading", { name: "Confirm it's you" })).not.toBeInTheDocument();
   });
 });
 
@@ -485,24 +396,6 @@ describe("ReauthDialog dismissal guards", () => {
     await screen.findByRole("heading", { name: "Confirm it's you" });
     fireEvent.keyDown(document, { key: "Escape" });
     await expect(second).resolves.toEqual({ kind: "cancelled" });
-  });
-
-  it("guards the 2FA modal dismissal while busy", async () => {
-    verifyTotp.mockImplementation(() => new Promise(() => {}));
-    await enterSecondFactor();
-    fireEvent.change(screen.getByTestId("reauth-2fa-code"), { target: { value: "123456" } });
-    fireEvent.click(screen.getByTestId("reauth-2fa-submit"));
-    await waitFor(() => expect(verifyTotp).toHaveBeenCalledOnce());
-
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(isReauthPending()).toBe(true);
-    expect(screen.getByTestId("reauth-2fa-code")).toBeInTheDocument();
-  });
-
-  it("cancels the 2FA modal with Escape while idle", async () => {
-    const { outcome } = await enterSecondFactor();
-    fireEvent.keyDown(document, { key: "Escape" });
-    await expect(outcome).resolves.toEqual({ kind: "cancelled" });
   });
 });
 

@@ -27,7 +27,7 @@ import { assertInvitationRole, createAccountFailure } from "./failures";
 import { readMembership } from "./mappers";
 import { createMembershipReads } from "./memberReads";
 
-type MembershipContext = Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa" | "runMutation" | "audit">;
+type MembershipContext = Pick<AdminPortContext, "db" | "trustedLocal" | "runMutation" | "audit">;
 type MembershipPort = Pick<
   SsoCutoverAccountAdminPort,
   | "listWorkspacesForPrincipal"
@@ -50,7 +50,6 @@ function readRequiredMembership(db: Db, principalId: string, workspaceId: string
 function createRoleChange({
   db,
   trustedLocal,
-  requireMfa,
   runMutation,
   audit,
 }: MembershipContext): Pick<MembershipPort, "changeMemberRole"> {
@@ -69,7 +68,6 @@ function createRoleChange({
         execute: () => {
           assertAdministrativeAssurance({
             actor,
-            requireMfa,
             trustedLocal,
             commandId: command.commandId,
             requireFresh: false,
@@ -104,7 +102,6 @@ function createRoleChange({
 function createStatusChange({
   db,
   trustedLocal,
-  requireMfa,
   runMutation,
   audit,
 }: MembershipContext): Pick<MembershipPort, "changeMemberStatus" | "enableMemberAccess"> {
@@ -125,11 +122,9 @@ function createStatusChange({
           changedFields: [nextStatus === "disabled" ? "accessRestriction" : "status"],
         },
         // The write and all newly restricted aliases share one transaction and audit boundary.
-        // eslint-disable-next-line max-lines-per-function
         execute: () => {
           assertAdministrativeAssurance({
             actor,
-            requireMfa,
             trustedLocal,
             commandId: command.commandId,
             requireFresh: false,
@@ -205,7 +200,6 @@ function createStatusChange({
         execute: () => {
           assertAdministrativeAssurance({
             actor,
-            requireMfa,
             trustedLocal,
             commandId: command.commandId,
             requireFresh: false,
@@ -252,7 +246,6 @@ function createStatusChange({
 function createRemoval({
   db,
   trustedLocal,
-  requireMfa,
   runMutation,
   audit,
 }: MembershipContext): Pick<MembershipPort, "removeMember"> {
@@ -270,7 +263,6 @@ function createRemoval({
         execute: () => {
           assertAdministrativeAssurance({
             actor,
-            requireMfa,
             trustedLocal,
             commandId: command.commandId,
             requireFresh: false,

@@ -7,12 +7,10 @@ export function usePasswordSignIn({
   setError,
   setBusy,
   onSignedIn,
-  setTwoFactorPending,
 }: {
   setError: (error: string | null) => void;
   setBusy: (busy: boolean) => void;
   onSignedIn: () => void;
-  setTwoFactorPending: (pending: boolean) => void;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,17 +19,12 @@ export function usePasswordSignIn({
     setBusy(true);
     setError(null);
     try {
-      const { data, error: failure } = await authClient.signIn.email({
+      const { error: failure } = await authClient.signIn.email({
         email: email.trim().toLowerCase(),
         password,
       });
       if (failure) {
         setError(failure.message ?? m.login_failed());
-        setBusy(false);
-        return;
-      }
-      if ((data as { twoFactorRedirect?: unknown } | null)?.twoFactorRedirect === true) {
-        setTwoFactorPending(true);
         setBusy(false);
         return;
       }

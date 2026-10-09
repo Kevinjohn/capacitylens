@@ -495,7 +495,7 @@ function createActiveMembershipRefusalTest(): void {
 }
 
 function createMigrationCompatibilityTests(): void {
-  it("allows the exact pending v49-v51 joining migrations", async () => {
+  it("allows the reviewed pending joining and auth-shape migrations through v52", async () => {
     const prepared = await database();
     rewindJoiningMigrationsToV48(prepared.db);
     prepared.db.close();

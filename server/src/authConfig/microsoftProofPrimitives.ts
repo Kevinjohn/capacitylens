@@ -39,7 +39,7 @@ export type MicrosoftProofIntent = {
 };
 
 export type MicrosoftProofSession = {
-  user: { id: string; email: string; emailVerified: boolean; twoFactorEnabled?: boolean };
+  user: { id: string; email: string; emailVerified: boolean };
   session?: { id: string; createdAt: string; expiresAt: string | null };
 } | null;
 

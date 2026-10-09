@@ -17,8 +17,7 @@ import {
 export function createMembershipReads({
   db,
   trustedLocal,
-  requireMfa,
-}: Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa">): Pick<
+}: Pick<AdminPortContext, "db" | "trustedLocal">): Pick<
   SsoCutoverAccountAdminPort,
   "listWorkspacesForPrincipal" | "getMembership" | "listMemberships"
 > {
@@ -57,7 +56,7 @@ export function createMembershipReads({
         : null;
     },
     async listMemberships({ actor, workspaceId, includeInactive = false, requireFresh = true }) {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, requireFresh });
+      assertAdministrativeAssurance({ actor, trustedLocal, requireFresh });
       assertAccountAuthority({ db, actor, workspaceId, action: "list-members", trustedLocal });
       // `includeInactive` widens the administrative listing, never authorization: the read is
       // already gated above and every returned row retains its real status.

@@ -1,4 +1,3 @@
-import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { FastifyReply } from "fastify";
 import { DEMO_USER } from "../auth";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
@@ -74,7 +73,7 @@ interface CreateAccountPortsInput extends CreateAccountRuntimeInput {
   masqueradeSessions: NonNullable<Parameters<typeof createBetterAuthIdentityPort>[0]["masqueradeSessions"]>;
 }
 
-function createAccountPorts({ db, config, options, accountAudit, masqueradeSessions }: CreateAccountPortsInput) {
+function createAccountPorts({ db, config, accountAudit, masqueradeSessions }: CreateAccountPortsInput) {
   const { authMode, auth, application } = config;
   const accountLock = new KeyedOperationLock();
   const identityPort =
@@ -98,7 +97,6 @@ function createAccountPorts({ db, config, options, accountAudit, masqueradeSessi
     db,
     lock: accountLock,
     trustedLocal: authMode === "off",
-    requireMfa: allowsPasswordSignIn(authMode) && options.requireMfa === true,
     audit: accountAudit,
   });
   const accountFlows = createLocalAccountFlows({

@@ -12,9 +12,8 @@ const workspaceId = "wayne-enterprises";
 const owner: ActorContext = {
   principalId: "bruce-wayne",
   sessionId: "session-owner",
-  assurance: "mfa",
+  assurance: "password",
   fresh: true,
-  mfaSatisfied: true,
 };
 const target: ActorContext = { ...owner, principalId: "selina-kyle", sessionId: "session-target" };
 const observer: ActorContext = { ...owner, principalId: "barbara-gordon", sessionId: "session-observer" };

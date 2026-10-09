@@ -23,13 +23,7 @@ import { registerAccountEntityRoutes } from "./accountEntityRoutes";
 import { isInitialized } from "../db";
 import type { Db } from "../db";
 import { enqueueAudit } from "../auditOutbox";
-import {
-  toWebHeaders,
-  buildSessionUser,
-  hasRequiredSessionMfa,
-  parseReplayAccountCommand,
-  createAccountCommand,
-} from "./appRequestAdapters";
+import { toWebHeaders, buildSessionUser, parseReplayAccountCommand, createAccountCommand } from "./appRequestAdapters";
 import type { resolveAppConfig } from "./appConfig";
 import type { createAppRuntime } from "./appRuntime";
 import type { installRootHooks } from "./appRootHooks";
@@ -223,12 +217,10 @@ function buildPlatformRouteDependencies(input: RegisterApiRoutesInput) {
       auth,
       db,
       multiAccount: options.multiAccount === true,
-      requireMfa: options.requireMfa === true,
       accountAdminPort,
       masquerades,
       resolveIncomingSession,
       sessionUserFromApplicationSession: buildSessionUser,
-      sessionSatisfiesRequiredMfa: hasRequiredSessionMfa,
       toWebHeaders,
       logOn,
     },
@@ -268,7 +260,6 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
         mail: input.budgetedMail,
         applicationId: application.applicationId,
         authMode,
-        requireMfa: options.requireMfa === true,
         trustProxyHeaders: options.trustProxyHeaders === true,
         secret: options.joiningProof.secret,
         publicUrl: options.joiningProof.publicUrl,

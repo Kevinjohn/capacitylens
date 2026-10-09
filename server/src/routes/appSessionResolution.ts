@@ -1,4 +1,3 @@
-import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AccountAuditPort, IdentityPort } from "@capacitylens/shared/account/ports";
 import type { ApplicationSession } from "@capacitylens/shared/account/types";
@@ -10,7 +9,7 @@ import type { AppOptions } from "../app";
 import type { MasqueradeRegistry, StoredMasqueradeRecord } from "../MasqueradeRegistry";
 import type { resolveAppConfig } from "./appConfig";
 import { resolveRequestClientIp } from "./appErrors";
-import { buildSessionUser, hasRequiredSessionMfa, toWebHeaders } from "./appRequestAdapters";
+import { buildSessionUser, toWebHeaders } from "./appRequestAdapters";
 import type { createAppRuntime } from "./appRuntime";
 import { enqueueMasqueradeEndAudit } from "./masqueradeRoutes";
 import { REPLY_ERRORS } from "./replyErrors";
@@ -123,7 +122,6 @@ function attachTrustedLocalActor(req: FastifyRequest): void {
     sessionId: "trusted-local",
     assurance: "trusted-local",
     fresh: true,
-    mfaSatisfied: true,
   };
 }
 
@@ -132,7 +130,6 @@ interface CreateSessionPreHandlerInput {
   applicationId: string;
   authMode: AccountMode;
   masquerades: MasqueradeRegistry;
-  requireMfa: boolean;
   resolveIncomingSession: (input: ResolveIncomingSessionInput) => Promise<SessionResolutionResult>;
   securityEvent: (event: Record<string, unknown>) => void;
   trustProxyHeaders: boolean;
@@ -207,24 +204,6 @@ async function requireApplicationSession(input: RequireApplicationSessionInput):
     });
     return reply.code(401).send({ error: REPLY_ERRORS.signInRequired });
   }
-  const user = buildSessionUser(resolution.session);
-  if (
-    allowsPasswordSignIn(dependencies.authMode) &&
-    dependencies.requireMfa &&
-    !hasRequiredSessionMfa(resolution.session)
-  ) {
-    dependencies.securityEvent({
-      event: "mfa_required",
-      outcome: "blocked",
-      method: req.method,
-      path,
-      userId: user.id,
-    });
-    return reply.code(403).send({
-      error: REPLY_ERRORS.mfaEnrollmentRequired,
-      code: "MFA_ENROLLMENT_REQUIRED",
-    });
-  }
   return undefined;
 }
 
@@ -277,7 +256,6 @@ export function installSessionResolution({
       applicationId: config.application.applicationId,
       authMode: config.authMode,
       masquerades: runtime.masquerades,
-      requireMfa: options.requireMfa === true,
       resolveIncomingSession,
       securityEvent,
       trustProxyHeaders: options.trustProxyHeaders === true,

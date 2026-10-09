@@ -37,7 +37,6 @@ const ACTOR: ActorContext = {
   sessionId: "session-1",
   assurance: "password",
   fresh: true,
-  mfaSatisfied: false,
 };
 
 type Capability = "durablePrincipalStorage" | "credentials" | "passwordReset" | "administrativeSessionRevocation";

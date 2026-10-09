@@ -34,7 +34,7 @@ beforeEach(() => {
 
 const passwordAuth: AuthContextValue = {
   authMode: "password-only",
-  user: { id: "u1", email: "diana@example.test", twoFactorEnabled: true },
+  user: { id: "u1", email: "diana@example.test" },
   providers: [],
   canCreateAccount: false,
   multiAccount: false,
@@ -176,16 +176,6 @@ it("does not restore stale values or feedback after a pending password request f
 it("does not mount a password dialog for a federated identity in password mode", () => {
   renderSecurity({ overrides: { reauthMethod: "provider" }, passwordOpen: true });
   expect(screen.queryByRole("dialog", { name: m.settings_security_change_password() })).not.toBeInTheDocument();
-});
-
-it.each([
-  { required: true, enrolled: true, expected: m.account_mfa_enabled() },
-  { required: true, enrolled: false, expected: m.account_mfa_not_enabled() },
-  { required: false, enrolled: true, expected: null },
-])("shows MFA status only under operator policy ($required, $enrolled)", ({ required, enrolled, expected }) => {
-  renderSecurity({ overrides: { requireMfa: required, user: { id: "u1", twoFactorEnabled: enrolled } } });
-  if (expected) expect(screen.getByText(expected)).toBeInTheDocument();
-  else expect(screen.queryByText(m.account_mfa_title())).not.toBeInTheDocument();
 });
 
 it("preserves Microsoft identity-link status without password controls", async () => {

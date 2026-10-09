@@ -38,7 +38,6 @@ const validApplication = {
   applicationId: "sibling_app",
   displayName: "Sibling App",
   branding: {
-    totpIssuer: "Sibling App",
     defaultProviderLabel: "Single sign-on",
     passwordContextWords: ["sibling", "product"],
   },
@@ -71,7 +70,7 @@ describe("boundApplicationFailure", () => {
       "nested branding accessor",
       {
         ...validApplication,
-        branding: Object.defineProperty({}, "totpIssuer", {
+        branding: Object.defineProperty({}, "defaultProviderLabel", {
           get: () => {
             throw new Error("private branding failure");
           },
@@ -108,12 +107,6 @@ describe("boundApplicationFailure branding characters and boundaries", () => {
       expect(
         boundApplicationFailure({
           ...validApplication,
-          branding: { ...validApplication.branding, totpIssuer: `App${character}Issuer` },
-        }),
-      ).toContain("branding");
-      expect(
-        boundApplicationFailure({
-          ...validApplication,
           branding: { ...validApplication.branding, defaultProviderLabel: `App${character}Provider` },
         }),
       ).toContain("branding");
@@ -141,7 +134,6 @@ describe("boundApplicationFailure branding characters and boundaries", () => {
         ...validApplication,
         displayName: "a".repeat(MAX_NAME_LENGTH),
         branding: {
-          totpIssuer: "a".repeat(MAX_NAME_LENGTH),
           defaultProviderLabel: "a".repeat(MAX_NAME_LENGTH),
           passwordContextWords: Array.from({ length: MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS }, () =>
             "a".repeat(MAX_PASSWORD_LENGTH),
@@ -162,7 +154,6 @@ describe("boundApplicationFailure Unicode names", () => {
         displayName: astralLetter.repeat(MAX_NAME_LENGTH),
         branding: {
           ...validApplication.branding,
-          totpIssuer: astralLetter.repeat(MAX_NAME_LENGTH),
           defaultProviderLabel: astralLetter.repeat(MAX_NAME_LENGTH),
         },
       }),
@@ -187,16 +178,6 @@ describe("boundApplicationFailure Unicode names", () => {
 describe("boundApplicationFailure upper bounds", () => {
   it.each([
     [{ ...validApplication, displayName: "a".repeat(MAX_NAME_LENGTH + 1) }, "display name"],
-    [
-      {
-        ...validApplication,
-        branding: {
-          ...validApplication.branding,
-          totpIssuer: "a".repeat(MAX_NAME_LENGTH + 1),
-        },
-      },
-      "branding",
-    ],
     [
       {
         ...validApplication,
@@ -240,13 +221,6 @@ describe("boundApplicationFailure invalid values", () => {
     [{ ...validApplication, applicationId: "-prefixed" }, "application id"],
     [{ ...validApplication, applicationId: "_prefixed" }, "application id"],
     [{ ...validApplication, displayName: "   " }, "display name"],
-    [
-      {
-        ...validApplication,
-        branding: { ...validApplication.branding, totpIssuer: "" },
-      },
-      "branding",
-    ],
     [
       {
         ...validApplication,

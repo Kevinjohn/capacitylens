@@ -973,6 +973,9 @@ policy.
 row and supply their current password in the dialog. The **Security** section
 (`data-testid="security-section"`) appears when a configured company-provider connection is
 available. Session tokens are never displayed after their one-time use.
+CapacityLens has no local authenticator or recovery-code controls. A company that requires MFA
+sets and manages it with its Google or Microsoft provider; enabling company sign-in alone does
+not enable MFA.
 
 On a mixed deployment, Account's Security section shows **Company sign-in**
 (`data-testid="sso-connection"`) for each configured company provider. **Connect _provider_**

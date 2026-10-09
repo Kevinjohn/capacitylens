@@ -47,8 +47,8 @@ page before accepting.
 ![Reusable company joining page asking for an existing proven identity](../screenshots/flows/join_company_link_entry.jpg)
 
 Open the joining link and check that the page names the company you expect. Enter your email, then
-choose an available sign-in provider or sign in with an existing password account. Complete
-any second-factor check and select **Join company**. A joining link does not create a password
+choose an available sign-in provider or sign in with an existing password account. Select
+**Join company**. A joining link does not create a password
 account. Open registration and policies that use approved domains require verified email proof.
 People admitted by policy receive the **Viewer** role. An addressed invitation can give the role it names.
 

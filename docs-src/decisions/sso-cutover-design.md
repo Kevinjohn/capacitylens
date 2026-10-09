@@ -6,6 +6,8 @@
 > for the named Google and Microsoft provider contract. This record is historical, not current
 > configuration guidance; see [Set up Google or Microsoft sign-in](../company-login/set-up-company-login.md)
 > and [Require company sign-in](../company-login/move-to-single-sign-on.md).
+> Local MFA was removed on 2026-10-09. References below to its plugin, assurance and gates
+> describe the historical design, not the current implementation.
 
 **Design record for CapacityLens self-hosted deployments**
 Status: implemented revision 4 · Date: 2026-08-07

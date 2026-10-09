@@ -196,6 +196,15 @@ function seedLastCompanyIdentity(db: Db, userId: string): void {
   });
   seedAccountLinkState({ db, userId, email: "sole-owner@capacitylens.dev", id: "link-sole-owner" });
   seedAccountLinkState({ db, userId: "unrelated-user", email: "unrelated@capacitylens.dev", id: "link-unrelated" });
+  // Fresh databases omit this old auth table; erasure must still clear it in upgraded databases.
+  db.exec(`CREATE TABLE twoFactor (
+    id TEXT PRIMARY KEY,
+    secret TEXT NOT NULL,
+    backupCodes TEXT NOT NULL,
+    userId TEXT NOT NULL,
+    verified INTEGER NOT NULL,
+    failedVerificationCount INTEGER NOT NULL
+  )`);
   db.prepare(
     `INSERT INTO twoFactor (id, secret, backupCodes, userId, verified, failedVerificationCount)
      VALUES (?, ?, ?, ?, 1, 0)`,

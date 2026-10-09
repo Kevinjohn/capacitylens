@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createHmac } from "node:crypto";
-import type { FastifyInstance, LightMyRequestResponse } from "fastify";
+import type { LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
 import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
@@ -38,14 +37,6 @@ function parseJsonObject(res: LightMyRequestResponse): object {
   return value;
 }
 
-function parseErrorCode(res: LightMyRequestResponse): string {
-  const value = parseJsonObject(res);
-  if (!("code" in value) || typeof value.code !== "string") {
-    throw new Error("Expected response body to include a string error code.");
-  }
-  return value.code;
-}
-
 function parseAuthUser(value: object) {
   if (
     !("email" in value) ||
@@ -63,15 +54,11 @@ function parseAuthMeResponse(res: LightMyRequestResponse) {
   if (!("authMode" in value) || typeof value.authMode !== "string") {
     throw new Error("Expected authenticated response body to include authMode.");
   }
-  if (!("mfaRequired" in value) || typeof value.mfaRequired !== "boolean") {
-    throw new Error("Expected authenticated response body to include mfaRequired.");
-  }
   if (!("user" in value) || typeof value.user !== "object" || value.user === null || Array.isArray(value.user)) {
     throw new Error("Expected authenticated response body to include a user.");
   }
   return {
     authMode: value.authMode,
-    mfaRequired: value.mfaRequired,
     user: parseAuthUser(value.user),
   };
 }
@@ -82,49 +69,6 @@ function parseErrorMessage(res: LightMyRequestResponse): string {
     throw new Error("Expected response body to include a string error message.");
   }
   return value.error;
-}
-
-function parseBackupCodes(res: LightMyRequestResponse): string[] {
-  const value = parseJsonObject(res);
-  if (!("backupCodes" in value) || !Array.isArray(value.backupCodes)) {
-    throw new Error("Expected response body to include backup codes.");
-  }
-  return Array.from(value.backupCodes, (code: unknown) => {
-    if (typeof code !== "string") throw new Error("Expected every backup code to be a string.");
-    return code;
-  });
-}
-
-function parseTotpSecret(res: LightMyRequestResponse): string {
-  const value = parseJsonObject(res);
-  if (!("totpURI" in value) || typeof value.totpURI !== "string") {
-    throw new Error("Expected response body to include a TOTP URI.");
-  }
-  const secret = new URL(value.totpURI).searchParams.get("secret");
-  if (secret === null) throw new Error("Expected TOTP URI to include a secret.");
-  return secret;
-}
-
-function totpCode(secret: string, at = Date.now()): string {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  let bits = "";
-  for (const char of secret.replace(/=+$/, "").toUpperCase()) {
-    const index = alphabet.indexOf(char);
-    if (index < 0) throw new Error("Invalid base32 TOTP secret.");
-    bits += index.toString(2).padStart(5, "0");
-  }
-  const bytes: number[] = [];
-  for (let offset = 0; offset + 8 <= bits.length; offset += 8) {
-    bytes.push(Number.parseInt(bits.slice(offset, offset + 8), 2));
-  }
-  const counter = Buffer.alloc(8);
-  counter.writeBigUInt64BE(BigInt(Math.floor(at / 30_000)));
-  const digest = createHmac("sha1", Buffer.from(bytes)).update(counter).digest();
-  const finalByte = digest[digest.length - 1];
-  if (finalByte === undefined) throw new Error("Expected a SHA-1 digest byte.");
-  const offset = finalByte & 0x0f;
-  const number = (digest.readUInt32BE(offset) & 0x7fff_ffff) % 1_000_000;
-  return number.toString().padStart(6, "0");
 }
 
 const SSO_ENV = {
@@ -231,91 +175,6 @@ function createLifecycleRaceFixture(next: string | null) {
 }
 /* c8 ignore stop */
 
-async function createRequiredMfaFixture() {
-  const db = openDb(":memory:");
-  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(parseConfiguredAuth(configured.auth));
-  const app = createApp(db, {
-    authMode: configured.mode,
-    auth: configured.auth,
-    requireMfa: true,
-  });
-  const email = "mfa-user@capacitylens.dev";
-  const password = "password-123456";
-  const signup = await call(app, {
-    method: "POST",
-    url: "/api/auth/sign-up/email",
-    payload: { email, password, name: "MFA User" },
-  });
-  expect(signup.statusCode).toBe(200);
-  const signupCookie = cookiesOf(signup);
-  const blocked = await call(app, {
-    method: "GET",
-    url: "/api/accounts",
-    headers: { cookie: signupCookie },
-  });
-  expect(blocked.statusCode).toBe(403);
-  expect(parseErrorCode(blocked)).toBe("MFA_ENROLLMENT_REQUIRED");
-  const before = await call(app, {
-    method: "GET",
-    url: "/api/auth/me",
-    headers: { cookie: signupCookie },
-  });
-  expect(before.statusCode).toBe(200);
-  expect(before.json()).toMatchObject({
-    mfaRequired: true,
-    requireMfa: true,
-    user: { twoFactorEnabled: false },
-  });
-  return { app, email, password, signupCookie };
-}
-
-async function completeRequiredMfaEnrollment(options: {
-  app: FastifyInstance;
-  password: string;
-  signupCookie: string;
-}) {
-  const enabled = await call(options.app, {
-    method: "POST",
-    url: "/api/auth/two-factor/enable",
-    headers: { cookie: options.signupCookie },
-    payload: { password: options.password },
-  });
-  expect(enabled.statusCode).toBe(200);
-  expect(parseBackupCodes(enabled)).toHaveLength(10);
-  const secret = parseTotpSecret(enabled);
-  expect(secret).toBeTruthy();
-  const verified = await call(options.app, {
-    method: "POST",
-    url: "/api/auth/two-factor/verify-totp",
-    headers: { cookie: options.signupCookie },
-    payload: { code: totpCode(secret), trustDevice: false },
-  });
-  expect(verified.statusCode).toBe(200);
-  const enrolledCookie = cookiesOf(verified);
-  const after = await call(options.app, {
-    method: "GET",
-    url: "/api/auth/me",
-    headers: { cookie: enrolledCookie },
-  });
-  expect(after.statusCode).toBe(200);
-  expect(after.json()).toMatchObject({
-    mfaRequired: false,
-    requireMfa: true,
-    user: { twoFactorEnabled: true },
-  });
-  expect(
-    (
-      await call(options.app, {
-        method: "GET",
-        url: "/api/accounts",
-        headers: { cookie: enrolledCookie },
-      })
-    ).statusCode,
-  ).toBe(200);
-  return { enrolledCookie, secret };
-}
-
 interface SessionActivityBoundaryInput {
   _label: string;
   rep: "integer epoch" | "ISO-8601 text";
@@ -336,7 +195,7 @@ const sessionActivityBoundaryCases: SessionActivityBoundaryInput[] = (
 );
 
 describe("CAPACITYLENS_MODE password", () => {
-  it("accepts federated assurance as MFA in mixed mode and advertises provider step-up", async () => {
+  it("advertises provider step-up for a federated session in mixed mode", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_MODE: "password-and-sso" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
@@ -375,79 +234,21 @@ describe("CAPACITYLENS_MODE password", () => {
             email: "federated@example.com",
             emailVerified: true,
             image: null,
-            twoFactorEnabled: false,
           },
           session: { id: "federated-session", createdAt: TS, expiresAt: "2099-01-01T00:00:00.000Z" },
         })),
       },
     };
-    const app = createApp(db, { authMode: "password-and-sso", auth, requireMfa: true });
+    const app = createApp(db, { authMode: "password-and-sso", auth });
 
     const data = await call(app, { method: "GET", url: "/api/accounts" });
     expect(data.statusCode).toBe(200);
     const me = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(me.statusCode).toBe(200);
     expect(me.json()).toMatchObject({
-      mfaRequired: false,
       reauthMethod: "provider",
       reauthProviderId: "google",
     });
-  });
-});
-
-describe("CAPACITYLENS_MODE password", () => {
-  it("requires enrollment, verifies TOTP, and challenges every later password sign-in", async () => {
-    const { app, email, password, signupCookie } = await createRequiredMfaFixture();
-    const { enrolledCookie, secret } = await completeRequiredMfaEnrollment({
-      app,
-      password,
-      signupCookie,
-    });
-
-    expect(
-      (
-        await call(app, {
-          method: "POST",
-          url: "/api/auth/sign-out",
-          headers: { cookie: enrolledCookie },
-        })
-      ).statusCode,
-    ).toBe(200);
-    const signIn = await call(app, {
-      method: "POST",
-      url: "/api/auth/sign-in/email",
-      payload: { email, password },
-    });
-    expect(signIn.statusCode).toBe(200);
-    expect(signIn.json()).toMatchObject({ twoFactorRedirect: true });
-    const challengeCookie = cookiesOf(signIn);
-    expect(
-      (
-        await call(app, {
-          method: "GET",
-          url: "/api/accounts",
-          headers: { cookie: challengeCookie },
-        })
-      ).statusCode,
-    ).toBe(401);
-
-    const completed = await call(app, {
-      method: "POST",
-      url: "/api/auth/two-factor/verify-totp",
-      headers: { cookie: challengeCookie },
-      payload: { code: totpCode(secret), trustDevice: false },
-    });
-    expect(completed.statusCode).toBe(200);
-    const finalCookie = cookiesOf(completed);
-    expect(
-      (
-        await call(app, {
-          method: "GET",
-          url: "/api/accounts",
-          headers: { cookie: finalCookie },
-        })
-      ).statusCode,
-    ).toBe(200);
   });
 });
 
@@ -475,8 +276,6 @@ describe("CAPACITYLENS_MODE password", () => {
     expect(me.statusCode).toBe(200);
     expect(parseAuthMeResponse(me).authMode).toBe("password-only");
     expect(parseAuthMeResponse(me).user.email).toBe("tester@capacitylens.dev");
-    expect(parseAuthMeResponse(me).mfaRequired).toBe(false);
-    expect(me.json()).toMatchObject({ requireMfa: false });
     // emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
     // verification infra, so Better Auth leaves the flag false, confirming the normalized flag
     // is present and defaults correctly (the invite-bind gate depends on it).

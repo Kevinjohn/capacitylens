@@ -248,7 +248,6 @@ try {
       db,
       lock: new KeyedOperationLock(),
       trustedLocal: false,
-      requireMfa: false,
     });
     // Reconfirm readiness under the same writer reservation that seals the boundary. This prevents
     // another server process from admitting a blocker between preflight and the cutover mutation.

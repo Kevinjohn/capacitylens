@@ -37,7 +37,6 @@ type ServerApplicationOptions = Pick<
   | "multiAccount"
   | "optimisticConcurrency"
   | "rateLimit"
-  | "requireMfa"
   | "trustProxyHeaders"
   | "webDir"
 >;
