@@ -1,3 +1,4 @@
+import { assertSupportedNodeVersion } from "../scripts/check-node.mjs";
 import { isMainThread, parentPort } from "node:worker_threads";
 import { remapAndValidateImport } from "@capacitylens/shared/domain/mutations";
 import type { AppData, ID, ISOTimestamp } from "@capacitylens/shared/types/entities";
@@ -10,6 +11,8 @@ export interface ImportWorkerRequest {
 }
 
 export type ImportWorkerResult = ReturnType<typeof remapAndValidateImport>;
+
+assertSupportedNodeVersion();
 
 if (!isMainThread) {
   const workerPort = parentPort;

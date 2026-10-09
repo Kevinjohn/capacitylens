@@ -18,7 +18,7 @@ minutes; running the full check suite takes longer.
 
 ## Prerequisites
 
-- Node 24, pinned in `.nvmrc`.
+- Node 24.19.0 or newer within 24.x, selected by `.nvmrc`.
 - pnpm, through Corepack — the version is pinned in `package.json`'s `packageManager` field.
 - `lsof`, which ships with macOS; install the `lsof` package on minimal Linux systems.
 - Docker, only if you plan to run the Docker Compose smoke tests.
@@ -29,6 +29,91 @@ minutes; running the full check suite takes longer.
 nvm use
 corepack enable
 pnpm install
+```
+
+## Check Node 26 compatibility
+
+Node 24.x, starting at 24.19.0, is supported and remains the development, build and deployment
+baseline. Node 26.x, starting at 26.9.0, has experimental compatibility maintained on a
+best-effort basis. Use the latest patch within either line. Other majors are outside this policy.
+Node 26 becoming LTS does not change the project's default or support commitment.
+
+The experimental floor includes the [SQLite backup completion fix in Node 26.9.0](https://nodejs.org/en/blog/release/v26.9.0).
+Earlier Node 26 releases are refused. Package constraints, the source preflight and packaged
+entrypoints enforce the same runtime floors. The [discovery record](/reference/node26-discovery)
+preserves the earlier investigation; [issue #710](https://github.com/Kevinjohn/capacitylens/issues/710)
+records current evidence and limitations.
+
+### Run the local compatibility check
+
+Select official Node 26.9.0 without changing `.nvmrc`:
+
+```bash
+nvm install 26.9.0
+```
+
+```bash
+nvm use 26.9.0
+```
+
+```bash
+node --version
+```
+
+Node 26 does not bundle Corepack. If pnpm is not already available, use the
+[standalone installer](https://pnpm.io/installation#using-a-standalone-script).
+From the repository root, download it:
+
+```bash
+curl --fail --show-error --location https://get.pnpm.io/install.sh --output /tmp/install-pnpm.sh
+```
+
+Install the version named by `packageManager`:
+
+```bash
+env PNPM_VERSION="$(node --input-type=module -e 'import { readFileSync } from "node:fs"; console.log(JSON.parse(readFileSync("package.json", "utf8")).packageManager.split("@")[1])')" sh /tmp/install-pnpm.sh
+```
+
+Follow the installer's shell setup instructions, then verify the runtime and package manager:
+
+```bash
+node --version
+```
+
+```bash
+pnpm --version
+```
+
+The pnpm version must match `package.json`. Install the frozen dependencies:
+
+```bash
+pnpm install --frozen-lockfile
+```
+
+Run the focused compatibility check:
+
+```bash
+pnpm run check:node26
+```
+
+It checks storage compatibility, SQLite authorization and timer-dependent backup completion,
+then exercises the packaged server and import worker with temporary fictional data. The packaged
+check verifies startup and periodic snapshot contents/integrity and clean shutdown. It reports
+runtime, package-manager version, revision, platform and elapsed time. Preserve the actual
+results and any known failures when reporting compatibility; do not describe selected checks as
+complete support. For a later official 26.x release, select that exact version before running it.
+
+Run this locally once weekly while development is active. It adds no scheduled GitHub Actions
+runs or checks to ordinary small fixes. Full coverage, dependency audits and browser suites are
+not part of the routine Node 26 check; run broader tests only when investigating a failure.
+Node 26-specific failures can remain documented without holding up a Node 24 release. Shared
+correctness or security defects retain their normal priority, and unsafe data paths must not be
+concealed by experimental status. Compatibility fixes have no guaranteed deadline.
+
+Return to the normal runtime before the repository's required checks:
+
+```bash
+nvm use
 ```
 
 ## Run modes

@@ -13,10 +13,14 @@ file. Only step 4 differs between hosts.
 5. **Open the address** and create your company. The setup token is the one `init` printed in
    step 3; you enter it once, to create the Owner.
 
-You need Node 24 on the system path and a hostname pointing at the host. The archive is tested on
+You need Node 24.19.0 or newer within 24.x on the system path and a hostname pointing at the host. The archive is tested on
 Ubuntu x86-64; other Linux distributions and macOS are expected to work but are not tested.
 The commands below name release X.Y.Z. For a newer release, use its version instead; the `VERSION`
 file in the archive names the one you have.
+
+Node 26.9.0 or newer within 26.x has experimental, best-effort compatibility. Complete
+functionality is not guaranteed; Node 24 is recommended. Use current patches within either
+runtime line. Older versions and other majors are refused before application data changes.
 
 ## Managed host (Forge and similar), no terminal
 
@@ -101,7 +105,7 @@ file in the archive names the one you have.
 ## Linux host with systemd
 
 Each `sudo` line does what a managed host does when you create a site: a user, a folder, a
-service and a proxy. Install Node 24 system-wide first (NodeSource or the official tarball into
+service and a proxy. Install Node 24.19.0 or newer within 24.x system-wide first (NodeSource or the official tarball into
 `/usr/local`). If you use nvm, copy its binary once:
 `sudo install -D -m 0755 "$(command -v node)" /usr/local/bin/node`.
 

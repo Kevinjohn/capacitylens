@@ -15,7 +15,10 @@ rebuild.
 
 ## Listener settings
 
-For a source checkout, use Node 24 or newer and run `pnpm --filter capacitylens-server start`.
+For a source checkout, use supported Node 24.19.0 or newer within 24.x and run `pnpm --filter capacitylens-server start`.
+Node 26.9.0 or newer within 26.x is experimental, with best-effort compatibility and no complete
+functionality guarantee. Other majors and versions below these floors are refused. Use current
+patches within your runtime line; see [the compatibility policy](/reference/development#check-node-26-compatibility).
 A release archive needs no pnpm: it starts with `node --env-file=<your env file> server/dist/index.mjs`.
 The server binds to localhost by default. Set the host explicitly to expose it on a network.
 Development-only variables, such as the test reset route and the development owner helper, are

@@ -14,14 +14,18 @@ next:
 This installs CapacityLens on a Linux host you manage yourself, from the release archive. It
 takes the five steps from [Install CapacityLens](/self-hosting/install), with a command or
 two for each of the first four. Each `sudo` line does what a managed host does when you create a site: a user, a
-folder, a service and a proxy. The target is ten minutes on a host that already has Node 24
+folder, a service and a proxy. The target is ten minutes on a host that already has supported Node 24
 and a hostname pointing at it.
+
+Node 26.9.0 or newer within 26.x is experimental and maintained on a best-effort basis.
+Complete functionality is not guaranteed; Node 24 is recommended. Use current patches within
+either line. See [the compatibility policy](/reference/development#check-node-26-compatibility).
 
 ## Prerequisites
 
 - A Linux host with systemd. The archive is tested on Ubuntu x86-64; other Linux distributions
   and macOS are expected to work but are not tested.
-- Node 24 on the system path. Install it system-wide first, from NodeSource or the official
+- Node 24.19.0 or newer within 24.x on the system path. Install it system-wide first, from NodeSource or the official
   tarball into `/usr/local`. If you use nvm, copy its binary once:
   `sudo install -D -m 0755 "$(command -v node)" /usr/local/bin/node`.
 - A hostname that points at the host.
