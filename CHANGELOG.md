@@ -36,6 +36,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Company-wide weekday labels and checkboxes now share larger targets that wrap on narrow Settings layouts (#1128).
 - Require Node 24.19.0 or newer within 24.x for the supported runtime. Admit Node 26.9.0 or
   newer within 26.x experimentally, with a focused local compatibility check and no scheduled
   Node 26 CI. Source and packaged entrypoints enforce the same minimums (#710).
