@@ -32,6 +32,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Require Node 24.19.0 or newer within 24.x for the supported runtime. Admit Node 26.9.0 or
+  newer within 26.x experimentally, with a focused local compatibility check and no scheduled
+  Node 26 CI. Source and packaged entrypoints enforce the same minimums (#710).
 - The documentation is reshaped into four role guides (day-to-day use, Owner, Admin, and install
   and run), each with its own landing page and sidebar, and one canonical page per topic: 70 pages
   instead of 91. The detailed `guide/` pages are merged into the matching day-to-day pages,
@@ -92,12 +95,6 @@ new features and **patch** versions carry fixes.
 
 - Updated the transitive `source-map-js` dependency to 1.2.2, resolving a high-severity
   event-loop denial-of-service advisory (GHSA-68fv-2mgg-jv7q).
-
-### Changed
-
-- Require Node 24.19.0 or newer within 24.x for the supported runtime. Admit Node 26.9.0 or
-  newer within 26.x experimentally, with a focused local compatibility check and no scheduled
-  Node 26 CI. Source and packaged entrypoints enforce the same minimums (#710).
 
 ## [0.73.0-alpha.1] - 2026-10-01
 
