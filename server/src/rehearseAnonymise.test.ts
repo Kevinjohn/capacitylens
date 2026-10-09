@@ -210,8 +210,9 @@ async function assertSchemaCoverage(): Promise<void> {
     await runAuthMigrations(assertAuth(auth));
     const tables = listSchemaTables(db);
     expect(tables.map(({ name }) => name)).toEqual(
-      expect.arrayContaining(["user", "account", "session", "verification", "twoFactor"]),
+      expect.arrayContaining(["user", "account", "session", "verification"]),
     );
+    expect(tables.map(({ name }) => name)).not.toContain("twoFactor");
     expect(listMissingSchemaEntries(db, tables)).toEqual([]);
   } finally {
     db.close();
