@@ -1,9 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { authTransactionGateFor, type GateSlot } from "../authTransactionGate";
+import { authTransactionGateFor } from "../authTransactionGate";
+import type { GateSlot } from "../authTransactionGate";
 import { AccountContractError, statusForAccountFailure } from "@capacitylens/shared/account/errors";
 import { CSP_REPORT_BODY_LIMIT } from "./systemRoutes";
 import { runWithRequestAbortSignal } from "../requestAbort";
-import { type Db } from "../db";
+import type { Db } from "../db";
 import { MAX_SERVER_CONNECTIONS, resolveSafeClientError } from "./appLimits";
 import { redactSecretUrl } from "./appLogging";
 import { resolveRequestClientIp, fail } from "./appErrors";
@@ -13,6 +14,7 @@ import { DEFAULT_CORS } from "./appConfig";
 import type { AppOptions } from "../app";
 import { installSecurityPlugins } from "./appSecurityPlugins";
 import { AUTH_CLIENT_IP_HEADER } from "../authConfig/sessionPolicy";
+import { REPLY_ERRORS } from "./replyErrors";
 
 interface InstallRootHooksInput {
   app: FastifyInstance;
@@ -66,8 +68,8 @@ interface InstallResponseHooksInput {
   trustProxyHeaders: boolean;
 }
 
-function isApiRequest(request: FastifyRequest): boolean {
-  return (request.url.split("?", 1)[0] ?? request.url).startsWith("/api/");
+function isApiRequest(req: FastifyRequest): boolean {
+  return (req.url.split("?", 1)[0] ?? req.url).startsWith("/api/");
 }
 
 function installResponseHooks(input: InstallResponseHooksInput): void {
@@ -112,7 +114,7 @@ function installCspReportParser(app: FastifyInstance): void {
       try {
         done(null, JSON.parse(typeof body === "string" ? body : body.toString("utf8")));
       } catch {
-        const error = new Error("Malformed CSP report") as Error & { code: string; statusCode: number };
+        const error = new Error(REPLY_ERRORS.malformedCspReport) as Error & { code: string; statusCode: number };
         error.code = "CAPACITYLENS_MALFORMED_CSP_REPORT";
         error.statusCode = 400;
         done(error, undefined);
@@ -121,7 +123,8 @@ function installCspReportParser(app: FastifyInstance): void {
   );
 }
 
-function createSecurityEvent(app: FastifyInstance, options: AppOptions, logOn: boolean) {
+type CreateSecurityEventOptions = { app: FastifyInstance; options: AppOptions; logOn: boolean };
+function createSecurityEvent({ app, options, logOn }: CreateSecurityEventOptions) {
   return (event: Record<string, unknown>): void => {
     try {
       const safeEvent = typeof event.path === "string" ? { ...event, path: redactSecretUrl(event.path) } : event;
@@ -139,16 +142,16 @@ function installConnectionHooks(
   securityEvent: (event: Record<string, unknown>) => void,
 ): void {
   // Every conversion of these headers for Better Auth carries the server's own client address.
-  app.addHook("onRequest", function stampAuthClientIp(request, _reply, done) {
-    request.headers[AUTH_CLIENT_IP_HEADER] = resolveRequestClientIp({
-      request,
+  app.addHook("onRequest", function stampAuthClientIp(req, _reply, done) {
+    req.headers[AUTH_CLIENT_IP_HEADER] = resolveRequestClientIp({
+      request: req,
       trustProxyHeaders: options.trustProxyHeaders === true,
     });
     done();
   });
-  app.addHook("onRequest", function abortOnClientDisconnect(request, reply, done) {
+  app.addHook("onRequest", function abortOnClientDisconnect(req, reply, done) {
     const controller = new AbortController();
-    request.raw.once("aborted", () => controller.abort(new Error("The request was aborted.")));
+    req.raw.once("aborted", () => controller.abort(new Error("The request was aborted.")));
     reply.raw.once("close", () => {
       if (!reply.raw.writableFinished) controller.abort(new Error("The client disconnected."));
     });
@@ -158,9 +161,9 @@ function installConnectionHooks(
         outcome: "blocked",
         queue,
         reason,
-        method: request.method,
-        path: request.url.split("?", 1)[0],
-        remoteIp: resolveRequestClientIp({ request, trustProxyHeaders: options.trustProxyHeaders === true }),
+        method: req.method,
+        path: req.url.split("?", 1)[0],
+        remoteIp: resolveRequestClientIp({ request: req, trustProxyHeaders: options.trustProxyHeaders === true }),
       }),
     );
   });
@@ -181,8 +184,8 @@ function installConnectionHooks(
  * would stall every sign-in. */
 function installAuthTransactionGate(app: FastifyInstance, db: Db): void {
   const gate = authTransactionGateFor(db);
-  app.addHook("onRequest", function holdAuthTransactionGate(request, reply, done) {
-    if (!isApiRequest(request)) {
+  app.addHook("onRequest", function holdAuthTransactionGate(req, reply, done) {
+    if (!isApiRequest(req)) {
       done();
       return;
     }
@@ -196,14 +199,14 @@ export function installRootHooks({ app, db, runtime, config, options }: InstallR
   const { auditDrainer, repliesWithAuditDrain } = runtime;
   const { logOn, rateLimitMax } = config;
   app.addHook("onClose", () => auditDrainer.stop());
-  const securityEvent = createSecurityEvent(app, options, logOn);
+  const securityEvent = createSecurityEvent({ app: app, options: options, logOn: logOn });
   installConnectionHooks(app, options, securityEvent);
   installAuthTransactionGate(app, db);
-  // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
+  // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, not a wildcard.
   const corsOrigin = options.corsOrigin ?? DEFAULT_CORS;
   const corsOrigins = resolveCorsOrigins(corsOrigin);
-  // 500s with logging ON go through the request-scoped logger (one parseable JSON line,
-  // correlated with the request); OFF keeps today's bare console.error.
+  // 500s with logging on go through the request-scoped logger (one parseable JSON line,
+  // correlated with the request); off keeps today's bare console.error.
   const sendFail = (reply: FastifyReply, error: unknown) =>
     fail(reply, error, logOn ? (e: unknown) => reply.log.error(e) : undefined);
   const accountFail = (reply: FastifyReply, error: unknown) => {
@@ -223,7 +226,7 @@ export function installRootHooks({ app, db, runtime, config, options }: InstallR
       ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
     });
   };
-  // Single redaction funnel for any UNCAUGHT throw (a route that forgot a try/catch, a
+  // Single redaction funnel for any uncaught throw (a route that forgot a try/catch, a
   // SQLITE_BUSY thrown mid-statement). Positively identified parsing errors carry safe messages.
   // A duck-typed statusCode alone proves nothing about message safety; unknown errors route through
   // fail() so a 500 stays generic and a 400 DB-constraint message cannot leak schema internals.
@@ -239,7 +242,7 @@ export function installRootHooks({ app, db, runtime, config, options }: InstallR
       });
       if (logOn) req.log.error(error);
       else console.error(error);
-      return reply.code(errorStatus).send({ error: "Internal server error" });
+      return reply.code(errorStatus).send({ error: REPLY_ERRORS.internalServerError });
     }
     const safe = resolveSafeClientError(error);
     if (safe) {

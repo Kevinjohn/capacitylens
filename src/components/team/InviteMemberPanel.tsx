@@ -4,20 +4,20 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
-import type { TeamInvitation } from "../../account/teamAccessClient";
+import type { TeamInvitation } from "@/account/teamAccessClient";
 import type { InvitationPersonOption } from "./useMemberInvites";
 import { formatInviteExpiryDate } from "@/components/invites/inviteExpiry";
-import { resolveRoleLabel, resolveRoleSummary } from "../../lib/accessCopy";
-import { Modal, SelectField, TextField } from "../common/ui";
-import { Button } from "../ui/button";
-import { FieldError, FieldSet } from "../ui/field";
+import { resolveRoleLabel, resolveRoleSummary } from "@/lib/accessCopy";
+import { Modal, SelectField, TextField } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
+import { FieldError, FieldSet } from "@/components/ui/field";
 import { sortInvitationsForPresentation } from "./buildMemberDirectoryPresentation";
 
 /**
  * A write-once "here is a freshly-minted link, copy it now" block (shared by the invite link and the
  * password-reset link). Renders the `break-all` <code> + ghost copy Button once; the token behind the
- * link is never read back. Pass `intro` (a <p>) to prepend an explanatory line — the reset block uses
- * it to name WHO/when; the invite block omits it. Structure is intentionally two shapes (the intro
+ * link is never read back. Pass `intro` (a <p>) to prepend an explanatory line, the reset block uses
+ * it to name who/when; the invite block omits it. Structure is intentionally two shapes (the intro
  * variant needs an outer vertical stack) so both call sites keep their exact prior markup.
  */
 export function CopyableLinkBlock({
@@ -287,7 +287,8 @@ type OutstandingInvitesProps = Pick<
   "invites" | "renderedAt" | "busy" | "revokeInvite" | "invitationPeople"
 >;
 
-function resolveInvitationStatus(invitation: TeamInvitation, expired: boolean): string {
+type ResolveInvitationStatusOptions = { invitation: TeamInvitation; expired: boolean };
+function resolveInvitationStatus({ invitation, expired }: ResolveInvitationStatusOptions): string {
   if (invitation.usedAt) return m.settings_invite_suffix_used();
   if (expired) return m.settings_invite_suffix_expired();
   // Invite validity spans several days, so keep this compact row date-only while rendering the
@@ -343,7 +344,7 @@ function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, invitatio
                       {invitation.preauthEmail ?? m.settings_invite_table_link()}
                     </span>
                     <span className="block">
-                      {resolveInvitationStatus(invitation, expired).replace(/^\s*·\s*/, "")}
+                      {resolveInvitationStatus({ invitation: invitation, expired: expired }).replace(/^\s*·\s*/, "")}
                     </span>
                   </td>
                   <td className="py-2 px-4 text-xs text-muted-foreground">

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 // Mock the Better Auth client so the forms can submit without a real server. signIn.email /
-// signUp.email return the library's FAILURE shape ({ error }) so each form sets its inline error
+// signUp.email return the library's failure shape ({ error }) so each form sets its inline error
 // and the per-control describedby wires up.
 const signInEmail = vi.fn();
 const signInSocial = vi.fn();
@@ -279,7 +279,7 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    // The role=alert error renders, and BOTH inputs describe it (re-announced on re-navigation).
+    // The role=alert error renders, and both inputs describe it (re-announced on re-navigation).
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Invalid email or password.");
     const errorId = alert.getAttribute("id");
@@ -309,7 +309,7 @@ function registerOwnerSetupDisplayTests() {
     expect(screen.getByLabelText("Create a password")).not.toHaveAccessibleDescription("Use 15–128 characters.");
     expect(screen.getByLabelText("Owner setup token")).toHaveAttribute("placeholder", "Paste the setup token");
     expect(screen.getByLabelText("Owner setup token")).toHaveAccessibleDescription(
-      "Paste the value of SMALLSASS_ACCOUNT_SETUP_TOKEN from the .env file, on the server. Ask the person who installed it for you. You cannot proceed without it.",
+      "Paste the value of CAPACITYLENS_SETUP_TOKEN from the .env file, on the server. Ask the person who installed it for you. You cannot proceed without it.",
     );
     expect(screen.queryByText(/server has no users/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
@@ -534,8 +534,8 @@ function registerOwnerSetupValidationTests() {
 
 function registerOwnerSetupAccessibilityAndRaceTests() {
   it("drops out of setup into the ordinary sign-in form when another operator wins the setup race", async () => {
-    // Better Auth's live per-request gate (server/src/auth.ts) refuses a SECOND sign-up with this
-    // exact typed code once a user exists — the shape a losing second tab/operator would see.
+    // Better Auth's live per-request gate (server/src/auth.ts) refuses a second sign-up with this
+    // exact typed code once a user exists, the shape a losing second tab/operator would see.
     signUpEmail.mockResolvedValue({
       error: { message: "Email and password sign up is not enabled", code: "EMAIL_PASSWORD_SIGN_UP_DISABLED" },
     });
@@ -647,7 +647,7 @@ describe("LoginScreen — degraded 401 body notice", () => {
   it("shows the non-terminal advisory above the form when degraded is true", () => {
     render(<LoginScreen authMode="password-only" degraded onSignedIn={vi.fn()} />);
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
-    // Still a fully usable password form underneath the advisory — never a dead end.
+    // Still a fully usable password form underneath the advisory, never a dead end.
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
   });

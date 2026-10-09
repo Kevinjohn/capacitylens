@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { createApp } from "./app";
 import { openDb } from "./db";
-import { PASSWORD_ENV } from "./testHelpers";
+import { PASSWORD_ENV } from "./testHelpers/passwordAuth";
 
 let events: Record<string, unknown>[];
 
@@ -98,7 +98,7 @@ function createMalformedReportTest(): void {
       payload: "{",
     });
     expect(malformed.statusCode).toBe(400);
-    expect(malformed.json()).toEqual({ error: "Malformed CSP report" });
+    expect(malformed.json()).toEqual({ error: "Malformed CSP report." });
 
     const oversized = await app.inject({
       method: "POST",
@@ -107,7 +107,7 @@ function createMalformedReportTest(): void {
       payload: JSON.stringify({ padding: "x".repeat(65 * 1024) }),
     });
     expect(oversized.statusCode).toBe(413);
-    expect(oversized.json()).toEqual({ error: "Request body is too large" });
+    expect(oversized.json()).toEqual({ error: "Request body is too large." });
 
     const crossSite = await app.inject({
       method: "POST",

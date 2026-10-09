@@ -1,17 +1,11 @@
-import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from "../../lib/lanePacking";
-import { isHalfDay } from "../../lib/capacity";
+import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from "@/lib/lanePacking";
+import { isHalfDay } from "@/lib/capacity";
 import { rangesOverlap, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { resolveBarColor } from "@capacitylens/shared/lib/color";
-import { resolveTimeOffTypeLabel } from "../../lib/metadata";
-import {
-  isExternalResource,
-  type Allocation,
-  type ID,
-  type ISODate,
-  type Resource,
-  type TimeOff,
-} from "@capacitylens/shared/types/entities";
+import { resolveTimeOffTypeLabel } from "@/lib/metadata";
+import { isExternalResource } from "@capacitylens/shared/types/entities";
+import type { Allocation, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { isCreationStartBlockedForEffectiveWeek } from "./creationAvailability";
 import { hasRenderableDateRange, reportInvalidScheduleDateRangeOnce } from "./schedulerModelIndexing";
 import type { createAllocationFilters } from "./schedulerModelFilters";
@@ -63,14 +57,11 @@ function listVisibleAllocations(input: {
   allAllocations: Allocation[];
   dimmed: boolean;
   hasTimelineIntersection: (row: { startDate: ISODate; endDate: ISODate }) => boolean;
-  filters: Pick<AllocationFilters, "notTentativeHidden" | "barVisibleByInternalPref">;
+  filters: Pick<AllocationFilters, "notTentativeHidden">;
   matchingVisibleAllocations: Allocation[];
 }): Allocation[] {
   if (!input.dimmed) return input.matchingVisibleAllocations;
-  return input.allAllocations
-    .filter(input.filters.notTentativeHidden)
-    .filter(input.hasTimelineIntersection)
-    .filter(input.filters.barVisibleByInternalPref);
+  return input.allAllocations.filter(input.filters.notTentativeHidden).filter(input.hasTimelineIntersection);
 }
 
 function buildBars(input: {
@@ -165,15 +156,14 @@ export function createRowBuilder({
     // Resolve the company/personal intersection once for the whole row. Capacity, creation
     // blocking, visible utilisation and overSoon all reuse this discriminated result.
     const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
-    // A row is "dimmed" when a work filter (client/project OR the activity lens) is active and
-    // this resource has NO MATCHING BAR in the displayed timeline — we still show their full
+    // A row is "dimmed" when a work filter (client/project or the activity lens) is active and
+    // this resource has no matching bar in the displayed timeline. We still show their full
     // real load (so you can see who's free to staff), just visually de-emphasised. Deriving this
     // from the exact matching bar set means off-timeline and otherwise hidden matches cannot
     // create a full-opacity, zero-bar "ghost" row that escapes the show-unmatched filter.
     const matchingVisibleAllocations = allAllocations
       .filter(allocationFilters.allocVisible)
-      .filter(hasTimelineIntersection)
-      .filter(allocationFilters.barVisibleByInternalPref);
+      .filter(hasTimelineIntersection);
     const dimmed = allocationFilters.workFilterActive && matchingVisibleAllocations.length === 0;
     const visibleAllocations = listVisibleAllocations({
       allAllocations,
@@ -198,8 +188,8 @@ export function createRowBuilder({
       .filter(hasTimelineIntersection)
       .map((entry) => buildTimeOffBlock(entry, geometry));
     const timeOff: TimeOffBlock[] = capacity.tracked ? personalTimeOffBlocks : NO_TIME_OFF_BLOCKS;
-    // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the
-    // `overSoon` red flag runs over the FIXED forward window [overStart, overEnd] — two
+    // The displayed utilisation % runs over the visible window [visStart, visEnd]; the
+    // `overSoon` red flag runs over the fixed forward window [overStart, overEnd], two
     // deliberately separate signals (see the param doc above). Utilisation ignores zero-capacity
     // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
     // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot

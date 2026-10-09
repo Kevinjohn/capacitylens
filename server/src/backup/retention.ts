@@ -68,17 +68,17 @@ interface PruneInput {
 }
 
 /** Delete the oldest snapshots beyond `keep`; returns how many were pruned. Only files
- *  matching the snapshot pattern are touched — anything else in the dir is left alone.
- *  Never throws: prune() runs AFTER writeSnapshot() has renamed a complete snapshot into
- *  place, so a rejection here would fail (and page an operator over) a backup that actually
- *  SUCCEEDED — a false runbook alarm. Retention is retried on every snapshot anyway. */
+ * matching the snapshot pattern are touched, anything else in the dir is left alone.
+ * Never throws: prune() runs after writeSnapshot() has renamed a complete snapshot into
+ * place, so a rejection here would fail (and page an operator over) a backup that actually
+ * succeeded, a false runbook alarm. Retention is retried on every snapshot anyway. */
 export function prune({ dir, keep, database, currentFile, log }: PruneInput): number {
   let files: string[];
   try {
     files = listSnapshots(dir, database);
   } catch (error) {
     // Can't even list the dir (stale NFS handle, EACCES): retention is skipped this round for
-    // the same reason as below — it must not turn a successful snapshot into a rejection.
+    // the same reason as below. It must not turn a successful snapshot into a rejection.
     log(
       `capacitylens-server: backup retention skipped — cannot list ${dir} — ${error instanceof Error ? error.message : String(error)}`,
     );
@@ -91,12 +91,12 @@ export function prune({ dir, keep, database, currentFile, log }: PruneInput): nu
     const p = join(dir, candidate);
     try {
       // `force` swallows exactly ENOENT: a file deleted out from under us (external cleanup
-      // between the readdir and this rm) is gone either way — that IS the retention outcome.
+      // between the readdir and this rm) is gone either way. That is the retention outcome.
       rmSync(p, { force: true });
       pruned++;
     } catch (error) {
       // Anything else (EACCES after a container uid change, a directory squatting on a
-      // snapshot name): surface and skip — the next snapshot's prune retries it.
+      // snapshot name): surface and skip, the next snapshot's prune retries it.
       log(
         `capacitylens-server: backup retention failed to remove ${p} — ${error instanceof Error ? error.message : String(error)}`,
       );

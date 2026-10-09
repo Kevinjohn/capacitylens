@@ -2,8 +2,8 @@
 
 **Area:** Allocation editor and schedule details · **Persona:** Studio manager
 
-**Documentation:** [Settings — Allocation task field](../../docs-src/guide/settings.md#allocation-task-field)
-and [Projects and allocations](../../docs-src/guide/projects-and-allocations.md#create-an-allocation)
+**Documentation:** [Settings — Allocation task field](../../docs-src/using/settings.md#allocation-task-field)
+and [Schedule and change work](../../docs-src/using/schedule-work.md#create-an-allocation)
 
 ## Goal
 
@@ -18,7 +18,7 @@ and keeps Notes available for longer context.
 
 ## How (end-to-end)
 
-1. Open **Settings → Scheduling features → Allocation task field** and enable **Show task field in schedule**.
+1. Open **Settings → Scheduling features → Company features** and enable **Show task field in schedule**.
 2. Create or edit an allocation. The single-line **Task** field appears below the activity controls.
 3. Enter a short description and save.
 4. Hover or focus the allocation bar to read the task above its Notes. The same task appears in the

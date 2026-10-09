@@ -13,9 +13,11 @@ test("ordinary server tests reset only their claimed lane despite an inherited A
     const { API, resetServer } = await import("../e2e/serverTestState.ts");
     const requests = [];
     await resetServer({
-      post: async (url, options) => {
-        requests.push({ url, options });
-        return { ok: () => true };
+      request: {
+        post: async (url, options) => {
+          requests.push({ url, options });
+          return { ok: () => true };
+        },
       },
     });
     assert.equal(API, "http://localhost:8790");

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
-import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
 import {
@@ -11,48 +10,19 @@ import {
   SESSION_INACTIVITY_TTL_SECONDS,
 } from "./auth";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
-import { call, PASSWORD_ENV } from "./testHelpers";
+import { call, PASSWORD_ENV, cookiesOf } from "./testHelpers/passwordAuth";
+import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 import { tx } from "./txn";
-import { authTransactionGateFor, type GateSlot } from "./authTransactionGate";
-
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function headerValues(value: string | string[] | undefined): string[] {
-  if (Array.isArray(value)) return value;
-  if (value === undefined) return [];
-  return [value];
-}
-
-// This suite keeps its own cookie reader rather than testHelpers' readCookies. readCookies models
-// a browser cookie jar: it de-duplicates by name and drops expired cookies. This one reports every
-// Set-Cookie the server actually sent. The difference is load-bearing in app.auth.bootstrap.test.ts,
-// whose assertions require that a rejected sign-up set no session cookie at all — a cleared cookie
-// must still be visible to fail them. Kept in every file of the suite so the reader is consistent.
-function cookiesOf(res: LightMyRequestResponse): string {
-  const raw = res.headers["set-cookie"];
-  return headerValues(raw)
-    .map((c) => String(c).split(";")[0])
-    .join("; ");
-}
+import { authTransactionGateFor } from "./authTransactionGate";
+import type { GateSlot } from "./authTransactionGate";
 
 const TS = "2026-01-01T00:00:00.000Z";
 
-// P3.1/P3.2/P3.5 (flag SMALLSASS_ACCOUNT_MODE → opts.authMode/auth). The load-bearing assertion set:
-// OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
-// by running unchanged — these tests add the /api/auth/me surface and the absence of the
-// Better Auth routes); password gates every data route on a real session; sso issues a
+// The CAPACITYLENS_MODE flag (opts.authMode/auth). The load-bearing assertion set: off is
+// byte-for-byte today (the whole existing app.test.ts suite already enforces that by running
+// unchanged; these tests add the /api/auth/me surface and the absence of the Better Auth
+// routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
-
-function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
-  if (auth === null) throw new Error("Expected authentication to be configured.");
-  return auth;
-}
-
-async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, env);
-  await runAuthMigrations(parseConfiguredAuth(auth));
-  return createApp(db, { authMode: mode, auth });
-}
 
 async function createSessionManagementFixture() {
   const db = openDb(":memory:");
@@ -148,7 +118,7 @@ function createLifecycleRaceFixture(next: string | null) {
 }
 void createLifecycleRaceFixture;
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("does not delete a session touched after an expired request resolved its stale snapshot", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -171,7 +141,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("does not move a concurrent newer session touch backward", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -193,7 +163,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("destroys a session resolved with a non-finite activity timestamp", async () => {
     const db = openDb(":memory:");
     db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
@@ -206,7 +176,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it.each([
     ["a vanished row", false],
     ["an unparseable stored timestamp", true],
@@ -225,7 +195,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("adopts a concurrent touch when the idle-expiry CAS delete loses", async () => {
     const raw = openDb(":memory:");
     raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
@@ -282,7 +252,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("revokes dependent sessions when malformed activity is deleted during a touch", async () => {
     const db = openDb(":memory:");
     const token = "touch-invalid-lifecycle";
@@ -310,7 +280,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("adopts the winner when the activity-touch CAS loses", async () => {
     const raw = openDb(":memory:");
     raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
@@ -350,9 +320,9 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("sign-out invalidates the session again", async () => {
-    const app = await appWithAuth(PASSWORD_ENV);
+    const { app } = await appWithAuth({ env: PASSWORD_ENV });
     const signUp = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -382,7 +352,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("lists and revokes sessions through neutral opaque handles without exposing bearer tokens", async () => {
     const { app, cookie, db, raw, staleHandle } = await createSessionManagementFixture();
 
@@ -426,9 +396,9 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("propagates sign-out cookie clearing through the neutral account route", async () => {
-    const app = await appWithAuth(PASSWORD_ENV);
+    const { app } = await appWithAuth({ env: PASSWORD_ENV });
     const signUp = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -458,7 +428,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("never nests a concurrent write in an in-flight sign-up", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -527,7 +497,7 @@ async function turns(count: number) {
   for (let index = 0; index < count; index++) await new Promise((resolve) => setImmediate(resolve));
 }
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("holds an API write until a library transaction finishes, then commits it on its own", async () => {
     const { db, write, names, gate } = await gatedWriteFixture();
     let release!: () => void;
@@ -551,7 +521,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("opens Better Auth's sign-up transaction only after in-flight writers finish", async () => {
     const { app, db, gate } = await gatedWriteFixture();
     const writer: GateSlot = { held: false, closed: false };
@@ -576,7 +546,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   // The gate finds a request's slot through async context. inject() always keeps that context, so
   // prove it also survives a real socket whose body arrives after the headers.
   it("completes a sign-up whose body arrives after its headers", async () => {

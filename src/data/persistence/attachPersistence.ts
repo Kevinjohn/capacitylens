@@ -1,13 +1,16 @@
 import type { FlushPendingWritesResult } from "./facades";
 import type { StoreApi } from "zustand";
-import type { StoreState } from "../../store/useStore";
-import type { PersistenceAdapter } from "../PersistenceAdapter";
+import type { StoreState } from "@/store/useStore";
+import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
 import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
-import { resetPersistenceDiagnostics } from "../persistenceDiagnostics";
+import { resetPersistenceDiagnostics } from "@/data/persistenceDiagnostics";
 import { persistenceCoordinator } from "./coordinator";
-import { createAttachmentState, type AttachmentState } from "./attachmentState";
-import { createWriteQueue, type WriteQueue } from "./writeQueue";
-import { createRefreshController, type RefreshController } from "./refreshController";
+import { createAttachmentState } from "./attachmentState";
+import type { AttachmentState } from "./attachmentState";
+import { createWriteQueue } from "./writeQueue";
+import type { WriteQueue } from "./writeQueue";
+import { createRefreshController } from "./refreshController";
+import type { RefreshController } from "./refreshController";
 import { attachAccountSwitch } from "./accountSwitch";
 import { attachDomListeners } from "./domListeners";
 
@@ -36,10 +39,10 @@ function attachStoreSubscription(
   return store.subscribe((state) => {
     if (owner.current.disposed || state.data === owner.current.lastData) return;
     owner.update({ lastData: state.data });
-    // The orchestrator's slice load is not a user edit — track lastData (done) but DON'T save it.
+    // The orchestrator's slice load is not a user edit, track lastData (done) but don't save it.
     if (owner.current.loadingSlice) return;
     owner.update({ unacknowledged: state.data, terminalBatchSnapshot: null, lastError: null });
-    // Suspended (a slice replacement is in flight): PARK the edit — record it in `pending` with no
+    // Suspended (a slice replacement is in flight): park the edit, record it in `pending` with no
     // timer so nothing sends it. It is rebased by a successful reload, or re-scheduled on resume
     // when the suspending operation failed before any reload.
     if (owner.current.suspendDepth > 0) {
@@ -88,7 +91,7 @@ function isWriteStateClean(owner: AttachmentState): boolean {
 function createFlushPending(owner: AttachmentState, writes: WriteQueue): () => Promise<FlushPendingWritesResult> {
   return async () => {
     if (isFlushBlocked(owner)) return { kind: "blocked" };
-    // Loop until QUIESCENT, not just one round: writes are unsuspended during the await, so an edit
+    // Loop until quiescent, not just one round: writes are unsuspended during the await, so an edit
     // landing mid-flush arms a fresh debounce whose save can outlive a single await. A one-shot
     // flush would then return "clean" while that save is still on the wire, and the caller's import
     // POST would race it (the exact pre-suspension window this sequence closes). The caps prevent
@@ -122,7 +125,7 @@ function hasUnsavedWrites(owner: AttachmentState): boolean {
 
 function attachCoordinator(parts: PersistenceParts, accountSwitch: ReturnType<typeof attachAccountSwitch>): () => void {
   const { owner, refresh, serverMode } = parts;
-  // Register the orchestrator-backed refresh for out-of-band server writers. Server mode only —
+  // Register the orchestrator-backed refresh for out-of-band server writers. Server mode only,
   // the demo build's lifecycle actions mutate the store directly and never reload. Save failure
   // aborts because a convenience re-hydrate must never destroy un-persisted edits.
   const registeredRefresh = serverMode ? (id: string) => refresh.refreshActive(id, { abortIfSaveFailed: true }) : null;
@@ -158,19 +161,19 @@ function attachAllocationRewriteHandler({ store, adapter }: Pick<PersistencePart
 }
 
 /**
- * Wire the store to a PersistenceAdapter (OUTSIDE the store) and return a hard-detach function.
+ * Wire the store to a PersistenceAdapter (outside the store) and return a hard-detach function.
  * Detach cancels ownership without initiating a final write; a caller that needs a confirmed handoff
  * must call {@link flushPendingWrites} before detaching.
  *
- * Lifecycle of a write — the moving parts, top-down (each is detailed inline below):
- *  1. A data change fires the store subscription → schedule a DEBOUNCED save (immediate when
+ * Lifecycle of a write. The moving parts, top-down (each is detailed inline below):
+ *  1. A data change fires the store subscription → schedule a debounced save (immediate when
  *     `debounceMs <= 0`). A fresh edit resets the retry budget.
  *  2. `save()` runs `adapter.saveAll`; on success it clears the error state (`onSuccess`) and the
  *     retry budget, on failure it calls `onError` and `scheduleRetry()`.
- *  3. `scheduleRetry()` re-sends the LATEST store state with capped exponential backoff
+ *  3. `scheduleRetry()` re-sends the latest store state with capped exponential backoff
  *     (max 5 attempts), so a transient failure self-heals without waiting for the next edit.
- *  4. A STRANDED write (failed AND budget exhausted) is re-attempted when the connection plausibly
- *     recovers — the `online` event, or the tab becoming visible again (gated on a real failure).
+ *  4. A stranded write (failed and budget exhausted) is re-attempted when the connection plausibly
+ *     recovers: the `online` event, or the tab becoming visible again (gated on a real failure).
  *  5. `visibilitychange→hidden` flushes through the normal serialized path while the page survives;
  *     `pagehide` uses the adapter's keepalive teardown path.
  */

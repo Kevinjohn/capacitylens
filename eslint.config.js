@@ -28,6 +28,64 @@ const sharedTestFiles = [
 ];
 const appTestFiles = ["src/**/*.{test,spec}.{ts,tsx}", "src/**/__tests__/**/*.{ts,tsx}"];
 
+// `@/` maps only to src/, so it cannot name a repository file outside it. These files read one,
+// and each may import only the specifiers listed against it.
+const parentImportAllowances = {
+  "src/data/buildInfo.ts": ["../../package.json"],
+  "src/build/staticSpaRouteDocuments.test.ts": ["../../vite.config"],
+  "src/bundleBudgetGate.test.ts": ["../scripts/bundleBudget.mjs"],
+  "src/csp.test.ts": [
+    "../nginx.conf?raw",
+    "../nginx.client.conf.template?raw",
+    "../nginx-security-headers.conf?raw",
+    "../scripts/render-client-nginx.mjs",
+  ],
+  "src/fileCoverageGate.test.ts": ["../scripts/check-file-coverage.mjs"],
+  "src/playwrightServerScope.test.ts": ["../scripts/playwrightServerScope", "../scripts/playwrightRunMode.mjs"],
+  "src/pnpmSpawn.test.ts": ["../scripts/pnpmSpawn.mjs"],
+  "src/router.test.tsx": ["../scripts/staticSpaRoutes.mjs"],
+  "src/serve-dist.test.ts": ["../scripts/serve-dist.mjs"],
+  "src/test/generateDocumentationComponentId.test.ts": [
+    "../../docs-src/.vitepress/generateDocumentationComponentId.mts",
+    "../../docs-src/.vitepress/config.mts",
+  ],
+};
+
+const inlineTypeImportGuard = {
+  selector: "ImportSpecifier[importKind='type']",
+  message: "Use a separate `import type` declaration for type-only imports.",
+};
+
+const recordGuard = {
+  selector: "FunctionDeclaration[id.name=/^is(Unknown)?Record$/], VariableDeclarator[id.name=/^is(Unknown)?Record$/]",
+  message: "Import isRecord from @capacitylens/shared/lib/isRecord instead of defining another copy.",
+};
+
+/**
+ * Rejects parent-relative app module specifiers (`..` or `../…`) in static imports, `import()`,
+ * `import("…")` types and Vitest module calls, except the exact specifiers listed. `/` is written
+ * as `\x2F` because selector regexes cannot contain a slash.
+ */
+function parentImportRules(allowedSpecifiers) {
+  const allowed = allowedSpecifiers.map((specifier) => specifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const lookahead = allowed.length ? `(?!(?:${allowed.join("|")})$)` : "";
+  const regex = `^${lookahead}\\.\\.(?:/|$)`.replaceAll("/", "\\x2F");
+  const message = "Import from another folder with `@/…`; use `./` only within the importing file's folder.";
+  const vitestModuleCall =
+    "CallExpression[callee.object.name='vi'][callee.property.name=/^(mock|doMock|unmock|doUnmock|importActual|importMock)$/]";
+  return {
+    "no-restricted-imports": ["error", { patterns: [{ regex, message }] }],
+    "no-restricted-syntax": [
+      "error",
+      recordGuard,
+      inlineTypeImportGuard,
+      { selector: `ImportExpression > Literal.source[value=/${regex}/]`, message },
+      { selector: `TSImportType[source.value=/${regex}/]`, message },
+      { selector: `${vitestModuleCall} > Literal.arguments:first-child[value=/${regex}/]`, message },
+    ],
+  };
+}
+
 const gitIgnoredPaths = readFileSync(new URL(".gitignore", import.meta.url), "utf8")
   .split(/\r?\n/)
   .map((line) => line.trim())
@@ -85,6 +143,13 @@ export default defineConfig([
   {
     files: ["**/*.{ts,tsx,mts,cts}"],
     extends: [js.configs.recommended, tseslint.configs.recommended],
+    rules: {
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        { prefer: "type-imports", fixStyle: "separate-type-imports", disallowTypeAnnotations: false },
+      ],
+      "no-restricted-syntax": ["error", inlineTypeImportGuard],
+    },
   },
 
   // The web app is the only React package — React/Fast-Refresh rules and browser
@@ -269,16 +334,17 @@ export default defineConfig([
     files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
     ignores: ["shared/src/lib/isRecord.ts"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector:
-            "FunctionDeclaration[id.name=/^is(Unknown)?Record$/], VariableDeclarator[id.name=/^is(Unknown)?Record$/]",
-          message: "Import isRecord from @capacitylens/shared/lib/isRecord instead of defining another copy.",
-        },
-      ],
+      "no-restricted-syntax": ["error", recordGuard, inlineTypeImportGuard],
     },
   },
+
+  // App imports that leave the importing file's folder use `@/…`; `./` stays within a folder.
+  // These blocks restate the record guard because a later no-restricted-syntax replaces it.
+  { files: ["src/**/*.{ts,tsx}"], rules: parentImportRules([]) },
+  ...Object.entries(parentImportAllowances).map(([file, allowed]) => ({
+    files: [file],
+    rules: parentImportRules(allowed),
+  })),
 
   // Colocated shared tests use Node; production resolves through the pure package project.
   {

@@ -3,24 +3,24 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
-import { AppShell } from "../AppShell";
+import { AppShell } from "@/components/AppShell";
 import { AccountPicker } from "./AccountPicker";
-import { AuthContext } from "../../auth/authContext";
-import { AuthProvider } from "../../auth/AuthProvider";
-import { useStore } from "../../store/useStore";
+import { AuthContext } from "@/auth/authContext";
+import { AuthProvider } from "@/auth/AuthProvider";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
-import { resolveBrowserTimeZone } from "../../lib/timezones";
+import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { resolveBrowserTimeZone } from "@/lib/timezones";
 
 // Mutable API configuration lets server-mode tests opt in while the rest exercise demo-store paths.
 const serverFlag = vi.hoisted(() => ({ on: false }));
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isDemoMode: () => !serverFlag.on,
   isServerConfigured: () => serverFlag.on,
 }));
 
-vi.mock("../../auth/accountTransition", () => ({
+vi.mock("@/auth/accountTransition", () => ({
   transitionAccount: vi.fn(async (id: string | null) => {
     useStore.getState().setActiveAccount(id);
     return true;
@@ -28,7 +28,8 @@ vi.mock("../../auth/accountTransition", () => ({
 }));
 
 /** Render with the single-company capability and the real context's remaining off-mode defaults. */
-function withCanCreateAccount(canCreateAccount: boolean, ui: ReactNode) {
+type WithCanCreateAccountOptions = { canCreateAccount: boolean; ui: ReactNode };
+function withCanCreateAccount({ canCreateAccount, ui }: WithCanCreateAccountOptions) {
   return render(
     <AuthContext.Provider
       value={{
@@ -48,7 +49,9 @@ function withCanCreateAccount(canCreateAccount: boolean, ui: ReactNode) {
 /** Seed both account data and the server-sourced summaries the picker renders. */
 function seedAccounts(...accounts: ReturnType<typeof makeAccount>[]) {
   useStore.getState().replaceAll(makeAppData({ accounts }));
-  useStore.getState().setAccountSummaries(accounts.map((a) => ({ id: a.id, name: a.name, role: "owner" as const })));
+  useStore
+    .getState()
+    .setAccountSummaries({ list: accounts.map((a) => ({ id: a.id, name: a.name, role: "owner" as const })) });
 }
 
 function requireAccount(name: string) {
@@ -66,11 +69,11 @@ beforeEach(() => {
   serverFlag.on = false;
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
-  useStore.getState().setAccountSummaries([]);
+  useStore.getState().setAccountSummaries({ list: [] });
   useStore.getState().setHydrated(true);
   useStore.getState().setNotice(null);
   // Sign through the cosmetic demo gate so AppShell renders the picker (the demo sign-in
-  // sits in front of it) — these tests exercise the account gate, not the demo one.
+  // sits in front of it). These tests exercise the account gate, not the demo one.
   useStore.getState().setFakeSignedIn(true);
 });
 
@@ -306,13 +309,15 @@ describe("AccountPicker server-mode list (P1.13)", () => {
 function registerServerListMembershipTests() {
   it("lists from accountSummaries, NOT data.accounts (server mode holds only the active slice in data)", () => {
     serverFlag.on = true;
-    // Simulate server mode: `data` holds only ONE account (the active slice would, post-load), but the
-    // login has TWO memberships in accountSummaries. The picker must show BOTH from the summaries.
+    // Simulate server mode: `data` holds only one account (the active slice would, post-load), but the
+    // login has two memberships in accountSummaries. The picker must show both from the summaries.
     useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: "a1", name: "Active Co" })] }));
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Active Co", role: "owner" },
-      { id: "a2", name: "Other Co", role: "editor" }, // NOT in data.accounts
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Active Co", role: "owner" },
+        { id: "a2", name: "Other Co", role: "editor" }, // Not in data.accounts
+      ],
+    });
     render(
       <AuthContext.Provider
         value={{
@@ -337,7 +342,7 @@ function registerServerListMembershipTests() {
 function registerServerListAccessTests() {
   it("labels an auth-off persisted server as open access instead of demo or Owner", () => {
     serverFlag.on = true;
-    useStore.getState().setAccountSummaries([{ id: "a1", name: "Open Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a1", name: "Open Co", role: "owner" }] });
 
     render(<AccountPicker />);
 
@@ -349,7 +354,7 @@ function registerServerListAccessTests() {
     serverFlag.on = true;
     useStore
       .getState()
-      .setAccountSummaries([{ id: "a1", name: "Unclear Co", role: "viewer", roleStatus: "unavailable" }]);
+      .setAccountSummaries({ list: [{ id: "a1", name: "Unclear Co", role: "viewer", roleStatus: "unavailable" }] });
 
     render(
       <AuthContext.Provider
@@ -375,12 +380,12 @@ function registerServerListAccessTests() {
 function registerUnloadedAccountActivationTest() {
   it("activates an account whose slice is NOT loaded (existence via summaries)", async () => {
     const user = userEvent.setup();
-    // `data` is empty (no slice loaded yet — the pre-load state), but the summary exists.
+    // `data` is empty (no slice loaded yet, the pre-load state), but the summary exists.
     useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Other Co", role: "editor" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Other Co", role: "editor" }] });
     render(<AccountPicker />);
     await user.click(screen.getByRole("button", { name: "Other Co" }));
-    // setActiveAccount validates against the UNION of data.accounts + summaries, so it activates
+    // setActiveAccount validates against the union of data.accounts + summaries, so it activates
     // (the switch orchestrator then hydrates the slice) rather than bouncing back to the picker.
     expect(useStore.getState().activeAccountId).toBe("a2");
   });
@@ -427,26 +432,25 @@ function registerServerCreateRequestTest() {
     expect(url).toBe("/api/orgs");
     expect(init.method).toBe("POST");
     expect(init.credentials).toBe("include");
-    // The three frozen fields ride in the body as concrete values (P1.14).
+    // The three frozen fields ride in the body as concrete values.
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
     expect(body.name).toBe("Stark Industries");
     expect(body.weekStartsOn).toBe(1);
     expect(body.timezone).toBe(resolveBrowserTimeZone());
     expect(body.schedulingMode).toBe("days");
     expect(body.inlineActivityCreateEnabled).toBe(false);
-    expect(body.internalColourMode).toBe("grey");
     // Summary seeded (the picker lists it; setActiveAccount validated against it)…
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toContain("org-1");
-    // …and NO local addAccount ran (the slice arrives via the switch orchestrator's loadAll, not here).
+    // …and no local addAccount ran (the slice arrives via the switch orchestrator's loadAll, not here).
     expect(useStore.getState().data.accounts).toHaveLength(0);
   });
 }
 
 function registerServerCreateUnusableBodyTest() {
   it("on a 2xx create with an unusable body: NO error, form closes, list refetched, nothing activated", async () => {
-    // A 2xx means the org EXISTS server-side. An unreadable/off-spec body must therefore NOT surface
+    // A 2xx means the org EXISTS server-side. An unreadable/off-spec body must therefore not surface
     // an error over a create that succeeded (a resubmit would duplicate / trip the cap-403), and must
-    // NOT seed a bogus {id: undefined} summary that setActiveAccount would then accept. Instead: the
+    // not seed a bogus {id: undefined} summary that setActiveAccount would then accept. Instead: the
     // form closes and the authoritative /api/accounts refetch lists the new company.
     serverFlag.on = true;
     const user = userEvent.setup();
@@ -593,13 +597,13 @@ function registerServerCreateTransportFailureTest() {
 
 function registerServerDeleteUnloadedTest() {
   it("deletes an UNLOADED company via DELETE /api/accounts/:id and drops its summary", async () => {
-    // The regression this guards: the local deleteAccount cascade diffs the LOADED slice only, so a
+    // The regression this guards: the local deleteAccount cascade diffs the loaded slice only, so a
     // company whose slice isn't in `data` would emit no ops, delete nothing server-side, and
     // resurrect on the next summaries refetch. Server mode must call the dedicated route instead.
     serverFlag.on = true;
     const user = userEvent.setup();
     const fetchMock = stubFetch({ ok: true, status: 204 });
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Ghost Co", role: "owner" }]); // slice NOT loaded
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] }); // slice not loaded
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
@@ -633,7 +637,7 @@ function registerServerDeleteInFlightTest() {
         }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Ghost Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
@@ -667,7 +671,7 @@ function registerServerDeleteReconciliationTest() {
         : { ok: true, status: 200, json: async () => [] },
     );
     vi.stubGlobal("fetch", fetchMock);
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Ghost Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
@@ -694,7 +698,7 @@ function registerServerDeleteUnknownResponseTest() {
         : { ok: true, status: 200, json: async () => [{ id: "a9", name: "Ghost Co", role: "owner" }] },
     );
     vi.stubGlobal("fetch", fetchMock);
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Ghost Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
@@ -718,7 +722,7 @@ function registerServerDeleteTransportFailureTest() {
       throw new Error(url === "/api/accounts/a9" ? "delete transport failed" : "directory refresh failed");
     });
     vi.stubGlobal("fetch", fetchMock);
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Ghost Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
@@ -737,12 +741,14 @@ function registerServerDeleteTransportFailureTest() {
 function registerServerDeletePermissionsTest() {
   it("offers a Delete button only on an owner summary", () => {
     serverFlag.on = true;
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Owner Co", role: "owner" },
-      { id: "a2", name: "Admin Co", role: "admin" },
-      { id: "a3", name: "Editor Co", role: "editor" },
-      { id: "a4", name: "Viewer Co", role: "viewer" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Owner Co", role: "owner" },
+        { id: "a2", name: "Admin Co", role: "admin" },
+        { id: "a3", name: "Editor Co", role: "editor" },
+        { id: "a4", name: "Viewer Co", role: "viewer" },
+      ],
+    });
     render(
       <AuthContext.Provider
         value={{
@@ -771,9 +777,9 @@ function registerServerDeletePermissionsTest() {
 }
 
 describe("AccountPicker — refreshAuth after org create/delete (canCreateAccount stays fresh)", () => {
-  // The server recomputes canCreateAccount PER REQUEST from mutable state (account count +
+  // The server recomputes canCreateAccount per request from mutable state (account count +
   // membership roles), so the picker re-asks /api/auth/me after every org create/delete. These
-  // tests mount the REAL AuthProvider (the mocked apiConfig above puts it in server mode) so the
+  // tests mount the real AuthProvider (the mocked apiConfig above puts it in server mode) so the
   // whole loop is exercised: boot /me → snapshot, mutate, refetched /me → the flipped value
   // reaches the picker's affordances. Without the re-ask, deleting the only company on a capped
   // instance stranded the user on an inviteless empty state with no "New company" button.
@@ -788,7 +794,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === "/api/auth/me") {
         meCalls += 1;
-        // Single-company instance: AT the cap on boot, back UNDER it (zero accounts — the
+        // Single-company instance: at the cap on boot, back under it (zero accounts, the
         // bootstrap exemption) once the only company is deleted.
         return jsonRes(200, { authMode: "off", user: null, canCreateAccount: meCalls > 1, multiAccount: false });
       }
@@ -796,14 +802,14 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
       throw new Error(`unexpected fetch: ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    useStore.getState().setAccountSummaries([{ id: "a9", name: "Only Co", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Only Co", role: "owner" }] });
     render(
       <AuthProvider>
         <AccountPicker />
       </AuthProvider>,
     );
 
-    // Boot snapshot: capped — no create affordance while the one company exists.
+    // Boot snapshot: capped, no create affordance while the one company exists.
     expect(await screen.findByText("Only Co")).toBeInTheDocument();
     expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
 
@@ -813,7 +819,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
     // The refetched /me flips canCreateAccount → the button (and the empty two-choice state)
-    // come back WITHOUT a manual reload — the dead end this pins against.
+    // come back without a manual reload, the dead end this pins against.
     expect(await screen.findByLabelText("Company name")).toBeInTheDocument();
     expect(screen.queryByTestId("company-empty-options")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.filter((c) => c[0] === "/api/auth/me")).toHaveLength(2);
@@ -844,7 +850,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe("org-1"));
-    // The refetched /me now reports the cap — the flipped value reaches the picker (button gone).
+    // The refetched /me now reports the cap, the flipped value reaches the picker (button gone).
     await waitFor(() => expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument());
     expect(fetchMock.mock.calls.filter((c) => c[0] === "/api/auth/me")).toHaveLength(2);
   });
@@ -853,7 +859,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
 describe("AccountPicker — single-company-per-instance policy (canCreateAccount)", () => {
   it('hides the "New company" button when the auth context reports the cap is reached', () => {
     seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
-    withCanCreateAccount(false, <AccountPicker />);
+    withCanCreateAccount({ canCreateAccount: false, ui: <AccountPicker /> });
     expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "New company" })).not.toBeInTheDocument();
     // The subtitle must not promise a create affordance that isn't rendered.
@@ -863,7 +869,7 @@ describe("AccountPicker — single-company-per-instance policy (canCreateAccount
 
   it('shows the "New company" button when the auth context allows another company', () => {
     seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
-    withCanCreateAccount(true, <AccountPicker />);
+    withCanCreateAccount({ canCreateAccount: true, ui: <AccountPicker /> });
     expect(screen.getByTestId("new-company-button")).toBeInTheDocument();
     expect(screen.getByText("Choose a company to plan, or create another one.")).toBeInTheDocument();
   });

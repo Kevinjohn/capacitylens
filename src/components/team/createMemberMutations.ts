@@ -2,8 +2,9 @@ import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { MembershipStatus } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { resolveRejectionMessage, teamAccessClient, type TeamMember as Member } from "../../account/teamAccessClient";
-import { resolveErrorMessage } from "../../lib/errorMessage";
+import { resolveRejectionMessage, teamAccessClient } from "@/account/teamAccessClient";
+import type { TeamMember as Member } from "@/account/teamAccessClient";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 import { createMemberCredentialMutations } from "./createMemberCredentialMutations";
@@ -29,7 +30,7 @@ function createSignInTrackingMutation(dependencies: MemberMutationDependencies) 
   return ({ next }: ChangeSignInTrackingInput) =>
     dependencies.withMemberAction("member-sign-in-tracking", async (accountId) => {
       try {
-        const result = await teamAccessClient.setMemberSignInTracking(accountId, next);
+        const result = await teamAccessClient.setMemberSignInTracking({ workspaceId: accountId, enabled: next });
         if (!dependencies.isActiveAccount(accountId)) return;
         if (result.kind !== "ok") {
           dependencies.fail(

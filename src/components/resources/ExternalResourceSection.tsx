@@ -2,11 +2,11 @@ import { Fragment } from "react";
 import { Plus, Users } from "lucide-react";
 import type { Resource } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { AddButton, ColorSwatch, DeleteButton, EditButton, EmptyState, SectionHelp } from "../common/ui";
-import { Separator } from "../ui/separator";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { externalExplainer } from "../../lib/externalCopy";
-import { NEUTRAL_COLOR } from "../../lib/palette";
+import { AddButton, ColorSwatch, DeleteButton, EditButton, EmptyState, SectionHelp } from "@/components/common/ui";
+import { Separator } from "@/components/ui/separator";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
+import { externalExplainer } from "@/lib/externalCopy";
+import { NEUTRAL_COLOR } from "@/lib/palette";
 import { FavouriteButton } from "./FavouriteButton";
 
 export interface ExternalResourceSectionProps {
@@ -19,7 +19,7 @@ export interface ExternalResourceSectionProps {
 export function ExternalResourceSection({ externals, onAdd, onEdit, onRequestArchive }: ExternalResourceSectionProps) {
   return (
     <section aria-labelledby="external-heading">
-      {/* Decorative rule before the External section — see the People→Placeholders
+      {/* Decorative rule before the External section, see the People→Placeholders
           Separator above. */}
       <Separator className="mt-8" />
       <div className="mb-4 mt-8 flex items-center justify-between gap-4">

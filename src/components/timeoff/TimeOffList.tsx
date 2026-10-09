@@ -1,20 +1,21 @@
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
-import { hasPlaceholdersEnabled, resolveTimeZone, resolveWeekStart } from "../../store/selectors";
-import { useActiveScopedData } from "../../store/useScopedData";
-import { useEntityListState } from "../../hooks/useEntityListState";
-import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
-import { formatShortDate, formatShortDateEndpoint, formatDayCount } from "../../lib/dateDisplay";
+import { hasPlaceholdersEnabled, resolveTimeZone, resolveWeekStart } from "@/store/selectors";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { useEntityListState } from "@/hooks/useEntityListState";
+import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "@/components/common/ui";
+import { formatShortDate, formatShortDateEndpoint, formatDayCount } from "@/lib/dateDisplay";
 import { TimeOffForm } from "./TimeOffForm";
-import { buildTimeOffGroups, type TimeOffGroup } from "./timeOffView";
+import { buildTimeOffGroups } from "./timeOffView";
+import type { TimeOffGroup } from "./timeOffView";
 import type { TimeOff } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { Fragment, useMemo } from "react";
 import { Calendar } from "lucide-react";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { useConfirmDelete } from "../../hooks/useConfirmDelete";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
+import { useConfirmDelete } from "@/hooks/useConfirmDelete";
 import { CompanyClosureSection } from "./CompanyClosureSection";
-import { useCalendarToday } from "../scheduler/useCalendarToday";
+import { useCalendarToday } from "@/components/scheduler/useCalendarToday";
 
 interface PersonalTimeOffSectionProps {
   groups: TimeOffGroup[];

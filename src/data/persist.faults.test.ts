@@ -7,16 +7,16 @@ import {
   switchAndAwaitHydration,
 } from "./persist";
 import { BatchCommitUncertainError, BatchConflictError } from "./ServerSyncAdapter";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { resetStoreWithAccount } from "../test/fixtures";
+import { resetStoreWithAccount } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import { a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account AND makes it active, so the add* calls below
+  // Seeds a single account and makes it active, so the add* calls below
   // (which now require an active account) work.
   resetStoreWithAccount();
 });
@@ -72,10 +72,12 @@ describe("persistence coordinator fault-injection branches", () => {
     );
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "a2", name: "Beta", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "a2", name: "Beta", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
@@ -272,7 +274,7 @@ describe("persistence coordinator fault-injection branches", () => {
     const loadAll = vi.fn().mockRejectedValueOnce(new Error("switch failed")).mockResolvedValueOnce(a2Slice());
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },

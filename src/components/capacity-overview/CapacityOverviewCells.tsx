@@ -15,8 +15,6 @@ import type { CapacityOverviewPeriodResult } from "./capacityOverviewTypes";
 const WEEK_CELL_CLASS = "border-b border-l border-line-soft p-0 align-middle";
 const MONO_VALUE_CLASS = "font-mono text-[12.5px] font-medium tabular-nums";
 const MONO_DETAIL_CLASS = "font-mono text-[10.5px] tabular-nums whitespace-nowrap";
-// The per-device Compact view preference tightens every row, as it does on the schedule.
-const COMPACT_ROW_CLASS = "[[data-compact]_&]:py-1";
 
 const TOTALS_TONE_CLASS: Record<CapacityTotalsTone, string> = {
   danger: "text-danger",
@@ -26,7 +24,7 @@ const TOTALS_TONE_CLASS: Record<CapacityTotalsTone, string> = {
 
 function UnassignedValue({ result }: { result: CapacityOverviewPeriodResult }) {
   return (
-    <div className={`px-3.5 py-[9px] ${COMPACT_ROW_CLASS}`}>
+    <div className="px-3.5 py-[9px]">
       {result.unassignedDemandDays > 0 ? (
         <span className={MONO_VALUE_CLASS}>{formatDays(result.unassignedDemandDays, "unassigned")}</span>
       ) : (
@@ -80,7 +78,7 @@ function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; 
   // An overbooked week swaps the capacity figure for the overbooked days in red (the long
   // "overbooked" label wrapped inside twelve-week cells); the track itself only ever shows free time.
   return (
-    <div className={`flex flex-col gap-[5px] px-3.5 py-[9px] ${COMPACT_ROW_CLASS}`}>
+    <div className="flex flex-col gap-[5px] px-3.5 py-[9px]">
       <div className="flex items-baseline justify-between gap-1.5">
         <span className={`${MONO_VALUE_CLASS} ${resolveLedgerValueInk(result)}`}>
           {result.freeDays > 0 ? formatDays(result.freeDays, "capacity") : "—"}
@@ -105,12 +103,12 @@ function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; 
 
 function LoadCurveValue({ result, label }: { result: CapacityOverviewPeriodResult; label: string }) {
   return (
-    <div className={`px-3.5 py-2.5 ${COMPACT_ROW_CLASS}`}>
+    <div className="px-3.5 py-2.5">
       <CapacityTrack
         result={result}
         axis="height"
         testId="capacity-load-curve"
-        className="h-[34px] flex-col justify-end rounded-[5px] [[data-compact]_&]:h-5"
+        className="h-[34px] flex-col justify-end rounded-[5px]"
       />
       <span className="sr-only">{label}</span>
     </div>

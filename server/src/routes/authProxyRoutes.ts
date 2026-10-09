@@ -1,11 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
-import {
-  allowsPasswordSignIn,
-  allowsProviderSignIn,
-  type ApplicationSession,
-} from "@capacitylens/shared/account/types";
+import { allowsPasswordSignIn, allowsProviderSignIn } from "@capacitylens/shared/account/types";
+import type { ApplicationSession } from "@capacitylens/shared/account/types";
 import { can } from "@capacitylens/shared/domain/access";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 
@@ -14,6 +11,7 @@ import type { AccountMode, Auth, SessionUser } from "../auth";
 import type { MasqueradeRegistry } from "../MasqueradeRegistry";
 import { countAccounts, isAccountCreateCapped } from "./accountEntityRoutes";
 import type { ResolveIncomingSessionInput } from "./appSessionResolution";
+import { REPLY_ERRORS } from "./replyErrors";
 
 type SessionResolutionResult =
   | { kind: "absent_or_invalid" }
@@ -168,12 +166,13 @@ interface ProxyRouteDependencies {
   toWebHeaders: (raw: FastifyRequest["headers"]) => Headers;
 }
 
-interface CanAuthenticatedUserCreateAccountInput {
+type ReadAuthenticatedIdentityOptions = {
   dependencies: IdentityRouteDependencies;
   session: ApplicationSession;
-  userId: string;
   capAllows: boolean;
-}
+};
+
+type CanAuthenticatedUserCreateAccountInput = ReadAuthenticatedIdentityOptions & { userId: string };
 
 async function canAuthenticatedUserCreateAccount({
   dependencies,
@@ -198,11 +197,7 @@ async function canAuthenticatedUserCreateAccount({
   });
 }
 
-async function readAuthenticatedIdentity(
-  dependencies: IdentityRouteDependencies,
-  session: ApplicationSession,
-  capAllows: boolean,
-) {
+async function readAuthenticatedIdentity({ dependencies, session, capAllows }: ReadAuthenticatedIdentityOptions) {
   const { auth, authMode, multiAccount, requireMfa } = dependencies;
   const user = dependencies.sessionUserFromApplicationSession(session);
   const canCreateAccount = await canAuthenticatedUserCreateAccount({
@@ -231,7 +226,9 @@ async function sendIdentity(req: FastifyRequest, reply: FastifyReply, dependenci
   const { auth, authMode, db, multiAccount, resolveIncomingSession } = dependencies;
   const capAllows = !isAccountCreateCapped({ db, multiAccount });
   if (authMode === "off") {
-    return { authMode, user: DEMO_USER, providers: [], multiAccount, canCreateAccount: capAllows };
+    return reply
+      .code(200)
+      .send({ authMode, user: DEMO_USER, providers: [], multiAccount, canCreateAccount: capAllows });
   }
   const resolution = await resolveIncomingSession({ req, force: true });
   if (resolution.kind === "absent_or_invalid") {
@@ -242,21 +239,23 @@ async function sendIdentity(req: FastifyRequest, reply: FastifyReply, dependenci
     return reply.code(401).send({
       authMode,
       providers: auth?.providers ?? [],
-      error: "Sign in to continue.",
+      error: REPLY_ERRORS.signInRequired,
       passwordResetEmail: canEmailPasswordReset(authMode, auth),
       ...(needsSetup ? { needsSetup: true } : {}),
     });
   }
   if (resolution.kind === "backend_failure") {
     req.log.error(resolution.error);
-    return reply.code(503).send({ authMode, error: "Sign-in is temporarily unavailable." });
+    return reply.code(503).send({ authMode, error: REPLY_ERRORS.signInUnavailable });
   }
   try {
-    return await readAuthenticatedIdentity(dependencies, resolution.session, capAllows);
+    return reply
+      .code(200)
+      .send(await readAuthenticatedIdentity({ dependencies, session: resolution.session, capAllows }));
   } catch (error) {
     // Backend failure is distinct from an absent session and must retain its 503 surface.
     req.log.error(error);
-    return reply.code(503).send({ authMode, error: "Sign-in is temporarily unavailable." });
+    return reply.code(503).send({ authMode, error: REPLY_ERRORS.signInUnavailable });
   }
 }
 
@@ -274,14 +273,13 @@ function isMasqueradeWrite(req: FastifyRequest, authPath: string, masquerades: M
 }
 
 async function sendProxyResponse(reply: FastifyReply, response: Response, cookies: readonly string[]) {
-  reply.status(response.status);
   response.headers.forEach((value, key) => {
     if (key === "set-cookie" || key === "content-length" || key === "transfer-encoding") return;
     reply.header(key, value);
   });
   if (cookies.length > 0) reply.header("set-cookie", cookies);
   const body = response.body ? Buffer.from(await response.arrayBuffer()) : null;
-  return reply.send(body);
+  return reply.code(response.status).send(body);
 }
 
 function hasAuthenticationCredentials(headers: Headers): boolean {
@@ -323,12 +321,12 @@ function socialSignInError(input: { req: FastifyRequest; authPath: string; auth:
   if (submitsDirectMicrosoftIdToken(req, authPath)) {
     return {
       status: 400,
-      error: "Microsoft sign-in requires the authorization-code callback.",
+      error: REPLY_ERRORS.microsoftCallbackRequired,
       code: "CODE_FLOW_REQUIRED",
     };
   }
   if (rejectsNonCompanySocialSignIn({ req, authPath, auth, authMode })) {
-    return { status: 403, error: "Sign in with a configured company provider.", code: "COMPANY_PROVIDER_REQUIRED" };
+    return { status: 403, error: REPLY_ERRORS.companyProviderRequired, code: "COMPANY_PROVIDER_REQUIRED" };
   }
   return null;
 }
@@ -346,17 +344,17 @@ async function forwardAuthenticationRequest(
   dependencies: ProxyRouteDependencies,
 ) {
   const { auth, authMode, logOn, masquerades, resolveIncomingSession, toWebHeaders } = dependencies;
-  if (authMode === "off" || !auth) return reply.code(404).send({ error: "Not found." });
+  if (authMode === "off" || !auth) return reply.code(404).send({ error: REPLY_ERRORS.routeUnavailable });
   const url = parseAuthenticationRequestUrl(req);
-  if (!url) return reply.code(400).send({ error: "Invalid request authority." });
+  if (!url) return reply.code(400).send({ error: REPLY_ERRORS.invalidRequestAuthority });
   const authPath = url.pathname.slice("/api/auth".length);
   if (!isBetterAuthProxyRouteAllowed({ authMode, mailEnabled: auth.mail != null }, req.method, authPath)) {
-    return reply.code(404).send({ error: "Not found." });
+    return reply.code(404).send({ error: REPLY_ERRORS.routeUnavailable });
   }
   const socialError = socialSignInError({ req, authPath, auth, authMode });
   if (socialError) return reply.code(socialError.status).send({ error: socialError.error, code: socialError.code });
   if (isMasqueradeWrite(req, authPath, masquerades)) {
-    return reply.code(403).send({ error: "Masquerade is read-only.", code: MASQUERADE_ERROR_CODES.readOnly });
+    return reply.code(403).send({ error: REPLY_ERRORS.masqueradeReadOnly, code: MASQUERADE_ERROR_CODES.readOnly });
   }
   const requestHeaders = toWebHeaders(req.headers);
   if (hasAuthenticationCredentials(requestHeaders)) {

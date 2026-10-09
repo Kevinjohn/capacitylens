@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp as buildAppRaw } from "./app";
-import { openDb as openDbRaw, insertAll, readState, type Db } from "./db";
+import { openDb as openDbRaw, insertAll, readState } from "./db";
+import type { Db } from "./db";
 import {
   createInvite,
   getInvite,
@@ -11,20 +12,23 @@ import {
   preauthInviteAllows,
 } from "./controlTables";
 import { createAuthFromEnvironment, runAuthMigrations, DEMO_USER } from "./auth";
-import { PASSWORD_ENV, call, readCookies, signUp, registerServerFixtureCleanup } from "./testHelpers";
+import { PASSWORD_ENV, call, readCookies, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 import { insertVerifiedFederatedAccount } from "./testHelpers/federatedAccount";
 import { recordSessionAssurance } from "./accounts/state";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// P1.9 — single-use, expiring invite links. POST /api/invites mints a token (gated 'manageInvites',
+// Single-use, expiring invite links. POST /api/invites mints a token (gated 'manageInvites',
 // admin+ of the target account); POST /api/invites/:token/accept binds the invited role to the
 // signed-in caller's membership and consumes the token (single-use, expiry-checked). This suite
 // drives sign-up -> create -> accept and asserts: the create gate (owner/admin 201, editor/viewer/
 // non-member 403, session-less 401, bad/empty role 400); accept binds the membership + stamps usedAt;
-// reuse 409; expired 410; unknown 404; OFF mode; and the AppData-EXCLUSION guarantee.
+// reuse 409; expired 410; unknown 404; off mode; and the AppData-exclusion guarantee.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const fixtures = registerServerFixtureCleanup();
@@ -86,19 +90,10 @@ function seedOne(db: Db): void {
   insertAll(db, d as unknown as AppData);
 }
 
-/** Build an auth-on (password) app over a fresh in-memory DB. */
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  const requiredAuth = requireValue(auth, "password authentication");
-  await runAuthMigrations(requiredAuth);
-  return { app: buildApp(db, { authMode: mode, auth: requiredAuth }), db };
-}
-
 /**
  * Flip a Better Auth user's `emailVerified` flag directly in the DB (the `user` table; column is an
- * INTEGER 0/1). A fresh email+password sign-up is unverified (P1.7a), so this is how the P1.10 tests
- * obtain a VERIFIED principal: the NEXT getSession reads the live user row (Better Auth joins it
+ * INTEGER 0/1). A fresh email+password sign-up is unverified, so this is how the tests
+ * obtain a verified principal: the next getSession reads the live user row (Better Auth joins it
  * fresh), so normalizeSessionUser then reports emailVerified=true.
  */
 function verifyUserEmail(db: Db, email: string): void {
@@ -124,7 +119,7 @@ const previewReq = (app: FastifyInstance, token: string, headers: Record<string,
 
 function registerOwnerInviteCreationTest(): void {
   it("owner of the account creates an invite -> 201, with a token + a getInvite row", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "owner@capacitylens.dev");
     upsertMember(db, {
@@ -151,7 +146,7 @@ function registerOwnerInviteCreationTest(): void {
     };
     expect(atRest.tokenHash).not.toBe(token);
     expect(JSON.stringify(db.prepare(`SELECT * FROM invites`).all())).not.toContain(token);
-    // The row landed in the control table, unused, with a FUTURE expiry.
+    // The row landed in the control table, unused, with a future expiry.
     const stored = readInvite(db, token);
     expect(stored.accountId).toBe("a1");
     expect(stored.role).toBe("editor");
@@ -163,7 +158,7 @@ function registerOwnerInviteCreationTest(): void {
 
 function registerDefaultExpiryReplayTest(): void {
   it("replays the same default-expiry invitation command without minting a second bearer", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "invite-replay-owner@capacitylens.dev");
     upsertMember(db, {
@@ -194,7 +189,7 @@ function registerDefaultExpiryReplayTest(): void {
 
 function registerInviteReplayConflictTest(): void {
   it("rejects a command replay whose payload differs from the original", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "invite-conflict-owner@capacitylens.dev");
     upsertMember(db, {
@@ -227,7 +222,7 @@ function registerInviteReplayConflictTest(): void {
 
 function registerMalformedCommandHeadersTest(): void {
   it("rejects malformed account-command headers before creating an invitation", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "invite-header-owner@capacitylens.dev");
     upsertMember(db, {
@@ -274,7 +269,7 @@ function registerMalformedCommandHeadersTest(): void {
 
 function registerExplicitExpiryReplayTest(): void {
   it("replays a completed explicit-expiry command after the invitation expires", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "explicit-expiry-replay-owner@capacitylens.dev");
     upsertMember(db, {
@@ -317,7 +312,7 @@ function registerInvalidExpiryTests(): void {
     ["past", "2000-01-01T00:00:00.000Z", /future/],
     ["too distant", "2999-01-01T00:00:00.000Z", /at most 30 days/],
   ])("rejects a %s expiresAt instead of widening it", async (_label, expiresAt, message) => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "owner@capacitylens.dev");
     upsertMember(db, {
@@ -342,7 +337,7 @@ function registerInvalidCalendarExpiryTests(): void {
     ["April 31", "2099-04-31T12:00:00.123Z"],
     ["hour 24", "2099-02-02T24:00:00Z"],
   ])("rejects a valid-shaped but nonexistent %s expiry", async (_label, expiresAt) => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "invalid-calendar-expiry@capacitylens.dev");
     upsertMember(db, {
@@ -367,7 +362,7 @@ function registerFractionalExpiryTest(): void {
   it.each([["fractional instant", validFractionalExpiry.input, validFractionalExpiry.canonical]])(
     "accepts and canonicalizes a valid %s expiry",
     async (_label, expiresAt, canonical) => {
-      const { app, db } = await appWithAuth();
+      const { app, db } = await appWithAuth({ fixtures });
       seedOne(db);
       const { cookie, userId } = await signUp(app, "valid-calendar-expiry@capacitylens.dev");
       upsertMember(db, {
@@ -392,7 +387,7 @@ function registerFractionalExpiryTest(): void {
 
 function registerInviteAuthorizationTests(): void {
   it("admin of the account is ALLOWED (admin tier = manageInvites) -> 201", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "admin@capacitylens.dev");
     upsertMember(db, {
@@ -409,7 +404,7 @@ function registerInviteAuthorizationTests(): void {
 
   it("editor/viewer of the account are DENIED (below admin tier) -> 403", async () => {
     for (const role of ["editor", "viewer"] as const) {
-      const { app, db } = await appWithAuth();
+      const { app, db } = await appWithAuth({ fixtures });
       seedOne(db);
       const { cookie, userId } = await signUp(app, `${role}@capacitylens.dev`);
       upsertMember(db, {
@@ -426,7 +421,7 @@ function registerInviteAuthorizationTests(): void {
   });
 
   it("a non-member (cross-tenant stranger) is DENIED -> 403", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie } = await signUp(app, "stranger@capacitylens.dev"); // no membership of a1
 
@@ -435,7 +430,7 @@ function registerInviteAuthorizationTests(): void {
   });
 
   it("a session-less request is 401 (requireUser is upstream of the invite gate)", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const res = await createInviteReq(app, { accountId: "a1", role: "editor" });
     expect(res.statusCode).toBe(401);
@@ -444,7 +439,7 @@ function registerInviteAuthorizationTests(): void {
 
 function registerInviteInputTests(): void {
   it("a bad or empty role is 400 (before the gate matters for shape)", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "badrole@capacitylens.dev");
     upsertMember(db, {
@@ -464,7 +459,7 @@ function registerInviteInputTests(): void {
   });
 
   it("rejects Owner invites even when the caller is the Owner", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "owner-no-owner-invites@capacitylens.dev");
     upsertMember(db, {
@@ -517,7 +512,7 @@ function registerInvitePreviewProjectionTests(): void {
   ])(
     "returns safe $kind context without an address, token or session",
     async ({ preauthEmail, emailBound, emailHint }) => {
-      const { app, db } = await appWithAuth();
+      const { app, db } = await appWithAuth({ fixtures });
       seedOne(db);
       createInvite(db, {
         token: "preview-token",
@@ -555,7 +550,7 @@ describe("GET /api/invites/:token/preview", () => {
     ["expired", "expired-preview", 410],
     ["legacy Owner", "owner-preview", 410],
   ])("rejects an %s invite", async (kind, token, status) => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     if (kind !== "unknown") {
       createInvite(db, {
@@ -575,7 +570,7 @@ describe("GET /api/invites/:token/preview", () => {
 
 function registerInviteConsumptionTests(): void {
   it("a signed-in user accepts a valid editor invite -> 200, role bound, token consumed", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const a = await signUp(app, "inviter@capacitylens.dev");
     upsertMember(db, {
@@ -600,7 +595,7 @@ function registerInviteConsumptionTests(): void {
   });
 
   it("a reused invite is 409, and neither the membership nor usedAt changes", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const a = await signUp(app, "inviter2@capacitylens.dev");
     upsertMember(db, {
@@ -629,7 +624,7 @@ function registerInviteConsumptionTests(): void {
 
 function registerInviteExpiryTests(): void {
   it("consumes an invite without changing an existing sole-owner membership", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const owner = await signUp(app, "sole-owner@capacitylens.dev");
     upsertMember(db, {
@@ -650,7 +645,7 @@ function registerInviteExpiryTests(): void {
   });
 
   it("an expired invite is 410, and no membership is bound", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const b = await signUp(app, "late@capacitylens.dev");
     // Insert a born-expired invite directly (the body param refuses a past expiresAt, so seed it).
@@ -677,7 +672,7 @@ function registerUnavailableInviteTests(): void {
     ["at or just after expiry", new Date().toISOString()],
     ["a corrupt expiry", "not-a-date"],
   ])("treats %s as expired", async (label, expiresAt) => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const user = await signUp(app, `expiry-${label.replaceAll(" ", "-")}@capacitylens.dev`);
     const token = `expiry-${label}`;
@@ -697,7 +692,7 @@ function registerUnavailableInviteTests(): void {
   });
 
   it("an unknown token is 404", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const b = await signUp(app, "nobody@capacitylens.dev");
     const res = await acceptReq(app, "no-such-token", { cookie: b.cookie });
@@ -715,8 +710,8 @@ async function createClosedSignupInviteContext() {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: undefined,
-    SMALLSASS_ACCOUNT_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
+    CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
+    CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
   });
   const requiredAuth = requireValue(auth, "password authentication");
   await runAuthMigrations(requiredAuth);
@@ -751,7 +746,7 @@ async function createClosedSignupInviteContext() {
 
 function registerInviteSignupRefusalTests(): void {
   it("rejects invalid email, empty name, short password, and unsupported auth mode", async () => {
-    const { app } = await appWithAuth();
+    const { app } = await appWithAuth({ fixtures });
     const base = {
       email: "new-person@capacitylens.dev",
       password: "password-123456",
@@ -781,7 +776,7 @@ function registerInviteSignupRefusalTests(): void {
   });
 
   it("rejects invalid bearer tokens without reserving generated commands", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     const commandCount = () => db.prepare(`SELECT COUNT(*) AS count FROM account_commands`).get();
     const before = commandCount();
 
@@ -873,7 +868,7 @@ describe("invites — OFF mode (trusted-local)", () => {
       accountId: "a1",
       role: "editor",
     });
-    expect(created.statusCode).toBe(201); // OFF = allow-all, minted as DEMO_USER's act
+    expect(created.statusCode).toBe(201); // Off = allow-all, minted as DEMO_USER's act
     const token = readResponseString(created, "token");
 
     const res = await acceptReq(app, token);
@@ -883,10 +878,10 @@ describe("invites — OFF mode (trusted-local)", () => {
   });
 });
 
-// P1.10 — email-pre-authorise. The pure decision matrix (preauthInviteAllows + normalizeEmail) is
+// Email pre-authorisation. The pure decision matrix (preauthInviteAllows + normalizeEmail) is
 // unit-tested deterministically below; the integration block then proves the create-store-normalize
 // path and every accept outcome (link binds, wrong-email 403, unverified-match 403, verified-match
-// 200, OFF skip) end-to-end, asserting that a 403 never consumes the single-use invite.
+// 200, off skip) end-to-end, asserting that a 403 never consumes the single-use invite.
 
 function registerPreauthNormalizationTests(): void {
   it("normalizeEmail trims and lowercases", () => {
@@ -905,7 +900,7 @@ function registerPreauthNormalizationTests(): void {
 
 function registerVerifiedPreauthMatchTest(): void {
   it("preauth + verified + EXACT (normalized) match → true (case/whitespace folded by store-time normalize)", () => {
-    // preauthEmail is stored ALREADY normalized; the user email is normalized inside the helper, so a
+    // preauthEmail is stored already normalized; the user email is normalized inside the helper, so a
     // differently-cased / padded live email still matches the normalized stored value.
     const stored = normalizeEmail("Carol@Example.com"); // = 'carol@example.com'
     expect(
@@ -972,7 +967,7 @@ describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)"
 
 function registerNormalizedPreauthCreationTest(): void {
   it("create with preauthEmail → 201; getInvite stores the NORMALIZED value; 201 echoes it", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "owner@capacitylens.dev");
     upsertMember(db, {
@@ -994,7 +989,7 @@ function registerNormalizedPreauthCreationTest(): void {
 
 function registerPreauthInputTests(): void {
   it("rejects an empty/whitespace preauthEmail without minting an invite", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "owner2@capacitylens.dev");
     upsertMember(db, {
@@ -1011,7 +1006,7 @@ function registerPreauthInputTests(): void {
   });
 
   it("a malformed preauthEmail → 400 (no row minted)", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const { cookie, userId } = await signUp(app, "owner3@capacitylens.dev");
     upsertMember(db, {
@@ -1050,12 +1045,12 @@ async function createSsoProviderInviteContext() {
   const db = openDb(":memory:");
   const configured = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+    CAPACITYLENS_MODE: "password-and-sso",
+    CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
 
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
-    SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client-id",
-    SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-client-secret",
+    CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+    CAPACITYLENS_GITHUB_CLIENT_ID: "github-client-id",
+    CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-client-secret",
   });
   const configuredAuth = requireValue(configured.auth, "configured authentication");
   await runAuthMigrations(configuredAuth);
@@ -1156,7 +1151,7 @@ function registerSsoProviderInviteTest(): void {
 
 function registerPreauthRefusalTests(): void {
   it("rejects an unaddressed legacy invite without admitting a signed-in caller", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const a = await signUp(app, "link-inviter@capacitylens.dev");
     upsertMember(db, {
@@ -1184,7 +1179,7 @@ function registerPreauthRefusalTests(): void {
   });
 
   it("preauth + WRONG email → 403; membership NOT created; invite NOT consumed (usedAt stays null)", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const a = await signUp(app, "pa-inviter@capacitylens.dev");
     upsertMember(db, {
@@ -1203,13 +1198,13 @@ function registerPreauthRefusalTests(): void {
     const res = await acceptReq(app, token, { cookie: b.cookie });
     expect(res.statusCode).toBe(403);
     expect(getMemberRole(db, "a1", b.userId)).toBeNull(); // no bind
-    expect(readInvite(db, token).usedAt).toBeNull(); // NOT consumed — still live for the right caller
+    expect(readInvite(db, token).usedAt).toBeNull(); // Not consumed, still live for the right caller
   });
 }
 
 function registerPasswordPreauthAcceptanceTest(): void {
   it("password mode accepts a matching preauthorized email without a separate verification service", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const a = await signUp(app, "pa-inviter2@capacitylens.dev");
     upsertMember(db, {
@@ -1233,7 +1228,7 @@ function registerPasswordPreauthAcceptanceTest(): void {
 
 function registerVerifiedPreauthAcceptanceTest(): void {
   it("preauth + matching VERIFIED email → 200; role bound; usedAt set (end-to-end)", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
     const a = await signUp(app, "pa-inviter3@capacitylens.dev");
     upsertMember(db, {
@@ -1246,7 +1241,7 @@ function registerVerifiedPreauthAcceptanceTest(): void {
     const created = await addressedInviter(app, { cookie: a.cookie })("editor", "verified@capacitylens.dev");
     const token = readResponseString(created, "token");
 
-    // Sign up, then flip emailVerified in the live user row; the NEXT getSession reads it fresh, so
+    // Sign up, then flip emailVerified in the live user row; the next getSession reads it fresh, so
     // the principal the accept handler sees is verified (proves the verified-match → bind path E2E).
     const b = await signUp(app, "verified@capacitylens.dev");
     verifyUserEmail(db, "verified@capacitylens.dev");
@@ -1312,7 +1307,7 @@ describe("invites are excluded from the AppData path", () => {
     expect(res.statusCode).toBe(200);
     const state = res.json() as Record<string, unknown>;
     expect(state).not.toHaveProperty("invites");
-    // Belt-and-braces: the table name AND the token secret must appear NOWHERE in the wire state.
+    // Belt-and-braces: the table name and the token secret must appear nowhere in the wire state.
     expect(JSON.stringify(state)).not.toContain("invites");
     expect(JSON.stringify(state)).not.toContain("secret-invite-token");
     expect(readState(db) as unknown as Record<string, unknown>).not.toHaveProperty("invites");
@@ -1325,8 +1320,8 @@ describe("invites are excluded from the AppData path", () => {
       method: "GET",
       url: "/api/invites/some-token",
     });
-    // NOTE: /api/invites/:token/accept is a real route; a bare GET on that shape is a 404 (no GET
-    // handler), and a GET on the collection path is likewise unhandled — neither lists rows.
+    // Note: /api/invites/:token/accept is a real route; a bare GET on that shape is a 404 (no GET
+    // handler), and a GET on the collection path is likewise unhandled. Neither lists rows.
     expect([404, 405]).toContain(get.statusCode);
     const post = await app.inject({
       method: "POST",

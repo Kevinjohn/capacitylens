@@ -1,6 +1,7 @@
 import { test, expect } from "./fixtures";
 import {
   boundingBoxOrThrow as box,
+  disableWeekSnap,
   nudgeScheduler as nudge,
   openApp,
   probeSchedulerGeometry as probe,
@@ -11,16 +12,13 @@ import {
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// Turn the device-global "Snap to week start" pref OFF and land on the Schedule at 1w. With the
+// Turn the free-scroll week snap OFF (a test-only override) and land on the Schedule at 1w. With the
 // free-scroll snap off, a mid-week nudge STICKS — so any later left-edge move is attributable to the
 // thing under test (a resize / a minimise toggle), and we can prove that thing does NOT snap.
 async function openWithFreeScrollSnapOff(page: import("@playwright/test").Page) {
   await page.setViewportSize({ width: 1440, height: 800 });
-  await openApp(page, "Wayne Enterprises", "/settings");
-  const snap = page.getByRole("switch", { name: "Snap to week start" });
-  await snap.click();
-  await expect(snap).toHaveAttribute("aria-checked", "false");
-  await page.getByRole("link", { name: "Schedule" }).click();
+  await disableWeekSnap(page);
+  await openApp(page);
   await setZoom(page, 1);
 }
 

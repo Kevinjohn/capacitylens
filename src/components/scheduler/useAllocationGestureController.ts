@@ -1,14 +1,18 @@
-import { useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { m } from "@/i18n";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
-import { MAX_HOURS_PER_DAY, type Allocation, type ID, type Weekday } from "@capacitylens/shared/types/entities";
-import { useDragResize, type DragResizePreviewInput, type Pointer } from "../../hooks/useDragResize";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { applyGesture, type DateRange, type DragMode } from "../../lib/gestureMath";
-import { buildUndoShortcut } from "../../lib/keyboardShortcuts";
-import { buildVisibleRange, listAccountWorkingDays } from "../../store/selectors";
-import { useStore } from "../../store/useStore";
+import { MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
+import type { Allocation, ID, Weekday } from "@capacitylens/shared/types/entities";
+import { useDragResize } from "@/hooks/useDragResize";
+import type { DragResizePreviewInput, Pointer } from "@/hooks/useDragResize";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { applyGesture } from "@/lib/gestureMath";
+import type { DateRange, DragMode } from "@/lib/gestureMath";
+import { buildUndoShortcut } from "@/lib/keyboardShortcuts";
+import { buildVisibleRange, listAccountWorkingDays } from "@/store/selectors";
+import { useStore } from "@/store/useStore";
 import { reconcileReassignedHours, resolveGesture, resolveVolumePreservingHours } from "./allocationDrag";
 import { readCapacityAnnouncement, readCapacityGestureAdvisory } from "./gestureAnnouncements";
 import { buildGesturePreviewDates } from "./gestureGeometry";
@@ -19,9 +23,11 @@ import {
   readWorkingDays,
   resolveMemoisedWorkingDays,
 } from "./gestureWorkingWeeks";
-import { readLaneSnapshots, resolveLaneAt, type LaneSnapshot } from "./gestureLanes";
+import { readLaneSnapshots, resolveLaneAt } from "./gestureLanes";
+import type { LaneSnapshot } from "./gestureLanes";
 import type { BarLayout } from "./schedulerModel";
-import { useAllocationFocus, type ScheduleAllocationFocus } from "./useAllocationFocus";
+import { useAllocationFocus } from "./useAllocationFocus";
+import type { ScheduleAllocationFocus } from "./useAllocationFocus";
 
 interface GesturePreview {
   mode: DragMode;
@@ -67,7 +73,7 @@ interface ReadPreviewDatesInput {
 }
 
 /** The snapped range for this frame, judged in the lane the pointer is over. A reassignment also
- *  carries the dragged bar's OWN week, which is what sizes the range. */
+ * carries the dragged bar's own week, which is what sizes the range. */
 function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDatesInput) {
   const resourceId = bar.allocation.resourceId;
   const previewDays = resolveMemoisedWorkingDays(runtime.previewDaysRef.current, destination?.id ?? resourceId);
@@ -95,8 +101,8 @@ function previewGesture(options: ControllerOptions, runtime: GestureRuntime, inp
   const { result, previewDays } = readPreviewDates({ bar, runtime, input, destination });
   // A drop the commit will refuse must not be drawn as a reassignment: the preview would show the
   // destination's re-placement, then snap back on release. Fall back to the range this drag would
-  // produce on the bar's OWN row, so it keeps following the pointer sideways while the row under it
-  // refuses the drop — suppressing the range entirely froze the bar's horizontal tracking.
+  // produce on the bar's own row, so it keeps following the pointer sideways while the row under it
+  // refuses the drop, suppressing the range entirely froze the bar's horizontal tracking.
   const blocked = isPreviewDropBlocked({
     workingDays: previewDays,
     result,
@@ -126,7 +132,7 @@ function resolveCommitDates({ options, mode, deltaDays, resourceId }: ResolveCom
   const { bar, isDays } = options;
   const source = bar.allocation.resourceId;
   const workingDays = readWorkingDays(resourceId);
-  // A reassignment keeps the duration its ORIGIN measured; only the placement is the target's.
+  // A reassignment keeps the duration its origin measured; only the placement is the target's.
   const sourceWorkingDays = resourceId === source ? workingDays : readWorkingDays(source);
   return resolveGesture({
     mode,

@@ -1,5 +1,5 @@
 import { Fragment, useId } from "react";
-import { Field } from "../../ui/field";
+import { Field } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -9,8 +9,8 @@ import {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from "../../ui/select";
-import { useMarkFormDirty } from "../formDirty";
+} from "@/components/ui/select";
+import { useMarkFormDirty } from "@/components/common/formDirty";
 import { RequiredFieldLabel } from "./fieldLayout";
 import type { Option } from "./fieldTypes";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
@@ -76,7 +76,8 @@ function SelectFieldOptions({ optionGroups }: { optionGroups: OptionGroup[] }) {
   ));
 }
 
-function trueOrUndefined(value: boolean | undefined): true | undefined {
+type TrueOrUndefinedOptions = { value: boolean | undefined };
+function trueOrUndefined({ value }: TrueOrUndefinedOptions): true | undefined {
   return value ? true : undefined;
 }
 
@@ -102,8 +103,8 @@ export function SelectField({
   const optionGroups = buildOptionGroups(options);
   return (
     <Field
-      data-invalid={trueOrUndefined(invalid)}
-      data-disabled={trueOrUndefined(disabled)}
+      data-invalid={trueOrUndefined({ value: invalid })}
+      data-disabled={trueOrUndefined({ value: disabled })}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
@@ -122,8 +123,8 @@ export function SelectField({
           autoFocus={autoFocus}
           data-autofocus={autoFocus ? "" : undefined}
           className="w-full"
-          aria-required={trueOrUndefined(required)}
-          aria-invalid={trueOrUndefined(invalid)}
+          aria-required={trueOrUndefined({ value: required })}
+          aria-invalid={trueOrUndefined({ value: invalid })}
           aria-describedby={invalid ? describedById : undefined}
           aria-label={ariaLabel}
           data-testid={testId}

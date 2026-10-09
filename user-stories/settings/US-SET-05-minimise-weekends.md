@@ -2,7 +2,7 @@
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/minimise-weekends.spec.ts` → "ON by default: weekend columns are narrow and labelled \"S\"", "toggling it off in Settings restores full-width Sat/Sun columns", "the choice survives a reload (device-global pref)", "a bar dragged across the narrowed weekend commits a later date (no crash)"
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 
@@ -28,7 +28,7 @@ not shared account data, so each person sets it to taste. It defaults **on** —
 
 ## Acceptance criteria
 
-- The **Schedule on this device** row starts **My display**, before **Allocation labels on this device**. It contains **Minimise weekends**, **Snap to week start** and **Compact view** switches.
+- The **Schedule on this device** row starts **My display**, before **Allocation labels on this device**. It contains the **Minimise weekends** switch.
 - The switch defaults to **on** (`aria-checked="true"`).
 - With it on (fine zoom): each weekend column is narrowed to roughly the width of a two-digit date, the weekday label for **both** Sat and Sun is just **"S"**, and the date number still shows.
 - With it off: weekend columns return to full `dayWidth` and read `Sat` / `Sun`.

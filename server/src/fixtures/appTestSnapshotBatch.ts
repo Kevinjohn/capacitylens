@@ -9,15 +9,17 @@ import {
   readRequiredString,
   readStateArray,
   assertModeledKeys,
-  type ActivitySnapshot,
-  type ActivityWriteResponse,
-  type BatchReceipt,
-  type BatchRevisionSnapshot,
-  type ClientResponse,
-  type ClientSnapshot,
-  type ImportSummary,
-  type ProjectBinding,
-  type ValidatedStateResponse,
+} from "./appTestSnapshotCore";
+import type {
+  ActivitySnapshot,
+  ActivityWriteResponse,
+  BatchReceipt,
+  BatchRevisionSnapshot,
+  ClientResponse,
+  ClientSnapshot,
+  ImportSummary,
+  ProjectBinding,
+  ValidatedStateResponse,
 } from "./appTestSnapshotCore";
 import {
   readAccountSnapshots,
@@ -247,7 +249,7 @@ export function readValidatedStateValue(value: unknown): ValidatedStateResponse 
 }
 
 /** Fetch and validate the whole state document. This lives beside its validator rather than in
- *  `appTestHttp`, which would otherwise have to import from here and close an import cycle. */
+ * `appTestHttp`, which would otherwise have to import from here and close an import cycle. */
 export const state = async (app: FastifyInstance) => {
   // Generic account creation now guarantees its required Internal client. Most legacy CRUD tests
   // predate that invariant and reason about the regular clients they explicitly create. The exact

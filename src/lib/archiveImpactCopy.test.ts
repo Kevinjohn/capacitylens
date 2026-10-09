@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildClientArchiveImpactCopy, buildProjectArchiveImpactCopy, safeArchiveImpact } from "./archiveImpactCopy";
-import { makeActivity, makeAppData } from "../test/fixtures";
+import { makeActivity, makeAppData } from "@/test/fixtures";
 
 const impact = (projects: number, phases: number, allocations: number) => ({
   projects,

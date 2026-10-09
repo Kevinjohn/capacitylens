@@ -1,21 +1,23 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
-import { call } from "./testHelpers";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { openDb, insertAll } from "./db";
+import type { Db } from "./db";
+import { call } from "./testHelpers/passwordAuth";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// Single-company-per-instance cap (AppOptions.multiAccount, default false — see app.ts's
+// Single-company-per-instance cap (AppOptions.multiAccount, default false, see app.ts's
 // accountCreateCapped / SINGLE_COMPANY_CAP_MESSAGE / the "GATE 0" comment on POST /api/orgs). This
-// suite drives the THREE GENERIC entity-route vectors that could CREATE a NEW `accounts` row — the
-// bare POST /api/accounts, the PUT-as-create upsert, and the batch PUT-accounts pre-scan — proving
+// suite drives the three generic entity-route vectors that could CREATE a new `accounts` row, the
+// bare POST /api/accounts, the PUT-as-create upsert, and the batch PUT-accounts pre-scan, proving
 // each 403s with the actionable policy message once ≥1 account exists, that an UPDATE/PATCH of an
-// EXISTING account is NEVER affected (create-time only), and that multiAccount:true restores the
-// old open-create behaviour. Run entirely in OFF mode: the cap is DELIBERATELY not an authz rule (it
+// existing account is never affected (create-time only), and that multiAccount:true restores the
+// old open-create behaviour. Run entirely in off mode: the cap is deliberately not an authz rule (it
 // applies in every auth mode, including off's otherwise-trusted-local allow-all), so it is fully
-// exercisable here with no Better Auth harness — auth-on coverage of the SAME cap already lives
-// alongside the authz matrix in app.authz.test.ts and app.orgs.test.ts (POST /api/orgs has its own
+// exercisable here with no Better Auth harness, auth-on coverage of the same cap already lives
+// alongside the authz matrix in app.authz.test.ts and app.companyCreation.test.ts (POST /api/orgs has its own
 // dedicated cap suite there).
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -265,7 +267,7 @@ function registerBatchMixedTest(): void {
     });
     expect(res.statusCode).toBe(403);
     expect(res.json()).toEqual({ error: CAP_MESSAGE });
-    // Pre-scan rejected the batch before the tx opened — a1 was NOT renamed.
+    // Pre-scan rejected the batch before the tx opened, a1 was not renamed.
     expect(readAccountRows(await call(app, { method: "GET", url: "/api/state?accountId=a1" }))[0]?.name).toBe(
       account("a1").name,
     );

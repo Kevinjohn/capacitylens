@@ -6,8 +6,8 @@ import {
   durableSnapshotPublisher,
   ensurePrivateBackupDirectory,
   writeVerifiedSnapshot,
-  type DurableSnapshotPublisher,
 } from "./publish";
+import type { DurableSnapshotPublisher } from "./publish";
 export interface PreMigrationBackupOptions {
   dbPath: string;
   fromVersion: number;

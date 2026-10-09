@@ -31,35 +31,35 @@ export {
 } from "./authConfig/federatedIdentitySchema";
 export { runAuthMigrations, planAuthSchemaMigrations, BOOTSTRAP_ADMIN_EMAIL } from "./authConfig/bootstrapAdmin";
 
-// Better Auth owns session, credential, and named provider sign-in. With SMALLSASS_ACCOUNT_MODE unset or
+// Better Auth owns session, credential, and named provider sign-in. With CAPACITYLENS_MODE unset or
 // `off`, authFromEnv returns before initializing Better Auth, reading credentials, or creating auth
-// tables. Better Auth tables — user, session, account, and verification — share the SQLite file
+// tables. Better Auth tables (user, session, account, and verification) share the SQLite file
 // and are created by runAuthMigrations. They are not AppData entities: the entity lists (KNOWN_KEYS /
 // tables.ts / sanitize) deliberately do not cover them, and db.ts wipe()/loadState()
 // never touch them.
 
-/** Misconfiguration that must refuse boot loudly (same posture as assertSchemaCurrent) —
- *  the entrypoint catches this, prints the message, and exits 1. */
+/** Misconfiguration that must refuse boot loudly (same posture as assertSchemaCurrent),
+ * the entrypoint catches this, prints the message, and exits 1. */
 export class AuthConfigError extends Error {}
 
 // Constant-time secret compare shared by the first-run setup token and bootstrap
-// token. Returns false UNLESS the configured token is a non-empty string AND the presented
-// value is a non-empty string of the SAME byte length whose bytes match — so an unset/empty
+// token. Returns false unless the configured token is a non-empty string and the presented
+// value is a non-empty string of the same byte length whose bytes match, so an unset/empty
 // token (the default) never allows the token path, and the length-equality short-circuit
 // doesn't reveal the secret's length by timing (timingSafeEqual itself requires equal-length
 // buffers). Headers arrive as string | string[] | undefined from Fastify, or string | null
-// from a Better Auth ctx; `unknown` covers both — only a single string can match.
+// from a Better Auth ctx; `unknown` covers both, only a single string can match.
 export function isMatchingSecretToken(configured: string | undefined, presented: unknown): boolean {
   if (!configured || typeof presented !== "string" || presented.length === 0) return false;
   const a = Buffer.from(configured, "utf8");
   const b = Buffer.from(presented, "utf8");
-  // timingSafeEqual throws on a length mismatch — guard first; an attacker learns only "wrong
+  // timingSafeEqual throws on a length mismatch, guard first; an attacker learns only "wrong
   // length" (already observable from the response), not the secret's bytes.
   if (a.length !== b.length) return false;
   return timingSafeEqual(a, b);
 }
 
-// ── Admin-issued password-reset links ──────────────────────────────────────────────────────────
+// Admin-issued password-reset links.
 // Admin requests capture the token instead of emailing it, preserving the write-once copy-link
 // flow. Public requests use optional SMTP. Better Auth owns token storage, expiry, single-use
 // consumption and the public POST /api/auth/reset-password redeem endpoint.
@@ -68,17 +68,17 @@ export function isMatchingSecretToken(configured: string | undefined, presented:
  * Mint a single-use, {@link RESET_LINK_TTL_SECONDS}-lived password-reset token for `email` via
  * Better Auth's verification store. Returns the token, or `null` when Better Auth
  * matched no user for the email (its anti-enumeration success tells us nothing, so "callback never
- * fired" IS the no-such-user signal). The caller (the admin-gated route in app.ts) turns the token
+ * fired" is the no-such-user signal). The caller (the admin-gated route in app.ts) turns the token
  * into a link and returns it exactly once. Better Auth persists only a digest of the identifier;
  * the bearer token itself is never stored or logged here.
  *
  * Password mode only: in 'sso' the IdP owns credentials and `sendResetPassword` is not configured,
- * so Better Auth itself refuses with RESET_PASSWORD_DISABLED — the route gates on mode first and
+ * so Better Auth itself refuses with RESET_PASSWORD_DISABLED, the route gates on mode first and
  * never reaches that.
  */
 export async function mintPasswordResetToken(auth: Auth, email: string): Promise<string | null> {
   const store: { token: string | null } = { token: null };
-  // The sendResetPassword hook is AWAITED inside requestPasswordReset (no backgroundTasks handler
+  // The sendResetPassword hook is awaited inside requestPasswordReset (no backgroundTasks handler
   // is configured), so the capture is complete when this resolves.
   await resetTokenCapture.run(store, () => auth.api.requestPasswordReset({ body: { email } }));
   return store.token;
@@ -105,14 +105,14 @@ export function revokeFederatedLinkStateInTx(db: Db, principalId: string): void 
 const verificationTableExists = createTableExistenceProbe("verification");
 const microsoftProofTableExists = createTableExistenceProbe("microsoft_identity_proofs");
 
-// {@link countUsers} is consulted BEFORE runAuthMigrations as well as after it — authFromEnv makes
+// {@link countUsers} is consulted before runAuthMigrations as well as after it, authFromEnv makes
 // its boot-time minPasswordLength decision on the pre-migration handle, where the table does not
 // exist yet. Caching that pre-migration `false` would make every later per-request call read
 // "zero users" forever, holding first-run sign-up open on a populated instance.
 const userTableExists = createTableExistenceProbe("user");
 
 /**
- * Count Better Auth `user` rows — the first-run signal. Zero means "no one can sign in yet", which
+ * Count Better Auth `user` rows, the first-run signal. Zero means "no one can sign in yet", which
  * is what opens the one-time bootstrap paths: the live sign-up gate (hooks.before in
  * {@link createAuthFromEnvironment}), the `needsSetup` flag on /api/auth/me's 401, and the
  * {@link createBootstrapAdmin} escape hatch all key on this. Safe to call before runAuthMigrations:
@@ -141,11 +141,11 @@ export function parseAuthMode(raw: string | undefined): AccountMode {
   if (mode === "off" || mode === "password-only" || mode === "sso-only" || mode === "password-and-sso") return mode;
   if (mode === "password" || mode === "sso") {
     throw new AuthConfigError(
-      `SMALLSASS_ACCOUNT_MODE=${mode} was removed. Use ${mode === "sso" ? "sso-only" : "password-only or password-and-sso (if provider sign-in is intended)"}.`,
+      `CAPACITYLENS_MODE=${mode} was removed. Use ${mode === "sso" ? "sso-only" : "password-only or password-and-sso (if provider sign-in is intended)"}.`,
     );
   }
   throw new AuthConfigError(
-    `SMALLSASS_ACCOUNT_MODE must be 'off', 'password-only', 'sso-only' or 'password-and-sso' — got '${raw}'.`,
+    `CAPACITYLENS_MODE must be 'off', 'password-only', 'sso-only' or 'password-and-sso' — got '${raw}'.`,
   );
 }
 
@@ -223,8 +223,8 @@ export function ensureAuthControlTables(db: Db, environment: Env): void {
 }
 
 /** Structural half of a SQLite UNIQUE-constraint collision on the bootstrap-claim insert,
- *  shared by both acquisition sites. Each caller ORs its own message-regex clause on top (the
- *  two patterns differ deliberately for now), so this only covers the code/errcode probe. */
+ * shared by both acquisition sites. Each caller ORs its own message-regex clause on top (the
+ * two patterns differ deliberately for now), so this only covers the code/errcode probe. */
 function isSqliteConstraintCollision(sqlite: { code?: unknown; errcode?: unknown }): boolean {
   return sqlite.errcode === 19 || (typeof sqlite.code === "string" && sqlite.code.startsWith("SQLITE_CONSTRAINT"));
 }

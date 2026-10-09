@@ -5,7 +5,8 @@ import { insertRow, openDb } from "../db";
 import { createInvite, getInvite, upsertMember } from "../controlTables";
 import { canAdmitLocalExternalIdentity } from "../accounts/externalIdentityAdmission";
 import { hasLivePreauthorizedInvitation } from "../accounts/sqliteAccountAdminPort";
-import { PASSWORD_ENV, readCookies, registerServerFixtureCleanup, signUp } from "../testHelpers";
+import { PASSWORD_ENV, readCookies, signUp } from "../testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "../testHelpers/registerServerFixtureCleanup";
 
 const fixtures = registerServerFixtureCleanup();
 const origin = "http://localhost:8787";
@@ -47,10 +48,10 @@ async function configured(mode: "password-and-sso" | "sso-only" = "sso-only") {
     db,
     {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: mode,
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
-      SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: ownerEmail,
+      CAPACITYLENS_MODE: mode,
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS: ownerEmail,
     },
     {
       externalIdentityAdmission: (candidate) =>
@@ -92,6 +93,33 @@ async function signInGoogle(fixture: Fixture, profile: GoogleProfile, callbackUR
   expect(started.statusCode, started.body).toBe(200);
   return finishGoogle(fixture, { url: started.json<{ url: string }>().url, cookie: readCookies(started), profile });
 }
+
+it("routes a provider denial through Better Auth's namespaced verification state", async () => {
+  const fixture = await configured();
+  const errorURL = `${origin}/?externalSignInError=1`;
+  const started = await fixture.app.inject({
+    method: "POST",
+    url: "/api/auth/sign-in/social",
+    payload: { provider: "google", callbackURL: `${origin}/`, errorCallbackURL: errorURL },
+  });
+  expect(started.statusCode, started.body).toBe(200);
+  const state = new URL(started.json<{ url: string }>().url).searchParams.get("state");
+  if (!state) throw new Error("Expected native OAuth state.");
+
+  const denied = await fixture.app.inject({
+    url: `/api/auth/callback/google?error=access_denied&state=${encodeURIComponent(state)}`,
+    headers: { cookie: readCookies(started) },
+  });
+
+  expect(denied.statusCode, denied.body).toBe(302);
+  const location = denied.headers.location;
+  if (!location) throw new Error("Expected a provider error callback redirect.");
+  const redirect = new URL(location);
+  expect(redirect.origin + redirect.pathname).toBe(origin + "/");
+  expect(redirect.searchParams.get("externalSignInError")).toBe("1");
+  expect(redirect.searchParams.get("error")).toBe("access_denied");
+  expect(redirect.searchParams.has("state")).toBe(false);
+});
 
 function principalId(fixture: Fixture, email: string): string {
   const row = fixture.db.prepare("SELECT id FROM user WHERE email = ?").get(email) as { id: string } | undefined;

@@ -7,9 +7,10 @@ import { assertOwnershipTransfersCurrent } from "./controlTables/ownershipTransf
 import {
   cancelOwnershipTransferRecoveryRow,
   readOwnershipTransferRecoveryRow,
-  type OwnershipTransferRecoveryRow,
 } from "./controlTables/ownershipTransferRecovery";
-import { openDbConnection, planDatabaseMigrations, type Db } from "./db";
+import type { OwnershipTransferRecoveryRow } from "./controlTables/ownershipTransferRecovery";
+import { openDbConnection, planDatabaseMigrations } from "./db";
+import type { Db } from "./db";
 import { acquireExclusiveDatabaseLock } from "./resetOwnerPassword";
 import { tx } from "./txn";
 

@@ -9,7 +9,8 @@ import {
   prepareCompanyAdmissionIntent,
 } from "../accounts/adminPort/joiningAdmission";
 import { microsoftCallbackCapture } from "./captureContexts";
-import { MicrosoftProofError, type MicrosoftProofIntent } from "./microsoftProofPrimitives";
+import { MicrosoftProofError } from "./microsoftProofPrimitives";
+import type { MicrosoftProofIntent } from "./microsoftProofPrimitives";
 
 type Intent = MicrosoftProofIntent;
 

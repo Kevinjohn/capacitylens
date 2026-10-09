@@ -4,13 +4,12 @@ import { useActiveScopedData } from "@/store/useScopedData";
 import {
   hasDisciplinesEnabled,
   hasPlaceholdersEnabled,
-  hasResourceEngagementGrouping,
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
 } from "@/store/selectors";
 import { useStore } from "@/store/useStore";
-import { useCalendarToday } from "../scheduler/useCalendarToday";
+import { useCalendarToday } from "@/components/scheduler/useCalendarToday";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
 import type { CapacityOverviewHorizon } from "./capacityOverviewDates";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
@@ -38,7 +37,6 @@ export function CapacityOverviewView() {
   );
   const placeholdersEnabled = hasPlaceholdersEnabled(data, activeAccountId);
   const disciplinesEnabled = hasDisciplinesEnabled(data, activeAccountId);
-  const groupResourcesByEngagement = hasResourceEngagementGrouping(data, activeAccountId);
   const model = useMemo(
     () =>
       buildCapacityOverviewModel({
@@ -51,13 +49,11 @@ export function CapacityOverviewView() {
         placeholdersEnabled,
         hasAvailability,
         disciplinesEnabled,
-        groupResourcesByEngagement,
         blocksMode: schedulingMode === "blocks",
       }),
     [
       accountWorkingDays,
       disciplinesEnabled,
-      groupResourcesByEngagement,
       horizon,
       hasAvailability,
       includeTentative,

@@ -1,7 +1,7 @@
 import { m } from "@/i18n";
 import type { MembershipStatus } from "@capacitylens/shared/account/types";
 import { APP_NAME } from "@capacitylens/shared/brand";
-import type { TeamMember } from "../../account/teamAccessClient";
+import type { TeamMember } from "@/account/teamAccessClient";
 
 // Pure copy and status tables for member confirmations. They live apart from the
 // MemberConfirmations component so that file exports only components (react-refresh).
@@ -84,7 +84,7 @@ export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation
 }
 
 /** The status a confirmed lifecycle action writes. Kept beside buildMemberConfirmationCopy so a new action
- *  cannot be added to the union without deciding both its wording and its effect. */
+ * cannot be added to the union without deciding both its wording and its effect. */
 export const STATUS_FOR_ACTION: Readonly<Record<"disable" | "archive" | "restore", MembershipStatus>> = Object.freeze({
   disable: "disabled",
   archive: "archived",

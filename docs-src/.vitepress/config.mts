@@ -6,8 +6,8 @@ import { generateDocumentationComponentId } from "./generateDocumentationCompone
 import { ports } from "../../scripts/ports.mjs";
 
 // The docs site. Built with `pnpm run docs:build` into the committed docs/ folder.
-// Each task track has its own ordered sidebar. The longest matching path is
-// listed first where two tracks reuse an existing reference page.
+// Each role guide (Scheduler, Owner, Admin, Tech) has its own ordered sidebar. The
+// longest matching path wins where a guide reuses a page from another directory.
 // Escape and Tab close an open screenshot lightbox. Opening, closing by click, and all
 // the styling are pure CSS (see lightbox.mts); these keystrokes are the only
 // part CSS cannot express, so it is retained in the standalone build with the
@@ -34,6 +34,8 @@ const usingSidebar = [
     items: [
       { text: "Start here", link: "/using/" },
       { text: "Join your team", link: "/using/join-your-team" },
+      { text: "Plan work as an Editor", link: "/using/editor" },
+      { text: "Check the plan as a Viewer", link: "/using/viewer" },
       {
         text: "Page guide",
         items: [
@@ -41,24 +43,15 @@ const usingSidebar = [
           { text: "Overview", link: "/using/overview" },
           { text: "Resources", link: "/using/resources" },
           { text: "Disciplines", link: "/using/disciplines" },
-          { text: "Clients", link: "/using/clients" },
-          { text: "Projects", link: "/using/projects" },
+          { text: "Clients and projects", link: "/using/projects" },
           { text: "Activities", link: "/using/activities" },
           { text: "Time off", link: "/using/time-off" },
         ],
       },
       {
-        text: "Scheduling tasks",
-        items: [
-          { text: "Find capacity", link: "/using/find-capacity" },
-          { text: "Schedule work", link: "/using/schedule-work" },
-          { text: "Change work", link: "/using/change-work" },
-          { text: "Record time off", link: "/using/record-time-off" },
-        ],
-      },
-      {
         text: "When you need it",
         items: [
+          { text: "Schedule and change work", link: "/using/schedule-work" },
           { text: "Settings", link: "/using/settings" },
           { text: "Account", link: "/using/account" },
           { text: "Team & access", link: "/using/team-access" },
@@ -94,19 +87,18 @@ const adminSidebar = [
       { text: "Prepare clients and work", link: "/admin/prepare-work" },
       { text: "Make the first booking", link: "/admin/first-booking" },
       { text: "Ongoing administration", link: "/admin/ongoing-administration" },
+      { text: "Diagnostics", link: "/admin/diagnostics" },
       { text: "Admin FAQ", link: "/admin/faq" },
     ],
   },
 ];
 
-const installationSidebar = [
+const selfHostingSidebar = [
   {
-    text: "Technical installation",
+    text: "Install and run",
     items: [
-      { text: "Start here", link: "/installation/" },
-      { text: "Install CapacityLens", link: "/getting-started/install" },
-      { text: "Install with Docker", link: "/self-hosting/install-with-docker" },
-      { text: "Install without Docker", link: "/self-hosting/install-without-docker" },
+      { text: "Start here", link: "/self-hosting/" },
+      { text: "Install CapacityLens", link: "/self-hosting/install" },
       {
         text: "Deploy on a managed VPS",
         link: "/self-hosting/managed-vps/",
@@ -118,27 +110,25 @@ const installationSidebar = [
           { text: "Finish and hand over", link: "/self-hosting/managed-vps/finish-and-operate-the-installation" },
         ],
       },
-      { text: "Configure the service", link: "/installation/configure-the-service" },
-      { text: "Secure the connection", link: "/installation/secure-the-connection" },
-      { text: "Verify and hand over", link: "/installation/verify-and-hand-over" },
-      { text: "Installation FAQ", link: "/installation/faq" },
-    ],
-  },
-];
-
-const operationsSidebar = [
-  {
-    text: "Self-hosted operations",
-    items: [
-      { text: "Start here", link: "/operations/" },
+      { text: "Install without Docker", link: "/self-hosting/install-without-docker" },
+      { text: "Install with Docker", link: "/self-hosting/install-with-docker" },
+      { text: "Configuration", link: "/self-hosting/configuration" },
+      { text: "TLS and networking", link: "/self-hosting/tls-and-networking" },
+      { text: "Verify and hand over", link: "/self-hosting/verify-and-hand-over" },
       { text: "Backups and restore", link: "/self-hosting/backups-and-restore" },
       { text: "Upgrades", link: "/self-hosting/upgrades" },
       { text: "Monitoring and health checks", link: "/self-hosting/monitoring" },
-      { text: "Configuration", link: "/self-hosting/configuration" },
-      { text: "Company login", link: "/company-login/" },
+      {
+        text: "Company login",
+        link: "/company-login/",
+        items: [
+          { text: "Set up Google or Microsoft sign-in", link: "/company-login/set-up-company-login" },
+          { text: "Require company sign-in", link: "/company-login/move-to-single-sign-on" },
+        ],
+      },
       { text: "Ownership-transfer recovery", link: "/self-hosting/ownership-transfer-recovery" },
       { text: "When something goes wrong", link: "/self-hosting/incidents" },
-      { text: "Operations FAQ", link: "/operations/faq" },
+      { text: "Install and operations FAQ", link: "/self-hosting/faq" },
     ],
   },
 ];
@@ -150,13 +140,24 @@ const referenceSidebar = [
       { text: "Glossary", link: "/reference/glossary" },
       { text: "Security and privacy", link: "/security/" },
       { text: "Privacy", link: "/security/privacy" },
-      { text: "Reviews and compliance", link: "/security/reviews" },
+      {
+        text: "Reviews and compliance",
+        link: "/security/reviews",
+        items: [
+          { text: "Security review 2026-08-18", link: "/security/reviews/security-review-2026-08-18" },
+          { text: "Security review 2026-07-14", link: "/security/reviews/security-review-2026-07-14" },
+          { text: "Mutation-test review 2026-07-15", link: "/security/reviews/mutation-review-2026-07-15" },
+          { text: "Mutation-test review 2026-07-18", link: "/security/reviews/mutation-review-2026-07-18" },
+        ],
+      },
       { text: "Threat model", link: "/security/threat-model" },
       { text: "OpenSSF Baseline assessment", link: "/security/OpenSSF-best-practices-dev" },
       { text: "Control inventories", link: "/security/control-inventories" },
       { text: "Development guide", link: "/reference/development" },
       { text: "Node 26 discovery", link: "/reference/node26-discovery" },
       { text: "Code conventions", link: "/reference/conventions" },
+      { text: "How it is tested", link: "/reference/how-it-is-tested" },
+      { text: "Philosophy", link: "/reference/philosophy" },
       { text: "Open source and contributing", link: "/open-source" },
     ],
   },
@@ -168,7 +169,8 @@ const introductionSidebar = [
     items: [
       { text: "What is CapacityLens?", link: "/getting-started/what-is-capacitylens" },
       { text: "Quick start", link: "/getting-started/quick-start" },
-      { text: "Getting-started FAQ", link: "/getting-started/faq" },
+      { text: "Try the demo", link: "/getting-started/try-the-demo" },
+      { text: "How it compares", link: "/getting-started/how-it-compares" },
     ],
   },
 ];
@@ -222,7 +224,7 @@ export default defineConfig({
   markdown: { theme: "github-dark", config: imageLightbox },
 
   // Internal records that live in docs-src/ but are not part of the site.
-  srcExclude: ["STYLE.md", "sso-cutover-design.md", "account-boundary.md", "README.md"],
+  srcExclude: ["STYLE.md", "decisions/**", "README.md"],
 
   themeConfig: {
     siteTitle: "CapacityLens",
@@ -238,23 +240,12 @@ export default defineConfig({
     ],
 
     sidebar: {
-      "/guide/settings": adminSidebar,
       "/using/": usingSidebar,
-      "/guide/": usingSidebar,
       "/owner/": ownerSidebar,
-      "/getting-started/set-up-your-company": ownerSidebar,
       "/getting-started/roles-and-permissions": ownerSidebar,
-      "/getting-started/invite-your-team": adminSidebar,
       "/admin/": adminSidebar,
-      "/installation/": installationSidebar,
-      "/getting-started/install": installationSidebar,
-      "/getting-started/try-the-demo": installationSidebar,
-      "/self-hosting/managed-vps/": installationSidebar,
-      "/self-hosting/install-with-docker": installationSidebar,
-      "/self-hosting/install-without-docker": installationSidebar,
-      "/operations/": operationsSidebar,
-      "/self-hosting/": operationsSidebar,
-      "/company-login/": operationsSidebar,
+      "/self-hosting/": selfHostingSidebar,
+      "/company-login/": selfHostingSidebar,
       "/reference/": referenceSidebar,
       "/security/": referenceSidebar,
       "/open-source": referenceSidebar,

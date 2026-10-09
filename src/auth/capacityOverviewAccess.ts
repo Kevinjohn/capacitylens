@@ -1,4 +1,5 @@
-import { canViewCapacityOverview, type Role } from "@capacitylens/shared/domain/access";
+import { canViewCapacityOverview } from "@capacitylens/shared/domain/access";
+import type { Role } from "@capacitylens/shared/domain/access";
 import type { CapacityOverviewAccess } from "@capacitylens/shared/types/entities";
 
 type PermissionStatus = "not-applicable" | "pending" | "resolved" | "unavailable";

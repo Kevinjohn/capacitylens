@@ -1,21 +1,23 @@
 import { describe, it, expect } from "vitest";
-import type { FastifyInstance } from "fastify";
 import { createApp as buildAppRaw } from "./app";
-import { openDb as openDbRaw, insertAll, type Db } from "./db";
+import { openDb as openDbRaw, insertAll } from "./db";
+import type { Db } from "./db";
 import { upsertMember, createInvite, newInviteId } from "./controlTables";
-import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, signUp, registerServerFixtureCleanup } from "./testHelpers";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 
-// P2.6a — TEST-LOCK for the COMPLETE PER-TENANT EXPORT.
+// Test-lock for the complete per-tenant export.
 //
 // A complete per-tenant export is not a second route: it
-// is the EXISTING `GET /api/state?accountId=X&includeInactive=1` admin read (server/src/app.ts), which
-// returns exactly ONE account's slice via store.readSlice(accountId, { includeInactive: true }). This
+// is the existing `GET /api/state?accountId=X&includeInactive=1` admin read (server/src/app.ts), which
+// returns exactly one account's slice via store.readSlice(accountId, { includeInactive: true }). This
 // suite locks the two backup guarantees so a future change can't silently regress them:
-//   (1) FULL SLICE incl. inactive — archived + soft-deleted rows are RETAINED (a backup keeps them),
-//       and the no-flag read PROVES includeInactive is what flips that (P2.4 active-only contrast).
-//   (2) CONTROL TABLES / PII ABSENT — account_members / invites (membership + invite secrets/PII) are
+//   (1) full slice incl. inactive, archived + soft-deleted rows are retained (a backup keeps them),
+//       and the no-flag read proves includeInactive is what flips that (the active-only contrast).
+//   (2) control tables / PII absent: account_members / invites (membership + invite secrets/PII) are
 //       structurally excluded from the slice (readSlice never reads the control plane). Mirrors the
 //       absence assertions in app.controlTables.test.ts.
 // Admin gating (non-admin → 403) is already exhaustively covered by app.lifecycle.test.ts's "auth-on
@@ -45,24 +47,15 @@ const person = (id: string, accountId: string, extra: Record<string, unknown> = 
 });
 
 // A soft-delete TOMBSTONE (deletedAt set; archivedAt precedes it because soft-delete requires prior
-// archival) and a plain ARCHIVED marker — the two non-active states a complete backup must retain.
+// archival) and a plain ARCHIVED marker, the two non-active states a complete backup must retain.
 const ARCHIVED = { archivedAt: TS };
 const TOMBSTONE = { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" };
 
-/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!auth) throw new Error("Password auth fixture was not created.");
-  await runAuthMigrations(auth);
-  return { app: buildApp(db, { authMode: mode, auth }), db };
-}
-
 /**
  * Seed account a1 with three resources spanning every lifecycle state the backup must retain:
- *  - rActive: ACTIVE (visible in both the normal and the complete read)
- *  - rArchived: ARCHIVED (archivedAt set — retained only by the complete read)
- *  - rDeleted: SOFT-DELETED tombstone (deletedAt set — retained only by the complete read)
+ *  - rActive: active (visible in both the normal and the complete read)
+ *  - rArchived: archived (archivedAt set, retained only by the complete read)
+ *  - rDeleted: soft-deleted tombstone (deletedAt set, retained only by the complete read)
  * a2 carries an unrelated resource so the per-account scoping is testable.
  */
 function seedResources(db: Db): void {
@@ -81,7 +74,7 @@ const ids = (body: { resources: { id: string }[] }) => body.resources.map((r) =>
 
 describe("P2.6a complete per-tenant export — full slice INCLUDING inactive (the backup guarantee)", () => {
   it("?includeInactive=1 returns the active, archived AND soft-deleted resources (none dropped)", async () => {
-    // OFF mode is trusted-local ⇒ the includeInactive read needs no auth; keeps the payload assertion
+    // Off mode is trusted-local ⇒ the includeInactive read needs no auth; keeps the payload assertion
     // free of the auth harness (the gate itself is asserted in the dedicated 403 test below).
     const db = openDb(":memory:");
     const app = buildApp(db);
@@ -90,7 +83,7 @@ describe("P2.6a complete per-tenant export — full slice INCLUDING inactive (th
     const res = await app.inject({ method: "GET", url: "/api/state?accountId=a1&includeInactive=1" });
     expect(res.statusCode).toBe(200);
     const got = ids(res.json());
-    // The complete backup RETAINS every row — including the two non-active tombstones.
+    // The complete backup retains every row, including the two non-active tombstones.
     expect(got).toContain("rActive");
     expect(got).toContain("rArchived");
     expect(got).toContain("rDeleted");
@@ -121,8 +114,8 @@ describe("P2.6a complete per-tenant export — server-control tables / PII struc
     const app = buildApp(db);
     seedResources(db);
 
-    // Seed the control plane DIRECTLY (the only path that touches it): a membership row and a live
-    // invite carrying a bearer token + a preauth email — exactly the secrets/PII an export must never leak.
+    // Seed the control plane directly (the only path that touches it): a membership row and a live
+    // invite carrying a bearer token + a preauth email, exactly the secrets/PII an export must never leak.
     const MEMBER_USER_ID = "member-secret-user-id-XYZ";
     const INVITE_TOKEN = "invite-bearer-token-SECRET-XYZ";
     const INVITE_EMAIL = "preauth-secret@capacitylens.dev";
@@ -151,10 +144,10 @@ describe("P2.6a complete per-tenant export — server-control tables / PII struc
     const res = await app.inject({ method: "GET", url: "/api/state?accountId=a1&includeInactive=1" });
     expect(res.statusCode).toBe(200);
     const state = res.json() as Record<string, unknown>;
-    // No control-table KEY on the wire shape.
+    // No control-table key on the wire shape.
     expect(state).not.toHaveProperty("account_members");
     expect(state).not.toHaveProperty("invites");
-    // No control-plane VALUE anywhere in the serialised export (mirrors app.controlTables.test.ts):
+    // No control-plane value anywhere in the serialised export (mirrors app.controlTables.test.ts):
     // the table name, the member's userId, the invite's bearer token, and the preauth email are all absent.
     const serialised = JSON.stringify(state);
     expect(serialised).not.toContain("account_members");
@@ -164,14 +157,14 @@ describe("P2.6a complete per-tenant export — server-control tables / PII struc
     expect(serialised).not.toContain("invitation_person_proposals");
     expect(serialised).not.toContain("private-proposed-resource");
     expect(serialised).not.toContain("resource_unavailable");
-    // Sanity: the account's OWN data IS in the export (proving we asserted absence on a populated payload).
+    // Sanity: the account's own data is in the export (proving we asserted absence on a populated payload).
     expect(ids(res.json())).toContain("rActive");
   });
 });
 
 describe("P2.6a complete per-tenant export — admin/purge-tier gating (auth-on)", () => {
   it("a non-admin (editor) requesting ?includeInactive=1 → 403 (no backup for non-admins)", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth({ fixtures });
     seedResources(db);
     const { cookie, userId } = await signUp(app, "editor-export@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });

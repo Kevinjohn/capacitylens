@@ -7,7 +7,7 @@ import {
 } from "./ServerSyncAdapter";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, Discipline, TimeOff } from "@capacitylens/shared/types/entities";
-import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
+import { AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
 import {
   TS1,
   client,
@@ -258,8 +258,8 @@ function registerCompensatingKeepaliveTests(): void {
 
 function registerScopedDeleteSaveTests(): void {
   it("carries the owning account on a scoped (non-lifecycle) DELETE op; accounts (top-level) carry none", async () => {
-    // Uses a scoped NON-lifecycle row (timeOff): lifecycle-entity deletes (clients/projects/resources/activities)
-    // are routed OUT of the batch to the dedicated archive/delete endpoints (see the lifecycle-delete
+    // Uses a scoped non-lifecycle row (timeOff): lifecycle-entity deletes (clients/projects/resources/activities)
+    // are routed out of the batch to the dedicated archive/delete endpoints (see the lifecycle-delete
     // suite below), so the "scoped DELETE carries accountId on the wire" contract is asserted here on a
     // table that still rides the batch.
     const account = {
@@ -299,7 +299,7 @@ function registerScopedDeleteSaveTests(): void {
 function registerConflictSaveTests(): void {
   it("maps a 409 batch response to BatchConflictError carrying body.error (+ current)", async () => {
     // 409 is the server's optimistic-concurrency conflict signal ({ error, current }). It must
-    // surface as the TYPED BatchConflictError — persist.ts branches on it to resolve by reloading
+    // surface as the typed BatchConflictError, persist.ts branches on it to resolve by reloading
     // (server wins) instead of futilely retrying the same stale diff.
     const fetchImpl = vi.fn(async (url: string) => {
       if (url.endsWith("/api/batch")) {

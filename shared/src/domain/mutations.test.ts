@@ -53,7 +53,7 @@ interface TimeOffOptions {
   overrides?: Partial<TimeOff>;
 }
 
-// These specs target the PURE domain mutations directly (no store, no React). The
+// These specs target the pure domain mutations directly (no store, no React). The
 // store and a future server both call this exact module, so locking the rules in
 // here is what makes "server validation == client validation" free.
 
@@ -177,7 +177,7 @@ describe("getOwned", () => {
 const registerUnchangedParentIdOnUpdatePart1 = () => {
   it("passes an UNCHANGED clientId even when the client is absent from data (archived parent)", () => {
     const existing = project("p1", A1, "c-archived");
-    // No clients at all — the archived parent was stripped from the slice.
+    // No clients at all. The archived parent was stripped from the slice.
     expect(() =>
       assertScopedRefs(base(), A1, "projects", { name: "Renamed", clientId: "c-archived" }, existing),
     ).not.toThrow();
@@ -370,7 +370,7 @@ const registerAssertScopedRefsPart3 = () => {
       projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
       phases: [phase("ph1", A1, "p1")], // a phase of p1
     };
-    // Activity is bound to p2 but references p1's phase — double-bound to two projects.
+    // Activity is bound to p2 but references p1's phase, double-bound to two projects.
     expect(() =>
       assertScopedRefs(data, A1, "activities", {
         projectId: "p2",
@@ -581,7 +581,7 @@ const registerAssertScopedRefsPart8 = () => {
 
 const registerAssertScopedRefsPart9 = () => {
   it("an UNRECOGNISED activity kind is not treated as internal/repeatable (no false project rejection)", () => {
-    // assertScopedRefs checks refs + coherence for the KNOWN kinds only; it does not police the kind
+    // assertScopedRefs checks refs + coherence for the known kinds only; it does not police the kind
     // enum itself (sanitize does). An unknown kind carrying a valid project must pass the ref checks.
     const data = {
       ...base(),
@@ -597,15 +597,15 @@ const registerAssertScopedRefsPart9 = () => {
   });
 
   it("validates a resource’s disciplineId FK with its own message (dangling discipline throws)", () => {
-    const data = { ...base(), disciplines: [discipline("d1", A2)] }; // discipline is in ANOTHER account
+    const data = { ...base(), disciplines: [discipline("d1", A2)] }; // discipline is in another account
     expect(() => assertScopedRefs(data, A1, "resources", { disciplineId: "d1" })).toThrow(
       "Resource discipline must belong to this company.",
     );
   });
 
-  // The unchanged-on-update relaxation (5th arg `existing`): in SERVER mode the client's hydrated
-  // slice is ACTIVE-ONLY, so an unchanged parent id pointing at an ARCHIVED parent (absent from
-  // `data`) must not block an unrelated edit. A CHANGED id is still validated strictly.
+  // The unchanged-on-update relaxation (5th arg `existing`): in server mode the client's hydrated
+  // slice is active-only, so an unchanged parent id pointing at an archived parent (absent from
+  // `data`) must not block an unrelated edit. A changed id is still validated strictly.
   describe("unchanged parent id on update (existing row passed)", registerUnchangedParentIdOnUpdate);
 };
 
@@ -949,15 +949,15 @@ const registerAssertResourceKindAllowsDependentsPart2 = () => {
   });
 
   it("only considers THIS resource’s dependents in THIS account", () => {
-    // Another resource's loaded allocation + a same-id dependent in a different account must NOT block.
+    // Another resource's loaded allocation + a same-id dependent in a different account must not block.
     const data: AppData = {
       ...base(),
       resources: [person("r1", A1), person("other", A1)],
       allocations: [
-        allocation({ id: "al", accountId: A1, resourceId: "other", activityId: "t1", overrides: { hoursPerDay: 8 } }), // belongs to a DIFFERENT resource
-        allocation({ id: "al2", accountId: A2, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 8 } }), // same resource id, DIFFERENT account
+        allocation({ id: "al", accountId: A1, resourceId: "other", activityId: "t1", overrides: { hoursPerDay: 8 } }), // belongs to a different resource
+        allocation({ id: "al2", accountId: A2, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 8 } }), // same resource id, different account
       ],
-      timeOff: [timeOff({ id: "to", accountId: A2, resourceId: "r1" })], // same resource id, DIFFERENT account
+      timeOff: [timeOff({ id: "to", accountId: A2, resourceId: "r1" })], // same resource id, different account
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).not.toThrow();
   });
@@ -1426,7 +1426,7 @@ const registerRemapAndValidateImportPart7 = () => {
 const registerRemapAndValidateImportPart8 = () => {
   it("coerces an external resource’s allocation load to 0 and drops external time-off", () => {
     // A hand-edited file: an external resource carries a non-zero allocation load (impossible via the
-    // form) and a time-off entry (meaningless — externals have no capacity). Import keeps the booking
+    // form) and a time-off entry (meaningless, externals have no capacity). Import keeps the booking
     // but zeroes its load, and drops the time-off entirely (the same rule the write boundary rejects).
     const handEdited: AppData = {
       ...emptyAppData(),
@@ -1449,7 +1449,7 @@ const registerRemapAndValidateImportPart8 = () => {
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.allocations).toHaveLength(1);
-    expect(data.allocations[0]?.hoursPerDay).toBe(0); // load coerced — capacity-free resource
+    expect(data.allocations[0]?.hoursPerDay).toBe(0); // load coerced, capacity-free resource
     expect(data.timeOff).toHaveLength(0); // external time-off dropped
   });
 
@@ -1568,7 +1568,7 @@ const registerRemapAndValidateImportPart10 = () => {
 
   it("keeps an allocation to an unbound placeholder when its activity is general", () => {
     // The placeholder's bound project is absent, so it unbinds. An allocation of it to
-    // a (general) activity whose own project is also absent survives — a general activity is
+    // a (general) activity whose own project is also absent survives. A general activity is
     // allocatable to anyone, placeholders included.
     const handEdited: AppData = {
       ...emptyAppData(),
@@ -1585,7 +1585,7 @@ const registerRemapAndValidateImportPart10 = () => {
 
 const registerRemapAndValidateImportPart11 = () => {
   it("drops an allocation to an unbound placeholder when its activity is project-bound", () => {
-    // Same unbinding, but the activity keeps a SURVIVING project, so the placeholder rule
+    // Same unbinding, but the activity keeps a surviving project, so the placeholder rule
     // bites: an unbound placeholder may not take a project activity → the allocation drops.
     const handEdited: AppData = {
       ...emptyAppData(),
@@ -1620,9 +1620,9 @@ const registerRemapAndValidateImportPart11 = () => {
 
 const registerRemapAndValidateImportPart12 = () => {
   it("does not count an auto-added built-in Internal that the file already carries (no N+1 over-report)", () => {
-    // A pre-v6 FULL export gets a builtin Internal synthesised by migrate BEFORE this import runs, so
-    // the file reaching here already carries one. It must be KEPT (every account needs exactly one) but
-    // NOT counted — `imported` reflects only the file's genuine non-builtin records.
+    // A pre-v6 full export gets a builtin Internal synthesised by migrate before this import runs, so
+    // the file reaching here already carries one. It must be kept (every account needs exactly one) but
+    // not counted, `imported` reflects only the file's genuine non-builtin records.
     const withBuiltin: AppData = {
       ...emptyAppData(),
       clients: [
@@ -1637,9 +1637,9 @@ const registerRemapAndValidateImportPart12 = () => {
       projects: [project("src-p", "src", "src-c")],
     };
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, withBuiltin, TS);
-    expect(imported).toBe(2); // the real (non-builtin) client + project — NOT the builtin (would be 3)
+    expect(imported).toBe(2); // the real (non-builtin) client + project, not the builtin (would be 3)
     expect(skipped).toBe(0);
-    // Exactly one builtin lands for A1 (the kept imported one), and it is NOT in the genuine count;
+    // Exactly one builtin lands for A1 (the kept imported one), and it is not in the genuine count;
     // the one real non-builtin client (src-c) lands alongside it.
     expect(data.clients.filter((c) => c.accountId === A1 && c.builtin)).toHaveLength(1);
     expect(data.clients.filter((c) => c.accountId === A1 && !c.builtin)).toHaveLength(1);
@@ -1676,10 +1676,10 @@ const registerRemapAndValidateImportPart12 = () => {
 const registerRemapAndValidateImportPart13 = () => {
   it("resolves a foreign key against its OWN table when a source id collides across tables", () => {
     // Corrupt file: a discipline and a client share source id 'X', and a project points at
-    // clientId 'X'. A single GLOBAL id map would resolve 'X' to whichever table is processed
+    // clientId 'X'. A single global id map would resolve 'X' to whichever table is processed
     // first (disciplines) and misroute the project's clientId to a non-client id, dropping
     // the project (required FK) and its subtree. Per-table maps resolve clientId via the
-    // CLIENTS map, so the project survives and re-links to the imported client.
+    // clients map, so the project survives and re-links to the imported client.
     const collide: AppData = {
       ...emptyAppData(),
       disciplines: [{ ...meta("X", "src"), name: "Design", sortOrder: 0 }],
@@ -1689,9 +1689,9 @@ const registerRemapAndValidateImportPart13 = () => {
     const { data } = remapAndValidateImport(base(), A1, collide, TS);
     const proj = data.projects.find((p) => p.accountId === A1);
     const cli = data.clients.find((c) => c.accountId === A1);
-    expect(proj).toBeDefined(); // NOT dropped (old global map dropped it)
+    expect(proj).toBeDefined(); // Not dropped (old global map dropped it)
     expect(cli).toBeDefined();
-    expect(proj?.clientId).toBe(cli?.id); // clientId re-linked to the imported CLIENT, not the discipline
+    expect(proj?.clientId).toBe(cli?.id); // clientId re-linked to the imported client, not the discipline
   });
 
   it("stamps fresh createdAt/updatedAt on imported records (the store/server owns the clock)", () => {
@@ -1719,7 +1719,7 @@ const registerRemapAndValidateImportPart14 = () => {
       ...emptyAppData(),
       clients: [client("c", "src")],
       projects: [project("p1", "src", "c"), project("p2", "src", "c")],
-      phases: [phase("ph1", "src", "p1")], // a phase OF p1
+      phases: [phase("ph1", "src", "p1")], // a phase of p1
       activities: [activity({ id: "t", accountId: "src", projectId: "p2", phaseId: "ph1" })], // bound to p2 but referencing p1's phase
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
@@ -1740,7 +1740,7 @@ const registerRemapAndValidateImportPart15 = () => {
     // If a new scoped entity is added to SCOPED_KEYS but the import repair block inside
     // remapAndValidateImport is not updated, the new table's rows would be brought in
     // without referential repair. This test ensures the import survives and preserves
-    // rows for every scoped table — a missing repair step silently drops or corrupts rows
+    // rows for every scoped table, a missing repair step silently drops or corrupts rows
     // in the affected table, causing this test to fail.
     const incoming: AppData = {
       ...emptyAppData(),
@@ -1762,20 +1762,20 @@ const registerRemapAndValidateImportPart15 = () => {
       ],
     };
     const { data, imported } = remapAndValidateImport(base(), A1, incoming, TS);
-    // Every SCOPED_KEY must be present in the output and non-empty. `clients` carries TWO rows: the
-    // imported client plus the guaranteed built-in Internal (synthesised — the file had none).
+    // Every SCOPED_KEY must be present in the output and non-empty. `clients` carries two rows: the
+    // imported client plus the guaranteed built-in Internal (synthesised, the file had none).
     for (const key of SCOPED_KEYS) {
       const expectedLen = key === "clients" ? 2 : 1;
       expect(data[key], `key "${key}" must be non-empty after import`).toHaveLength(expectedLen);
     }
-    // The synthesised Internal is bookkeeping, so the FILE'S record count is still SCOPED_KEYS.length.
+    // The synthesised Internal is bookkeeping, so the file's record count is still SCOPED_KEYS.length.
     expect(imported).toBe(SCOPED_KEYS.length);
   });
 };
 
 const registerRemapAndValidateImportPart16 = () => {
   it("assigns a FRESH id to a record that arrives WITHOUT one (never leaves id undefined)", () => {
-    // A hand-edited file can carry a record missing its id. It must still get a fresh newId() — not
+    // A hand-edited file can carry a record missing its id. It must still get a fresh newId(), not
     // land with an undefined primary key (which SQLite's NOT NULL would reject).
     const noId = {
       name: "NoId",
@@ -1791,7 +1791,7 @@ const registerRemapAndValidateImportPart16 = () => {
   });
 
   it("KEEPS a resource’s valid discipline and a placeholder’s valid project (does not over-unbind)", () => {
-    // The optional-FK repair must only unbind a DANGLING ref — a surviving discipline/project must be
+    // The optional-FK repair must only unbind a dangling ref. A surviving discipline/project must be
     // retained (and remapped), not nuked to undefined.
     const incoming: AppData = {
       ...emptyAppData(),
@@ -1828,7 +1828,7 @@ const registerRemapAndValidateImportPart17 = () => {
   });
 
   it("KEEPS a project activity’s valid phase and its kind (no over-unbind, no re-classify)", () => {
-    // A project activity whose phase belongs to its OWN project is coherent — the phase must stay, the
+    // A project activity whose phase belongs to its own project is coherent. The phase must stay, the
     // kind must remain 'project', and the projectId must be retained.
     const incoming: AppData = {
       ...emptyAppData(),
@@ -1859,7 +1859,7 @@ const registerRemapAndValidateImportPart18 = () => {
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const t = data.activities.find((x) => x.accountId === A1);
     expect(t?.kind).toBe("internal"); // kind preserved
-    expect(t?.projectId).toBeUndefined(); // project stripped — a project-less kind carries neither
+    expect(t?.projectId).toBeUndefined(); // project stripped, a project-less kind carries neither
     expect(t?.phaseId).toBeUndefined();
   });
 
@@ -1881,7 +1881,7 @@ const registerRemapAndValidateImportPart18 = () => {
 
 const registerRemapAndValidateImportPart19 = () => {
   it("FOLDS duplicate imported built-in Internal clients into ONE and rewires their projects to it", () => {
-    // A hand-edited / re-imported file with TWO builtins must be normalised to exactly one Internal;
+    // A hand-edited / re-imported file with two builtins must be normalised to exactly one Internal;
     // anything that pointed at a folded-away builtin must be re-pointed at the kept one so it survives
     // the required-FK drop.
     const incoming: AppData = {
@@ -1900,7 +1900,7 @@ const registerRemapAndValidateImportPart19 = () => {
           builtin: true,
         },
       ],
-      projects: [project("p", "src", "b2")], // under the SECOND (folded-away) builtin
+      projects: [project("p", "src", "b2")], // under the second (folded-away) builtin
     };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const builtins = data.clients.filter((c) => c.accountId === A1 && c.builtin);
@@ -1919,7 +1919,7 @@ const registerRemapAndValidateImportPart20 = () => {
       projects: [project("p", "src", "c")],
       activities: [activity({ id: "t", accountId: "src", projectId: "p" })],
       resources: [person("r", "src")],
-      // single-digit month/day — would fail the YYYY-MM-DD range check if not normalized.
+      // single-digit month/day, would fail the YYYY-MM-DD range check if not normalized.
       allocations: [
         allocation({
           id: "al",

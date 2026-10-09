@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IDBFactory, IDBObjectStore as FakeIDBObjectStore } from "fake-indexeddb";
 
 import { seed } from "@capacitylens/shared/data/seed";
-import { SCOPED_KEYS, emptyAppData, scopedTables, type AppData } from "@capacitylens/shared/types/entities";
+import { SCOPED_KEYS, emptyAppData, scopedTables } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 
 import {
   cacheAccountSlice,
@@ -326,7 +327,7 @@ describe("offline tenant cache cross-tab boundaries", () => {
     expect(preferenceChanged).toHaveBeenCalledOnce();
     await expect(getRaw(`slice:${currentCacheNamespace()}:user-a:a-studio`)).resolves.toBeDefined();
 
-    setOfflineReadState("tenant", true, 123);
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: 123 });
     window.dispatchEvent(
       new StorageEvent("storage", {
         key: "capacitylens/offlineWriteBoundary",

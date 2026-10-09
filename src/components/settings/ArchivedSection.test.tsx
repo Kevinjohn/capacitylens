@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { ArchivedSection } from "./ArchivedSection";
-import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAccount, makeActivity, makeClient, makeResource } from "../../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, makeAccount, makeActivity, makeClient, makeResource } from "@/test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { PermissionContext } from "../../auth/permissionContext";
+import { PermissionContext } from "@/auth/permissionContext";
 
 const cfg = vi.hoisted(() => ({ serverOn: false }));
-vi.mock("../../data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => cfg.serverOn }));
+vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => cfg.serverOn }));
 
 const TS = "2026-05-01T00:00:00.000Z";
 const OLD = "2026-01-01T00:00:00.000Z";

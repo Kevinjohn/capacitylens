@@ -1,15 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type Dispatch,
-  type MutableRefObject,
-  type RefObject,
-  type SetStateAction,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from "react";
 import { eachDayISO, startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 import {
@@ -17,9 +7,10 @@ import {
   WEEK_SNAP_IDLE_MS,
   WEEKEND_COLUMN_REM,
   resolveColumnFit,
-} from "../../lib/schedulerConfig";
-import { buildVisibleRange } from "../../store/selectors";
-import { useStore, type SchedulerUI } from "../../store/useStore";
+} from "@/lib/schedulerConfig";
+import { buildVisibleRange } from "@/store/selectors";
+import { useStore } from "@/store/useStore";
+import type { SchedulerUI } from "@/store/useStore";
 import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";
 import { LAYOUT } from "./layout";
 import { resolveWeekStartSnapTarget } from "./resolveWeekStartSnapTarget";
@@ -27,12 +18,12 @@ import { resolveWeekStartSnapTarget } from "./resolveWeekStartSnapTarget";
 interface SchedulerViewportOptions {
   ui: SchedulerUI;
   minimiseWeekends: boolean;
-  snapToWeekStart: boolean;
+  weekSnapEnabled: boolean;
   calendarWeekStartsOn: 0 | 1;
 }
 
 /** One writer for both scroll offsets: overlays clamped to the visible window read them as custom
- *  properties instead of each subscribing to the scroll event (see visibleSpanInsets). */
+ * properties instead of each subscribing to the scroll event (see visibleSpanInsets). */
 const publishScrollOffsets = (element: HTMLElement) => {
   element.style.setProperty("--sched-scroll-left", `${element.scrollLeft}px`);
   element.style.setProperty("--sched-scroll-top", `${element.scrollTop}px`);
@@ -218,7 +209,7 @@ interface ViewportScrollingInput {
   geometry: ReturnType<typeof buildColumnGeometry>;
   days: ISODate[];
   ui: SchedulerUI;
-  snapToWeekStart: boolean;
+  weekSnapEnabled: boolean;
   calendarWeekStartsOn: 0 | 1;
   setScrollTop: Dispatch<SetStateAction<number>>;
   setLeftEdgeIndex: Dispatch<SetStateAction<number>>;
@@ -231,7 +222,7 @@ function useSettledScrollState(input: ViewportScrollingInput) {
     snapTimerRef,
     geometry,
     days,
-    snapToWeekStart,
+    weekSnapEnabled,
     calendarWeekStartsOn,
     setScrollTop,
     setLeftEdgeIndex,
@@ -245,7 +236,7 @@ function useSettledScrollState(input: ViewportScrollingInput) {
       clearTimeout(snapTimerRef.current);
       snapTimerRef.current = 0;
     },
-    [calendarWeekStartsOn, days, geometry, scrollRafRef, snapTimerRef, snapToWeekStart],
+    [calendarWeekStartsOn, days, geometry, scrollRafRef, snapTimerRef, weekSnapEnabled],
   );
   const dragging = useStore((state) => state.draggingAllocationId !== null);
   useEffect(() => {
@@ -272,7 +263,7 @@ function useViewportScrolling(input: ViewportScrollingInput) {
     previousScrollLeftRef,
     geometry,
     days,
-    snapToWeekStart,
+    weekSnapEnabled,
     calendarWeekStartsOn,
     setScrollTop,
     setLeftEdgeIndex,
@@ -290,7 +281,7 @@ function useViewportScrolling(input: ViewportScrollingInput) {
       previousScrollLeftRef.current = element.scrollLeft;
       if (useStore.getState().draggingAllocationId !== null || !horizontalChanged) return;
       setLeftEdgeIndex(geometry.indexAtScroll(element.scrollLeft));
-      if (!snapToWeekStart) return;
+      if (!weekSnapEnabled) return;
       clearTimeout(snapTimerRef.current);
       snapTimerRef.current = window.setTimeout(() => {
         const node = scrollRef.current;
@@ -307,7 +298,7 @@ function useViewportScrolling(input: ViewportScrollingInput) {
   }, [
     geometry,
     days,
-    snapToWeekStart,
+    weekSnapEnabled,
     calendarWeekStartsOn,
     previousScrollLeftRef,
     scrollRafRef,
@@ -322,7 +313,7 @@ function useViewportScrolling(input: ViewportScrollingInput) {
 }
 
 interface ViewportProtocolInput extends ViewportAlignmentInput {
-  snapToWeekStart: boolean;
+  weekSnapEnabled: boolean;
   setScrollTop: Dispatch<SetStateAction<number>>;
   setLeftEdgeIndex: Dispatch<SetStateAction<number>>;
 }
@@ -341,7 +332,7 @@ function useViewportProtocol(input: ViewportProtocolInput) {
 export function useSchedulerViewport({
   ui,
   minimiseWeekends,
-  snapToWeekStart,
+  weekSnapEnabled,
   calendarWeekStartsOn,
 }: SchedulerViewportOptions) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -369,7 +360,7 @@ export function useSchedulerViewport({
     geometry,
     days,
     ui,
-    snapToWeekStart,
+    weekSnapEnabled,
     calendarWeekStartsOn,
     setScrollTop,
     setLeftEdgeIndex,

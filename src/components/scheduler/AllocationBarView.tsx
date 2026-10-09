@@ -7,9 +7,9 @@ import type {
 } from "react";
 import { Repeat2 } from "lucide-react";
 import { m } from "@/i18n";
-import { formatDayMonthEndpoint, formatDayMonthRange } from "../../lib/dateDisplay";
-import { resolveAllocationStatusAnnotation } from "../../lib/metadata";
-import { TooltipContent, TooltipRoot, TooltipTrigger } from "../ui/tooltip";
+import { formatDayMonthEndpoint, formatDayMonthRange } from "@/lib/dateDisplay";
+import { resolveAllocationStatusAnnotation } from "@/lib/metadata";
+import { TooltipContent, TooltipRoot, TooltipTrigger } from "@/components/ui/tooltip";
 import { LAYOUT } from "./layout";
 import type { BarLayout } from "./schedulerModel";
 import { buildVisibleSpanInsets } from "./visibleSpanInsets";
@@ -78,7 +78,7 @@ function BarContents({
           }}
         />
       )}
-      {/* Centred over the bar's VISIBLE portion, not its start: a bar that began before the
+      {/* Centred over the bar's visible portion, not its start: a bar that began before the
           window would otherwise carry its label off-screen with it. `pointer-events-none` keeps
           the resize grips underneath hittable, and the bar itself still receives the gesture. */}
       <span

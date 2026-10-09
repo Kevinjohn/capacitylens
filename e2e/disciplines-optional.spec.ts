@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { Page } from "./fixtures";
 import { openApp, showScheduleFilters } from "./browserTestSupport";
 
 async function moveDianaToSupplementary(page: Page) {
@@ -20,7 +21,7 @@ async function restoreDisciplines(page: Page) {
   await expect(page.getByTestId("discipline-group").first()).toBeVisible();
 }
 
-// The account-level "Use disciplines" toggle (Settings → Disciplines). Off should hide
+// The account-level "Use disciplines" toggle (Settings → Company features). Off should hide
 // discipline surfaces and use engagement fallback bands on the schedule; on restores disciplines.
 test("turning disciplines off hides every surface; turning it back on restores them", async ({ page }) => {
   await openApp(page, "Wayne Enterprises", "/resources");
@@ -46,11 +47,11 @@ test("turning disciplines off hides every surface; turning it back on restores t
   // Sidebar nav link is gone.
   await expect(page.getByRole("link", { name: "Disciplines" })).toHaveCount(0);
 
-  // …and the collapsed icon mode drops it too: 9 destinations, no Disciplines.
+  // …and the collapsed icon mode drops it too: 10 destinations (Diagnostics included in the demo), no Disciplines.
   // (External is no longer a standalone nav link — it lives inside Resources.)
   await page.getByRole("button", { name: "Collapse menu" }).click();
   await expect(page.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
-  await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(9);
+  await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(10);
   await expect(page.getByRole("link", { name: "Disciplines" })).toHaveCount(0);
   await page.getByTestId("app-sidebar").getByRole("button", { name: "Expand menu" }).click();
 

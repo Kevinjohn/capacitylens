@@ -42,7 +42,7 @@ If the final DNS record is not ready, use the platform's temporary HTTPS domain.
 the final domain later.
 
 Record the temporary origin exactly, including `https://`. You will use it as
-`SMALLSASS_ACCOUNT_PUBLIC_URL` until the domain cutover.
+`CAPACITYLENS_PUBLIC_URL` until the domain cutover.
 
 Do not configure company login against the temporary origin unless you are prepared to replace
 its redirect URI later.

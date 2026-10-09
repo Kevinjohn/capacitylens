@@ -34,11 +34,6 @@
       "reason": "test-size ratchet baseline; split when touched"
     },
     {
-      "path": "server/src/app.auth.test.ts",
-      "baseline": 903,
-      "reason": "retained head of the #827 auth split, pinned"
-    },
-    {
       "path": "server/src/app.invites.test.ts",
       "baseline": 1370,
       "reason": "test-size ratchet baseline; split when touched"
@@ -111,11 +106,6 @@
     {
       "path": "src/components/scheduler/schedulerModel.test.ts",
       "baseline": 1892,
-      "reason": "test-size ratchet baseline; split when touched"
-    },
-    {
-      "path": "src/components/settings/SettingsView.test.tsx",
-      "baseline": 840,
       "reason": "test-size ratchet baseline; split when touched"
     },
     {

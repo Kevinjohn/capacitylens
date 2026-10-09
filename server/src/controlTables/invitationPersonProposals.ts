@@ -1,10 +1,7 @@
 import type { Db } from "../db";
 import { INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "../db/constants";
-import {
-  isAccountMemberResourceConflict,
-  setAccountMemberResourceLinkInTransaction,
-  type AccountMemberResourceMutation,
-} from "./accountMemberResources";
+import { isAccountMemberResourceConflict, setAccountMemberResourceLinkInTransaction } from "./accountMemberResources";
+import type { AccountMemberResourceMutation } from "./accountMemberResources";
 
 export { INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "../db/constants";
 

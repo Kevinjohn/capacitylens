@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { emptyAppData, type Resource } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { Resource } from "@capacitylens/shared/types/entities";
 import { prepareBatchBody } from "./batchWire";
 import { SyncState } from "./SyncState";
 

@@ -1,12 +1,14 @@
 import type { Action } from "@capacitylens/shared/domain/access";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountMode } from "../../auth";
-import { getRow, type Db } from "../../db";
-import { ACCOUNT_CREATE_CLOSED_MESSAGE, countAccounts } from "../accountEntityRoutes";
+import { getRow } from "../../db";
+import type { Db } from "../../db";
+import { countAccounts } from "../accountEntityRoutes";
+import { REPLY_ERRORS } from "../replyErrors";
 import { isScopedTable, NO_REPROMPT } from "../routeShared";
 
 import type { BatchRouteDependencies } from "../batchRoutes";
-import { type BatchOp } from "./types";
+import type { BatchOp } from "./types";
 
 interface AuthorizeBatchOperationsInput {
   ops: BatchOp[];
@@ -88,7 +90,7 @@ function authorizeAccountPut(parameters: AuthorizeAccountPutInput): boolean {
   const { op, db, authMode, reply, authorizeOnce } = parameters;
   if (getRow(db, "accounts", op.id)) return authorizeOnce(op.id, "write");
   if (authMode === "off") return true;
-  reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
+  reply.code(403).send({ error: REPLY_ERRORS.accountCreateClosed });
   return false;
 }
 
@@ -104,13 +106,13 @@ export function authorizeBatchOperations(parameters: AuthorizeBatchOperationsInp
   for (const op of ops) {
     if (op.table === "accounts" && op.method === "PUT") {
       if (!authorizeAccountPut({ op, db, authMode, reply, authorizeOnce })) return false;
-      // OFF-mode creates are checked against the projected final set and rechecked by the
+      // Off-mode creates are checked against the projected final set and rechecked by the
       // provisioning policy inside the transaction.
       continue;
     }
     if (!isScopedTable(op.table)) {
       reply.code(403).send({
-        error: "No batch-write policy is defined for this entity.",
+        error: REPLY_ERRORS.batchNoWritePolicy,
       });
       return false;
     }

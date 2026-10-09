@@ -4,15 +4,16 @@ import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import { MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
 import type { Allocation, ISODate } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { formatShortDate } from "../../lib/dateDisplay";
-import { resolveRepeatPattern, type RepeatSelection } from "../../lib/repeatingAllocations";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { formatShortDate } from "@/lib/dateDisplay";
+import { resolveRepeatPattern } from "@/lib/repeatingAllocations";
+import type { RepeatSelection } from "@/lib/repeatingAllocations";
 
 // The allocation form's decision layer, lifted out of AllocationModal so the rules can be read (and
 // tested) without a render. Nothing here touches React or the store: the modal supplies the already-
-// derived view of its own state, and gets back either the FIRST problem to report or the end date to
+// derived view of its own state, and gets back either the first problem to report or the end date to
 // persist. Message wording still lives here because a rule and the sentence that explains it are the
-// same decision — the modal only routes the result into `fail`.
+// same decision, the modal only routes the result into `fail`.
 
 /** The first rule a draft breaks: the field to focus (null = form-level) and what to say. */
 export interface AllocationDraftProblem {
@@ -55,8 +56,8 @@ type CountFieldInput = Pick<
 type Fail = (field: AllocationDraftProblem["field"], message: AllocationDraftProblem["message"]) => void;
 
 /** The Start + "Days over" pair the two span modes share. The date-domain message is distinct from
- *  the plain range one: near year 9999 the cap is the calendar itself, not MAX_SPAN_DAYS, and
- *  telling the user "max 36,500" there would be a lie. */
+ * the plain range one: near year 9999 the cap is the calendar itself, not MAX_SPAN_DAYS, and
+ * telling the user "max 36,500" there would be a lie. */
 function validateCountField(
   { startDate, validDaysOver, spanFitsDateDomain, spanLimitedByDateDomain, maximumDaysOver }: CountFieldInput,
   fail: Fail,
@@ -179,8 +180,8 @@ function validateEffectiveHours(input: AllocationDraftValidationInput, fail: Fai
 }
 
 /** Every rule the visible allocation draft must satisfy before it may be written, in the order the
- *  user should hear about them. Reports the FIRST problem and returns whether the draft is persistable.
- *  Save and Duplicate both run this so Duplicate cannot persist a shape Save would reject. */
+ * user should hear about them. Reports the first problem and returns whether the draft is persistable.
+ * Save and Duplicate both run this so Duplicate cannot persist a shape Save would reject. */
 export function validateAllocationDraft(input: AllocationDraftValidationInput, fail: Fail): boolean {
   if (!validateSelections(input, fail)) return false;
   // External and hourly allocations both use the raw Start/End inputs. Validate this once so
@@ -192,9 +193,9 @@ export function validateAllocationDraft(input: AllocationDraftValidationInput, f
   if (!validateRepeat(input, fail)) return false;
   // Single anti-silent-clamp guard for every load-carrying mode (days + hourly; external is a
   // 0-load span and blocks derive a safe block load, so both are excluded). The store clamps an
-  // allocation's load into [0, MAX_HOURS_PER_DAY] AND collapses a non-finite value to 0 — so a
+  // allocation's load into [0, MAX_HOURS_PER_DAY] and collapses a non-finite value to 0, so a
   // derived load that's NaN (a part-typed "Days over" → hoursPerDayFor returns NaN) or above the
-  // cap (an Enter-submit before the field's on-blur clamp) would SILENTLY save the wrong volume.
+  // cap (an Enter-submit before the field's on-blur clamp) would silently save the wrong volume.
   // Require a finite load in (0, MAX_HOURS_PER_DAY] instead, so the preview ("…h/day") is exactly
   // what saves, failing to the field the user can act on in each mode.
   return validateEffectiveHours(input, fail);
@@ -215,9 +216,9 @@ export interface EndDateInput {
   effectiveEndDate: ISODate;
 }
 
-/** The end date to persist. A span-mode edit that changed NOTHING the span depends on keeps the
- *  STORED end verbatim: re-deriving it would silently renormalise a historical row (one saved under
- *  a different working week, or before a span rule changed) on an unrelated edit such as a note. */
+/** The end date to persist. A span-mode edit that changed nothing the span depends on keeps the
+ * stored end verbatim: re-deriving it would silently renormalise a historical row (one saved under
+ * a different working week, or before a span rule changed) on an unrelated edit such as a note. */
 export function resolveEndDate({
   editing,
   isBlocks,

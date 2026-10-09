@@ -1,15 +1,15 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import { chooseOption } from "./__tests__/schedulerTestKit";
 import { ACC, person, resetAllocationModalStore } from "./__tests__/allocationModalTestKit";
 
 type CapacityAdvisoryMockInput =
-  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisory>[0]
-  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisoryFromLoad>[0];
+  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisory>[0]
+  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisoryFromLoad>[0];
 const capacityAdvisoryMock = vi.hoisted(() =>
   vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
     overDays: 0,
@@ -25,9 +25,9 @@ const lastAdvisoryOthers = () => {
 
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory VERDICTS the modal renders.
-vi.mock("../../lib/capacity", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../lib/capacity")>()),
+// care only about the advisory verdicts the modal renders.
+vi.mock("@/lib/capacity", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
@@ -58,7 +58,7 @@ describe("AllocationModal blocks mode", () => {
       />,
     );
 
-    // Blocks drops every load field — no End, no Hours/day, no Days of work.
+    // Blocks drops every load field. No End, no Hours/day, no Days of work.
     expect(screen.queryByLabelText("End")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Hours / day")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Days of work")).not.toBeInTheDocument();
@@ -81,7 +81,7 @@ describe("AllocationModal blocks mode", () => {
 
   it("counts the existing load through the blocks projection, like the grid and the drag path", () => {
     const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
-    // Legacy hourly allocation persisted BEFORE the account switched to blocks: it keeps its stored
+    // Legacy hourly allocation persisted before the account switched to blocks: it keeps its stored
     // 8h/day, and every capacity surface must read it as zero load while the account is in blocks.
     useStore.getState().addAllocation({
       resourceId: r.id,
@@ -113,7 +113,7 @@ describe("AllocationModal blocks mode", () => {
     enableBlocks();
     capacityAdvisoryMock.mockClear();
     renderCreate();
-    // Blocks carry placement but no hourly load — the advisory must not see the legacy 8h and warn
+    // Blocks carry placement but no hourly load. The advisory must not see the legacy 8h and warn
     // "over capacity" on days the grid's over-markers leave clean.
     expect(lastAdvisoryOthers()).toEqual([expect.objectContaining({ hoursPerDay: 0 })]);
   });

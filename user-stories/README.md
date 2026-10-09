@@ -211,7 +211,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-SET-13](settings/US-SET-13-password-reset-links.md)   | Admin-issued password-reset links               | `e2e/reset-password.auth.spec.ts`                       |
 | [US-SET-14](settings/US-SET-14-internal-work-colours.md)  | Internal work colours                           | `e2e/internal-colours.spec.ts`                          |
 | [US-SET-15](settings/US-SET-15-global-working-days.md)    | Company-wide working days                       | `e2e/global-working-days.spec.ts`                       |
-| [US-SET-16](settings/US-SET-16-diagnostics.md)            | Copy privacy-safe diagnostics                   | `src/data/buildInfo.test.ts` + `SettingsView.test.tsx`  |
+| [US-SET-16](settings/US-SET-16-diagnostics.md)            | Copy privacy-safe diagnostics                   | `DiagnosticsView.test.tsx` + `e2e/a11y.spec.ts`         |
 | [US-SET-17](settings/US-SET-17-date-style.md)             | Company-wide date format                        | `e2e/settings-date-style.spec.ts` + `.db.spec.ts`       |
 | [US-SET-18](settings/US-SET-18-ownership-transfer.md)     | Hand the company to someone else                | `e2e/ownership-transfer.auth.spec.ts`                   |
 | [US-SET-19](settings/US-SET-19-company-joining-policy.md) | Decide who can join the company                 | joining policy, proof and provider tests                |

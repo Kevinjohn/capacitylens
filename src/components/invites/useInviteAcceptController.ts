@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type RefObject } from "react";
-import { isServerConfigured } from "../../data/apiConfig";
-import { createBrowserAccountCommand, type BrowserAccountCommand } from "../../account/accountClient";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import type { FormEvent, RefObject } from "react";
+import { isServerConfigured } from "@/data/apiConfig";
+import { createBrowserAccountCommand } from "@/account/accountClient";
+import type { BrowserAccountCommand } from "@/account/accountClient";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
-import { useAuth, type AuthProviderInfo } from "../../auth/authContext";
-import { clearExternalSignInError, hasExternalSignInError } from "../../auth/externalSignInError";
+import { useAuth } from "@/auth/authContext";
+import type { AuthProviderInfo } from "@/auth/authContext";
+import { clearExternalSignInError, hasExternalSignInError } from "@/auth/externalSignInError";
 import type { InviteAcceptState, InvitePreview } from "./InviteAcceptView";
 import { createInvitePreviewAction } from "./invitePreviewActions";
 import { createInviteAcceptanceActions } from "./inviteAcceptanceActions";
@@ -56,7 +59,8 @@ function useInviteRefs(user: ReturnType<typeof useAuth>["user"], state: InviteAc
   };
 }
 
-function useExternalErrorCleanup(returnedWithExternalError: boolean) {
+type UseExternalErrorCleanupOptions = { returnedWithExternalError: boolean };
+function useExternalErrorCleanup({ returnedWithExternalError }: UseExternalErrorCleanupOptions) {
   useEffect(() => {
     if (!returnedWithExternalError) return;
     window.history.replaceState(window.history.state, "", clearExternalSignInError(window.location.href));
@@ -178,7 +182,7 @@ function useInviteFlow(
   // restarts effects in development; marking the first attempt as complete before it resolves would
   // suppress the replacement request and strand the page on “Checking invite…”.
   const refs = useInviteRefs(user, inviteState.state);
-  useExternalErrorCleanup(returnedWithExternalError);
+  useExternalErrorCleanup({ returnedWithExternalError: returnedWithExternalError });
   const signupCommand = useSignupCommand({ token, ...inviteState });
 
   useDocumentTitle();

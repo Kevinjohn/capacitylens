@@ -8,7 +8,7 @@ description: Set up the CapacityLens repository, run it locally, and run the che
 ::: tip This page is for contributors, not users
 It's for anyone changing the CapacityLens code. If you just run or use CapacityLens,
 you don't need it — see the [glossary](/reference/glossary) or the
-[guide](/guide/the-schedule) instead.
+[guide](/using/read-the-schedule) instead.
 :::
 
 This page gets the CapacityLens source running on your machine, explains how the
@@ -152,11 +152,28 @@ Owner/Admin/Editor/Viewer flows against the password-auth server, use the isolat
 lab described below. It documents the local-only credentials, the prebuilt Wayne
 Enterprises fixture, and the expected visibility matrix.
 
+### Development-only variables {#development-environment}
+
+These server variables exist for development and tests. They are not operator configuration, so
+`.env.example` and the [configuration guide](/self-hosting/configuration) leave them out, and
+Compose does not pass `CAPACITYLENS_ALLOW_RESET` or `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` into
+the production API container. Production refuses each of the first three.
+
+| Variable | What it does |
+| --- | --- |
+| `CAPACITYLENS_ALLOW_RESET` | Set `1` to expose the destructive `POST /api/test/reset` route for development and tests with sign-in off. |
+| `CAPACITYLENS_CREATE_ADMIN_ADMIN` | First-owner helper, also available as `--create-owner-admin-admin`. Creates `admin@admin.admin` only when the password user table is empty. |
+| `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` | Required password for that owner helper. Keep it in a secret manager; the server never generates or prints it. |
+| `CAPACITYLENS_DEV_API_PORT` | API port used by `scripts/dev-fullstack.mjs`. Default `8787`. |
+
+Browser-test and rehearsal controls (`API_PORT`, `CAPACITYLENS_E2E_PHASE` and the browser
+selectors) are described under [Browser upgrade rehearsal](#browser-upgrade-rehearsal).
+
 ## The access lab
 
 The lab is destructive only to the fixed local file `server/.access-lab.db`, which is
 recreated on every run. Its launcher and setup boundary remove inherited
-`SMALLSASS_ACCOUNT_*`, `CAPACITYLENS_*`, `BETTER_AUTH_*` and `VITE_CAPACITYLENS_*`
+`CAPACITYLENS_*`, `BETTER_AUTH_*` and `VITE_CAPACITYLENS_*`
 configuration, then pin the API to `127.0.0.1`, password auth, the lab database and the
 local Vite origin. The setup script also refuses every path except that exact
 non-symlink repository fixture, including a same-named database in another directory.
@@ -201,7 +218,7 @@ pnpm exec playwright test --project=auth-backed \
 - `src/data/` — persistence, in-memory demo and opt-in offline cache.
 - `src/components/scheduler/` — grid/view-model.
 - `server/src/app.ts` — HTTP boundary and authorization.
-- `server/src/tenantStore.ts` — account-scoped whole-slice and targeted lifecycle storage
+- `server/src/accountStore.ts` — account-scoped whole-slice and targeted lifecycle storage
   boundary.
 - `server/src/tables.ts` — schema/column specification.
 
@@ -310,10 +327,10 @@ projection reaches the signed-in browser flow.
 requirements for account-scoped requests.
 
 **Follow through:** Inspect the route that consumes the authorization seam, such as
-`server/src/routes/entityRoutes.ts`, then `server/src/tenantStore.ts` when the operation crosses the
+`server/src/routes/entityRoutes.ts`, then `server/src/accountStore.ts` when the operation crosses the
 scoped storage boundary. Client visibility or permission projection is never server authority.
 
-**Tests:** Start with `server/src/app.authz.test.ts`; include `server/src/db.tenantStore.test.ts` and
+**Tests:** Start with `server/src/app.authz.test.ts`; include `server/src/db.accountStore.test.ts` and
 `e2e/viewer.auth.spec.ts` when storage isolation or end-to-end role enforcement is affected.
 
 #### Online persistence and refresh {#task-online-persistence}
@@ -373,7 +390,7 @@ A few rules the codebase enforces structurally, worth knowing before you touch t
 relevant area:
 
 - Lifecycle archive, unarchive and soft-delete use owned entity-level writes through
-  `TenantStore`; purge uses targeted SQLite cascades and restamps only surviving rows whose
+  `AccountStore`; purge uses targeted SQLite cascades and restamps only surviving rows whose
   nullable relationship was cleared. Don't route a single lifecycle action through
   whole-slice replacement — synchronous SQLite would make its latency and write
   amplification proportional to every row in the tenant.
@@ -452,18 +469,7 @@ alias. This convention introduces no branded IDs and changes no wire fields.
 
 ### Account vocabulary
 
-| Term | Meaning and owning contract |
-| --- | --- |
-| Product account / workspace | A scheduling tenant. Product entities use `Account` and `accountId`; the portable account boundary uses `WorkspaceId`. Keep each existing contract's terminology. |
-| Principal | A person's identity across workspaces, represented by `PrincipalId` in the portable boundary. |
-| Membership | A principal's access and role in one workspace. |
-| Provider account | A linked external sign-in identity. The auth vendor's singular `account` table is not the product's plural `accounts` table. |
-| Session | Identity-global sign-in state, not workspace-local membership. |
-
-Name new adapters explicitly when they translate between these contracts. Preserve routes,
-SQL names, environment variables, IDs, emails, test-ids and serialized property names;
-a naming cleanup is not a public-contract migration. Display names in fixtures follow the
-comic-book naming policy in `AGENTS.md`, independently of these stable identifiers.
+The code, UI and wire names for each concept are in [Account vocabulary](/reference/conventions#account-vocabulary).
 
 ### Import paths and ownership
 
@@ -472,10 +478,13 @@ consistently for each boundary:
 
 - Across workspace packages, use the declared `@capacitylens/shared/...` export. Never
   reach into another package with `../../shared/src/...` in production code.
-- In the browser app, use `@/...` across feature directories and relative paths within
-  one feature. For example, scheduler `activityOptions.ts` imports `@/lib/displayOrder`;
+- In the browser app, use `@/...` for any import that leaves the importing file's folder
+  and `./...` only for modules in that folder or below it; `../` is rejected by lint. For
+  example, scheduler `activityOptions.ts` imports `@/lib/displayOrder`;
   `useSchedulerGridVirtualization.ts` imports `./virtualWindow`. Shared UI primitives and
-  `@/i18n` are explicit app-wide capabilities.
+  `@/i18n` are explicit app-wide capabilities. The few tests that read repository files
+  outside `src/` (`package.json`, `scripts/`, nginx templates) keep their relative paths and
+  are allowed by name in `eslint.config.js`.
 - In server and shared code, use relative paths within the package; those packages have
   no source-root alias. Keep cross-feature imports directed toward the owner below.
 - Use `import type` for declarations used only as types. In a mixed import, split the
@@ -497,7 +506,7 @@ never apply a sorting fix that changes initialization behavior.
 | `server/src/accounts/flows` | Portable account use-case coordination | Identity/admin ports, transaction and command-ledger contracts. |
 | `server/src/accounts/identityPort`, `adminPort` | Vendor and SQLite implementations | Their corresponding portable ports; vendor/storage details stay inside adapters. |
 | `server/src/routes`, `server/src/accounts/routes` | HTTP parsing, authorization and response mapping | Owned use cases and storage boundaries; UI visibility never authorizes an operation. |
-| `server/src/tenantStore.ts`, `server/src/tables` | Scoped product storage and column specifications | Explicit storage operations and immutable versioned migrations. |
+| `server/src/accountStore.ts`, `server/src/tables` | Scoped product storage and column specifications | Explicit storage operations and immutable versioned migrations. |
 
 The company-joining client in `src/account/companyJoinClient.ts` owns its browser URLs alongside
 `accountClient.ts`. On the server, `accounts/adminPort/joiningProviderIntent.ts` checks the local
@@ -538,6 +547,18 @@ Installing dependencies configures lightweight Git hooks. Each commit lints only
 JavaScript and TypeScript files, so small commits stay fast. Each push runs the complete repository
 lint to catch configuration and cross-file effects. Set `SKIP_SIMPLE_GIT_HOOKS=1` for a single Git
 operation only when diagnosing a hook problem; pull-request checks remain authoritative.
+
+### Account-security versioning
+
+When account-security behavior changes, update the version at the boundary that owns the rule:
+
+- portable identity behavior: the account contract and every `IdentityPort` conformance fixture;
+- database/auth-library behavior: the minimum-security or schema version and its migration/rehearsal evidence;
+- browser/server propagation: the shared command version and the tests proving every implementation accepts it.
+
+The pull-request description should name the changed version and link the conformance, migration,
+or propagation test that proves all implementations moved together. If no version changes, explain
+why the change preserves the existing contract.
 
 ### What `gate` checks
 
@@ -708,6 +729,9 @@ The checker also prints an unenforced `approximately N lines` diagnostic for lon
 top-level functions. These approximate lengths help identify functions to review;
 they do not affect whether the check passes.
 
+Both gates run `pnpm run policy:comment-voice`, which applies the comment rules in
+`DEFENSIVE-CODING.md` to comments under `src`, `shared` and `server/src`.
+
 Both gates also run `pnpm run policy:import-cycles` to reject runtime import cycles.
 Explicit `import type` and `export type` clauses are excluded. Inline `type` bindings
 follow each package's `verbatimModuleSyntax` setting: an empty import or re-export can
@@ -745,7 +769,7 @@ mutation score is not evidence for the Zustand store, React orchestration, or th
 Fastify/Better Auth implementation — those are covered by focused unit/component tests,
 the server integration gate and E2E. Review surviving, timed-out and uncovered mutants
 rather than accepting the aggregate score alone. The latest triage is recorded in
-[`docs-src/security/mutation-review-2026-07-18.md`](/security/mutation-review-2026-07-18).
+[`docs-src/security/reviews/mutation-review-2026-07-18.md`](/security/reviews/mutation-review-2026-07-18).
 
 ### Cross-browser checks
 
@@ -882,7 +906,7 @@ server archive and its checksum, generates its SBOM, creates GitHub build attest
 the artifacts plus the recognized
 `.intoto.jsonl` provenance bundle to the GitHub Release. It is manually runnable with an existing
 release tag for deliberate rebuilds and backfills. The blocking ZAP scan boots the hardened posture
-— password authentication, required MFA, scheduled backups and operator attestations, with
+— password authentication and scheduled backups, with
 credentials minted and masked per run — so a finding there is a regression in the
 recommended configuration. A second, non-blocking job scans the explicit no-login posture
 (sign-in mode `off`) weekly and uploads its report as an artifact. Reviewed secret-scan fixtures are
@@ -891,7 +915,7 @@ on every gate run. Because a scheduled or `main` run has no reviewer watching it
 failure there — or a cancellation that leaves the run with nothing to read — opens or
 comments on a `security-scan-failure` issue, and a later clean run closes it. A
 cancellation caused by a newer push is not reported, since that's `cancel-in-progress`
-working as intended. See `docs-src/security/security-review-2026-07-14.md` for assessment
+working as intended. See `docs-src/security/reviews/security-review-2026-07-14.md` for assessment
 scope and residual controls.
 
 `main` is protected against deletion and force pushes, and changes must arrive through a pull
@@ -922,6 +946,9 @@ gates nothing.
 The version pull request described in `AGENTS.md` → "Version and CI policy" ends when it merges.
 Publishing is a separate maintainer task. Nothing in `.github/` or `scripts/` creates tags or
 releases.
+
+There is one version bump per batch of changes, and every bump is published as a GitHub release.
+Releases before 0.41.0-alpha.3 are kept in `CHANGELOG-ARCHIVE.md`.
 
 1. Find the merged release commit and build the release package from it once, as the
    `release-provenance` workflow will after publication:
@@ -992,9 +1019,9 @@ releases.
    tar -xzf capacitylens-X.Y.Z.tar.gz
    ```
 
-   Repeat the steps of the gate's `release-package-smoke` job against that folder: copy
-   `capacitylens.env.example`, fill in its three empty lines with a loopback address and two
-   `openssl rand -base64 48` values, set `CAPACITYLENS_DB` to a writable path, and start
+   Repeat the checks of the gate's `release-package-smoke` job against that folder: write an
+   environment file with `node server/dist/index.mjs init`, giving `--public-url` a loopback
+   address, `--db` a writable path and `--out` the file, and start
    `node --env-file=<file> dist/index.mjs` from its `server/` folder. Expect deep health with
    `"db":true`, `"audit":"ok"` and a backup `status` of `"ok"`, HTML at `/` with a
    `Content-Security-Policy` header, and, after stopping the server,
@@ -1084,7 +1111,7 @@ definitions and use the checked-in fixture ledger when rehearsing a later schema
 
 Sign-in mode controls the authentication methods people may use. Enabled providers determine
 which SSO options are available. The access policy determines who may join the company.
-`SMALLSASS_ACCOUNT_MODE` accepts `off`, `password-only`, `sso-only` and `password-and-sso`;
+`CAPACITYLENS_MODE` accepts `off`, `password-only`, `sso-only` and `password-and-sso`;
 the old `password` and `sso` values fail startup with migration guidance. The shared
 `AccountMode` contract owns these values, while the server keeps the existing `authMode` wire
 field. Password-only ignores retained provider credentials and links; mixed mode needs at least
@@ -1175,12 +1202,12 @@ releases.
 
 ## Persistence diagnostics
 
-Server-mode Settings exposes process-local persistence counters for failed saves, retries,
+The server-mode client keeps process-local persistence counters for failed saves, retries,
 reconciliations, superseded reloads, rebases and discarded edits, plus the current
-write-suspension state. The counters intentionally contain no tenant values and reset
-whenever a fresh persistence lifecycle attaches. Use them with the build stamp when
-reproducing save or reload failures — they're diagnostic breadcrumbs, not durable
-telemetry or an operator health endpoint.
+write-suspension state (`usePersistenceDiagnostics`). The counters intentionally contain no tenant
+values and reset whenever a fresh persistence lifecycle attaches. The Owner/Admin Diagnostics page
+(`src/components/diagnostics/`) adds them to its copied support report. They're diagnostic
+breadcrumbs, not durable telemetry or an operator health endpoint.
 
 ## Test data and generated files
 

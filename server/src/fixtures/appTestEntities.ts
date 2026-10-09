@@ -1,9 +1,10 @@
 import type { AppOptions } from "../app";
 import { createApp } from "../app";
-import { openDb, type Db } from "../db";
+import { openDb } from "../db";
+import type { Db } from "../db";
 // API integration tests: drive the real Fastify app + a real (in-memory) node:sqlite
 // DB via inject(). Covers CRUD, whole-state read, cascade deletes, import round-trip,
-// migration reuse, and the validation rules — which run the SAME shared domain-core
+// migration reuse, and the validation rules, which run the same shared domain-core
 // the client uses, so passing here proves "server validation == client validation".
 
 export const TS = "2026-01-01T00:00:00.000Z";
@@ -18,15 +19,8 @@ export const withoutRevision = <T extends object>(row: T) => {
   return copy;
 };
 
-export function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
-
-export function freshApp(allowReset = true, extra: Partial<AppOptions> = {}) {
+type FreshAppOptions = { allowReset?: boolean; extra?: Partial<AppOptions> };
+export function freshApp({ allowReset = true, extra = {} }: FreshAppOptions = {}) {
   const db = openDb(":memory:");
   return {
     app: createApp(db, { allowReset, optimisticConcurrency: false, ...extra }),

@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import { anonymise } from "../scripts/rehearse/anonymise";
 import { remapIds, scrubDanglingReferences } from "../scripts/rehearse/anonymiseOperations";
 import { KNOWN_COLUMNS, KNOWN_TABLES } from "../scripts/rehearse/knownColumns";
-import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "./auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
+import type { Auth } from "./auth";
 import { openDb } from "./db";
-import { PASSWORD_ENV } from "./testHelpers";
+import { PASSWORD_ENV } from "./testHelpers/passwordAuth";
 
 function assertAuth(auth: Auth | null): Auth {
   if (!auth) throw new Error("Password auth fixture was not created.");
@@ -205,7 +206,7 @@ function listMissingColumns(db: DatabaseSync, tableName: string): string[] {
 async function assertSchemaCoverage(): Promise<void> {
   const db = openDb(":memory:");
   try {
-    const { auth } = createAuthFromEnvironment(db, { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_REQUIRE_MFA: "1" });
+    const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(assertAuth(auth));
     const tables = listSchemaTables(db);
     expect(tables.map(({ name }) => name)).toEqual(

@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "./app";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { openDb } from "./db";
-import { PASSWORD_ENV, readCookies, registerServerFixtureCleanup } from "./testHelpers";
+import { PASSWORD_ENV, readCookies } from "./testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 
 const fixtures = registerServerFixtureCleanup();
 const origin = "http://localhost:8787";
@@ -12,21 +13,22 @@ const payload = {
   errorCallbackURL: `${origin}/account?capacitylensIdentityProvider=microsoft`,
 };
 
-async function configured(verifyEmail = true) {
+type ConfiguredOptions = { verifyEmail?: boolean };
+async function configured({ verifyEmail = true }: ConfiguredOptions = {}) {
   const db = fixtures.trackDb(openDb(":memory:"));
   const { auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-    SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-client",
-    SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
-    SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
-    SMALLSASS_ACCOUNT_MAIL_HOST: "mail.example.test",
-    SMALLSASS_ACCOUNT_MAIL_PORT: "587",
-    SMALLSASS_ACCOUNT_MAIL_USER: "mailer",
-    SMALLSASS_ACCOUNT_MAIL_PASSWORD: "mail-secret",
-    SMALLSASS_ACCOUNT_MAIL_FROM: "identity@example.test",
+    CAPACITYLENS_MODE: "password-and-sso",
+    CAPACITYLENS_MICROSOFT_CLIENT_ID: "microsoft-client",
+    CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
+    CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+    CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+    CAPACITYLENS_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
+    CAPACITYLENS_MAIL_HOST: "mail.example.test",
+    CAPACITYLENS_MAIL_PORT: "587",
+    CAPACITYLENS_MAIL_USER: "mailer",
+    CAPACITYLENS_MAIL_PASSWORD: "mail-secret",
+    CAPACITYLENS_MAIL_FROM: "identity@example.test",
   });
   if (!auth) throw new Error("Expected configured authentication.");
   await runAuthMigrations(auth);
@@ -47,7 +49,7 @@ async function configured(verifyEmail = true) {
 
 describe("Microsoft link through the common identity route", () => {
   it("starts an exact fresh-session proof without binding an account", async () => {
-    const { db, app, auth, cookie } = await configured();
+    const { db, app, auth, cookie } = await configured({});
     const response = await app.inject({
       method: "POST",
       url: "/api/identity/link-provider",
@@ -81,7 +83,7 @@ describe("Microsoft link through the common identity route", () => {
   });
 
   it("rejects a stale session before creating a proof", async () => {
-    const { db, app, cookie } = await configured();
+    const { db, app, cookie } = await configured({});
     db.prepare("UPDATE session SET createdAt = ?").run("2000-01-01T00:00:00.000Z");
     const response = await app.inject({
       method: "POST",
@@ -94,7 +96,7 @@ describe("Microsoft link through the common identity route", () => {
   });
 
   it.each(["google", "microsoft"])("requires a verified local mailbox for explicit %s linking", async (providerId) => {
-    const { db, app, cookie } = await configured(false);
+    const { db, app, cookie } = await configured({ verifyEmail: false });
     const response = await app.inject({
       method: "POST",
       url: "/api/identity/link-provider",
@@ -112,18 +114,18 @@ describe("company-provider sign-in policy", () => {
     const db = fixtures.trackDb(openDb(":memory:"));
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "sso-only",
-      SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: "bruce@example.test",
-      SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-client",
-      SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
-      SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
-      SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client",
-      SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-secret",
-      SMALLSASS_ACCOUNT_MAIL_HOST: "mail.example.test",
-      SMALLSASS_ACCOUNT_MAIL_PORT: "587",
-      SMALLSASS_ACCOUNT_MAIL_USER: "mailer",
-      SMALLSASS_ACCOUNT_MAIL_PASSWORD: "mail-secret",
-      SMALLSASS_ACCOUNT_MAIL_FROM: "identity@example.test",
+      CAPACITYLENS_MODE: "sso-only",
+      CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS: "bruce@example.test",
+      CAPACITYLENS_MICROSOFT_CLIENT_ID: "microsoft-client",
+      CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
+      CAPACITYLENS_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
+      CAPACITYLENS_GITHUB_CLIENT_ID: "github-client",
+      CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-secret",
+      CAPACITYLENS_MAIL_HOST: "mail.example.test",
+      CAPACITYLENS_MAIL_PORT: "587",
+      CAPACITYLENS_MAIL_USER: "mailer",
+      CAPACITYLENS_MAIL_PASSWORD: "mail-secret",
+      CAPACITYLENS_MAIL_FROM: "identity@example.test",
     });
     if (!auth) throw new Error("Expected configured authentication.");
     await runAuthMigrations(auth);

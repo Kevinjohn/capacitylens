@@ -1,4 +1,4 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { hasActiveFilters, useStore } from "./useStore";
 import {
@@ -8,13 +8,13 @@ import {
   makeResourceDraft,
   requireValue,
   WORKDAYS,
-} from "../test/fixtures";
+} from "@/test/fixtures";
 import { addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { readActiveDateStyle, formatDayMonth } from "../lib/dateDisplay";
+import { readActiveDateStyle, formatDayMonth } from "@/lib/dateDisplay";
 import { resolveDateStyle } from "./selectors";
 import { serializeData } from "@capacitylens/shared/data/transfer";
-import { PAST_BUFFER_DAYS } from "../lib/schedulerConfig";
-import { diffOps } from "../data/syncOps";
+import { PAST_BUFFER_DAYS } from "@/lib/schedulerConfig";
+import { diffOps } from "@/data/syncOps";
 
 const s = () => useStore.getState();
 beforeEach(() => resetStoreWithAccount());
@@ -167,7 +167,7 @@ function registerSchedulerUiPart5(): void {
 
   it("signOutDemo drops the active company, the back-breadcrumb, and the fake flag", () => {
     // A company is active (resetStoreWithAccount). Turn the demo flag on, then sign out: it
-    // must clear the active company AND previousAccountId — leaving the latter set would give
+    // must clear the active company and previousAccountId, leaving the latter set would give
     // the re-shown picker a one-click "← Back to {company}", defeating the fresh "log in first,
     // then pick a company" intent.
     expect(s().activeAccountId).not.toBeNull();
@@ -204,7 +204,7 @@ function registerSchedulerUiPart7(): void {
     expect(s().notice?.tone).toBe("info");
     s().setNotice("Boom", "error");
     expect(s().notice?.tone).toBe("error");
-    // Clearing drops the whole notice (message + tone together — they can't desync).
+    // Clearing drops the whole notice (message + tone together, they can't desync).
     s().setNotice(null);
     expect(s().notice).toBeNull();
   });
@@ -222,7 +222,7 @@ function registerSchedulerUiPart7(): void {
   });
 
   it("goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday", () => {
-    // Seed an account whose calendar week starts on SUNDAY and make it active. This guards a
+    // Seed an account whose calendar week starts on Sunday and make it active. This guards a
     // regression where goToDate floored to Monday regardless of the account's weekStartsOn.
     const sunStart = "acct-sun";
     useStore.getState().replaceAll(
@@ -233,7 +233,7 @@ function registerSchedulerUiPart7(): void {
     useStore.getState().setActiveAccount(sunStart);
     // 2026-09-09 is a Wednesday (verified); the Sunday that starts its week is 2026-09-06 (verified).
     useStore.getState().goToDate("2026-09-09");
-    expect(useStore.getState().ui.focusDate).toBe("2026-09-06"); // that week's Sunday, NOT 09-07 (Monday)
+    expect(useStore.getState().ui.focusDate).toBe("2026-09-06"); // that week's Sunday, not 09-07 (Monday)
     expect(weekdayOf(useStore.getState().ui.focusDate)).toBe(0); // 0 = Sunday
     // Origin sits the back-buffer behind the snapped Sunday, so the past stays scrollable.
     expect(useStore.getState().ui.originDate).toBe(addDaysISO("2026-09-06", -PAST_BUFFER_DAYS));
@@ -283,7 +283,7 @@ function registerSchedulerUiPart2(): void {
 
   it("re-anchors after the first slice for a selected account replaces the temporary fallback", () => {
     const accountId = "late-account";
-    s().setAccountSummaries([{ id: accountId, name: "Late account", role: "owner" }]);
+    s().setAccountSummaries({ list: [{ id: accountId, name: "Late account", role: "owner" }] });
     s().setActiveAccount(accountId); // absent locally: temporarily anchored with GMT/Monday
     s().goToDate("2031-09-10");
 
@@ -302,34 +302,14 @@ function registerSchedulerUiPart2(): void {
 }
 
 function registerSchedulerUiPart3(): void {
-  it("setSnapToWeekStart persists to its own key, is OFF the undo stack, and is NOT in export", () => {
-    // Device-global pref (default ON). Turning it off writes the 'off' literal and updates the
-    // reactive store value.
-    s().setSnapToWeekStart(false);
-    expect(localStorage.getItem("capacitylens/snapToWeekStart")).toBe("off");
-    expect(s().snapToWeekStart).toBe(false);
-
-    // It is a device pref, NOT a data mutation, so undo must not revert it (mirrors theme /
-    // minimiseWeekends — those never touch the undo/redo stack either).
-    s().addClient({ name: "Ferris", color: "#1" }); // a real mutation to give undo something to pop
-    s().undo();
-    expect(s().snapToWeekStart).toBe(false); // still off — the pref rode through the undo untouched
-
-    // And it never leaks into exported AppData (it lives on the store, not in `data`). Serialize the
-    // active company's data the way the export/delete-backup paths do and confirm the key is absent —
-    // same contract the e2e reload covers for theme / minimiseWeekends.
-    const json = serializeData(s().data);
-    expect(json).not.toContain("snapToWeekStart");
-    expect(s().data).not.toHaveProperty("snapToWeekStart");
-
-    // Restore the default — the store is a singleton, so leaving it off (and the 'off' key set)
-    // would bleed into later specs that read the pref.
-    s().setSnapToWeekStart(true);
+  it("snaps free scrolling to the week start when no test override is stored", () => {
+    // There is no user setting; only a browser-test storage override can turn the snap off.
+    expect(s().weekSnapEnabled).toBe(true);
   });
 
   it("the date format is account data: undoable, exported, and mirrored to the formatters", () => {
     // The inverse of the device-preference contract this test used to assert. It is on the account
-    // now, so it takes the account's behaviour in full — including the parts a device pref refused.
+    // now, so it takes the account's behaviour in full, including the parts a device pref refused.
     const accountId = s().activeAccountId;
     if (!accountId) throw new Error("Expected an active account.");
     s().updateAccount(accountId, { dateStyle: "month-day" });
@@ -340,7 +320,7 @@ function registerSchedulerUiPart3(): void {
     expect(readActiveDateStyle()).toBe("month-day");
     expect(formatDayMonth("2026-09-09")).toBe("Sep 9");
 
-    // An account write, so undo reverts it — unlike the theme, which never touches the stack.
+    // An account write, so undo reverts it, unlike the theme, which never touches the stack.
     s().undo();
     expect(resolveDateStyle(s().data, accountId)).toBe("day-month");
     expect(readActiveDateStyle()).toBe("day-month");
@@ -349,7 +329,7 @@ function registerSchedulerUiPart3(): void {
     s().updateAccount(accountId, { dateStyle: "month-day" });
     expect(serializeData(s().data)).toContain("dateStyle");
 
-    // Restore the default — the store is a singleton, so leaving it changed would bleed into
+    // Restore the default. The store is a singleton, so leaving it changed would bleed into
     // later specs that format a date.
     s().updateAccount(accountId, { dateStyle: "day-month" });
   });

@@ -6,9 +6,8 @@ import {
   FULL_DAY_HOURS,
   isPlaceholderResource,
   placeholderCapacityDefaults,
-  type ScopedEntityKey,
-  type Weekday,
 } from "../types/entities";
+import type { ScopedEntityKey, Weekday } from "../types/entities";
 import {
   VALID_STATUS,
   VALID_KIND,
@@ -37,7 +36,7 @@ export { sanitizeAccount } from "./sanitize/account";
 // Import is the one write path that bypasses the form validators (a hand-edited or
 // corrupt file never went through them). The store already drops allocations/time-off
 // with broken ranges or dangling refs; this repairs the *value*-level fields the forms
-// would otherwise have guarded — so a negative/NaN hoursPerDay, a junk status enum, or
+// would otherwise have guarded, so a negative/NaN hoursPerDay, a junk status enum, or
 // a non-hex colour can't land in the store and render as broken geometry.
 
 // Resource kinds deliberately share this normalisation boundary so kind transitions are atomic.

@@ -5,7 +5,7 @@ import {
   BatchValidationError,
   KeepaliveNotDispatchedError,
 } from "./ServerSyncAdapter";
-import { resolveDomainErrorMessage } from "../lib/errorMessage";
+import { resolveDomainErrorMessage } from "@/lib/errorMessage";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 

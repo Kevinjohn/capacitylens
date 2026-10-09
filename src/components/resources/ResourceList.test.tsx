@@ -1,10 +1,10 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { ResourceList } from "./ResourceList";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import {
   DEFAULT_ACCOUNT_ID,
   WORKDAYS,
@@ -12,16 +12,16 @@ import {
   requireValue,
   setExternalEnabled,
   setPlaceholdersEnabled,
-} from "../../test/fixtures";
-import { PermissionContext } from "../../auth/permissionContext";
+} from "@/test/fixtures";
+import { PermissionContext } from "@/auth/permissionContext";
 
 beforeEach(() => {
   resetStoreWithAccount();
   useStore.getState().clearFilters();
-  // Placeholders are gated behind a per-account pref that defaults OFF. Most tests here exercise
-  // the placeholder management section, so enable it for the suite; the default-OFF hide behaviour
+  // Placeholders are gated behind a per-account pref that defaults off. Most tests here exercise
+  // the placeholder management section, so enable it for the suite; the default-off hide behaviour
   // has its own dedicated test below.
-  setPlaceholdersEnabled(true);
+  setPlaceholdersEnabled({ on: true });
 });
 
 // Shared resource shape helpers
@@ -64,7 +64,7 @@ describe("ResourceList display", () => {
   });
 
   it("sorts each visible section by displayed name without changing stored resource order", () => {
-    setExternalEnabled(true);
+    setExternalEnabled({ on: true });
     useStore.getState().addResource(personDraft("Zulu"));
     useStore.getState().addResource(personDraft("alpha"));
     useStore.getState().addResource(personDraft("Bravo"));
@@ -88,7 +88,7 @@ describe("ResourceList display", () => {
 
   it("puts favourites first within People and External and toggles them accessibly", async () => {
     const user = userEvent.setup();
-    setExternalEnabled(true);
+    setExternalEnabled({ on: true });
     useStore.getState().addResource(personDraft("Alpha"));
     useStore.getState().addResource({ ...personDraft("Zulu"), isFavourite: true });
     useStore.getState().addResource({ ...personDraft("Ferris"), kind: "external", role: "Print partner" });
@@ -123,7 +123,7 @@ describe("ResourceList display", () => {
 });
 
 describe("ResourceList display", () => {
-  it("separates Studio and Supplementary by default, with favourites first inside each section", () => {
+  it("separates Studio and Supplementary once a Supplementary person exists, with favourites first inside each", () => {
     useStore.getState().addResource(personDraft("Studio Zulu"));
     useStore.getState().addResource({ ...personDraft("Studio Alpha"), isFavourite: true });
     useStore.getState().addResource({
@@ -154,21 +154,18 @@ describe("ResourceList display", () => {
     ).toEqual([expect.stringContaining("Supplementary Zulu"), expect.stringContaining("Supplementary Alpha")]);
   });
 
-  it("combines people into one favourites-first list when engagement grouping is off", () => {
-    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { groupResourcesByEngagement: false });
+  it("keeps a Studio-only company in one favourites-first list", () => {
     useStore.getState().addResource(personDraft("Studio Zulu"));
-    useStore.getState().addResource({
-      ...personDraft("Supplementary Alpha"),
-      engagement: "supplementary",
-      isFavourite: true,
-    });
+    useStore.getState().addResource({ ...personDraft("Studio Alpha"), isFavourite: true });
+    useStore.getState().addResource(personDraft("Studio Bravo"));
 
     render(<ResourceList />);
 
     expect(screen.queryByRole("heading", { name: "Studio" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Supplementary" })).not.toBeInTheDocument();
     expect(screen.getAllByTestId("resource-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
-      "Supplementary Alpha",
+      "Studio Alpha",
+      "Studio Bravo",
       "Studio Zulu",
     ]);
   });
@@ -262,7 +259,7 @@ describe("ResourceList display", () => {
   });
 
   it("gives repeated external-party edit controls distinct contextual names", () => {
-    setExternalEnabled(true);
+    setExternalEnabled({ on: true });
     useStore.getState().addResource({ ...personDraft("Kord Industries"), kind: "external", role: "Partner studio" });
     useStore.getState().addResource({ ...personDraft("Pixel Forge"), kind: "external", role: "Print partner" });
     render(<ResourceList />);
@@ -275,7 +272,7 @@ describe("ResourceList display", () => {
 describe("ResourceList display", () => {
   it("keeps the External explainer behind the section's labelled help action", async () => {
     const user = userEvent.setup();
-    setExternalEnabled(true);
+    setExternalEnabled({ on: true });
     useStore.getState().addResource({ ...personDraft("Kord Industries"), kind: "external", role: "Partner studio" });
     render(<ResourceList />);
 
@@ -329,7 +326,7 @@ describe("ResourceList display", () => {
     expect(rows).toHaveLength(1);
     const row = requireValue(rows[0], "resource row");
     expect(within(row).getByText("placeholder")).toBeInTheDocument();
-    // The placeholder's NAME shows as the literal "Placeholder"; its role is in the secondary text.
+    // The placeholder's name shows as the literal "Placeholder"; its role is in the secondary text.
     expect(within(row).getByText("Placeholder")).toBeInTheDocument();
     expect(within(row).getByText(/Senior Designer/)).toBeInTheDocument();
     // No "Temp" tag since it is permanent
@@ -381,8 +378,8 @@ describe("ResourceList display", () => {
       color: "#a855f7",
       projectId: project.id,
     });
-    // Turn the feature off — the placeholder data still exists, it's just hidden.
-    setPlaceholdersEnabled(false);
+    // Turn the feature off. The placeholder data still exists, it's just hidden.
+    setPlaceholdersEnabled({ on: false });
     render(<ResourceList />);
     // The person still renders; the placeholder section/heading/row do not.
     expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -428,7 +425,7 @@ describe("ResourceList display", () => {
     expect(within(aliceRow).queryByText("placeholder")).not.toBeInTheDocument();
     expect(within(aliceRow).queryByText("Temp")).not.toBeInTheDocument();
 
-    // Bob row (freelancer): no tags either — the Temp pill is parked
+    // Bob row (freelancer): no tags either. The Temp pill is parked
     const bobRow = requireValue(
       rows.find((r) => within(r).queryByText("Bob")),
       "Bob row",
@@ -449,8 +446,8 @@ describe("ResourceList display", () => {
   });
 });
 
-// P2.5b: the per-row "Delete" affordance now ARCHIVES (the simplest coherent flow — soft-delete is
-// reached LATER from the inline archive section on an archived row). DEMO build here, so the
+// The per-row "Delete" affordance now archives (the simplest coherent flow, soft-delete is
+// reached later from the inline archive section on an archived row). Demo build here, so the
 // archive affordance dispatches the store's archiveEntity directly (no fetch, no reload): the row
 // gets `archivedAt` set (still in `data`) and vanishes from this list (which reads
 // useActiveScopedData → active-only). The button + confirm copy read "Archive". Server is the app
@@ -644,8 +641,8 @@ describe("ResourceList archive flow", () => {
 
     await user.click(screen.getByRole("button", { name: "Archive Placeholder" }));
     const dialog = screen.getByRole("alertdialog");
-    // The confirm dialog names the placeholder by its DISPLAY name ("Placeholder"), matching the
-    // row above it — not its role ("Senior Designer"), which would read inconsistently.
+    // The confirm dialog names the placeholder by its display name ("Placeholder"), matching the
+    // row above it, not its role ("Senior Designer"), which would read inconsistently.
     expect(dialog).toHaveTextContent(/Archive "Placeholder"/i);
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 

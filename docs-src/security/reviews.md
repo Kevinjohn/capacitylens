@@ -24,14 +24,14 @@ Dated 2026-09-09. Answers every control in OpenSSF Baseline Levels 1–3 with re
 including explicit unmet controls instead of treating configured tools as proof of enforcement.
 Read this when completing or checking the project's public OpenSSF badge entry.
 
-## [Security review — 2026-08-18](/security/security-review-2026-08-18)
+## [Security review — 2026-08-18](/security/reviews/security-review-2026-08-18)
 
 The alpha4 reassessment covered the complete source at that time and the security-relevant delta
 since July. It records the fixed session-idle, strict-OIDC SSRF and provider-token findings, refreshed
 the threat model and inventories, and reconciled all 345 ASVS controls with the CI and ZAP evidence
 available then.
 
-## [Security review — 2026-07-14](/security/security-review-2026-07-14)
+## [Security review — 2026-07-14](/security/reviews/security-review-2026-07-14)
 
 A point-in-time source-code review against the ASVS ledger above, plus the OWASP Top 10 and API
 Security Top 10. It explains the review's scope and method, lists findings and how they were
@@ -56,7 +56,7 @@ inventory (what algorithm protects what, and its key lifecycle), service and rat
 audit/security event log. Read this when you need the specific technical detail — for example,
 exactly what algorithm hashes a password, or exactly how long a session token lives.
 
-## [Mutation-test review — 2026-07-15](/security/mutation-review-2026-07-15)
+## [Mutation-test review — 2026-07-15](/security/reviews/mutation-review-2026-07-15)
 
 The first review of CapacityLens's mutation-testing results (a technique that deliberately
 introduces small bugs into the code to check whether the test suite catches them) read for
@@ -64,7 +64,7 @@ security meaning rather than raw score. It found and fixed one real defence-in-d
 tenant-data validation, and records which parts of the codebase the mutation score does — and does
 not — cover.
 
-## [Mutation-test review — 2026-07-18](/security/mutation-review-2026-07-18)
+## [Mutation-test review — 2026-07-18](/security/reviews/mutation-review-2026-07-18)
 
 A follow-up review after a test-scope correction (two React hooks had been wrongly included in
 the mutation run). Confirms the corrected 92.37% score, with tenant isolation, private-name

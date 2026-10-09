@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { resetStoreWithAccount, jsonResponse } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
-import { refreshActiveAccountSlice } from "../../data/persist";
-import { setOfflineReadState } from "../../data/offlineCache";
+import { resetStoreWithAccount, jsonResponse } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
+import { refreshActiveAccountSlice } from "@/data/persist";
+import { setOfflineReadState } from "@/data/offlineCache";
 import { m } from "@/i18n";
 import {
   confirmMemberAction,
@@ -44,23 +44,23 @@ const accountTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
 
-vi.mock("../../auth/accountTransition", () => ({
+vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-// MembersSection is the Team & access management UI. It renders ONLY in auth-on + server mode and
+// MembersSection is the Team & access management UI. It renders only in auth-on + server mode and
 // self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
-// true) and fetch, and assert the OWNER-ONLY affordances are hidden for an admin (no owner option, no
+// true) and fetch, and assert the owner-only affordances are hidden for an admin (no owner option, no
 // controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
 
 // Make the section "enabled": a configured server. The real module reads import.meta.env, which the
 // test env leaves unset; mocking it is the clean way to flip server mode on.
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: () => true,
 }));
 
-vi.mock("../../data/persist", () => ({
+vi.mock("@/data/persist", () => ({
   refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
   flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
   suspendServerWrites: vi.fn(() => vi.fn()),
@@ -73,11 +73,11 @@ vi.mock("../../data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();

@@ -5,8 +5,6 @@ description: How to put a domain and TLS certificate in front of CapacityLens, a
 
 # TLS and networking
 
-<!-- #region guide-content -->
-
 CapacityLens expects to sit behind a TLS-terminating reverse proxy on the same origin
 the browser uses. This page covers that proxy, the internal TLS hop Docker sets up for
 you, and the header and port details that make sign-in cookies work correctly.
@@ -60,9 +58,9 @@ the API container directly.
   on it. Without it, every person shares one sign-in allowance. The nginx and Caddy
   examples below already do this.
 - If that proxy already emits its own HSTS header, set `CAPACITYLENS_HTTPS=0`. Otherwise
-  leave it unset: with an `https` `SMALLSASS_ACCOUNT_PUBLIC_URL`, CapacityLens adds a
+  leave it unset: with an `https` `CAPACITYLENS_PUBLIC_URL`, CapacityLens adds a
   two-year host-only HSTS header itself.
-- `SMALLSASS_ACCOUNT_PUBLIC_URL` must exactly match the browser origin the proxy serves,
+- `CAPACITYLENS_PUBLIC_URL` must exactly match the browser origin the proxy serves,
   including the scheme.
 
 ### nginx example
@@ -124,7 +122,7 @@ network, reachable solely by the packaged nginx.
 ## Cookies and host requirements
 
 CapacityLens signs the browser in with a `__Host-`-prefixed cookie once
-`SMALLSASS_ACCOUNT_PUBLIC_URL` is HTTPS. That cookie prefix requires the browser to see
+`CAPACITYLENS_PUBLIC_URL` is HTTPS. That cookie prefix requires the browser to see
 a single, secure, root-path origin — which is exactly what the same-origin proxy
 topology above provides, and why the API is never exposed on its own origin or port.
 
@@ -206,7 +204,7 @@ sudo ln -s /etc/nginx/sites-available/capacitylens /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-With an `https` `SMALLSASS_ACCOUNT_PUBLIC_URL`, the server sends HSTS itself; set
+With an `https` `CAPACITYLENS_PUBLIC_URL`, the server sends HSTS itself; set
 `CAPACITYLENS_HTTPS=0` if your proxy already does. Then verify both the loopback server and the
 public route:
 
@@ -237,11 +235,9 @@ HTTP.
 | 8080 | nginx (web app + `/api/` proxy) | Loopback by default; your reverse proxy                                     |
 | 8787 | The API (Fastify)               | Only nginx, over the internal TLS hop in Compose, or loopback on bare metal |
 
-<!-- #endregion guide-content -->
-
 ## What's next
 
-- [Install CapacityLens](/getting-started/install) if you're setting this up for the first
+- [Install CapacityLens](/self-hosting/install) if you're setting this up for the first
   time.
 - [Monitoring and health checks](/self-hosting/monitoring) to watch certificate expiry
   and proxy health once it's running.

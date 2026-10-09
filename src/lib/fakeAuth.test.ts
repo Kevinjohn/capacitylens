@@ -1,13 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { createElement, type ReactNode } from "react";
+import { createElement } from "react";
+import type { ReactNode } from "react";
 import { useDemoAuthActive, FAKE_USER } from "./fakeAuth";
-import { AuthContext, type AuthContextValue } from "../auth/authContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 
-vi.mock("../data/apiConfig", () => ({ isDemoMode: () => true }));
+vi.mock("@/data/apiConfig", () => ({ isDemoMode: () => true }));
 
 // useDemoAuthActive is a thin predicate over the auth context: true only when authMode is
-// 'off' AND the explicit demo build is active. Cover both auth branches via a Provider so the mutant
+// 'off' and the explicit demo build is active. Cover both auth branches via a Provider so the mutant
 // `return true` (unconditional) is caught by the 'password' case below.
 
 const withAuthMode = (authMode: AuthContextValue["authMode"]) => {

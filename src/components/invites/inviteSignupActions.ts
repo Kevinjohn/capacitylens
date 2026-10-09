@@ -1,20 +1,16 @@
 import type { Dispatch, SetStateAction, RefObject } from "react";
 import type { InviteAcceptState } from "./InviteAcceptView";
-import {
-  accountClient,
-  readUnknownAccountCommandOutcome,
-  createBrowserAccountCommand,
-  type BrowserAccountCommand,
-} from "../../account/accountClient";
+import { accountClient, readUnknownAccountCommandOutcome, createBrowserAccountCommand } from "@/account/accountClient";
+import type { BrowserAccountCommand } from "@/account/accountClient";
 import { m } from "@/i18n";
 import { readAccountFailure, resolveMessageForStatus } from "./inviteResponses";
-import { authClient } from "../../auth/authClient";
-import { reloadPage } from "../../lib/reloadPage";
-import { parseText } from "../../lib/validation";
+import { authClient } from "@/auth/authClient";
+import { reloadPage } from "@/lib/reloadPage";
+import { parseText } from "@/lib/validation";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import { isAccountRole } from "@capacitylens/shared/account/types";
-import { isTransportFailure } from "../../data/requestTimeout";
+import { isTransportFailure } from "@/data/requestTimeout";
 
 interface Dependencies {
   token: string | undefined;
@@ -120,7 +116,8 @@ async function recoverUnknownSignup({ email, password }: SignupCredentials): Pro
   }
 }
 
-function resolveSignupFailureMessage(error: unknown, unknownFailure: boolean): string {
+type ResolveSignupFailureMessageOptions = { error: unknown; unknownFailure: boolean };
+function resolveSignupFailureMessage({ error, unknownFailure }: ResolveSignupFailureMessageOptions): string {
   if (unknownFailure) return m.invite_signup_unknown();
   if (error instanceof Error) return error.message;
   return m.invite_err_generic();
@@ -167,7 +164,7 @@ export function createInviteSignupActions({
       if (unknownFailure && (await recoverUnknownSignup(credentials))) return;
       setState({
         kind: "auth",
-        message: resolveSignupFailureMessage(error, unknownFailure),
+        message: resolveSignupFailureMessage({ error: error, unknownFailure: unknownFailure }),
       });
       setBusy(false);
       signupInFlight.current = false;

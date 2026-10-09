@@ -1,26 +1,22 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { m } from "@/i18n";
-import {
-  can,
-  canChangeMemberStatus,
-  canEditAnyMemberRole,
-  canRemoveMember,
-  type Role,
-} from "@capacitylens/shared/domain/access";
-import type { TeamMember } from "../../account/teamAccessClient";
-import { resolveRoleLabel } from "../../lib/accessCopy";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
+import { can, canChangeMemberStatus, canEditAnyMemberRole, canRemoveMember } from "@capacitylens/shared/domain/access";
+import type { Role } from "@capacitylens/shared/domain/access";
+import type { TeamMember } from "@/account/teamAccessClient";
+import { resolveRoleLabel } from "@/lib/accessCopy";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Eye, Pencil } from "lucide-react";
 import type { MemberRoleEdit } from "./MemberConfirmations";
-import { resolveMemberLabel, type MemberConfirmationAction } from "./memberConfirmationCopy";
+import { resolveMemberLabel } from "./memberConfirmationCopy";
+import type { MemberConfirmationAction } from "./memberConfirmationCopy";
 import { MemberResourceDialog, MemberResourceLink } from "./MemberResourceLink";
 import { MemberActionsDialog } from "./MemberActionsDialog";
 
 /**
  * Which of a row's controls the viewer may see. Pure and shared by both member tables, so the
  * collapsed inactive group can never end up offering a different set of actions from the main one.
- * The CLIENT gate is courtesy only — the server refuses each of these regardless.
+ * The client gate is courtesy only, the server refuses each of these regardless.
  */
 // These predicates mirror the distinct server actions presented in one row.
 // eslint-disable-next-line complexity
@@ -302,9 +298,9 @@ export function MemberRow({
   reload(): void;
 }) {
   // One row renderer for both tables: the dialog's actions, the pencil's gate and the status badge are
-  // identical wherever the row is drawn — only the grouping differs.
-  // NB: the row var is `member`, NOT `m` — `m` is the imported i18n message catalogue
-  // (P1.5.2); shadowing it would make `m.settings_*()` resolve against the Member.
+  // identical wherever the row is drawn; only the grouping differs.
+  // NB: the row var is `member`, not `m`, because `m` is the imported i18n message catalogue;
+  // shadowing it would make `m.settings_*()` resolve against the Member.
   const affordances = buildMemberAffordances(myRole, member);
   const memberLabel = resolveMemberLabel(member);
   return (

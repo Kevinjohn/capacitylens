@@ -1,23 +1,26 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
+import { openDb, insertAll } from "./db";
+import type { Db } from "./db";
 import { upsertMember, createInvite } from "./controlTables";
-import { createAuthFromEnvironment, countUsers, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { countUsers } from "./auth";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// P2.6b — per-tenant DELETE + member-PII erasure. The existing 'purge'-gated account hard-delete used
-// to drop ONLY the
+// Per-tenant DELETE + member-PII erasure. The existing 'purge'-gated account hard-delete used
+// to drop only the
 // `accounts` row: the FK cascade wiped the account's scoped AppData, but `account_members` + `invites`
-// LEAKED (no FK to accounts) and Better Auth's user/account/session PII was left fully intact. This
-// suite proves the erasure now closes all three surfaces, AND keeps two hard invariants: it touches
-// ONLY the target tenant (cross-tenant), and a member still in ANOTHER account is NOT erased.
+// leaked (no FK to accounts) and Better Auth's user/account/session PII was left fully intact. This
+// suite proves the erasure now closes all three surfaces, and keeps two hard invariants: it touches
+// only the target tenant (cross-tenant), and a member still in another account is not erased.
 //
-// Each case asserts OBSERVABLE DB state via raw SELECT rather
-// than trusting a helper — the point is to prove the bytes are gone from the actual tables.
+// Each case asserts observable DB state via raw SELECT rather
+// than trusting a helper. The point is to prove the bytes are gone from the actual tables.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
@@ -29,15 +32,6 @@ const client = (id: string, accountId: string) => ({
   color: "#3b82f6",
   ...meta(),
 });
-
-/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!configured.auth) throw new Error("Password test auth was not configured");
-  await runAuthMigrations(configured.auth);
-  return { app: createApp(db, { authMode: configured.mode, auth: configured.auth }), db };
-}
 
 interface DeleteAccountRouteInput {
   app: FastifyInstance;
@@ -61,7 +55,7 @@ const deleteAccountRoute = ({ app, id, cookie, command }: DeleteAccountRouteInpu
     },
   });
 
-// ---- Raw observable-state probes (the assertion vocabulary; never trust a helper) ----
+// Raw observable-state probes (the assertion vocabulary; never trust a helper).
 
 const accountCount = (db: Db, id: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = ?`).get(id) as { n: number }).n;
@@ -304,11 +298,16 @@ async function testRetainedMember(): Promise<void> {
   expect(verificationExists(db, "link-multi-account")).toBe(true);
 }
 
-async function testIdentityRetention(
-  status: "inactive" | "active",
-  otherAccountId: "a2" | "missing-account",
-  shouldRetainIdentity: boolean,
-): Promise<void> {
+type TestIdentityRetentionOptions = {
+  status: "inactive" | "active";
+  otherAccountId: "a2" | "missing-account";
+  shouldRetainIdentity: boolean;
+};
+async function testIdentityRetention({
+  status,
+  otherAccountId,
+  shouldRetainIdentity,
+}: TestIdentityRetentionOptions): Promise<void> {
   const { app, db } = await appWithAuth();
   insertAll(db, { ...emptyAppData(), accounts: [account("a1"), account("a2")] } as unknown as AppData);
   const member = await signUp(app, `${status}-${otherAccountId}@capacitylens.dev`);
@@ -426,7 +425,7 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
 
     const res = await deleteAccountRoute({ app, id: "a1", cookie: u1.cookie });
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toEqual({ error: "Internal server error" });
+    expect(res.json()).toEqual({ error: "Internal server error." });
 
     // Fail closed and atomically: neither product account, either membership nor either local
     // identity is altered when erasure containment cannot be proved.
@@ -510,9 +509,12 @@ describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", (
   it("M owns a1 AND is a member of a2: deleting a1 drops M's a1 membership but NEVER erases M", testRetainedMember);
 
   it.each([
-    ["inactive", "a2", true],
-    ["active", "missing-account", false],
-  ] as const)("handles identity retention for a remaining %s membership row in %s", testIdentityRetention);
+    { status: "inactive", otherAccountId: "a2", shouldRetainIdentity: true },
+    { status: "active", otherAccountId: "missing-account", shouldRetainIdentity: false },
+  ] as const)(
+    "handles identity retention for a remaining $status membership row in $otherAccountId",
+    testIdentityRetention,
+  );
 });
 
 describe("P2.6b erasure — (d) account_members + invites for the deleted account are gone (direct count)", () => {
@@ -556,8 +558,8 @@ describe("P2.6b erasure — (e) atomic rollback (fail-closed)", () => {
 
     expect((await deleteAccountRoute({ app, id: "a1", cookie: u.cookie })).statusCode).toBe(500);
 
-    // The tx rolled back: NOTHING changed. Account row, its scoped client, the membership, and the
-    // user's real PII are ALL still present (a partial erasure must never commit).
+    // The tx rolled back: nothing changed. Account row, its scoped client, the membership, and the
+    // user's real PII are all still present (a partial erasure must never commit).
     expect(accountCount(db, "a1")).toBe(1);
     expect(scopedClientCount(db, "a1")).toBe(1);
     expect(memberCount(db, "a1")).toBe(1);
@@ -594,22 +596,22 @@ describe("P2.6b erasure — (e) atomic rollback (fail-closed)", () => {
 
 describe("P2.6b erasure — (f) OFF mode deletes the account WITHOUT touching auth tables", () => {
   it('an OFF-mode account delete succeeds (no "no such table: user") and the AppData is gone', async () => {
-    const db = openDb(":memory:"); // OFF mode: no auth migrations → no user/account/session tables
+    const db = openDb(":memory:"); // Off mode: no auth migrations → no user/account/session tables
     const app = createApp(db); // authMode defaults to 'off'
     insertAll(db, {
       ...emptyAppData(),
       accounts: [account("a1")],
       clients: [client("c1", "a1")],
     } as unknown as AppData);
-    // A membership row exists even in OFF (control tables are created on every open) — proving the
+    // A membership row exists even in off (control tables are created on every open), proving the
     // member sweep still runs without the auth tables.
     upsertMember(db, { accountId: "a1", userId: "demo", role: "owner", status: "active", createdAt: TS });
     expect(memberCount(db, "a1")).toBe(1);
 
-    // The 'user' table genuinely does not exist in OFF mode.
+    // The 'user' table genuinely does not exist in off mode.
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user'`).get()).toBeUndefined();
 
-    // OFF mode is allow-all → 204; must NOT throw "no such table: user".
+    // Off mode is allow-all → 204; must not throw "no such table: user".
     expect((await call(app, { method: "DELETE", url: "/api/accounts/a1" })).statusCode).toBe(204);
 
     expect(accountCount(db, "a1")).toBe(0);

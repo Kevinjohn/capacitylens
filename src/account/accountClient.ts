@@ -1,15 +1,15 @@
 import { readIdentityProvider, linkIdentityProvider } from "./identityProviderClient";
 import { joiningPolicyClient } from "./joiningPolicyClient";
-import { apiFetchReauth } from "../auth/apiFetchReauth";
-import { API_BASE } from "../data/apiConfig";
-import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
+import { apiFetchReauth } from "@/auth/apiFetchReauth";
+import { API_BASE } from "@/data/apiConfig";
+import { apiFetch, API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
 import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
 import type { EndMasqueradePayload, StartMasqueradePayload } from "@capacitylens/shared/domain/masquerade";
 import { buildPayloadOperationKey } from "./commandOutcome";
 import type { CreateInvitationBody, CreateWorkspaceBody, InvitationSignupBody } from "./accountRequestTypes";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
-import type { ReauthAction } from "../auth/reauthCoordinator";
+import type { ReauthAction } from "@/auth/reauthCoordinator";
 import {
   clearMemberResourceLink,
   dismissMemberResourceLinkException,
@@ -31,7 +31,7 @@ interface InitiateOwnershipTransferInput {
   workspaceId: string;
   targetPrincipalId: string;
   /** The live request this nomination replaces, at the revision it was read at. Omitted when the
-   *  caller believes there is none; the server refuses either belief if it is wrong. */
+   * caller believes there is none; the server refuses either belief if it is wrong. */
   replaces?: { requestId: string; revision: string } | undefined;
   command?: BrowserAccountCommand | undefined;
 }
@@ -59,6 +59,7 @@ export {
 } from "./accountCommands";
 export { hasUnknownAccountCommandOutcome, readUnknownAccountCommandOutcome } from "./commandOutcome";
 
+type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
 export const accountClient = {
   me(signal?: AbortSignal): Promise<Response> {
     return apiFetch(`${API_BASE}/api/auth/me`, { credentials: "include", ...(signal ? { signal } : {}) });
@@ -151,7 +152,7 @@ export const accountClient = {
   clearMemberResourceLink,
   dismissMemberResourceLinkException,
 
-  setMemberSignInTracking(workspaceId: string, enabled: boolean): Promise<Response> {
+  setMemberSignInTracking({ workspaceId, enabled }: SetMemberSignInTrackingOptions): Promise<Response> {
     return apiFetchReauth(
       `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/member-sign-in-tracking`,
       {
@@ -281,7 +282,7 @@ export const accountClient = {
    *
    * `cancel` is the DELETE; the other four are POSTs to their own sub-path. The revision travels in
    * the body for all five, including the DELETE, because it is the compare half of the transition,
-   * not an identifier — and it is part of the command payload the server hashes, so a retry naming
+   * not an identifier, and it is part of the command payload the server hashes, so a retry naming
    * a different revision is refused rather than replayed.
    */
   commandOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<Response> {

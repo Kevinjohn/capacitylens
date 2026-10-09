@@ -3,7 +3,8 @@ import { existsSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
-import { openDbConnection, planDatabaseMigrations, type Db } from "./db";
+import { openDbConnection, planDatabaseMigrations } from "./db";
+import type { Db } from "./db";
 import {
   DEFAULT_ACCOUNT_APPLICATION,
   RESET_LINK_TTL_SECONDS,
@@ -12,8 +13,8 @@ import {
   mintPasswordResetToken,
   planAuthSchemaMigrations,
   revokeResetTokensForUser,
-  type Auth,
 } from "./auth";
+import type { Auth } from "./auth";
 import { assertAccountControlPlaneCurrent, listSoleOwnerAccountIds } from "./accounts/sqliteAccountAdminPort";
 import { assertAuditOutboxCurrent, enqueueAudit } from "./auditOutbox";
 import { resolveAccountEnvironment } from "./accountConfig";
@@ -38,7 +39,7 @@ export interface OwnerRecoveryInput {
 
 interface RecoveryContext {
   email: string;
-  env: Record<string, string | undefined> & { SMALLSASS_ACCOUNT_PUBLIC_URL: string };
+  env: Record<string, string | undefined> & { CAPACITYLENS_PUBLIC_URL: string };
 }
 
 function prepareRecoveryContext(input: OwnerRecoveryInput): RecoveryContext {
@@ -55,14 +56,14 @@ function prepareRecoveryContext(input: OwnerRecoveryInput): RecoveryContext {
   if (!isAccountEmail(email)) throw new Error("The target email is not a valid account address.");
 
   const { env } = resolveAccountEnvironment({ ...(input.env ?? process.env) });
-  if (env.SMALLSASS_ACCOUNT_MODE !== "password-only" && env.SMALLSASS_ACCOUNT_MODE !== "password-and-sso") {
+  if (env.CAPACITYLENS_MODE !== "password-only" && env.CAPACITYLENS_MODE !== "password-and-sso") {
     throw new Error(
-      "SMALLSASS_ACCOUNT_MODE must be password-only or password-and-sso: sso-only installations have no local credential to reset " +
+      "CAPACITYLENS_MODE must be password-only or password-and-sso: sso-only installations have no local credential to reset " +
         "and off installations have no credential model.",
     );
   }
-  if (!env.SMALLSASS_ACCOUNT_PUBLIC_URL) {
-    throw new Error("SMALLSASS_ACCOUNT_PUBLIC_URL must be set; the reset link cannot be built without it.");
+  if (!env.CAPACITYLENS_PUBLIC_URL) {
+    throw new Error("CAPACITYLENS_PUBLIC_URL must be set; the reset link cannot be built without it.");
   }
   return { email, env: env as RecoveryContext["env"] };
 }
@@ -124,14 +125,14 @@ interface RecordRecoveryInput {
 function recordRecovery({ db, context, target, token }: RecordRecoveryInput): OwnerRecoveryResult {
   const applicationId = DEFAULT_ACCOUNT_APPLICATION.applicationId;
   const ceremonyId = createHash("sha256").update(`${applicationId}-reset-ceremony\0`).update(token).digest("base64url");
-  const link = `${new URL(context.env.SMALLSASS_ACCOUNT_PUBLIC_URL).origin}/reset-password/${encodeURIComponent(token)}`;
+  const link = `${new URL(context.env.CAPACITYLENS_PUBLIC_URL).origin}/reset-password/${encodeURIComponent(token)}`;
   const expiresAt = new Date(Date.now() + RESET_LINK_TTL_SECONDS * 1000).toISOString();
   const event: AccountAuditEvent = {
     id: randomUUID(),
     occurredAt: new Date().toISOString(),
     applicationId,
     workspaceId: null,
-    // No in-product actor exists for this ceremony — that absence is the auditable fact.
+    // No in-product actor exists for this ceremony. That absence is the auditable fact.
     actorPrincipalId: null,
     targetPrincipalId: target.userId,
     commandId: null,
@@ -147,16 +148,16 @@ function recordRecovery({ db, context, target, token }: RecordRecoveryInput): Ow
 /**
  * Operator recovery for the one credential state no in-product actor can repair: the sole active
  * Owner's lost password. `canAdministerIdentity` bars every non-Owner from administering an Owner,
- * and the single-active-Owner index guarantees there is no second Owner to help — so recovery is a
+ * and the single-active-Owner index guarantees there is no second Owner to help, so recovery is a
  * stopped-server CLI ceremony, not a product feature. The tool drives the ordinary Better Auth
  * reset ceremony (same token store, expiry, single-use consumption, password policy, session
  * revocation); it never writes a credential directly and never relaxes in-app policy.
  *
- * Family ruling and full guard rationale: to-my-siblings/_sole-owner-recovery-playbook-2026-08-05.md.
+ * Ruling and full guard rationale: to-my-siblings/_sole-owner-recovery-playbook-2026-08-05.md.
  */
 export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<OwnerRecoveryResult> {
-  // Resolve the canonical family configuration exactly the way server startup does, so refusals
-  // name canonical keys and the compatibility aliases keep working.
+  // Resolve the account configuration exactly the way server startup does, so refusals name the
+  // same keys.
   const context = prepareRecoveryContext(input);
 
   // Not openDb(): a stale database must refuse below rather than silently migrate outside the

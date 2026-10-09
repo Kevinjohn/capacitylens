@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startBackups } from "./backup";
-import { insertAll, openDb, type Db } from "./db";
+import { insertAll, openDb } from "./db";
+import type { Db } from "./db";
 import { seed } from "@capacitylens/shared/data/seed";
 
 const directories = new Set<string>();

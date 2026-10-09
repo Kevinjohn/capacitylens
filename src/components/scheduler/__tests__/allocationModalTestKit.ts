@@ -1,9 +1,9 @@
-import { requireCreated } from "../../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 // Shared helpers for the AllocationModal.*.test.tsx suites, extracted from the former
 // single-file AllocationModal.test.tsx with bodies unchanged.
 import { expect } from "vitest";
 import type userEvent from "@testing-library/user-event";
-import { useStore } from "../../../store/useStore";
+import { useStore } from "@/store/useStore";
 import type { AppData, Weekday } from "@capacitylens/shared/types/entities";
 import {
   DEFAULT_ACCOUNT_ID,
@@ -13,7 +13,7 @@ import {
   makeProject,
   makeResourceDraft,
   setPlaceholdersEnabled,
-} from "../../../test/fixtures";
+} from "@/test/fixtures";
 import { chooseOption } from "./schedulerTestKit";
 
 export function required<T>(value: T | undefined | null, message: string): T {
@@ -58,11 +58,11 @@ export function resetAllocationModalStore(): void {
   restoreStoreAllocationActions();
   useStore.getState().replaceAll(base());
   useStore.getState().setActiveAccount(ACC);
-  // Placeholders default OFF (per-account pref). Several tests reassign to / from a placeholder
-  // via the Assignee picker, which only offers placeholders when the pref is on — enable it for
-  // every suite. The risk-A case (editing an allocation already ON a placeholder while the pref is
-  // OFF still shows that placeholder) has its own dedicated test in AllocationModal.edit.test.tsx.
-  setPlaceholdersEnabled(true);
+  // Placeholders default off (per-account pref). Several tests reassign to / from a placeholder
+  // via the Assignee picker, which only offers placeholders when the pref is on, enable it for
+  // every suite. The risk-A case (editing an allocation already on a placeholder while the pref is
+  // off still shows that placeholder) has its own dedicated test in AllocationModal.edit.test.tsx.
+  setPlaceholdersEnabled({ on: true });
 }
 
 export const person = (name: string) => makeResourceDraft({ name, role: "Dev", color: "#111" });

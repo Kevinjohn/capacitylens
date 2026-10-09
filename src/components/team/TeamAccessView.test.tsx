@@ -2,13 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { PermissionContext } from "../../auth/permissionContext";
-import { AuthContext, type AuthContextValue } from "../../auth/authContext";
+import { PermissionContext } from "@/auth/permissionContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 import { TeamAccessView } from "./TeamAccessView";
-import { setOfflineReadState } from "../../data/offlineCache";
+import { setOfflineReadState } from "@/data/offlineCache";
 
 const buildMode = vi.hoisted(() => ({ demo: false }));
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   isServerConfigured: () => true,
   isDemoMode: () => buildMode.demo,
   API_BASE: "http://api.test",
@@ -43,18 +44,18 @@ function renderView(
   );
 }
 
-/** The capability tick list is collapsed by default (#175); every assertion about it must open it. */
+/** The capability tick list is collapsed by default; every assertion about it must open it. */
 function showCapabilities(): void {
   fireEvent.click(screen.getByTestId("capabilities-toggle"));
 }
 
 beforeEach(() => {
   buildMode.demo = false;
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 
 afterEach(() => {
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 
 describe("TeamAccessView access presentation", () => {
@@ -145,7 +146,7 @@ describe("TeamAccessView member management", () => {
     ["authenticated Owner", "owner", "password-only"],
     ["auth-off installation", null, "off"],
   ] as const)("projects cached data as Viewer-only for an %s", (_label, role, authMode) => {
-    setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
     renderView(role, authMode);
 
     const current = screen.getByTestId("current-access");

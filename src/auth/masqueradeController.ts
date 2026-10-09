@@ -3,15 +3,10 @@ import type {
   MasqueradeState,
   MasqueradeStatus,
 } from "@capacitylens/shared/domain/masquerade";
-import {
-  flushPendingWrites,
-  suspendServerWrites,
-  switchAndAwaitHydration,
-  type FlushPendingWritesResult,
-  type RefreshOutcome,
-} from "../data/persist";
-import { setMasqueradeEndedHandler } from "../data/requestTimeout";
-import { useStore } from "../store/useStore";
+import { flushPendingWrites, suspendServerWrites, switchAndAwaitHydration } from "@/data/persist";
+import type { FlushPendingWritesResult, RefreshOutcome } from "@/data/persist";
+import { setMasqueradeEndedHandler } from "@/data/requestTimeout";
+import { useStore } from "@/store/useStore";
 import { masqueradeApi } from "./masqueradeApi";
 import { reprojectAccess } from "./reprojectAccess";
 

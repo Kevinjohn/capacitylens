@@ -1,6 +1,6 @@
 ---
 title: Resources
-description: Recognise the people, roles, disciplines and placeholders available for scheduling.
+description: Recognise the people, placeholders and external parties available for scheduling, then add, edit, link and archive them.
 prev: false
 next: false
 ---
@@ -15,6 +15,205 @@ A Placeholder holds bookings that still need a person assigned.
 
 To see someone's work, open their work list on [Schedule](/using/read-the-schedule#your-work-list).
 
-[People, placeholders and external parties](/guide/people-and-placeholders)
-
 [Add scheduled people](/admin/add-people)
+
+## People and placeholders
+
+Anyone who appears on [the schedule](/using/read-the-schedule) is a
+[person](/reference/glossary) — added on the **Resources** page. This page covers adding
+real people and editing their details, using placeholders for roles you haven't filled,
+booking [external parties](/reference/glossary) you hand work to but don't manage, and
+archiving someone who leaves.
+
+::: tip
+A person on the schedule doesn't get a CapacityLens sign-in, and inviting a
+[member](/reference/glossary) doesn't put them on the schedule. These are deliberately
+separate — see [Roles and permissions](/getting-started/roles-and-permissions).
+:::
+
+## Link a person to a member
+
+Open **Team & access** from the sidebar. In the member's row, select the link icon to open the
+centered Resource dialog with its selector ready. Choose an available person Resource; the choice
+saves immediately. Choose a different Resource to change the link, or use **Remove link to resource**
+to unlink it. Each member can have one person Resource, and each person Resource can have one member. The association does
+not grant access or create schedule data.
+
+![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/admin_resource_link_remove.jpg)
+
+Only active members and active scheduled people can be new link targets. Existing links
+to inactive members or people can be removed from the centered dialog. To move an occupied person's
+link to another member, remove the old link first, then link the new member.
+
+To invite someone instead, use **Invite someone** on Team & access. Its optional
+**Link to Resource** selector can propose an existing person Resource. See
+[Invite teammates and manage access](/admin/invite-teammates).
+
+## Add a person
+
+1. Open **Resources**.
+2. Click **Add resource**.
+3. Fill in the fields below and save.
+
+![The Add resource form with optional Start date and End date fields separated from a seven-day working-pattern grid](../screenshots/flows/resource_form.png)
+
+At normal dialog widths, the resource details use compact label-and-control rows. They stack
+vertically on a narrow screen, while the **Working days** grid remains full width.
+
+- **Name** — required.
+- **Role** — a free-text label, for example "Senior Designer". Optional.
+- **Discipline** — which group this person shows under on the schedule, and where their
+  colour comes from. Only shown if your company uses
+  [disciplines](/reference/glossary), which is the default. Disciplines themselves are
+  created and coloured on the standalone **Disciplines** page in the main navigation,
+  not here — see [Settings](/using/settings) for the on/off switch.
+- **Engagement** — choose the always-visible **Studio** or **Supplementary** choice for someone
+  regarded as part of the core studio or additional capacity. This is separate from both their
+  contract status and their discipline, and it doesn't change how utilisation is worked out.
+- **Working days** — use the compact radio grid to choose **Full day**, **Half day** or
+  **Not working** for every day from Monday to Sunday. A full day is eight hours, a half
+  day is four hours and a non-working day is zero hours.
+
+Working days drive the utilisation figures directly: CapacityLens compares that fixed
+8/4/0-hour pattern with the person's bookings to decide whether they're over capacity.
+The days that count are those in both this pattern and the company's
+[company-wide working days](/using/settings#company-wide-working-days) — a day outside either holds no
+capacity for this person. Set the pattern correctly, or the overwork indicators on
+[the schedule](/using/read-the-schedule#reading-overwork) will be wrong for that person.
+
+In a self-hosted company, Save waits for the server to accept the person. If the server rejects
+the change, the dialog stays open and shows the returned error so you can correct it and try again.
+
+The current **Engagement** choice has a selected state. Saving **Supplementary** moves the person
+into that section immediately; it does not change their discipline, role or working days.
+
+![The Add resource form with the always-visible Engagement choices and Supplementary selected](../screenshots/flows/resource_engagement_choice.png)
+
+The new row appears on the schedule immediately, ready for allocations and time off.
+There's no account to create and nothing for the person to sign in to.
+
+## Edit a person
+
+1. Open **Resources**.
+2. Click the edit icon next to the person's row.
+3. Change any field and save.
+
+For example, if someone goes part-time, open their row and change the relevant days to
+**Half day** or **Not working**. Existing allocations aren't rewritten, but every
+utilisation figure you see after saving reflects their new working pattern.
+
+![The Edit resource form with Wednesday set to Half day in a person's seven-row working pattern](../screenshots/flows/resource_half_day.png)
+
+Existing working patterns are preserved after upgrading: a day that was selected remains
+a full day, and a day that was unselected remains not working.
+
+Profile pictures belong to each person's signed-in identity, not to the company resource form. A
+person reviews their own identity on **Account**. Owners and Admins can associate that identity with
+the corresponding scheduled person from **Team & access**; initials remain the fallback.
+
+## Set availability dates
+
+Studio and Supplementary people can have optional date boundaries in the resource form. Use
+**Start date** for the first day they can contribute and **End date** for the last day.
+The two fields share one row at normal modal widths and stack on narrow screens.
+Both dates are inclusive. Leave either field blank when that side has no boundary. A person who is
+available for one day can use the same date in both fields; a first date after a last date is rejected
+and the form stays open so you can correct it.
+
+Availability dates change capacity, not history. Capacity is zero before **Start date** and after
+**End date**, while existing allocation bars and their allocated load remain visible. This
+means narrowing a range does not delete or move bookings that now conflict with it. You can still
+edit metadata such as a person's name, role, discipline, engagement or working pattern. Creating
+work, moving or resizing a booking, reassigning it to the person, or placing a repeat occurrence is
+blocked when the placement would land on a scheduled working day outside the range.
+
+The **Ignore working days** option can include recurring non-working days in an allocation's span,
+but it does not bypass availability dates. To plan work beyond the boundary, extend the person's
+availability first. Placeholders and External / 3rd party resources do not have these fields: a
+placeholder follows the company's working days, while an external party keeps its literal calendar
+span.
+
+## Find people quickly
+
+Once anyone is marked **Supplementary**, the Resources page separates people into **Studio** and
+**Supplementary** sections, followed by the existing Placeholders and External sections. A team
+with only Studio people sees one People list, and there is no setting to change this. Archived
+people and External / 3rd parties do not count. Rows in each section are alphabetical, while the
+Disciplines page is alphabetical too.
+
+![The Resources page with Barry Allen, Bruce Wayne and Clark Kent in Studio, and Diana Prince in Supplementary](../screenshots/flows/resources_engagement_groups.jpg)
+
+People and external parties have a star beside their edit and archive actions. Select it
+to add that row to the company's favourites; the star fills yellow and the row moves to
+the top of its engagement section while favourites and non-favourites each stay alphabetical. The
+schedule likewise keeps Studio before Supplementary within each discipline and favourites first
+inside each partition. For a Studio-only team, favourites lead the combined People list and each
+discipline instead. The External group keeps its own favourites-first order.
+Favourites are shared company data, so everyone sees the same order. Placeholders cannot
+be favourited.
+
+## Placeholders
+
+A [placeholder](/reference/glossary) is a slot on the schedule for a role you know is
+coming but haven't hired or assigned yet — "a Design Lead" instead of a named person.
+Placeholders are off by default; an Owner or Admin turns them on for the company in
+[Settings → Placeholders and external resources](/using/settings#placeholders-and-external-resources).
+
+Once turned on, the Resources page shows a separate **Placeholders** section with its
+own **Add placeholder** button. A placeholder's name is optional — you can leave it
+blank and it shows by its role instead — but it must be bound to a project, since a
+placeholder only makes sense as capacity you're planning to book against specific work.
+Placeholder rows carry a small "placeholder" badge so they're never mistaken for a real
+person, and the same hatched styling carries through to their row on the schedule. A placeholder
+has no personal working pattern, so its capacity and ordinary allocations follow the company's
+working days.
+
+Turning placeholders off in Settings doesn't delete them — it hides the section, the
+schedule rows and the assignee picker entry, and everything reappears if you turn the
+setting back on.
+
+## External parties
+
+An [external party](/reference/glossary) is an outside company you hand work to but
+don't manage — a print shop, an overflow studio, a freelance agency you brief rather
+than schedule directly. They can appear on the schedule so you can see the handoff, but
+they carry no hours and never count toward your team's capacity or utilisation.
+
+Use an external party instead of a placeholder when the work is genuinely leaving your
+team — there's no working-hours or working-days figure to set, because there's no
+capacity to track. Use a placeholder instead when you're planning to fill the work with
+someone on your own team's capacity, even if you haven't hired or named them yet.
+An external party's bookings use their literal start and end dates.
+
+External parties are off by default; an Owner or Admin turns them on for the company in
+[Settings → Placeholders and external resources](/using/settings#placeholders-and-external-resources).
+
+1. Open **Resources**.
+2. Under **External**, click **Add external party**.
+3. Fill in **Company** (required) and, optionally, a **Descriptor** — for example
+   "Print" or "Overflow dev" — and save.
+
+![The Resources page with separate Studio and Supplementary sections and the External section listing Kord Industries as a partner studio](../screenshots/flows/resources_external.jpg)
+
+Turning external parties off in Settings hides the section and its rows the same way
+placeholders do, without deleting anything.
+
+## Archive someone who leaves
+
+Deleting a person outright isn't the first step — removing a row from the Resources
+list archives it instead. Archiving hides the person from the schedule and the assignee
+picker but keeps their history, so past allocations and reports aren't rewritten.
+
+1. Open **Resources**.
+2. Click the delete icon next to the person's row.
+3. Confirm **Archive resource?**
+
+Owners and administrators see grouped archived resources at the bottom of the Resources page:
+**Archived Studio**, **Archived Supplementary** and **Archived External**, followed by
+**Archived placeholders** when needed. Restore someone there, or delete the archived record to begin the 30-day
+retention period before permanent deletion becomes available in [Settings](/using/settings).
+
+## What's next
+
+[Schedule work](/using/schedule-work) to book a person's time, or record
+[time off](/using/time-off) to mark them unavailable.

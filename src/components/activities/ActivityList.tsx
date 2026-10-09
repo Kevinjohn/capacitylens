@@ -1,21 +1,21 @@
-import { useActiveScopedData } from "../../store/useScopedData";
-import { useEntityListState } from "../../hooks/useEntityListState";
-import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { useEntityListState } from "@/hooks/useEntityListState";
+import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "@/components/common/ui";
 import { ActivityForm } from "./ActivityForm";
 import type { Activity, AppData } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { Fragment, useEffect, useMemo, useRef } from "react";
 import { ClipboardCheck } from "lucide-react";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
 import { buildActivityListModel } from "./activityListModel";
-import { useLifecycleActions } from "../../hooks/useLifecycleActions";
-import { ArchivedEntitySection } from "../common/ArchivedEntitySection";
-import { buildActivityArchiveImpactCopy, safeArchiveImpact } from "../../lib/archiveImpactCopy";
+import { useLifecycleActions } from "@/hooks/useLifecycleActions";
+import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
+import { buildActivityArchiveImpactCopy, safeArchiveImpact } from "@/lib/archiveImpactCopy";
 
 /** Build the archive-confirm message for an activity, appending the allocation-count cascade
- *  warning when the activity has active allocations that archiving would pull out of the schedule.
- *  Uses safeArchiveImpact (not archiveImpact directly) so an activity that stopped being active
- *  between dialog-open and render renders the base message instead of throwing during render. */
+ * warning when the activity has active allocations that archiving would pull out of the schedule.
+ * Uses safeArchiveImpact (not archiveImpact directly) so an activity that stopped being active
+ * between dialog-open and render renders the base message instead of throwing during render. */
 function buildActivityArchiveMessage(data: AppData, activity: Activity): string {
   const base = m.list_activities_archive_message({ name: activity.name });
   const impact = safeArchiveImpact(data, "activities", activity.id);

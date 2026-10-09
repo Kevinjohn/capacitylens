@@ -22,14 +22,14 @@ Allow about twenty minutes, including verification.
 
 ## 1. Generate the secrets
 
-Run this command twice on a trusted machine or through the platform's command runner:
+Run `init` through the platform's command runner from the site's folder, with your origin:
 
 ```bash
-openssl rand -base64 48
+node current/production/server/dist/index.mjs init --public-url https://your-current-domain.example --db /home/<site-user>/data/capacitylens.db
 ```
 
-Use the first value for `SMALLSASS_ACCOUNT_SECRET`. Use the second value for
-`SMALLSASS_ACCOUNT_SETUP_TOKEN`.
+Copy its `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` values into the environment in the
+next step, and leave out the other lines it prints: this route sets them differently.
 
 Store the setup token in a password manager before saving the environment. It is needed only to
 claim the first Owner account. Never commit either value or paste it into deployment logs, support
@@ -59,12 +59,12 @@ CAPACITYLENS_LOG=1
 CAPACITYLENS_HEALTH_DEEP=1
 CAPACITYLENS_RATE_LIMIT=300
 
-SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password
-SMALLSASS_ACCOUNT_MODE=password-only
-SMALLSASS_ACCOUNT_SECRET=<session-signing-secret>
-SMALLSASS_ACCOUNT_PUBLIC_URL=https://your-current-domain.example
-SMALLSASS_ACCOUNT_SETUP_TOKEN=<one-time-owner-token>
-SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=on
+CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-password
+CAPACITYLENS_MODE=password-only
+CAPACITYLENS_SECRET=<session-signing-secret>
+CAPACITYLENS_PUBLIC_URL=https://your-current-domain.example
+CAPACITYLENS_SETUP_TOKEN=<one-time-owner-token>
+CAPACITYLENS_PASSWORD_BREACH_CHECK=on
 
 VITE_CAPACITYLENS_API=
 ```
@@ -73,9 +73,8 @@ Confirm the platform stores one environment file outside the versioned release d
 links or exposes it to every release as `.env`. A new release must not silently receive a fresh,
 empty environment.
 
-Set `CAPACITYLENS_STORAGE_ENCRYPTED=1` only after verifying that the database, audit log and
-backup directory use encrypted storage at rest. The variable records that operator
-attestation; it does not encrypt the host or filesystem.
+Keep the database, audit log and backup directory on storage encrypted at rest. CapacityLens does
+not encrypt the host or filesystem itself.
 
 Leave these settings unset for this single-company, non-demo installation:
 
@@ -84,12 +83,11 @@ VITE_CAPACITYLENS_DEMO
 CAPACITYLENS_SEED_DEMO
 CAPACITYLENS_MULTI_ACCOUNT
 CAPACITYLENS_BOOTSTRAP_TOKEN
-SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP
-SMALLSASS_ACCOUNT_REQUIRE_MFA
+CAPACITYLENS_ALLOW_OPEN_SIGNUP
 ```
 
 Unset is different from `0` for some environment parsers. Remove the lines unless the
-[Configure the service](/installation/configure-the-service) page specifically says that an empty value has meaning.
+[Configuration](/self-hosting/configuration) page specifically says that an empty value has meaning.
 
 If the platform already emits an HSTS header, set `CAPACITYLENS_HTTPS=0` to avoid duplicate
 headers; otherwise leave it unset and an `https` public URL makes the API emit host-only HSTS. The public origin must still use HTTPS.
@@ -99,7 +97,7 @@ automatically trusts the `X-Forwarded-For` and `X-Forwarded-Proto` headers that 
 next page, so rate limiting and audit records show the real visitor address rather than the proxy's.
 Keep the API on loopback. If you ever bind it to another address, you must also set
 `CAPACITYLENS_TRUST_PROXY_HEADERS=1`, and only when the API accepts connections from your proxy
-alone — see [Configure the service](/installation/configure-the-service).
+alone — see [Configuration](/self-hosting/configuration).
 
 ## 3. Create the background process
 
@@ -129,11 +127,11 @@ so in-flight requests and backup work can drain.
 ::: warning `.env` is read as shell, so quote awkward values
 `source` runs the file as a shell script. A value containing a space, `#`, `$`, backtick, quote or
 backslash will be cut short or mangled, and the API will start with the wrong secret rather than
-fail loudly. The `openssl rand -base64 48` values above are safe unquoted. Anything you paste from
+fail loudly. The secrets `init` generates are safe unquoted. Anything you paste from
 elsewhere — a company-login client secret, for example — must be wrapped in single quotes:
 
 ```dotenv
-SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET='the value exactly as issued'
+CAPACITYLENS_GOOGLE_CLIENT_SECRET='the value exactly as issued'
 ```
 
 A single quote inside the value itself cannot be escaped between single quotes. If one appears, ask
@@ -248,7 +246,7 @@ Then open the public origin and confirm:
 - the public health check is operational.
 
 Do not claim the Owner until the public origin is HTTPS and matches
-`SMALLSASS_ACCOUNT_PUBLIC_URL` exactly.
+`CAPACITYLENS_PUBLIC_URL` exactly.
 
 ## What's next
 

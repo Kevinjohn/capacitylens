@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { Page } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import {
   computedStyles,
@@ -171,6 +172,12 @@ test("the empty schedule (dark) has no serious or critical violations", async ({
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.getByLabel("Search people").fill("zzznobody");
   await expect(page.getByTestId("scheduler-empty")).toBeVisible();
+  await settledAxe(page);
+});
+
+test("the diagnostics page has no serious or critical violations", async ({ page }) => {
+  await openApp(page, "Wayne Enterprises", "/diagnostics");
+  await expect(page.getByTestId("diagnostics-report-text")).toContainText("Snapshot observed:");
   await settledAxe(page);
 });
 

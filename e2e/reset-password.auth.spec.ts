@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { APIRequestContext } from "./fixtures";
 import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
@@ -10,7 +11,7 @@ import {
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.18 — admin-issued password-reset links, against the auth-backed project's server
-// (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Owner A signs up, bootstraps an
+// (CAPACITYLENS_MODE=password on :8887 — see playwright.config.ts). Owner A signs up, bootstraps an
 // org, seeds member B (editor) in the disposable fixture, then mints B a reset link from Team & access in the BROWSER
 // (the write-once reset-link block). B — signed OUT, which is the whole point of a reset — opens the
 // link, sets a new password, and signs in with it; the old password is asserted dead at the API

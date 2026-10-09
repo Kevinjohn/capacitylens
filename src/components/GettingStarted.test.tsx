@@ -1,19 +1,19 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { GettingStarted } from "./GettingStarted";
-import { resetStoreWithAccount } from "../test/fixtures";
-import { useStore } from "../store/useStore";
-import { PermissionContext } from "../auth/permissionContext";
+import { resetStoreWithAccount } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
+import { PermissionContext } from "@/auth/permissionContext";
 import type { Role } from "@capacitylens/shared/domain/access";
-import indexCss from "../index.css?raw";
+import indexCss from "@/index.css?raw";
 
 const tourMock = vi.hoisted(() => ({ startTour: vi.fn<() => Promise<void>>() }));
 const apiMode = vi.hoisted(() => ({ demo: true }));
-vi.mock("../lib/tour", () => ({ startTour: tourMock.startTour }));
-vi.mock("../data/apiConfig", () => ({ API_BASE: "", isDemoMode: () => apiMode.demo }));
+vi.mock("@/lib/tour", () => ({ startTour: tourMock.startTour }));
+vi.mock("@/data/apiConfig", () => ({ API_BASE: "", isDemoMode: () => apiMode.demo }));
 
 beforeEach(() => {
   resetStoreWithAccount();

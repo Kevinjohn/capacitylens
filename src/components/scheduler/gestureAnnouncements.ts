@@ -1,5 +1,5 @@
 import { blockHoursPerDay } from "@capacitylens/shared/lib/schedulingDays";
-import type { DateRange } from "../../lib/gestureMath";
+import type { DateRange } from "@/lib/gestureMath";
 import type { BarLayout } from "./schedulerModel";
 import { m } from "@/i18n";
 import {
@@ -8,12 +8,13 @@ import {
   applyCapacityMode,
   buildCapacityWindow,
   listTimeOffApplyingTo,
-} from "../../lib/capacity";
+} from "@/lib/capacity";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { carriesHourlyLoad, FULL_DAY_HOURS, isCapacityTracked, type ID } from "@capacitylens/shared/types/entities";
-import { resolveResourceDisplayName } from "../../lib/metadata";
-import { listAccountWorkingDays, resolveSchedulingMode, buildVisibleRange } from "../../store/selectors";
-import { useStore } from "../../store/useStore";
+import { carriesHourlyLoad, FULL_DAY_HOURS, isCapacityTracked } from "@capacitylens/shared/types/entities";
+import type { ID } from "@capacitylens/shared/types/entities";
+import { resolveResourceDisplayName } from "@/lib/metadata";
+import { listAccountWorkingDays, resolveSchedulingMode, buildVisibleRange } from "@/store/selectors";
+import { useStore } from "@/store/useStore";
 import { buildActiveGestureData } from "./gestureLanes";
 
 interface ReadCapacityGestureAdvisoryInput {
@@ -98,7 +99,7 @@ export function readCapacityGestureAdvisory({
         resourceId: effectiveResourceId,
         startDate: dates.startDate,
         endDate: dates.endDate,
-        // Blocks carry placement but no hourly load — read that load from the ONE knob
+        // Blocks carry placement but no hourly load, read that load from the one knob
         // (`blockHoursPerDay`) rather than hardcoding its current 0, exactly as the grid's
         // own `applyCapacityMode` projection does.
         hoursPerDay: isBlocks ? blockHoursPerDay(FULL_DAY_HOURS) : reconciledHours,

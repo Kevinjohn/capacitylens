@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useStore } from "../../store/useStore";
-import { useFieldError } from "../../hooks/useFieldError";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { parseText } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/isStaleEdit";
+import { useStore } from "@/store/useStore";
+import { useFieldError } from "@/hooks/useFieldError";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { parseText } from "@/lib/validation";
+import { isStaleEdit } from "@/lib/isStaleEdit";
 import { m } from "@/i18n";
-import { FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
-import { FieldError } from "../ui/field";
-import { NEUTRAL_COLOR } from "../../lib/palette";
+import { FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
+import { FieldError } from "@/components/ui/field";
+import { NEUTRAL_COLOR } from "@/lib/palette";
 import { externalCapacityDefaults } from "@capacitylens/shared/types/entities";
 import type { Resource } from "@capacitylens/shared/types/entities";
 
@@ -49,9 +49,9 @@ function ExternalFormFields(props: ExternalFormFieldsProps) {
 }
 
 /**
- * Add/edit an external / 3rd-party party — a trimmed resource form. It captures only a COMPANY
+ * Add/edit an external / 3rd-party party, a trimmed resource form. It captures only a company
  * name (required) and an optional descriptor. The capacity fields (hours, working days, discipline,
- * employment, project) don't apply — externals have no capacity — so they're stored as unused
+ * employment, project) don't apply, externals have no capacity, so they're stored as unused
  * silent defaults the rest of the app never reads. Colour is the single neutral swatch (no picker),
  * per DECISIONS.md "external kind". Store rejections surface as a form error, like ResourceForm.
  */
@@ -75,7 +75,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
       kind: "external" as const,
       name: cleanName,
       role: cleanRole,
-      // Capacity fields don't apply to an external — store the unused silent defaults (ONE source,
+      // Capacity fields don't apply to an external, store the unused silent defaults (one source,
       // shared with seed + fixtures) so the entity stays valid (the store asserts a non-empty working
       // week + positive hours) while the scheduler / forms never show or read them.
       ...externalCapacityDefaults(),

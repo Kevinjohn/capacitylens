@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { ActorContext, CommandIdentity } from "@capacitylens/shared/account/types";
-import { insertRow, openDb, type Db } from "../../db";
+import { insertRow, openDb } from "../../db";
+import type { Db } from "../../db";
 import { upsertMember } from "../../controlTables";
 import { readRequestById } from "../../controlTables/ownershipTransfers";
 import { KeyedOperationLock } from "../KeyedOperationLock";
@@ -21,7 +22,7 @@ const observer: ActorContext = { ...owner, principalId: "barbara-gordon", sessio
 let db: Db | null = null;
 
 /** The seeded handle. A test that reaches for the database before `seedWorkspace` is a broken test,
- *  so this throws rather than letting an assertion run against nothing. */
+ * so this throws rather than letting an assertion run against nothing. */
 function seeded(): Db {
   if (!db) throw new Error("test database is not seeded");
   return db;
@@ -98,7 +99,7 @@ afterEach(() => {
 type CeremonyPort = ReturnType<typeof createPort>;
 
 /** One row command, named by its action. The five share an input shape, so a table-driven caller
- *  keeps a multi-step ceremony readable as the sequence of states it walks. */
+ * keeps a multi-step ceremony readable as the sequence of states it walks. */
 function act(
   port: CeremonyPort,
   action: "accept" | "withdraw" | "decline" | "cancel" | "complete",
@@ -325,7 +326,7 @@ describe("ownership transfer ceremony port: staying readable and unblocked", () 
       command: command("initiate"),
     });
     if (initiated.kind !== "applied") throw new Error("initiation did not apply");
-    // Freshness is a threshold for ACTING. An Owner who signed in an hour ago must still be able to
+    // Freshness is a threshold for acting. An Owner who signed in an hour ago must still be able to
     // see the nomination they are being asked to approve, or the ceremony is unreachable.
     await expect(port.readOwnershipTransfer({ actor: { ...owner, fresh: false }, workspaceId })).resolves.toMatchObject(
       { live: { id: initiated.request.id, state: "awaiting_target" } },
@@ -351,7 +352,7 @@ describe("ownership transfer ceremony port: staying readable and unblocked", () 
       .prepare("UPDATE account_ownership_transfers SET createdAt = ?, expiresAt = ? WHERE id = ?")
       .run("2026-08-25T09:00:00.000Z", "2026-09-01T09:00:00.000Z", stale.request.id);
 
-    // The Owner nominates somebody else WITHOUT naming the dead request: there is nothing to replace.
+    // The Owner nominates somebody else without naming the dead request: there is nothing to replace.
     const next = await port.initiateOwnershipTransfer({
       actor: owner,
       workspaceId,
@@ -370,7 +371,7 @@ describe("ownership transfer ceremony port: staying readable and unblocked", () 
     expect(expiries).toHaveLength(1);
     expect(expiries[0]?.outcome).toBe("success");
     expect(expiries[0]?.id).toContain(`:${stale.request.id}`);
-    // The event names the nominee of the request that ENDED, not the person being nominated now.
+    // The event names the nominee of the request that ended, not the person being nominated now.
     expect(expiries[0]?.targetPrincipalId).toBe(target.principalId);
   });
 });

@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
+import { openDb, insertAll } from "./db";
+import type { Db } from "./db";
 import { upsertMember, getMemberRole, getInvite, isAccessRestricted } from "./controlTables";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { PASSWORD_ENV, call, signUp } from "./testHelpers/passwordAuth";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 
 const TS = "2026-01-01T00:00:00.000Z";
 const account = (id: string) => ({ id, name: `Studio ${id}`, color: "#3b82f6", createdAt: TS, updatedAt: TS });
@@ -101,7 +103,7 @@ function createVisibleInactiveMemberTest(): void {
     expect(res.statusCode).toBe(200);
     const members = (res.json() as { members: Array<{ userId: string; status: string; role: string }> }).members;
     const row = members.find((m) => m.userId === ed.userId);
-    // An invisible non-active member would be an unreversible one — the admin needs the row to act on.
+    // An invisible non-active member would be an unreversible one. The admin needs the row to act on.
     if (!row) throw new Error("Expected the disabled member row.");
     expect(row.status).toBe("active");
     expect((row as typeof row & { accessDisabled: boolean }).accessDisabled).toBe(true);

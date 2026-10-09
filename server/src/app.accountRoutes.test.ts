@@ -2,29 +2,22 @@ import { describe, it, expect, vi } from "vitest";
 import type { FastifyInstance, InjectOptions } from "fastify";
 import { createApp } from "./app";
 import { getRow, openDb } from "./db";
-import { call } from "./testHelpers";
+import { call } from "./testHelpers/passwordAuth";
+import { deferred } from "./testHelpers/deferred";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 
-// ROUTING-BOUNDARY contract for the dedicated `accounts` write routes (routes/accountEntityRoutes.ts).
+// Routing-boundary contract for the dedicated `accounts` write routes (routes/accountEntityRoutes.ts).
 //
 // Routing contract for dedicated `accounts` writes: static `/api/accounts/:id` routes must not
 // swallow deeper parametric routes or let an account write fall back into scoped-entity semantics.
 
 const TS = "2026-01-01T00:00:00.000Z";
 
-function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
-
 function freshApp(): FastifyInstance {
   return createApp(openDb(":memory:"), { optimisticConcurrency: false });
 }
 
-/** Trusted-local (OFF mode) create through the dedicated POST /api/accounts route. */
+/** Trusted-local (off mode) create through the dedicated POST /api/accounts route. */
 async function createAccount(app: FastifyInstance, id: string): Promise<void> {
   const res = await call(app, {
     method: "POST",
@@ -45,14 +38,14 @@ describe("dedicated /api/accounts routes — route precedence", () => {
   ] as const)("preserves the unknown entity diagnostic for %s", async (method, url) => {
     const response = await call(freshApp(), { method, url });
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({ error: "Unknown entity: not-a-table" });
+    expect(response.json()).toEqual({ error: "Unknown entity: not-a-table." });
   });
 
   it("does not shadow the parametric lifecycle routes: POST /api/accounts/:id/archive stays a 404", async () => {
     // `accounts` is not a lifecycle entity (no archivedAt/deletedAt tombstones), so the lifecycle
-    // handler must still MATCH and answer its own 404. If the new static /api/accounts/:id node
+    // handler must still match and answer its own 404. If the new static /api/accounts/:id node
     // prevented find-my-way from backtracking to /api/:entity/:id/archive, this would become a bare
-    // 404 with no body — a silent routing regression rather than the handler's own refusal.
+    // 404 with no body, a silent routing regression rather than the handler's own refusal.
     const app = freshApp();
     await createAccount(app, "a1");
     const res = await call(app, {
@@ -61,7 +54,7 @@ describe("dedicated /api/accounts routes — route precedence", () => {
       payload: { accountId: "a1" } as NonNullable<InjectOptions["payload"]>,
     });
     expect(res.statusCode).toBe(404);
-    expect(res.json<{ error: string }>().error).toBe("Unknown entity: accounts");
+    expect(res.json<{ error: string }>().error).toBe("Unknown entity: accounts.");
   });
 
   it("does not shadow the account administration routes registered under the same prefix", async () => {
@@ -85,7 +78,7 @@ describe("dedicated /api/accounts routes — route precedence", () => {
 describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
   it("DELETE /api/accounts/:id needs no ?accountId= (the scoped-delete assertion never applies)", async () => {
     // A scoped DELETE without ?accountId= is a 400 ("accountId is required to delete a scoped
-    // record."). An account is top-level and carries no accountId, so it must delete by id alone —
+    // record."). An account is top-level and carries no accountId, so it must delete by id alone,
     // this is exactly the rule that a missing special case would silently invert.
     const app = freshApp();
     await createAccount(app, "a1");

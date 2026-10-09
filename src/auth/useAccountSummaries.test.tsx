@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, render } from "@testing-library/react";
 import { fetchAccountSummaries, refreshAccountSummaries, useAccountSummaries } from "./useAccountSummaries";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import {
   cacheAccountSummaries,
   readOfflineStateSnapshot,
   readCachedAccountSummaries,
   setOfflineReadState,
-} from "../data/offlineCache";
+} from "@/data/offlineCache";
 import { m } from "@/i18n";
 
-vi.mock("../data/offlineCache", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../data/offlineCache")>();
+vi.mock("@/data/offlineCache", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/data/offlineCache")>();
   return {
     ...actual,
     cacheAccountSummaries: vi.fn(actual.cacheAccountSummaries),
@@ -19,24 +19,24 @@ vi.mock("../data/offlineCache", async (importOriginal) => {
   };
 });
 
-// P1.13 — the AccountPicker's data source. These tests pin the fetch contract's three distinct
+// The AccountPicker's data source. These tests pin the fetch contract's three distinct
 // answers, in particular the malformed-200 case (the bug this pins: a 200 whose JSON body is not
-// an array used to coerce to `[]` — a fake "no accounts" that blanked the picker — where every
+// an array used to coerce to `[]`, a fake "no accounts" that blanked the picker, where every
 // other failure reported null / keep-what-you-have):
-//   - a real array        -> the validated list ([] only for a GENUINE empty array; off-spec rows
-//                            are dropped with a console.warn breadcrumb — partial corruption is
+//   - a real array        -> the validated list ([] only for a genuine empty array; off-spec rows
+//                            are dropped with a console.warn breadcrumb, partial corruption is
 //                            handled-but-logged, never silent)
 //   - a non-OK response   -> null (keep what you have)
-//   - a 200 NON-ARRAY body -> null too, same stance, with a console.warn breadcrumb
-//   - a NONEMPTY array where EVERY row is off-spec -> null too (malformed, NOT "no accounts" —
+//   - a 200 non-array body -> null too, same stance, with a console.warn breadcrumb
+//   - a nonempty array where every row is off-spec -> null too (malformed, not "no accounts",
 //                            an [] here would blank the picker over a broken response)
 // plus the hook-level consequence: a null read leaves store.accountSummaries untouched.
 
 afterEach(() => {
   useStore.setState({ activeAccountId: null });
-  useStore.getState().setAccountSummaries([]);
+  useStore.getState().setAccountSummaries({ list: [] });
   useStore.getState().setNotice(null);
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -100,7 +100,7 @@ function createBasicResponseClassificationTests() {
 
   it("does not mark a cached active slice online merely because the company directory responds", async () => {
     useStore.setState({ activeAccountId: "a1" });
-    setOfflineReadState("accounts", true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState({ owner: "accounts", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => json(200, [{ id: "a1", name: "Studio A", role: "owner" }])),
@@ -113,7 +113,7 @@ function createBasicResponseClassificationTests() {
 
   it("does clear an identity/list-only offline marker at the company picker", async () => {
     useStore.setState({ activeAccountId: null });
-    setOfflineReadState("accounts", true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState({ owner: "accounts", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => json(200, [{ id: "a1", name: "Studio A", role: "owner" }])),
@@ -190,8 +190,8 @@ function createCachedResponseClassificationTests() {
 function createMalformedResponseClassificationTests() {
   it('a NONEMPTY array whose rows are ALL malformed -> null (keep what you have, NOT a fake "no accounts") + a warn', async () => {
     // The regression this pins: [null] used to map/filter to [], which the hook treated as a genuine
-    // empty list and blanked the picker — contradicting the "[] is reserved for a genuine empty
-    // array" contract. All-rows-invalid is a MALFORMED response, so it reports null like the
+    // empty list and blanked the picker, contradicting the "[] is reserved for a genuine empty
+    // array" contract. All-rows-invalid is a malformed response, so it reports null like the
     // non-array case (the hook then leaves the existing list untouched).
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
@@ -336,7 +336,7 @@ function createMutationRefreshTests() {
     );
     const refresh = refreshAccountSummaries();
 
-    useStore.getState().setAccountSummaries([{ id: "created", name: "Just created", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "created", name: "Just created", role: "owner" }] });
     response.resolve(json(200, [{ id: "old", name: "Before create", role: "owner" }]));
     await refresh;
 
@@ -351,7 +351,7 @@ function createMutationRefreshTests() {
     );
     const refresh = refreshAccountSummaries();
 
-    useStore.getState().setAccountSummaries([{ id: "created", name: "Just created", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "created", name: "Just created", role: "owner" }] });
     useStore.setState({ activeAccountId: "created" });
     response.resolve(json(200, [{ id: "old", name: "Before create", role: "owner" }]));
     await refresh;
@@ -402,7 +402,7 @@ describe("refreshAccountSummaries — shared request ordering", () => {
   createCompletenessRefreshTests();
 });
 
-/** Mounts the hook bare — it renders nothing; the observable effect is on the store. */
+/** Mounts the hook bare. It renders nothing; the observable effect is on the store. */
 function HookHost() {
   useAccountSummaries();
   return null;
@@ -430,13 +430,13 @@ function createMalformedHookTests() {
   it("store.accountSummaries is preserved when /api/accounts 200s with a non-array body", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {}); // silence the expected breadcrumb
     const existing = [{ id: "a1", name: "Studio A", role: "owner" as const }];
-    useStore.getState().setAccountSummaries(existing);
+    useStore.getState().setAccountSummaries({ list: existing });
     let resolveFetch!: () => void;
     const done = new Promise<void>((r) => (resolveFetch = r));
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
-        // Signal AFTER returning would race the .json() await inside the hook; queueMicrotask keeps
+        // Signal after returning would race the .json() await inside the hook; queueMicrotask keeps
         // the resolution ordered behind the hook's own awaits closely enough for the flush below.
         queueMicrotask(resolveFetch);
         return json(200, { not: "an array" });
@@ -449,7 +449,7 @@ function createMalformedHookTests() {
       // the null early-return) has run before we assert.
       await new Promise((r) => setTimeout(r, 0));
     });
-    expect(useStore.getState().accountSummaries).toEqual(existing); // untouched — not blanked to []
+    expect(useStore.getState().accountSummaries).toEqual(existing); // untouched: not blanked to []
   });
 }
 
@@ -459,7 +459,7 @@ function createMembershipHookTest() {
     // junk must not read as "no accounts" and blank the picker.
     vi.spyOn(console, "warn").mockImplementation(() => {}); // silence the expected breadcrumb
     const existing = [{ id: "a1", name: "Studio A", role: "owner" as const }];
-    useStore.getState().setAccountSummaries(existing);
+    useStore.getState().setAccountSummaries({ list: existing });
     let resolveFetch!: () => void;
     const done = new Promise<void>((r) => (resolveFetch = r));
     vi.stubGlobal(
@@ -474,7 +474,7 @@ function createMembershipHookTest() {
       await done;
       await new Promise((r) => setTimeout(r, 0));
     });
-    expect(useStore.getState().accountSummaries).toEqual(existing); // untouched — not blanked to []
+    expect(useStore.getState().accountSummaries).toEqual(existing); // untouched: not blanked to []
   });
 
   it("refetches account roles when membership projections are invalidated", async () => {

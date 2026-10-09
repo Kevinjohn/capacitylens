@@ -1,9 +1,9 @@
 import { m } from "@/i18n";
-import { teamAccessClient } from "../../account/teamAccessClient";
-import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
-import { readOfflineStateSnapshot } from "../../data/offlineCache";
-import { refreshActiveAccountSlice } from "../../data/persist";
-import { resolveErrorMessage } from "../../lib/errorMessage";
+import { teamAccessClient } from "@/account/teamAccessClient";
+import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
+import { readOfflineStateSnapshot } from "@/data/offlineCache";
+import { refreshActiveAccountSlice } from "@/data/persist";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { useTeamDirectory } from "./useTeamDirectory";
 import type { useMemberInvites } from "./useMemberInvites";
@@ -27,18 +27,20 @@ interface MemberAccessDependencies extends Pick<
   reconcileMintedInvite: ReturnType<typeof useMemberInvites>["reconcileMintedInvite"];
 }
 
-function hasAuthoritativeAccountSummary(
-  summaries: Awaited<ReturnType<typeof refreshAccountSummaries>>,
-  accountId: string,
-  knownRemoved: boolean,
-) {
+type HasAuthoritativeAccountSummaryOptions = {
+  summaries: Awaited<ReturnType<typeof refreshAccountSummaries>>;
+  accountId: string;
+  knownRemoved: boolean;
+};
+function hasAuthoritativeAccountSummary({ summaries, accountId, knownRemoved }: HasAuthoritativeAccountSummaryOptions) {
   return summaries !== null && !knownRemoved && summaries.some((account) => account.id === accountId);
 }
 
-function isCallerAccessUnverified(
-  summaries: Awaited<ReturnType<typeof refreshAccountSummaries>>,
-  offlineReadOnly: boolean,
-) {
+type IsCallerAccessUnverifiedOptions = {
+  summaries: Awaited<ReturnType<typeof refreshAccountSummaries>>;
+  offlineReadOnly: boolean;
+};
+function isCallerAccessUnverified({ summaries, offlineReadOnly }: IsCallerAccessUnverifiedOptions) {
   return summaries === null || offlineReadOnly;
 }
 
@@ -61,12 +63,12 @@ function createRefreshCallerAccess({
     if (!isActiveAccount(accountId)) return { kind: "left" };
     const summaries = await refreshAccountSummaries({ allowCachedFallback: false });
     if (!isActiveAccount(accountId)) return { kind: "left" };
-    if (isCallerAccessUnverified(summaries, readOfflineStateSnapshot().readOnly)) {
+    if (isCallerAccessUnverified({ summaries: summaries, offlineReadOnly: readOfflineStateSnapshot().readOnly })) {
       closeActiveAccount();
       setNotice(m.settings_members_access_refresh_failed(), "error");
       return { kind: "failed" };
     }
-    if (!hasAuthoritativeAccountSummary(summaries, accountId, knownRemoved)) {
+    if (!hasAuthoritativeAccountSummary({ summaries: summaries, accountId: accountId, knownRemoved: knownRemoved })) {
       closeActiveAccount();
       return { kind: "left" };
     }
@@ -113,15 +115,17 @@ async function reloadAuthorizedDirectory({
   }
 }
 
-async function resolveCallerAccess(
-  callerAccessMayHaveChanged: boolean,
-  refreshCallerAccess: ReturnType<typeof createRefreshCallerAccess>,
-) {
+type ResolveCallerAccessOptions = {
+  callerAccessMayHaveChanged: boolean;
+  refreshCallerAccess: ReturnType<typeof createRefreshCallerAccess>;
+};
+async function resolveCallerAccess({ callerAccessMayHaveChanged, refreshCallerAccess }: ResolveCallerAccessOptions) {
   if (!callerAccessMayHaveChanged) return null;
   return refreshCallerAccess();
 }
 
-function shouldStopReconciliation(accountIsActive: boolean, accessResult: CallerAccessRefreshResult | null) {
+type ShouldStopReconciliationOptions = { accountIsActive: boolean; accessResult: CallerAccessRefreshResult | null };
+function shouldStopReconciliation({ accountIsActive, accessResult }: ShouldStopReconciliationOptions) {
   return !accountIsActive || accessResult?.kind === "failed";
 }
 
@@ -152,8 +156,11 @@ function createReconcileUnknownMutation({
   ): Promise<void> => {
     const accountId = requestAccountId();
     if (!isActiveAccount(accountId)) return;
-    const accessResult = await resolveCallerAccess(callerAccessMayHaveChanged, refreshCallerAccess);
-    if (shouldStopReconciliation(isActiveAccount(accountId), accessResult)) return;
+    const accessResult = await resolveCallerAccess({
+      callerAccessMayHaveChanged: callerAccessMayHaveChanged,
+      refreshCallerAccess: refreshCallerAccess,
+    });
+    if (shouldStopReconciliation({ accountIsActive: isActiveAccount(accountId), accessResult: accessResult })) return;
     if (accessResult?.kind === "left") {
       setNotice(m.settings_members_reconcile_company_access({ message }), "warning");
       return;

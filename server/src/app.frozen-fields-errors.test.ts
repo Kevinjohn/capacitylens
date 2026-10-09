@@ -65,8 +65,8 @@ function createFrozenFieldPutTests(): void {
   it("an UNCHANGED PUT of the frozen fields → 200 (change-not-presence)", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    // The sync adapter re-sends the WHOLE row on any edit (e.g. a rename) — an unchanged
-    // frozen value present in the body must PASS.
+    // The sync adapter re-sends the whole row on any edit (e.g. a rename), an unchanged
+    // frozen value present in the body must pass.
     const res = await put({
       app,
       entity: "accounts",
@@ -185,7 +185,7 @@ function createFrozenFieldSanitizationTest(): void {
 }
 
 function createFrozenFieldPreferenceAndBatchTests(): void {
-  it("PATCH mutable account preferences, including engagement grouping", async () => {
+  it("PATCH mutable account preferences and drops a retired preference on write", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { name: "New Name" } })).statusCode).toBe(200);
@@ -193,12 +193,18 @@ function createFrozenFieldPreferenceAndBatchTests(): void {
       200,
     );
     expect(
-      (await patch({ app, entity: "accounts", id: "a1", payload: { groupResourcesByEngagement: false } })).statusCode,
+      (
+        await patch({
+          app,
+          entity: "accounts",
+          id: "a1",
+          payload: { schedulingMode: "blocks", groupResourcesByEngagement: false },
+        })
+      ).statusCode,
     ).toBe(200);
-    expect((await patch({ app, entity: "accounts", id: "a1", payload: { schedulingMode: "blocks" } })).statusCode).toBe(
-      200,
-    );
-    expect((await readStateAccount(app)).groupResourcesByEngagement).toBe(false);
+    const account = await readStateAccount(app);
+    expect(account).toMatchObject({ name: "New Name", disciplinesEnabled: true, schedulingMode: "blocks" });
+    expect(account).not.toHaveProperty("groupResourcesByEngagement");
   });
 
   it("a batch PUT changing a frozen field returns the same reloadable 409 as direct writes", async () => {
@@ -261,7 +267,7 @@ function createErrorStatusMappingTest() {
 
 describe("error status mapping (statusFor)", () => {
   createErrorStatusMappingTest();
-  // PINNING TEST: these trigger real node:sqlite violations so the classifier stays tied to the
+  // Pinning test: these trigger real node:sqlite violations so the classifier stays tied to the
   // runtime's structured error metadata for each supported row-data constraint family.
   describe("pins node:sqlite constraint metadata on real violations", () => {
     const grab = (fn: () => void): Error => {
@@ -335,7 +341,7 @@ describe("global error redaction", () => {
       });
 
       expect(response.statusCode).toBe(500);
-      expect(response.json()).toEqual({ error: "Internal server error" });
+      expect(response.json()).toEqual({ error: "Internal server error." });
       expect(response.body).not.toContain(sentinel);
       expect(consoleError).toHaveBeenCalledWith(cause);
 
@@ -344,7 +350,7 @@ describe("global error redaction", () => {
         url: "/api/test/spoofed-framework-error",
       });
       expect(spoofed.statusCode).toBe(413);
-      expect(spoofed.json()).toEqual({ error: "Request body is too large" });
+      expect(spoofed.json()).toEqual({ error: "Request body is too large." });
       expect(spoofed.body).not.toContain(sentinel);
 
       consoleError.mockClear();
@@ -353,7 +359,7 @@ describe("global error redaction", () => {
         url: "/api/test/non-sqlite-constraint-phrase",
       });
       expect(unrelated.statusCode).toBe(500);
-      expect(unrelated.json()).toEqual({ error: "Internal server error" });
+      expect(unrelated.json()).toEqual({ error: "Internal server error." });
       expect(unrelated.body).not.toContain(constraintPhraseCause.message);
       expect(consoleError).toHaveBeenCalledWith(constraintPhraseCause);
     } finally {

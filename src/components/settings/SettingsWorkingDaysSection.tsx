@@ -1,10 +1,10 @@
 import { m } from "@/i18n";
 import type { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { resolveWeekdayLabel, resolveWeekdayShortLabel } from "../../lib/weekdays";
-import { listAccountWorkingDays } from "../../store/selectors";
-import type { StoreState } from "../../store/useStore";
-import { Checkbox } from "../ui/checkbox";
-import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
+import { resolveWeekdayLabel, resolveWeekdayShortLabel } from "@/lib/weekdays";
+import type { listAccountWorkingDays } from "@/store/selectors";
+import type { StoreState } from "@/store/useStore";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { SettingsSection } from "./SettingsSection";
 
 type WorkingDays = ReturnType<typeof listAccountWorkingDays>;

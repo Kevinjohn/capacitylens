@@ -3,14 +3,14 @@ import { Link } from "react-router-dom";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
-import type { AccountMode, AuthProviderInfo, AuthUser } from "../../auth/authContext";
-import { resolveRoleLabel, resolveRoleSummary } from "../../lib/accessCopy";
+import type { AccountMode, AuthProviderInfo, AuthUser } from "@/auth/authContext";
+import { resolveRoleLabel, resolveRoleSummary } from "@/lib/accessCopy";
 import { m } from "@/i18n";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { FieldError } from "../ui/field";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "../ui/item";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldError } from "@/components/ui/field";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 import { InvitePasswordContent, InviteProviderButtons } from "./InvitePasswordContent";
 import { formatInviteExpiry } from "./inviteExpiry";
 
@@ -123,7 +123,7 @@ function InvitePreviewDetails({ preview }: { preview: InvitePreview }) {
         <ItemDescription className="line-clamp-none">{resolveRoleSummary(preview.role)}</ItemDescription>
         <ItemDescription className="line-clamp-none">{m.invite_existing_role_note()}</ItemDescription>
         <ItemDescription className="line-clamp-none wrap-anywhere">
-          {resolveEmailBoundaryCopy(preview.emailBound, preview.emailHint)}
+          {resolveEmailBoundaryCopy({ emailBound: preview.emailBound, emailHint: preview.emailHint })}
         </ItemDescription>
         <ItemDescription className="line-clamp-none">
           {m.invite_expires({ when: formatInviteExpiry(preview.expiresAt) })}
@@ -133,7 +133,8 @@ function InvitePreviewDetails({ preview }: { preview: InvitePreview }) {
   );
 }
 
-function resolveEmailBoundaryCopy(emailBound: boolean | null, emailHint: string | null) {
+type ResolveEmailBoundaryCopyOptions = { emailBound: boolean | null; emailHint: string | null };
+function resolveEmailBoundaryCopy({ emailBound, emailHint }: ResolveEmailBoundaryCopyOptions) {
   if (emailBound === true && emailHint !== null) return m.invite_email_bound({ hint: emailHint });
   if (emailBound === true) return m.invite_email_bound_no_hint();
   if (emailBound === false) return m.invite_email_unbound();

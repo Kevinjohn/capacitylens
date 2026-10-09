@@ -1,4 +1,5 @@
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
 
 /** Ephemeral persistence for the zero-setup browser demo. It deliberately survives React/store

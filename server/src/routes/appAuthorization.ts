@@ -1,20 +1,18 @@
 import type { AuthorizeRouteInput } from "./routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import {
-  type Role,
-  type IdentityAdminAction,
-  type IdentityAdminAuthorityDecision,
-} from "@capacitylens/shared/account/types";
+import type { Role, IdentityAdminAction, IdentityAdminAuthorityDecision } from "@capacitylens/shared/account/types";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import { ALL_FIELDS_VISIBLE } from "./routeShared";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
-import { redactGatedEcho, hasGatedFields, resolveVisibilityForRole, type SanitizeWriteOptions } from "../fieldPolicy";
+import { redactGatedEcho, hasGatedFields, resolveVisibilityForRole } from "../fieldPolicy";
+import type { SanitizeWriteOptions } from "../fieldPolicy";
 import { can } from "@capacitylens/shared/domain/access";
 import { resolveCorsOrigin, isSameRequestOrigin } from "./appOriginPolicy";
 import type { resolveAppConfig } from "./appConfig";
 import type { createAppRuntime } from "./appRuntime";
 import type { installRootHooks } from "./appRootHooks";
 import type { AppOptions } from "../app";
+import { FROZEN_REPLY_MESSAGES, REPLY_ERRORS } from "./replyErrors";
 
 export type AuthorizationResult = { kind: "allowed"; role: Role | null } | { kind: "denied" };
 export type EffectiveRoleResult = { kind: "resolved"; role: Role | null } | { kind: "ended" };
@@ -109,8 +107,8 @@ function denyMissingRole(
   securityEvent: RootHelpers["securityEvent"],
 ): AuthorizationResult {
   securityEvent({ event: "authorization", outcome: "denied", action, accountId, userId: req.user?.id });
-  if (options.concealNonMembership) reply.code(404).send({ error: "Not found" });
-  else reply.code(403).send({ error: "Forbidden." });
+  if (options.concealNonMembership) reply.code(404).send({ error: FROZEN_REPLY_MESSAGES.notFound });
+  else reply.code(403).send({ error: REPLY_ERRORS.forbidden });
   return { kind: "denied" };
 }
 
@@ -120,7 +118,7 @@ function denyInsufficientRole(
   securityEvent: RootHelpers["securityEvent"],
 ): AuthorizationResult {
   securityEvent({ event: "authorization", outcome: "denied", action, accountId, userId: req.user?.id, role });
-  reply.code(403).send({ error: "Forbidden." });
+  reply.code(403).send({ error: REPLY_ERRORS.forbidden });
   return { kind: "denied" };
 }
 
@@ -150,7 +148,7 @@ function requireFreshSession(
     ...(timestampMissing ? { reason: "missing_session_timestamp" } : {}),
   });
   reply.code(403).send({
-    error: "Sign in again before performing this security-sensitive action.",
+    error: REPLY_ERRORS.freshSignInRequired,
     code: "SESSION_NOT_FRESH",
   });
   return false;
@@ -169,7 +167,7 @@ function createAuthorize({ authMode, resolveEffectiveRole, securityEvent }: Auth
     if (authMode === "off") return { kind: "allowed", role: null };
     const resolved = resolveEffectiveRole(input.req, input.accountId);
     if (resolved.kind === "ended") {
-      input.reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
+      input.reply.code(403).send({ error: REPLY_ERRORS.masqueradeEnded, code: MASQUERADE_ERROR_CODES.ended });
       return { kind: "denied" };
     }
     const { role } = resolved;
@@ -216,13 +214,13 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
   const authorizeAllowed = ({ req, reply, accountId, action, options = {} }: AuthorizeRouteInput): boolean =>
     authorize({ req, reply, accountId, action, options }).kind === "allowed";
 
-  // CORS response headers are not a CSRF control: browsers can still SEND a simple form request
+  // CORS response headers are not a CSRF control: browsers can still send a simple form request
   // and merely hide the response. Reject unsafe cross-site browser requests before routing, then
   // add CORS headers for explicitly trusted origins. Requests without Origin/Sec-Fetch-Site are
   // retained for CLI/server clients; modern browsers supply at least one signal for a cross-site
-  // unsafe request. This hook MUST live on the ROOT instance, not in the routes child
+  // unsafe request. This hook must live on the root instance, not in the routes child
   // below: there are no OPTIONS routes, so a preflight takes the not-found path, and
-  // only root-level hooks run there — a child-scoped hook would leave preflights as
+  // only root-level hooks run there. A child-scoped hook would leave preflights as
   // bare 404s without CORS headers, silently blocking every cross-origin write.
   app.addHook("onRequest", async function enforceOriginPolicy(req: FastifyRequest, reply: FastifyReply) {
     const reqOrigin = req.headers.origin;
@@ -242,11 +240,11 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
     });
     const unsafe = !["GET", "HEAD", "OPTIONS"].includes(req.method);
     // An Origin exactly on the credentialed CORS allow-list (listedOrigin, folded into `origin`
-    // above) is the operator's EXPLICIT cross-site contract, so it passes the gate regardless of
-    // Fetch Metadata — a `Sec-Fetch-Site: cross-site` on an allow-listed Origin is exactly the
+    // above) is the operator's explicit cross-site contract, so it passes the gate regardless of
+    // Fetch Metadata, a `Sec-Fetch-Site: cross-site` on an allow-listed Origin is exactly the
     // legitimate configured cross-origin call, not an attack. We therefore block only when the
-    // request resolved to NO trusted origin (`origin === null`, i.e. neither allow-listed nor
-    // same-origin) AND there is a cross-site signal: an Origin header we could not trust, or an
+    // request resolved to no trusted origin (`origin === null`, i.e. neither allow-listed nor
+    // same-origin) and there is a cross-site signal: an Origin header we could not trust, or an
     // explicit cross-site Fetch Metadata label (which also catches Origin-less browser writes).
     if (unsafe && origin === null && (reqOrigin !== undefined || fetchSite === "cross-site")) {
       securityEvent({
@@ -257,7 +255,7 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
         origin: reqOrigin,
         fetchSite,
       });
-      return reply.code(403).send({ error: "Cross-site request rejected." });
+      return reply.code(403).send({ error: REPLY_ERRORS.crossSiteRequest });
     }
     if (origin) {
       reply.header("Access-Control-Allow-Origin", origin);
@@ -272,7 +270,7 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
       "Access-Control-Allow-Headers",
       "Content-Type, Idempotency-Key, x-account-command-id, x-capacitylens-bootstrap-token, x-capacitylens-setup-token, x-capacitylens-sync-session, x-capacitylens-sync-sequence",
     );
-    if (req.method === "OPTIONS") reply.code(204).send();
+    if (req.method === "OPTIONS") return reply.code(204).send();
   });
 
   return {

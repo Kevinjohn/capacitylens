@@ -2,15 +2,15 @@ import { afterEach, describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, act, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "./AppShell";
-import { useStore } from "../store/useStore";
-import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
-import { stubMatchMedia } from "../test/stubMatchMedia";
-import { attachPersistence } from "../data/persist";
+import { useStore } from "@/store/useStore";
+import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { stubMatchMedia } from "@/test/stubMatchMedia";
+import { attachPersistence } from "@/data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { setOfflineReadState } from "../data/offlineCache";
-import { markCompanyPickerForNextReload } from "../lib/companyPickerEntry";
+import { setOfflineReadState } from "@/data/offlineCache";
+import { markCompanyPickerForNextReload } from "@/lib/companyPickerEntry";
 import { m } from "@/i18n";
-import * as accountTransition from "../auth/accountTransition";
+import * as accountTransition from "@/auth/accountTransition";
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 vi.mock("@/i18n", async (importOriginal) => ({
@@ -18,7 +18,7 @@ vi.mock("@/i18n", async (importOriginal) => ({
   syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
 }));
 
-vi.mock("../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isDemoMode: () => true,
   isServerConfigured: () => false,
@@ -43,10 +43,11 @@ beforeEach(() => {
   useStore.getState().setMasquerade({ kind: "inactive" });
   // Most shell tests exercise the post-hydration UI; the dedicated handoff test overrides this.
   useStore.getState().setHydrated(true);
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 
-function renderAppShell(initialEntries: string[] = ["/"], includeLocationProbe = false) {
+type RenderAppShellOptions = { initialEntries?: string[]; includeLocationProbe?: boolean };
+function renderAppShell({ initialEntries = ["/"], includeLocationProbe = false }: RenderAppShellOptions = {}) {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
       <AppShell />
@@ -80,7 +81,7 @@ it("shows a fail-closed banner while a member view is starting", () => {
     pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
   });
 
-  renderAppShell();
+  renderAppShell({});
 
   const banner = screen.getByTestId("masquerade-banner");
   expect(banner).toHaveTextContent("Starting member view…");
@@ -102,7 +103,7 @@ it("offers projection recovery after the server has prepared a starting member v
     },
   });
 
-  renderAppShell();
+  renderAppShell({});
 
   const banner = screen.getByTestId("masquerade-banner");
   expect(within(banner).getByRole("button", { name: "Retry" })).toBeInTheDocument();
@@ -110,7 +111,7 @@ it("offers projection recovery after the server has prepared a starting member v
 });
 
 it("consumes a joined-account query only once and preserves later route queries", async () => {
-  renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`], true);
+  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`], includeLocationProbe: true });
 
   await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent(/^\/$/));
   fireEvent.click(screen.getByTestId("location-probe"));
@@ -118,7 +119,10 @@ it("consumes a joined-account query only once and preserves later route queries"
 });
 
 it("removes only the joined-account handoff from the entry query", async () => {
-  renderAppShell([`/?tab=security&joinedAccount=${DEFAULT_ACCOUNT_ID}&view=archived#members`], true);
+  renderAppShell({
+    initialEntries: [`/?tab=security&joinedAccount=${DEFAULT_ACCOUNT_ID}&view=archived#members`],
+    includeLocationProbe: true,
+  });
 
   await waitFor(() =>
     expect(screen.getByTestId("location-probe")).toHaveTextContent("/?tab=security&view=archived#members"),
@@ -129,7 +133,7 @@ it("waits for initial hydration before consuming a joined-account handoff", asyn
   useStore.getState().setActiveAccount(null);
   useStore.getState().setHydrated(false);
 
-  renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`]);
+  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`] });
 
   await waitFor(() =>
     expect(useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID)).toBe(true),
@@ -144,16 +148,16 @@ it("does not reactivate a consumed joined-account handoff after a later account-
   const otherAccountId = "acct-other";
   const accounts = [makeAccount(), makeAccount({ id: otherAccountId, name: "Other Co" })];
   useStore.getState().replaceAll(makeAppData({ accounts }));
-  useStore.getState().setAccountSummaries(accounts.map(({ id, name }) => ({ id, name, role: "owner" })));
+  useStore.getState().setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: "owner" })) });
   useStore.getState().setActiveAccount(otherAccountId);
 
-  renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`]);
+  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`] });
   act(() => useStore.getState().setHydrated(true));
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
 
   act(() => {
     useStore.getState().setActiveAccount(otherAccountId);
-    useStore.getState().setAccountSummaries(accounts.map(({ id, name }) => ({ id, name, role: "owner" })));
+    useStore.getState().setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: "owner" })) });
   });
 
   expect(useStore.getState().activeAccountId).toBe(otherAccountId);
@@ -163,19 +167,16 @@ it("does not apply a late joined-account handoff after an explicit company choic
   const lateAccountId = "acct-late";
   useStore.getState().setActiveAccount(null);
 
-  renderAppShell([`/?joinedAccount=${lateAccountId}`]);
+  renderAppShell({ initialEntries: [`/?joinedAccount=${lateAccountId}`] });
   await waitFor(() =>
     expect(useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID)).toBe(true),
   );
 
   act(() => useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID));
   act(() => {
-    useStore
-      .getState()
-      .setAccountSummaries([
-        ...useStore.getState().accountSummaries,
-        { id: lateAccountId, name: "Late Co", role: "owner" },
-      ]);
+    useStore.getState().setAccountSummaries({
+      list: [...useStore.getState().accountSummaries, { id: lateAccountId, name: "Late Co", role: "owner" }],
+    });
   });
 
   expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
@@ -185,7 +186,7 @@ it("keeps the company picker on first entry even when exactly one company is ava
   mockNavigationType("navigate");
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell(["/clients"], true);
+  renderAppShell({ initialEntries: ["/clients"], includeLocationProbe: true });
 
   expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
@@ -197,7 +198,7 @@ it("keeps the company picker after a successful sign-in reload", async () => {
   markCompanyPickerForNextReload();
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell(["/clients"]);
+  renderAppShell({ initialEntries: ["/clients"] });
 
   expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
@@ -208,7 +209,7 @@ it("reopens the sole valid company on reload without changing the requested rout
   mockNavigationType("reload");
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell(["/clients?view=archived#client-list"], true);
+  renderAppShell({ initialEntries: ["/clients?view=archived#client-list"], includeLocationProbe: true });
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
   expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients?view=archived#client-list");
@@ -225,7 +226,7 @@ it("keeps the picker on a multi-company reload", async () => {
     accountSummaries: accounts.map(({ id, name }) => ({ id, name, role: "owner" as const })),
   });
 
-  renderAppShell();
+  renderAppShell({});
 
   expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
@@ -241,7 +242,7 @@ it("keeps the picker when one valid company came from an incomplete directory", 
     accountSummariesComplete: false,
   });
 
-  renderAppShell();
+  renderAppShell({});
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
   expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
@@ -254,7 +255,7 @@ it("keeps the picker when the browser cannot classify the navigation", async () 
   });
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell();
+  renderAppShell({});
 
   expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
@@ -266,7 +267,7 @@ it("keeps the picker when the browser cannot classify the navigation", async () 
 
 it("keeps an explicit Switch company action on the picker after a reload", async () => {
   mockNavigationType("reload");
-  renderAppShell();
+  renderAppShell({});
   expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
@@ -287,7 +288,7 @@ it("does not mistake an unavailable sole membership for a valid reload destinati
     ],
   });
 
-  renderAppShell();
+  renderAppShell({});
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
   expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
@@ -297,7 +298,7 @@ it("lets an invite handoff keep ownership of a reload instead of auto-opening an
   mockNavigationType("reload");
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell(["/clients?joinedAccount=not-yet-authorized"]);
+  renderAppShell({ initialEntries: ["/clients?joinedAccount=not-yet-authorized"] });
 
   expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
@@ -307,12 +308,12 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
   mockNavigationType("reload");
   const summary = { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" as const };
   useStore.setState({ activeAccountId: null, previousAccountId: null, accountSummaries: [summary] });
-  renderAppShell();
+  renderAppShell({});
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
 
   act(() => {
     useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([summary]);
+    useStore.getState().setAccountSummaries({ list: [summary] });
   });
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
@@ -328,7 +329,7 @@ it("guards navigation while a persistence write is still unacknowledged", () => 
     adapter: { loadAll: async () => emptyAppData(), saveAll: async () => {} },
     debounceMs: 300,
   });
-  const { unmount } = renderAppShell();
+  const { unmount } = renderAppShell({});
   act(() => {
     useStore.getState().addClient({ name: "Unsaved client", color: "#111111" });
   });
@@ -344,7 +345,7 @@ it("guards navigation while a persistence write is still unacknowledged", () => 
 
 function registerSkipLinkLayerTest(): void {
   it("places the focused skip link on its dedicated accessibility layer", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByRole("link", { name: "Skip to content" })).toHaveClass("focus:z-(--z-index-skip-link)");
   });
@@ -352,13 +353,13 @@ function registerSkipLinkLayerTest(): void {
 
 function registerTrailingSlashTitleTest(): void {
   it("keeps a descriptive title on an accepted trailing-slash route", async () => {
-    renderAppShell(["/resources/"]);
+    renderAppShell({ initialEntries: ["/resources/"] });
 
     await waitFor(() => expect(document.title).toBe("Resources · CapacityLens"));
   });
 
   it("keeps Account active on its accepted trailing-slash route", () => {
-    renderAppShell(["/account/"]);
+    renderAppShell({ initialEntries: ["/account/"] });
 
     expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
   });
@@ -371,7 +372,7 @@ function registerLocaleChangeNavigationTest(): void {
       () => (secondLocale ? "Ressources" : "Resources") as ReturnType<typeof m.nav_resources>,
     );
 
-    renderAppShell(["/resources"]);
+    renderAppShell({ initialEntries: ["/resources"] });
     await waitFor(() => expect(screen.getByRole("link", { name: "Resources" })).toBeInTheDocument());
     expect(document.title).toBe("Resources · CapacityLens");
 
@@ -390,7 +391,7 @@ function registerLoadingAccountLocaleTest(): void {
     const currentAccount = makeAccount({ language: "en" });
     const destinationAccount = makeAccount({ id: "acct-other", name: "Other Co" });
     useStore.getState().replaceAll(makeAppData({ accounts: [currentAccount] }));
-    renderAppShell();
+    renderAppShell({});
     await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith("en"));
     i18nMocks.syncLocaleFromAccount.mockClear();
 
@@ -411,18 +412,21 @@ function registerLoadingAccountLocaleTest(): void {
 
 function registerOfflineSnapshotLabelTest(): void {
   it("labels a cached snapshot as Offline and view only instead of Demo access", () => {
-    setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
-    renderAppShell();
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
+    renderAppShell({});
 
     expect(screen.getByTestId("active-role")).toHaveTextContent("Offline · View only");
     expect(screen.getByTestId("active-role")).not.toHaveTextContent("Demo access");
     expect(screen.getByTestId("view-only")).toHaveTextContent("Offline · View only");
+    // The offline projection is a Viewer, so the Owner/Admin-only destination leaves the sidebar.
+    expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Diagnostics" })).not.toBeInTheDocument();
   });
 }
 
 function registerExpectedNavigationLinksTest(): void {
   it("renders all expected nav links", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Resources" })).toBeInTheDocument();
@@ -439,14 +443,14 @@ function registerExpectedNavigationLinksTest(): void {
 
 function registerAccountNavigationStateTest(): void {
   it("marks the personal Account destination active and gives it a descriptive page title", async () => {
-    renderAppShell(["/account"]);
+    renderAppShell({ initialEntries: ["/account"] });
     expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
     await waitFor(() => expect(document.title).toBe("Account · CapacityLens"));
   });
 
   it("keeps the personal Account route available before a company is selected", () => {
     useStore.setState({ activeAccountId: null, accountSummaries: [] });
-    renderAppShell(["/account"]);
+    renderAppShell({ initialEntries: ["/account"] });
 
     expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
@@ -531,14 +535,14 @@ function registerAccountSwitchRouteTest(): void {
 
 function registerNavigationBrandNameTest(): void {
   it("renders the CapacityLens brand name in the nav", () => {
-    renderAppShell();
+    renderAppShell({});
     expect(screen.getByText("CapacityLens")).toBeInTheDocument();
   });
 }
 
 function registerImportExportAbsenceTest(): void {
   it("does NOT render the import/export tools in the sidebar", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.queryByTestId("settings-data-tools")).not.toBeInTheDocument();
     expect(screen.queryByTestId("export-data")).not.toBeInTheDocument();
@@ -548,7 +552,7 @@ function registerImportExportAbsenceTest(): void {
 
 function registerSidebarSignOutTest(): void {
   it("keeps the avatar-led Account row as the only sidebar session control", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByText("Test Co")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Switch company" })).toBeInTheDocument();
@@ -561,8 +565,8 @@ function registerSidebarSignOutTest(): void {
 }
 
 function registerPinnedNavigationOrderTest(): void {
-  it("pins Team & access and Settings, in that order, after every other destination", () => {
-    renderAppShell();
+  it("pins Team & access, Settings and Diagnostics, in that order, after every other destination", () => {
+    renderAppShell({});
 
     // Scoped to the nav landmark so the skip-to-content link above the sidebar stays out of it.
     const order = within(screen.getByRole("navigation"))
@@ -579,13 +583,14 @@ function registerPinnedNavigationOrderTest(): void {
       "/timeoff",
       "/team",
       "/settings",
+      "/diagnostics",
     ]);
   });
 }
 
 function registerNavigationRoutesTest(): void {
   it("nav links point to correct routes", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("href", "/overview");
     expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/");
@@ -597,12 +602,13 @@ function registerNavigationRoutesTest(): void {
     expect(screen.getByRole("link", { name: "Activities" })).toHaveAttribute("href", "/activities");
     expect(screen.getByRole("link", { name: "Time off" })).toHaveAttribute("href", "/timeoff");
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+    expect(screen.getByRole("link", { name: "Diagnostics" })).toHaveAttribute("href", "/diagnostics");
   });
 }
 
 function registerDefaultSidebarStateTest(): void {
   it("defaults open (jsdom has no matchMedia → large-screen default): links + collapse toggle", () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
     const toggle = within(screen.getByTestId("app-sidebar")).getByRole("button", { name: "Collapse menu" });
@@ -614,7 +620,7 @@ function registerMobileSidebarTriggerTest(): void {
   it("reports the mobile sheet state and next action from the top-bar trigger", () => {
     stubMatchMedia(() => true);
     sessionStorage.setItem("capacitylens/rotateHintDismissed", "1");
-    renderAppShell();
+    renderAppShell({});
 
     const trigger = within(screen.getByRole("main")).getByRole("button", { name: "Expand menu" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -628,7 +634,7 @@ function registerMobileSidebarTriggerTest(): void {
 
 function registerPersistedSidebarCollapseTest(): void {
   it("collapsing keeps the navigation links usable and persists the choice", () => {
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       within(screen.getByTestId("app-sidebar")).getByRole("button", { name: "Collapse menu" }).click();
@@ -648,7 +654,7 @@ function registerPersistedSidebarCollapseTest(): void {
 
 function registerCollapsedNavigationLinksTest(): void {
   it("collapsed destinations remain real links instead of reopening the menu", () => {
-    renderAppShell();
+    renderAppShell({});
     act(() => {
       useStore.getState().setSidebarOpen(false);
     });
@@ -661,7 +667,7 @@ function registerCollapsedNavigationLinksTest(): void {
 
 function registerNavigationLinkIconsTest(): void {
   it("nav links carry icons without changing their accessible names", () => {
-    renderAppShell();
+    renderAppShell({});
     const link = screen.getByRole("link", { name: "Projects" });
     expect(link.querySelector("svg")).not.toBeNull();
     expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
@@ -670,7 +676,7 @@ function registerNavigationLinkIconsTest(): void {
 
 function registerSidebarKeyboardShortcutTest(): void {
   it("toggles with Cmd/Ctrl+B and prevents the browser shortcut outside guarded contexts", () => {
-    renderAppShell();
+    renderAppShell({});
     const event = new KeyboardEvent("keydown", { key: "b", metaKey: true, bubbles: true, cancelable: true });
 
     act(() => {
@@ -689,7 +695,7 @@ function registerEditableControlShortcutTest(): void {
     ["select", "select"],
     ["editable content", "div"],
   ] as const)("leaves Cmd/Ctrl+B to %s", (_label, tagName) => {
-    renderAppShell();
+    renderAppShell({});
     const target = document.createElement(tagName);
     if (tagName === "div") target.setAttribute("contenteditable", "true");
     document.body.append(target);
@@ -710,7 +716,7 @@ function registerEditableControlShortcutTest(): void {
 
 function registerComposingShortcutTest(): void {
   it("ignores Cmd/Ctrl+B during IME composition", () => {
-    renderAppShell();
+    renderAppShell({});
     const event = new KeyboardEvent("keydown", {
       key: "b",
       metaKey: true,
@@ -730,7 +736,7 @@ function registerComposingShortcutTest(): void {
 
 function registerModalShortcutTest(): void {
   it("ignores Cmd/Ctrl+B while a modal is open", () => {
-    renderAppShell();
+    renderAppShell({});
     const modal = document.createElement("div");
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
@@ -754,7 +760,7 @@ function registerModalShortcutTest(): void {
 function registerDirtyFormPaletteGuardTest(): void {
   it("Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette", async () => {
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       useStore.getState().setDirtyForm(true);
@@ -763,10 +769,10 @@ function registerDirtyFormPaletteGuardTest(): void {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
     });
 
-    // Palette must NOT render
+    // Palette must not render
     expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
     // Notice must show the exact message. It's surfaced via a Sonner toast now (bridged from
-    // the store `notice`), which portals in asynchronously — so await it.
+    // the store `notice`), which portals in asynchronously, so await it.
     expect(
       await screen.findByText("You have unsaved changes — use Cancel or Save to close this dialog."),
     ).toBeInTheDocument();
@@ -776,7 +782,7 @@ function registerDirtyFormPaletteGuardTest(): void {
 function registerCleanFormPaletteShortcutTest(): void {
   it("Ctrl+K with dirtyForm=false opens the palette", () => {
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       useStore.getState().setDirtyForm(false);
@@ -791,7 +797,7 @@ function registerCleanFormPaletteShortcutTest(): void {
 
 function registerModalPaletteShortcutTest(): void {
   it("leaves Cmd/Ctrl+K to an existing modal", () => {
-    renderAppShell();
+    renderAppShell({});
     const modal = document.createElement("div");
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
@@ -812,7 +818,7 @@ function registerModalPaletteShortcutTest(): void {
 
 function registerComposingPaletteShortcutTest(): void {
   it("ignores Cmd/Ctrl+K during IME composition", () => {
-    renderAppShell();
+    renderAppShell({});
     const event = new KeyboardEvent("keydown", { key: "k", metaKey: true, isComposing: true, cancelable: true });
     act(() => {
       window.dispatchEvent(event);
@@ -824,7 +830,7 @@ function registerComposingPaletteShortcutTest(): void {
 
 function registerRepeatedPaletteShortcutTest(): void {
   it("keeps the palette open when the Ctrl+K keydown repeats", () => {
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
@@ -837,7 +843,7 @@ function registerRepeatedPaletteShortcutTest(): void {
 
 function registerPaletteToggleShortcutTest(): void {
   it("closes the open palette with a second Ctrl+K", () => {
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
@@ -853,7 +859,7 @@ function registerPaletteToggleShortcutTest(): void {
 
 function registerLaterModalPaletteShortcutTest(): void {
   it("leaves Ctrl+K to a later modal even while the palette is open", () => {
-    renderAppShell();
+    renderAppShell({});
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
     });
@@ -879,7 +885,7 @@ function registerLaterModalPaletteShortcutTest(): void {
 
 function registerInfoNoticeDismissalTest(): void {
   it("renders a Sonner toast for an info store notice and clears it on dismiss", async () => {
-    renderAppShell();
+    renderAppShell({});
     expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument();
 
     act(() => {
@@ -903,16 +909,16 @@ function registerInfoNoticeDismissalTest(): void {
 
 function registerPersistentErrorNoticeTest(): void {
   it("keeps an ERROR notice on screen past the 4s info window (no auto-dismiss), unlike info", async () => {
-    // Drive Sonner's auto-close timer with FAKE timers so we can genuinely advance past the
+    // Drive Sonner's auto-close timer with fake timers so we can genuinely advance past the
     // 4000ms info window deterministically (a real 4s wait is too slow + flaky). `findBy*`
-    // polls on real timers, so we never use it here — we pump Sonner's mount + dismiss timers
+    // polls on real timers, so we never use it here. We pump Sonner's mount + dismiss timers
     // with advanceTimersByTimeAsync and read synchronously. Restored in finally so the other
     // async tests in this file keep their real-timer behaviour.
     vi.useFakeTimers();
     try {
-      renderAppShell();
+      renderAppShell({});
 
-      // BASELINE — an INFO notice MUST auto-dismiss once the 4000ms window elapses. Prove the
+      // Baseline: an info notice must auto-dismiss once the 4000ms window elapses. Prove the
       // window actually closes (so the error assertion below isn't vacuously true).
       act(() => {
         useStore.getState().setNotice("Info that should auto-dismiss.");
@@ -927,7 +933,7 @@ function registerPersistentErrorNoticeTest(): void {
       expect(screen.queryByText(/auto-dismiss/)).not.toBeInTheDocument();
       expect(useStore.getState().notice).toBeNull(); // bridge cleared the store in lock-step
 
-      // ERROR — created with duration: Infinity, so the SAME 4500ms advance must NOT dismiss it.
+      // Error: created with duration: Infinity, so the same 4500ms advance must not dismiss it.
       act(() => {
         useStore.getState().setNotice("That allocation could not be moved.", "error");
       });
@@ -962,12 +968,12 @@ function registerPersistentErrorNoticeTest(): void {
 function registerPersistentWarningNoticeTest(): void {
   it("keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)", async () => {
     // The 'warning' tone (e.g. the clamped-hours/data-truncation advisory) must inherit the
-    // persistent (duration: Infinity) treatment like an error — a fixed 4s timer on the sole signal
-    // of a silent truncation fails WCAG 2.2.1 — but must NOT carry the danger `.toast-error` accent,
-    // since the edit SUCCEEDED. Same fake-timer technique as the info-vs-error test above.
+    // persistent (duration: Infinity) treatment like an error (a fixed 4s timer on the sole signal
+    // of a silent truncation fails WCAG 2.2.1) but must not carry the danger `.toast-error` accent,
+    // since the edit succeeded. Same fake-timer technique as the info-vs-error test above.
     vi.useFakeTimers();
     try {
-      renderAppShell();
+      renderAppShell({});
 
       act(() => {
         useStore.getState().setNotice("Work volume was capped at 24h/day.", "warning");
@@ -978,10 +984,10 @@ function registerPersistentWarningNoticeTest(): void {
       const message = screen.getByText(/capped at 24h\/day/);
       const toastEl = message.closest("[data-sonner-toast]");
       expect(toastEl).not.toBeNull();
-      // NEUTRAL surface: not raised via toast.error, so no danger accent (unlike the error tone).
+      // Neutral surface: not raised via toast.error, so no danger accent (unlike the error tone).
       expect(toastEl).not.toHaveClass("toast-error");
 
-      // Persists well past where an INFO toast (4000ms) would have auto-dismissed.
+      // Persists well past where an info toast (4000ms) would have auto-dismissed.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(4500);
       });
@@ -1004,19 +1010,19 @@ function registerPersistentWarningNoticeTest(): void {
 
 function registerNoticeReplacementRaceTest(): void {
   it("rapidly replacing notice A with B leaves B intact (no stale-clear race)", async () => {
-    // REGRESSION for the Phase-5 stale-clear race: rapidly swapping notice A→B (e.g. two drags
-    // in quick succession) must NOT let A's deferred programmatic dismiss wipe B. When the bridge
+    // Regression for the stale-clear race: rapidly swapping notice A→B (e.g. two drags
+    // in quick succession) must not let A's deferred programmatic dismiss wipe B. When the bridge
     // replaces A's toast it runs cleanup `toast.dismiss(idA)`, and Sonner fires A's `onDismiss`
-    // even for a *programmatic* dismiss — so without the `=== thisNotice` identity guard A's
+    // even for a *programmatic* dismiss, so without the `=== thisNotice` identity guard A's
     // `clear()` would call setNotice(null) and erase B. (Verified: with the guard removed the
     // store reads `notice === undefined` here instead of B.) Fake timers let us pump Sonner's
-    // deferred-dismiss + exit-animation rAFs for A deterministically while staying WELL under the
-    // 4000ms auto-dismiss window, so B never auto-closes — we isolate the swap race, not the timer.
+    // deferred-dismiss + exit-animation rAFs for A deterministically while staying well under the
+    // 4000ms auto-dismiss window, so B never auto-closes. We isolate the swap race, not the timer.
     vi.useFakeTimers();
     try {
-      renderAppShell();
+      renderAppShell({});
 
-      // A mounts first (its bridge effect runs, Sonner portals toast A) — the swap must dismiss a
+      // A mounts first (its bridge effect runs, Sonner portals toast A). The swap must dismiss a
       // *real* live toast for the race to exist at all.
       act(() => {
         useStore.getState().setNotice("First notice");
@@ -1026,12 +1032,12 @@ function registerNoticeReplacementRaceTest(): void {
       });
       expect(screen.getByText("First notice")).toBeInTheDocument();
 
-      // The back-to-back second notice REPLACES A — this is what tears A's toast down and fires
+      // The back-to-back second notice replaces A. This is what tears A's toast down and fires
       // A's deferred onDismiss (the thing that, unguarded, would wipe B).
       act(() => {
         useStore.getState().setNotice("Second notice");
       });
-      // Pump A's deferred dismiss rAF, THEN its exit-animation removal, in two steps — Sonner
+      // Pump A's deferred dismiss rAF, then its exit-animation removal, in two steps, Sonner
       // chains those across rAF/flush boundaries, so a single big advance can leave A's node
       // mid-animation. Total here (~250ms post-swap) stays well under the 4000ms auto-dismiss,
       // so B never auto-closes.
@@ -1042,7 +1048,7 @@ function registerNoticeReplacementRaceTest(): void {
         await vi.advanceTimersByTimeAsync(200); // A's exit animation completes → node removed
       });
 
-      // CORE ASSERTION — the store still holds B (A's deferred clear was identity-guarded out; an
+      // Core assertion, the store still holds B (A's deferred clear was identity-guarded out; an
       // unguarded bridge leaves this undefined). Read synchronously: `findBy*` polls on real timers
       // and would hang under fake timers, so we never use it here.
       expect(useStore.getState().notice?.message).toBe("Second notice");
@@ -1097,13 +1103,13 @@ describe("AppShell hydration gate", () => {
   beforeEach(() => useStore.getState().setHydrated(false));
 
   it('shows "Loading…" when the store is not hydrated', () => {
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByText("Loading…")).toBeInTheDocument();
   });
 
   it("does not render the outlet area when not hydrated", () => {
-    renderAppShell();
+    renderAppShell({});
 
     // The loading placeholder should be shown, not the outlet content area
     expect(screen.getByText("Loading…")).toBeInTheDocument();
@@ -1111,7 +1117,7 @@ describe("AppShell hydration gate", () => {
   });
 
   it('hides "Loading…" and renders outlet area after setHydrated(true)', () => {
-    renderAppShell();
+    renderAppShell({});
 
     // Initially shows loading
     expect(screen.getByText("Loading…")).toBeInTheDocument();
@@ -1128,7 +1134,7 @@ describe("AppShell hydration gate", () => {
   it("renders outlet area immediately when hydrated is already true", () => {
     useStore.getState().setHydrated(true);
 
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
   });
@@ -1137,14 +1143,14 @@ describe("AppShell hydration gate", () => {
 describe("AppShell undo/redo keyboard", () => {
   it("⌘Z undoes a data change, but is IGNORED while a form is dirty", () => {
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
     // A change so there's something to undo.
     act(() => {
       useStore.getState().addClient({ name: "Undoable", color: "#111111" });
     });
     expect(useStore.getState().data.clients).toHaveLength(1);
 
-    // A dirty form owns ⌘Z — undoing would revert the data behind the unsaved form (the
+    // A dirty form owns ⌘Z, undoing would revert the data behind the unsaved form (the
     // focus check alone misses non-text controls like a <select>), so it must be ignored.
     act(() => {
       useStore.getState().setDirtyForm(true);
@@ -1152,7 +1158,7 @@ describe("AppShell undo/redo keyboard", () => {
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
     });
-    expect(useStore.getState().data.clients).toHaveLength(1); // NOT undone
+    expect(useStore.getState().data.clients).toHaveLength(1); // Not undone
 
     // Form no longer dirty → ⌘Z undoes as normal.
     act(() => {
@@ -1166,7 +1172,7 @@ describe("AppShell undo/redo keyboard", () => {
 
   it("ignores undo and redo while a clean modal has focus on a non-text control", () => {
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
     act(() => {
       useStore.getState().addClient({ name: "Undoable", color: "#111111" });
     });
@@ -1217,10 +1223,10 @@ describe("AppShell command palette dirty-form guard", () => {
 
 describe("AppShell transient notice", () => {
   // The store `notice`/`setNotice` API is unchanged; AppShell now bridges it to a Sonner
-  // toast (the hand-rolled Toast was retired in shadcn Phase 5). Sonner portals the toast in
+  // toast. Sonner portals the toast in
   // asynchronously inside a polite live region (<section aria-label="Notifications…"
   // aria-live="polite">), each toast a `li[data-sonner-toast]` with an aria-label="Close
-  // toast" button — so these assertions match Sonner's DOM, while the behavioural intent
+  // toast" button, so these assertions match Sonner's DOM, while the behavioural intent
   // (info appears + auto-dismisses, error persists + is dismissible, store stays in sync)
   // is preserved.
   registerInfoNoticeDismissalTest();
@@ -1233,7 +1239,7 @@ describe("AppShell fake sign-in gate (cosmetic demo)", () => {
   it("shows the demo sign-in (not the picker/shell) when not signed in", () => {
     useStore.getState().setFakeSignedIn(false);
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
 
     expect(screen.getByRole("heading", { name: "Choose an account" })).toBeInTheDocument();
     // Both downstream gates are walled off behind the demo sign-in.
@@ -1245,7 +1251,7 @@ describe("AppShell fake sign-in gate (cosmetic demo)", () => {
     useStore.getState().setFakeSignedIn(false);
     useStore.getState().setActiveAccount(null);
     useStore.getState().setHydrated(true);
-    renderAppShell();
+    renderAppShell({});
 
     act(() => {
       screen.getByTestId("fake-sign-in").click();

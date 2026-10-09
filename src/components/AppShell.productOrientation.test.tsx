@@ -3,14 +3,15 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
-import { useStore } from "../store/useStore";
+import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
 import { AppShell } from "./AppShell";
-import { AuthContext, type AuthContextValue } from "../auth/authContext";
-import { buildProductOrientationKey } from "../lib/productOrientation";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
+import { buildProductOrientationKey } from "@/lib/productOrientation";
 
 const serverFlag = vi.hoisted(() => ({ on: false }));
-vi.mock("../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isDemoMode: () => !serverFlag.on,
   isServerConfigured: () => serverFlag.on,
@@ -160,10 +161,12 @@ describe("AppShell product orientation", () => {
     const accountA = makeAccount({ id: "acct-a", name: "Wayne Enterprises" });
     const accountB = makeAccount({ id: "acct-b", name: "Stark Industries" });
     useStore.getState().replaceAll(makeAppData({ accounts: [accountA, accountB] }));
-    useStore.getState().setAccountSummaries([
-      { id: accountA.id, name: accountA.name, role: "owner" },
-      { id: accountB.id, name: accountB.name, role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: accountA.id, name: accountA.name, role: "owner" },
+        { id: accountB.id, name: accountB.name, role: "owner" },
+      ],
+    });
     useStore.getState().setActiveAccount(accountA.id);
     localStorage.removeItem(buildProductOrientationKey("user-a", accountA.id));
     localStorage.removeItem(buildProductOrientationKey("user-a", accountB.id));

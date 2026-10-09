@@ -20,7 +20,7 @@ describe("account conformance metadata", () => {
     for (const version of [ACCOUNT_CONTRACT_VERSION, ACCOUNT_CONFORMANCE_VERSION, MINIMUM_ACCOUNT_SECURITY_VERSION]) {
       expect(version).toMatch(/^\d+\.\d+\.\d+$/);
     }
-    // The fourth published marker is the dated baseline identifier, not a semantic version — it is
+    // The fourth published marker is the dated baseline identifier, not a semantic version. It is
     // cited by CI evidence, so its shape is pinned here alongside its three siblings.
     expect(ACCOUNT_SECURITY_BASELINE_ID).toMatch(/^ACCOUNT-SEC-\d{4}-\d{2}-\d{2}-\d{2}$/);
     expect(ACCOUNT_DEPLOYMENT_PROFILES).toEqual([

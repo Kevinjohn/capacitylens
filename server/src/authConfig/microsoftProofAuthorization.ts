@@ -4,12 +4,8 @@ import { hasLiveProofInvitation, resolveProofInvitation } from "../accounts/proo
 import { assertJoinIntentTargetLive, prepareCompanyAdmissionIntent } from "../accounts/adminPort/joiningAdmission";
 import { parseApprovedDomain } from "@capacitylens/shared/account/approvedDomains";
 import { SESSION_FRESH_AGE_SECONDS } from "./authConstants";
-import {
-  MicrosoftProofError,
-  type MicrosoftProofIntent,
-  type MicrosoftProofPurpose,
-  type MicrosoftProofSession,
-} from "./microsoftProofPrimitives";
+import { MicrosoftProofError } from "./microsoftProofPrimitives";
+import type { MicrosoftProofIntent, MicrosoftProofPurpose, MicrosoftProofSession } from "./microsoftProofPrimitives";
 
 type Target = Pick<MicrosoftProofIntent, "targetEmail" | "inviteId" | "accountId" | "principalId" | "sessionId">;
 

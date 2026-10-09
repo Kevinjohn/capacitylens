@@ -2,7 +2,7 @@
 
 **Area:** Settings and Schedule · **Persona:** Studio manager · **Linked E2E:** `e2e/global-working-days.spec.ts` → "sets company-wide working days and gates schedule creation starts"
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 

@@ -1,9 +1,11 @@
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify from "fastify";
+import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AccountAuditPort, IdentityPort } from "@capacitylens/shared/account/ports";
 import type { ApplicationSession, PrincipalSummary, Role } from "@capacitylens/shared/account/types";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
-import { MasqueradeRegistry, type MasqueradeRecord } from "../MasqueradeRegistry";
+import { MasqueradeRegistry } from "../MasqueradeRegistry";
+import type { MasqueradeRecord } from "../MasqueradeRegistry";
 import type { MasqueradeRouteDependencies } from "./masqueradeRoutes";
 import { registerMasqueradeRoutes } from "./masqueradeRoutes";
 

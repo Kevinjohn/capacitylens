@@ -303,14 +303,14 @@ function runImport(input: ImportInput) {
 
 /**
  * Replace the active account's slice with an imported dataset. Imported entities
- * keep their relationships but are given FRESH ids (an exported file carries the
- * source account's ids; the store matches entities by id GLOBALLY, so a shared id
+ * keep their relationships but are given fresh ids (an exported file carries the
+ * source account's ids; the store matches entities by id globally, so a shared id
  * would let an edit in one account silently rewrite another's row). Value-level
  * fields are repaired (the import path bypasses the form validators) and every
- * referential rule the store/server enforce is applied: a record whose REQUIRED
- * foreign key dangles after remap is dropped, a dangling OPTIONAL key is unbound,
+ * referential rule the store/server enforce is applied: a record whose required
+ * foreign key dangles after remap is dropped, a dangling optional key is unbound,
  * and allocations / time-off with a broken range or placeholder-rule violation are
- * dropped. This matters doubly for the server import path — a leftover dangling ref
+ * dropped. This matters doubly for the server import path. A leftover dangling ref
  * would be rejected by SQLite's foreign keys and fail the whole import. Returns the
  * next AppData plus how many records landed vs. were skipped. `incoming` must be a structurally
  * complete AppData produced by the transfer parser/migrator; a non-array scoped table fails loudly

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
+import { AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
 import {
   apiFetch,
   isTransportFailure,
@@ -32,7 +32,7 @@ describe("isTransportFailure", () => {
 
 describe("requestSignal tiers", () => {
   // AbortSignal.timeout schedules on an internal timer that fake timers don't intercept, so assert
-  // the BOUND requested per tier rather than trying to fast-forward the deadline.
+  // the bound requested per tier rather than trying to fast-forward the deadline.
   it("uses the interactive 15s bound by default and the 120s bulk bound when asked", () => {
     const spy = vi.spyOn(AbortSignal, "timeout");
     createRequestSignal();

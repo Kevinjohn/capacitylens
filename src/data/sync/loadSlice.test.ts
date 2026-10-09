@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { makeAccount } from "../../test/fixtures";
-import { readOfflineStateSnapshot, resetOfflineState, scope, setOfflineReadState } from "../offline/state";
-import { cacheAuthSnapshot, cacheAccountSlice, setOfflineReadEnabled } from "../offlineCache";
+import { makeAccount } from "@/test/fixtures";
+import { readOfflineStateSnapshot, resetOfflineState, scope, setOfflineReadState } from "@/data/offline/state";
+import { cacheAuthSnapshot, cacheAccountSlice, setOfflineReadEnabled } from "@/data/offlineCache";
 import { hydrateFromOfflineCache, loadAll } from "./loadSlice";
 import { SyncState } from "./SyncState";
 
@@ -35,13 +35,13 @@ describe("loadAll repair write", () => {
         repairStarted();
         return repairWritten;
       },
-      account.id,
+      { accountId: account.id },
     );
     await repairRequested;
 
     // A newer load starts and falls back to a cached slice, which is read-only.
     state.loadGen += 1;
-    setOfflineReadState("tenant", true, 123);
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: 123 });
 
     releaseRepair();
     await olderLoad;

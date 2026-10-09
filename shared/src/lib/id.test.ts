@@ -36,7 +36,7 @@ describe("newId", () => {
       vi.stubGlobal("crypto", undefined);
       // A mutant that guts the guard (e.g. `if (false)`, or short-circuits the `||`
       // so the second half never runs) skips the throw and instead lets
-      // `crypto.randomUUID()` blow up with an unrelated native TypeError — this
+      // `crypto.randomUUID()` blow up with an unrelated native TypeError, this
       // message match only survives on the real, intended guard.
       expect(() => newId()).toThrow(
         /^newId\(\): crypto\.randomUUID is unavailable\. CapacityLens needs a secure context/,

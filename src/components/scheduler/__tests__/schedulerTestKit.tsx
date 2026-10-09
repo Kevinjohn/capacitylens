@@ -1,8 +1,9 @@
-import { render as rtlRender, screen, fireEvent, type RenderOptions } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent } from "@testing-library/react";
+import type { RenderOptions } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { TooltipProvider } from "../../ui/tooltip";
-import { buildColumnGeometry } from "../columnGeometry";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { buildColumnGeometry } from "@/components/scheduler/columnGeometry";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import {
@@ -13,7 +14,7 @@ import {
   makeClient,
   makeProject,
   makeResource,
-} from "../../../test/fixtures";
+} from "@/test/fixtures";
 
 // Shared setup shared by ≥3 scheduler test files. Centralises the provider-less-TooltipRoot render
 // wrapper, the standard June column geometry, the combobox-option chooser used by every modal/toolbar
@@ -21,14 +22,14 @@ import {
 // re-hand-rolling any of these in a new scheduler test file.
 
 /** AllocationBar/ResourceLane now render a provider-less TooltipRoot (the single TooltipProvider is
- *  hoisted to SchedulerGrid in the real app), so isolated renders must supply their own provider. */
+ * hoisted to SchedulerGrid in the real app), so isolated renders must supply their own provider. */
 export function renderWithTooltip(ui: ReactNode, options?: Omit<RenderOptions, "wrapper">) {
   return rtlRender(ui, { wrapper: TooltipProvider, ...options });
 }
 
-/** Uniform geometry over June at 48px/day (minimise off), origin 2026-06-01 — the standard
- *  standalone-bar geometry: no drag crosses columns, so the resolver only needs to exist for the
- *  prop contract. */
+/** Uniform geometry over June at 48px/day (minimise off), origin 2026-06-01, the standard
+ * standalone-bar geometry: no drag crosses columns, so the resolver only needs to exist for the
+ * prop contract. */
 export const GEOM = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 48, {
   minimiseWeekends: false,
   weekendWidth: 22,
@@ -37,7 +38,7 @@ export const GEOM = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 
 export const indexAtClientX = (clientX: number): number => GEOM.indexAt(clientX);
 
 /** Opens a Radix combobox by its accessible name/label and picks the option with the given name.
- *  `label` accepts a RegExp for toolbar filters whose accessible name isn't a fixed string. */
+ * `label` accepts a RegExp for toolbar filters whose accessible name isn't a fixed string. */
 export async function chooseOption(
   _user: ReturnType<typeof userEvent.setup>,
   label: string | RegExp,
@@ -50,9 +51,9 @@ export async function chooseOption(
 }
 
 /** A minimal scheduler dataset: one discipline ("Design"), one person ("Bruce") in it, one client
- *  ("Ferris"), one project ("Lightning"), one activity ("Wireframes") and one confirmed allocation —
- *  all filed under {@link DEFAULT_ACCOUNT_ID}. Override any AppData slice per test (e.g. add an
- *  external resource, or replace `allocations`). */
+ * ("Ferris"), one project ("Lightning"), one activity ("Wireframes") and one confirmed allocation,
+ * all filed under {@link DEFAULT_ACCOUNT_ID}. Override any AppData slice per test (e.g. add an
+ * external resource, or replace `allocations`). */
 export function schedulerDataset(overrides: Partial<AppData> = {}): AppData {
   const ACC = DEFAULT_ACCOUNT_ID;
   return makeAppData({

@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
-import { refreshActiveAccountSlice } from "../../data/persist";
-import { setOfflineReadState } from "../../data/offlineCache";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
+import { refreshActiveAccountSlice } from "@/data/persist";
+import { setOfflineReadState } from "@/data/offlineCache";
 import { m } from "@/i18n";
 import {
   chooseMemberAction,
@@ -16,8 +16,8 @@ import {
   rawMember,
   renderSection,
   saveRoleVia,
-  type RawMember,
 } from "./MembersSection.testSupport";
+import type { RawMember } from "./MembersSection.testSupport";
 
 interface InviteFailureCaseInput {
   status: number;
@@ -37,23 +37,23 @@ const accountTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
 
-vi.mock("../../auth/accountTransition", () => ({
+vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-// MembersSection is the Team & access management UI. It renders ONLY in auth-on + server mode and
+// MembersSection is the Team & access management UI. It renders only in auth-on + server mode and
 // self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
-// true) and fetch, and assert the OWNER-ONLY affordances are hidden for an admin (no owner option, no
+// true) and fetch, and assert the owner-only affordances are hidden for an admin (no owner option, no
 // controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
 
 // Make the section "enabled": a configured server. The real module reads import.meta.env, which the
 // test env leaves unset; mocking it is the clean way to flip server mode on.
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: () => true,
 }));
 
-vi.mock("../../data/persist", () => ({
+vi.mock("@/data/persist", () => ({
   refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
   flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
   suspendServerWrites: vi.fn(() => vi.fn()),
@@ -66,11 +66,11 @@ vi.mock("../../data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -192,7 +192,7 @@ function registerInviteMintTests(): void {
     const user = userEvent.setup();
     // Creating an invite fires a fire-and-forget reloadInvites() right after, whose result feeds
     // reconcileMintedInvite. The POST must return an `id` (as a real server does) so that reconcile
-    // ties the write-once link to it and the reload below is what proves the link survives — a
+    // ties the write-once link to it and the reload below is what proves the link survives, a
     // response missing `id` would leave mintedLink.inviteId null, and the null-guard in
     // reconcileMintedInvite would keep the link regardless of whether reconciliation itself works.
     let invites: Record<string, unknown>[] = [];
@@ -227,7 +227,7 @@ function registerInviteMintTests(): void {
     expect(useStore.getState().notice).toBeNull();
 
     // The post-create reload confirms the invite is still pending, so the write-once link must
-    // survive it — this is the reconciliation path the test's name actually promises.
+    // survive it, this is the reconciliation path the test's name actually promises.
     await waitFor(() => expect(invitesReads).toBeGreaterThanOrEqual(2));
     expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOK123");
 
@@ -302,9 +302,11 @@ function registerInviteResetTests(): void {
     fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
     await waitFor(() => expect(pending.respond).toBeDefined());
-    act(() => setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z")));
+    act(() =>
+      setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") }),
+    );
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Invite someone" })).not.toBeInTheDocument());
-    act(() => setOfflineReadState("cleanup", false));
+    act(() => setOfflineReadState({ owner: "cleanup", readOnly: false }));
     const readsBeforeResponse = invitesReads;
     invites = [LATE_INVITE];
     await act(async () => {
@@ -332,7 +334,7 @@ function registerInviteAccountTransitionTests(): void {
         return await new Promise<Response>(() => {});
       }
       if (target.endsWith("/invites") && isRead) {
-        // The authoritative list AFTER the create below returns the invite it minted, as a server
+        // The authoritative list after the create below returns the invite it minted, as a server
         // does: an empty list would mean "that invite is already gone", which is a different test.
         return jsonResponse({ invites: minted });
       }

@@ -30,7 +30,7 @@ beforeEach(() => {
   useStore.getState().setNotice(null);
   useStore.getState().setMasquerade({ kind: "inactive" });
   useStore.getState().setHydrated(true);
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 
 const renderAppShell = () =>
@@ -54,7 +54,7 @@ describe("AppShell offline timestamp banner", () => {
         token: "token-1",
       },
     });
-    setOfflineReadState("tenant", true, Date.parse("2026-09-01T10:00:00.000Z"));
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-09-01T10:00:00.000Z") });
     renderAppShell();
 
     const banner = screen.getByTestId("masquerade-banner");
@@ -70,7 +70,7 @@ describe("AppShell offline timestamp banner", () => {
   });
 
   it.each([undefined, 0])("uses the unknown-time fallback for %s timestamps", (lastUpdated) => {
-    setOfflineReadState("tenant", true, lastUpdated);
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: lastUpdated });
     renderAppShell();
 
     expect(screen.getByTestId("offline-read-only")).toHaveTextContent(m.app_offline_unknown_time());

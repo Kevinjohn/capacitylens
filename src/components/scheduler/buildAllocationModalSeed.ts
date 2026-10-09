@@ -1,10 +1,10 @@
-import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
+import type { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { daysInclusive, eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek, lacksEffectiveWorkingDays } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { spanDays } from "@capacitylens/shared/lib/schedulingDays";
 import type { ISODate, Resource } from "@capacitylens/shared/types/entities";
 import { FULL_DAY_HOURS } from "@capacitylens/shared/types/entities";
-import { resolveScheduledHoursOnDay } from "../../lib/capacity";
+import { resolveScheduledHoursOnDay } from "@/lib/capacity";
 
 import { resolveProjectSelection, hasWorkingSpan } from "./allocationModalSelection";
 import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
@@ -137,8 +137,8 @@ export function buildAllocationModalSeed({
       ? resolveScheduledHoursOnDay(initialResource, initialStart, initialEffectiveWeek)
       : FULL_DAY_HOURS;
 
-  // Days-mode inputs (used only when isDays). For an EXISTING allocation we invert
-  // hours/dates against the assignee/company effective week; for a NEW one we honour the span
+  // Days-mode inputs (used only when isDays). For an existing allocation we invert
+  // hours/dates against the assignee/company effective week; for a new one we honour the span
   // the user drew on the lane (start..end) at full-time load, mirroring how hourly
   // create defaults hours to a full working day across the same range.
   const initialUsesWorkingSpan = hasWorkingSpan(initialResource, mode);

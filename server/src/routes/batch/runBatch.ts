@@ -12,7 +12,7 @@ import { appendAppDataSlice } from "./appData";
 import { applyBatchOperation } from "./applyOperation";
 import { projectBatchAccounts } from "./authorize";
 import { BatchAuthorizationResponseSent } from "./errors";
-import { type ApplyBatchOperationParameters, type BatchOp } from "./types";
+import type { ApplyBatchOperationParameters, BatchOp } from "./types";
 
 type RunBatchParameters = Pick<
   ApplyBatchOperationParameters,

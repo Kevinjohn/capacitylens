@@ -1,10 +1,10 @@
 import { Plus } from "lucide-react";
 import { MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
-import { SelectField } from "../common/ui";
-import { Button } from "../ui/button";
-import { Field } from "../ui/field";
-import { Input } from "../ui/input";
+import { SelectField } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { AllocationControlColumn } from "./AllocationModalFieldLayout";
 import type { AllocationModalState } from "./useAllocationModalState";
 

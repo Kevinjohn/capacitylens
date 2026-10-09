@@ -1,13 +1,13 @@
 import { useId } from "react";
-import { Field, FieldLabel } from "../../ui/field";
-import {
-  SegmentedControl,
-  type SegmentedDensity,
-  type SegmentedGeometry,
-  type SegmentedOption,
-  type SegmentedSize,
-  type SegmentedVariant,
-} from "../SegmentedControl";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { SegmentedControl } from "@/components/common/SegmentedControl";
+import type {
+  SegmentedDensity,
+  SegmentedGeometry,
+  SegmentedOption,
+  SegmentedSize,
+  SegmentedVariant,
+} from "@/components/common/SegmentedControl";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
 

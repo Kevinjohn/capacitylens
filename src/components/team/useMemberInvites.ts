@@ -3,10 +3,11 @@ import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import { isAccountEmail } from "@capacitylens/shared/account/validation";
-import { resolveRejectionMessage, teamAccessClient, type TeamInvitation } from "../../account/teamAccessClient";
-import type { useAuth } from "../../auth/authContext";
-import type { FieldError } from "../../hooks/useFieldError";
-import { resolveErrorMessage } from "../../lib/errorMessage";
+import { resolveRejectionMessage, teamAccessClient } from "@/account/teamAccessClient";
+import type { TeamInvitation } from "@/account/teamAccessClient";
+import type { useAuth } from "@/auth/authContext";
+import type { FieldError } from "@/hooks/useFieldError";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 
@@ -201,7 +202,7 @@ export function useMemberInvites() {
   const [inviteRole, setInviteRole] = useState<InvitationRole>("editor");
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");
   const [invitationResourceId, setInvitationResourceId] = useState("");
-  // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
+  // The freshly-minted link, shown once after a successful create (the token is write-once). Keep
   // its non-secret invite id so an authoritative list refresh can clear a now-dead link.
   const [mintedLink, setMintedLink] = useState<MintedInviteLink | null>(null);
   const reconcileMintedInvite = useCallback((nextInvites: TeamInvitation[]) => {

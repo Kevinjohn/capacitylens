@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
 import { DEFAULT_CORS, parseRateLimit } from "./app";
-import { initializeOpenDb, openDbConnection, planDatabaseMigrations, seedIfUninitialized, type Db } from "./db";
+import { initializeOpenDb, openDbConnection, planDatabaseMigrations, seedIfUninitialized } from "./db";
+import type { Db } from "./db";
 import { seedForCurrentWeek } from "@capacitylens/shared/data/seed";
 import { installStartupSignalHandlers, stopStartupIfRequested } from "./startupSignals";
 import { isResetForbidden } from "./bootGuard";
@@ -25,7 +26,7 @@ import { resolveAccountEnvironment } from "./accountConfig";
 import type { BoundApplication } from "@capacitylens/shared/account/types";
 import { canAdmitLocalExternalIdentity } from "./accounts/externalIdentityAdmission";
 import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPort";
-import { resolveLegacyProxyTrustWarning, canTrustProxyHeaders } from "./proxyTrust";
+import { canTrustProxyHeaders } from "./proxyTrust";
 import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
 import { createSqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
@@ -38,6 +39,7 @@ import {
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort } from "./boot/refusals";
 import { startServerRuntime } from "./boot/serverRuntime";
 import { applyProductionDefaults, resolveHttps } from "./boot/productionDefaults";
+import { runInitCli } from "./cli/init";
 
 export { parseAuditMaxMb } from "./boot/refusals";
 
@@ -72,6 +74,12 @@ function resolveWebDir(configured: string | undefined): string | undefined {
 // permissive shell/container umask. Individual writers also pin 0600 for defence in depth.
 process.umask(0o077);
 
+// `init` writes the environment file the rest of this entrypoint reads, so it runs before the reset
+// interlock, account resolution or any database open, and needs none of them to be configured.
+if (process.argv[2] === "init") {
+  process.exit(await runInitCli(process.argv.slice(3)));
+}
+
 // Environment variables: docs-src/self-hosting/configuration.md.
 
 // Safety interlock before anything opens: the test-only reset route must be impossible
@@ -95,18 +103,16 @@ const port = parsePort(process.env.PORT);
 const host = process.env.CAPACITYLENS_HOST ?? "127.0.0.1";
 const allowReset = process.env.CAPACITYLENS_ALLOW_RESET === "1";
 const corsOrigin = process.env.CAPACITYLENS_CORS_ORIGIN ?? DEFAULT_CORS;
-const optimisticConcurrency = process.env.CAPACITYLENS_OPTIMISTIC_CONCURRENCY !== "0";
-// Single-company cap (see AppOptions.multiAccount) — off by default, so a fresh real deploy starts
+// Single-company cap (see AppOptions.multiAccount), off by default, so a fresh real deploy starts
 // capped to the first company it creates until the operator deliberately opts in to more.
 const multiAccount = process.env.CAPACITYLENS_MULTI_ACCOUNT === "1";
-// HSTS only — emitted when CAPACITYLENS_HTTPS=1, or (unless "0") when the public URL is https,
+// HSTS only, emitted when CAPACITYLENS_HTTPS=1, or (unless "0") when the public URL is https,
 // since HSTS over plain HTTP is harmful. The other helmet baseline headers are on regardless.
 const https = resolveHttps(accountEnv);
 const log = process.env.CAPACITYLENS_LOG === "1";
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === "1";
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT);
 const webDir = tryOrRefuse(() => resolveWebDir(process.env.CAPACITYLENS_WEB_DIR));
-const requireMfa = accountEnv.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1";
 const internalTls: ReturnType<typeof loadInternalTls> = tryOrRefuse(() =>
   loadInternalTls({ environment: process.env }),
 );
@@ -117,8 +123,6 @@ const bootstrapAdmin =
   process.env.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1" || process.argv.includes("--create-owner-admin-admin");
 // A directly exposed listener trusts no forwarded identity or scheme unless explicitly configured.
 const trustProxyHeaders = canTrustProxyHeaders(process.env, host);
-const proxyTrustWarning = resolveLegacyProxyTrustWarning(process.env);
-if (proxyTrustWarning) console.warn(`capacitylens-server: configuration warning — ${proxyTrustWarning}`);
 const backupConfig: ReturnType<typeof parseBackupConfig> = tryOrRefuse(() =>
   parseBackupConfig(process.env, (message) => console.warn(message)),
 );
@@ -160,14 +164,14 @@ try {
   // Resolve every auth/provider option while the database is still at its original version.
   // Auth-control verification and lease maintenance are deferred until app migration succeeds.
   const joiningProviderCallbacks =
-    accountEnv.SMALLSASS_ACCOUNT_SECRET &&
-    accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL &&
-    URL.canParse(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL)
+    accountEnv.CAPACITYLENS_SECRET &&
+    accountEnv.CAPACITYLENS_PUBLIC_URL &&
+    URL.canParse(accountEnv.CAPACITYLENS_PUBLIC_URL)
       ? createJoiningProviderCallbacks({
           db,
           applicationId: ACCOUNT_APPLICATION.applicationId,
-          secret: accountEnv.SMALLSASS_ACCOUNT_SECRET,
-          secureCookies: new URL(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL).protocol === "https:",
+          secret: accountEnv.CAPACITYLENS_SECRET,
+          secureCookies: new URL(accountEnv.CAPACITYLENS_PUBLIC_URL).protocol === "https:",
         })
       : null;
   ({ mode: authMode, auth } = createAuthFromEnvironment(db, accountEnv, {
@@ -180,7 +184,7 @@ try {
     ...(joiningProviderCallbacks ? { joiningProviderCallbacks } : {}),
     externalIdentityAdmission: (candidate) =>
       canAdmitLocalExternalIdentity({
-        bootstrapEmails: accountEnv.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS,
+        bootstrapEmails: accountEnv.CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS,
         candidate,
         identityHasAnyPrincipal: () => countUsers(db) !== 0,
         hasLivePreauthorizedInvitation: (email) => hasLivePreauthorizedInvitation(db, email),
@@ -249,10 +253,10 @@ try {
       assertCompanyProviderCutoverReady({ providerIds: companyProviders, identity, administration });
     });
   }
-  // First-run owner bootstrap — AFTER the auth tables exist, BEFORE the app serves a request. In
+  // First-run owner bootstrap, after the auth tables exist, before the app serves a request. In
   // off/sso mode createBootstrapAdmin throws AuthConfigError (the flag is meaningless there),
   // which this catch frames as a legible refusal; with users already present it logs one
-  // "skipped" line and boot continues (deliberately NOT an error — see its TSDoc).
+  // "skipped" line and boot continues (deliberately not an error, see its TSDoc).
   if (bootstrapAdmin) await createBootstrapAdmin(db, authMode, auth);
   if (process.env.CAPACITYLENS_SEED_DEMO === "1") seedIfUninitialized(db, seedForCurrentWeek());
   stopStartupIfRequested({ startupSignals, openDb: db });
@@ -260,11 +264,11 @@ try {
   if (
     allowsPasswordSignIn(authMode) &&
     userCount === 0 &&
-    accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP !== "1" &&
-    !accountEnv.SMALLSASS_ACCOUNT_SETUP_TOKEN
+    accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP !== "1" &&
+    !accountEnv.CAPACITYLENS_SETUP_TOKEN
   ) {
     throw new AuthConfigError(
-      "A fresh password instance requires SMALLSASS_ACCOUNT_SETUP_TOKEN (or an explicit bootstrap-admin/open-signup override).",
+      "A fresh password instance requires CAPACITYLENS_SETUP_TOKEN (or an explicit bootstrap-admin/open-signup override).",
     );
   }
 } catch (e) {
@@ -299,7 +303,6 @@ startServerRuntime({
       : {}),
     allowReset,
     corsOrigin,
-    optimisticConcurrency,
     multiAccount,
     https,
     log,
@@ -309,16 +312,15 @@ startServerRuntime({
     ...(bootstrapToken === undefined ? {} : { bootstrapToken }),
     authMode,
     auth,
-    ...(authMode === "off" || !accountEnv.SMALLSASS_ACCOUNT_SECRET || !accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL
+    ...(authMode === "off" || !accountEnv.CAPACITYLENS_SECRET || !accountEnv.CAPACITYLENS_PUBLIC_URL
       ? {}
       : {
           joiningProof: {
-            secret: accountEnv.SMALLSASS_ACCOUNT_SECRET,
-            publicUrl: new URL(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL),
+            secret: accountEnv.CAPACITYLENS_SECRET,
+            publicUrl: new URL(accountEnv.CAPACITYLENS_PUBLIC_URL),
           },
         }),
-    requireMfa,
-    allowOpenSignup: accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1",
+    allowOpenSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
     ...(webDir === undefined ? {} : { webDir }),
   },
   backupConfig,

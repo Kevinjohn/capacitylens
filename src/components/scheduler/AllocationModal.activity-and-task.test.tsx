@@ -1,17 +1,17 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
-import { useStore } from "../../store/useStore";
-import { makeResourceDraft } from "../../test/fixtures";
-import { PermissionContext } from "../../auth/permissionContext";
+import { useStore } from "@/store/useStore";
+import { makeResourceDraft } from "@/test/fixtures";
+import { PermissionContext } from "@/auth/permissionContext";
 import { chooseOption } from "./__tests__/schedulerTestKit";
 import { first, ACC, resetAllocationModalStore } from "./__tests__/allocationModalTestKit";
 
 type CapacityAdvisoryMockInput =
-  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisory>[0]
-  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisoryFromLoad>[0];
+  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisory>[0]
+  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisoryFromLoad>[0];
 const capacityAdvisoryMock = vi.hoisted(() =>
   vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
     overDays: 0,
@@ -20,9 +20,9 @@ const capacityAdvisoryMock = vi.hoisted(() =>
 );
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory VERDICTS the modal renders.
-vi.mock("../../lib/capacity", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../lib/capacity")>()),
+// care only about the advisory verdicts the modal renders.
+vi.mock("@/lib/capacity", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));

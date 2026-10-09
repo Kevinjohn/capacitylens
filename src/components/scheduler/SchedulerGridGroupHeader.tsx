@@ -1,9 +1,10 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { m } from "@/i18n";
-import { Button } from "../ui/button";
-import { LAYOUT, buildSchedulerDensity } from "./layout";
+import { Button } from "@/components/ui/button";
+import type { buildSchedulerDensity } from "./layout";
+import { LAYOUT } from "./layout";
 import type { GroupModel } from "./schedulerModel";
-import type { SchedulerUI, StoreState } from "../../store/useStore";
+import type { SchedulerUI, StoreState } from "@/store/useStore";
 import type { ColumnGeometry } from "./columnGeometry";
 import { buildAverageUtilizationLabel } from "./schedulerGridModal";
 
@@ -17,7 +18,8 @@ interface SchedulerGridGroupHeaderProps {
   utilizationPrefs: StoreState["utilizationPrefs"];
 }
 
-function resolveGroupSummary(group: GroupModel, collapsed: boolean, showDisciplineUtilization: boolean): string {
+type ResolveGroupSummaryOptions = { group: GroupModel; collapsed: boolean; showDisciplineUtilization: boolean };
+function resolveGroupSummary({ group, collapsed, showDisciplineUtilization }: ResolveGroupSummaryOptions): string {
   if (collapsed) return m.scheduler_group_hidden({ count: group.rows.length });
   if (group.external || !showDisciplineUtilization) return "";
   // A group with no capacity-tracked row shows no average rather than 0%.
@@ -69,7 +71,11 @@ export function SchedulerGridGroupHeader({
         className="flex shrink-0 items-center px-3 text-xs"
         style={{ width: geometry.totalWidth }}
       >
-        {resolveGroupSummary(group, collapsed, utilizationPreferences.showDiscipline)}
+        {resolveGroupSummary({
+          group: group,
+          collapsed: collapsed,
+          showDisciplineUtilization: utilizationPreferences.showDiscipline,
+        })}
       </div>
     </div>
   );

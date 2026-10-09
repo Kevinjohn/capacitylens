@@ -45,6 +45,7 @@ const fixtures = [
   "capacitylens-auth-e2e-secret-0123456789abcdef",
   "auth-e2e-bootstrap-token-0123456789abcdef",
   "unique-passphrase-2026",
+  "0123456789abcdef0123456789abcdef",
 ];
 
 // This file is scanned like any other, so a credential-shaped literal here is a finding here — the
@@ -70,6 +71,9 @@ const credentials = [
   // The historical fixture exception must remain exact and anchored.
   "prefix-unique-passphrase-2026",
   "unique-passphrase-2026-suffix",
+  "prefix-0123456789abcdef0123456789abcdef",
+  "0123456789abcdef0123456789abcdef-suffix",
+  "0123456789abcdef0123456789abcdee",
 ];
 
 // Track the current TOML table so `paths` is judged only where it would do harm.

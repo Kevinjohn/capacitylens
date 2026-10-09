@@ -1,13 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { AuthContext, type AuthContextValue } from "@/auth/authContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 
 const demoMode = vi.hoisted(() => ({ active: false }));
 vi.mock("@/lib/fakeAuth", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/fakeAuth")>();
   return { ...original, useDemoAuthActive: () => demoMode.active };
 });
-vi.mock("../settings/SecuritySection", () => ({
+vi.mock("@/components/settings/SecuritySection", () => ({
   SecuritySection: ({ passwordOpen }: { passwordOpen: boolean }) => (
     <section>{passwordOpen ? "Password dialog open" : "Personal security"}</section>
   ),

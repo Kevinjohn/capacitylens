@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp as buildAppRaw } from "./app";
-import { buildCompleteAccountSlice, openDb as openDbRaw, insertAll, replaceAccountSlice, type Db, wipe } from "./db";
+import { buildCompleteAccountSlice, openDb as openDbRaw, insertAll, replaceAccountSlice, wipe } from "./db";
+import type { Db } from "./db";
 import { createAuthFromEnvironment, DEMO_USER, runAuthMigrations } from "./auth";
 import {
   createInvite as createControlInvite,
@@ -15,13 +16,26 @@ import {
   revokeInvite,
   upsertMember,
 } from "./controlTables";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
-import { PASSWORD_ENV, call, readCookies, registerServerFixtureCleanup, signUp } from "./testHelpers";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
+import { PASSWORD_ENV, call, readCookies, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 
 const TS = "2026-01-01T00:00:00.000Z";
 const fixtures = registerServerFixtureCleanup();
 const openDb = (...args: Parameters<typeof openDbRaw>) => fixtures.trackDb(openDbRaw(...args));
 const buildApp = (...args: Parameters<typeof buildAppRaw>) => fixtures.trackApp(buildAppRaw(...args));
+
+const proposalApp = {
+  fixtures,
+  joiningProof: {
+    secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
+    publicUrl: new URL(PASSWORD_ENV.CAPACITYLENS_PUBLIC_URL),
+  },
+};
+// Always empty: the proposal helpers keep this argument and ignore it.
+const tokens: string[] = [];
 
 function requireValue<T>(value: T | null | undefined, label: string): T {
   if (value === null || value === undefined) throw new Error(`Expected ${label}`);
@@ -76,26 +90,6 @@ function seedControlProposal(db: Db, invitationId: string, resourceId = "person-
   createInvitationPersonProposal({ db, invitationId, accountId: "a1", resourceId, now: TS });
 }
 
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db; tokens: string[] }> {
-  const db = openDb(":memory:");
-  const tokens: string[] = [];
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  const requiredAuth = requireValue(auth, "password authentication");
-  await runAuthMigrations(requiredAuth);
-  return {
-    app: buildApp(db, {
-      authMode: mode,
-      auth: requiredAuth,
-      joiningProof: {
-        secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
-        publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
-      },
-    }),
-    db,
-    tokens,
-  };
-}
-
 async function closedSignupProposalContext(): Promise<{
   app: FastifyInstance;
   db: Db;
@@ -106,8 +100,8 @@ async function closedSignupProposalContext(): Promise<{
   const tokens: string[] = [];
   const { mode, auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: undefined,
-    SMALLSASS_ACCOUNT_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
+    CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
+    CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
   });
   const requiredAuth = requireValue(auth, "password authentication");
   await runAuthMigrations(requiredAuth);
@@ -120,8 +114,8 @@ async function closedSignupProposalContext(): Promise<{
     authMode: mode,
     auth: requiredAuth,
     joiningProof: {
-      secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
-      publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
+      secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
+      publicUrl: new URL(PASSWORD_ENV.CAPACITYLENS_PUBLIC_URL),
     },
   });
   seedOne(db);
@@ -193,7 +187,7 @@ async function createInvite(
 describe("invitation person proposal route admission", () => {
   // eslint-disable-next-line max-lines-per-function
   it("creates/replays proposals, retains labels, and settles through admission without public leakage", async () => {
-    const { app, db, tokens } = await appWithAuth();
+    const { app, db } = await appWithAuth(proposalApp);
     seedOne(db);
     seedPerson(db);
     const owner = await signUp(app, "proposal-owner@capacitylens.dev");
@@ -260,7 +254,7 @@ describe("invitation person proposal route admission", () => {
   });
 
   it("refuses to create an invitation proposing an ineligible person", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await appWithAuth(proposalApp);
     seedOne(db);
     seedPerson(db, "person-archived");
     db.prepare(`UPDATE resources SET archivedAt = ? WHERE id = 'person-archived'`).run(TS);
@@ -326,7 +320,7 @@ describe("invitation person proposal route admission", () => {
   ] as const)(
     "denies proposal creation for %s", // eslint-disable-next-line max-params
     async (_label, email, accountId, role) => {
-      const { app, db } = await appWithAuth();
+      const { app, db } = await appWithAuth(proposalApp);
       seedOne(db);
       db.prepare(
         `INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a2', 'Stark Industries', '#3b82f6', ?, ?)`,
@@ -351,7 +345,7 @@ describe("invitation person proposal route admission", () => {
   );
 
   it("rolls back account admission when settlement finds a cross-account proposal", async () => {
-    const { app, db, tokens } = await appWithAuth();
+    const { app, db } = await appWithAuth(proposalApp);
     seedOne(db);
     seedPerson(db, "person-corrupt");
     const owner = await signUp(app, "corrupt-proposal-owner@capacitylens.dev");
@@ -387,7 +381,7 @@ describe("invitation person proposal route admission", () => {
   });
 
   it("keeps public preview, signup, and accept failures resource-free", async () => {
-    const { app, db, tokens } = await appWithAuth();
+    const { app, db } = await appWithAuth(proposalApp);
     seedOne(db);
     seedPerson(db, "person-failure");
     const owner = await signUp(app, "failure-shape-owner@capacitylens.dev");
@@ -473,7 +467,7 @@ describe("invitation person proposal route admission", () => {
   });
 
   it("rolls back membership, invite use, and proposal on unknown association storage failure", async () => {
-    const { app, db, tokens } = await appWithAuth();
+    const { app, db } = await appWithAuth(proposalApp);
     seedOne(db);
     seedPerson(db);
     const owner = await signUp(app, "proposal-rollback-owner@capacitylens.dev");
@@ -510,7 +504,7 @@ describe("invitation person proposal route admission", () => {
   });
 
   it("rolls back admission when exception persistence hits an integrity failure", async () => {
-    const { app, db, tokens } = await appWithAuth();
+    const { app, db } = await appWithAuth(proposalApp);
     seedOne(db);
     seedPerson(db);
     const owner = await signUp(app, "proposal-exception-rollback-owner@capacitylens.dev");
@@ -555,7 +549,7 @@ describe("invitation person proposal route admission", () => {
     ["member already linked", "person-member-linked", "member_already_linked"],
     ["resource unavailable", "person-unavailable", "resource_unavailable"],
   ] as const)("admits a proposal with bounded %s outcome", async (_label, resourceId, reason) => {
-    const { app, db, tokens } = await appWithAuth();
+    const { app, db } = await appWithAuth(proposalApp);
     seedOne(db);
     seedPerson(db, resourceId);
     const owner = await signUp(app, `${resourceId}-owner@capacitylens.dev`);

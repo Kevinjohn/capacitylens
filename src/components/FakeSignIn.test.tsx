@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FakeSignIn } from "./FakeSignIn";
-import { FAKE_USER } from "../lib/fakeAuth";
+import { FAKE_USER } from "@/lib/fakeAuth";
 
 describe("FakeSignIn (cosmetic demo gate)", () => {
   it("renders the Google-style account chooser with the demo persona", () => {

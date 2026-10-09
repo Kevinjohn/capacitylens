@@ -12,7 +12,7 @@ status column are unavailable in this UI. Ownership transfer is not part of this
 (since #175) and now has its own three-step ceremony and section — see
 [US-SET-18](US-SET-18-ownership-transfer.md).
 
-**Guide:** [Invite your team](../../docs-src/getting-started/invite-your-team.md) and
+**Guide:** [Invite teammates and manage access](../../docs-src/admin/invite-teammates.md) and
 [Company sign-in](../../docs-src/company-login/set-up-company-login.md).
 
 An Owner or Admin opens **Team & access** from the sidebar. Linking, changing or removing a
@@ -58,7 +58,7 @@ but no directory or management controls exist.
 ## How (end-to-end)
 
 **Precondition:** The app runs in its default server mode against a server with
-`SMALLSASS_ACCOUNT_MODE=password-only`. Same-origin `/api` needs no frontend API setting; set
+`CAPACITYLENS_MODE=password-only`. Same-origin `/api` needs no frontend API setting; set
 `VITE_CAPACITYLENS_API` only when the API uses a different origin. Owner A has created a company and
 invited Admin B and Editor C (both accepted). Sign in as **B (admin)** and pick the company. Dismiss
 the non-blocking product orientation if it is open.

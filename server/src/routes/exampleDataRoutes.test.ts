@@ -6,8 +6,10 @@ import { createApp } from "../app";
 import type { AuditEntry, AuditSink } from "../audit";
 import { createAuthFromEnvironment, runAuthMigrations } from "../auth";
 import { upsertMember } from "../controlTables";
-import { insertRow, openDb, type Db } from "../db";
-import { PASSWORD_ENV, call, registerServerFixtureCleanup, signUp } from "../testHelpers";
+import { insertRow, openDb } from "../db";
+import type { Db } from "../db";
+import { PASSWORD_ENV, call, signUp } from "../testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "../testHelpers/registerServerFixtureCleanup";
 
 const TS = "2026-01-01T00:00:00.000Z";
 const { trackApp, trackDb } = registerServerFixtureCleanup();

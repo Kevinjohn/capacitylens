@@ -3,7 +3,7 @@ import { isValidISODate, validateAllocationAssignment } from "@capacitylens/shar
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import { MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
-import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from "../../lib/repeatingAllocations";
+import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from "@/lib/repeatingAllocations";
 
 import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
 

@@ -1,17 +1,19 @@
 import { describe, it, expect } from "vitest";
-import type { FastifyInstance, LightMyRequestResponse } from "fastify";
+import type { LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
+import { openDb, insertAll } from "./db";
+import type { Db } from "./db";
 import { upsertMember } from "./controlTables";
-import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord, AuditSink } from "./audit";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// P1.4 endpoint coverage: GET /api/accounts + the new ?accountId= form of GET /api/state, in both
-// OFF (trusted-local, no gate) and auth-on (membership-existence guard) postures. The no-arg
-// GET /api/state whole read must stay byte-for-byte (backward-compat) — asserted here AND by the
+// Endpoint coverage: GET /api/accounts + the new ?accountId= form of GET /api/state, in both
+// off (trusted-local, no gate) and auth-on (membership-existence guard) postures. The no-arg
+// GET /api/state whole read must stay byte-for-byte (backward-compat), asserted here and by the
 // whole existing app.test.ts suite running unchanged.
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -81,8 +83,8 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
     const app = createApp(db);
     const res = await call(app, { method: "GET", url: "/api/accounts" });
     expect(res.statusCode).toBe(200);
-    // OFF mode tags every account with the trusted-local full-access sentinel role 'owner' (P1.12),
-    // so the wire shape matches auth-on's AccountSummary and the client's pure `can` keeps OFF editable.
+    // Off mode tags every account with the trusted-local full-access sentinel role 'owner',
+    // so the wire shape matches auth-on's AccountSummary and the client's pure `can` keeps off editable.
     expect(res.json()).toEqual([
       { id: "a1", name: "Studio a1", role: "owner" },
       { id: "a2", name: "Studio a2", role: "owner" },
@@ -123,22 +125,13 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
   });
 });
 
-/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!auth) throw new Error("Expected password mode to create an auth instance.");
-  await runAuthMigrations(auth);
-  return { app: createApp(db, { authMode: mode, auth }), db };
-}
-
 describe("auth-on (password) — membership-existence guard", () => {
   it("a member reads their account slice (200); a non-member is 403; /api/accounts lists only memberships", async () => {
     const { app, db } = await appWithAuth();
-    // Seed two accounts (directly — account creation flows aren't under test here).
+    // Seed two accounts (directly, account creation flows aren't under test here).
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "member@capacitylens.dev");
-    // Make the login an active member of a1 ONLY (as an editor — asserted on /api/accounts below).
+    // Make the login an active member of a1 only (as an editor, asserted on /api/accounts below).
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
     // Their account → 200 slice scoped to a1.
@@ -146,11 +139,11 @@ describe("auth-on (password) — membership-existence guard", () => {
     expect(ok.statusCode).toBe(200);
     expect(readStateIds(ok).accountIds).toEqual(["a1"]);
 
-    // A non-member account → 403 BEFORE any data leaves the DB.
+    // A non-member account → 403 before any data leaves the DB.
     const denied = await call(app, { method: "GET", url: "/api/state?accountId=a2", headers: { cookie } });
     expect(denied.statusCode).toBe(403);
 
-    // /api/accounts returns ONLY their membership (a1) WITH the caller's role, not the full account list.
+    // /api/accounts returns only their membership (a1) with the caller's role, not the full account list.
     const accts = await call(app, { method: "GET", url: "/api/accounts", headers: { cookie } });
     expect(accts.statusCode).toBe(200);
     expect(accts.json()).toEqual([{ id: "a1", name: "Studio a1", role: "editor" }]);
@@ -175,7 +168,7 @@ describe("PATCH /api/accounts/:id foreign-accountId parity with PUT", () => {
       url: "/api/accounts/a2",
       payload: { ...account("a2"), accountId: "a1" },
     });
-    expect(put.statusCode).toBe(404); // ownsRow concealment — the established PUT contract
+    expect(put.statusCode).toBe(404); // ownsRow concealment, the established PUT contract
 
     const patch = await app.inject({
       method: "PATCH",
@@ -213,7 +206,7 @@ describe("audit attribution for account mutations", () => {
     };
     const app = createApp(db, { multiAccount: true, audit: capturingSink });
 
-    // A rejected foreign assertion must produce NO audit record attributed to the asserted tenant:
+    // A rejected foreign assertion must produce no audit record attributed to the asserted tenant:
     await app.inject({
       method: "PUT",
       url: "/api/accounts/a2",

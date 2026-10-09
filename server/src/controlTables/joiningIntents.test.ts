@@ -7,8 +7,8 @@ import {
   insertJoinIntent,
   readJoinIntent,
   reserveJoinDelivery,
-  type JoinIntent,
 } from "./joiningIntents";
+import type { JoinIntent } from "./joiningIntents";
 
 const now = Date.parse("2026-09-27T00:00:00.000Z");
 const base: JoinIntent = {

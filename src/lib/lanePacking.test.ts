@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { resolveLaneTop, packLanes, resolveRowHeightForLanes, type Interval } from "./lanePacking";
+import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from "./lanePacking";
+import type { Interval } from "./lanePacking";
 
 const iv = (id: string, startDate: string, endDate: string): Interval => ({ id, startDate, endDate });
 
@@ -133,7 +134,7 @@ describe("packLanes — ordering and reuse", () => {
 
 describe("packLanes — invalid records and updates", () => {
   it("parks a record with an unparseable endDate without corrupting laneEnds", () => {
-    // Only the end is invalid (start is fine), so `s` is finite and `e` is not — this
+    // Only the end is invalid (start is fine), so `s` is finite and `e` is not, this
     // distinguishes the `||` from a mutated `&&` in the unpositionable check.
     const r = packLanes([iv("a", "2026-05-01", "")]);
     expect(laneOf(r, "a")).toBe(0);
@@ -143,7 +144,7 @@ describe("packLanes — invalid records and updates", () => {
   it("updates laneEnds when reusing a lane, so a later item sees the new end", () => {
     const a = iv("a", "2026-05-01", "2026-05-03");
     const b = iv("b", "2026-05-05", "2026-05-10"); // reuses a's lane (no overlap)
-    const c = iv("c", "2026-05-06", "2026-05-12"); // overlaps b, must NOT reuse that lane
+    const c = iv("c", "2026-05-06", "2026-05-12"); // overlaps b, must not reuse that lane
     const result = packLanes([a, b, c]);
     expect(laneOf(result, "a")).toBe(0);
     expect(laneOf(result, "b")).toBe(0);

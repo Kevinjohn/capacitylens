@@ -27,6 +27,6 @@ Check the assignee, dates, amount and status. Select Save.
 
 The booking appears on the person's row. They can find it in their [work list](/using/read-the-schedule#your-work-list).
 
-[Move or change the booking](/using/change-work)
+[Move or change the booking](/using/schedule-work#change-or-remove-scheduled-work)
 
-[Booking options and repeats](/guide/projects-and-allocations)
+[Booking options and repeats](/using/schedule-work)

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 
 const mocks = vi.hoisted(() => ({ transitionAccount: vi.fn() }));
 
-vi.mock("../auth/accountTransition", () => ({ transitionAccount: mocks.transitionAccount }));
+vi.mock("@/auth/accountTransition", () => ({ transitionAccount: mocks.transitionAccount }));
 
 import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActions";
 
@@ -17,7 +17,7 @@ describe("chooseAnotherAccountAfterLoadFailure", () => {
     const navigate = vi.fn();
     mocks.transitionAccount.mockResolvedValue(true);
 
-    await chooseAnotherAccountAfterLoadFailure(true, navigate);
+    await chooseAnotherAccountAfterLoadFailure({ accountRoute: true, navigate: navigate });
 
     expect(mocks.transitionAccount).toHaveBeenCalledWith(null);
     expect(navigate).toHaveBeenCalledWith("/");
@@ -27,7 +27,7 @@ describe("chooseAnotherAccountAfterLoadFailure", () => {
     const navigate = vi.fn();
     mocks.transitionAccount.mockResolvedValue(true);
 
-    await chooseAnotherAccountAfterLoadFailure(false, navigate);
+    await chooseAnotherAccountAfterLoadFailure({ accountRoute: false, navigate: navigate });
 
     expect(navigate).not.toHaveBeenCalled();
   });
@@ -36,7 +36,7 @@ describe("chooseAnotherAccountAfterLoadFailure", () => {
     const navigate = vi.fn();
     mocks.transitionAccount.mockResolvedValue(false);
 
-    await chooseAnotherAccountAfterLoadFailure(true, navigate);
+    await chooseAnotherAccountAfterLoadFailure({ accountRoute: true, navigate: navigate });
 
     expect(navigate).not.toHaveBeenCalled();
     expect(useStore.getState().notice).toEqual({
@@ -50,7 +50,9 @@ describe("chooseAnotherAccountAfterLoadFailure", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
     mocks.transitionAccount.mockRejectedValue(error);
 
-    await expect(chooseAnotherAccountAfterLoadFailure(true, vi.fn())).resolves.toBeUndefined();
+    await expect(
+      chooseAnotherAccountAfterLoadFailure({ accountRoute: true, navigate: vi.fn() }),
+    ).resolves.toBeUndefined();
     expect(log).toHaveBeenCalledWith("Company switch failed", error);
     expect(useStore.getState().notice).toEqual({
       message: "Could not switch company. Please try again.",

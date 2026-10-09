@@ -3,7 +3,7 @@ import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { FALLBACK_PRESET_COLOR } from "@capacitylens/shared/lib/color";
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, requireValue } from "../test/fixtures";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, requireValue } from "@/test/fixtures";
 
 const s = () => useStore.getState();
 
@@ -13,7 +13,7 @@ beforeEach(() => {
 
 function registerImportHardening1(): void {
   it("gives every id-less record its own fresh id (no collision on undefined)", () => {
-    // Two records with NO id must not collapse onto a single shared id.
+    // Two records with no id must not collapse onto a single shared id.
     const incoming = {
       ...emptyAppData(),
       clients: [
@@ -153,7 +153,7 @@ function registerImportHardening5(): void {
       ],
     });
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    // An imported file carrying its OWN builtin Internal client + a project owned by it.
+    // An imported file carrying its own builtin Internal client + a project owned by it.
     const incoming = {
       ...emptyAppData(),
       clients: [
@@ -180,8 +180,8 @@ function registerImportHardening5(): void {
       ],
     } as unknown as AppData;
     s().importData(incoming);
-    // Import REPLACES the account slice, so exactly ONE builtin remains (the imported one, kept as
-    // the account's Internal) — never two. Its name stays the reserved "Internal".
+    // Import replaces the account slice, so exactly one builtin remains (the imported one, kept as
+    // the account's Internal), never two. Its name stays the reserved "Internal".
     const builtins = s().data.clients.filter((c) => c.builtin && c.accountId === DEFAULT_ACCOUNT_ID);
     expect(builtins).toHaveLength(1);
     const builtin = requireValue(builtins[0], "imported internal client");

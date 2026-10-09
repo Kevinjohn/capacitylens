@@ -2,19 +2,20 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { AuthContext, type AuthContextValue } from "../../auth/authContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
 import { JoinCompany } from "./JoinCompany";
 
 const authClientMock = vi.hoisted(() => ({ signInEmail: vi.fn(), verifyTotp: vi.fn(), verifyBackupCode: vi.fn() }));
 const handoffMock = vi.hoisted(() => ({ replaceWithJoinedAccount: vi.fn() }));
-vi.mock("../../auth/authClient", () => ({
+vi.mock("@/auth/authClient", () => ({
   authClient: {
     signIn: { email: authClientMock.signInEmail },
     twoFactor: { verifyTotp: authClientMock.verifyTotp, verifyBackupCode: authClientMock.verifyBackupCode },
   },
 }));
-vi.mock("../../data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
-vi.mock("../../lib/joinedAccountHandoff", () => ({ replaceWithJoinedAccount: handoffMock.replaceWithJoinedAccount }));
+vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
+vi.mock("@/lib/joinedAccountHandoff", () => ({ replaceWithJoinedAccount: handoffMock.replaceWithJoinedAccount }));
 
 const auth: AuthContextValue = {
   authMode: "password-only",
@@ -37,13 +38,18 @@ function renderJoin(path = "/join/a-studio", context = auth) {
   );
 }
 
-// eslint-disable-next-line max-params -- Keep existing fixture calls intact while allowing independent Microsoft status.
-function stubJoin(
-  extra?: (url: string, init?: RequestInit) => Response,
+type StubJoinOptions = {
+  extra?: ((url: string, init?: RequestInit) => Response) | undefined;
+  providerAvailable?: boolean;
+  status?: (() => Record<string, unknown>) | undefined;
+  microsoftStatus?: Record<string, unknown>;
+};
+function stubJoin({
+  extra,
   providerAvailable = false,
-  status: () => Record<string, unknown> = () => ({ state: "expired" }),
-  microsoftStatus: Record<string, unknown> = { state: "expired" },
-) {
+  status = () => ({ state: "expired" }),
+  microsoftStatus = { state: "expired" },
+}: StubJoinOptions) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/join/metadata"))
@@ -73,7 +79,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 it("shows eligible providers above existing password and excludes GitHub in company-sign-in-only mode", async () => {
-  stubJoin(undefined, true);
+  stubJoin({ extra: undefined, providerAvailable: true });
   renderJoin("/join/a-studio", {
     ...auth,
     authMode: "sso-only",
@@ -91,11 +97,14 @@ it("shows eligible providers above existing password and excludes GitHub in comp
 });
 
 it("uses company-bound Microsoft start with the addressed invitation", async () => {
-  const fetchMock = stubJoin((url) => {
-    if (url.endsWith("/api/account/microsoft/start"))
-      return Response.json({ url: "https://login.microsoftonline.com/authorize" });
-    throw new Error(`Unexpected request: ${url}`);
-  }, true);
+  const fetchMock = stubJoin({
+    extra: (url) => {
+      if (url.endsWith("/api/account/microsoft/start"))
+        return Response.json({ url: "https://login.microsoftonline.com/authorize" });
+      throw new Error(`Unexpected request: ${url}`);
+    },
+    providerAvailable: true,
+  });
   const user = userEvent.setup();
   renderJoin("/join/a-studio?invite=invite-token", {
     ...auth,
@@ -120,8 +129,8 @@ it("uses company-bound Microsoft start with the addressed invitation", async () 
 it("preserves a prior provider journey when switching providers is rejected", async () => {
   let priorIntentLive = true;
   let priorIntentState: "pending" | "approved" = "pending";
-  const fetchMock = stubJoin(
-    (url) => {
+  const fetchMock = stubJoin({
+    extra: (url) => {
       if (url.endsWith("/api/company-join/cancel") || url.endsWith("/api/account/microsoft/cancel")) {
         priorIntentLive = false;
         return Response.json({ ok: true });
@@ -130,8 +139,8 @@ it("preserves a prior provider journey when switching providers is rejected", as
         return Response.json({ error: "Provider start unavailable" }, { status: 503 });
       throw new Error(`Unexpected request: ${url}`);
     },
-    true,
-    () =>
+    providerAvailable: true,
+    status: () =>
       priorIntentLive
         ? {
             state: priorIntentState,
@@ -141,7 +150,7 @@ it("preserves a prior provider journey when switching providers is rejected", as
             email: "diana@example.test",
           }
         : { state: "expired" },
-  );
+  });
   const context: AuthContextValue = {
     ...auth,
     providers: [
@@ -163,10 +172,12 @@ it("preserves a prior provider journey when switching providers is rejected", as
 });
 
 it("signs in an existing password identity and joins only through the policy endpoint", async () => {
-  const fetchMock = stubJoin((url) => {
-    if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
-      return Response.json({ accountId: "a-studio", role: "viewer" });
-    throw new Error(`Unexpected request: ${url}`);
+  const fetchMock = stubJoin({
+    extra: (url) => {
+      if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
+        return Response.json({ accountId: "a-studio", role: "viewer" });
+      throw new Error(`Unexpected request: ${url}`);
+    },
   });
   const user = userEvent.setup();
   renderJoin();
@@ -184,10 +195,12 @@ it("signs in an existing password identity and joins only through the policy end
 });
 
 it("does not complete policy joining before the password second factor", async () => {
-  const fetchMock = stubJoin((url) => {
-    if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
-      return Response.json({ accountId: "a-studio", role: "viewer" });
-    throw new Error(`Unexpected request: ${url}`);
+  const fetchMock = stubJoin({
+    extra: (url) => {
+      if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
+        return Response.json({ accountId: "a-studio", role: "viewer" });
+      throw new Error(`Unexpected request: ${url}`);
+    },
   });
   authClientMock.signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
   const user = userEvent.setup();
@@ -204,10 +217,12 @@ it("does not complete policy joining before the password second factor", async (
 });
 
 it("explains missing trusted proof and offers the addressed password invitation", async () => {
-  stubJoin((url) => {
-    if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
-      return Response.json({ error: "proof unavailable" }, { status: 401 });
-    throw new Error(`Unexpected request: ${url}`);
+  stubJoin({
+    extra: (url) => {
+      if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
+        return Response.json({ error: "proof unavailable" }, { status: 401 });
+      throw new Error(`Unexpected request: ${url}`);
+    },
   });
   const user = userEvent.setup();
   renderJoin();
@@ -218,7 +233,7 @@ it("explains missing trusted proof and offers the addressed password invitation"
 });
 
 it("routes an addressed password invitation to ordinary invitation acceptance", async () => {
-  stubJoin();
+  stubJoin({});
   renderJoin("/join/a-studio?invite=invite-token");
   expect(await screen.findByRole("link", { name: "Use this invitation with a password" })).toHaveAttribute(
     "href",
@@ -228,10 +243,13 @@ it("routes an addressed password invitation to ordinary invitation acceptance", 
 });
 
 it("offers email verification when proof is required and sends to the saved address", async () => {
-  const fetchMock = stubJoin((url) => {
-    if (url.endsWith("/join/complete-existing")) return Response.json({ error: "proof unavailable" }, { status: 401 });
-    if (url.endsWith("/join/verify-email")) return Response.json({ sent: true });
-    throw new Error(`Unexpected request: ${url}`);
+  const fetchMock = stubJoin({
+    extra: (url) => {
+      if (url.endsWith("/join/complete-existing"))
+        return Response.json({ error: "proof unavailable" }, { status: 401 });
+      if (url.endsWith("/join/verify-email")) return Response.json({ sent: true });
+      throw new Error(`Unexpected request: ${url}`);
+    },
   });
   const user = userEvent.setup();
   renderJoin();
@@ -250,14 +268,16 @@ it("offers email verification when proof is required and sends to the saved addr
 it("holds the verification fragment through sign-in and confirms it before joining", async () => {
   window.history.replaceState({}, "", "/join/a-studio#verify=mail-proof");
   const requests: string[] = [];
-  stubJoin((url, init) => {
-    requests.push(url);
-    if (url.endsWith("/api/company-join/verify-email")) {
-      expect(JSON.parse(String(init?.body))).toEqual({ token: "mail-proof" });
-      return Response.json({ ok: true });
-    }
-    if (url.endsWith("/join/complete-existing")) return Response.json({ accountId: "a-studio", role: "viewer" });
-    throw new Error(`Unexpected request: ${url}`);
+  stubJoin({
+    extra: (url, init) => {
+      requests.push(url);
+      if (url.endsWith("/api/company-join/verify-email")) {
+        expect(JSON.parse(String(init?.body))).toEqual({ token: "mail-proof" });
+        return Response.json({ ok: true });
+      }
+      if (url.endsWith("/join/complete-existing")) return Response.json({ accountId: "a-studio", role: "viewer" });
+      throw new Error(`Unexpected request: ${url}`);
+    },
   });
   const user = userEvent.setup();
   renderJoin();
@@ -275,13 +295,15 @@ it("holds the verification fragment through sign-in and confirms it before joini
 it("drops a rejected verification fragment so the next attempt can request a new link", async () => {
   window.history.replaceState({}, "", "/join/a-studio#verify=expired-proof");
   const requests: string[] = [];
-  stubJoin((url) => {
-    requests.push(url);
-    if (url.endsWith("/api/company-join/verify-email")) {
-      return Response.json({ error: { code: "INVALID", message: "Invalid request." } }, { status: 400 });
-    }
-    if (url.endsWith("/join/complete-existing")) return new Response(null, { status: 401 });
-    throw new Error(`Unexpected request: ${url}`);
+  stubJoin({
+    extra: (url) => {
+      requests.push(url);
+      if (url.endsWith("/api/company-join/verify-email")) {
+        return Response.json({ error: { code: "INVALID", message: "Invalid request." } }, { status: 400 });
+      }
+      if (url.endsWith("/join/complete-existing")) return new Response(null, { status: 401 });
+      throw new Error(`Unexpected request: ${url}`);
+    },
   });
   const user = userEvent.setup();
   renderJoin();
@@ -298,9 +320,12 @@ it("drops a rejected verification fragment so the next attempt can request a new
 });
 
 it("does not offer email verification where the server cannot send it", async () => {
-  const fetchMock = stubJoin((url) => {
-    if (url.endsWith("/join/complete-existing")) return Response.json({ error: "proof unavailable" }, { status: 401 });
-    throw new Error(`Unexpected request: ${url}`);
+  const fetchMock = stubJoin({
+    extra: (url) => {
+      if (url.endsWith("/join/complete-existing"))
+        return Response.json({ error: "proof unavailable" }, { status: 401 });
+      throw new Error(`Unexpected request: ${url}`);
+    },
   });
   const stubbed = fetchMock.getMockImplementation();
   if (!stubbed) throw new Error("Expected the join fetch stub.");
@@ -337,16 +362,16 @@ it.each([
       providerId,
       email: "diana@example.test",
     };
-    const fetchMock = stubJoin(
-      (url) => {
+    const fetchMock = stubJoin({
+      extra: (url) => {
         if (url.endsWith(`/api/company-join/${endpoint}`))
           return Response.json({ accountId: "a-studio", role: "viewer" });
         throw new Error(`Unexpected request: ${url}`);
       },
-      true,
-      () => (providerId === "google" ? status : { state: "expired" }),
-      providerId === "microsoft" ? status : { state: "expired" },
-    );
+      providerAvailable: true,
+      status: () => (providerId === "google" ? status : { state: "expired" }),
+      microsoftStatus: providerId === "microsoft" ? status : { state: "expired" },
+    });
     const refreshAuth = vi.fn(async () => {
       expect(handoffMock.replaceWithJoinedAccount).not.toHaveBeenCalled();
     });
@@ -373,8 +398,8 @@ it.each([
 
 it("resends pending Microsoft verification and keeps the journey retryable after a server error", async () => {
   let resendCount = 0;
-  const fetchMock = stubJoin(
-    (url) => {
+  const fetchMock = stubJoin({
+    extra: (url) => {
       if (url.endsWith("/api/account/microsoft/resend")) {
         resendCount += 1;
         return resendCount === 1
@@ -383,16 +408,16 @@ it("resends pending Microsoft verification and keeps the journey retryable after
       }
       throw new Error(`Unexpected request: ${url}`);
     },
-    true,
-    undefined,
-    {
+    providerAvailable: true,
+    status: undefined,
+    microsoftStatus: {
       state: "pending",
       accountId: "a-studio",
       purpose: "policy",
       providerId: "microsoft",
       emailHint: "diana@example.test",
     },
-  );
+  });
   const user = userEvent.setup();
   renderJoin("/join/a-studio", {
     ...auth,
@@ -424,22 +449,22 @@ it("resends pending Microsoft verification and keeps the journey retryable after
 });
 
 it("restarts a pending Microsoft journey by cancelling both intents and returning to entry", async () => {
-  const fetchMock = stubJoin(
-    (url) => {
+  const fetchMock = stubJoin({
+    extra: (url) => {
       if (url.endsWith("/api/company-join/cancel") || url.endsWith("/api/account/microsoft/cancel"))
         return Response.json({ ok: true });
       throw new Error(`Unexpected request: ${url}`);
     },
-    true,
-    undefined,
-    {
+    providerAvailable: true,
+    status: undefined,
+    microsoftStatus: {
       state: "pending",
       accountId: "a-studio",
       purpose: "policy",
       providerId: "microsoft",
       emailHint: "diana@example.test",
     },
-  );
+  });
   const user = userEvent.setup();
   renderJoin("/join/a-studio", {
     ...auth,
@@ -455,23 +480,23 @@ it("restarts a pending Microsoft journey by cancelling both intents and returnin
 });
 
 it("keeps a pending Microsoft journey retryable when restarting fails", async () => {
-  const fetchMock = stubJoin(
-    (url) => {
+  const fetchMock = stubJoin({
+    extra: (url) => {
       if (url.endsWith("/api/company-join/cancel")) return Response.json({ ok: true });
       if (url.endsWith("/api/account/microsoft/cancel"))
         return Response.json({ error: "Could not cancel verification" }, { status: 503 });
       throw new Error(`Unexpected request: ${url}`);
     },
-    true,
-    undefined,
-    {
+    providerAvailable: true,
+    status: undefined,
+    microsoftStatus: {
       state: "pending",
       accountId: "a-studio",
       purpose: "policy",
       providerId: "microsoft",
       emailHint: "diana@example.test",
     },
-  );
+  });
   const user = userEvent.setup();
   renderJoin("/join/a-studio", {
     ...auth,

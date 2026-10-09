@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
-import { Input } from "../../ui/input";
-import { Field, FieldContent, FieldDescription } from "../../ui/field";
+import { Input } from "@/components/ui/input";
+import { Field, FieldContent, FieldDescription } from "@/components/ui/field";
 import { RequiredFieldLabel } from "./fieldLayout";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
@@ -29,7 +29,8 @@ type TextFieldProps = {
   layout?: ProductFieldLayout;
 };
 
-function resolveBooleanAttribute(value: boolean | undefined): true | undefined {
+type ResolveBooleanAttributeOptions = { value: boolean | undefined };
+function resolveBooleanAttribute({ value }: ResolveBooleanAttributeOptions): true | undefined {
   return value ? true : undefined;
 }
 
@@ -79,8 +80,8 @@ function TextFieldControl({
       disabled={disabled}
       aria-label={ariaLabel}
       data-testid={testId}
-      aria-required={resolveBooleanAttribute(required)}
-      aria-invalid={resolveBooleanAttribute(invalid)}
+      aria-required={resolveBooleanAttribute({ value: required })}
+      aria-invalid={resolveBooleanAttribute({ value: invalid })}
       aria-describedby={ariaDescribedBy}
       onChange={(e) => onChange(e.target.value)}
     />
@@ -114,8 +115,8 @@ export function TextField(props: TextFieldProps) {
 
   return (
     <Field
-      data-invalid={resolveBooleanAttribute(invalid)}
-      data-disabled={resolveBooleanAttribute(disabled)}
+      data-invalid={resolveBooleanAttribute({ value: invalid })}
+      data-disabled={resolveBooleanAttribute({ value: disabled })}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
@@ -153,8 +154,8 @@ export function NumberField({
   const id = useId();
   return (
     <Field
-      data-invalid={resolveBooleanAttribute(invalid)}
-      data-disabled={resolveBooleanAttribute(disabled)}
+      data-invalid={resolveBooleanAttribute({ value: invalid })}
+      data-disabled={resolveBooleanAttribute({ value: disabled })}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
@@ -166,19 +167,19 @@ export function NumberField({
         max={max}
         step={step}
         disabled={disabled}
-        aria-required={resolveBooleanAttribute(required)}
-        aria-invalid={resolveBooleanAttribute(invalid)}
+        aria-required={resolveBooleanAttribute({ value: required })}
+        aria-invalid={resolveBooleanAttribute({ value: invalid })}
         aria-describedby={invalid ? describedById : undefined}
-        // For <input type="number"> the browser reports `value` as EITHER a valid numeric string
-        // OR "" — it sanitises away part-typed junk ("1.", "-", "1e"), so Number(value) is a finite
-        // number or Number("") === 0, and NEVER NaN. (The obvious guess that "" or "abc" reaches
+        // For <input type="number"> the browser reports `value` as either a valid numeric string
+        // or "", it sanitises away part-typed junk ("1.", "-", "1e"), so Number(value) is a finite
+        // number or Number("") === 0, and never NaN. (The obvious guess that "" or "abc" reaches
         // here as NaN is wrong: "abc" can't be typed into a number input, and Number("") is 0.)
-        // Emitting 0 for an empty field is the deliberate tradeoff — the value round-trips as a
+        // Emitting 0 for an empty field is the deliberate tradeoff, the value round-trips as a
         // number, at the cost that the field can't be held visually blank mid-edit (clearing it
         // reads as 0). onBlur (below) is the real clamp; its non-finite guard is cheap defence
         // against a stray programmatic NaN in `value`, not something this onChange can produce.
         onChange={(e) => onChange(Number(e.target.value))}
-        // Clamp to [min, max] on blur — type=number's own min/max are advisory and
+        // Clamp to [min, max] on blur, type=number's own min/max are advisory and
         // aren't enforced on paste/typing, so a stray entry would otherwise stick.
         onBlur={(e) => {
           let numericValue = Number(e.target.value);
@@ -218,14 +219,14 @@ export function DateField({
 }) {
   const id = useId();
   return (
-    <Field data-invalid={resolveBooleanAttribute(invalid)} {...buildProductFieldLayoutProps(layout)}>
+    <Field data-invalid={resolveBooleanAttribute({ value: invalid })} {...buildProductFieldLayoutProps(layout)}>
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
       <Input
         id={id}
         type="date"
         value={value}
-        aria-required={resolveBooleanAttribute(required)}
-        aria-invalid={resolveBooleanAttribute(invalid)}
+        aria-required={resolveBooleanAttribute({ value: required })}
+        aria-invalid={resolveBooleanAttribute({ value: invalid })}
         aria-describedby={invalid ? describedById : undefined}
         min={min}
         max={max}

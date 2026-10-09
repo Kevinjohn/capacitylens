@@ -1,12 +1,12 @@
 # US-RES-10 — The resource list display
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "groups Studio before Supplementary and restores one People order when disabled" · **Unit:** `src/components/resources/ResourceList.test.tsx` (engagement sections, favourite ordering and empty state)
+**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "groups Studio before Supplementary only while someone is Supplementary" · **Unit:** `src/components/resources/ResourceList.test.tsx` (engagement sections, favourite ordering and empty state)
 
 ## Goal
 
-See every resource in a clear engagement-grouped roster, keep priority people at the top of their
-Studio or Supplementary section with a favourite star, and get a useful empty state when there are
-none.
+See every resource in a clear roster, grouped by engagement when the team has Supplementary people,
+keep priority people at the top of their list or section with a favourite star, and get a useful
+empty state when there are none.
 
 ## Why
 
@@ -18,9 +18,9 @@ should say so, not show a blank page.
 
 **Precondition:** Seeded app open; click **Resources** in the sidebar.
 
-1. Confirm the default **Studio** and **Supplementary** sections are separate.
-2. Click **Add Clark Kent to favourites**. The star fills yellow and Clark moves to the top of his
-   engagement section.
+1. Confirm the seeded Studio-only team shows one People list with no engagement sections.
+2. Click **Add Clark Kent to favourites**. The star fills yellow and Clark moves to the top of the
+   list.
 3. Open **Schedule**. Within Development, Clark appears before Barry while the discipline
    groups keep their existing order.
 4. (Empty-state check) In a clean profile with no resources, observe the empty message.
@@ -32,11 +32,10 @@ should say so, not show a blank page.
   em dash or separator.
 - ✅ Person and external-party rows expose an accessible favourite star to editors and owners;
   placeholder rows and viewer sessions do not.
-- ✅ With **Group resources by engagement** on (the default), Studio and Supplementary render as
-  separate sections. Favourites lead only their own engagement section; every partition remains
-  alphabetical.
-- ✅ Turning the setting off restores one People list ordered favourites first and then
-  alphabetically.
+- ✅ While at least one active person is Supplementary, Studio and Supplementary render as separate
+  sections. Favourites lead only their own engagement section; every partition remains
+  alphabetical. There is no setting for this.
+- ✅ A Studio-only team sees one People list ordered favourites first and then alphabetically.
 - ✅ **No "Temp" tag** renders for anyone — including the seeded freelancer _Barry Allen_
   (see US-RES-07 and `DECISIONS.md`).
 - ✅ When placeholders are enabled, _Senior Designer_ shows a "Placeholder" badge and is

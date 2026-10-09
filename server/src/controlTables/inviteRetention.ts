@@ -12,10 +12,10 @@ import {
   USED_INVITATION_RETENTION_MS,
 } from "./retentionV24";
 
-/** One row of {@link listInvitesForAccount} — an account's outstanding-invite summary for the
- *  member-management UI. DELIBERATELY has NO `token` field: the bearer token is a write-once secret
- *  (returned to the creator at mint time and never again), so a read path must never carry it. The
- *  non-secret {@link Invite.id} is what list/revoke key on. */
+/** One row of {@link listInvitesForAccount}, an account's outstanding-invite summary for the
+ * member-management UI. Deliberately has no `token` field: the bearer token is a write-once secret
+ * (returned to the creator at mint time and never again), so a read path must never carry it. The
+ * non-secret {@link Invite.id} is what list/revoke key on. */
 export interface InviteSummary {
   id: string;
   accountId: string;
@@ -42,18 +42,18 @@ function compareIds(left: string, right: string): number {
 }
 
 /**
- * List an account's invites for the member-management UI (P1.11) — ordered newest-first by
- * `createdAt`. CRITICAL: this NEVER selects or returns the token digest. The token is a write-once
+ * List an account's invites for the member-management UI, ordered newest-first by
+ * `createdAt`. Critical: this never selects or returns the token digest. The token is a write-once
  * bearer secret (handed to the creator at mint time and nowhere else); returning it on this read path
  * would hand out live, role-bearing links to anyone who can list invites. list/revoke key on the
  * non-secret `id` instead.
  *
- * LOUD role-integrity throw (mirrors the other control-table readers): a stored role that is not a
- * known {@link Role} is corruption — fail rather than hand back a mistyped role.
+ * Loud role-integrity throw (mirrors the other control-table readers): a stored role that is not a
+ * known {@link Role} is corruption, fail rather than hand back a mistyped role.
  *
  * @param db         The open SQLite handle.
  * @param accountId  The account whose invites to list.
- * @returns The account's invite summaries (NO token), newest first (possibly empty).
+ * @returns The account's invite summaries (no token), newest first (possibly empty).
  */
 export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[] {
   const schemaVersion = (db.prepare("PRAGMA user_version").get() as { user_version?: unknown }).user_version;
@@ -61,8 +61,8 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
     typeof schemaVersion === "number" && schemaVersion >= INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION;
   const rows = db
     .prepare(
-      // NOTE: tokenHash is intentionally ABSENT from this SELECT — it must never leave on a read path.
-      // Used invites are LISTED (not filtered out): the member-management UI shows them with a "used"
+      // Note: tokenHash is intentionally absent from this SELECT. It must never leave on a read path.
+      // Used invites are listed (not filtered out): the member-management UI shows them with a "used"
       // badge (MembersSection's `usedAt ? …used()` branch) so an admin can confirm an invite was
       // consumed. Dead expired-unused links are removed separately by pruneInvites, not hidden here.
       `SELECT invitation.id, invitation.accountId, invitation.role, invitation.preauthEmail,
@@ -118,9 +118,9 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
 }
 
 /**
- * Revoke (delete) one outstanding invite by its non-secret `id` — the member-management revoke write
- * (P1.11). IDEMPOTENT: deleting an absent id is a no-op. The `accountId = ?` predicate is the
- * CROSS-TENANT guard: a revoke can only ever delete an invite of the named account, so an admin of
+ * Revoke (delete) one outstanding invite by its non-secret `id`, the member-management revoke write.
+ * Idempotent: deleting an absent id is a no-op. The `accountId = ?` predicate is the
+ * cross-tenant guard: a revoke can only ever delete an invite of the named account, so an admin of
  * one account cannot revoke another account's invite even with its id.
  *
  * @param db         The open SQLite handle.

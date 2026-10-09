@@ -63,7 +63,7 @@ const ORG_TABLES: OrgTables = {
     },
   ],
   clients: [
-    // One built-in "Internal" pseudo-client per account (builtin: true) — owns project-less
+    // One built-in "Internal" pseudo-client per account (builtin: true), owns project-less
     // internal/all-projects work and can own real projects. Protected (no rename/delete). See
     // internalClient.ts; the invariant is also enforced by migrate (v5→v6) and addAccount.
     buildInternalClient(STUDIO, SEED_TIMESTAMP, "c-internal-studio"),

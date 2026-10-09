@@ -1,25 +1,20 @@
-import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity } from "../../lib/capacity";
+import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity } from "@/lib/capacity";
 import { addDaysISO, eachDayISO, rangesOverlap } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from "../../lib/metadata";
-import { buildExternalBand, buildDisciplineGroups } from "../../store/selectors";
-import {
-  isCapacityTracked,
-  isExternalResource,
-  type AppData,
-  type ISODate,
-  type Resource,
-  type Weekday,
-} from "@capacitylens/shared/types/entities";
-import { NEUTRAL_COLOR } from "../../lib/palette";
-import { packLanes, resolveLaneTop, resolveRowHeightForLanes, type LaneLayout } from "../../lib/lanePacking";
+import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from "@/lib/metadata";
+import { buildExternalBand, buildDisciplineGroups, hasSupplementaryResources } from "@/store/selectors";
+import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
+import type { AppData, ISODate, Resource, Weekday } from "@capacitylens/shared/types/entities";
+import { NEUTRAL_COLOR } from "@/lib/palette";
+import { packLanes, resolveLaneTop, resolveRowHeightForLanes } from "@/lib/lanePacking";
+import type { LaneLayout } from "@/lib/lanePacking";
 import { laneLayout as compactLaneLayout } from "./layout";
 import {
   createDisplayNameComparator,
   createEngagementFavouriteDisplayNameComparator,
   createFavouriteDisplayNameComparator,
-} from "../../lib/displayOrder";
+} from "@/lib/displayOrder";
 import {
   bucketByCoveredDate,
   groupByResourceId,
@@ -48,16 +43,18 @@ interface ApplyVisibleUtilizationInput {
 interface BuildResourceGroupsInput {
   data: AppData;
   disciplinesEnabled: boolean;
-  groupResourcesByEngagement: boolean;
+  groupByEngagement: boolean;
 }
 
 interface BuildFallbackGroupsInput {
   resources: Resource[];
-  groupResourcesByEngagement: boolean;
+  groupByEngagement: boolean;
+  /** The single band used when engagement grouping is off. */
+  ungrouped: { key: string; title: string };
 }
 
 interface CreateResourceComparatorInput {
-  groupResourcesByEngagement: boolean;
+  groupByEngagement: boolean;
   comparators: {
     byDisplayName: (a: Resource, b: Resource) => number;
     byFavouriteDisplayName: (a: Resource, b: Resource) => number;
@@ -88,10 +85,10 @@ function includeRenderableDateRange<T extends { id: string; startDate: ISODate; 
 
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,
-// grouped by discipline. No React — independently unit-testable.
+// grouped by discipline. No React, independently unit-testable.
 //
-// The model OWNS the shapes the view renders (one-way data -> model -> view), so
-// these live here and the presentational components import them from the model —
+// The model owns the shapes the view renders (one-way data -> model -> view), so
+// these live here and the presentational components import them from the model,
 // not the other way round.
 
 function projectVisibleLanes({
@@ -167,7 +164,7 @@ export function applyVisibleUtilization({
       });
       const resourceTimeOff = personalTimeOff.get(row.resource.id) ?? [];
       const effectiveWeek = effectiveWorkingWeek(row.resource, accountWorkingDays);
-      // Bucket this resource's load and time off by the days they cover ONCE, exactly as the full
+      // Bucket this resource's load and time off by the days they cover once, exactly as the full
       // build does, so a horizontal scroll costs O(days + coverage) per row instead of rescanning
       // every allocation on every day of the window. Bucket order follows the input, so the hours
       // are summed in the same order and the ratio is bit-identical to the rescan.
@@ -194,12 +191,18 @@ export function applyVisibleUtilization({
   });
 }
 
+// With disciplines on, the single band holds people without a discipline ("Unassigned"); with
+// disciplines off it holds everyone, so it takes the neutral navigation label instead.
+const UNASSIGNED_BAND = { key: "unassigned", title: "Unassigned" };
+const ALL_RESOURCES_BAND = { key: "resources", title: "Resources" };
+
 function buildFallbackGroups({
   resources,
-  groupResourcesByEngagement,
+  groupByEngagement,
+  ungrouped,
 }: BuildFallbackGroupsInput): SchedulerResourceGroup[] {
-  if (!groupResourcesByEngagement) {
-    return resources.length ? [{ key: "unassigned", title: "Unassigned", discipline: null, resources }] : [];
+  if (!groupByEngagement) {
+    return resources.length ? [{ ...ungrouped, discipline: null, resources }] : [];
   }
   return [
     {
@@ -220,7 +223,7 @@ function buildFallbackGroups({
 function buildResourceGroups({
   data,
   disciplinesEnabled,
-  groupResourcesByEngagement,
+  groupByEngagement,
 }: BuildResourceGroupsInput): SchedulerResourceGroup[] {
   const groups: SchedulerResourceGroup[] = [];
   if (disciplinesEnabled) {
@@ -236,10 +239,14 @@ function buildResourceGroups({
       }
     }
     const unassigned = disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
-    groups.push(...buildFallbackGroups({ resources: unassigned, groupResourcesByEngagement }));
+    groups.push(...buildFallbackGroups({ resources: unassigned, groupByEngagement, ungrouped: UNASSIGNED_BAND }));
   } else {
     groups.push(
-      ...buildFallbackGroups({ resources: data.resources.filter(isCapacityTracked), groupResourcesByEngagement }),
+      ...buildFallbackGroups({
+        resources: data.resources.filter(isCapacityTracked),
+        groupByEngagement,
+        ungrouped: ALL_RESOURCES_BAND,
+      }),
     );
   }
   const external = buildExternalBand(data.resources);
@@ -250,10 +257,10 @@ function buildResourceGroups({
 }
 
 function createResourceComparator({
-  groupResourcesByEngagement,
+  groupByEngagement,
   comparators,
 }: CreateResourceComparatorInput): (a: Resource, b: Resource) => number {
-  const comparePeople = groupResourcesByEngagement
+  const comparePeople = groupByEngagement
     ? comparators.byEngagementFavouriteDisplayName
     : comparators.byFavouriteDisplayName;
   return (a, b) => {
@@ -294,15 +301,13 @@ function createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode }: 
 
 export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[] {
   const { data, filters, preferences } = options;
-  const {
-    disciplinesEnabled,
-    accountWorkingDays = [1, 2, 3, 4, 5],
-    groupResourcesByEngagement = true,
-    blocksMode = false,
-  } = preferences;
-  // ONE i18n read per build for the placeholder label: the sort below calls the display name
-  // O(n log n) times and every placeholder resolves the same word. Per BUILD CALL, never module
-  // scope — a Paraglide message must be called at use time so it follows the active locale.
+  const { disciplinesEnabled, accountWorkingDays = [1, 2, 3, 4, 5], blocksMode = false } = preferences;
+  // Derived from the people themselves: Studio/Supplementary partitioning applies only once the
+  // company has an active Supplementary resource, so a Studio-only company reads as one list.
+  const groupByEngagement = hasSupplementaryResources(data.resources);
+  // One i18n read per build for the placeholder label: the sort below calls the display name
+  // O(n log n) times and every placeholder resolves the same word. Per build call, never module
+  // scope: a Paraglide message must be called at use time so it follows the active locale.
   const placeholderLabel = resolvePlaceholderDisplayName();
   const resolveDisplayName = (resource: Resource): string =>
     resource.kind === "placeholder" ? placeholderLabel : resolveResourceDisplayName(resource);
@@ -311,7 +316,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
     createEngagementFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
   const byResourceDisplayName = createDisplayNameComparator<Resource>(resolveDisplayName);
   const byResourceOrder = createResourceComparator({
-    groupResourcesByEngagement,
+    groupByEngagement,
     comparators: {
       byDisplayName: byResourceDisplayName,
       byFavouriteDisplayName: byFavouriteResourceDisplayName,
@@ -323,7 +328,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   // Assigned resources retain canonical discipline order. Every unassigned capacity-tracked row
   // then receives a useful engagement home; with disciplines off, that fallback becomes the whole
   // capacity grouping. External / 3rd party is deliberately appended last in both modes.
-  const groups = buildResourceGroups({ data, disciplinesEnabled, groupResourcesByEngagement });
+  const groups = buildResourceGroups({ data, disciplinesEnabled, groupByEngagement });
   return groups
     .map((group) => ({
       key: group.key,
@@ -331,7 +336,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
       ...(group.color ? { color: group.color } : {}),
       external: !!group.external,
       // Keep discipline/external grouping intact. People are Studio then Supplementary when the
-      // default-on account preference is enabled, with favourites first alphabetically inside each
+      // company has Supplementary people, with favourites first alphabetically inside each
       // partition. Placeholders remain after all people and have no favourite affordance.
       rows: group.resources
         .filter(resourceVisible)

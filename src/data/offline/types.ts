@@ -1,4 +1,4 @@
-import type { AccountMode, AuthUser } from "../../auth/authContext";
+import type { AccountMode, AuthUser } from "@/auth/authContext";
 import type { Role } from "@capacitylens/shared/account/types";
 
 export interface CachedRecord<T> {

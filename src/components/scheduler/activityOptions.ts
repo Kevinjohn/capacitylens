@@ -1,6 +1,6 @@
 import type { Activity, Phase, Project } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import type { Option } from "../common/ui";
+import type { Option } from "@/components/common/ui";
 import { compareDisplayNames } from "@/lib/displayOrder";
 
 interface BuildActivityOptionsInput {

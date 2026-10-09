@@ -1,6 +1,6 @@
 import type { JoiningPolicySettings } from "@capacitylens/shared/account/types";
-import { API_BASE } from "../data/apiConfig";
-import { apiFetch } from "../data/requestTimeout";
+import { API_BASE } from "@/data/apiConfig";
+import { apiFetch } from "@/data/requestTimeout";
 import { buildPayloadOperationKey } from "./commandOutcome";
 import { buildCommandRequestInit } from "./commandRequest";
 import { runCommand } from "./commandRequest";

@@ -1,11 +1,11 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, expectTypeOf, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { ActivityList } from "./ActivityList";
-import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } from "../../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } from "@/test/fixtures";
 import { MemoryRouter } from "react-router-dom";
 
 beforeEach(() => resetStoreWithAccount());
@@ -73,7 +73,7 @@ describe("ActivityList", () => {
     const dialog = screen.getByRole("dialog", { name: "Add activity" });
 
     await user.type(within(dialog).getByLabelText("Name"), "Internal sync");
-    // Pick the Internal kind — the project picker disappears (project-less).
+    // Pick the Internal kind, the project picker disappears (project-less).
     await user.click(within(dialog).getByRole("radio", { name: "Internal" }));
     expect(within(dialog).queryByLabelText("Project")).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -271,9 +271,9 @@ describe("ActivityList", () => {
   });
 
   // An unresolvable projectId means different things per mode (mirrors ProjectList's clientName
-  // tests): in SERVER mode the per-account read strips archived parents from the slice, so it
-  // reads as "(archived project)"; in the DEMO build the raw slice retains archived projects, so
-  // it is genuinely dangling data and must NOT be dressed up as archival.
+  // tests): in server mode the per-account read strips archived parents from the slice, so it
+  // reads as "(archived project)"; in the demo build the raw slice retains archived projects, so
+  // it is genuinely dangling data and must not be dressed up as archival.
   const seedOrphanActivity = () => {
     useStore.getState().replaceAll(
       makeAppData({
@@ -406,7 +406,7 @@ describe("ActivityList", () => {
     await user.click(screen.getByRole("button", { name: "Archive My Activity" }));
     expect(screen.getByRole("alertdialog")).toHaveTextContent(/Archive activity\?/i);
 
-    // Simulate a teammate/sync archiving the row while the dialog is still open and pointed at it —
+    // Simulate a teammate/sync archiving the row while the dialog is still open and pointed at it,
     // `confirming` keeps holding the now-stale activity object. The dialog must re-render with the
     // base message, not throw archiveImpact's "already_inactive" error into the component tree.
     act(() => {

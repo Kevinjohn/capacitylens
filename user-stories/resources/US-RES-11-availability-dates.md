@@ -2,7 +2,7 @@
 
 **Area:** Resources · **Persona:** Studio manager · **Coverage:** unit (`shared/src/domain/resourceAvailability.test.ts`, `src/lib/capacity.test.ts`) + component (`src/components/resources/ResourceForm.test.tsx`) + store (`src/store/useStore.allocations.test.ts`) + server migration (`server/src/db.migrate.test.ts`); manual server/API and browser flow (no dedicated E2E spec yet)
 
-**Documentation:** [People and placeholders — set availability dates](../../docs-src/guide/people-and-placeholders.md#set-availability-dates)
+**Documentation:** [Resources — set availability dates](../../docs-src/using/resources.md#set-availability-dates)
 
 ## Goal
 

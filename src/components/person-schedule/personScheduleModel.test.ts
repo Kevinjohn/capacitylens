@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { emptyAppData, type Activity } from "@capacitylens/shared/types/entities";
-import { makeActivity, makeAllocation, makeClient, makeProject, makeResource, makeTimeOff } from "../../test/fixtures";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { Activity } from "@capacitylens/shared/types/entities";
+import { makeActivity, makeAllocation, makeClient, makeProject, makeResource, makeTimeOff } from "@/test/fixtures";
 import { buildPersonSchedule } from "./personScheduleModel";
 
 const resource = makeResource({ id: "r1", accountId: "a1", name: "Diana Prince", color: "#123456" });
@@ -27,7 +28,6 @@ function build(overrides: Partial<Parameters<typeof buildPersonSchedule>[0]> = {
     },
     window: { startDate: "2026-09-07", endDate: "2026-10-04" },
     schedulingMode: "hourly",
-    internalColourMode: "grey",
     showTaskFieldInSchedule: true,
     canSeeTimeOffNotes: false,
     title: "Diana Prince's schedule",
@@ -209,7 +209,7 @@ describe("buildPersonSchedule time off and Internal work", () => {
     expect(externalResult.model.entries).toEqual([]);
   });
 
-  it("uses the Internal colour preference without dropping internal work", () => {
+  it("shows internal work in neutral grey without dropping it", () => {
     const internalClient = makeClient({ id: "internal", builtin: true, name: "Internal", color: "#112233" });
     const internalActivity = withoutProjectId(makeActivity({ kind: "internal", name: "Admin" }));
     const data = {
@@ -223,7 +223,6 @@ describe("buildPersonSchedule time off and Internal work", () => {
     };
 
     expect(build({ data }).model.entries[0]).toMatchObject({ activity: "Admin", client: "Internal", color: "#9ca3af" });
-    expect(build({ data, internalColourMode: "palette" }).model.entries[0]).toMatchObject({ color: "#123456" });
   });
 });
 

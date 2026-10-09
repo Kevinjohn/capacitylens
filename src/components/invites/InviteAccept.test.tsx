@@ -4,9 +4,10 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { InviteAccept } from "./InviteAccept";
-import { AuthContext, type AuthContextValue } from "../../auth/authContext";
-import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { EXTERNAL_NAVIGATION_TIMEOUT_MS } from "./externalSignIn";
@@ -28,7 +29,7 @@ const apiConfigMock = vi.hoisted(() => ({
   isServerConfigured: vi.fn(() => true),
 }));
 
-vi.mock("../../auth/authClient", () => ({
+vi.mock("@/auth/authClient", () => ({
   authClient: {
     signIn: {
       email: authClientMock.signInEmail,
@@ -37,18 +38,18 @@ vi.mock("../../auth/authClient", () => ({
   },
 }));
 
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: apiConfigMock.isServerConfigured,
 }));
 
-vi.mock("../../lib/joinedAccountHandoff", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../lib/joinedAccountHandoff")>()),
+vi.mock("@/lib/joinedAccountHandoff", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/joinedAccountHandoff")>()),
   replaceWithJoinedAccount: handoffMock.replaceWithJoinedAccount,
   replaceWithAccountPicker: handoffMock.replaceWithAccountPicker,
 }));
 
-vi.mock("../../lib/reloadPage", () => reloadMock);
+vi.mock("@/lib/reloadPage", () => reloadMock);
 
 beforeEach(() => {
   window.history.replaceState({}, "", "/");
@@ -93,7 +94,8 @@ function readProviderSignInCall(input: unknown): ProviderSignInCall | undefined 
   return signal instanceof AbortSignal ? { fetchOptions: { signal } } : {};
 }
 
-function renderInvite(auth?: AuthContextValue, strict = false, path = "/invite/secret-token") {
+type RenderInviteOptions = { auth?: AuthContextValue | undefined; strict?: boolean; path?: string };
+function renderInvite({ auth, strict = false, path = "/invite/secret-token" }: RenderInviteOptions) {
   const content = (
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -123,7 +125,7 @@ registerInviteAcceptTest(() =>
     const signOut = vi.fn(async () => {});
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, signOut });
+    renderInvite({ auth: { ...signedInAuth, signOut } });
 
     expect(await screen.findByText("Signed in as alex@example.com.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Use a different account" }));
@@ -148,7 +150,7 @@ registerInviteAcceptTest(() =>
     const signOut = vi.fn(async () => {});
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, signOut });
+    renderInvite({ auth: { ...signedInAuth, signOut } });
     await user.click(await screen.findByRole("button", { name: "Accept invite" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("reserved for a different identity");
@@ -163,7 +165,7 @@ registerInviteAcceptTest(() =>
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    renderInvite();
+    renderInvite({});
 
     expect(screen.getByText(m.invite_local_mode({ app: APP_NAME }))).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -174,7 +176,7 @@ registerInviteAcceptTest(() =>
   it("restarts a cancelled preview effect under React Strict Mode", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
 
-    renderInvite(undefined, true);
+    renderInvite({ auth: undefined, strict: true });
 
     expect(await screen.findByTestId("invite-preview")).toHaveTextContent("Wayne Enterprises");
   }),
@@ -185,7 +187,7 @@ registerInviteAcceptTest(() =>
     const fetchMock = vi.fn().mockResolvedValue(previewResponse());
     vi.stubGlobal("fetch", fetchMock);
 
-    renderInvite();
+    renderInvite({});
 
     const preview = await screen.findByTestId("invite-preview");
     expect(preview).toHaveTextContent("Wayne Enterprises");
@@ -208,7 +210,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     const user = userEvent.setup();
 
-    renderInvite();
+    renderInvite({});
     await screen.findByTestId("invite-preview");
 
     const tablist = screen.getByRole("tablist");
@@ -238,7 +240,7 @@ registerInviteAcceptTest(() =>
     authClientMock.signInEmail.mockImplementationOnce(() => new Promise(() => {}));
     const user = userEvent.setup();
 
-    renderInvite();
+    renderInvite({});
     await screen.findByTestId("invite-preview");
     await user.type(screen.getByLabelText("Email"), "barbara.gordon@example.com");
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
@@ -254,7 +256,7 @@ registerInviteAcceptTest(() =>
   it("keeps the role explanation untruncated and places the role badge on its own row", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
 
-    renderInvite();
+    renderInvite({});
 
     const preview = await screen.findByTestId("invite-preview");
     expect(preview.querySelectorAll("[data-slot='item-description']")).not.toHaveLength(0);
@@ -293,7 +295,7 @@ registerInviteAcceptTest(() =>
         }),
       );
 
-      renderInvite();
+      renderInvite({});
 
       expect(await screen.findByTestId("invite-preview")).toHaveTextContent(expected);
       expect(document.body).not.toHaveTextContent("capacitylens.dev");
@@ -318,7 +320,7 @@ registerInviteAcceptTest(() =>
       }),
     );
 
-    renderInvite();
+    renderInvite({});
 
     expect(await screen.findByTestId("invite-preview")).toHaveTextContent("<img>@…");
     expect(document.querySelector("img")).not.toBeInTheDocument();
@@ -340,7 +342,7 @@ registerInviteAcceptTest(() =>
       }),
     );
 
-    renderInvite();
+    renderInvite({});
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_preview_invalid());
   }),
@@ -367,7 +369,7 @@ registerInviteAcceptTest(() =>
       }),
     );
 
-    renderInvite();
+    renderInvite({});
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_preview_invalid());
   }),
@@ -397,16 +399,16 @@ registerInviteAcceptTest(() =>
     window.history.replaceState({}, "", "/invite/secret-token?externalSignInError=1&error=provider-secret");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
 
-    renderInvite(
-      {
+    renderInvite({
+      auth: {
         ...signedInAuth,
         authMode: "sso-only",
         user: null,
         providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
       },
-      false,
-      "/invite/secret-token?externalSignInError=1&error=provider-secret",
-    );
+      strict: false,
+      path: "/invite/secret-token?externalSignInError=1&error=provider-secret",
+    });
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_sso_failed());
     expect(screen.getByRole("alert")).not.toHaveTextContent("provider-secret");
@@ -422,7 +424,7 @@ registerInviteAcceptTest(() =>
   ])("maps a bodyless %i preview response to its invite outcome", async (status, message) => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status })));
 
-    renderInvite();
+    renderInvite({});
 
     expect(await screen.findByRole("alert")).toHaveTextContent(message());
   }),
@@ -432,7 +434,7 @@ registerInviteAcceptTest(() =>
   it("marks only the credential field that failed account validation as invalid", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     const user = userEvent.setup();
-    renderInvite();
+    renderInvite({});
 
     await screen.findByTestId("invite-preview");
     await user.click(screen.getByRole("tab", { name: "Create account" }));
@@ -479,7 +481,7 @@ registerInviteAcceptTest(() =>
     // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     const user = userEvent.setup();
-    renderInvite();
+    renderInvite({});
 
     await screen.findByTestId("invite-preview");
     await user.click(screen.getByRole("tab", { name: "Create account" }));
@@ -507,10 +509,12 @@ registerInviteAcceptTest(() =>
     authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
     const user = userEvent.setup();
     renderInvite({
-      ...signedInAuth,
-      authMode: "sso-only",
-      user: null,
-      providers: [{ id: "google", label: "Google", kind: "social", brand: "google", experimental: false }],
+      auth: {
+        ...signedInAuth,
+        authMode: "sso-only",
+        user: null,
+        providers: [{ id: "google", label: "Google", kind: "social", brand: "google", experimental: false }],
+      },
     });
 
     await screen.findByTestId("invite-preview");
@@ -539,9 +543,11 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
     renderInvite({
-      ...signedInAuth,
-      user: null,
-      providers: [{ id: "google", label: "Google", kind: "social", experimental: true }],
+      auth: {
+        ...signedInAuth,
+        user: null,
+        providers: [{ id: "google", label: "Google", kind: "social", experimental: true }],
+      },
     });
 
     await screen.findByTestId("invite-preview");
@@ -575,9 +581,11 @@ registerInviteAcceptTest(() =>
     authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
     const user = userEvent.setup();
     renderInvite({
-      ...signedInAuth,
-      user: null,
-      providers: [{ id: "google", label: "Google", kind: "social", experimental: true }],
+      auth: {
+        ...signedInAuth,
+        user: null,
+        providers: [{ id: "google", label: "Google", kind: "social", experimental: true }],
+      },
     });
 
     const button = await screen.findByRole("button", {
@@ -605,7 +613,7 @@ registerInviteAcceptTest(() =>
           json: async () => ({ accountName: "Wayne Enterprises", role: "editor", expiresAt }),
         }),
       );
-      renderInvite();
+      renderInvite({});
       expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_preview_invalid());
     },
   ),
@@ -622,7 +630,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, user: null });
+    renderInvite({ auth: { ...signedInAuth, user: null } });
     await screen.findByTestId("invite-preview");
     await fillInviteCredentials(user);
     const create = screen.getByRole("button", { name: m.invite_create_account() });
@@ -644,7 +652,7 @@ registerInviteAcceptTest(() =>
   it("hands a newly-created invitee to a fresh boot for the verified joined company", async () => {
     resetStoreWithAccount();
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([]);
+    useStore.getState().setAccountSummaries({ list: [] });
     authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
     const refreshAuth = vi.fn(async () => {});
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -676,9 +684,11 @@ registerInviteAcceptTest(() =>
     const user = userEvent.setup();
 
     renderInvite({
-      ...signedInAuth,
-      user: null,
-      refreshAuth,
+      auth: {
+        ...signedInAuth,
+        user: null,
+        refreshAuth,
+      },
     });
     await screen.findByTestId("invite-preview");
     await user.click(screen.getByRole("tab", { name: "Create account" }));
@@ -720,7 +730,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite(signedInAuth);
+    renderInvite({ auth: signedInAuth });
 
     const accept = await screen.findByRole("button", { name: "Accept invite" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -758,7 +768,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite(signedInAuth);
+    renderInvite({ auth: signedInAuth });
     await user.click(await screen.findByRole("button", { name: "Accept invite" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(expected);
@@ -784,7 +794,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite(signedInAuth);
+    renderInvite({ auth: signedInAuth });
     await user.click(await screen.findByRole("button", { name: "Accept invite" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(expected);
@@ -812,7 +822,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite(signedInAuth);
+    renderInvite({ auth: signedInAuth });
     await user.click(await screen.findByRole("button", { name: "Accept invite" }));
 
     expect(await screen.findByText("You’ve joined Wayne Enterprises as Editor.")).toBeInTheDocument();
@@ -834,7 +844,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite(signedInAuth);
+    renderInvite({ auth: signedInAuth });
     await user.click(await screen.findByRole("button", { name: "Accept invite" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_signin());
@@ -861,7 +871,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    const view = renderInvite(signedInAuth);
+    const view = renderInvite({ auth: signedInAuth });
     await user.click(await screen.findByRole("button", { name: "Accept invite" }));
     await vi.waitFor(() => {
       expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/api/accounts"))).toBe(true);
@@ -902,7 +912,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite(signedInAuth);
+    renderInvite({ auth: signedInAuth });
     await user.click(await screen.findByRole("button", { name: "Accept invite" }));
 
     expect(await screen.findByText((content) => content.includes(m.invite_unknown_refreshed()))).toBeInTheDocument();
@@ -928,7 +938,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite(signedInAuth);
+    renderInvite({ auth: signedInAuth });
 
     expect(await screen.findByText(m.invite_err_network())).toBeInTheDocument();
     expect(screen.queryByText(/unknown outcome/i)).not.toBeInTheDocument();
@@ -945,7 +955,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, user: null });
+    renderInvite({ auth: { ...signedInAuth, user: null } });
     await screen.findByTestId("invite-preview");
     await user.type(screen.getByLabelText("Email"), "existing@example.com");
     await user.type(screen.getByLabelText("Password"), "existing-password-123");
@@ -965,7 +975,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, user: null });
+    renderInvite({ auth: { ...signedInAuth, user: null } });
     await screen.findByTestId("invite-preview");
     await user.type(screen.getByLabelText("Email"), "existing@example.com");
     await user.type(screen.getByLabelText("Password"), "wrong-password-123");
@@ -992,7 +1002,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, user: null, refreshAuth: vi.fn(async () => {}) });
+    renderInvite({ auth: { ...signedInAuth, user: null, refreshAuth: vi.fn(async () => {}) } });
     await screen.findByTestId("invite-preview");
     await fillInviteCredentials(user);
     await user.click(screen.getByRole("button", { name: m.invite_create_account() }));
@@ -1008,10 +1018,12 @@ registerInviteAcceptTest(() =>
     authClientMock.signInSocial.mockRejectedValueOnce(new TypeError("offline"));
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     renderInvite({
-      ...signedInAuth,
-      authMode: "sso-only",
-      user: null,
-      providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+      auth: {
+        ...signedInAuth,
+        authMode: "sso-only",
+        user: null,
+        providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+      },
     });
 
     const button = await screen.findByRole("button", {
@@ -1035,7 +1047,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, user: null });
+    renderInvite({ auth: { ...signedInAuth, user: null } });
     await screen.findByTestId("invite-preview");
     await fillInviteCredentials(user);
     await user.click(screen.getByRole("button", { name: m.invite_create_account() }));
@@ -1059,7 +1071,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, user: null });
+    renderInvite({ auth: { ...signedInAuth, user: null } });
     await screen.findByTestId("invite-preview");
     await fillInviteCredentials(user);
     await user.click(screen.getByRole("button", { name: m.invite_create_account() }));
@@ -1080,7 +1092,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, user: null });
+    renderInvite({ auth: { ...signedInAuth, user: null } });
     await screen.findByTestId("invite-preview");
     await user.click(screen.getByRole("tab", { name: "Create account" }));
     await user.type(screen.getByLabelText("Name"), "Existing Person");
@@ -1108,7 +1120,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, user: null });
+    renderInvite({ auth: { ...signedInAuth, user: null } });
     await screen.findByTestId("invite-preview");
     await user.click(screen.getByRole("tab", { name: "Create account" }));
     await user.type(screen.getByLabelText("Name"), "Existing Person");
@@ -1133,7 +1145,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, user: null });
+    renderInvite({ auth: { ...signedInAuth, user: null } });
     await screen.findByTestId("invite-preview");
     await user.click(screen.getByRole("tab", { name: "Create account" }));
     await user.type(screen.getByLabelText("Name"), "Existing Person");
@@ -1173,7 +1185,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    renderInvite({ ...signedInAuth, user: null });
+    renderInvite({ auth: { ...signedInAuth, user: null } });
     await screen.findByTestId("invite-preview");
     await user.click(screen.getByRole("tab", { name: "Create account" }));
     await user.type(screen.getByLabelText("Name"), "Existing Person");

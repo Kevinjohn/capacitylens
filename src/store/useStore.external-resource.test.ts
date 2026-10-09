@@ -1,6 +1,6 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { beforeEach, describe, expect, it } from "vitest";
-import { makeResourceDraft, resetStoreWithAccount } from "../test/fixtures";
+import { makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "./useStore";
 
 const s = () => useStore.getState();
@@ -24,7 +24,7 @@ function registerExternalFlip1(): void {
     });
 
     expect(() => s().updateResource(r.id, { kind: "external" })).toThrow(/kind cannot change/i);
-    expect(s().data.resources[0]?.kind).toBe("person"); // atomic failure — the flip did NOT land
+    expect(s().data.resources[0]?.kind).toBe("person"); // atomic failure, the flip did not land
   });
 }
 

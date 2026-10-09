@@ -112,16 +112,12 @@ export interface AccountSnapshot {
   dateStyle?: string;
   disciplinesEnabled?: boolean;
   externalEnabled?: boolean;
-  groupResourcesByEngagement?: boolean;
   id: string;
   inlineActivityCreateEnabled?: boolean;
-  internalColourMode?: string;
   language?: string;
   name: string;
   placeholdersEnabled?: boolean;
   schedulingMode?: string;
-  showInternalActivities?: boolean;
-  showInternalProjects?: boolean;
   showTaskFieldInSchedule?: boolean;
   timezone?: string;
   updatedAt: string;

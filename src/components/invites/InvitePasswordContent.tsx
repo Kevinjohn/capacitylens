@@ -1,12 +1,13 @@
-import { useId, useState, type FormEvent } from "react";
-import type { AuthProviderInfo } from "../../auth/authContext";
+import { useId, useState } from "react";
+import type { FormEvent } from "react";
+import type { AuthProviderInfo } from "@/auth/authContext";
 import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
 import { m } from "@/i18n";
-import { TextField } from "../common/ui";
-import { Button } from "../ui/button";
-import { FieldError } from "../ui/field";
-import { ExternalProviderButton } from "../common/ExternalProviderButton";
+import { TextField } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/field";
+import { ExternalProviderButton } from "@/components/common/ExternalProviderButton";
 
 interface InvitePasswordContentProps {
   providers: readonly AuthProviderInfo[];

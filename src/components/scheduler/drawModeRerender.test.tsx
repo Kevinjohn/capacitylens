@@ -2,23 +2,23 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { memo } from "react";
 import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAllocation } from "../../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, makeAllocation } from "@/test/fixtures";
 import { schedulerDataset } from "./__tests__/schedulerTestKit";
 
-// The point of this whole suite: toggling the Time-off draw mode must re-render ONLY each lane's
-// thin BarsLayer (which flips `inert`), NOT the AllocationBars inside it. The bars bail purely on
-// referential stability of the props BarsLayer hands them — so we mount the REAL SchedulerGrid /
-// ResourceLane / BarsLayer and replace ONLY the leaf AllocationBar with a memoised render-counter.
+// The point of this whole suite: toggling the Time-off draw mode must re-render only each lane's
+// thin BarsLayer (which flips `inert`), not the AllocationBars inside it. The bars bail purely on
+// referential stability of the props BarsLayer hands them, so we mount the real SchedulerGrid /
+// ResourceLane / BarsLayer and replace only the leaf AllocationBar with a memoised render-counter.
 //
-// Memoised exactly like the real bar (React.memo), so the counter re-renders IFF one of its props
-// changed identity — i.e. it is a faithful stand-in for the production bail condition. What this
-// test actually catches is the `onDraw` reference stability: on the round-1 code
+// Memoised exactly like the real bar (React.memo), so the counter re-renders iff one of its props
+// changed identity, i.e. it is a faithful stand-in for the production bail condition. What this
+// test actually catches is the `onDraw` reference stability: on the earlier code
 // `onDraw` closed over `ui.drawMode`, so a toggle re-rendered SchedulerGrid → new `onDraw` →
 // ResourceLane re-rendered → every bar re-rendered. With `onDraw` stabilised (getState-backed,
 // `[]` deps), ResourceLane's props no longer change, its memo bails, and the count holds. The test
-// is gated on that stabilisation alone — reverting it fails; reverting only `indexAt` to a fresh
-// inline closure still passes, since ResourceLane no longer re-renders on a toggle. So this does NOT
+// is gated on that stabilisation alone, reverting it fails; reverting only `indexAt` to a fresh
+// inline closure still passes, since ResourceLane no longer re-renders on a toggle. So this does not
 // independently exercise the `indexAt` memoisation (which is defense-in-depth for a future case
 // where a lane prop goes unstable across a toggle).
 const barRenderCount = vi.fn();
@@ -69,10 +69,10 @@ describe("draw-mode toggle does not re-render allocation bars", () => {
       useStore.getState().setDrawMode("timeoff");
     });
 
-    // PROOF #1: no AllocationBar re-rendered as a result of the toggle (the round-1 regression).
+    // Proof 1: no AllocationBar re-rendered as a result of the toggle.
     expect(barRenderCount.mock.calls.length).toBe(beforeToggle);
 
-    // PROOF #2: the toggle DID take effect — `inert` is applied via the ANCESTOR bars layer, so the
+    // Proof 2: the toggle did take effect, `inert` is applied via the ancestor bars layer, so the
     // bars are non-interactive without having re-rendered. The bars layer is the parent <div> that
     // wraps the bar elements.
     const bar = screen.getAllByTestId("allocation-bar")[0];

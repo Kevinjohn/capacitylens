@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { APIRequestContext } from "./fixtures";
 import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
@@ -10,7 +11,7 @@ import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// P1.12 — Viewer read-only mode, against the auth-backed project's server (SMALLSASS_ACCOUNT_MODE=password
+// P1.12 — Viewer read-only mode, against the auth-backed project's server (CAPACITYLENS_MODE=password
 // on :8887 — see playwright.config.ts). Owner A bootstraps an org and the disposable fixture seeds
 // VIEWER V + EDITOR E. Signed in as V (viewer) we assert the read-only UI: no "Add client",
 // no row Edit/Delete, an allocation bar with no resize grips, a draw gesture creates nothing, and the

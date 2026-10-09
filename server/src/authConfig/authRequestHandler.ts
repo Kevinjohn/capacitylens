@@ -7,12 +7,13 @@ import {
   microsoftCallbackCapture,
   federatedCallbackCapture,
 } from "./captureContexts";
-import { MicrosoftProofError, type MicrosoftProof } from "./microsoftProof";
+import { MicrosoftProofError } from "./microsoftProof";
+import type { MicrosoftProof } from "./microsoftProof";
 import {
   joiningProviderCallbackCapture,
   JoiningProviderCallbackError,
-  type createJoiningProviderCallbacks,
 } from "../accounts/adminPort/joiningProviderCallbacks";
+import type { createJoiningProviderCallbacks } from "../accounts/adminPort/joiningProviderCallbacks";
 
 type CreateAuthRequestHandlerOptions = {
   rawHandler: Auth["handler"];

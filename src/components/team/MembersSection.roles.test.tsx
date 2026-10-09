@@ -1,12 +1,12 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
-import { refreshActiveAccountSlice } from "../../data/persist";
-import { setOfflineReadState } from "../../data/offlineCache";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
+import { refreshActiveAccountSlice } from "@/data/persist";
+import { setOfflineReadState } from "@/data/offlineCache";
 import { m } from "@/i18n";
 import {
   accessibleMemberNames,
@@ -19,30 +19,30 @@ import {
   renderSection,
   saveRoleVia,
   soleOwnerAndEditor,
-  type RawMember,
 } from "./MembersSection.testSupport";
+import type { RawMember } from "./MembersSection.testSupport";
 
 const accountTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
 
-vi.mock("../../auth/accountTransition", () => ({
+vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-// MembersSection is the Team & access management UI. It renders ONLY in auth-on + server mode and
+// MembersSection is the Team & access management UI. It renders only in auth-on + server mode and
 // self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
-// true) and fetch, and assert the OWNER-ONLY affordances are hidden for an admin (no owner option, no
+// true) and fetch, and assert the owner-only affordances are hidden for an admin (no owner option, no
 // controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
 
 // Make the section "enabled": a configured server. The real module reads import.meta.env, which the
 // test env leaves unset; mocking it is the clean way to flip server mode on.
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: () => true,
 }));
 
-vi.mock("../../data/persist", () => ({
+vi.mock("@/data/persist", () => ({
   refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
   flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
   suspendServerWrites: vi.fn(() => vi.fn()),
@@ -55,11 +55,11 @@ vi.mock("../../data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -197,7 +197,7 @@ function registerAdminMemberControlTests(members: RawMember[]): void {
     expect(within(ownerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
     expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
 
-    // The editor row, by contrast, IS manageable by the admin.
+    // The editor row, by contrast, is manageable by the admin.
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
     expect(within(editorRow).getByTestId("member-edit")).toBeInTheDocument();
     await chooseMemberAction(userEvent.setup(), editorRow, "member-remove");
@@ -360,7 +360,7 @@ function registerAdminRoleChangeTests(members: RawMember[]): void {
     ).toBeInTheDocument();
     fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
-    // The summary explains the consequence, and choosing a role is still only a DRAFT.
+    // The summary explains the consequence, and choosing a role is still only a draft.
     expect(within(dialog).getByTestId("member-role-summary")).toHaveTextContent(/Read-only schedule access/);
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/members/theeditor"), expect.anything());
 
@@ -418,7 +418,7 @@ function registerAdminProjectionTests(members: RawMember[]): void {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", mockApi(members));
     vi.mocked(refreshActiveAccountSlice).mockImplementationOnce(async () => {
-      setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
+      setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
       return { kind: "reloaded" };
     });
     renderSection();

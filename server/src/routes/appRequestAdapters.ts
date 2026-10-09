@@ -1,12 +1,13 @@
 import type { FastifyRequest } from "fastify";
-import { type SessionUser } from "../auth";
-import { type ApplicationSession, type CommandIdentity } from "@capacitylens/shared/account/types";
+import type { SessionUser } from "../auth";
+import type { ApplicationSession, CommandIdentity } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isAccountCommandId, isAccountIdempotencyKey } from "@capacitylens/shared/account/validation";
 import { newId } from "@capacitylens/shared/lib/id";
+import { REPLY_ERRORS } from "./replyErrors";
 
 /** Node's IncomingHttpHeaders → web Headers, for Better Auth's web-standard API
- *  (getSession reads the cookie; the mounted handler gets the full set). */
+ * (getSession reads the cookie; the mounted handler gets the full set). */
 export function toWebHeaders(raw: FastifyRequest["headers"]): Headers {
   const headers = new Headers();
   for (const [key, value] of Object.entries(raw)) {
@@ -48,22 +49,21 @@ export function createAccountCommand(req: FastifyRequest): CommandIdentity {
   if (rawIdempotency !== undefined && !isAccountIdempotencyKey(rawIdempotency)) {
     throw new AccountContractError({
       code: "VALIDATION_FAILED",
-      message: "Idempotency-Key must be a 16–128 character opaque base64url-style identifier.",
+      message: REPLY_ERRORS.idempotencyKeyInvalid,
       retryable: false,
     });
   }
   if (rawCommand !== undefined && !isAccountCommandId(rawCommand)) {
     throw new AccountContractError({
       code: "VALIDATION_FAILED",
-      message:
-        "X-Account-Command-Id must be a 16–128 character independently generated, unguessable base64url-style identifier.",
+      message: REPLY_ERRORS.commandIdInvalid,
       retryable: false,
     });
   }
   if ((rawIdempotency === undefined) !== (rawCommand === undefined)) {
     throw new AccountContractError({
       code: "VALIDATION_FAILED",
-      message: "Idempotency-Key and X-Account-Command-Id must be supplied together.",
+      message: REPLY_ERRORS.commandHeadersUnpaired,
       retryable: false,
     });
   }

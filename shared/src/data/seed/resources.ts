@@ -84,7 +84,7 @@ const RESOURCES: AppData["resources"] = [
     color: "#2d75da",
     projectId: "p-acme",
   },
-  // External / 3rd-party partner studio: assignable to activities but has NO capacity/utilisation —
+  // External / 3rd-party partner studio: assignable to activities but has no capacity/utilisation,
   // once the default-off account setting is enabled, it renders neutral in its own band at the
   // bottom of the schedule (see ResourceKind). Its working hours/days are unused silent defaults.
   {

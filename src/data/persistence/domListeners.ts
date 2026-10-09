@@ -1,5 +1,5 @@
 import type { StoreApi } from "zustand";
-import type { StoreState } from "../../store/useStore";
+import type { StoreState } from "@/store/useStore";
 import type { AttachmentState } from "./attachmentState";
 import type { WriteQueue } from "./writeQueue";
 import type { RefreshController } from "./refreshController";
@@ -62,15 +62,15 @@ export function attachDomListeners({ store, owner, writes, refresh, serverMode }
   // (including bfcache) and uses keepalive; `visibilitychange → hidden` covers ordinary tab switches
   // and mobile lifecycle changes through the normal serialized save path. The unacknowledged snapshot
   // remains tracked until either path confirms it, so either event may safely follow the other.
-  // Coming BACK to the tab (or the browser firing `online`) re-attempts a stranded write.
-  // Refresh-on-focus (P1.16): when the user returns to the tab/window, re-hydrate the active
-  // account's slice so a change made in another tab/device shows up — REUSING refreshActive (the
+  // Coming back to the tab (or the browser firing `online`) re-attempts a stranded write.
+  // Refresh-on-focus: when the user returns to the tab/window, re-hydrate the active
+  // account's slice so a change made in another tab/device shows up, reusing refreshActive (the
   // switch orchestrator's body) so the private lastSynced snapshot is re-seeded atomically and stays
   // consistent with `data` (a parallel re-hydrate would desync them and emit a garbage diff). Guards:
-  // SERVER mode only (refreshActive only re-seeds meaningfully when serverMode; local already holds
-  // every account); SKIP when there's no active account (on the picker — nothing to refresh); and
-  // THROTTLE to REFRESH_MIN_INTERVAL_MS. Unsaved-edit safety is INHERENT — refreshActive flushes
-  // pending + awaits inFlightSave BEFORE loadAll, so the user's edits POST first (last-writer-wins).
+  // Server mode only (refreshActive only re-seeds meaningfully when serverMode; local already holds
+  // every account); skip when there's no active account (on the picker, nothing to refresh); and
+  // throttle to REFRESH_MIN_INTERVAL_MS. Unsaved-edit safety is inherent, refreshActive flushes
+  // pending + awaits inFlightSave before loadAll, so the user's edits POST first (last-writer-wins).
   const maybeRefreshActiveSlice = createActiveSliceRefresh({ store, owner, writes, refresh, serverMode });
 
   const onPageHide = () => flushOnUnload();

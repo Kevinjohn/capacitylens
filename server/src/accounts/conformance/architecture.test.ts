@@ -57,7 +57,7 @@ function internalImports(file: string, include: (edge: DependencyEdge, target: s
 
 const runtimeImports = (file: string): string[] => internalImports(file, (edge) => edge.kind === "runtime");
 
-// These three concrete adapter contracts remain migration debt for T15. Only the named type
+// These three concrete adapter contracts remain migration debt. Only the named type
 // edges are tolerated; another consumer, a runtime import or a duplicate declaration fails.
 const adapterTypeDebt = [
   ["accounts/createLocalAccountFlows.ts", "accounts/betterAuthIdentityPort.ts", "LocalIdentityPort"],
@@ -402,8 +402,8 @@ describe("account-boundary architecture", () => {
 });
 
 /** Every account-administration path the HTTP adapter owns. The ceremony's six write paths are
- *  listed individually: the guard asserts each one appears in the adapter and in NO app-boundary
- *  file, so a route that drifted out of the adapter would otherwise stop being guarded silently. */
+ * listed individually: the guard asserts each one appears in the adapter and in no app-boundary
+ * file, so a route that drifted out of the adapter would otherwise stop being guarded silently. */
 const EXTRACTED_ACCOUNT_ROUTE_PATHS = [
   "/api/invites",
   "/api/invites/:token/preview",

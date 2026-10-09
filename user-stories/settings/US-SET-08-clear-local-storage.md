@@ -2,7 +2,7 @@
 
 **Area:** Settings · **Persona:** User · **Linked E2E:** `e2e/clear-local-storage.spec.ts`
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 

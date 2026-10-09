@@ -3,7 +3,9 @@ import { wasAccountCommandReplayed } from "../../commands";
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { REPLY_ERRORS } from "../../../routes/replyErrors";
 import { NO_REPROMPT } from "../../../routes/routeShared";
+import type { AccountRoute, InvitationRoute, InvitationTokenRoute } from "../accountRouteDependencies";
 import { parseCreateInvitationAuthorizationInput, parseInvitationExpiry } from "./invitationCreateInput";
 import { parseSignupInvitationInput } from "./invitationSignupInput";
 import type { AccountRouteContext } from "../createReplyHelpers";
@@ -14,7 +16,7 @@ import {
 } from "./authenticatedPrincipal";
 
 const trustedLocalProposalFailure = () =>
-  new AccountContractError({ code: "FORBIDDEN", message: "Forbidden.", retryable: false });
+  new AccountContractError({ code: "FORBIDDEN", message: REPLY_ERRORS.forbidden, retryable: false });
 
 /** The account-route members the invitation handlers read. */
 type InvitationRouteContext = Pick<
@@ -49,10 +51,10 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   const input = parseCreateInvitationAuthorizationInput({ req, authMode, isKnownRole, createValidationFailure });
   if (input.kind === "invalid") return accountFail(reply, input.failure);
   const { value } = input;
-  // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
+  // Gate before any write: admin+ of this account may create invites; a non-member/under-tier is 403.
   if (!authorize({ req, reply, accountId: value.accountId, action: "manageInvites", options: NO_REPROMPT })) return;
   if (value.proposedResourceId === "")
-    return accountFail(reply, createValidationFailure("proposedResourceId must be a non-empty string."));
+    return accountFail(reply, createValidationFailure(REPLY_ERRORS.proposedResourceIdInvalid));
   if (authMode === "off" && value.proposedResourceId !== undefined)
     return accountFail(reply, trustedLocalProposalFailure());
   const expiryResult = parseInvitationExpiry(value.requestedExpiry, createValidationFailure);
@@ -82,8 +84,8 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
         changedFields: ["role", "preauthEmail", "expiresAt", "proposedResourceId"],
       },
     });
-    // Echo back what the caller needs to build the link — NOT createdAt/usedAt. preauthEmail is
-    // echoed (the admin set it; convenient confirmation of the NORMALIZED value), and only to this
+    // Echo back what the caller needs to build the link, not createdAt/usedAt. preauthEmail is
+    // echoed (the admin set it; convenient confirmation of the normalized value), and only to this
     // already-authorised admin. Later privileged invitation-list reads also expose it, but no
     // public preview or bearer-token read does.
     return reply.code(201).send({
@@ -101,20 +103,24 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   }
 }
 
-export async function previewInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
+export async function previewInvitation(
+  req: FastifyRequest<InvitationTokenRoute>,
+  reply: FastifyReply,
+  context: InvitationRouteContext,
+) {
   const { administration: accountAdminPort, fail: accountFail } = context;
 
-  const { token } = req.params as { token: string };
+  const { token } = req.params;
   try {
     const invite = await accountAdminPort.previewInvitation({ token });
-    return {
+    return reply.code(200).send({
       accountId: invite.workspaceId,
       accountName: invite.workspaceName,
       role: invite.role,
       expiresAt: invite.expiresAt,
       emailBound: invite.emailBound,
       emailHint: invite.emailHint,
-    };
+    });
   } catch (error) {
     return accountFail(reply, error);
   }
@@ -129,7 +135,11 @@ function permitsInvitationProvider(req: FastifyRequest, context: InvitationRoute
   );
 }
 
-export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
+export async function acceptInvitation(
+  req: FastifyRequest<InvitationTokenRoute>,
+  reply: FastifyReply,
+  context: InvitationRouteContext,
+) {
   const {
     authMode,
     administration: accountAdminPort,
@@ -138,7 +148,7 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
     auditUnlessReplayed,
   } = context;
 
-  const { token } = req.params as { token: string };
+  const { token } = req.params;
   const { accountActor: actor, user } = req;
   if (!actor || !user) return accountFail(reply, createAuthenticationRequiredError());
   try {
@@ -148,7 +158,7 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
       await accountAdminPort.previewInvitation({ token });
       throw new AccountContractError({
         code: "FORBIDDEN",
-        message: "Sign in with the required SSO provider before accepting this invitation.",
+        message: REPLY_ERRORS.ssoRequiredBeforeInvitationAccept,
         retryable: false,
       });
     }
@@ -189,14 +199,18 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
   }
 }
 
-export async function signupInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
+export async function signupInvitation(
+  req: FastifyRequest<InvitationTokenRoute>,
+  reply: FastifyReply,
+  context: InvitationRouteContext,
+) {
   const { authMode, authenticationConfigured, flows, command, fail, auditUnlessReplayed } = context;
   if (!allowsPasswordSignIn(authMode) || !authenticationConfigured) {
-    return reply.code(404).send({ error: "Not found." });
+    return reply.code(404).send({ error: REPLY_ERRORS.routeUnavailable });
   }
-  const { token } = req.params as { token: string };
+  const { token } = req.params;
   const input = parseSignupInvitationInput(req);
-  if ("failure" in input) return reply.code(400).send({ error: input.failure });
+  if (input.kind === "invalid") return reply.code(400).send({ error: input.failure });
   try {
     const result = await flows.acceptInviteWithPasswordSignup({
       token,
@@ -224,19 +238,23 @@ export async function signupInvitation(req: FastifyRequest, reply: FastifyReply,
   }
 }
 
-export async function listInvitations(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
+export async function listInvitations(
+  req: FastifyRequest<AccountRoute>,
+  reply: FastifyReply,
+  context: InvitationRouteContext,
+) {
   const { authMode, administration: accountAdminPort, authorize, fail: accountFail } = context;
 
-  const { accountId } = req.params as { accountId: string };
+  const { accountId } = req.params;
   if (!authorize({ req, reply, accountId, action: "manageInvites", options: NO_REPROMPT })) return;
-  if (authMode === "off") return { invites: [] };
+  if (authMode === "off") return reply.code(200).send({ invites: [] });
   try {
     const invites = await accountAdminPort.listInvitations({
       actor: requireAccountActor(req),
       workspaceId: accountId,
       requireFresh: false,
     });
-    return {
+    return reply.code(200).send({
       invites: invites.map((invite) => ({
         id: invite.id,
         accountId: invite.workspaceId,
@@ -248,13 +266,17 @@ export async function listInvitations(req: FastifyRequest, reply: FastifyReply, 
         ...(invite.proposedResourceId === undefined ? {} : { proposedResourceId: invite.proposedResourceId }),
         ...(invite.proposedResourceLabel === undefined ? {} : { proposedResourceLabel: invite.proposedResourceLabel }),
       })),
-    };
+    });
   } catch (error) {
     return accountFail(reply, error);
   }
 }
 
-export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
+export async function revokeInvitation(
+  req: FastifyRequest<InvitationRoute>,
+  reply: FastifyReply,
+  context: InvitationRouteContext,
+) {
   const {
     administration: accountAdminPort,
     authorize,
@@ -263,7 +285,7 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
     auditUnlessReplayed,
   } = context;
 
-  const { accountId, id } = req.params as { accountId: string; id: string };
+  const { accountId, id } = req.params;
   if (!authorize({ req, reply, accountId, action: "manageInvites", options: NO_REPROMPT })) return;
   try {
     const { actor, user } = requireAuthenticatedPrincipal(req);

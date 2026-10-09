@@ -40,7 +40,7 @@ const ACTIVITIES: AppData["activities"] = [
     kind: "project",
     projectId: "p-brand",
   },
-  // Internal (no-project) activity — internal work, allocatable to anyone.
+  // Internal (no-project) activity, internal work, allocatable to anyone.
   {
     id: "t-admin",
     accountId: STUDIO,
@@ -49,7 +49,7 @@ const ACTIVITIES: AppData["activities"] = [
     name: "Admin / Internal",
     kind: "internal",
   },
-  // All-projects (no-project) activities — available across any project; the schedule's activity lens
+  // All-projects (no-project) activities, available across any project; the schedule's activity lens
   // groups them so you can see "all design" / "all workshops" regardless of project.
   {
     id: "t-design",

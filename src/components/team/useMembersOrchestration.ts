@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
-import type { TeamInvitation, TeamMember as Member } from "../../account/teamAccessClient";
-import { useAuth } from "../../auth/authContext";
-import { isServerConfigured } from "../../data/apiConfig";
-import { useOfflineState } from "../../data/useOfflineState";
-import { useDeadlineClock } from "../../hooks/useDeadlineClock";
-import { useFieldError } from "../../hooks/useFieldError";
-import { useStore } from "../../store/useStore";
-import type { StoreState } from "../../store/types";
+import type { TeamInvitation, TeamMember as Member } from "@/account/teamAccessClient";
+import { useAuth } from "@/auth/authContext";
+import { isServerConfigured } from "@/data/apiConfig";
+import { useOfflineState } from "@/data/useOfflineState";
+import { useDeadlineClock } from "@/hooks/useDeadlineClock";
+import { useFieldError } from "@/hooks/useFieldError";
+import { useStore } from "@/store/useStore";
+import type { StoreState } from "@/store/types";
 import { useTeamDirectory } from "./useTeamDirectory";
-import { useMemberInvites, type InvitationPersonOption } from "./useMemberInvites";
+import { useMemberInvites } from "./useMemberInvites";
+import type { InvitationPersonOption } from "./useMemberInvites";
 import { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 import { createMemberMutations } from "./createMemberMutations";
-import { startMasquerade } from "../../auth/accountTransition";
-import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
+import { startMasquerade } from "@/auth/accountTransition";
+import { STATUS_FOR_ACTION } from "./memberConfirmationCopy";
+import type { MemberConfirmation, MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
-import { useResourceListModel } from "../resources/useResourceListModel";
+import { useResourceListModel } from "@/components/resources/useResourceListModel";
 
 const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
 
@@ -279,9 +281,9 @@ export function useMembersOrchestration(activeAccountId: string | null) {
       (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
     if (offline.readOnly || unauthorized) resetInviteDraft();
   }, [directoryState.directory, offline.readOnly, resetInviteDraft]);
-  // The server is the only authority on candidate eligibility. ORDER them the way Resources orders
+  // The server is the only authority on candidate eligibility. Order them the way Resources orders
   // its active people so the selector cannot look different from the management list, but never
-  // FILTER by the store: the Resources model refreshes on a visible poll while the directory
+  // filter by the store: the Resources model refreshes on a visible poll while the directory
   // refetches after every mutation, so intersecting the two hides a candidate the server accepts
   // and reports a live link as inactive until the poll catches up. Anything Resources has not
   // listed yet keeps the server's own order behind the rows it has.

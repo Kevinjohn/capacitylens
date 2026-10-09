@@ -6,8 +6,8 @@ import { cn } from "@/lib/cn";
 // shadcn Tooltip primitives on the `radix-ui` umbrella. The stock content uses bg-primary
 // (shadcn's slate) + text-primary-foreground; capacitylens's --primary is the slate brand and would
 // clash with the blue identity, so the content is restyled with capacitylens's elevated-surface
-// tokens (bg-elevated/text-ink/ring-line/shadow-pop) — the SAME treatment as the hand-rolled
-// nav-rail hover label in AppShell — which is AA-safe in both themes. A tooltip is supplementary:
+// tokens (bg-elevated/text-ink/ring-line/shadow-pop), the same treatment as the hand-rolled
+// nav-rail hover label in AppShell, which is AA-safe in both themes. A tooltip is supplementary:
 // the trigger keeps its own aria-label so the tooltip is never the sole accessible name.
 
 function TooltipProvider({
@@ -33,9 +33,9 @@ function Tooltip({
   );
 }
 
-// Provider-less Root, for collections that hoist a SINGLE shared TooltipProvider above many
+// Provider-less Root, for collections that hoist a single shared TooltipProvider above many
 // tooltips (e.g. the scheduler grid over its virtualised bars) rather than paying the provider's
-// per-instance machinery on every one. Callers using this MUST render under a <TooltipProvider>.
+// per-instance machinery on every one. Callers using this must render under a <TooltipProvider>.
 function TooltipRoot({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {

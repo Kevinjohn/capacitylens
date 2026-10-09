@@ -1,33 +1,34 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render as rtlRender, screen, type RenderOptions } from "@testing-library/react";
+import { render as rtlRender, screen } from "@testing-library/react";
+import type { RenderOptions } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { PermissionContext } from "./permissionContext";
-import { TooltipProvider } from "../components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // AllocationBar now uses a provider-less TooltipRoot (the single TooltipProvider is hoisted to
 // SchedulerGrid), so isolated bar renders here must supply their own provider.
 const render = (ui: ReactNode, options?: Omit<RenderOptions, "wrapper">) =>
   rtlRender(ui, { wrapper: TooltipProvider, ...options });
-import { AddButton, ListPage } from "../components/common/ui";
-import { AllocationBar } from "../components/scheduler/AllocationBar";
-import { buildColumnGeometry } from "../components/scheduler/columnGeometry";
-import type { BarLayout } from "../components/scheduler/schedulerModel";
+import { AddButton, ListPage } from "@/components/common/ui";
+import { AllocationBar } from "@/components/scheduler/AllocationBar";
+import { buildColumnGeometry } from "@/components/scheduler/columnGeometry";
+import type { BarLayout } from "@/components/scheduler/schedulerModel";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
-import { useStore } from "../store/useStore";
-import { resetStoreWithAccount, makeResourceDraft, requireValue } from "../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount, makeResourceDraft, requireValue } from "@/test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation } from "@capacitylens/shared/types/entities";
 import type { Role } from "@capacitylens/shared/domain/access";
 
-// P1.12 — client permission gating. Two halves:
-//   1) the useCanEdit affordance gate (ListPage Add, AllocationBar grips) — and the OFF/local
-//      regression guard (provider ABSENT / role null → fully editable, byte-identical to today);
+// Client permission gating. Two halves:
+//   1) the useCanEdit affordance gate (ListPage Add, AllocationBar grips), and the off/local
+//      regression guard (provider absent / role null → fully editable, byte-identical to today);
 //   2) the store's defense-in-depth viewer guard (a viewer's add*/update*/delete* no-ops + notices;
 //      null/editor/owner permit).
-// The server 403 (P1.5) is the TRUE backstop; this suite only covers the client UX + the local guard.
+// The server 403 is the true backstop; this suite only covers the client UX + the local guard.
 
-/** Render `ui` inside a PermissionContext fixed to `role` (null = no provider equivalent / OFF/local). */
+/** Render `ui` inside a PermissionContext fixed to `role` (null = no provider equivalent / off/local). */
 function withRole(role: Role | null, ui: ReactNode) {
   return render(<PermissionContext.Provider value={{ role }}>{ui}</PermissionContext.Provider>);
 }
@@ -39,7 +40,7 @@ beforeEach(() => {
   useStore.getState().setNotice(null);
 });
 
-// ─── useCanEdit affordance gate ──────────────────────────────────────────────
+// useCanEdit affordance gate.
 
 describe("useCanEdit gates the ListPage create affordance", () => {
   const onAdd = vi.fn();
@@ -77,7 +78,7 @@ describe("useCanEdit gates direct AddButton create affordances", () => {
   });
 });
 
-// ─── AllocationBar viewer → display-only (no resize grips) ────────────────────
+// AllocationBar viewer → display-only (no resize grips).
 
 describe("useCanEdit gates the AllocationBar resize grips", () => {
   const GEOM = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 48, {
@@ -129,7 +130,7 @@ describe("useCanEdit gates the AllocationBar resize grips", () => {
   });
 });
 
-// ─── Store defense-in-depth viewer guard ─────────────────────────────────────
+// Store defense-in-depth viewer guard.
 
 describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () => {
   beforeEach(() => resetStoreWithAccount());
@@ -155,7 +156,7 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
     // too. The row stays present and active (the lifecycle suite covers the full archive/delete/purge set).
     useStore.getState().archiveEntity("resources", seeded.id);
     expect(useStore.getState().data.resources).toHaveLength(1); // still there
-    expect(requireValue(useStore.getState().data.resources[0], "viewer resource")).not.toHaveProperty("archivedAt"); // not archived — viewer no-op
+    expect(requireValue(useStore.getState().data.resources[0], "viewer resource")).not.toHaveProperty("archivedAt"); // not archived, viewer no-op
 
     expect(useStore.getState().data.resources).toHaveLength(1);
   });

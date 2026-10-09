@@ -1,30 +1,32 @@
-import { Suspense, type CSSProperties } from "react";
+import { Suspense } from "react";
+import type { CSSProperties } from "react";
 import { matchPath, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { GettingStarted } from "./GettingStarted";
 import { Toaster } from "sonner";
-import { useStore } from "../store/useStore";
-import { hasDisciplinesEnabled, resolveCapacityOverviewAccess } from "../store/selectors";
-import { usePermissionStatus, useRole } from "../auth/permissionContext";
-import { resolveCapacityOverviewAccessDecision } from "../auth/capacityOverviewAccess";
-import { useDemoAuthActive } from "../lib/fakeAuth";
+import { useStore } from "@/store/useStore";
+import { hasDisciplinesEnabled, resolveCapacityOverviewAccess } from "@/store/selectors";
+import { usePermissionStatus, useRole } from "@/auth/permissionContext";
+import { resolveCapacityOverviewAccessDecision } from "@/auth/capacityOverviewAccess";
+import { useDemoAuthActive } from "@/lib/fakeAuth";
 import { CommandPalette } from "./CommandPalette";
-import { PermissionProvider } from "../auth/PermissionProvider";
+import { PermissionProvider } from "@/auth/PermissionProvider";
 import { RotateHint } from "./RotateHint";
 import { Spinner } from "./ui/spinner";
 import { Alert, AlertDescription } from "./ui/alert";
 import { m } from "@/i18n";
-import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "../lib/navLinks";
-import { useOfflineState } from "../data/useOfflineState";
+import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "@/lib/navLinks";
+import { useOfflineState } from "@/data/useOfflineState";
 import { AppEntryGate } from "./AppEntryGate";
 import { useAppShellController } from "./useAppShellController";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "./ui/sidebar";
-import { endMasquerade, retryMasqueradeProjection } from "../auth/accountTransition";
+import { endMasquerade, retryMasqueradeProjection } from "@/auth/accountTransition";
 import { Button } from "./ui/button";
-import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
-import { retryActiveAccountLoad } from "../data/persist";
+import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "@/lib/tourAnchors";
+import { useDiagnosticsAccessDecision } from "./diagnostics/useDiagnosticsAccessDecision";
+import { retryActiveAccountLoad } from "@/data/persist";
 import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActions";
-import { useAuth } from "../auth/authContext";
+import { useAuth } from "@/auth/authContext";
 import { ProductOrientation } from "./ProductOrientation";
 import { useProductOrientation } from "./useProductOrientation";
 import { formatInstant } from "@/lib/dateDisplay";
@@ -168,7 +170,9 @@ function GatedApp({
           ? retryActiveAccountLoad(activeAccountId).then((outcome) => outcome.kind !== "failed")
           : Promise.resolve(false)
       }
-      onChooseAnotherAccount={() => void chooseAnotherAccountAfterLoadFailure(allowWithoutActiveAccount, navigate)}
+      onChooseAnotherAccount={() =>
+        void chooseAnotherAccountAfterLoadFailure({ accountRoute: allowWithoutActiveAccount, navigate: navigate })
+      }
     >
       <PermissionProvider>
         <SidebarProvider
@@ -210,6 +214,10 @@ function GatedSidebar({
     resolveCapacityOverviewAccessDecision({ role, status: permissionStatus, access: overviewAccess }) === "allowed"
       ? navLinks
       : navLinks.filter(({ to }) => to !== ROUTE_CAPACITY_OVERVIEW);
+  const adminLinks =
+    useDiagnosticsAccessDecision() === "allowed"
+      ? ADMIN_LINKS
+      : ADMIN_LINKS.filter(({ to }) => to !== ROUTE_DIAGNOSTICS);
   return (
     <>
       <a
@@ -220,11 +228,13 @@ function GatedSidebar({
       </a>
       <AppSidebar
         activeAccount={activeAccount}
-        adminLinks={ADMIN_LINKS}
+        adminLinks={adminLinks}
         accessibleAccountCount={accessibleAccountCount}
         demoAuthActive={demoAuthActive}
         navLinks={visibleNavLinks}
-        onSwitchAccount={() => void chooseAnotherAccountAfterLoadFailure(accountRoute, navigate)}
+        onSwitchAccount={() =>
+          void chooseAnotherAccountAfterLoadFailure({ accountRoute: accountRoute, navigate: navigate })
+        }
         open={sidebarOpen}
       />
     </>
@@ -340,8 +350,8 @@ export function AppShell() {
   const accountSummaries = useStore((state) => state.accountSummaries);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const activeAccountLoadFailed = useStore((state) => state.activeAccountLoadFailed);
-  // EXISTENCE of the active account from `data.accounts` (after the slice loads, it holds exactly the
-  // active account) OR `accountSummaries` (P1.13 — covers the pick→slice-load gap in server mode,
+  // Existence of the active account from `data.accounts` (after the slice loads, it holds exactly the
+  // active account) or `accountSummaries` (covers the pick→slice-load gap in server mode,
   // where `data` is empty for one frame until the switch orchestrator hydrates the slice). The summary
   // is enough to pass the tenant gate and render the shell; the slice fills in the body a frame later.
   const activeAccount =

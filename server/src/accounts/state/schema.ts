@@ -140,7 +140,7 @@ export function ensureAccountBoundaryState(db: Db): void {
 /** Normalized (whitespace-collapsed, lowercased) `CREATE TABLE` SQL for `table`, or `""` if the
  * table doesn't exist. Shared by {@link assertAccountBoundaryStateCurrent} and
  * memberSignInTracking.ts's schema assertion, which derived this identically before extraction. Do
- * NOT converge with schema.ts's normalizeSchemaObjectSql — that helper has different semantics
+ * not converge with schema.ts's normalizeSchemaObjectSql. That helper has different semantics
  * (case-preserving, strips IF NOT EXISTS/`;`). */
 export function readNormalizedTableCreateSql(db: Db, table: string): string {
   return String(

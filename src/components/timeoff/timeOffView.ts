@@ -1,6 +1,6 @@
 import type { Closure, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { compareDisplayNames } from "../../lib/displayOrder";
-import { resolveResourceDisplayName } from "../../lib/metadata";
+import { compareDisplayNames } from "@/lib/displayOrder";
+import { resolveResourceDisplayName } from "@/lib/metadata";
 import { m } from "@/i18n";
 
 interface BuildTimeOffGroupsInput {

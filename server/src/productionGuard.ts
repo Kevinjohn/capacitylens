@@ -3,16 +3,16 @@ import { parseAuthMode, BOOTSTRAP_ADMIN_EMAIL } from "./auth";
 import { parseRateLimit, MAX_RATE_LIMIT } from "./rateLimit";
 
 // Production safety interlock. Once NODE_ENV=production, the development/open posture
-// must actually be retired: running with auth OFF in
+// must actually be retired: running with auth off in
 // production would expose the open/demo dataset (DEMO_USER, no login) to the world. This
-// module is the pure predicate the entrypoint consults — like bootGuard's resetForbidden, it
-// is a deliberate fail-closed SAFETY interlock and is therefore NOT behind an opt-in flag
-// (defaulting a guard to off defeats it). The ONLY escape is the explicit
-// CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, which DOWNGRADES the auth-off refusal to a loud
-// warning — it never silences the concern.
+// module is the pure predicate the entrypoint consults. Like bootGuard's resetForbidden, it
+// is a deliberate fail-closed safety interlock and is therefore not behind an opt-in flag
+// (defaulting a guard to off defeats it). The only escape is the explicit
+// CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, which downgrades the auth-off refusal to a loud
+// warning: it never silences the concern.
 //
-// Active ONLY when NODE_ENV==='production'. Dev / e2e / self-host runs (where NODE_ENV is
-// never 'production') are returned untouched — empty arrays — exactly as bootGuard leaves
+// Active only when NODE_ENV==='production'. Dev / e2e / self-host runs (where NODE_ENV is
+// never 'production') are returned untouched (empty arrays), exactly as bootGuard leaves
 // them. That no-op is the load-bearing "self-hosters unaffected" guarantee: the open posture
 // stays a first-class supported mode everywhere except a NODE_ENV=production process.
 
@@ -20,34 +20,30 @@ import { parseRateLimit, MAX_RATE_LIMIT } from "./rateLimit";
  * The outcome of evaluating the production safety contract against an environment.
  *
  * Two severities, deliberately separated: a {@link ProductionPostureResult.refusals | refusal}
- * is a fatal misconfiguration the server MUST refuse to boot on (fail-closed), while a
+ * is a fatal misconfiguration the server must refuse to boot on (fail-closed), while a
  * {@link ProductionPostureResult.warnings | warning} is a softer concern that lets boot
  * continue but is logged loudly so an operator can see it. Mirrors the
  * `AuthConfigError`/`resetForbidden` "refuse loudly, never limp on" posture for the fatal
  * tier, and the existing per-flag startup logging for the soft tier.
  */
 export interface ProductionPostureResult {
-  /** Fatal misconfigurations — the server MUST refuse to boot. Empty unless NODE_ENV==='production'. */
+  /** Fatal misconfigurations; the server must refuse to boot. Empty unless NODE_ENV==='production'. */
   refusals: string[];
-  /** Non-fatal posture concerns — boot continues but logs each loudly. */
+  /** Non-fatal posture concerns, boot continues but logs each loudly. */
   warnings: string[];
 }
 
 interface ProductionEnvironment {
   NODE_ENV?: string;
-  SMALLSASS_ACCOUNT_MODE?: string;
-  SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP?: string;
+  CAPACITYLENS_MODE?: string;
+  CAPACITYLENS_ALLOW_OPEN_SIGNUP?: string;
   CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION?: string;
   CAPACITYLENS_CREATE_ADMIN_ADMIN?: string;
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD?: string;
-  SMALLSASS_ACCOUNT_REQUIRE_MFA?: string;
-  SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED?: string;
-  SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK?: string;
+  CAPACITYLENS_PASSWORD_BREACH_CHECK?: string;
   CAPACITYLENS_RATE_LIMIT?: string;
   CAPACITYLENS_AUDIT?: string;
   CAPACITYLENS_AUDIT_STDOUT?: string;
-  CAPACITYLENS_STORAGE_ENCRYPTED?: string;
-  CAPACITYLENS_SECURITY_LOG_FORWARDING?: string;
   CAPACITYLENS_INTERNAL_TLS_CERT?: string;
   CAPACITYLENS_INTERNAL_TLS_KEY?: string;
 }
@@ -58,17 +54,17 @@ function inspectAuthentication(
 ): ReturnType<typeof parseAuthMode> | null {
   let mode: ReturnType<typeof parseAuthMode> | null = null;
   try {
-    mode = parseAuthMode(environment.SMALLSASS_ACCOUNT_MODE);
+    mode = parseAuthMode(environment.CAPACITYLENS_MODE);
   } catch (error) {
     refusals.push(error instanceof Error ? error.message : String(error));
   }
   if (mode === "off" && environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === "1") {
     warnings.push(
-      "auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set SMALLSASS_ACCOUNT_MODE=password-only, password-and-sso or sso-only to require login.",
+      "auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set CAPACITYLENS_MODE=password-only, password-and-sso or sso-only to require login.",
     );
   } else if (mode === "off") {
     refusals.push(
-      "auth is OFF (SMALLSASS_ACCOUNT_MODE=off) under NODE_ENV=production — the open/demo dataset (DEMO_USER, no login) would be world-readable and world-writable. Set SMALLSASS_ACCOUNT_MODE=password-only, password-and-sso or sso-only to require login, or set CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 to deliberately run the open/demo posture.",
+      "auth is OFF (CAPACITYLENS_MODE=off) under NODE_ENV=production — the open/demo dataset (DEMO_USER, no login) would be world-readable and world-writable. Set CAPACITYLENS_MODE=password-only, password-and-sso or sso-only to require login, or set CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 to deliberately run the open/demo posture.",
     );
   }
   return mode;
@@ -79,19 +75,9 @@ function inspectAuthenticationHardening(
   mode: ReturnType<typeof parseAuthMode> | null,
   warnings: string[],
 ): void {
-  if (mode && allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA !== "1") {
+  if (mode && allowsPasswordSignIn(mode) && environment.CAPACITYLENS_PASSWORD_BREACH_CHECK === "off") {
     warnings.push(
-      "SMALLSASS_ACCOUNT_REQUIRE_MFA is not 1, so password users are not required to enroll TOTP MFA. MFA is optional for self-hosting but strongly recommended for internet-facing deployments.",
-    );
-  }
-  if (mode === "sso-only" && environment.SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED !== "1") {
-    warnings.push(
-      "SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED is not 1, so CapacityLens has no operator assurance that the configured identity provider requires MFA. This is optional for self-hosting but strongly recommended.",
-    );
-  }
-  if (mode && allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK === "off") {
-    warnings.push(
-      "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.",
+      "CAPACITYLENS_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.",
     );
   }
 }
@@ -113,17 +99,10 @@ function inspectOperationalHardening(
       "CAPACITYLENS_AUDIT_STDOUT is not 1, so mutation audit records remain only in the local audit file and are unavailable to a process-log collector.",
     );
   }
-  // Three operator attestations share one line: none is checkable by the server, none blocks boot.
-  const unattested: string[] = [];
-  if (environment.CAPACITYLENS_STORAGE_ENCRYPTED !== "1")
-    unattested.push("CAPACITYLENS_STORAGE_ENCRYPTED (encrypted-at-rest storage)");
-  if (environment.CAPACITYLENS_SECURITY_LOG_FORWARDING !== "1")
-    unattested.push("CAPACITYLENS_SECURITY_LOG_FORWARDING (logs forwarded to a separate monitoring system)");
-  if (!environment.CAPACITYLENS_INTERNAL_TLS_CERT?.trim() && !environment.CAPACITYLENS_INTERNAL_TLS_KEY?.trim())
-    unattested.push("CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY (TLS on the API hop)");
-  if (unattested.length > 0) {
+  // A partial identity is left to the strict loader, which refuses it; only a fully absent one warns.
+  if (!environment.CAPACITYLENS_INTERNAL_TLS_CERT?.trim() && !environment.CAPACITYLENS_INTERNAL_TLS_KEY?.trim()) {
     warnings.push(
-      `Unattested hardening: ${unattested.join("; ")}. Startup continues for simple self-hosting; protect the host and storage appropriately, and use a trusted same-host loopback reverse proxy if the API serves plain HTTP.`,
+      "CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY are unset, so the API serves plain HTTP. Startup continues; use a trusted same-host loopback reverse proxy in front of it.",
     );
   }
 }
@@ -135,29 +114,29 @@ function inspectOperationalHardening(
  * back the lists of refusals and warnings to act on, so this is unit-testable across every env
  * combination without mutating global state.
  *
- * The contract is active ONLY when `env.NODE_ENV === 'production'`; for any other value
+ * The contract is active only when `env.NODE_ENV === 'production'`; for any other value
  * (including unset, 'development', 'test') it returns `{ refusals: [], warnings: [] }` so dev /
- * e2e / self-host runs are completely untouched — that no-op is the load-bearing guarantee that
+ * e2e / self-host runs are completely untouched. That no-op is the load-bearing guarantee that
  * the open/auth-off posture remains a supported mode everywhere except production (the same
  * reasoning bootGuard's resetForbidden uses).
  *
  * In production it evaluates, in order:
- * - **Refusal — auth off:** `parseAuthMode(env.SMALLSASS_ACCOUNT_MODE) === 'off'` is the dev/open
- *   posture P3.1 retires; it would leave the demo dataset world-readable+writable. This is a
- *   refusal UNLESS the operator has deliberately opted in via
- *   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1'`, in which case it is DOWNGRADED to a warning
+ * - **Refusal, auth off:** `parseAuthMode(env.CAPACITYLENS_MODE) === 'off'` is the dev/open
+ *   posture production retires; it would leave the demo dataset world-readable+writable. This is a
+ *   refusal unless the operator has deliberately opted in via
+ *   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1'`, in which case it is downgraded to a warning
  *   (the open posture is then run on purpose, but still surfaced). The escape never silences the
- *   concern — it only changes its severity.
- * - **Warning — optional hardening absent:** MFA, breached-password screening and audit streaming
- *   each warn; the encrypted-storage, log-forwarding and internal-TLS attestations share one line.
- *   A small self-hosted installation can deliberately operate without external infrastructure.
- * - **Warning — open signup on:** `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
+ *   concern. It only changes its severity.
+ * - **Warning: optional hardening absent:** disabled breached-password screening, absent audit
+ *   streaming and an absent internal TLS identity each warn. A small self-hosted installation can
+ *   deliberately operate without external infrastructure.
+ * - **Warning: open signup on:** `CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
  *   registration, which should normally stay closed/invite-only in production.
- * - **Refusal — bootstrap password:** the headless bootstrap flags are development-only because
+ * - **Refusal, bootstrap password:** the headless bootstrap flags are development-only because
  *   those initial passwords cannot be forced to expire after first use. Production uses the
  *   setup-token owner flow, where the owner chooses the final credential directly.
  *
- * The remaining warnings are evaluated independently of the auth mode — they are production concerns in
+ * The remaining warnings are evaluated independently of the auth mode. They are production concerns in
  * their own right (signup posture matters whether auth is on, off, or deliberately open).
  *
  * `parseAuthMode` is reused (not a hardcoded string compare) so "off" means exactly what it
@@ -165,32 +144,32 @@ function inspectOperationalHardening(
  * refusal so this evaluator remains total and index.ts emits its standard framed startup message.
  *
  * @param environment - The environment to evaluate. Only the listed keys are read; pass a plain object
- *   literal (the entrypoint passes `process.env`).
+ * literal (the entrypoint passes `process.env`).
  * @returns A {@link ProductionPostureResult} with the refusals (fatal) and warnings (soft).
- *   Both arrays are empty unless `env.NODE_ENV === 'production'`.
+ * Both arrays are empty unless `env.NODE_ENV === 'production'`.
  */
 export function evaluateProductionPosture(environment: ProductionEnvironment): ProductionPostureResult {
   const refusals: string[] = [];
   const warnings: string[] = [];
 
-  // No-op outside production. Dev / e2e / self-host keep the open posture as a supported mode —
+  // No-op outside production. Dev / e2e / self-host keep the open posture as a supported mode,
   // this guard only engages once an operator declares NODE_ENV=production (same gate as bootGuard).
   if (environment.NODE_ENV !== "production") return { refusals, warnings };
 
   const result = { refusals, warnings };
   const mode = inspectAuthentication(environment, result);
   inspectAuthenticationHardening(environment, mode, warnings);
-  // Validate with the SAME parser the limiter uses (parseRateLimit), not a looser Number()+isSafeInteger
+  // Validate with the same parser the limiter uses (parseRateLimit), not a looser Number()+isSafeInteger
   // check. A divergent check let ' 100 ', '1e3' and '2000000' pass the guard while parseRateLimit maps
-  // them to 0 (off) — so production could boot claiming a hardened posture with rate limiting silently
+  // them to 0 (off), so production could boot claiming a hardened posture with rate limiting silently
   // disabled. Any value the parser resolves to 0 (unset, '0', a sign/decimal/whitespace/exponent, or a
   // value over the cap) is a refusal; the message states the exact accepted shape so the operator can fix it.
   inspectOperationalHardening(environment, result);
 
   // Production concerns are evaluated regardless of auth mode by the helper above.
-  if (environment.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1") {
+  if (environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
     warnings.push(
-      "SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 under NODE_ENV=production enables open self-registration. Self-service signup should normally be closed/invite-only in production; unset SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP unless you intend open registration.",
+      "CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 under NODE_ENV=production enables open self-registration. Self-service signup should normally be closed/invite-only in production; unset CAPACITYLENS_ALLOW_OPEN_SIGNUP unless you intend open registration.",
     );
   }
   if (environment.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1") {

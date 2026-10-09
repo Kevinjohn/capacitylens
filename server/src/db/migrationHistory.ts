@@ -79,8 +79,8 @@ export function assertMigrationHistory(db: Db, databaseVersion: number): void {
     if (row.name !== migration.name) {
       throw new Error(`Database migration v${migration.version} name does not match this build.`);
     }
-    // Accept the current checksum OR one explicitly superseded prior checksum for this version (the
-    // one-time alpha-line amendment allow-list). Any OTHER value is genuine drift and refuses boot.
+    // Accept the current checksum or one explicitly superseded prior checksum for this version (the
+    // one-time alpha-line amendment allow-list). Any other value is genuine drift and refuses boot.
     if (row.checksum !== migration.checksum && !isSupersededMigrationChecksum(migration.version, row.checksum)) {
       throw new Error(`Database migration v${migration.version} checksum does not match this build.`);
     }

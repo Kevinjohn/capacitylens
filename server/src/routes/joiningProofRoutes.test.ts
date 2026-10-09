@@ -5,8 +5,10 @@ import { createApp } from "../app";
 import { upsertMember } from "../controlTables";
 import { createInvite } from "../controlTables/invites";
 import { writeJoiningPolicy } from "../controlTables/joiningPolicies";
-import { insertRow, openDb, type Db } from "../db";
-import { PASSWORD_ENV, registerServerFixtureCleanup, signUp } from "../testHelpers";
+import { insertRow, openDb } from "../db";
+import type { Db } from "../db";
+import { PASSWORD_ENV, signUp } from "../testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "../testHelpers/registerServerFixtureCleanup";
 
 const fixtures = registerServerFixtureCleanup();
 
@@ -31,8 +33,8 @@ async function fixture(options: { mail?: boolean; passwordAllowed?: boolean } = 
       authMode: configured.mode,
       auth: configured.auth,
       joiningProof: {
-        secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
-        publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
+        secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
+        publicUrl: new URL(PASSWORD_ENV.CAPACITYLENS_PUBLIC_URL),
       },
     }),
   );
@@ -43,8 +45,8 @@ async function fixture(options: { mail?: boolean; passwordAllowed?: boolean } = 
         authMode: "sso-only",
         auth: configured.auth,
         joiningProof: {
-          secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
-          publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
+          secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
+          publicUrl: new URL(PASSWORD_ENV.CAPACITYLENS_PUBLIC_URL),
         },
       }),
     );
@@ -171,7 +173,7 @@ describe("existing password identity company joining", () => {
   });
 });
 
-const secret = PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET;
+const secret = PASSWORD_ENV.CAPACITYLENS_SECRET;
 const sendPath = "/api/accounts/a-studio/join/verify-email";
 
 async function confirm(app: ReturnType<typeof createApp>, cookie: string, token: string) {
@@ -286,13 +288,14 @@ it("surfaces failed delivery and rejects caller-supplied addresses", async () =>
   expect(failed.body).not.toContain("private transport detail");
 });
 
+type MetadataOptions = { mail: boolean };
 it("reports email verification as available only when mail can be sent", async () => {
-  const metadata = async (mail: boolean) => {
+  const metadata = async ({ mail }: MetadataOptions) => {
     const { app } = await fixture({ mail });
     return (await app.inject({ method: "GET", url: "/api/accounts/a-studio/join/metadata" })).json();
   };
-  expect(await metadata(true)).toMatchObject({ passwordAvailable: true, emailVerificationAvailable: true });
-  expect(await metadata(false)).toMatchObject({ passwordAvailable: true, emailVerificationAvailable: false });
+  expect(await metadata({ mail: true })).toMatchObject({ passwordAvailable: true, emailVerificationAvailable: true });
+  expect(await metadata({ mail: false })).toMatchObject({ passwordAvailable: true, emailVerificationAvailable: false });
 });
 
 it("stops sending verification email to one address after the hourly budget", async () => {

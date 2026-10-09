@@ -1,17 +1,17 @@
 import type { AppData, Client, Project } from "../types/entities";
 
-// The fallback used when an id is absent, empty, or yields no alphanumerics — so a derived label is
-// NEVER left with an empty marker. Constant (not random) to keep {@link shortIdTag} deterministic;
+// The fallback used when an id is absent, empty, or yields no alphanumerics, so a derived label is
+// never left with an empty marker. Constant (not random) to keep {@link shortIdTag} deterministic;
 // `0000` reads clearly as "no usable id".
 const SHORT_ID_FALLBACK_TAG = "0000";
 
 /**
- * Derive a short, STABLE, opaque tag from an entity id, for the labels that must distinguish rows
- * without exposing their real content (a private cover name, an anonymised soft-delete token). PURE:
- * a function of the id only — no Date, no Math.random.
+ * Derive a short, stable, opaque tag from an entity id, for the labels that must distinguish rows
+ * without exposing their real content (a private cover name, an anonymised soft-delete token). Pure:
+ * a function of the id only. No Date, no Math.random.
  *
- * FORMAT CHOICE (documented): strip every non-alphanumeric character (so a UUID's hyphens go) and
- * take the FIRST 12 of what remains — enough of a UUID to keep rows distinguishable without exposing
+ * Format choice (documented): strip every non-alphanumeric character (so a UUID's hyphens go) and
+ * take the first 12 of what remains, enough of a UUID to keep rows distinguishable without exposing
  * user data. A non-string, empty or alphanumeric-free id yields {@link SHORT_ID_FALLBACK_TAG}.
  */
 export function shortIdTag(id: unknown): string {

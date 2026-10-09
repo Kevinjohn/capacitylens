@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import type userEvent from "@testing-library/user-event";
 import { expect, vi } from "vitest";
-import { AuthContext, type AuthContextValue } from "../../auth/authContext";
-import { DEFAULT_ACCOUNT_ID, jsonResponse } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
+import { DEFAULT_ACCOUNT_ID, jsonResponse } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";
 import { MembersSection } from "./MembersSection";
 
@@ -35,9 +36,9 @@ export interface RawMember {
 }
 
 /** Build a full server-shaped member record from just what a test cares about pinning. Common
- *  defaults (active, a fixed createdAt, an email derived from userId, no name/self/perms) fill the
- *  rest. `signInConfirmed` is deliberately left OFF the result unless the caller passes it: its mere
- *  PRESENCE (not its value) is what the members-read route uses to decide signInTrackingEnabled. */
+ * defaults (active, a fixed createdAt, an email derived from userId, no name/self/perms) fill the
+ * rest. `signInConfirmed` is deliberately left off the result unless the caller passes it: its mere
+ * presence (not its value) is what the members-read route uses to decide signInTrackingEnabled. */
 export function rawMember(overrides: Partial<RawMember> & { userId: string; role: RawMember["role"] }): RawMember {
   return {
     status: "active",
@@ -54,10 +55,10 @@ export function rawMember(overrides: Partial<RawMember> & { userId: string; role
 type RouteHandler = (url: string, init: RequestInit | undefined) => Response | Promise<Response>;
 
 /** Build a fetch mock from a small default route table (members GET, invites GET, accounts GET, and
- *  a 204 fallback for every write) plus per-test overrides keyed `"METHOD /path-suffix"` — an
- *  override with the same key as a default replaces it; a new key adds a route. An empty suffix
- *  (e.g. `"PATCH "`) matches every URL for that method. A 403 on the members read self-gates the
- *  section. */
+ * a 204 fallback for every write) plus per-test overrides keyed `"METHOD /path-suffix"`, an
+ * override with the same key as a default replaces it; a new key adds a route. An empty suffix
+ * (e.g. `"PATCH "`) matches every URL for that method. A 403 on the members read self-gates the
+ * section. */
 export function mockApi(members: RawMember[] | { status: number } = [], overrides: Record<string, RouteHandler> = {}) {
   const defaults: Record<string, RouteHandler> = {
     "GET /members": () =>
@@ -158,15 +159,15 @@ export function requireCallback(value: (() => void) | null, context: string): ()
   return value;
 }
 
-/** Row actions moved behind the row's gear popover (#175). Open it; the popover renders in a
- *  PORTAL, so its items are reachable from `screen`, never from `within(row)`. */
+/** Row actions moved behind the row's gear popover. Open it; the popover renders in a
+ * portal, so its items are reachable from `screen`, never from `within(row)`. */
 export async function openMemberMenu(user: User, row: HTMLElement): Promise<void> {
   await user.click(within(row).getByTestId("member-menu"));
   await screen.findByText(m.settings_member_settings_heading());
 }
 
-/** Disabled and archived rows live behind a collapsed disclosure (#175) — open it before reaching
- *  for one. Returns once the second table is on screen. */
+/** Disabled and archived rows live behind a collapsed disclosure, open it before reaching
+ * for one. Returns once the second table is on screen. */
 export async function openInactiveGroup(user: User): Promise<HTMLElement> {
   await user.click(await screen.findByTestId("members-inactive-toggle"));
   return screen.findByTestId("members-inactive-table");
@@ -178,8 +179,8 @@ export async function chooseMemberAction(user: User, row: HTMLElement, testId: s
   await user.click(screen.getByTestId(testId));
 }
 
-/** The role selector moved out of the row and into the pencil's dialog (#175): open it, pick the
- *  role, then Save. Selecting a role is now a DRAFT — nothing is sent until Save. */
+/** The role selector moved out of the row and into the pencil's dialog: open it, pick the
+ * role, then Save. Selecting a role is now a draft. Nothing is sent until Save. */
 export async function saveRoleVia(user: User, row: HTMLElement, option: string): Promise<void> {
   await user.click(within(row).getByTestId("member-edit"));
   const dialog = await screen.findByRole("dialog");

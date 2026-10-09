@@ -8,7 +8,7 @@ description: What each of CapacityLens's four roles can see and do, and how sign
 CapacityLens has four roles, strictly nested: **Viewer < Editor < [Admin](/reference/glossary)
 < [Owner](/reference/glossary)**. A role changes what's editable and visible inside each page,
 and that's enforced on the server, not just hidden in the interface. Navigation can also depend on
-company settings: for example, [Overview access](/guide/capacity-overview#control-access) defaults
+company settings: for example, [Overview access](/using/overview#control-access) defaults
 to Owners and Admins and can include Editors or everyone. People without access do not see its
 sidebar link and cannot open its route directly. This page explains what each role can do and clears
 up a common point of confusion: the difference between having a sign-in, being a member of a
@@ -22,7 +22,7 @@ CapacityLens keeps three things separate that can all look like "a
 - A **sign-in identity** — the email and password (or company login) someone uses to
   reach CapacityLens at all. One identity can belong to several companies.
 - A **member** — a sign-in identity's role in one specific company, created by [inviting
-  them](/getting-started/invite-your-team). This controls what they can see and do in
+  them](/admin/invite-teammates). This controls what they can see and do in
   that company.
 - A **person** on the schedule — a schedulable resource that can receive allocations and
   time off. Adding a person doesn't give them a sign-in, and inviting a member doesn't put
@@ -61,7 +61,7 @@ the guarded operator procedure.
 
 The member table groups people by role—Owner, Admin, Editor, then Viewer—and keeps restricted,
 archived, and removed-with-restriction entries in the collapsed **No longer active** table. See
-[Invite your team](/getting-started/invite-your-team#managing-someone-who-already-joined) for the
+[Invite teammates and manage access](/admin/invite-teammates#managing-someone-who-already-joined) for the
 member-management details.
 
 ## Hand the company to someone else
@@ -128,7 +128,7 @@ than attempting to restore it. This fail-closed behaviour is deliberate.
 So an Admin's export holds the full set of rows, but only an Owner's export contains
 the real private client and project names.
 
-**Offline snapshots.** [Offline access](/guide/offline-access) always behaves like a
+**Offline snapshots.** [Offline access](/using/settings#offline-access) always behaves like a
 Viewer, no matter your real role — while a cached snapshot is shown, creating, editing,
 deleting, importing and changing membership are all unavailable for everyone. The
 snapshot reflects whatever that person could see the last time they were online: a

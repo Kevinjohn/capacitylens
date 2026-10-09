@@ -7,25 +7,25 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import type { KeyedOperationLock } from "../accounts/KeyedOperationLock";
 import type { AuditRecord } from "../audit";
 import type { AccountMode } from "../auth";
-import { insertRow, type Db } from "../db";
+import { insertRow } from "../db";
+import type { Db } from "../db";
 import type { Row } from "../rowCodec";
 import { SCOPED_ORDER } from "../tables";
-import type { TenantStore } from "../tenantStore";
-import { NO_REPROMPT, type AuthorizeRouteInput } from "./routeShared";
-
-const NOT_EMPTY_MESSAGE =
-  "Example data can only be added to a company that has no people, clients, projects or allocations, including archived or deleted ones.";
+import type { AccountStore } from "../accountStore";
+import { REPLY_ERRORS } from "./replyErrors";
+import { NO_REPROMPT } from "./routeShared";
+import type { AuthorizeRouteInput } from "./routeShared";
 
 class CompanyNotEmptyError extends Error {
   constructor() {
-    super(NOT_EMPTY_MESSAGE);
+    super(REPLY_ERRORS.exampleDataCompanyNotEmpty);
     this.name = "CompanyNotEmptyError";
   }
 }
 
 export interface ExampleDataRouteDependencies {
   db: Db;
-  store: TenantStore;
+  store: AccountStore;
   authMode: AccountMode;
   accountAdminPort: { roleForPrincipalInWorkspace(principalId: string, workspaceId: string): Role | null };
   accountLock: KeyedOperationLock;
@@ -53,18 +53,18 @@ function stillMayAdd(userId: string, accountId: string, dependencies: ExampleDat
 export function registerExampleDataRoutes(app: FastifyInstance, dependencies: ExampleDataRouteDependencies): void {
   const { db, store, accountLock, authorize, commitProductAudit, fail } = dependencies;
 
-  // Adds one small ordinary company's worth of rows to an EMPTY company. Unlike /api/import this
+  // Adds one small ordinary company's worth of rows to an empty company. Unlike /api/import this
   // never replaces anything, so it needs the company's Owner or Admin rather than the Owner and no
   // fresh sign-in. The emptiness rule is checked inside the same write transaction as the insert,
   // so two concurrent calls cannot both succeed.
-  app.post("/api/accounts/:accountId/example-data", async (req, reply) => {
-    const { accountId } = req.params as { accountId: string };
+  app.post<{ Params: { accountId: string } }>("/api/accounts/:accountId/example-data", async (req, reply) => {
+    const { accountId } = req.params;
     if (!authorize({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT })) return;
     const user = req.user;
     if (user === null) return fail(reply, new Error("Authenticated example-data request has no user."));
     try {
       const account = store.readFullSlice(accountId).accounts[0];
-      if (account === undefined) return reply.code(404).send({ error: "Company not found." });
+      if (account === undefined) return reply.code(404).send({ error: REPLY_ERRORS.companyNotFound });
       const data = buildExampleCompany({
         accountId,
         referenceDate: todayISO(account.timezone),
@@ -87,11 +87,13 @@ export function registerExampleDataRoutes(app: FastifyInstance, dependencies: Ex
           for (const table of SCOPED_ORDER) for (const row of rows[table] ?? []) insertRow(db, table, row);
         });
       });
-      if (committed === undefined) return reply.code(403).send({ error: "Forbidden." });
+      if (committed === undefined) return reply.code(403).send({ error: REPLY_ERRORS.forbidden });
       return reply.code(201).send({ added: countExampleRows(data) });
     } catch (error) {
       if (error instanceof CompanyNotEmptyError) {
-        return reply.code(409).send({ error: error.message, code: "EXAMPLE_DATA_COMPANY_NOT_EMPTY" });
+        return reply
+          .code(409)
+          .send({ error: REPLY_ERRORS.exampleDataCompanyNotEmpty, code: "EXAMPLE_DATA_COMPANY_NOT_EMPTY" });
       }
       return fail(reply, error);
     }

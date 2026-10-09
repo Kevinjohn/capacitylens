@@ -2,7 +2,7 @@
  * Provider-, framework-, and persistence-neutral account contract types.
  *
  * This module is deliberately a pure leaf. It must remain safe to consume from the browser,
- * server, fakes, and a future sibling package without importing Better Auth, SQLite, Fastify, or
+ * server, fakes, and a future account package without importing Better Auth, SQLite, Fastify, or
  * React.
  */
 
@@ -86,17 +86,17 @@ export function isAccountRole(value: unknown): value is Role {
 /**
  * The lifecycle state of one membership.
  *
- * - `'active'`   — an ordinary member: may enter the account under their role.
- * - `'disabled'` — suspended by an administrator. The membership and its role are retained, but the
- *                  principal may NOT enter the account. Reversible.
- * - `'archived'` — retired by an administrator. Same denial of entry as `'disabled'`; the separate
+ * - `'active'`: an ordinary member: may enter the account under their role.
+ * - `'disabled'`: suspended by an administrator. The membership and its role are retained, but the
+ *                  principal may not enter the account. Reversible.
+ * - `'archived'`: retired by an administrator. Same denial of entry as `'disabled'`; the separate
  *                  state exists so a long-departed member can be filtered out of day-to-day
  *                  administration without destroying the audit trail a removal would.
  *
  * Only `'active'` confers authority. Every authorization read narrows on `status = 'active'`, so a
  * non-active membership is indistinguishable from absence to the access matrix; the widened union
  * is a listing/administration concern, never a permission one. Administration ports return
- * non-active rows ONLY to the member-directory read, so an administrator can see and reverse the
+ * non-active rows only to the member-directory read, so an administrator can see and reverse the
  * state they applied.
  */
 export const MEMBERSHIP_STATUSES = Object.freeze(["active", "disabled", "archived"] as const);
@@ -142,9 +142,9 @@ export interface LocalPrincipal {
   email: string;
   emailVerified: boolean;
   linkedSubject: FederatedSubject | null;
-  /** IdP-asserted avatar URL for the SESSION principal (https-validated upstream). Absent/`null`
-   *  for trusted-local and any provider without a picture. Deliberately NOT on {@link
-   *  PrincipalSummary}: only the signed-in user's own avatar is surfaced — teammates stay initials. */
+  /** IdP-asserted avatar URL for the session principal (https-validated upstream). Absent/`null`
+   * for trusted-local and any provider without a picture. Deliberately not on {@link
+   * PrincipalSummary}: only the signed-in user's own avatar is surfaced, teammates stay initials. */
   image?: string | null;
 }
 

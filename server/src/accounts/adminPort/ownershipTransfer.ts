@@ -4,9 +4,11 @@ import {
   canTransitionOwnershipTransfer,
   isLiveOwnershipTransferState,
   nextOwnershipTransferState,
-  type OwnershipTransferAction,
-  type OwnershipTransferOutcome,
-  type OwnershipTransferRequest,
+} from "@capacitylens/shared/account/ownershipTransfer";
+import type {
+  OwnershipTransferAction,
+  OwnershipTransferOutcome,
+  OwnershipTransferRequest,
 } from "@capacitylens/shared/account/ownershipTransfer";
 import {
   canActOnOwnershipTransfer,
@@ -29,8 +31,8 @@ import {
   projectExpiry,
   readRequiredRequest,
   terminaliseRequest,
-  type TransferContext,
 } from "./ownershipTransferRequests";
+import type { TransferContext } from "./ownershipTransferRequests";
 import { createAccountFailure } from "./failures";
 import { exchangeOwnershipInTx } from "./membership";
 
@@ -56,8 +58,8 @@ const AUDIT_ACTIONS = {
 const CHANGED_FIELDS = ["state", "revision"] as const;
 
 /** Commit the expiry of a request whose deadline passed with nobody acting, and say so in the audit
- *  trail: the mutation's own event reports a nomination being initiated, so without this one a
- *  ceremony could end with no record of having ended — unlike every other expiry. */
+ * trail: the mutation's own event reports a nomination being initiated, so without this one a
+ * ceremony could end with no record of having ended, unlike every other expiry. */
 function commitLapsedRequest(
   context: TransferContext,
   { input, live, now }: { input: InitiateInput; live: OwnershipTransferRequest; now: string },
@@ -71,7 +73,7 @@ function commitLapsedRequest(
   });
   context.audit({
     actorPrincipalId: input.actor.principalId,
-    // The LAPSED request's own nominee, never the new one: this event says who was party to the
+    // The lapsed request's own nominee, never the new one: this event says who was party to the
     // ceremony that ended, and the person being nominated now was never part of it.
     targetPrincipalId: live.targetUserId,
     workspaceId: input.workspaceId,
@@ -96,7 +98,7 @@ function replaceLiveRequest(context: TransferContext, input: InitiateInput, now:
   const named = live?.id === expectedRequestId && live.revision === expectedRevision;
   // An expired row is nobody's nomination: commit the expiry and carry on, so a forgotten request
   // cannot hold the company's only live slot until somebody runs a command purely to kill it. The
-  // caller's belief is still checked first — "replace exactly this one" must never quietly replace
+  // caller's belief is still checked first, "replace exactly this one" must never quietly replace
   // something else just because a deadline happened to pass.
   if (live && isOwnershipTransferExpired(live.expiresAt, Date.parse(now))) {
     if (expectedRequestId !== null && !named) {
@@ -301,8 +303,8 @@ function runRowCommand(
 export function createOwnershipTransferOperations(context: TransferContext): TransferPort {
   return {
     async readOwnershipTransfer({ actor, workspaceId }) {
-      // A READ, and freshness is a mutation threshold: the route waives it deliberately (every step
-      // still asserts it), because an Owner who signed in an hour ago must still be able to SEE the
+      // A read, and freshness is a mutation threshold: the route waives it deliberately (every step
+      // still asserts it), because an Owner who signed in an hour ago must still be able to see the
       // nomination they are being asked to approve.
       assertAdministrativeAssurance({
         actor,

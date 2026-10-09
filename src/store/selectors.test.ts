@@ -5,12 +5,9 @@ import {
   hasResourceEngagementGrouping,
   canCreateInlineActivity,
   resolveDateStyle,
-  resolveInternalColourMode,
   hasPlaceholdersEnabled,
   buildDisciplineGroups,
   resolveSchedulingMode,
-  hasVisibleInternalActivities,
-  hasVisibleInternalProjects,
   listAccountWorkingDays,
   resolveTimeZone,
   buildVisibleRange,
@@ -18,7 +15,7 @@ import {
   hasVisibleTaskFieldInSchedule,
 } from "./selectors";
 import { buildEmptyFilters } from "./useStore";
-import { DEFAULT_ACCOUNT_ID, makeAccount, makeResource } from "../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAccount, makeResource } from "@/test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, AppData, ID } from "@capacitylens/shared/types/entities";
 
@@ -72,8 +69,9 @@ describe("resourcesByDiscipline", () => {
   });
 });
 
+type AccountsOptions = { disciplinesEnabled?: boolean | undefined };
 describe("disciplinesEnabledFor", () => {
-  const accounts = (disciplinesEnabled?: boolean) => ({
+  const accounts = ({ disciplinesEnabled }: AccountsOptions) => ({
     ...emptyAppData(),
     accounts: [
       {
@@ -88,16 +86,16 @@ describe("disciplinesEnabledFor", () => {
   });
 
   it("defaults to true when the field is absent", () => {
-    expect(hasDisciplinesEnabled(accounts(undefined), "a1")).toBe(true);
+    expect(hasDisciplinesEnabled(accounts({ disciplinesEnabled: undefined }), "a1")).toBe(true);
   });
 
   it("defaults to true when no account matches", () => {
-    expect(hasDisciplinesEnabled(accounts(false), "missing")).toBe(true);
+    expect(hasDisciplinesEnabled(accounts({ disciplinesEnabled: false }), "missing")).toBe(true);
   });
 
   it("returns the explicit account value", () => {
-    expect(hasDisciplinesEnabled(accounts(false), "a1")).toBe(false);
-    expect(hasDisciplinesEnabled(accounts(true), "a1")).toBe(true);
+    expect(hasDisciplinesEnabled(accounts({ disciplinesEnabled: false }), "a1")).toBe(false);
+    expect(hasDisciplinesEnabled(accounts({ disciplinesEnabled: true }), "a1")).toBe(true);
   });
 });
 
@@ -134,29 +132,6 @@ const accountFeatureCases: Array<{
     fallback: false,
     explicit: [true, false],
     values: (externalEnabled) => ({ externalEnabled: externalEnabled as boolean }),
-  },
-  {
-    name: "engagement grouping",
-    selector: hasResourceEngagementGrouping,
-    fallback: true,
-    explicit: [true, false],
-    values: (groupResourcesByEngagement) => ({
-      groupResourcesByEngagement: groupResourcesByEngagement as boolean,
-    }),
-  },
-  {
-    name: "internal projects",
-    selector: hasVisibleInternalProjects,
-    fallback: true,
-    explicit: [true, false],
-    values: (showInternalProjects) => ({ showInternalProjects: showInternalProjects as boolean }),
-  },
-  {
-    name: "internal activities",
-    selector: hasVisibleInternalActivities,
-    fallback: true,
-    explicit: [true, false],
-    values: (showInternalActivities) => ({ showInternalActivities: showInternalActivities as boolean }),
   },
   {
     name: "inline activity creation",
@@ -220,28 +195,28 @@ describe("calendar primitive selectors", () => {
   });
 });
 
-describe("internalColourModeFor", () => {
-  const accounts = (internalColourMode?: "grey" | "palette") => ({
+describe("hasResourceEngagementGrouping", () => {
+  const resources = (...rows: Parameters<typeof makeResource>[0][]): AppData => ({
     ...emptyAppData(),
-    accounts: [
-      {
-        id: "a1",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Studio",
-        color: "#1",
-        ...(internalColourMode ? { internalColourMode } : {}),
-      },
-    ],
+    resources: rows.map((row, index) => makeResource({ id: `r${index}`, accountId: "a1", ...row })),
   });
 
-  it("defaults absent and unmatched accounts to grey", () => {
-    expect(resolveInternalColourMode(accounts(), "a1")).toBe("grey");
-    expect(resolveInternalColourMode(accounts("palette"), "missing")).toBe("grey");
+  it("keeps a Studio-only company flat", () => {
+    expect(hasResourceEngagementGrouping(resources({}, {}), "a1")).toBe(false);
   });
 
-  it("returns an explicit palette choice", () => {
-    expect(resolveInternalColourMode(accounts("palette"), "a1")).toBe("palette");
+  it("splits the company once one active Supplementary person exists", () => {
+    expect(hasResourceEngagementGrouping(resources({}, { engagement: "supplementary" }), "a1")).toBe(true);
+  });
+
+  it("ignores archived, external and other companies' Supplementary resources", () => {
+    expect(hasResourceEngagementGrouping(resources({ engagement: "supplementary", archivedAt: "t" }), "a1")).toBe(
+      false,
+    );
+    expect(hasResourceEngagementGrouping(resources({ engagement: "supplementary", kind: "external" }), "a1")).toBe(
+      false,
+    );
+    expect(hasResourceEngagementGrouping(resources({ engagement: "supplementary" }), "a2")).toBe(false);
   });
 });
 

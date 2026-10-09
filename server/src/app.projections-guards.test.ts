@@ -51,7 +51,7 @@ function createSameBatchRearchiveTest() {
 
     expect(result.statusCode).toBe(200);
     // The first op archives the row; the second sees it already archived (mid-transaction) and its
-    // audit record is nulled out — `changed` must reflect only the first.
+    // audit record is nulled out, `changed` must reflect only the first.
     expect(result.json()).toMatchObject({ ok: true, applied: 2, changed: 1 });
   });
 }
@@ -147,7 +147,7 @@ describe("guards", () => {
       ).statusCode,
     ).toBe(403);
 
-    const { app } = freshApp(true);
+    const { app } = freshApp({ allowReset: true });
     await scaffold(app);
     await call(app, {
       method: "POST",
@@ -159,7 +159,7 @@ describe("guards", () => {
   });
 
   it("reset removes memberships and invitations for wiped companies", async () => {
-    const { app, db } = freshApp(true);
+    const { app, db } = freshApp({ allowReset: true });
     db.prepare(
       `INSERT INTO account_members (accountId, userId, role, status, createdAt)
       VALUES (?, ?, ?, ?, ?)`,
@@ -179,7 +179,7 @@ describe("guards", () => {
   });
 
   it("rolls the wipe back when re-seeding fails", async () => {
-    const { app, db } = freshApp(true);
+    const { app, db } = freshApp({ allowReset: true });
     await scaffold(app);
     const accountsBefore = db.prepare(`SELECT id FROM accounts ORDER BY id`).all();
     db.exec(`

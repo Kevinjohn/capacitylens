@@ -1,23 +1,24 @@
 import { m } from "@/i18n";
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { accountClient, hasUnknownAccountCommandOutcome } from "../../account/accountClient";
-import { transitionAccount } from "../../auth/accountTransition";
-import { useAuth } from "../../auth/authContext";
-import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
-import { isServerConfigured } from "../../data/apiConfig";
-import { useFieldError } from "../../hooks/useFieldError";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { DEFAULT_COLORS } from "../../lib/palette";
-import { readApiError } from "../../lib/readApiError";
+import { useMemo, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
+import { accountClient, hasUnknownAccountCommandOutcome } from "@/account/accountClient";
+import { transitionAccount } from "@/auth/accountTransition";
+import type { useAuth } from "@/auth/authContext";
+import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
+import { isServerConfigured } from "@/data/apiConfig";
+import { useFieldError } from "@/hooks/useFieldError";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { DEFAULT_COLORS } from "@/lib/palette";
+import { readApiError } from "@/lib/readApiError";
 import {
   LIKELY_TIME_ZONES,
   listSupportedTimeZones,
   resolveBrowserTimeZone,
   resolveTimeZoneOptionLabel,
-} from "../../lib/timezones";
-import { parseName } from "../../lib/validation";
-import { useStore } from "../../store/useStore";
-import type { StoreState } from "../../store/types";
+} from "@/lib/timezones";
+import { parseName } from "@/lib/validation";
+import { useStore } from "@/store/useStore";
+import type { StoreState } from "@/store/types";
 
 import {
   DEFAULT_LANGUAGE,
@@ -84,7 +85,6 @@ async function createServerAccount({
       language: DEFAULT_LANGUAGE,
       schedulingMode: "days",
       inlineActivityCreateEnabled: false,
-      internalColourMode: "grey",
     });
     if (!response.ok) {
       if (hasUnknownAccountCommandOutcome(response)) {
@@ -105,7 +105,7 @@ async function createServerAccount({
     }
     const summaries = useStore.getState().accountSummaries;
     if (!summaries.some((account) => account.id === created.id)) {
-      setAccountSummaries([...summaries, { id: created.id, name: created.name, role: "owner" as const }]);
+      setAccountSummaries({ list: [...summaries, { id: created.id, name: created.name, role: "owner" as const }] });
     }
     const exampleDataFailure = exampleData ? await addExampleDataTo(created.id) : null;
     resetForm();
@@ -150,7 +150,6 @@ function createAccountSubmit(input: CreateAccountSubmitInput): () => void {
         language: DEFAULT_LANGUAGE,
         schedulingMode: "days",
         inlineActivityCreateEnabled: false,
-        internalColourMode: "grey",
       });
       if (account === null) return;
       input.resetForm();
@@ -227,7 +226,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
   // Failed authoritative reconciliation blocks another POST until reload reconstructs this hook.
   const [createUnresolved, setCreateUnresolved] = useState(false);
   const [name, setName] = useState("");
-  // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
+  // The three frozen-after-creation fields, captured here with concrete defaults.
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON);
   const [timezone, setTimezone] = useState<string>(() => resolveBrowserTimeZone());
   const exampleData = useExampleDataChoice();

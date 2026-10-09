@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createAuthFromEnvironment } from "../auth";
 import { openDb } from "../db";
-import { PASSWORD_ENV } from "../testHelpers";
+import { PASSWORD_ENV } from "../testHelpers/passwordAuth";
 import { readVerifiedMicrosoftProfile } from "./socialProviders";
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
-  SMALLSASS_ACCOUNT_MODE: "sso-only",
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-id",
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+  CAPACITYLENS_MODE: "sso-only",
+  CAPACITYLENS_GOOGLE_CLIENT_ID: "google-id",
+  CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
 function configuredProviders(environment: Record<string, string>) {
@@ -27,16 +27,16 @@ describe("provider presentation metadata", () => {
     expect(
       configuredProviders({
         ...SSO_ENV,
-        SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-id",
-        SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
-        SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
-        SMALLSASS_ACCOUNT_MAIL_HOST: "mail.example.test",
-        SMALLSASS_ACCOUNT_MAIL_PORT: "587",
-        SMALLSASS_ACCOUNT_MAIL_USER: "mailer",
-        SMALLSASS_ACCOUNT_MAIL_PASSWORD: "test-mail-password",
-        SMALLSASS_ACCOUNT_MAIL_FROM: "identity@example.test",
-        SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-id",
-        SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-secret",
+        CAPACITYLENS_MICROSOFT_CLIENT_ID: "microsoft-id",
+        CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
+        CAPACITYLENS_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
+        CAPACITYLENS_MAIL_HOST: "mail.example.test",
+        CAPACITYLENS_MAIL_PORT: "587",
+        CAPACITYLENS_MAIL_USER: "mailer",
+        CAPACITYLENS_MAIL_PASSWORD: "test-mail-password",
+        CAPACITYLENS_MAIL_FROM: "identity@example.test",
+        CAPACITYLENS_GITHUB_CLIENT_ID: "github-id",
+        CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-secret",
       }),
     ).toEqual([
       { id: "google", label: "Google", kind: "social", brand: "google", experimental: false },
@@ -80,8 +80,8 @@ describe("Microsoft tenant claim boundary", () => {
     expect(() =>
       configuredProviders({
         ...SSO_ENV,
-        SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: clientId,
-        SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "secret",
+        CAPACITYLENS_MICROSOFT_CLIENT_ID: clientId,
+        CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "secret",
       }),
     ).toThrow(/MICROSOFT_TENANT_ID/);
   });

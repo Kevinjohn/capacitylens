@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext, type Page } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { APIRequestContext, Page } from "./fixtures";
 import type { BrowserContext } from "@playwright/test";
 import {
   AUTH_API as API,
@@ -13,7 +14,7 @@ import { waitForAppLanding, selectShadOption } from "./browserTestSupport";
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.11 — Owner/Admin member management, against the auth-backed project's server
-// (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Owner A bootstraps an org and
+// (CAPACITYLENS_MODE=password on :8887 — see playwright.config.ts). Owner A bootstraps an org and
 // seeds admin B + editor C in the disposable test database. Then, as B (admin), we drive the Team &
 // access UI: list members, change C editor→viewer, mint a viewer invite (the link appears once),
 // revoke it. We assert the Owner option is ABSENT for B in the UI, and at the API layer that nobody

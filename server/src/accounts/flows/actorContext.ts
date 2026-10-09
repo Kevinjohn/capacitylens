@@ -2,7 +2,7 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { SINGLE_COMPANY_CAP_MESSAGE } from "@capacitylens/shared/account/policy";
 import type { MemberDirectoryEntry } from "@capacitylens/shared/account/ports";
 import type { ActorContext } from "@capacitylens/shared/account/types";
-import { KeyedOperationLock } from "../KeyedOperationLock";
+import type { KeyedOperationLock } from "../KeyedOperationLock";
 import type { LocalAccountAdminPort } from "../sqliteAccountAdminPort";
 
 const WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS = 3;
@@ -11,7 +11,7 @@ const WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS = 3;
  * provisionWorkspaceInExistingTransaction: evaluate provisioning authority in the current
  * transaction and throw the same FORBIDDEN shape on refusal. Split from the Owner-membership
  * provisioning call (unlike this check, that write's position relative to product-data creation is
- * externally observable — audit/outbox row ordering — so provisionWorkspace's tx callback keeps its
+ * externally observable, audit/outbox row ordering, so provisionWorkspace's tx callback keeps its
  * original decision -> provisionProductData() -> provisionOwnerMembershipInTx interleaving instead
  * of both steps being fused into one helper call). */
 export function assertWorkspaceProvisioningAllowedInTx(
@@ -40,9 +40,9 @@ export function assertWorkspaceProvisioningAllowedInTx(
   }
 }
 
-/** The name a directory entry sorts under: display name, else email, else the principal id — the
- *  same fallback chain the UI labels the row with, so the rendered list is visibly in order even
- *  for a member who signed up without a name. */
+/** The name a directory entry sorts under: display name, else email, else the principal id, the
+ * same fallback chain the UI labels the row with, so the rendered list is visibly in order even
+ * for a member who signed up without a name. */
 export function resolveDirectorySortName(entry: MemberDirectoryEntry): string {
   const principal = entry.principal;
   const displayName = principal?.displayName?.trim();
@@ -81,8 +81,8 @@ interface WithMembershipSnapshotRetryInput<T> {
 /** Shared scaffold for the membership-snapshot lock-retry algorithm duplicated by eraseWorkspace's
  * `eraseWithMembershipSnapshot` and withWorkspaceErasureLocks' `runWithSnapshot`: snapshot principal
  * ids, acquire locks over them, re-snapshot under lock in case a mutation slipped in while waiting,
- * and retry with the enlarged set — bounded by WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS. Callers keep
- * their own exhausted-retries error (one throws with commandId, one without — see call sites), so
+ * and retry with the enlarged set, bounded by WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS. Callers keep
+ * their own exhausted-retries error (one throws with commandId, one without, see call sites), so
  * that error is supplied as a factory rather than unified here. */
 export async function withMembershipSnapshotRetry<T>({
   lock,

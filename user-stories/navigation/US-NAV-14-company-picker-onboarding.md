@@ -45,7 +45,7 @@ colour is automatic, so onboarding does not create an unnecessary design task.
    then reload: confirm the same route resumes without another choice. Use **Switch company** and
    confirm that explicit action keeps the picker visible.
 9. If the selected company cannot be loaded, confirm its recovery screen hides the previous
-   company's data and offers **Retry** or **Choose another company**. See [Settings](../../docs-src/guide/settings.md#your-personal-account).
+   company's data and offers **Retry** or **Choose another company**. See [Settings](../../docs-src/using/settings.md#your-personal-account).
 
 **Example data (server-backed deploys):**
 
@@ -55,7 +55,7 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 11. In an empty company, open **Settings, Example data** as an Owner or Admin and choose **Add
     example data**; the same set appears and the row disappears. Confirm the row is absent once the
     company has any person, client, project or allocation, and for an Editor or Viewer. See
-    [Set up your company](../../docs-src/getting-started/set-up-your-company.md).
+    [Set up your company](../../docs-src/owner/index.md).
 
 ## Acceptance criteria
 

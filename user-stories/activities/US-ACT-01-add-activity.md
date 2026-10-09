@@ -21,7 +21,7 @@ An activity is a unit of work people get allocated to. Most belong to a project,
 4. Click **Add activity**; **Name** = `Spec review`, leave kind **Project-specific**, choose **Project** = _Project Watchtower_, **Save**.
 5. Open the **Schedule** (`/`) and start an allocation against a resource. Choose _Project Watchtower_ and open the **Activity** picker; it offers **Discovery workshop** in the **All projects** group before that project's activities, including **Spec review**. Choose **No specific project** to see only All-projects activities without attributing the booking.
 
-See [Projects and allocations](../../docs-src/guide/projects-and-allocations.md#choose-where-an-activity-can-be-used).
+See [Activities](../../docs-src/using/activities.md#choose-where-an-activity-can-be-used).
 
 ## Acceptance criteria
 

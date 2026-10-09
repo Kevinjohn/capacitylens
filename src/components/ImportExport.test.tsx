@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ImportExport } from "./ImportExport";
-import { useStore } from "../store/useStore";
-import { PermissionContext } from "../auth/permissionContext";
+import { useStore } from "@/store/useStore";
+import { PermissionContext } from "@/auth/permissionContext";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";
 import { parseData, serializeData } from "@capacitylens/shared/data/transfer";
-import { makeAccount, makeResourceDraft, resetStoreWithAccount } from "../test/fixtures";
+import { makeAccount, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
 
 function dispatchAnchorClick(this: HTMLAnchorElement): void {
   this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
@@ -15,17 +15,17 @@ function dispatchAnchorClick(this: HTMLAnchorElement): void {
 // ImportExport now branches on the persistence mode (demo = the undoable store import;
 // server = the atomic, owner-gated POST /api/import). Mock apiConfig with a mutable flag
 // (the AccountPicker.test pattern) so each block pins the mode it exercises; the legacy
-// import tests below are the DEMO-build behaviour.
+// import tests below are the demo-build behaviour.
 const serverFlag = { on: false };
 const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
-vi.mock("../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isServerConfigured: () => serverFlag.on,
   isDemoMode: () => !serverFlag.on,
 }));
-vi.mock("../lib/reloadPage", () => reloadMock);
+vi.mock("@/lib/reloadPage", () => reloadMock);
 
-// Partial persist mock: everything real EXCEPT refreshActiveAccountSlice, which one test forces
+// Partial persist mock: everything real except refreshActiveAccountSlice, which one test forces
 // to 'failed' (a committed import whose re-hydrate breaks), and suspendServerWrites, whose resume
 // is recorded so tests can pin the committed/dropParkedEdits bookkeeping (with no orchestrator
 // attached the real seam is an unobservable no-op anyway).
@@ -33,11 +33,11 @@ const refreshOverride = vi.hoisted(() => ({
   value: null as null | { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" },
 }));
 const resumeSpy = vi.hoisted(() => ({ calls: [] as unknown[] }));
-// When set, the mocked re-hydrate raises this error notice mid-flight — simulating the sticky
+// When set, the mocked re-hydrate raises this error notice mid-flight, simulating the sticky
 // parked-edit loss warning the real orchestrator surfaces via onError → setNotice.
 const refreshNotice = vi.hoisted(() => ({ error: null as string | null }));
-vi.mock("../data/persist", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../data/persist")>();
+vi.mock("@/data/persist", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/data/persist")>();
   return {
     ...actual,
     refreshActiveAccountSlice: async (id: string) => {
@@ -250,7 +250,7 @@ describe("ImportExport – Import", () => {
     const before = useStore.getState().data.clients.length;
     render(<ImportExport />);
 
-    // Import a PARTIAL file (only the resources section) — it would replace the whole
+    // Import a partial file (only the resources section). It would replace the whole
     // active-account slice, so the user must confirm first; nothing is applied until then.
     const partial = JSON.stringify({
       schemaVersion: 2,
@@ -337,7 +337,7 @@ describe("ImportExport – Import", () => {
     useStore.getState().addClient({ name: "Real Edit", color: "#111111" });
     render(<ImportExport />);
 
-    // A CapacityLens-shaped file that PARSES (non-empty → dialog appears) but whose only record
+    // A CapacityLens-shaped file that parses (non-empty → dialog appears) but whose only record
     // dangles, so the store drops it and imported === 0 (no mutate, no undo entry pushed).
     const dangling = serializeData({
       ...emptyAppData(),
@@ -367,7 +367,7 @@ describe("ImportExport – Import", () => {
 
     const notice = useStore.getState().notice;
     expect(notice?.message).toMatch(/no records imported/i);
-    expect(notice?.message).not.toMatch(/undo/i); // must NOT lure the user into ⌘Z
+    expect(notice?.message).not.toMatch(/undo/i); // must not lure the user into ⌘Z
     expect(notice?.tone).toBe("error");
     expect(useStore.getState().data.clients.map((c) => c.name)).toContain("Real Edit"); // prior edit intact
   });
@@ -375,7 +375,7 @@ describe("ImportExport – Import", () => {
 
 describe("ImportExport – Import", () => {
   it("rejects a CapacityLens-shaped file with zero records (no dialog, no wipe)", async () => {
-    useStore.getState().replaceAll(seed()); // existing data that must NOT be wiped
+    useStore.getState().replaceAll(seed()); // existing data that must not be wiped
     render(<ImportExport />);
 
     const file = new File([serializeData(emptyAppData())], "empty.json", {
@@ -395,7 +395,7 @@ describe("ImportExport – Import", () => {
   });
 
   it("surfaces a notice (and keeps the data) when the file is not valid CapacityLens JSON", async () => {
-    useStore.getState().replaceAll(seed()); // existing data that must NOT be wiped
+    useStore.getState().replaceAll(seed()); // existing data that must not be wiped
     render(<ImportExport />);
 
     const file = new File(["{ this is not json"], "bad.json", {
@@ -603,11 +603,11 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(body.accountId).toBe(useStore.getState().activeAccountId);
     expect(body.data.resources).toHaveLength(1);
 
-    // The LOCAL store is never mutated directly by a server import; the mocked re-hydrate reports
+    // The local store is never mutated directly by a server import; the mocked re-hydrate reports
     // that the authoritative slice was reloaded.
     expect(useStore.getState().data).toBe(before);
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/imported 3 records/i));
-    expect(useStore.getState().notice?.message).not.toMatch(/undo|⌘Z/i); // a server import is NOT undoable
+    expect(useStore.getState().notice?.message).not.toMatch(/undo|⌘Z/i); // a server import is not undoable
   });
 });
 
@@ -684,7 +684,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   it('treats off-spec COUNTS (-1, 1.5, negatives) as a shape error — re-hydrate + plain success, never "-1 records"', async () => {
     // The counts are untrusted: a number that isn't a nonnegative safe integer must take the
     // off-spec committed-import path (breadcrumb + reload + numberless success), not the
-    // success-notice path (nonsense) or the zero-record error path (a lie — the server committed).
+    // success-notice path (nonsense) or the zero-record error path (a lie, the server committed).
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.stubGlobal(
       "fetch",
@@ -710,7 +710,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   beforeEach(setupServerMode);
   it("a committed import whose re-hydrate FAILS reports the honest stale-view message, not success", async () => {
     // The import POST committed but the follow-up slice load broke: claiming "Imported 3 records"
-    // over a view still rendering PRE-import data would be a lie — say both halves honestly.
+    // over a view still rendering pre-import data would be a lie, say both halves honestly.
     refreshOverride.value = { kind: "failed" };
     vi.stubGlobal(
       "fetch",
@@ -821,13 +821,13 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     render(<ImportExport />);
     await importAndConfirm(incoming());
 
-    // POST held open — the non-dismissable "Importing…" dialog is up, the dirty-form semantics
+    // POST held open. The non-dismissable "Importing…" dialog is up, the dirty-form semantics
     // arm the beforeunload/keyboard guards, and both affordances are disabled for the duration.
     await waitFor(() => expect(screen.getByTestId("import-busy")).toBeInTheDocument());
     expect(useStore.getState().dirtyForm).toBe(true);
     expect(screen.getByTestId("import-data")).toBeDisabled();
     expect(screen.getByTestId("export-data")).toBeDisabled();
-    // Escape must NOT dismiss the lock — visibility is owned by importBusy alone.
+    // Escape must not dismiss the lock, visibility is owned by importBusy alone.
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.getByTestId("import-busy")).toBeInTheDocument();
 
@@ -851,7 +851,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
   beforeEach(setupServerMode);
   it("a loss warning raised DURING the re-hydrate is not overwritten by the success notice", async () => {
-    // The app holds one notice and a new one dismisses the old — the sticky parked-edit loss
+    // The app holds one notice and a new one dismisses the old, the sticky parked-edit loss
     // warning must outrank "Imported N records" (the user can verify the import from the data;
     // they cannot re-discover a silently overwritten loss warning).
     refreshNotice.error = "Your latest changes could not be saved — please re-apply them.";
@@ -879,8 +879,8 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
   beforeEach(setupServerMode);
   it("a zero-record 200 UN-commits: the server refused the replace, so the parked-edit resume re-schedules (no drop)", async () => {
-    // The server returns 200 {imported:0} WITHOUT replacing the slice (its replace is gated on
-    // imported > 0). Treating that as committed made resume DROP a parked edit — destroying a
+    // The server returns 200 {imported:0} without replacing the slice (its replace is gated on
+    // imported > 0). Treating that as committed made resume DROP a parked edit, destroying a
     // perfectly saveable edit over a replacement that never happened.
     vi.stubGlobal(
       "fetch",

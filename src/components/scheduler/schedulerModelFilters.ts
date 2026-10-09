@@ -1,8 +1,10 @@
-import { foldForSearch } from "../../lib/fuzzy";
-import { resolveResourceDisplayName } from "../../lib/metadata";
-import { hasLensFilter, type Filters } from "../../store/useStore";
+import { foldForSearch } from "@/lib/fuzzy";
+import { resolveResourceDisplayName } from "@/lib/metadata";
+import { hasLensFilter } from "@/store/useStore";
+import type { Filters } from "@/store/useStore";
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
-import { isExternalResource, type Allocation, type AppData, type Resource } from "@capacitylens/shared/types/entities";
+import { isExternalResource } from "@capacitylens/shared/types/entities";
+import type { Allocation, AppData, Resource } from "@capacitylens/shared/types/entities";
 import type { SchedulerModelOptions } from "./schedulerModelTypes";
 import { buildAllocationAttribution } from "./buildAllocationAttribution";
 
@@ -33,14 +35,10 @@ function createWorkVisibility({
   filters,
   activitiesById,
   resolveProjectClient,
-  showInternalActivities,
-  showInternalProjects,
 }: {
   filters: Filters;
   activitiesById: Map<string, AppData["activities"][number]>;
   resolveProjectClient: (allocation: Allocation) => ReturnType<typeof buildAllocationAttribution>;
-  showInternalActivities: boolean;
-  showInternalProjects: boolean;
 }) {
   const hasMatchingProjectClient = (allocation: Allocation): boolean => {
     if (!filters.projectId && !filters.clientId) return true;
@@ -56,31 +54,16 @@ function createWorkVisibility({
   };
   const passesTentativeFilter = (allocation: Allocation): boolean =>
     !(filters.hideTentative && allocation.status === "tentative");
-  const barVisibleByInternalPref = (allocation: Allocation): boolean => {
-    const activity = activitiesById.get(allocation.activityId);
-    if (!activity) return true;
-    if (!showInternalActivities && activity.kind === "internal") return false;
-    const { project, client } = resolveProjectClient(allocation);
-    return showInternalProjects || !project || client?.builtin !== true;
-  };
   return {
     allocVisible: (allocation: Allocation) =>
       hasMatchingProjectClient(allocation) && hasMatchingActivity(allocation) && passesTentativeFilter(allocation),
     notTentativeHidden: passesTentativeFilter,
-    barVisibleByInternalPref,
   };
 }
 
 export function createAllocationFilters(
   filters: Filters,
-  {
-    disciplinesEnabled,
-    placeholdersEnabled,
-    externalEnabled,
-    internalColourMode = "grey",
-    showInternalProjects = true,
-    showInternalActivities = true,
-  }: SchedulerModelOptions["preferences"],
+  { disciplinesEnabled, placeholdersEnabled, externalEnabled }: SchedulerModelOptions["preferences"],
   data: AppData,
 ) {
   // Same diacritic-insensitive fold the fuzzy matcher uses, so typing "Jose" finds "José" whether
@@ -104,13 +87,12 @@ export function createAllocationFilters(
     projects: projectsById,
     clients: clientsById,
     resources: resourcesById,
-    internalColourMode,
   };
   // The built-in Internal client for the data being rendered (one per account; the data here is
   // already scoped to the active account, so every client shares that accountId). A project-less
-  // activity DERIVES this as its client for display + filtering — without ever writing it onto the
+  // activity derives this as its client for display + filtering, without ever writing it onto the
   // activity (no activity.clientId field). If somehow absent (a partial/legacy blob), project-less
-  // activities fall back to no client. Uses the SHARED `internalClientFor` predicate (the single
+  // activities fall back to no client. Uses the shared `internalClientFor` predicate (the single
   // source of truth for "the account's builtin Internal") rather than an inline flag scan, so the
   // definition can't drift from migrate/import/server. The accountId comes from the scoped data
   // itself (all rows here belong to the active account); absent any client, there's no builtin.
@@ -118,22 +100,10 @@ export function createAllocationFilters(
   const internalClient = scopedAccountId ? internalClientFor(data.clients, scopedAccountId) : undefined;
   const resolveProjectClient = (allocation: Allocation) =>
     buildAllocationAttribution({ allocation, activitiesById, projectsById, clientsById, internalClient });
-  // Any "what work" filter is active — drives the dimmed / show-unmatched staffing view, which
+  // Any "what work" filter is active, drives the dimmed / show-unmatched staffing view, which
   // is identical whether the active lens is client/project or activity.
   const workFilterActive = hasLensFilter(filters);
-  // Per-account BAR-ONLY visibility for internal work. CRITICAL PRODUCT DECISION: this filter is
-  // applied ONLY when building `visibleAllocs` (bars + lane packing) — NEVER to `allAllocs`, which
-  // feeds the capacity cache / utilisation below. Utilisation and capacity numbers MUST stay TRUTHFUL:
-  // a person fully booked on internal work still shows as fully booked even when their internal bars
-  // are hidden. Internal-project detection resolves each allocation's effective client through the
-  // pre-built maps, so attributed repeatable work follows the target project's visibility.
-  const workVisibility = createWorkVisibility({
-    filters,
-    activitiesById,
-    resolveProjectClient,
-    showInternalActivities,
-    showInternalProjects,
-  });
+  const workVisibility = createWorkVisibility({ filters, activitiesById, resolveProjectClient });
   const isResourceVisible = createResourceVisibility({
     search,
     filteredDisciplineId,

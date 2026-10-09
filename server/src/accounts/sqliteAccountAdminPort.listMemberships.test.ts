@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { ActorContext } from "@capacitylens/shared/account/types";
 import { upsertMember } from "../controlTables";
-import { openDb, insertRow, type Db } from "../db";
+import { openDb, insertRow } from "../db";
+import type { Db } from "../db";
 import { KeyedOperationLock } from "./KeyedOperationLock";
 import { createSqliteAccountAdminPort } from "./sqliteAccountAdminPort";
 
@@ -72,8 +73,8 @@ function seedWorkspace(db: Db): void {
   });
 }
 
-// Bypasses upsertMember's automatic bumpSecurityRevision, so the membership row exists with NO
-// account_security_revisions row — the "never signed in since" case the 0-default must cover.
+// Bypasses upsertMember's automatic bumpSecurityRevision, so the membership row exists with no
+// account_security_revisions row, the "never signed in since" case the 0-default must cover.
 function insertMemberRaw(
   db: Db,
   member: { accountId: string; userId: string; role: string; status: string; createdAt: string },
@@ -208,7 +209,7 @@ function registerSqliteAccountAdminPortTest27(): void {
       const activeOnly = await port.listMemberships({ actor, workspaceId });
       expect(activeOnly.map((m) => m.principalId)).toEqual(["zed", "middle"]);
 
-      // includeInactive surfaces "alpha" too — listMembersForAccount orders by createdAt, userId,
+      // includeInactive surfaces "alpha" too, listMembersForAccount orders by createdAt, userId,
       // so the tie between "zed" and "alpha" (same createdAt) breaks alphabetically.
       const all = await port.listMemberships({ actor, workspaceId, includeInactive: true });
       expect(all.map((m) => m.principalId)).toEqual(["alpha", "zed", "middle"]);

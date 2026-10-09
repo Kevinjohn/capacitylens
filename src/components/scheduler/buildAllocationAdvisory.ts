@@ -5,11 +5,11 @@ import {
   applyCapacityMode,
   formatCapacityAdvisory,
   listTimeOffApplyingTo,
-} from "../../lib/capacity";
-import { buildRepeatingAllocationAdvisory } from "../../lib/repeatingAllocations";
+} from "@/lib/capacity";
+import { buildRepeatingAllocationAdvisory } from "@/lib/repeatingAllocations";
 
 import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
-import { buildRepeatProjection } from "./buildRepeatProjection";
+import type { buildRepeatProjection } from "./buildRepeatProjection";
 
 type AdvisoryInput = Pick<
   AllocationModalSnapshot,
@@ -96,13 +96,13 @@ function buildSingleAdvisory(input: AdvisoryInput, otherAllocations: AdvisoryInp
 
 export function buildAllocationAdvisory(input: AdvisoryInput) {
   const { create, data, editId, isBlocks, repeat, resourceId } = input;
-  // External parties have no capacity — never show an over-capacity / time-off advisory.
+  // External parties have no capacity; never show an over-capacity / time-off advisory.
   if (!canBuildAdvisory(input)) return null;
-  // Project the existing load through the account's scheduling mode BEFORE counting it: in blocks
+  // Project the existing load through the account's scheduling mode before counting it: in blocks
   // mode a bar carries placement but no hourly load, so an account that switched to blocks with
   // legacy hourly allocations must not be advised "over capacity" here while the grid's markers
-  // (schedulerModel) and the drag-commit toast (useAllocationGesture) — both of which project the
-  // same way — show nothing. Every capacity surface reads the same projected load.
+  // (schedulerModel) and the drag-commit toast (useAllocationGesture), both of which project the
+  // same way, show nothing. Every capacity surface reads the same projected load.
   const others = applyCapacityMode({
     allocations: data.allocations.filter(
       (allocation) => allocation.resourceId === resourceId && allocation.id !== editId,
@@ -110,7 +110,7 @@ export function buildAllocationAdvisory(input: AdvisoryInput) {
     blocksMode: isBlocks,
   });
   if (create && repeat !== "none") {
-    // The repeat variant counts whole OCCURRENCES rather than days; the two tallies otherwise read
+    // The repeat variant counts whole occurrences rather than days; the two tallies otherwise read
     // and render identically, so they share the one advisory sentence builder.
     return buildRepeatAdvisory(input, others);
   }

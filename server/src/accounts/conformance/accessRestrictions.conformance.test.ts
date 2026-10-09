@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { openDb, type Db } from "../../db";
+import { openDb } from "../../db";
+import type { Db } from "../../db";
 import * as accessRestrictions from "../../controlTables/accessRestrictions";
 import * as members from "../../controlTables/members";
 import * as ownershipTransfers from "../../controlTables/ownershipTransfers";

@@ -3,10 +3,10 @@ title: Install with Docker
 description: Install CapacityLens with Docker Compose, from cloning the repository to a running, health-checked instance.
 prev:
   text: Install CapacityLens
-  link: /getting-started/install
+  link: /self-hosting/install
 next:
-  text: Configure the service
-  link: /installation/configure-the-service
+  text: Configuration
+  link: /self-hosting/configuration
 ---
 
 # Install with Docker
@@ -48,32 +48,31 @@ installed, most of it waiting for the first build.
    `main`: it carries changes that haven't been released yet. `.env` will hold the signing
    secret and setup token, so only your account may read it.
 
-2. Generate two secrets — one for signing sessions, one for the first-owner setup
-   token:
+2. Generate the two secrets — one for signing sessions, one for the first-owner setup
+   token — with the server's `init` command. This builds the API image first:
 
    ```bash
-   openssl rand -base64 48
+   docker compose run --rm --no-deps api node dist/index.mjs init --public-url https://capacity.example.com --db /data/capacitylens.db
    ```
 
-   Run it twice and keep both values; you'll paste one into each of the two secret
-   fields in the next step.
+   Keep the `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` values it prints; you'll
+   paste them into `.env` in the next step. Compose already sets `NODE_ENV` and `CAPACITYLENS_DB`.
 
 3. Open `.env` and set at least these values:
 
    ```dotenv
-   SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password
-   SMALLSASS_ACCOUNT_MODE=password-only
-   SMALLSASS_ACCOUNT_SECRET=<first generated value>
-   SMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com
-   SMALLSASS_ACCOUNT_SETUP_TOKEN=<second generated value>
+   CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-password
+   CAPACITYLENS_MODE=password-only
+   CAPACITYLENS_SECRET=<generated CAPACITYLENS_SECRET>
+   CAPACITYLENS_PUBLIC_URL=https://capacity.example.com
+   CAPACITYLENS_SETUP_TOKEN=<generated CAPACITYLENS_SETUP_TOKEN>
    CAPACITYLENS_HTTPS=1
    CAPACITYLENS_RATE_LIMIT=300
    ```
 
-   Set `CAPACITYLENS_STORAGE_ENCRYPTED=1` only after verifying that the host's Docker
-   volumes and off-host backup destination use encryption at rest. The setting records
-   your attestation; it does not encrypt a volume. `SMALLSASS_ACCOUNT_PUBLIC_URL` must be the exact browser-facing origin. See
-   [Configure the service](/installation/configure-the-service) for what every other variable does.
+   Keep the host's Docker volumes and off-host backup destination on storage encrypted at
+   rest; CapacityLens does not encrypt a volume itself. `CAPACITYLENS_PUBLIC_URL` must be the exact browser-facing origin. See
+   [Configuration](/self-hosting/configuration) for what every other variable does.
 
 4. Build and start the stack:
 
@@ -117,12 +116,12 @@ installed, most of it waiting for the first build.
 
 7. Put a TLS-terminating reverse proxy in front of port 8080, then open the public
    HTTPS address. Enter the setup token from step 3 to create the first owner and
-   company. Once both exist, remove `SMALLSASS_ACCOUNT_SETUP_TOKEN` from `.env` and
+   company. Once both exist, remove `CAPACITYLENS_SETUP_TOKEN` from `.env` and
    run `docker compose up -d --force-recreate api` to discard the setup credential
    from the running container. Continue to
-   [verify and hand over the installation](/installation/verify-and-hand-over).
-   See [Secure the connection](/installation/secure-the-connection) for the proxy and
-   [Configure the service](/installation/configure-the-service#sign-in-mode) for the
+   [verify and hand over the installation](/self-hosting/verify-and-hand-over).
+   See [TLS and networking](/self-hosting/tls-and-networking) for the proxy and
+   [Configuration](/self-hosting/configuration#sign-in-mode) for the
    sign-in settings.
 
 ::: tip
@@ -132,9 +131,9 @@ it until you add the reverse proxy in the next page.
 
 ## What's next
 
-- [Configure the service](/installation/configure-the-service) to understand every environment variable
+- [Configuration](/self-hosting/configuration) to understand every environment variable
   you just set, plus the ones you didn't.
-- [Secure the connection](/installation/secure-the-connection) to put a real domain and
+- [TLS and networking](/self-hosting/tls-and-networking) to put a real domain and
   certificate in front of the stack.
 - [Try a local demo](/getting-started/try-the-demo) for the disposable, in-memory
   interface. It is separate from this persistent installation.

@@ -27,7 +27,7 @@ export function buildSessionPolicy({
   "database" | "secret" | "baseURL" | "basePath" | "verification" | "account" | "advanced" | "session" | "telemetry"
 > {
   return {
-    database: db, // node:sqlite DatabaseSync — same file as the app data (see header)
+    database: db, // node:sqlite DatabaseSync, same file as the app data (see header)
     secret,
     baseURL,
     basePath: "/api/auth",
@@ -41,15 +41,15 @@ export function buildSessionPolicy({
     // an existing local principal merely by presenting the same verified email address.
     //
     // Provider access/refresh/id tokens are encrypted with the application secret before they reach
-    // SQLite, so a stolen database or backup copy alone does not surrender live provider credentials
-    // — defence in depth between database-copy theft and application-secret theft.
+    // SQLite, so a stolen database or backup copy alone does not surrender live provider credentials,
+    // defence in depth between database-copy theft and application-secret theft.
     account: { accountLinking: { disableImplicitLinking: true }, encryptOAuthTokens: true },
-    // Session-cookie hardening follows the PUBLIC Better Auth URL, not the Node listener: an HTTPS
+    // Session-cookie hardening follows the public Better Auth URL, not the Node listener: an HTTPS
     // browser origin still needs Secure cookies when nginx proxies to Node over HTTP. Better Auth's
     // built-in secure-cookie switch emits the weaker `__Secure-` name prefix. Disable that naming
     // helper and express Secure directly so every HTTPS cookie can use the stricter `__Host-`
     // prefix (Secure + Path=/ + no Domain). Loopback HTTP keeps an unprefixed development name.
-    // `sameSite:'lax'` (NOT 'strict') is required for SSO: 'strict' would
+    // `sameSite:'lax'` (not 'strict') is required for SSO: 'strict' would
     // drop the session cookie on the top-level OAuth redirect back from the IdP → broken sign-in;
     // 'lax' still sends the cookie on that GET callback and is safe. `httpOnly:true` keeps the token
     // out of document.cookie (no JS read).

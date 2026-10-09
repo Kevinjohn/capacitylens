@@ -12,9 +12,10 @@ import type {
   SessionSummary,
 } from "@capacitylens/shared/account/types";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
-import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "../../auth";
+import { createAuthFromEnvironment, runAuthMigrations } from "../../auth";
+import type { Auth } from "../../auth";
 import { openDb } from "../../db";
-import { PASSWORD_ENV } from "../../testHelpers";
+import { PASSWORD_ENV } from "../../testHelpers/passwordAuth";
 import { createBetterAuthIdentityPort } from "../betterAuthIdentityPort";
 import { buildApplicationSessionHandle } from "../buildApplicationSessionHandle";
 import { recordSessionAssurance } from "../state";
@@ -546,7 +547,7 @@ describe("revocation window race", () => {
     if (typeof remaining !== "object" || !("n" in remaining) || typeof remaining.n !== "number") {
       throw new Error("expected numeric assurance count");
     }
-    expect(remaining.n).toBe(0); // no orphaned assurance — including the in-window session
+    expect(remaining.n).toBe(0); // no orphaned assurance, including the in-window session
     db.close();
   });
 });

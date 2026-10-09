@@ -1,10 +1,10 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, within, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
-import { PermissionContext } from "../auth/permissionContext";
-import { useStore, buildEmptyFilters } from "../store/useStore";
+import { PermissionContext } from "@/auth/permissionContext";
+import { useStore, buildEmptyFilters } from "@/store/useStore";
 import {
   makeAppData,
   makeAccount,
@@ -12,7 +12,7 @@ import {
   DEFAULT_ACCOUNT_ID,
   setExternalEnabled,
   setPlaceholdersEnabled,
-} from "../test/fixtures";
+} from "@/test/fixtures";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { m } from "@/i18n";
 
@@ -40,24 +40,13 @@ function LocationProbe() {
   return <output data-testid="location-probe">{`${location.pathname}${location.hash}`}</output>;
 }
 
-function addInternalSearchItems({
-  showInternalProjects,
-  showInternalActivities,
-}: {
-  showInternalProjects: boolean;
-  showInternalActivities: boolean;
-}) {
+function addInternalSearchItems() {
   const data = useStore.getState().data;
   const internal =
     data.clients.find((client) => client.builtin === true) ??
     buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z");
   useStore.getState().replaceAll({
     ...data,
-    accounts: data.accounts.map((account) => ({
-      ...account,
-      showInternalProjects,
-      showInternalActivities,
-    })),
     clients: data.clients.some((client) => client.id === internal.id) ? data.clients : [...data.clients, internal],
   });
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
@@ -129,6 +118,19 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Team & access")).toBeInTheDocument();
   });
 
+  it.each(["editor", "viewer"] as const)("hides Diagnostics from a resolved %s", (role) => {
+    renderPaletteWithPermission(role, "resolved");
+
+    expect(screen.getByText("Settings", { exact: true })).toBeInTheDocument();
+    expect(screen.queryByText("Diagnostics", { exact: true })).not.toBeInTheDocument();
+  });
+
+  it.each(["owner", "admin"] as const)("lists Diagnostics for a resolved %s", (role) => {
+    renderPaletteWithPermission(role, "resolved");
+
+    expect(screen.getByText("Diagnostics", { exact: true })).toBeInTheDocument();
+  });
+
   it("hides Overview when the resolved role cannot access it", () => {
     renderPaletteWithPermission("viewer", "resolved");
 
@@ -147,6 +149,7 @@ describe("CommandPalette", () => {
       "Time off",
       "Team & access",
       "Settings",
+      "Diagnostics",
       "Account",
     ];
     const expectedWithoutDisciplines = [
@@ -159,6 +162,7 @@ describe("CommandPalette", () => {
       "Time off",
       "Team & access",
       "Settings",
+      "Diagnostics",
       "Account",
     ];
     const pageLabels = () =>
@@ -255,8 +259,8 @@ describe("CommandPalette", () => {
 
   it("includes enabled optional resources and labels an external jump target", () => {
     addOptionalResources();
-    setPlaceholdersEnabled(true);
-    setExternalEnabled(true);
+    setPlaceholdersEnabled({ on: true });
+    setExternalEnabled({ on: true });
     renderPalette();
     const input = screen.getByTestId("command-palette-input");
 
@@ -281,25 +285,8 @@ describe("CommandPalette", () => {
 });
 
 describe("CommandPalette", () => {
-  it("omits an Internal project whose destination bars are hidden from the schedule", () => {
-    addInternalSearchItems({
-      showInternalProjects: false,
-      showInternalActivities: false,
-    });
-    renderPalette();
-
-    fireEvent.change(screen.getByTestId("command-palette-input"), {
-      target: { value: "Obsidian Programme" },
-    });
-
-    expect(screen.queryByText("Obsidian Programme")).not.toBeInTheDocument();
-  });
-
-  it("keeps an Internal project searchable when its destination bars are shown", () => {
-    addInternalSearchItems({
-      showInternalProjects: true,
-      showInternalActivities: false,
-    });
+  it("keeps an Internal project searchable", () => {
+    addInternalSearchItems();
     renderPalette();
 
     fireEvent.change(screen.getByTestId("command-palette-input"), {
@@ -309,11 +296,8 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Obsidian Programme")).toBeInTheDocument();
   });
 
-  it("keeps an Internal activity searchable when its schedule bars are hidden", () => {
-    addInternalSearchItems({
-      showInternalProjects: false,
-      showInternalActivities: false,
-    });
+  it("keeps an Internal activity searchable", () => {
+    addInternalSearchItems();
     renderPalette();
 
     fireEvent.change(screen.getByTestId("command-palette-input"), {
@@ -417,7 +401,7 @@ describe("CommandPalette", () => {
     const options = screen.getAllByTestId("command-palette-option");
     if (!options[0] || !options[1]) throw new Error("Expected command palette options");
     // Hover the second option. cmdk activates on its native onPointerMove (not mouseEnter), so the
-    // interaction fires pointerMove — the assertion (hovering a row makes it the active option) is
+    // interaction fires pointerMove. The assertion (hovering a row makes it the active option) is
     // unchanged.
     fireEvent.pointerMove(options[1]);
 
@@ -455,7 +439,7 @@ describe("CommandPalette", () => {
     if (!tylerOption) throw new Error("Expected Bruce Wayne command palette option");
     expect(tylerOption).toBeTruthy();
 
-    // Click it — should call jumpToResource (store action). cmdk's onSelect fires on click (and
+    // Click it, should call jumpToResource (store action). cmdk's onSelect fires on click (and
     // Enter), so the pointer pick is a click; the assertion (selecting the row runs its action) holds.
     act(() => {
       fireEvent.click(tylerOption);
@@ -575,7 +559,7 @@ describe("CommandPalette", () => {
       fireEvent.click(projectOption);
     });
 
-    // Filters must deep-equal { ...emptyFilters(), projectId } — no stale fields survive
+    // Filters must deep-equal { ...emptyFilters(), projectId }, no stale fields survive
     const filters = useStore.getState().ui.filters;
     if (!projectId) throw new Error("Expected Project Alpha id");
     expect(filters).toEqual({ ...buildEmptyFilters(), projectId });
@@ -618,7 +602,7 @@ describe("CommandPalette", () => {
       fireEvent.click(clientOption);
     });
 
-    // Filters must deep-equal { ...emptyFilters(), clientId } — no stale fields survive
+    // Filters must deep-equal { ...emptyFilters(), clientId }, no stale fields survive
     const filters = useStore.getState().ui.filters;
     if (!clientId) throw new Error("Expected Client Zeta id");
     expect(filters).toEqual({ ...buildEmptyFilters(), clientId });

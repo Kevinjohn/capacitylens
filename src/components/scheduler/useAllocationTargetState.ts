@@ -4,10 +4,10 @@ import type { Activity, Resource } from "@capacitylens/shared/types/entities";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
-import { resolveResourceDisplayName } from "../../lib/metadata";
-import { parseText } from "../../lib/validation";
-import type { useStore } from "../../store/useStore";
-import type { Option } from "../common/ui";
+import { resolveResourceDisplayName } from "@/lib/metadata";
+import { parseText } from "@/lib/validation";
+import type { useStore } from "@/store/useStore";
+import type { Option } from "@/components/common/ui";
 import {
   buildActivityOptions,
   resolveGroupKeyForKind,
@@ -16,7 +16,7 @@ import {
 } from "./activityOptions";
 
 import type { AppData } from "@capacitylens/shared/types/entities";
-import type { FieldError } from "../../hooks/useFieldError";
+import type { FieldError } from "@/hooks/useFieldError";
 import type { AllocationModalSeed } from "./buildAllocationModalSeed";
 import {
   isActivityInProjectSelection,
@@ -301,8 +301,8 @@ export function useAllocationTargetState(input: TargetInput) {
   const fieldState = useTargetFieldState(seed);
   const { resourceId, projectSelection, activityId, setActivityId } = fieldState;
   const { newActivityName, setNewActivityName, setInlineActivityOption } = fieldState;
-  // Placeholders and externals are each gated behind a per-account pref (both default OFF). When
-  // off, drop them from the assignee picker — EXCEPT the allocation's currently-selected resource
+  // Placeholders and externals are each gated behind a per-account pref (both default off). When
+  // off, drop them from the assignee picker, except the allocation's currently-selected resource
   // (risk A): keep a hidden placeholder/external in the options when it's the one already assigned,
   // so editing shows the correct value in the chooser instead of silently reassigning the work to
   // someone else on save.

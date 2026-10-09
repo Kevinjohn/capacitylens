@@ -167,15 +167,16 @@ The sidebar links, in order, route to:
 | Time off      | `/timeoff`     | Time-off list                                                                                                                                                                                                                                                                                                         |
 | Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                                                                                                                                                                                     |
 | Settings      | `/settings`    | Settings (Company setup, Scheduling features, My display, Data and support)                                                                                                                                                                                                                                           |
+| Diagnostics   | `/diagnostics` | Support report with **Copy diagnostics**; Owners and Admins only (everyone when sign-in is off)                                                                                                                                                                                                                       |
 | Account       | `/account`     | Signed-in identity and personal security controls                                                                                                                                                                                                                                                                     |
 
-**Team & access** and **Settings** form a separate **administration group** pinned
+**Team & access**, **Settings** and **Diagnostics** form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
-above. Both remain ordinary first-class routes (same markup, same icons, same command-palette
+above. All three remain ordinary first-class routes (same markup, same icons, same command-palette
 entries); only their placement differs, so administration stays out of the way of the app's
 day-to-day purpose and role-gated controls don't sit among everyone's destinations.
 
-Owners and Admins see **eleven** sections by default — **ten** when the company turns disciplines off (the
+Owners and Admins see **twelve** sections by default — **eleven** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see _Disciplines optional_ under Domain rules). External / 3rd
 parties no longer have their own nav link — they moved INTO the **Resources** tab behind a setting
 (see _External / 3rd parties_ under Domain rules); the old `/external` URL still resolves but
@@ -201,7 +202,7 @@ Settings is one page with four permanent groups in order: **Company setup**, **S
 **My display**, and **Data and support**. Compact rows stack their labels and controls on narrow
 screens. Group descriptions distinguish company-wide settings from preferences saved in this browser.
 Editors and above can change ordinary company settings; Owners and Admins manage Overview access.
-Everyone can adjust their device preferences. See [Settings](../docs-src/guide/settings.md).
+Everyone can adjust their device preferences. See [Settings](../docs-src/using/settings.md).
 
 The **Import and export** row (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
 in **Data and support**, below **Deleted items** and above the compact company-details
@@ -241,8 +242,7 @@ bottom keeps the logo + collapse toggle as the first item in both the open menu 
 its identity row, the avatar has its own unlabeled visible column, followed by Name, Email and
 Actions. The row scrolls horizontally on narrow screens. Long email
 addresses truncate like Team & access rows and reveal in full on pointer hover or keyboard focus.
-In password-capable modes it offers password change in a dialog for local-password identities and shows MFA
-status only when the operator requires it; in SSO mode it shows the provider identity without password controls.
+In password-capable modes it offers password change in a dialog for local-password identities; in SSO mode it shows the provider identity without password controls.
 The page hides active-session details. Demo and auth-off modes
 never invent credential controls. Company Settings contains
 company and device configuration only. The avatar is the signed-in user's own picture when the identity provider supplied one, initials
@@ -337,11 +337,11 @@ success for the rebase never hides the independent loss.
   - _Barry Allen_ — Front End (freelance), Development, **freelancer**, 8h, **Mon–Wed only**.
   - _Senior Designer_ — a **placeholder** (no name), Design, **bound to Project Watchtower**. Shown
     as the literal name **"Placeholder"** with a **"?"** avatar. **Hidden by default** — placeholders
-    are behind the per-account **Show placeholders** pref (Settings → Placeholders and external resources, default **off**);
+    are behind the per-account **Show placeholders** pref (Settings → Company features, default **off**);
     enable it to see this row in the schedule, the Resources list, and the assignee picker.
   - _Kord Industries_ — an **external / 3rd party** (`r-ext-northstar`): a company, no discipline/
     capacity, booked on Visual Design (Project Watchtower) as a span only. **Hidden by default** —
-    externals are behind the per-account **Show external resources** pref (Settings → Placeholders and external resources,
+    externals are behind the per-account **Show external resources** pref (Settings → Company features,
     default **off**); enable it to see this row in the schedule's bottom band, the **External** section
     of the Resources tab, and the assignee picker.
 - **Clients:** Queen Consolidated, LexCorp. (**Internal** is the built-in, one per account — it is **HIDDEN
@@ -711,26 +711,24 @@ stored dates never move, but capacity, utilisation and conflicts are recalculate
 non-working days no longer counts unless the allocation has Ignore working days enabled. Time off
 remains a separate mechanism and a visible conflict rather than a calendar rule.
 
-**Schedule display (snap to week start).** The same Settings → My display → **Schedule on this device** section has a second
-switch **Snap to week start** (`role="switch"`, accessible name `Snap to week start`), **on** by
-default — sibling to _Minimise weekends_. It's also a **device-global** display pref (own
-`localStorage` key `capacitylens/snapToWeekStart`, NOT on the account and NOT in export). On → after a
-**free horizontal scroll** settles, the grid **floors** its left edge back to the current week's
-first day (the account `weekStartsOn`, default Monday) — a stray nudge that would park the view on
-a Tue/Wed settles back to that week's Monday. It floors (never forward): forward weeks are reached
-via Prev/Next. Off → free scrolling is unconstrained and a nudge sticks on the mid-week day. This
-governs **free scroll only** — the always-on **navigation** snap (Weeks visible / Prev-Next / Today,
-see _Scheduler toolbar_ above) re-anchors to the week start regardless of this switch.
+**Schedule display (week snap).** After a **free horizontal scroll** settles, the grid **floors** its
+left edge back to the current week's first day (the account `weekStartsOn`, default Monday) — a stray
+nudge that would park the view on a Tue/Wed settles back to that week's Monday. It floors (never
+forward): forward weeks are reached via Prev/Next. This is always on and has no Settings control.
+Browser tests can disable it by storing `off` under the test-only `localStorage` key
+`capacitylens/snapToWeekStart` before the app loads, so a mid-week scroll position holds. The
+separate always-on **navigation** snap (Weeks visible / Prev-Next / Today, see _Scheduler toolbar_
+above) re-anchors to the week start on every deliberate navigation.
 
 **Company details (per-account, FROZEN after creation — P1.14).** In **Data and support**,
-this compact, read-only four-row table appears before Diagnostics:
-**Company name**, **Week starts on**,
-**Time zone** (including its numeric UTC offset) and **Language** (`data-testid="settings-language"`,
-**English**). It replaces the editable Company card and the disabled Calendar controls. These values
+this compact, read-only three-row table appears before Build details:
+**Company name**, **Week starts on** and
+**Time zone** (including its numeric UTC offset). Language is not shown while English is the only
+option. It replaces the editable Company card and the disabled Calendar controls. These values
 are captured ONCE in the company-create form (see _Launching the app_ above), and the help modal
 explains that they cannot be changed here. The server continues to reject a direct change to
 `language`, `weekStartsOn` or `timezone` with **409**. Ordinary company-wide planning and display
-settings — scheduling mode, disciplines, colour mode and feature-visibility switches — deliberately
+settings — scheduling mode, disciplines and feature-visibility switches — deliberately
 use the normal Editor-and-up write tier. Identity, membership, privacy, lifecycle, import and company-erasure
 operations retain their stricter Admin/Owner gates. (English-only until Paraglide; the value persists
 as `'en'` on the Account.)
@@ -749,8 +747,16 @@ dialogs rather than depending on hidden help copy.
 > server-vs-local clear-storage / "Signed in as …" / status-suffixed error toasts) is deferred to the
 > later toasts/errors i18n area; its visible text is likewise unchanged.
 
-**Placeholders and external resources (per-account, default OFF).** Settings → **Placeholders and external resources**
-contains two independently configurable switches: **Show placeholders** and **Show external resources**.
+**Company features (per-account).** Settings → **Scheduling features** holds one **Company features**
+section with five independent switches, in order: **Use disciplines**, **Show placeholders**, **Show
+external resources**, **Inline activity creation** and **Show task field in schedule**. Its help
+action (`About Company features`) explains each one. **Use disciplines** is on by default
+(`disciplinesEnabled` absent reads as on; the temporary in-memory demo creates new companies with it
+off). **Show placeholders**, **Show external resources**, **Inline activity creation** and **Show task
+field in schedule** are off by default (absent reads as off).
+
+**Placeholders and external resources (per-account, default OFF).** The **Show placeholders** and
+**Show external resources** switches in **Company features** are independently configurable.
 A placeholder is an unfilled role or tentative person used to plan future capacity before someone
 is assigned. An External resource is a third party such as a partner agency, freelancer, supplier or
 subcontractor; it represents work leaving the team and carries no capacity. Both switches are off
@@ -804,45 +810,44 @@ dismiss the Sheet and focus returns to its connected avatar button, or to the sc
 has disappeared. Owners see real private client/project names; Admins, Editors and Viewers retain
 the independently projected quoted code names. Time-off notes are visible only to authenticated
 Owners/Admins (and in existing auth-off/demo semantics), and account, permission or resource
-invalidation removes all stale drawer content immediately. See [The schedule](../docs-src/guide/the-schedule.md).
+invalidation removes all stale drawer content immediately. See [Schedule](../docs-src/using/read-the-schedule.md).
 If the optional allocation Task field from #720 is available and populated under its workspace
 visibility rule, this vertical view shows it above Notes; this drawer does not create that field or
 setting. See [US-ALL-10](allocation/US-ALL-10-task-field.md).
 
-**Internal work colours (per-account, default neutral grey).** Settings → **Internal work colours** has a
-two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):
-**Neutral grey** (the default) or **Colour palette**. It is stored as `internalColourMode` on the
-Account (absent = `grey`, syncs but is omitted from the scoped planning-data export). In **Neutral grey** mode, allocation bars for `internal`
-activities and for projects owned by the built-in **Internal** client use the neutral grey, and an
-Internal-owned project's saved colour is overridden by grey in the Projects list. The project
-form hides its existing **Colour** swatch picker whenever the selected client is Internal; the
-saved palette colour is retained rather than cleared. Switching to **Colour palette** restores
-those saved project colours and reveals the picker. Unattributed All-projects allocations retain
-their resource-derived colours in both modes; attributed ones use their effective project's colour.
+**Internal work colours (always neutral grey).** Allocation bars for `internal` activities and for
+projects owned by the built-in **Internal** client always use the neutral grey, and an
+Internal-owned project's saved colour is overridden by grey in the Projects list. Settings has no
+colour mode for internal work. The project form hides its **Colour** swatch picker whenever the
+selected client is Internal; any saved palette colour is retained rather than cleared. Internal
+projects and activities are always available and shown, including in the command palette.
+Unattributed All-projects allocations retain their resource-derived colours; attributed ones use
+their effective project's colour.
 
-**Disciplines (account-level).** Settings → **Disciplines** has a single switch **Use disciplines**.
-It is off for a newly created company. Turning it off hides disciplines across the whole app — the **Disciplines** nav
+**Disciplines (account-level).** Settings → **Company features** has the switch **Use disciplines**.
+It is on for a company created on the server (absent reads as on); the temporary in-memory demo
+creates new companies with it off. Turning it off hides disciplines across the whole app — the **Disciplines** nav
 link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline** field in the
 resource form, the **Filter by discipline** control, the discipline part of each Resources-list
 row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle. The
 resource form also hides its **Discipline** field when the company has no disciplines to choose from.
 schedule then groups capacity-tracked resources by **Studio** and **Supplementary** engagement
-(or one **Unassigned** band when engagement grouping is off), followed by External / 3rd party.
+(or one **Resources** band when nobody is Supplementary), followed by External / 3rd party.
 It's stored on the account
 (`disciplinesEnabled`, syncs but is omitted from the scoped planning-data export), so it applies to everyone on that company; the discipline
 data itself is kept and reappears if switched back on. Both seed companies leave it on.
 
-**Group people by engagement (account-level).** Settings → **Group people by engagement** has a single switch
-**Group resources by engagement**, on by default. When on, Resources renders people in separate
-**Studio** and **Supplementary** sections; each section puts favourites first and then sorts by
-display name. On the schedule, assigned resources stay in canonical discipline order and unassigned
-resources follow in separate **Studio** then **Supplementary** bands. With disciplines off, those
-engagement bands become the primary schedule grouping. Empty bands never render and External /
-3rd party remains last. When the switch is off, Resources returns to one People list and the
-schedule uses one **Unassigned** fallback band for resources outside a discipline. Placeholders
-remain after people inside the applicable band. The preference is
-stored on the account (`groupResourcesByEngagement`, absent = on), so every member of the company
-sees the same grouping.
+**Engagement grouping (derived, no setting).** People are grouped by engagement only while the
+company has at least one active, capacity-tracked **Supplementary** person (archived people and
+External / 3rd parties do not count). Then Resources renders people in separate **Studio** and
+**Supplementary** sections; each section puts favourites first and then sorts by display name. On
+the schedule, assigned resources stay in canonical discipline order and unassigned resources follow
+in separate **Studio** then **Supplementary** bands. With disciplines off, those engagement bands
+become the primary schedule grouping. Empty bands never render and External / 3rd party remains
+last. A Studio-only company sees one People list in Resources and one fallback band on the schedule:
+**Unassigned** for resources outside a discipline while disciplines are on, or **Resources** for
+everyone when disciplines are off. Placeholders remain after people inside the
+applicable band. Settings has no control for it.
 
 **Example data (Settings → Example data).** Shown to an Owner or Admin
 (`data-testid="settings-example-data"`) only on a server-backed deploy, and only while the company has
@@ -876,35 +881,41 @@ mode). When the build also sets `VITE_CAPACITYLENS_FEEDBACK_MAILTO`, a **Send fe
 (`data-testid="send-feedback"`) sits beside the stamp — a `mailto:` whose subject carries
 the build stamp, so reports arrive pinned to a build. The build value must be one valid email
 address; invalid build configuration is rejected, and the address is safely encoded into the URI.
-The default dev/local build leaves both variables unset; the row still exposes server-mode persistence
-diagnostics, while a demo build with no stamp or feedback leaves the row absent.
+The default dev/local build leaves both variables unset, so the row is absent. Settings no longer
+shows persistence diagnostics.
 
-**Persistence diagnostics (Settings → Data and support → Build details, server mode).** A collapsed **Persistence diagnostics**
-disclosure (`data-testid="persistence-diagnostics"`) reports process-local, privacy-safe counts for
-failed saves, armed retries, completed reconciliations, superseded reloads, rebased edits and
-discarded edits, plus whether writes are currently suspended. It contains counts and state only—no
-company, person, project or note values—and resets when a fresh persistence lifecycle attaches.
+**Diagnostics (`/diagnostics`; Owner and Admin).** The **Diagnostics** link follows **Settings**
+in the sidebar administration group and in the command palette. It is shown to Owners and Admins,
+and to every session without a membership role (sign-in off, demo). Editors and Viewers see no link,
+and a direct visit redirects them to the schedule; while the role is resolving the route shows a
+loading status. Settings no longer has a Diagnostics row; editors and viewers report problems with
+the **Build details** stamp.
 
-**Diagnostics (Settings).** At the bottom of Settings, a **Diagnostics** card offers
-**Copy diagnostics** (`data-testid="copy-diagnostics"`). The card shows a **Snapshot observed** ISO
-timestamp captured by the client when the response arrives or its failure is observed. This is a
-point-in-time snapshot, not a live monitor. The copied text contains a fixed allowlist: the snapshot
-timestamp, app version, a validated build revision when one is present, deployment mode and export
-schema, followed by separately labelled server connectivity, database schema, persistence and
-backup status. The card is present in demo mode too, with server values unavailable. A missing or
-unavailable value is shown as **Unknown** or **Unavailable**; `null` schema/version fields mean that
-value was unavailable or invalid, not zero or a browser fallback, while a `null` backup timestamp
-means no valid backup timestamp was observed and does not assert that no backup exists. Browser
-constants are never presented as the server's database schema. The projection contains no names, emails,
-identifiers, paths, hostnames, secrets, invite or session values, raw errors or arbitrary response
-fields. The button reports a generic success or clipboard failure message.
+The page (`data-testid="diagnostics-report"`) shows a **Support report** as plain text
+(`data-testid="diagnostics-report-text"`), exactly as **Copy diagnostics**
+(`data-testid="copy-diagnostics"`) copies it. The report begins with a **Snapshot observed** ISO
+timestamp captured by the client when the server response arrives or its failure is observed; the
+server values are a point-in-time snapshot, not a live monitor, and copying does not request them
+again. The fixed allowlist is: app version, a validated build revision when present, deployment
+mode and export schema; separately labelled server connectivity, database schema, persistence and
+backup status; the sign-in mode (`off`, `password-only`, `sso-only` or `password-and-sso`); this
+browser session's save counters (saves failed, retries armed, reconciliations resolved, reloads
+superseded, edits rebased, edits discarded, saving suspended); and the browser's user agent,
+viewport, time zone and language. A browser value outside its expected shape reads **Unknown**.
+The page is present in demo mode too, with server values unavailable. A missing or unavailable
+value is shown as **Unknown** or **unavailable**; a `null` schema means that value was unavailable
+or invalid, not zero or a browser fallback, while an unknown backup timestamp does not assert that
+no backup exists. Browser constants are never presented as the server's database schema. The report
+contains no names, emails, identifiers, paths, hostnames, secrets, invite or session values, raw
+errors or arbitrary response fields. The button reports a generic success or clipboard failure
+message.
 
 When SMTP is configured in a password-capable mode, `forgot-password` reveals the inline
 `forgot-password-email` field and `forgot-password-submit` button. A successful request shows
 `forgot-password-confirmation`: **If an account uses that address, we've emailed a reset link.**
 
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
-server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `SMALLSASS_ACCOUNT_MODE=password-only`, `password-and-sso` or
+server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `CAPACITYLENS_MODE=password-only`, `password-and-sso` or
 `sso-only`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
@@ -914,12 +925,11 @@ show an inline alert. Starting an external sign-in clears an earlier provider er
 the browser hands off to the provider). If a mid-session 401 arrives while server writes are still unsaved, the
 sign-in wall also warns **Some changes could not be saved before your session expired. They will
 not be restored after you sign in again.** On a fresh server-mode boot, company persistence starts
-only after `/api/auth/me` has admitted the session: a signed-out visitor or an identity awaiting
-mandatory MFA makes no tenant-data request and cannot receive a misleading save-failure banner.
+only after `/api/auth/me` has admitted the session: a signed-out visitor makes no tenant-data request and cannot receive a misleading save-failure banner.
 Because session cookies are shared across tabs, a server-mode tab also rechecks the session when it
 returns to the foreground. A sign-out or revocation completed in another tab therefore replaces its
 stale authenticated shell with the sign-in wall before the user resumes work.
-The sign-in, mandatory MFA and session-verification failure walls set page-specific document titles;
+The sign-in and session-verification failure walls set page-specific document titles;
 the failure detail is announced as an alert when it replaces the checking state.
 While signed in, the sidebar's **Account** destination shows who is signed in and the available
 personal security controls. **Account** contains the single **Sign out** action for real and demo
@@ -955,24 +965,10 @@ character even though browser `maxlength` uses two UTF-16 code units. Email admi
 254 limit to UTF-8 bytes. Passwords independently use the documented 15–128 Unicode-code-point
 policy.
 
-**Password MFA and account security.** When an operator sets `SMALLSASS_ACCOUNT_REQUIRE_MFA=1`, after
-first-owner setup or after an existing pre-MFA user signs in, the app shows **Secure your account**
-before any company data. MFA is optional by default. The user enters their current password
-(`data-testid="mfa-enroll-password"`), records the authenticator URI and one-time recovery codes,
-enters the six-digit code (`data-testid="mfa-enroll-code"`), confirms the codes were saved, and
-chooses **Enable MFA** (`data-testid="mfa-enroll-submit"`). A user who already enrolled sees an
-**Authentication code** challenge after email/password sign-in (`data-testid="mfa-code"`, submit
-`data-testid="mfa-submit"`), with a recovery-code alternative. The in-place **Confirm it's you**
-challenge for sensitive actions offers the same **Use a recovery code** alternative, so a stored
-one-time code can restore freshness without signing out or losing the current form. The enrollment
-wall deliberately outranks public-entry links for a signed-in identity: an invitation explains that
-MFA must be finished before it can be accepted, while a password-reset link explains that the user
-may finish enrollment or choose **Sign out** to redeem the link without the current session.
-On Account, local-password users open **Change password** from the identity row and supply their
-current password in the dialog. The **Security** section (`data-testid="security-section"`) appears
-when required MFA status or a configured company-provider connection is available. Recovery codes and session
-tokens are never displayed after their one-time setup/use. Disabling MFA is deliberately not offered
-when the deployment requires it.
+**Account security.** On Account, local-password users open **Change password** from the identity
+row and supply their current password in the dialog. The **Security** section
+(`data-testid="security-section"`) appears when a configured company-provider connection is
+available. Session tokens are never displayed after their one-time use.
 
 On a mixed deployment, Account's Security section shows **Company sign-in**
 (`data-testid="sso-connection"`) for each configured company provider. **Connect _provider_**
@@ -1020,7 +1016,7 @@ itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
 On a mixed deployment, every configured external provider remains available below
 the setup form. Google uses the branded **Sign in with Google** action; other providers use
 their branded sign-in action. Named Google/Microsoft bootstrap uses
-`SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. Microsoft asks for the intended email before starting
+`CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`. Microsoft asks for the intended email before starting
 and proves it during first connection; provider-required setup does not ask for a password. The
 operator does not need a temporary password identity.
 
@@ -1213,8 +1209,7 @@ presented before the member directory, matching the action-first pattern of the 
   the company's name and available sign-in methods. Eligible Google, Microsoft and GitHub
   choices appear above the existing-password option in mixed mode; GitHub remains unavailable
   in company-sign-in-only mode. Microsoft uses its same-browser mailbox ceremony when needed.
-  A person with an existing password account signs in, completes any required second factor,
-  then chooses **Join company**. The server admits only a currently proven email that meets the
+  A person with an existing password account signs in, then chooses **Join company**. The server admits only a currently proven email that meets the
   live policy. A password identity without trusted email proof gets recovery guidance to use an
   eligible verified provider or an addressed invitation, or choose **Email me a verification link**
   (`data-testid="joining-verify-email"`); successful delivery shows an inbox status
@@ -1452,9 +1447,7 @@ Retry succeeds or another company is chosen),
 `getting-started-progress` (the company-wide 0–5 bar), `getting-started` (the toggleable checklist
 card), `getting-started-tour` (its **Show me around** button — runs the driver.js orientation tour),
 `getting-started-dismiss` (the Owner/Admin **Dismiss** button; saves company-wide dismissal),
-`create-language` (company-create form's read-only Language row — **English**), `settings-language`
-(Settings → the Company details read-only Language cell — **English**; both
-frozen, P1.14),
+`create-language` (company-create form's read-only Language row — **English**; frozen, P1.14),
 `new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —
 whenever `GET /api/auth/me` reports `canCreateAccount: false`: the single-company cap is reached,
 or under auth-on the caller lacks owner/admin standing on any account),
@@ -1471,7 +1464,7 @@ carries a **Restore <name>** + **Delete <name>** button), `archived-section` (Se
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
 deploy that also renders the company block, which needs two or more accessible companies; absent for
 any non-viewer role and wherever the company block is hidden),
-`persistence-diagnostics` (Settings → Build details disclosure; server mode), `copy-diagnostics` (Settings diagnostics copy action; server and demo modes), `settings-build-details` (Settings → Data and support → Build details row), `build-stamp` (Settings → Build details; only rendered when the build sets
+`diagnostics-report` (Diagnostics page support-report card), `diagnostics-report-text` (the report text it copies), `copy-diagnostics` (Diagnostics page copy action; server and demo modes), `settings-build-details` (Settings → Data and support → Build details row), `build-stamp` (Settings → Build details; only rendered when the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings → Build details mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,
@@ -1539,12 +1532,12 @@ multiple).
   resource grouping while sorting Studio before Supplementary within each discipline, favourites
   first and alphabetical inside each engagement partition, followed by placeholders. Unassigned
   resources follow the assigned discipline bands as separate Studio and Supplementary bands; those
-  engagement bands become the complete capacity grouping when disciplines are off. Turning
-  engagement grouping off replaces the fallback engagement bands with one **Unassigned** band while
-  retaining favourites-first alphabetical order. Favourite external parties similarly lead the
-  final External band. Favourites and
-  the grouping preference are company data shared by every account member, not per-user view
-  preferences.
+  engagement bands become the complete capacity grouping when disciplines are off. A company with
+  no active Supplementary person gets one band instead (**Unassigned** with disciplines on,
+  **Resources** with disciplines off), while retaining
+  favourites-first alphabetical order. Favourite external parties similarly lead the
+  final External band. Favourites are company data shared by every account member, not per-user
+  view preferences.
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
   **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write
   that would create a _second_ Internal, so the one-per-account rule holds on every path). It is a behind-the-scenes data anchor, so it
@@ -1793,7 +1786,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   It can request a raw-copy download before a confirmed reset; reset attempts clear both local
   CapacityLens keys and offline snapshots, report partial failures precisely, and only reload once
   the unreadable local data is gone.
-- Failed SSO hand-off, MFA enrollment, reauthentication and invitation acceptance remain visible
+- Failed SSO hand-off, reauthentication and invitation acceptance remain visible
   and actionable. A successful invitation keeps the newly selected company active while its account
   list refreshes.
 - Company management data is fetched only for members who may manage it. Removing a client or
@@ -1812,11 +1805,17 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
 
 ## Documentation navigation
 
+The documentation is split into four role guides, each with its own landing page and sidebar:
+day-to-day use for schedulers, Owner setup, Admin and settings, and installing and running the
+service for the technical operator. Each topic has one canonical page; old documentation paths
+are not redirected.
+
 The day-to-day documentation introduces the application page by page: Schedule, Overview,
-Resources, Disciplines, Clients, Projects, Activities and Time off. Schedule is first in the
-guide so an invited teammate can find their own work. Settings, Account, Team & access and
-the FAQ provide supporting help. Scheduling tasks remain visible in the guide navigation
-so their current page can be identified. The application navigation itself is unchanged.
+Resources, Disciplines, Clients and projects, Activities and Time off. Each page keeps the short
+introduction first and the detailed reference below it. Schedule is first in the guide so an
+invited teammate can find their own work. Scheduling and changing work, Settings, Account,
+Team & access and the FAQ provide supporting help. The application navigation itself is
+unchanged.
 
 The [Schedule guide](../docs-src/using/read-the-schedule.md) explains the avatar/eye button
 that opens a person's work list and distinguishes viewing booking details from editing.

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
 
 /** Purpose-built recovery for an unmatched URL. This is navigation, not an application error, so
  * offer a stable in-app destination instead of a reload that would repeat the same 404. */

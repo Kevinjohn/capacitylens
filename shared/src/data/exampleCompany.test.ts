@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { remapAndValidateImport } from "../domain/mutations";
 import { isPresetColor } from "../lib/color";
 import { dayIndex, weekdayOf } from "../lib/dateMath";
-import { emptyAppData, type AppData } from "../types/entities";
+import { emptyAppData } from "../types/entities";
+import type { AppData } from "../types/entities";
 import { buildExampleCompany, countExampleRows } from "./exampleCompany";
 
 const ACCOUNT = "a-example";

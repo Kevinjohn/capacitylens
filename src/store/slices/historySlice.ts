@@ -6,10 +6,10 @@ import {
   HISTORY_LIMIT,
   prepareHistoryTarget,
   resetSchedulerView,
-  type StoreInternals,
-} from "../storeInternal";
+} from "@/store/storeInternal";
+import type { StoreInternals } from "@/store/storeInternal";
 import { readCurrentWeekAnchor } from "./schedulerSlice";
-import type { StoreState } from "../types";
+import type { StoreState } from "@/store/types";
 
 type HistorySlice = Pick<StoreState, "past" | "future" | "replaceAll" | "importData" | "undo" | "redo">;
 type HistorySliceInternals = Pick<StoreInternals, "createGuardedAction" | "importSlice" | "requireAccount">;
@@ -24,14 +24,14 @@ export function createHistorySlice(internals: HistorySliceInternals): StateCreat
       // Replace only the active account's slice; other accounts and the account
       // list itself are untouched. Undoable via ⌘Z.
       //
-      // Imported entities keep their relationships but are given FRESH ids. An
+      // Imported entities keep their relationships but are given fresh ids. An
       // exported file carries the source account's ids; re-importing it into a
-      // different account would otherwise collide — the store matches entities by
-      // id GLOBALLY (updateById / cascade scan all accounts), so a shared id would
+      // different account would otherwise collide, the store matches entities by
+      // id globally (updateById / cascade scan all accounts), so a shared id would
       // let an edit in one account silently rewrite another's row.
-      // The account is resolved at the CALL, ahead of the shared viewer gate: replacing a slice with
-      // NO active account is a programming error for every role, so requireAccount must still throw
-      // where `createGuardedAction` would merely refuse. Viewer no-op (P1.12 defense-in-depth): a read-only user
+      // The account is resolved at the call, ahead of the shared viewer gate: replacing a slice with
+      // no active account is a programming error for every role, so requireAccount must still throw
+      // where `createGuardedAction` would merely refuse. Viewer no-op (defense-in-depth): a read-only user
       // can't replace the account slice, and gets a zero-effect summary so the caller reports honestly.
       importData: (incoming) => importSlice(requireAccount(), incoming),
 
@@ -75,7 +75,7 @@ function replaceAllState(state: StoreState, data: StoreState["data"]): Partial<S
   const unchangedActiveSlice = previouslyHadActiveAccount && hasSameEntityRevisions(state.data, data);
   // A replacement is a publication boundary: never retain an active id that the newly
   // published slice does not contain. This can happen after membership revocation, a malformed
-  // response, recovery, or a direct store call. Clear the selection in the SAME state write so
+  // response, recovery, or a direct store call. Clear the selection in the same state write so
   // observers cannot see the new data under the dead tenant even for one notification, and do
   // not retain it as the picker's "back" target. requireAccount independently enforces the same
   // invariant at every scoped mutation boundary.

@@ -4,7 +4,7 @@ export type PreparedStatement = ReturnType<Db["prepare"]>;
 
 /**
  * Per-handle prepared-statement cache, module-local copy of the auditOutbox.ts/controlTables.ts
- * idiom. Deliberately NOT imported from controlTables: coordinator state must stay free of
+ * idiom. Deliberately not imported from controlTables: coordinator state must stay free of
  * control-table dependency edges (enforced by conformance/architecture.test.ts's deny-by-default
  * importer allow-list and the coordinator-persistence transitive scan). WeakMap keyed by the Db
  * handle so test `:memory:` handles never leak.

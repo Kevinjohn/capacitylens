@@ -10,8 +10,9 @@ import {
 import { assertActivityProjectAllowsDependents, assertScopedRefs } from "@capacitylens/shared/domain/mutations";
 import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNames";
 import type { Activity, Client, Discipline, ID, Phase, Project } from "@capacitylens/shared/types/entities";
-import { readNextDataRevision, stamp, touchAfter, type StoreInternals } from "../storeInternal";
-import type { Draft, Patch, StoreState } from "../types";
+import { readNextDataRevision, stamp, touchAfter } from "@/store/storeInternal";
+import type { StoreInternals } from "@/store/storeInternal";
+import type { Draft, Patch, StoreState } from "@/store/types";
 
 type CatalogSlice = Pick<
   StoreState,
@@ -104,11 +105,11 @@ function createClientActions(internals: CatalogSliceInternals): Pick<CatalogSlic
   return {
     addClient: createGuardedAddAction(
       (input: Draft<Client>): Client => {
-        // STORE-STRIP enforcement point (1) of the single-Internal invariant — see the canonical doc
+        // Store-strip enforcement point (1) of the single-Internal invariant, see the canonical doc
         // in shared/src/data/internalClient.ts (the other two points are import fold + server reject).
         // `builtin` is excluded from Draft<Client> at the type level (only seed/addAccount/migrate may
         // mint the one Internal per account). Strip it at runtime too so an untyped/cast payload can't
-        // smuggle `builtin: true` past the compile-time guard and create a SECOND builtin — that would
+        // smuggle `builtin: true` past the compile-time guard and create a second builtin, that would
         // break the "exactly one Internal per account" invariant. See Draft<Client>.
         const stripped: Record<string, unknown> = { ...input };
         delete stripped.builtin;
@@ -130,7 +131,7 @@ function createClientActions(internals: CatalogSliceInternals): Pick<CatalogSlic
     ),
     updateClient: createGuardedAction((id: ID, patch: Patch<Client>) => {
       // `builtin` is excluded from Patch<Client> at the type level; strip it at runtime too so an
-      // untyped/cast patch can't PROMOTE a normal client to a second builtin (store-strip enforcement
+      // untyped/cast patch can't promote a normal client to a second builtin (store-strip enforcement
       // point (1); canonical doc in shared/src/data/internalClient.ts).
       const stripped: Record<string, unknown> = { ...patch };
       delete stripped.builtin;
@@ -140,7 +141,7 @@ function createClientActions(internals: CatalogSliceInternals): Pick<CatalogSlic
         id: id,
         patch: safe,
         prepare: (merged) => {
-          // The built-in Internal client can't be renamed (or recoloured) — a fixed bucket.
+          // The built-in Internal client can't be renamed (or recoloured), a fixed bucket.
           assertNotBuiltinClient("clients", id, "renamed");
           if (!hasUsablePrivateCodeName(merged as unknown as Record<string, unknown>)) {
             throw new Error("A private client requires a code name.");
@@ -181,8 +182,8 @@ function createProjectActions(
             throw new Error("A private project requires a code name.");
           }
           // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): in server mode
-          // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
-          // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
+          // the hydrated slice is active-only, so an unchanged clientId pointing at an archived client
+          // must not block an unrelated edit; a changed clientId is still validated strictly.
           assertScopedRefs(get().data, existing.accountId, "projects", patch, existing);
           return applySnappedColor({ patch: patch });
         },
@@ -212,7 +213,7 @@ function createPhaseActions(
         id: id,
         patch: patch,
         prepare: (_merged, existing) => {
-          // `existing` enables the unchanged-parent relaxation (see assertScopedRefs) — same
+          // `existing` enables the unchanged-parent relaxation (see assertScopedRefs), same
           // archived-parent rationale as updateProject above.
           assertScopedRefs(get().data, existing.accountId, "phases", patch, existing);
           return patch;
@@ -247,8 +248,8 @@ function createActivityActions(
         id: id,
         patch: patch,
         prepare: (merged, existing) => {
-          // A partial patch touching only projectId OR only phaseId must still be checked for
-          // activity↔phase coherence against the row's OTHER field.
+          // A partial patch touching only projectId or only phaseId must still be checked for
+          // activity↔phase coherence against the row's other field.
           assertScopedRefs(get().data, existing.accountId, "activities", { ...merged }, existing);
           assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
           return patch;

@@ -23,13 +23,13 @@ type StoredSessionActivity = { updatedAt: string | number | null };
 /**
  * Apply the app's idle timeout to a session Better Auth has already resolved.
  *
- * STORAGE REPRESENTATION IS NOT ASSUMED. Better Auth 1.6.x on node:sqlite stores
+ * Storage representation is not assumed. Better Auth 1.6.x on node:sqlite stores
  * `session.updatedAt` as ISO-8601 *text*, not the integer epoch milliseconds an earlier
  * version of this function trusted a comment about. Comparing or writing numbers against a
  * text-valued column means SQL predicates silently never match (INTEGER always sorts before
  * TEXT), which turned both the expiry compare-and-set and the activity touch into no-ops on
  * production rows. So: read the raw stored value, parse whatever is there, compare-and-set
- * against the RAW value, and write back in the SAME representation that is stored. Direct
+ * against the raw value, and write back in the same representation that is stored. Direct
  * conditional SQL is required because the adapter exposes only unconditional async writes and
  * cannot provide compare-and-set; the CAS keeps deletes and touches monotonic even when
  * overlapping requests settle out of order. Fails closed (row deleted, `null` returned) on an
@@ -47,7 +47,7 @@ type SessionActivityContext = {
   lifecycle: SessionActivityLifecycle | undefined;
 };
 
-// This runs on every authenticated request (via enforceSessionActivity below) — cache the four
+// This runs on every authenticated request (via enforceSessionActivity below), cache the four
 // prepared statements per Db handle instead of re-preparing them on each call. WeakMap keyed by
 // the Db handle: an entry is collected with its handle, so tests that spin up many short-lived
 // in-memory handles don't leak.
@@ -98,7 +98,7 @@ function enforceExpiredSessionWithoutLifecycle<Session extends SessionActivitySe
   const removed = context.statements.casDelete.run(token, row.updatedAt);
   if (removed.changes >= 1) return null;
 
-  // Lost a race to a concurrent touch between the read and the delete — re-read it.
+  // Lost a race to a concurrent touch between the read and the delete, re-read it.
   const current = readSessionActivity(context.statements, token);
   if (!current) return null;
   const currentMs = parseSessionTimestamp(current.updatedAt);
@@ -197,7 +197,7 @@ export async function enforceSessionActivity<Session extends SessionActivitySess
  *
  * Better Auth sets `emailVerified` per provider during sign-in (Google/Microsoft OIDC derive
  * it from the `email_verified` claim; GitHub and email+password sign-up leave it `false` until
- * verified). We deliberately do NOT branch on a provider allow-list — we trust Better Auth's
+ * verified). We deliberately do not branch on a provider allow-list. We trust Better Auth's
  * per-provider value and use `?? false` as the safety net for any provider that omits it, so an
  * unverifiable provider can never present as verified.
  */
@@ -214,12 +214,12 @@ export function buildSessionUser(raw: RawSessionUser): SessionUser {
 }
 
 /** Re-assert HTTPS at the session boundary so a malformed provider or hand-edited value
- *  cannot reach the client as an image source. */
+ * cannot reach the client as an image source. */
 function parseImageUrl(value: unknown): string | null {
   return typeof value === "string" && value.startsWith("https://") ? value : null;
 }
 
-// session.create.after (in authFromEnv below) runs on every newly created session — cache the
+// session.create.after (in authFromEnv below) runs on every newly created session, cache the
 // prepared MFA-enrolment lookup per Db handle instead of re-preparing it on each call. WeakMap
 // keyed by the Db handle: an entry is collected with its handle, so tests that spin up many
 // short-lived in-memory handles don't leak.

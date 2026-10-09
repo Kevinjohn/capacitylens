@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { emptyAppData, type Allocation, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { Allocation, AppData } from "@capacitylens/shared/types/entities";
 import { clearAllocationAttributionForActivities, insertAll, readState, openDb, upsertRow } from "./db";
 import { assertValidWrite } from "./validate";
 

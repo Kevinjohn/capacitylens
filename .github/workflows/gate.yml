@@ -63,10 +63,9 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
-          PR_AUTHOR: ${{ github.actor }}
         run: |
           node --test scripts/check-dco.test.mjs
-          node scripts/check-dco.mjs "$BASE_SHA" "$HEAD_SHA" "$PR_AUTHOR"
+          node scripts/check-dco.mjs "$BASE_SHA" "$HEAD_SHA"
 
   application:
     name: Application typecheck · lint · unit · build
@@ -270,7 +269,7 @@ jobs:
             echo "The unedited environment example started" >&2
             exit 1
           fi
-          grep -q "SMALLSASS_ACCOUNT_SECRET is required" "$work/unedited.log"
+          grep -q "CAPACITYLENS_SECRET is required" "$work/unedited.log"
 
           # Fill in exactly the three empty lines, as a person following INSTALL.md would.
           secret="$(openssl rand -base64 48)"
@@ -280,9 +279,9 @@ jobs:
           # The single-quoted $0 below is awk's record, not a shell expansion.
           # shellcheck disable=SC2016
           awk -v url="http://127.0.0.1:$port" -v secret="$secret" -v token="$token" '
-            $0 == "SMALLSASS_ACCOUNT_PUBLIC_URL=" { $0 = $0 url; filled++ }
-            $0 == "SMALLSASS_ACCOUNT_SECRET=" { $0 = $0 secret; filled++ }
-            $0 == "SMALLSASS_ACCOUNT_SETUP_TOKEN=" { $0 = $0 token; filled++ }
+            $0 == "CAPACITYLENS_PUBLIC_URL=" { $0 = $0 url; filled++ }
+            $0 == "CAPACITYLENS_SECRET=" { $0 = $0 secret; filled++ }
+            $0 == "CAPACITYLENS_SETUP_TOKEN=" { $0 = $0 token; filled++ }
             { print }
             END { if (filled != 3) exit 1 }
           ' "$release/capacitylens.env.example" >"$env_file"

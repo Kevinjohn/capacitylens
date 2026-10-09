@@ -12,7 +12,7 @@ import {
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // US-NAV-10: the flag-gated login wall, against the auth-backed project's server
-// (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). The default deploy keeps
+// (CAPACITYLENS_MODE=password on :8887 — see playwright.config.ts). The default deploy keeps
 // auth off, so this is the ONLY place the login screen exists; the rest of the suite
 // running unchanged in the other two projects is the off-guarantee.
 
@@ -77,10 +77,18 @@ function registerSigningRevealsAppSigningOutTest() {
     const { email, cookie } = await signUpUser(`login-${Date.now()}@capacitylens.dev`);
     await bootstrapOrg(request, cookie, ORG_NAME);
 
+    const unscopedStateReads: string[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (url.pathname === "/api/state" && !url.searchParams.has("accountId")) unscopedStateReads.push(url.href);
+    });
+
     await page.goto("/");
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
+    expect(unscopedStateReads).toEqual([]);
 
     // The boot flow resumes: the picker lists ONLY this login's memberships (P1.13) → pick our org →
     // the active account hydrates its slice via GET /api/state?accountId= → app.
@@ -174,7 +182,7 @@ function registerLoginMembershipsSeesEMPTYPickerTests() {
   });
 }
 
-test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
+test.describe("login screen (CAPACITYLENS_MODE=password)", () => {
   registerUnauthenticatedVisitShowsLoginScreenTest();
   registerSigningRevealsAppSigningOutTest();
   registerCreateOwnerAdminAdminBootstrapTest();

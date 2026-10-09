@@ -1,9 +1,9 @@
-import {
-  isLiveOwnershipTransferState,
-  type OwnershipTransferOutcome,
-  type OwnershipTransferRequest,
-  type OwnershipTransferState,
-  type OwnershipTransferTerminalReason,
+import { isLiveOwnershipTransferState } from "@capacitylens/shared/account/ownershipTransfer";
+import type {
+  OwnershipTransferOutcome,
+  OwnershipTransferRequest,
+  OwnershipTransferState,
+  OwnershipTransferTerminalReason,
 } from "@capacitylens/shared/account/ownershipTransfer";
 import type { OwnershipTransferCommandInput } from "@capacitylens/shared/account/ports";
 import {
@@ -24,7 +24,7 @@ export type TransferContext = Pick<AdminPortContext, "db" | "trustedLocal" | "re
 /**
  * A row whose deadline has passed is not a live ceremony: it is an expiry nobody has committed yet.
  *
- * The commit still belongs to the command path — the unique-live-slot guarantee is a partial index,
+ * The commit still belongs to the command path. The unique-live-slot guarantee is a partial index,
  * and a read must not write. But handing the stored row back verbatim would show both participants
  * an open ceremony with a deadline in the past and offer them controls that can only fail, so the
  * projection says what is true and the next command makes it durable.

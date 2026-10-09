@@ -1,11 +1,11 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import type { Activity } from "@capacitylens/shared/types/entities";
-import { setExternalEnabled, setPlaceholdersEnabled } from "../../test/fixtures";
+import { setExternalEnabled, setPlaceholdersEnabled } from "@/test/fixtures";
 import { chooseOption } from "./__tests__/schedulerTestKit";
 import { ACC, person, required, resetAllocationModalStore } from "./__tests__/allocationModalTestKit";
 
@@ -18,8 +18,8 @@ interface AllocationScopeCaseInput {
 }
 
 type CapacityAdvisoryMockInput =
-  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisory>[0]
-  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisoryFromLoad>[0];
+  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisory>[0]
+  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisoryFromLoad>[0];
 const capacityAdvisoryMock = vi.hoisted(() =>
   vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
     overDays: 0,
@@ -29,9 +29,9 @@ const capacityAdvisoryMock = vi.hoisted(() =>
 
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory VERDICTS the modal renders.
-vi.mock("../../lib/capacity", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../lib/capacity")>()),
+// care only about the advisory verdicts the modal renders.
+vi.mock("@/lib/capacity", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
@@ -547,22 +547,22 @@ describe("AllocationModal edit", () => {
         status: "confirmed",
       }),
     );
-    // Turn placeholders OFF — they're hidden everywhere, but an allocation already on one must not
+    // Turn placeholders off, they're hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) placeholder.
-    setPlaceholdersEnabled(false);
+    setPlaceholdersEnabled({ on: false });
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     const assignee = screen.getByRole("combobox", { name: "Assignee" });
     expect(assignee).toHaveTextContent("Placeholder (slot)");
     // The placeholder option is present (labelled "Placeholder (slot)") even though placeholders are
-    // hidden — without it the picker would silently reassign to another available option.
+    // hidden: without it the picker would silently reassign to another available option.
     fireEvent.keyDown(assignee, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Placeholder (slot)" })).toBeInTheDocument();
   });
 
   it("risk A: editing an allocation on a HIDDEN external still offers that external so the value is preserved", async () => {
-    // Externals default OFF too; the suite-wide beforeEach only turns placeholders on. Create an
-    // external, book it, then assert the picker keeps it as an option even with the pref OFF.
+    // Externals default off too; the suite-wide beforeEach only turns placeholders on. Create an
+    // external, book it, then assert the picker keeps it as an option even with the pref off.
     const ext = requireCreated(
       useStore.getState().addResource({
         kind: "external",
@@ -586,15 +586,15 @@ describe("AllocationModal edit", () => {
         status: "confirmed",
       }),
     );
-    // External pref OFF (its default) — hidden everywhere, but an allocation already on one must not
+    // External pref off (its default), hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) external.
-    setExternalEnabled(false);
+    setExternalEnabled({ on: false });
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     const assignee = screen.getByRole("combobox", { name: "Assignee" });
     expect(assignee).toHaveTextContent("Kord Industries (external)");
     // The external option is present (labelled "Kord Industries (external)") even though externals are
-    // hidden — without it the picker would silently reassign to another available option.
+    // hidden: without it the picker would silently reassign to another available option.
     fireEvent.keyDown(assignee, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Kord Industries (external)" })).toBeInTheDocument();
   });

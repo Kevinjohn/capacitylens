@@ -1,34 +1,29 @@
-import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { isServerConfigured } from "../data/apiConfig";
-import { bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from "../account/accountClient";
+import { isServerConfigured } from "@/data/apiConfig";
+import { bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from "@/account/accountClient";
 import { resolvePublicAuthEntry } from "./authEntryRoute";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import { AuthContext } from "./authContext";
 import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";
-import { OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, revalidateOfflineShell } from "../data/offlineCache";
+import { OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, revalidateOfflineShell } from "@/data/offlineCache";
 import { signOutAndReload } from "./signOut";
 import { APP_NAME } from "@capacitylens/shared/brand";
-import { markCompanyPickerForNextReload } from "../lib/companyPickerEntry";
-import { buildOpenAuthResult, type AuthStatusResult } from "./authStatus";
+import { markCompanyPickerForNextReload } from "@/lib/companyPickerEntry";
+import { buildOpenAuthResult } from "./authStatus";
+import type { AuthStatusResult } from "./authStatus";
 import { fetchAuthStatus } from "./fetchAuthStatus";
 import { AuthenticatedExternalSignInFailure, AuthLoading, ReauthMount } from "./authScreens";
 import { useAuthContextValue } from "./useAuthContextValue";
 
 // Auth boundary. In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
-// pure pass-through that performs NO fetch at all. In server mode (the default) it asks
+// pure pass-through that performs no fetch at all. In server mode (the default) it asks
 // GET /api/auth/me once at boot: authMode 'off' (the default deploy) renders the app
 // without a sign-in; a 401 replaces everything with the LoginScreen. The screen is a
 // lazy chunk so better-auth's client never loads unless a login is actually shown.
 
 const LoginScreen = lazy(() => import("./LoginScreen").then((screenModule) => ({ default: screenModule.LoginScreen })));
-const MfaEnrollmentScreen = lazy(() =>
-  import("./MfaEnrollmentScreen").then((screenModule) => ({
-    default: screenModule.MfaEnrollmentScreen,
-  })),
-);
 const MicrosoftVerificationScreen = lazy(() =>
   import("./MicrosoftVerificationScreen").then((screenModule) => ({
     default: screenModule.MicrosoftVerificationScreen,
@@ -37,9 +32,13 @@ const MicrosoftVerificationScreen = lazy(() =>
 
 type CheckAuth = (onNull: "fail-open" | "keep-previous") => Promise<AuthStatusResult | null>;
 
-function useTenantAccessReady(status: AuthStatusResult, onTenantAccessReady?: () => void) {
+function useTenantAccessReady(
+  status: AuthStatusResult,
+  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void,
+) {
   const tenantAccessSignalled = useRef(false);
-  const ready = status.kind === "pass" && !(allowsPasswordSignIn(status.authMode) && status.mfaRequired);
+  const ready = status.kind === "pass";
+  const identitySource = status.kind === "pass" ? (status.identitySource ?? "open") : "open";
   useEffect(() => {
     if (!ready) {
       tenantAccessSignalled.current = false;
@@ -47,11 +46,12 @@ function useTenantAccessReady(status: AuthStatusResult, onTenantAccessReady?: ()
     }
     if (tenantAccessSignalled.current) return;
     tenantAccessSignalled.current = true;
-    onTenantAccessReady?.();
-  }, [onTenantAccessReady, ready]);
+    onTenantAccessReady?.(identitySource);
+  }, [identitySource, onTenantAccessReady, ready]);
 }
 
-function useAuthStatus(serverMode: boolean) {
+type UseAuthStatusOptions = { serverMode: boolean };
+function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
   const [status, setStatus] = useState<AuthStatusResult>(
     serverMode ? { kind: "checking" } : buildOpenAuthResult("off", null),
   );
@@ -73,12 +73,7 @@ function useAuthStatus(serverMode: boolean) {
   const refreshAuth = useCallback(async () => {
     if (serverMode) await checkAuth("keep-previous");
   }, [serverMode, checkAuth]);
-  const confirmMfaEnrollment = useCallback(async () => {
-    if (!serverMode) return true;
-    const next = await checkAuth("keep-previous");
-    return next?.kind === "pass" && !next.mfaRequired;
-  }, [serverMode, checkAuth]);
-  return { status, setStatus, checkAuth, refreshAuth, confirmMfaEnrollment };
+  return { status, setStatus, checkAuth, refreshAuth };
 }
 
 function useAuthRevalidation({
@@ -113,7 +108,12 @@ function useAuthRevalidation({
   }, [serverMode, refreshAuth]);
 }
 
-function useAuthInvalidation(serverMode: boolean, checkAuth: CheckAuth, setStatus: (status: AuthStatusResult) => void) {
+type UseAuthInvalidationOptions = {
+  serverMode: boolean;
+  checkAuth: CheckAuth;
+  setStatus: (status: AuthStatusResult) => void;
+};
+function useAuthInvalidation({ serverMode, checkAuth, setStatus }: UseAuthInvalidationOptions) {
   useEffect(() => {
     if (!serverMode) return;
     const onAuthInvalidation = (event: StorageEvent) => {
@@ -204,27 +204,27 @@ function AuthenticatedBoundary({
 /**
  * Boot-time auth boundary.
  *
- * - DEMO mode (VITE_CAPACITYLENS_DEMO=1): a pure pass-through — performs ZERO fetches, renders children.
- * - SERVER mode (the default): asks GET /api/auth/me ONCE at boot. authMode 'off' (the default deploy) renders
+ * - demo mode (VITE_CAPACITYLENS_DEMO=1): a pure pass-through, performs zero fetches, renders children.
+ * - server mode (the default): asks GET /api/auth/me once at boot. authMode 'off' (the default deploy) renders
  *   the app as today; a 401 swaps in the lazy LoginScreen; any other failure renders a retryable
  *   authentication error boundary.
  * - Re-checks on `persistError` so an expired session (a 401 on a write) swaps to the login screen
- *   rather than letting writes keep failing silently behind the banner; an UNRESOLVED re-check
- *   keeps the previous snapshot (same policy as refreshAuth — see checkAuth).
+ *   rather than letting writes keep failing silently behind the banner; an unresolved re-check
+ *   keeps the previous snapshot (same policy as refreshAuth, see checkAuth).
  * - Exposes `refreshAuth` on the context so client actions that change what /me reports (org
  *   create/delete → a recomputed canCreateAccount) can re-ask mid-session instead of gating UI
  *   affordances on the boot-time snapshot.
  *
- * `authMode` comes ONLY from the server — there is no client-side auth flag.
+ * `authMode` comes only from the server. There is no client-side auth flag.
  */
 export function AuthProvider({
   children,
   onTenantAccessReady,
 }: {
   children: ReactNode;
-  /** Starts tenant-data hydration only after /me admits this boot. The callback must be idempotent
-   * because React development StrictMode deliberately replays effects. */
-  onTenantAccessReady?: () => void;
+  /** Starts tenant-data hydration after /me admits access. Receives whether identity is live,
+   * cached offline, or open; the callback must be idempotent under StrictMode effect replay. */
+  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void;
 }) {
   if (/^\/verify-microsoft\/?$/.test(window.location.pathname)) {
     return (
@@ -245,14 +245,14 @@ function AuthenticatedAppProvider({
   onTenantAccessReady,
 }: {
   children: ReactNode;
-  onTenantAccessReady?: () => void;
+  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void;
 }) {
   const serverMode = isServerConfigured();
   const persistError = useStore((state) => state.persistError);
-  const { status, setStatus, checkAuth, refreshAuth, confirmMfaEnrollment } = useAuthStatus(serverMode);
+  const { status, setStatus, checkAuth, refreshAuth } = useAuthStatus({ serverMode });
   useTenantAccessReady(status, onTenantAccessReady);
   useAuthRevalidation({ serverMode, persistError, checkAuth, refreshAuth });
-  useAuthInvalidation(serverMode, checkAuth, setStatus);
+  useAuthInvalidation({ serverMode, checkAuth, setStatus });
 
   useEffect(() => {
     if (status.kind === "error") {
@@ -283,17 +283,6 @@ function AuthenticatedAppProvider({
       <LoginBoundary status={status} authContextValue={authContextValue}>
         {children}
       </LoginBoundary>
-    );
-  }
-  if (status.mfaRequired && allowsPasswordSignIn(status.authMode)) {
-    return (
-      <Suspense fallback={<AuthLoading message={m.auth_loading_sign_in()} />}>
-        <MfaEnrollmentScreen
-          blockedEntry={resolvePublicAuthEntry(window.location.pathname)}
-          onEnrolled={confirmMfaEnrollment}
-          onSignOut={() => void signOut()}
-        />
-      </Suspense>
     );
   }
   return (

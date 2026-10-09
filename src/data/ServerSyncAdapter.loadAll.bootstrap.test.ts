@@ -5,17 +5,33 @@ import { readOfflineStateSnapshot, setOfflineReadState } from "./offlineCache";
 import { batchOps, client, project, withData, account, commitReceipt } from "./ServerSyncAdapter.testSupport";
 
 function registerBootstrapLoadTests(): void {
+  it("seeds an empty adapter snapshot without making an unscoped state request", async () => {
+    const initial = withData({ clients: [client("before-skip")] });
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify(initial), { status: 200 }),
+    ) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    await adapter.loadAll();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    await expect(adapter.loadAll(undefined, { skipRemoteRead: true })).resolves.toEqual(emptyAppData());
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    await adapter.saveAll(emptyAppData());
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("treats an unscoped 400 as an empty pre-account bootstrap without parsing its body", async () => {
     const fetchImpl = vi.fn(async () => new Response("not json", { status: 400 })) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
 
-    setOfflineReadState("tenant", true);
+    setOfflineReadState({ owner: "tenant", readOnly: true });
     try {
       await expect(adapter.loadAll()).resolves.toEqual(emptyAppData());
       expect(fetchImpl).toHaveBeenCalledTimes(1);
       expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: false });
     } finally {
-      setOfflineReadState("cleanup", false);
+      setOfflineReadState({ owner: "cleanup", readOnly: false });
     }
   });
 }
@@ -116,16 +132,16 @@ function registerBaseLoadTests(): void {
   });
 
   it("tolerates a MISSING table key (rolling deploy: new client, older server) but rejects a PRESENT non-array table", async () => {
-    // DEPLOYMENT CONTRACT: a version-skewed OLDER server may OMIT a table this newer client already
-    // knows about; that MISSING key hydrates as empty via migrate()/normalize rather than failing the
-    // WHOLE load (which would be a total outage on every rolling deploy). But a key that is PRESENT
-    // and NOT an array is a corrupt/incomplete payload masquerading as empty data — a HARD failure.
+    // Deployment contract: a version-skewed older server may omit a table this newer client already
+    // knows about; that missing key hydrates as empty via migrate()/normalize rather than failing the
+    // whole load (which would be a total outage on every rolling deploy). But a key that is present
+    // and not an array is a corrupt/incomplete payload masquerading as empty data, a hard failure.
     const missing = new ServerSyncAdapter(
       "http://x",
       vi.fn(async () => new Response(JSON.stringify({ accounts: [] }), { status: 200 })) as unknown as typeof fetch,
     );
     const loaded = await missing.loadAll();
-    expect(loaded.clients).toEqual([]); // a missing table hydrated empty — no throw
+    expect(loaded.clients).toEqual([]); // a missing table hydrated empty, no throw
     expect(loaded.resources).toEqual([]);
 
     const wrongType = new ServerSyncAdapter(

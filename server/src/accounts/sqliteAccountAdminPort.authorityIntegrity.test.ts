@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ActorContext } from "@capacitylens/shared/account/types";
 import { getInvite, upsertMember } from "../controlTables";
-import { openDb, insertRow, type Db } from "../db";
+import { openDb, insertRow } from "../db";
+import type { Db } from "../db";
 import { KeyedOperationLock } from "./KeyedOperationLock";
 import { createSqliteAccountAdminPort } from "./sqliteAccountAdminPort";
 
@@ -293,11 +294,9 @@ function registerSqliteAccountAdminPortTest18(): void {
   });
 }
 
-// Was "reactivates an inactive invitee with the invitation role rather than its stale role". The
-// #175 review closed that door entirely: redeeming an invite is no longer a way back INTO a
-// non-active membership at any role, because it would let the suspended party reverse their own
-// suspension with no `member.status_changed` record. The escalation half of the old assertion is
-// kept and strengthened — the stale `owner` role must not survive either.
+// Redeeming an invite is no longer a way back into a non-active membership at any role, because
+// it would let the suspended party reverse their own suspension with no `member.status_changed`
+// record. The invitee must gain neither the invitation's role nor its stale `owner` role.
 function registerSqliteAccountAdminPortTest19(): void {
   it("refuses an invite claim against a non-active membership, granting neither role", async () => {
     const db = openDb(":memory:");

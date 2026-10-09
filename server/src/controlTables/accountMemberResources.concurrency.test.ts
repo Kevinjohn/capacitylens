@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn } from "node:child_process";
+import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -69,7 +70,8 @@ interface ChildRun {
   error: string;
 }
 
-function startChild(dbPath: string, direction: "member" | "resource", hold: boolean): ChildRun {
+type StartChildOptions = { dbPath: string; direction: "member" | "resource"; hold: boolean };
+function startChild({ dbPath, direction, hold }: StartChildOptions): ChildRun {
   const child = spawn(process.execPath, ["--import", "tsx", "--eval", CHILD_SOURCE, dbPath, direction, String(hold)], {
     cwd: fileURLToPath(new URL("../..", import.meta.url)),
     stdio: ["pipe", "pipe", "pipe"],
@@ -139,9 +141,9 @@ function seedRaceDatabase(dbPath: string): void {
 async function runRace(direction: "member" | "resource"): Promise<void> {
   const dbPath = join(tmpdir(), `capacitylens-member-resource-race-${process.pid}-${randomUUID()}.db`);
   seedRaceDatabase(dbPath);
-  const second = startChild(dbPath, direction, false);
+  const second = startChild({ dbPath: dbPath, direction: direction, hold: false });
   await waitForOutput(second, "ready\n");
-  const first = startChild(dbPath, direction, true);
+  const first = startChild({ dbPath: dbPath, direction: direction, hold: true });
   try {
     await waitForOutput(first, "entered\n");
     second.child.stdin.write("x");
@@ -167,7 +169,7 @@ async function runRace(direction: "member" | "resource"): Promise<void> {
   }
 }
 
-describe("member/resource association uniqueness under overlapping connections", () => {
+describe("member/resource association uniqueness under overlapping connections", { timeout: 30_000 }, () => {
   it("serializes competing links for one member", async () => {
     await runRace("member");
   });

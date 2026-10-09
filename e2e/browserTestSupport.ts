@@ -1,4 +1,5 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { WEEK_SNAP_IDLE_MS } from "../src/lib/schedulerConfig";
 
 // The seed dataset lives in the first half of June 2026 — the over-allocated day is
@@ -13,6 +14,14 @@ import { WEEK_SNAP_IDLE_MS } from "../src/lib/schedulerConfig";
 // timer pump can fire a pending scheduler scroll frame during React's Strict Mode layout-effect
 // replay. Noon gives a wide margin against host/browser timezone offsets.
 const FIXED_NOW = "2026-06-03T12:00:00";
+
+/** TEST-ONLY: hold a free-scroll position mid-week. Users always get the week snap and Settings has
+ *  no control for it; the app still reads `capacitylens/snapToWeekStart` = "off" once at startup
+ *  (src/lib/displayPrefs.ts), so a spec can park the grid mid-week across the WEEK_SNAP_IDLE_MS
+ *  re-floor. Call before `openApp`; the init script re-applies on every load in the page. */
+export async function disableWeekSnap(page: Page): Promise<void> {
+  await page.addInitScript(() => localStorage.setItem("capacitylens/snapToWeekStart", "off"));
+}
 
 /** Seed the persisted explicit theme before the app's pre-paint script runs. */
 export async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {

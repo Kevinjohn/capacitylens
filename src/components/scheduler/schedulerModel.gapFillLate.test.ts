@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Allocation, AppData, ISODate, Resource } from "@capacitylens/shared/types/entities";
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { buildEmptyFilters } from "../../store/useStore";
-import { makeAllocation, makeResource, requireValue } from "../../test/fixtures";
+import { buildEmptyFilters } from "@/store/useStore";
+import { makeAllocation, makeResource, requireValue } from "@/test/fixtures";
 import { isCreationStartBlocked } from "./creationAvailability";
-import { buildSchedulerModel, type GroupModel } from "./schedulerModel";
+import { buildSchedulerModel } from "./schedulerModel";
+import type { GroupModel } from "./schedulerModel";
 import { buildColumnGeometry } from "./columnGeometry";
 import {
   DEFAULT_ACCOUNT_WORKING_DAYS,
@@ -69,7 +70,7 @@ function registerMovedSchedulerTests201021() {
 function registerMovedSchedulerTests201022() {
   it("overSoon truly SKIPS external resources — even one with real over-capacity hours", () => {
     const d = withExternal();
-    // ext1's workingHoursPerDay is 8; this 20h booking on a working Monday WOULD read as over if
+    // ext1's workingHoursPerDay is 8; this 20h booking on a working Monday would read as over if
     // the external guard were bypassed.
     d.allocations.push({
       id: "aext2",
@@ -104,9 +105,9 @@ function registerMovedSchedulerTests201022() {
 function registerMovedSchedulerTests201023() {
   it("overSoon follows strict allocated > available on an opted-in weekend", () => {
     const d = dataset();
-    // r1 works Mon–Fri; 2026-06-06 is a Saturday (available = 0 for r1 regardless of ignoreWeekends
-    // — that flag only affects whether the allocation counts hours there, not the resource's
-    // availability). ignoreWeekends: true makes the allocation actually WORK that zero-capacity day.
+    // r1 works Mon–Fri; 2026-06-06 is a Saturday (available = 0 for r1 regardless of ignoreWeekends,
+    // that flag only affects whether the allocation counts hours there, not the resource's
+    // availability). ignoreWeekends: true makes the allocation actually work that zero-capacity day.
     d.allocations.push({
       id: "a-sat",
       accountId: "acct-test",
@@ -259,7 +260,7 @@ function registerMovedSchedulerTests201026({
 function buildBucketComparisonData(alloc: (input: AllocationTestInput) => Allocation) {
   const d = dataset();
   d.allocations = [
-    // Spans the whole timeline (starts before it, ends after it) — bucketing must clip, not drop.
+    // Spans the whole timeline (starts before it, ends after it), bucketing must clip, not drop.
     alloc({
       id: "b1",
       resourceId: "r1",
@@ -340,7 +341,7 @@ function addBucketComparisonTimeOff(d: AppData) {
       endDate: "2026-06-04",
       type: "holiday",
     },
-    // Starts before the timeline and ends inside it — the other clipping direction.
+    // Starts before the timeline and ends inside it, the other clipping direction.
     {
       id: "to2",
       accountId: "acct-test",

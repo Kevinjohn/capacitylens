@@ -6,9 +6,8 @@ import { m } from "@/i18n";
 import { formatWeekColumnRange } from "@/lib/dateDisplay";
 import { resolveResourceDisplayName } from "@/lib/metadata";
 import { useDateStyle } from "@/store/useDateStyle";
-import { useStore } from "../../store/useStore";
-import { PersonScheduleTrigger } from "../person-schedule/PersonScheduleTrigger";
-import { resolveResourceAvatarUrl } from "../../account/resolveResourceAvatarUrl";
+import { PersonScheduleTrigger } from "@/components/person-schedule/PersonScheduleTrigger";
+import { resolveResourceAvatarUrl } from "@/account/resolveResourceAvatarUrl";
 import { buildPeriodTotals } from "./capacityOverviewBar";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
 import type { CapacityOverviewPeriod } from "./capacityOverviewDates";
@@ -54,7 +53,7 @@ function GroupRow({
           type="button"
           onClick={onToggle}
           aria-expanded={!collapsed}
-          className="flex w-full cursor-pointer items-center gap-[9px] px-[18px] py-[9px] text-[11px] [[data-compact]_&]:py-1 font-semibold uppercase tracking-[.09em] text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
+          className="flex w-full cursor-pointer items-center gap-[9px] px-[18px] py-[9px] text-[11px] font-semibold uppercase tracking-[.09em] text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
         >
           {collapsed ? (
             <ChevronRight aria-hidden="true" className="size-3.5 text-faint" />
@@ -93,10 +92,7 @@ function PersonCell({
   const scheduleTitle = personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
   const imageUrl = resolveResourceAvatarUrl(resource, resourceAvatars);
   return (
-    <th
-      scope="row"
-      className={`${STICKY_CLASS} border-b border-line-soft bg-surface px-[18px] py-2 font-normal [[data-compact]_&]:py-1`}
-    >
+    <th scope="row" className={`${STICKY_CLASS} border-b border-line-soft bg-surface px-[18px] py-2 font-normal`}>
       <div className="flex min-w-0 items-center gap-[11px]">
         <PersonScheduleTrigger
           resourceId={resource.id}
@@ -263,11 +259,9 @@ export function CapacityTable({
       else next.add(key);
       return next;
     });
-  const compact = useStore((state) => state.compactView);
   return (
     <div
       data-testid="capacity-overview-table-region"
-      data-compact={compact || undefined}
       role="region"
       aria-label={m.capacity_overview_table_region()}
       tabIndex={0}

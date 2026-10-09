@@ -1,21 +1,22 @@
 import { useMemo, useState, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
-  hasVisibleInternalProjects,
   resolveCapacityOverviewAccess,
-} from "../store/selectors";
-import { usePermissionStatus, useRole } from "../auth/permissionContext";
-import { resolveCapacityOverviewAccessDecision } from "../auth/capacityOverviewAccess";
-import { useActiveScopedData } from "../store/useScopedData";
+} from "@/store/selectors";
+import { usePermissionStatus, useRole } from "@/auth/permissionContext";
+import { resolveCapacityOverviewAccessDecision } from "@/auth/capacityOverviewAccess";
+import { useActiveScopedData } from "@/store/useScopedData";
 import { m } from "@/i18n";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "./ui/command";
 import { cn } from "@/lib/cn";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
-import { buildPaletteItems, type PaletteItem } from "./buildPaletteItems";
+import { buildPaletteItems } from "./buildPaletteItems";
+import type { PaletteItem } from "./buildPaletteItems";
+import { useDiagnosticsAccessDecision } from "./diagnostics/useDiagnosticsAccessDecision";
 
 function groupPaletteItems(items: PaletteItem[]) {
   const sections: { title: string; items: PaletteItem[] }[] = [];
@@ -55,12 +56,12 @@ function usePaletteItems(query: string, onClose: () => void) {
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
-  const showInternalProjects = useStore((state) => hasVisibleInternalProjects(state.data, state.activeAccountId));
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
   const showCapacityOverview =
     resolveCapacityOverviewAccessDecision({ role, status: permissionStatus, access: overviewAccess }) === "allowed";
+  const showDiagnostics = useDiagnosticsAccessDecision() === "allowed";
   return useMemo(
     () =>
       buildPaletteItems({
@@ -68,9 +69,9 @@ function usePaletteItems(query: string, onClose: () => void) {
         data,
         disciplinesEnabled,
         showCapacityOverview,
+        showDiagnostics,
         placeholdersEnabled,
         externalEnabled,
-        showInternalProjects,
         navigate,
         goToToday,
         goToDate,
@@ -83,9 +84,9 @@ function usePaletteItems(query: string, onClose: () => void) {
       data,
       disciplinesEnabled,
       showCapacityOverview,
+      showDiagnostics,
       placeholdersEnabled,
       externalEnabled,
-      showInternalProjects,
       navigate,
       goToToday,
       goToDate,
@@ -142,15 +143,13 @@ function PaletteResults({
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function CommandPalette({ onClose }: { onClose: () => void }) {
   // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
-  // Per-account view pref (default OFF): when off, placeholders are not offered as jump targets.
-  // Per-account view pref (default OFF): when off, external / 3rd parties are not offered as
-  // jump targets — their schedule row is hidden, so jumping to it would scroll to nothing.
+  // Per-account view pref (default off): when off, placeholders are not offered as jump targets.
+  // Per-account view pref (default off): when off, external / 3rd parties are not offered as
+  // jump targets, their schedule row is hidden, so jumping to it would scroll to nothing.
   // Internal-project results also jump to the schedule, so omit them when their bars are hidden.
-  // Internal ACTIVITIES deliberately remain below: they open the complete management list instead.
+  // Internal activities deliberately remain below: they open the complete management list instead.
 
   const [query, setQuery] = useState("");
   // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
@@ -162,21 +161,21 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // their availability an explicit effect dependency for the active-descendant repair below.
   const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
   const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
-  // Build the full item list (kept verbatim — capacitylens's own fuzzyFilter drives results, not cmdk's
-  // internal filter, hence `shouldFilter={false}` below). Memoised so the fuzzy filter over ALL data
-  // does NOT re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
+  // Build the full item list (kept verbatim, capacitylens's own fuzzyFilter drives results, not cmdk's
+  // internal filter, hence `shouldFilter={false}` below). Memoised so the fuzzy filter over all data
+  // does not re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
   // re-render), and the active-row change must not re-run the filter. Keyed on the real inputs only.
   const items: PaletteItem[] = usePaletteItems(query, onClose);
 
   // Group items by section for rendering (one CommandGroup per section).
 
-  // Repair the combobox's `aria-activedescendant`. cmdk hardcodes it from its OWN `selectedItemId`,
+  // Repair the combobox's `aria-activedescendant`. cmdk hardcodes it from its own `selectedItemId`,
   // which it fails to populate on the controlled-`value` path (the value-change handler short-circuits
-  // once a controlled value is present) — so the input names no active descendant, breaking the
-  // combobox SR pattern. cmdk's element ids are its internal `useId`s (we can't pass our own — its
+  // once a controlled value is present), so the input names no active descendant, breaking the
+  // combobox SR pattern. cmdk's element ids are its internal `useId`s (we can't pass our own, its
   // `id` wins over props), so we read the active option's real id straight off the DOM and write it
-  // onto the input ourselves. cmdk marks exactly ONE option `aria-selected="true"` (the active row),
-  // so we match that single option by its selected state — no need to also cross-check `data-value`
+  // onto the input ourselves. cmdk marks exactly one option `aria-selected="true"` (the active row),
+  // so we match that single option by its selected state. No need to also cross-check `data-value`
   // against our controlled `activeValue` (redundant, and it breaks the auto-selected first row whose
   // value our state hasn't caught up to yet). cmdk may establish its initial selection after our
   // parent layout effect, and later changes its internal row without necessarily rendering this
@@ -227,7 +226,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">{m.palette_esc()}</kbd>
           </div>
 
-          {/* Results — cmdk uses its `label` prop (not aria-label) for the listbox's accessible name. */}
+          {/* Results: cmdk uses its `label` prop (not aria-label) for the listbox's accessible name. */}
           <PaletteResults
             items={items}
             sections={groupPaletteItems(items)}

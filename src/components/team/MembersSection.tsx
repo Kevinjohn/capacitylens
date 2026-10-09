@@ -1,28 +1,28 @@
 import { m } from "@/i18n";
-import { formatInstant } from "../../lib/dateDisplay";
-import { useStore } from "../../store/useStore";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Button } from "../ui/button";
-import { FieldError } from "../ui/field";
+import { formatInstant } from "@/lib/dateDisplay";
+import { useStore } from "@/store/useStore";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/field";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { CopyableLinkBlock, InviteMemberPanel } from "./InviteMemberPanel";
 import { MemberConfirmations } from "./MemberConfirmations";
 import { MemberRow } from "./MemberRow";
 import { useMembersOrchestration } from "./useMembersOrchestration";
-import type { TeamMember } from "../../account/teamAccessClient";
+import type { TeamMember } from "@/account/teamAccessClient";
 
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
 // Owner/Admin list members in a compact managed-row table (name / email / optional sign-in confirmation), change a member's role through the
 // row's pencil, reach the rarer lifecycle actions and Resource link through the centered member-actions dialog, and invite people from a
-// separate dialog above. Ownership transfer is deliberately absent: it is not a per-row action
-// and returns as its own owner-only section under a follow-up ticket. The CLIENT
-// gate is courtesy only — the SAME pure guards (canEditAnyMemberRole / canRemoveMember) hide controls
-// the user can't use, but the SERVER is the backstop (every route is gated server-side; a 403 on the
-// initial members fetch is what hides the whole section for a viewer/editor). The invite TOKEN is
-// shown exactly ONCE, straight from the create response — it is write-once and never read back.
+// separate dialog above. Ownership transfer is deliberately absent: it is not a per-row action.
+// The client
+// gate is courtesy only, the same pure guards (canEditAnyMemberRole / canRemoveMember) hide controls
+// the user can't use, but the server is the backstop (every route is gated server-side; a 403 on the
+// initial members fetch is what hides the whole section for a viewer/editor). The invite token is
+// shown exactly once, straight from the create response. It is write-once and never read back.
 
 /**
- * The Team & access member-management section. Renders ONLY in server + auth-on mode; a 403 on the initial
+ * The Team & access member-management section. Renders only in server + auth-on mode; a 403 on the initial
  * members read self-gates it away for a viewer/editor (renders nothing). Owner/Admin affordances are
  * gated client-side via the shared pure guards (Owner actions hidden for an Admin; Owner membership
  * stays outside ordinary role/removal controls). The server enforces all of it regardless.
@@ -37,7 +37,7 @@ export function MembersSection() {
 function AccountMembersSection({ activeAccountId }: { activeAccountId: string | null }) {
   const { setActionStatusElement, ...orchestration } = useMembersOrchestration(activeAccountId);
 
-  if (!orchestration.enabled) return null; // OFF / demo build: the section does not exist.
+  if (!orchestration.enabled) return null; // Off / demo build: the section does not exist.
   // Privileged controls stay fail-closed until the current account's members read authorizes this
   // section. A 403 remains hidden, and a switch cannot briefly expose the next account's form while
   // its authorization request is still pending.
@@ -50,7 +50,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   const { invites } = orchestration.directory.snapshot;
   return (
     <>
-      {/* Inviting someone is its own job, not a footnote to the member table (#175): the form opens
+      {/* Inviting someone is its own job, not a footnote to the member table: the form opens
           in a centered dialog and outstanding invites stay in their own bordered section. */}
       {orchestration.mayManageInvites && (
         <InviteMemberPanel

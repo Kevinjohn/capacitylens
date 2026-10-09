@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { createAuthFromEnvironment, runAuthMigrations, type Auth, type SessionUser } from "../../auth";
-import { openDb, type Db } from "../../db";
-import { PASSWORD_ENV } from "../../testHelpers";
+import { createAuthFromEnvironment, runAuthMigrations } from "../../auth";
+import type { Auth, SessionUser } from "../../auth";
+import { openDb } from "../../db";
+import type { Db } from "../../db";
+import { PASSWORD_ENV } from "../../testHelpers/passwordAuth";
 import { createBetterAuthIdentityPort } from "../betterAuthIdentityPort";
 import { tx } from "../../txn";
 import { bindFederatedProvider, getAccountCommand, recordSessionAssurance, reserveAccountCommand } from "../state";

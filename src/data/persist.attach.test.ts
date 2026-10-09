@@ -1,20 +1,20 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { it, expect, beforeEach, vi } from "vitest";
 import { attachPersistence, hasUnsavedPersistenceWrites } from "./persist";
 import { InMemoryDemoAdapter } from "./InMemoryDemoAdapter";
 import { ServerSyncAdapter, BatchConflictError } from "./ServerSyncAdapter";
 import type { AllocationRewriteRevision, PersistenceAdapter } from "./PersistenceAdapter";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { deleteProjectCascade } from "@capacitylens/shared/lib/integrity";
-import { resetStoreWithAccount, requireValue } from "../test/fixtures";
+import { resetStoreWithAccount, requireValue } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import { requireCallback, a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account AND makes it active, so the add* calls below
+  // Seeds a single account and makes it active, so the add* calls below
   // (which now require an active account) work.
   resetStoreWithAccount();
 });
@@ -351,7 +351,7 @@ it("attachPersistence a successful save settling after detach cannot call the ol
 
 it("attachPersistence flushes a pending debounced write on pagehide (so a tab close does not lose it)", async () => {
   const adapter = new InMemoryDemoAdapter();
-  const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 300 }); // debounced, NOT immediate
+  const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 300 }); // debounced, not immediate
   useStore.getState().addClient({ name: "Ferris", color: "#1" });
   expect((await adapter.loadAll()).clients).toHaveLength(0); // still inside the debounce window
   window.dispatchEvent(new Event("pagehide"));
@@ -517,7 +517,7 @@ it("attachPersistence retries a failed write in the background without waiting f
   // Server-backed mode has no localStorage fallback: if a write fails and the user
   // reloads before their next edit, unsynced changes would be lost. A bounded
   // background retry (re-sending the latest store state) self-heals once the
-  // adapter recovers — proven here with a one-shot failure + a short backoff.
+  // adapter recovers, proven here with a one-shot failure + a short backoff.
   vi.useFakeTimers();
   try {
     const adapter = new InMemoryDemoAdapter();
@@ -542,7 +542,7 @@ it("attachPersistence retries a failed write in the background without waiting f
     expect(onSuccess).not.toHaveBeenCalled();
     expect(readPersistenceDiagnosticsSnapshot()).toMatchObject({ savesFailed: 1, retriesArmed: 1 });
 
-    await vi.advanceTimersByTimeAsync(1000); // backoff #1 (2^0 * 1000ms) → succeeds
+    await vi.advanceTimersByTimeAsync(1000); // first backoff (2^0 * 1000ms) → succeeds
     expect(calls).toBe(2);
     expect(onSuccess).toHaveBeenCalled();
     expect((await adapter.loadAll()).clients.some((c) => c.name === "Retry Me")).toBe(true);
@@ -553,7 +553,7 @@ it("attachPersistence retries a failed write in the background without waiting f
 });
 
 it("attachPersistence re-attempts a write stranded after the retry budget is spent when the browser comes back online", async () => {
-  // The bounded retry budget stops a PERMANENTLY-failing write from retrying forever, but a
+  // The bounded retry budget stops a permanently-failing write from retrying forever, but a
   // mere network outage shouldn't strand the delta until the next edit: an `online` event
   // re-attempts it with a fresh budget (so a reload after recovery doesn't lose it).
   vi.useFakeTimers();

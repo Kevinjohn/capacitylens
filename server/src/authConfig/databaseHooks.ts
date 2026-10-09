@@ -16,7 +16,6 @@ interface HookOptions {
   configuredFederatedIssuers: Map<string, string>;
   permittedCompanyProviderIds: ReadonlySet<string>;
   allowOpenSignup: boolean;
-  requirePasswordMfa: boolean;
   externalIdentityAdmission?: (candidate: {
     email?: string;
     emailVerified?: boolean;
@@ -71,7 +70,8 @@ async function admitExternalIdentity(
   }
 }
 
-function enforceBootstrapClaim(options: HookOptions, context: Parameters<UserBefore>[1], emailSignup: boolean) {
+type EnforceBootstrapClaimOptions = { options: HookOptions; context: Parameters<UserBefore>[1]; emailSignup: boolean };
+function enforceBootstrapClaim({ options, context, emailSignup }: EnforceBootstrapClaimOptions) {
   // Re-check at insertion so a delayed request cannot create an orphan after another request wins.
   if (emailSignup && options.countUsers(options.db) !== 0) {
     throw APIError.from("CONFLICT", {
@@ -102,7 +102,7 @@ function buildUserBefore(options: HookOptions): UserBefore {
     // identities remain verified-email plus invitation/allow-list gated in every posture.
     if (externalSignup) await admitExternalIdentity(options, sanitizedUser, context);
     if (options.allowOpenSignup && emailSignup) return { data: sanitizedUser };
-    enforceBootstrapClaim(options, context, emailSignup);
+    enforceBootstrapClaim({ options: options, context: context, emailSignup: emailSignup });
     return { data: sanitizedUser };
   };
 }
@@ -149,9 +149,7 @@ function buildSessionAfter(options: HookOptions): SessionAfter {
       providerId,
     });
     const enrolledMfa = readEnrolledMfa(options, principalId);
-    const awaitsMfa =
-      assurance === "password" &&
-      (options.requirePasswordMfa || enrolledMfa === true || enrolledMfa === 1 || enrolledMfa === "1");
+    const awaitsMfa = assurance === "password" && (enrolledMfa === true || enrolledMfa === 1 || enrolledMfa === "1");
     if (!awaitsMfa) confirmTrackedMemberSignIn(options.db, principalId);
   };
 }
@@ -178,7 +176,6 @@ export function buildDatabaseHooks({
   configuredFederatedIssuers,
   permittedCompanyProviderIds,
   allowOpenSignup,
-  requirePasswordMfa,
   externalIdentityAdmission,
   onFederatedSession,
   providerIdFromExternalContext,
@@ -193,7 +190,6 @@ export function buildDatabaseHooks({
     configuredFederatedIssuers,
     permittedCompanyProviderIds,
     allowOpenSignup,
-    requirePasswordMfa,
     ...(externalIdentityAdmission === undefined ? {} : { externalIdentityAdmission }),
     ...(onFederatedSession === undefined ? {} : { onFederatedSession }),
     providerIdFromExternalContext,

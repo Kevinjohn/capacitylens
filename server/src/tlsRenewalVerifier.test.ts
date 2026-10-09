@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createServer, type Server } from "node:http";
+import { createServer } from "node:http";
+import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,7 +13,7 @@ const serverPackage = JSON.parse(readFileSync(new URL("../package.json", import.
 };
 const verifierArgs = ["scripts/verify-tls-renewal.mjs"];
 const root = fileURLToPath(new URL("../", import.meta.url));
-const redirect = fileURLToPath(new URL("./__tests__/renewalProbeRedirect.mjs", import.meta.url));
+const redirect = fileURLToPath(new URL("./fixtures/renewalProbeRedirect.mjs", import.meta.url));
 const fingerprint = "a".repeat(64);
 let directory: string;
 let server: Server | undefined;

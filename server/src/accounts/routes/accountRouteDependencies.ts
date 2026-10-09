@@ -16,9 +16,30 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AuditRecord } from "../../audit";
 import type { SetMemberSignInTrackingInput, MemberSignInTrackingSnapshot } from "../memberSignInTracking";
 
-// Shared by the two role-validation response paths below (AccountContractError and a direct 400) —
-// same wording, deliberately different response shapes, so only the string is deduplicated.
-export const INVALID_ROLE_MESSAGE = "role must be one of owner, admin, editor, viewer.";
+/** Route generics for the account-administration paths; Fastify path parameters are strings. */
+export interface AccountRoute {
+  Params: { accountId: string };
+}
+
+export interface MemberRoute {
+  Params: { accountId: string; userId: string };
+}
+
+export interface InvitationTokenRoute {
+  Params: { token: string };
+}
+
+export interface InvitationRoute {
+  Params: { accountId: string; id: string };
+}
+
+export interface OwnershipTransferRequestRoute {
+  Params: { accountId: string; requestId: string };
+}
+
+export interface SessionRoute {
+  Params: { sessionId: string };
+}
 
 export const MEMBER_SIGN_IN_TRACKING_RATE_LIMIT = {
   max: 5,
@@ -48,13 +69,13 @@ export interface AccountRouteDependencies {
   };
   authorize(input: AuthorizeRouteInput): boolean;
   /** Is this request being made through an active masquerade? The global policy already refuses
-   *  every unsafe method, so only reads that must conceal rather than redact consult this. */
-  isMasquerading(request: FastifyRequest): boolean;
-  command(request: FastifyRequest): CommandIdentity;
+   * every unsafe method, so only reads that must conceal rather than redact consult this. */
+  isMasquerading(req: FastifyRequest): boolean;
+  command(req: FastifyRequest): CommandIdentity;
   audit(reply: FastifyReply, record: AuditRecord): void;
   fail(reply: FastifyReply, error: unknown): unknown;
   memberReadProjection(
-    request: FastifyRequest,
+    req: FastifyRequest,
     workspaceId: string,
     targetPrincipalIds: readonly string[],
   ): {

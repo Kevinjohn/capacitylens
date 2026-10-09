@@ -1,18 +1,20 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
-import { useStore } from "../../store/useStore";
-import { hasPlaceholdersEnabled, resolveTimeZone } from "../../store/selectors";
-import { useActiveScopedData } from "../../store/useScopedData";
-import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
+import { useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useStore } from "@/store/useStore";
+import { hasPlaceholdersEnabled, resolveTimeZone } from "@/store/selectors";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
 import { todayISO } from "@capacitylens/shared/lib/dateMath";
 import { MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
-import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
-import { FieldError } from "../ui/field";
-import { buildTimeOffTypeOptions, resolveResourceDisplayName } from "../../lib/metadata";
+import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField } from "@/components/common/ui";
+import type { Option } from "@/components/common/ui";
+import { FieldError } from "@/components/ui/field";
+import { buildTimeOffTypeOptions, resolveResourceDisplayName } from "@/lib/metadata";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
 import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
-import { useRole } from "../../auth/permissionContext";
+import { useRole } from "@/auth/permissionContext";
 import { useTimeOffRepeat } from "./useTimeOffRepeat";
 import { TimeOffRepeatFields } from "./TimeOffRepeatFields";
 import { saveTimeOff } from "./timeOffFormSubmission";
@@ -62,11 +64,16 @@ function useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote }: T
   return { resourceId, setResourceId, startDate, setStartDate, endDate, setEndDate, type, setType, note, setNote };
 }
 
-function useTimeOffResourceOptions(
-  resources: ReturnType<typeof useActiveScopedData>["resources"],
-  placeholdersEnabled: boolean,
-  resourceId: string,
-): Option[] {
+type UseTimeOffResourceOptionsOptions = {
+  resources: ReturnType<typeof useActiveScopedData>["resources"];
+  placeholdersEnabled: boolean;
+  resourceId: string;
+};
+function useTimeOffResourceOptions({
+  resources,
+  placeholdersEnabled,
+  resourceId,
+}: UseTimeOffResourceOptionsOptions): Option[] {
   const filteredResources = useMemo(
     () =>
       resources
@@ -104,7 +111,7 @@ function buildTimeOffRepeatFields(options: {
   );
 }
 
-/** Null is OFF/demo mode, where there is no server note projection to enforce. */
+/** Null is off/demo mode, where there is no server note projection to enforce. */
 function useCanEditTimeOffNote(): boolean {
   const role = useRole();
   return role === null || canSeeTimeOffNote(role);
@@ -126,7 +133,11 @@ export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
 
-  const resourceOptions = useTimeOffResourceOptions(resources, placeholdersEnabled, fields.resourceId);
+  const resourceOptions = useTimeOffResourceOptions({
+    resources: resources,
+    placeholdersEnabled: placeholdersEnabled,
+    resourceId: fields.resourceId,
+  });
   const repeatFields = buildTimeOffRepeatFields({
     timeOff,
     startDate: fields.startDate,

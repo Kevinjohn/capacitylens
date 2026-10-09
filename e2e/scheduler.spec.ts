@@ -1,6 +1,8 @@
-import { test, expect, type Locator, type Page } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { Locator, Page } from "./fixtures";
 import {
   boundingBoxOrThrow as box,
+  disableWeekSnap,
   dismissLandscapeHint,
   goToSeedWeek,
   openApp,
@@ -259,17 +261,12 @@ function registerZoomingMoreWeeksShrinksDayTest() {
 function registerClickingTodayReCentresTimelineTest() {
   test("clicking Today re-centres the timeline after scrolling away", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
-    await openApp(page, "Wayne Enterprises", "/settings");
-
-    // Turn F2 ("Snap to week start") OFF first. With the free-scroll snap armed, the 120ms idle
-    // timer (WEEK_SNAP_IDLE_MS) re-floors the left edge to a Monday between our park and the probe
-    // on slow runners, so a mid-week precondition can never be made stable. With it OFF the park
+    // Turn the free-scroll week snap OFF first. With it armed, the 120ms idle timer
+    // (WEEK_SNAP_IDLE_MS) re-floors the left edge to a Monday between our park and the probe on
+    // slow runners, so a mid-week precondition can never be made stable. With it OFF the park
     // sticks, and the Monday landing after Today is attributable to Today's re-anchor alone.
-    const snap = page.getByRole("switch", { name: "Snap to week start" });
-    await snap.click();
-    await expect(snap).toHaveAttribute("aria-checked", "false");
-
-    await page.getByRole("link", { name: "Schedule" }).click();
+    await disableWeekSnap(page);
+    await openApp(page);
     await setZoom(page, 1);
     const grid = page.getByTestId("scheduler-grid");
     await expect(grid).toBeVisible();
@@ -325,7 +322,7 @@ function registerPaningForwardMovesTimelineNextTest() {
 }
 
 function registerVerticallyCentresMonthLabelsAcrossTest() {
-  test("vertically centres month labels across zoom and density settings", async ({ page }) => {
+  test("vertically centres month labels across zoom levels and root font sizes", async ({ page }) => {
     await openApp(page);
     await goToSeedWeek(page);
 
@@ -338,18 +335,6 @@ function registerVerticallyCentresMonthLabelsAcrossTest() {
     }
     await expect(page.getByText("Jun 2026")).toBeVisible();
     await expect(page.getByText("Jul 2026")).toBeVisible();
-
-    await page.getByRole("link", { name: "Settings", exact: true }).click();
-    const compactView = page.getByRole("switch", { name: "Compact view" });
-    await compactView.click();
-    await expect(compactView).toHaveAttribute("aria-checked", "true");
-    await page.getByRole("link", { name: "Schedule" }).click();
-    await goToSeedWeek(page);
-
-    for (const weeks of [1, 2, 4, 6, 8] as const) {
-      await setZoom(page, weeks);
-      expect(await expectMonthLabelsVerticallyCentred(page)).toBe(defaultTierHeight);
-    }
 
     await page.evaluate(() => {
       document.documentElement.style.fontSize = "20px";
@@ -609,8 +594,8 @@ function registerAllocationStatusNoteVisuallyDistinctTest() {
 }
 
 // Feature 1 (ALWAYS on): a zoom click and a Prev/Next pan re-anchor the grid's left edge to the
-// week start (account weekStartsOn, default Monday) — INDEPENDENT of Feature 2's "Snap to week
-// start" free-scroll pref. The audit found this test was CONFOUNDED: because F2 defaults ON, the
+// week start (account weekStartsOn, default Monday) — INDEPENDENT of Feature 2's free-scroll
+// week snap. The audit found this test was CONFOUNDED: because F2 defaults ON, the
 // idle free-scroll snap masked the F1 navigation snap (disabling only F1 still left it green).
 // So we turn F2 OFF first — now a free nudge to a mid-week day STICKS, and the ONLY thing that can
 // re-anchor the left edge to a Monday is the navigation branch under test (zoom / Next / Prev).
@@ -618,14 +603,9 @@ function registerAllocationStatusNoteVisuallyDistinctTest() {
 function registerNavigationReAnchorsLeftEdgeTest() {
   test("navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
-    await openApp(page, "Wayne Enterprises", "/settings");
-
-    // Turn F2 ("Snap to week start") OFF so the idle free-scroll snap can't mask the navigation snap.
-    const snap = page.getByRole("switch", { name: "Snap to week start" });
-    await snap.click();
-    await expect(snap).toHaveAttribute("aria-checked", "false");
-
-    await page.getByRole("link", { name: "Schedule" }).click();
+    // Turn F2 (the free-scroll week snap) OFF so the idle snap can't mask the navigation snap.
+    await disableWeekSnap(page);
+    await openApp(page);
     await setZoom(page, 1);
 
     // Header day cells read "<dayNum><EEE>", e.g. "1Mon"; a minimised weekend collapses to "<n>S".
@@ -671,16 +651,13 @@ function registerNavigationReAnchorsLeftEdgeTest() {
 
 // #786. A bar that started before the visible window used to carry its label off-screen with it,
 // leaving long-running work unlabelled in any given view. The label now sits over the intersection
-// of the bar and the scroll container's viewport. The device-global "Snap to week start" pref is
-// turned OFF first: its idle snap animates the scroll position shortly AFTER the scroll is written,
+// of the bar and the scroll container's viewport. The free-scroll week snap is turned OFF first
+// (a test-only override): its idle snap animates the scroll position shortly AFTER the scroll is written,
 // and measuring through that animation has produced CI-only flakes before.
 function registerKeepsBarsLabelScreenScrollingTests() {
   test("keeps a bar's label on screen after scrolling past the bar's start (#786)", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/settings");
-    const snap = page.getByRole("switch", { name: "Snap to week start" });
-    await snap.click();
-    await expect(snap).toHaveAttribute("aria-checked", "false");
-    await page.getByRole("link", { name: "Schedule" }).click();
+    await disableWeekSnap(page);
+    await openApp(page);
     await setZoom(page, 2);
     await goToSeedWeek(page);
 

@@ -1,4 +1,5 @@
-import { createServer, type Socket } from "node:net";
+import { createServer } from "node:net";
+import type { Socket } from "node:net";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it, vi } from "vitest";
 import { MailBudgetExceededError, createMailSender, resolveMailDeliveryCause, withSendBudget } from "./mailSender";
@@ -11,11 +12,11 @@ describe("mail sender", () => {
     try {
       const { port } = server.address() as AddressInfo;
       const sender = createMailSender({
-        SMALLSASS_ACCOUNT_MAIL_HOST: "127.0.0.1",
-        SMALLSASS_ACCOUNT_MAIL_PORT: String(port),
-        SMALLSASS_ACCOUNT_MAIL_USER: "mailer",
-        SMALLSASS_ACCOUNT_MAIL_PASSWORD: "mail-password",
-        SMALLSASS_ACCOUNT_MAIL_FROM: "alfred@capacitylens.dev",
+        CAPACITYLENS_MAIL_HOST: "127.0.0.1",
+        CAPACITYLENS_MAIL_PORT: String(port),
+        CAPACITYLENS_MAIL_USER: "mailer",
+        CAPACITYLENS_MAIL_PASSWORD: "mail-password",
+        CAPACITYLENS_MAIL_FROM: "alfred@capacitylens.dev",
       });
       const started = Date.now();
       await expect(

@@ -2,18 +2,18 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthContext } from "../../auth/authContext";
-import { useStore } from "../../store/useStore";
+import { AuthContext } from "@/auth/authContext";
+import { useStore } from "@/store/useStore";
 import { AccountPicker } from "./AccountPicker";
 
 const serverFlag = vi.hoisted(() => ({ on: false }));
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isDemoMode: () => !serverFlag.on,
   isServerConfigured: () => serverFlag.on,
 }));
 
-vi.mock("../../auth/accountTransition", () => ({
+vi.mock("@/auth/accountTransition", () => ({
   transitionAccount: vi.fn(async (id: string | null) => {
     useStore.getState().setActiveAccount(id);
     return true;
@@ -28,7 +28,7 @@ beforeEach(() => {
   serverFlag.on = false;
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
-  useStore.getState().setAccountSummaries([]);
+  useStore.getState().setAccountSummaries({ list: [] });
   useStore.getState().setNotice(null);
 });
 
@@ -74,7 +74,9 @@ describe("AccountPicker first-company onboarding", () => {
   });
 
   it("does not infer setup eligibility from an unavailable company directory", () => {
-    useStore.getState().setAccountSummaries([], useStore.getState().accountSummariesRequestId, false);
+    useStore
+      .getState()
+      .setAccountSummaries({ list: [], requestId: useStore.getState().accountSummariesRequestId, complete: false });
     render(<AccountPicker />);
 
     expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
@@ -120,7 +122,7 @@ describe("AccountPicker example data", () => {
     expect(screen.getByRole("checkbox", { name: "Start with example data" })).toBeChecked();
     unmount();
 
-    useStore.getState().setAccountSummaries([{ id: "a1", name: "Wayne", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a1", name: "Wayne", role: "owner" }] });
     render(
       <AuthContext.Provider
         value={{

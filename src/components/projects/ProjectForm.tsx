@@ -1,35 +1,34 @@
 import { useMemo, useState } from "react";
-import { useStore } from "../../store/useStore";
-import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
-import { useFieldError } from "../../hooks/useFieldError";
-import { resolveDomainErrorMessage, resolveErrorMessage } from "../../lib/errorMessage";
-import { validatePresetColor, parseName } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/isStaleEdit";
+import { useStore } from "@/store/useStore";
+import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
+import { useFieldError } from "@/hooks/useFieldError";
+import { resolveDomainErrorMessage, resolveErrorMessage } from "@/lib/errorMessage";
+import { validatePresetColor, parseName } from "@/lib/validation";
+import { isStaleEdit } from "@/lib/isStaleEdit";
 import { validateProjectClient } from "@capacitylens/shared/lib/integrity";
-import { DEFAULT_COLORS } from "../../lib/palette";
-import { byName } from "../../lib/displayOrder";
-import { resolveInternalColourMode } from "../../store/selectors";
+import { DEFAULT_COLORS } from "@/lib/palette";
+import { byName } from "@/lib/displayOrder";
 import { m } from "@/i18n";
-import { ColorField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
-import { PrivateNameFields } from "../common/PrivateNameFields";
-import { usePrivateNameFields } from "../common/usePrivateNameFields";
-import { FieldError } from "../ui/field";
+import { ColorField, FormActions, Modal, RequiredLegend, SelectField, TextField } from "@/components/common/ui";
+import type { Option } from "@/components/common/ui";
+import { PrivateNameFields } from "@/components/common/PrivateNameFields";
+import { usePrivateNameFields } from "@/components/common/usePrivateNameFields";
+import { FieldError } from "@/components/ui/field";
 import type { Project } from "@capacitylens/shared/types/entities";
 
 type ProjectPrivacy = NonNullable<ReturnType<ReturnType<typeof usePrivateNameFields>["parsePrivacyPatch"]>>;
 
-/** Add (no `project`) or edit a project: name, REQUIRED client, preset colour. `onClose` fires on
- *  save or cancel. */
+/** Add (no `project`) or edit a project: name, required client, preset colour. `onClose` fires on
+ * save or cancel. */
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
   const add = useStore((state) => state.addProject);
   const update = useStore((state) => state.updateProject);
   const data = useActiveScopedData();
   const clients = data.clients;
-  // The RAW scoped slice, for the archived-parent label only (see clientOptions below): in the demo
+  // The raw scoped slice, for the archived-parent label only (see clientOptions below): in the demo
   // build an archived client is still in the raw slice (so we can show its name); in server mode the
   // per-account read strips it entirely, so the label degrades to the generic "(current, archived)".
   const rawClients = useScopedData().clients;
-  const internalColourMode = useStore((state) => resolveInternalColourMode(state.data, state.activeAccountId));
 
   const [name, setName] = useState(project?.name ?? "");
   const [clientId, setClientId] = useState(project?.clientId ?? "");
@@ -37,12 +36,13 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const { error, errorField, errorId, fail } = useFieldError();
   const privateNameFields = usePrivateNameFields(project, fail);
   const selectedClientIsInternal = clients.find((client) => client.id === clientId)?.builtin === true;
-  const showColourPicker = internalColourMode === "palette" || !selectedClientIsInternal;
+  // Internal projects always read as neutral grey, so their colour is not editable.
+  const showColourPicker = !selectedClientIsInternal;
 
   // The internal/ordinary split + sort is the only non-trivial cost here; memoised on its actual
   // input (clients) so it isn't redone on every keystroke elsewhere in the form. The archived-option
-  // append below stays OUTSIDE the memo: its label goes through `m.*()`, which must keep resolving
-  // fresh every render (a stale locale/account switch is otherwise possible — see validation.ts's
+  // append below stays outside the memo: its label goes through `m.*()`, which must keep resolving
+  // fresh every render (a stale locale/account switch is otherwise possible, see validation.ts's
   // "getter, not module-scope const" note), so it's rebuilt un-cached each render.
   const baseClientOptions: Option[] = useMemo(() => {
     const internalClient = clients.find((client) => client.builtin === true);
@@ -56,9 +56,9 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
       })),
     ];
   }, [clients]);
-  // Editing a project whose client is ARCHIVED: the active-only options above don't contain it, so
+  // Editing a project whose client is archived: the active-only options above don't contain it, so
   // without this the select would silently blank and an unrelated edit (rename, colour) couldn't
-  // round-trip the unchanged clientId. Append the current id as a DISABLED option — it stays
+  // round-trip the unchanged clientId. Append the current id as a disabled option, it stays
   // selected/submittable as the current value (the store's unchanged-parent relaxation accepts it),
   // but can't be picked back once the user chooses an active client.
   const clientOptions = resolveProjectClientOptions({ baseOptions: baseClientOptions, clients, rawClients, project });

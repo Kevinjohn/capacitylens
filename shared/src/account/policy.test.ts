@@ -190,7 +190,7 @@ describe("canChangeMemberStatus(actor, target, isSelf) — disable/archive/resto
 
   it("never permits suspending the Owner", () => {
     // Load-bearing: the single-active-owner partial index and the ownerless-account boot assertion
-    // both key on role='owner' AND status='active'.
+    // both key on role='owner' and status='active'.
     expect(canChangeMemberStatus("owner", "owner", false)).toBe(false);
     expect(canChangeMemberStatus("admin", "owner", false)).toBe(false);
   });
@@ -211,9 +211,9 @@ describe("canEditAnyMemberRole(actor, target) — 'may I touch this member's rol
   const ROLES: readonly Role[] = ["owner", "admin", "editor", "viewer"];
 
   it("tracks removal authority for every actor/target pair", () => {
-    // CURRENT TRUTH, not a contract. The two answer different questions ("may I retitle you" vs
+    // Current truth, not a contract. The two answer different questions ("may I retitle you" vs
     // "may I revoke you") and today they happen to agree. This sweep exists so that if either rule
-    // gains a condition, the divergence is a deliberate, visible decision here — NOT so that a
+    // gains a condition, the divergence is a deliberate, visible decision here, not so that a
     // future difference must be treated as a bug.
     for (const actor of ROLES) {
       for (const target of ROLES) {
@@ -244,9 +244,9 @@ describe("canEditAnyMemberRole(actor, target) — 'may I touch this member's rol
 describe("canManageMemberRole delegates to canEditAnyMemberRole without changing a decision", () => {
   const ROLES: readonly Role[] = ["owner", "admin", "editor", "viewer"];
 
-  // Hand-derived from the rules, NOT from the implementation: the actor must hold manage-members
-  // (admin tier), and neither demoting the Owner nor promoting anyone TO Owner is an ordinary role
-  // edit — both go through ownership transfer.
+  // Hand-derived from the rules, not from the implementation: the actor must hold manage-members
+  // (admin tier), and neither demoting the Owner nor promoting anyone to Owner is an ordinary role
+  // edit: both go through ownership transfer.
   const oracle = (actor: Role, target: Role, next: Role): boolean =>
     (actor === "owner" || actor === "admin") && target !== "owner" && next !== "owner";
 
@@ -256,7 +256,7 @@ describe("canManageMemberRole delegates to canEditAnyMemberRole without changing
         for (const next of ROLES) {
           const label = `${actor}->${target}=>${next}`;
           expect(canManageMemberRole(actor, target, next), label).toBe(oracle(actor, target, next));
-          // …and that decision is exactly the standing check AND the destination check.
+          // …and that decision is exactly the standing check and the destination check.
           expect(canManageMemberRole(actor, target, next), label).toBe(
             canEditAnyMemberRole(actor, target) && next !== "owner",
           );

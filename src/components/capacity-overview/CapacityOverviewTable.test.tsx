@@ -1,20 +1,17 @@
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useResourceAvatars } from "../../account/useResourceAvatars";
+import { useResourceAvatars } from "@/account/useResourceAvatars";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData, Resource } from "@capacitylens/shared/types/entities";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
-import {
-  buildCapacityOverviewModel,
-  type CapacityOverviewModel,
-  type CapacityOverviewPeriodResult,
-} from "./capacityOverviewModel";
+import { buildCapacityOverviewModel } from "./capacityOverviewModel";
+import type { CapacityOverviewModel, CapacityOverviewPeriodResult } from "./capacityOverviewModel";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
 import { resetStoreWithAccount, makeAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 
-vi.mock("../../account/useResourceAvatars", () => ({ useResourceAvatars: vi.fn() }));
+vi.mock("@/account/useResourceAvatars", () => ({ useResourceAvatars: vi.fn() }));
 beforeEach(() => vi.mocked(useResourceAvatars).mockReturnValue(new Map()));
 
 const resource = (id: string, kind: Resource["kind"] = "person"): Resource => ({
@@ -284,7 +281,7 @@ describe("CapacityOverviewTable content", () => {
     renderTable();
 
     // Without a real resource behind it, the trigger's title degrades to the generic
-    // "View Placeholder's schedule" instead of naming the role — the case a defaulted-to-empty
+    // "View Placeholder's schedule" instead of naming the role, the case a defaulted-to-empty
     // `data` prop was silently masking.
     const trigger = screen.getByRole("button", { name: "View Placeholder — Designer's schedule" });
     expect(trigger).toHaveAttribute("data-testid", "person-schedule-trigger");

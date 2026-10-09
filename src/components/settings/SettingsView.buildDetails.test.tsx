@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { SettingsView } from "./SettingsView";
-import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount } from "../../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount } from "@/test/fixtures";
 
-vi.mock("../../data/offlineCache", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../data/offlineCache")>()),
+vi.mock("@/data/offlineCache", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/data/offlineCache")>()),
   isOfflineReadEnabled: () => false,
 }));
 
@@ -31,10 +31,11 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("SettingsView — build details", () => {
-  it("renders no stamp when VITE_CAPACITYLENS_BUILD_SHA is unset but keeps server diagnostics", () => {
+  it("omits the build details row in server mode when unstamped and without feedback", () => {
     render(<SettingsView />);
     expect(screen.queryByTestId("build-stamp")).not.toBeInTheDocument();
-    expect(screen.getByTestId("persistence-diagnostics")).toHaveTextContent("Failed saves: 0");
+    expect(screen.queryByTestId("settings-build-details")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("persistence-diagnostics")).not.toBeInTheDocument();
   });
 
   it("omits the build details row for an unstamped demo without feedback", () => {

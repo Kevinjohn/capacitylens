@@ -28,7 +28,8 @@ interface MemberResourceLinkProps {
 type MemberResourceView = ReturnType<typeof buildMemberResourceView>;
 
 /** A link whose person is missing from the candidates, archived or disabled is retained but inactive. */
-function isLinkedPersonInactive(link: TeamMember["resourceLink"], listed: boolean): boolean {
+type IsLinkedPersonInactiveOptions = { link: TeamMember["resourceLink"]; listed: boolean };
+function isLinkedPersonInactive({ link, listed }: IsLinkedPersonInactiveOptions): boolean {
   if (!link) return false;
   return !listed || link.resourceStatus === "archived" || link.resourceStatus === "disabled";
 }
@@ -48,7 +49,10 @@ function buildMemberResourceView(
   const people = resourceCandidates
     .filter((resource) => !linkedResourceIds.has(resource.resourceId) || resource.resourceId === linkedId)
     .map((resource) => ({ id: resource.resourceId, name: resource.label }));
-  const currentPersonInactive = isLinkedPersonInactive(member.resourceLink, currentPerson !== undefined);
+  const currentPersonInactive = isLinkedPersonInactive({
+    link: member.resourceLink,
+    listed: currentPerson !== undefined,
+  });
   return {
     people,
     memberLabel: member.name ?? member.email ?? member.userId,

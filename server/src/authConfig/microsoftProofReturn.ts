@@ -1,4 +1,5 @@
-import { MicrosoftProofError, type MicrosoftProofIntent } from "./microsoftProofPrimitives";
+import { MicrosoftProofError } from "./microsoftProofPrimitives";
+import type { MicrosoftProofIntent } from "./microsoftProofPrimitives";
 
 /** Resolve encrypted application return targets only for the initiating browser's intent. */
 export function createMicrosoftProofReturn(input: {

@@ -1,17 +1,12 @@
-import { useState, type KeyboardEvent } from "react";
-import {
-  SWATCHES,
-  SWATCH_COLUMNS,
-  resolveSwatchLabel,
-  resolveColorName,
-  resolveSwatchIndex,
-} from "../../../lib/palette";
-import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
-import { Field, FieldLabel } from "../../ui/field";
-import { Button } from "../../ui/button";
+import { useState } from "react";
+import type { KeyboardEvent } from "react";
+import { SWATCHES, SWATCH_COLUMNS, resolveSwatchLabel, resolveColorName, resolveSwatchIndex } from "@/lib/palette";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { m } from "@/i18n";
-import { useMarkFormDirty } from "../formDirty";
+import { useMarkFormDirty } from "@/components/common/formDirty";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
 
@@ -139,7 +134,7 @@ function SwatchButton({ hex, index, value, selectedIndex, markDirty, onChange, o
 
 // A swatch picker, not a hex/RGB tool: a trigger showing the current colour opens a
 // 13×4 grid of preset swatches (see SWATCHES). Picking one is the only way to set the
-// value, so the stored colour is always a valid hex — no text/hex entry.
+// value, so the stored colour is always a valid hex. No text/hex entry.
 export function ColorField({ label, value, onChange, invalid, describedById, layout = "stacked" }: ColorFieldProps) {
   const markDirty = useMarkFormDirty();
   const [open, setOpen] = useState(false);

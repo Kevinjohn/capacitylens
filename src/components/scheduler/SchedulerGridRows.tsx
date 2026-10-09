@@ -1,9 +1,10 @@
 import { Fragment } from "react";
 import { LAYOUT } from "./layout";
 import { ClosureBand } from "./ClosureBand";
-import { SchedulerGridRow, type SchedulerGridRowProps } from "./SchedulerGridRow";
+import { SchedulerGridRow } from "./SchedulerGridRow";
+import type { SchedulerGridRowProps } from "./SchedulerGridRow";
 import { SchedulerGridGroupHeader } from "./SchedulerGridGroupHeader";
-import type { SchedulerUI } from "../../store/useStore";
+import type { SchedulerUI } from "@/store/useStore";
 import type { useSchedulerGridVirtualization } from "./useSchedulerGridVirtualization";
 
 type Props = ReturnType<typeof useSchedulerGridVirtualization> &

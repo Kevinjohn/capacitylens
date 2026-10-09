@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { buildEmptyFilters } from "../../store/useStore";
-import { makeResource, requireValue } from "../../test/fixtures";
-import { buildSchedulerModel, type GroupModel } from "./schedulerModel";
+import { buildEmptyFilters } from "@/store/useStore";
+import { makeResource, requireValue } from "@/test/fixtures";
+import { buildSchedulerModel } from "./schedulerModel";
+import type { GroupModel } from "./schedulerModel";
 import { allBars, dataset, days, end, geom, start, withExternal } from "./schedulerModel.testSupport";
 
 function registerMovedSchedulerTests23811(
   companyData: () => AppData,
-  buildCompany: (blocksMode?: boolean) => GroupModel[],
+  buildCompany: (options?: BuildCompanyClosureModelOptions) => GroupModel[],
 ) {
   it("applies closure capacity and conflict cells to every tracked row", () => {
     const rows = buildCompany().flatMap((group) => group.rows);
@@ -58,10 +59,10 @@ function registerMovedSchedulerTests23811(
   });
 }
 
-function registerMovedSchedulerTests23812(buildCompany: (blocksMode?: boolean) => GroupModel[]) {
+function registerMovedSchedulerTests23812(buildCompany: (options?: BuildCompanyClosureModelOptions) => GroupModel[]) {
   it("flags a zero-load Block overlapping a closure", () => {
     const r1 = requireValue(
-      buildCompany(true)
+      buildCompany({ blocksMode: true })
         .flatMap((group) => group.rows)
         .find((row) => row.resource.id === "r1"),
       "r1 scheduler row",
@@ -72,7 +73,7 @@ function registerMovedSchedulerTests23812(buildCompany: (blocksMode?: boolean) =
   });
 }
 
-function registerMovedSchedulerTests23813(buildCompany: (blocksMode?: boolean) => GroupModel[]) {
+function registerMovedSchedulerTests23813(buildCompany: (options?: BuildCompanyClosureModelOptions) => GroupModel[]) {
   it("keeps external capacity starved and exempt from company closures", () => {
     const external = requireValue(
       requireValue(
@@ -304,7 +305,7 @@ function registerMovedSchedulerTests201017() {
         filters: buildEmptyFilters(),
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       }).map((group) => group.title),
-    ).toEqual(["Studio"]);
+    ).toEqual(["Unassigned"]);
 
     const externalOnly = withExternal();
     externalOnly.disciplines = [];
@@ -324,7 +325,7 @@ function registerMovedSchedulerTests201017() {
 }
 
 function registerMovedSchedulerTests201018() {
-  it("uses one Unassigned fallback when engagement grouping is disabled", () => {
+  it("uses one fallback band for a Studio-only company: Unassigned with disciplines, Resources without", () => {
     const d = withExternal();
     const firstResource = d.resources[0];
     expect(firstResource).toBeDefined();
@@ -343,7 +344,6 @@ function registerMovedSchedulerTests201018() {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
         externalEnabled: true,
-        groupResourcesByEngagement: false,
       },
     });
     expect(withDisciplines.map((group) => group.title)).toEqual(["Development", "Unassigned", "External / 3rd party"]);
@@ -359,11 +359,10 @@ function registerMovedSchedulerTests201018() {
         disciplinesEnabled: false,
         placeholdersEnabled: true,
         externalEnabled: true,
-        groupResourcesByEngagement: false,
       },
     });
-    expect(withoutDisciplines.map((group) => group.title)).toEqual(["Unassigned", "External / 3rd party"]);
-    expect(requireValue(withoutDisciplines[0], "unassigned group").rows).toHaveLength(2);
+    expect(withoutDisciplines.map((group) => group.title)).toEqual(["Resources", "External / 3rd party"]);
+    expect(requireValue(withoutDisciplines[0], "resources group").rows).toHaveLength(2);
   });
 }
 
@@ -590,7 +589,8 @@ function buildCompanyClosureData(): AppData {
   return d;
 }
 
-function buildCompanyClosureModel(blocksMode = false) {
+type BuildCompanyClosureModelOptions = { blocksMode?: boolean };
+function buildCompanyClosureModel({ blocksMode = false }: BuildCompanyClosureModelOptions = {}) {
   return buildSchedulerModel({
     data: buildCompanyClosureData(),
     geom,

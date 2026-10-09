@@ -1,27 +1,17 @@
 import { SINGLE_COMPANY_CAP_MESSAGE } from "@capacitylens/shared/account/policy";
-import { type Db } from "../../db";
+import type { Db } from "../../db";
 import { IMMUTABLE_ACCOUNT_FIELDS } from "../../validate";
 
-/** Auth-on closure of generic account-create paths. POST /api/orgs atomically creates an account,
- * built-in Internal client, and owner membership. Generic create vectors refuse in auth-on mode so
- * accounts cannot be created without membership; trusted-local OFF mode retains generic creation. */
-export const ACCOUNT_CREATE_CLOSED_MESSAGE =
-  "Accounts cannot be created through this endpoint when authentication is on. Use POST /api/orgs.";
-
-// SINGLE_COMPANY_CAP_MESSAGE (owner policy — see AppOptions.multiAccount / CLAUDE.md) now lives in
-// @capacitylens/shared/account/policy: every route that could add a SECOND `accounts` row — this
-// PUT, the batch loop, POST /api/orgs — shares that one shared-package constant so the rule can't
+// SINGLE_COMPANY_CAP_MESSAGE (owner policy, see AppOptions.multiAccount) now lives in
+// @capacitylens/shared/account/policy: every route that could add a second `accounts` row (this
+// PUT, the batch loop, POST /api/orgs) shares that one shared-package constant so the rule can't
 // drift between vectors. Re-exported here so app.ts's existing `from "./routes/accountEntityRoutes"`
 // import keeps working unchanged.
 export { SINGLE_COMPANY_CAP_MESSAGE };
 
-/** Frozen-field refusal shared by PUT, PATCH, and the batch loop. */
-export const ACCOUNT_FROZEN_FIELDS_MESSAGE =
-  "Language, week start and time zone are set when the company is created and cannot be changed.";
-
-/** SELECT COUNT(*) FROM accounts — the cap's sole precondition. Same query POST /api/orgs used
- *  before the cap existed; kept as one function so every enforcement point reads the identical
- *  number (never re-derived ad hoc at each call site). */
+/** SELECT COUNT(*) FROM accounts, the cap's sole precondition. Same query POST /api/orgs used
+ * before the cap existed; kept as one function so every enforcement point reads the identical
+ * number (never re-derived ad hoc at each call site). */
 export function countAccounts(db: Db): number {
   return (db.prepare("SELECT COUNT(*) AS n FROM accounts").get() as { n: number }).n;
 }
@@ -32,9 +22,9 @@ interface IsAccountCreateCappedInput {
 }
 
 /**
- * True when creating a NEW `accounts` row right now would violate the single-company cap: the table
- * already holds ≥1 row AND the instance has not opted into `multiAccount`. Callers MUST call this
- * only for the CREATE case (no existing row) — an UPDATE/DELETE of an already-existing account is
+ * True when creating a new `accounts` row right now would violate the single-company cap: the table
+ * already holds ≥1 row and the instance has not opted into `multiAccount`. Callers must call this
+ * only for the CREATE case (no existing row). An UPDATE/DELETE of an already-existing account is
  * never capped; enforcement is create-time only, per AppOptions.multiAccount.
  */
 export function isAccountCreateCapped({ db, multiAccount }: IsAccountCreateCappedInput): boolean {
@@ -50,20 +40,20 @@ export function buildCanonicalAccountProductPayload(row: Record<string, unknown>
 }
 
 /**
- * True when a sanitised accounts write would change an already-set frozen field — the
- * violation signal the PUT/PATCH/batch handlers all turn into a 409 — the batch path throws an
+ * True when a sanitised accounts write would change an already-set frozen field, the
+ * violation signal the PUT/PATCH/batch handlers all turn into a 409, the batch path throws an
  * AccountContractError with code CONFLICT, which the sync client maps through
  * statusForAccountFailure to the same 409 (its authoritative-reload trigger), not a 400.
  *
- * Reports a violation ONLY when `existing` has a stored value AND the sanitised incoming value
+ * Reports a violation only when `existing` has a stored value and the sanitised incoming value
  * differs. Four deliberate rules:
- *  - Change, not presence: the sync adapter re-sends the WHOLE row on any edit (e.g. a rename),
- *    so an unchanged frozen value MUST pass — only a real change is a violation.
+ *  - Change, not presence: the sync adapter re-sends the whole row on any edit (e.g. a rename),
+ *    so an unchanged frozen value must pass, only a real change is a violation.
  *  - A missing stored value may be set once, preserving legacy/minimal API-created accounts.
  *  - sanitizeWrite pins an existing value when malformed input is dropped, making it a no-op.
- *  - No existing row → creation, when these values are legitimately SET → never a violation.
+ *  - No existing row → creation, when these values are legitimately set → never a violation.
  *
- * @param existing the stored row (undefined on a create — always passes)
+ * @param existing the stored row (undefined on a create, always passes)
  * @param incoming the sanitised candidate row, before it is persisted
  */
 export function hasFrozenAccountFieldChanges(

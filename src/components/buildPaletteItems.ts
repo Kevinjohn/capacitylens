@@ -1,13 +1,15 @@
 import { m } from "@/i18n";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { isExternalResource, type Activity } from "@capacitylens/shared/types/entities";
+import { isExternalResource } from "@capacitylens/shared/types/entities";
+import type { Activity } from "@capacitylens/shared/types/entities";
 import type { useNavigate } from "react-router-dom";
-import { fuzzyFilter } from "../lib/fuzzy";
-import { resolveResourceDisplayName } from "../lib/metadata";
-import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "../lib/navLinks";
-import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
-import type { useActiveScopedData } from "../store/useScopedData";
-import { buildEmptyFilters, type Filters } from "../store/useStore";
+import { fuzzyFilter } from "@/lib/fuzzy";
+import { resolveResourceDisplayName } from "@/lib/metadata";
+import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "@/lib/navLinks";
+import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "@/lib/tourAnchors";
+import type { useActiveScopedData } from "@/store/useScopedData";
+import { buildEmptyFilters } from "@/store/useStore";
+import type { Filters } from "@/store/useStore";
 
 export interface PaletteItem {
   id: string;
@@ -22,9 +24,9 @@ interface BuildPaletteItemsInput {
   data: ReturnType<typeof useActiveScopedData>;
   disciplinesEnabled: boolean;
   showCapacityOverview: boolean;
+  showDiagnostics: boolean;
   placeholdersEnabled: boolean;
   externalEnabled: boolean;
-  showInternalProjects: boolean;
   navigate: ReturnType<typeof useNavigate>;
   goToToday: () => void;
   goToDate: (iso: string) => void;
@@ -35,7 +37,8 @@ interface BuildPaletteItemsInput {
 
 const SECTION_LIMIT = 5;
 
-function filterPaletteItems(items: PaletteItem[], query: string, showAllWithoutQuery = false): PaletteItem[] {
+type FilterPaletteItemsOptions = { items: PaletteItem[]; query: string; showAllWithoutQuery?: boolean };
+function filterPaletteItems({ items, query, showAllWithoutQuery = false }: FilterPaletteItemsOptions): PaletteItem[] {
   if (!query) return showAllWithoutQuery ? items : items.slice(0, SECTION_LIMIT);
   return fuzzyFilter(items, query, (item) => item.label).slice(0, SECTION_LIMIT);
 }
@@ -77,12 +80,14 @@ function buildActionItems({
 function buildPageItems({
   disciplinesEnabled,
   showCapacityOverview,
+  showDiagnostics,
   navigate,
   onClose,
 }: BuildPaletteItemsInput): PaletteItem[] {
   return [...LINKS, ...ADMIN_LINKS, ACCOUNT_LINK]
     .filter(({ to }) => disciplinesEnabled || to !== "/disciplines")
     .filter(({ to }) => showCapacityOverview || to !== ROUTE_CAPACITY_OVERVIEW)
+    .filter(({ to }) => showDiagnostics || to !== ROUTE_DIAGNOSTICS)
     .map(({ to, label }) => ({
       id: `page-${to === "/" ? "schedule" : to.slice(1)}`,
       label: label(),
@@ -114,24 +119,22 @@ function buildResourceItems(input: BuildPaletteItemsInput): PaletteItem[] {
 }
 
 function buildProjectItems(input: BuildPaletteItemsInput): PaletteItem[] {
-  const { data, showInternalProjects, navigate, setFilters, onClose } = input;
+  const { data, navigate, setFilters, onClose } = input;
   const clientsById = new Map(data.clients.map((client) => [client.id, client]));
-  return data.projects
-    .filter((project) => showInternalProjects || clientsById.get(project.clientId)?.builtin !== true)
-    .map((project) => {
-      const client = clientsById.get(project.clientId);
-      return {
-        id: `proj-${project.id}`,
-        label: project.name,
-        ...(client ? { sublabel: client.name } : {}),
-        section: m.palette_section_projects(),
-        onSelect: () => {
-          void navigate("/");
-          setFilters({ ...buildEmptyFilters(), projectId: project.id });
-          onClose();
-        },
-      };
-    });
+  return data.projects.map((project) => {
+    const client = clientsById.get(project.clientId);
+    return {
+      id: `proj-${project.id}`,
+      label: project.name,
+      ...(client ? { sublabel: client.name } : {}),
+      section: m.palette_section_projects(),
+      onSelect: () => {
+        void navigate("/");
+        setFilters({ ...buildEmptyFilters(), projectId: project.id });
+        onClose();
+      },
+    };
+  });
 }
 
 function buildClientItems({ data, navigate, setFilters, onClose }: BuildPaletteItemsInput): PaletteItem[] {
@@ -173,15 +176,19 @@ function buildActivityItems({ data, navigate, onClose }: BuildPaletteItemsInput)
 
 export function buildPaletteItems(input: BuildPaletteItemsInput): PaletteItem[] {
   const query = input.query.trim();
-  const actions = filterPaletteItems(buildActionItems({ ...input, query }), query, true);
-  const pages = filterPaletteItems(buildPageItems(input), query, true);
+  const actions = filterPaletteItems({
+    items: buildActionItems({ ...input, query }),
+    query: query,
+    showAllWithoutQuery: true,
+  });
+  const pages = filterPaletteItems({ items: buildPageItems(input), query: query, showAllWithoutQuery: true });
   if (!query) return [...actions, ...pages];
   return [
     actions,
     pages,
-    filterPaletteItems(buildResourceItems(input), query),
-    filterPaletteItems(buildProjectItems(input), query),
-    filterPaletteItems(buildClientItems(input), query),
-    filterPaletteItems(buildActivityItems(input), query),
+    filterPaletteItems({ items: buildResourceItems(input), query: query }),
+    filterPaletteItems({ items: buildProjectItems(input), query: query }),
+    filterPaletteItems({ items: buildClientItems(input), query: query }),
+    filterPaletteItems({ items: buildActivityItems(input), query: query }),
   ].flat();
 }

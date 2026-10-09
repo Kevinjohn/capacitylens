@@ -5,19 +5,16 @@ import {
   readStoredFakeSignedIn,
   readStoredMinimiseWeekends,
   readStoredSidebarOpen,
-  readStoredCompactView,
-  readStoredSnapToWeekStart,
+  readStoredWeekSnapOverride,
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
   writeStoredFakeSignedIn,
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
-  writeStoredCompactView,
-  writeStoredSnapToWeekStart,
   writeStoredUtilizationPrefs,
-} from "../../lib/displayPrefs";
-import { applyThemeToDom, readStoredTheme, writeStoredTheme } from "../../lib/theme";
-import type { StoreState } from "../types";
+} from "@/lib/displayPrefs";
+import { applyThemeToDom, readStoredTheme, writeStoredTheme } from "@/lib/theme";
+import type { StoreState } from "@/store/types";
 
 type RuntimeSliceKeys =
   | "hydrated"
@@ -35,8 +32,7 @@ type RuntimeSliceKeys =
   | "barLabelPrefs"
   | "sidebarOpen"
   | "minimiseWeekends"
-  | "snapToWeekStart"
-  | "compactView"
+  | "weekSnapEnabled"
   | "fakeSignedIn"
   | "activeRole"
   | "activeRoleStatus"
@@ -56,8 +52,6 @@ type RuntimeSliceKeys =
   | "setBarLabelPref"
   | "setSidebarOpen"
   | "setMinimiseWeekends"
-  | "setSnapToWeekStart"
-  | "setCompactView"
   | "setFakeSignedIn"
   | "setActiveRole"
   | "invalidateMemberships"
@@ -68,7 +62,7 @@ type RuntimeSliceKeys =
 type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
 
 /** The device-global boolean prefs, each persisted under its own localStorage key. */
-type PersistedFlagKey = "sidebarOpen" | "minimiseWeekends" | "snapToWeekStart" | "compactView" | "fakeSignedIn";
+type PersistedFlagKey = "sidebarOpen" | "minimiseWeekends" | "fakeSignedIn";
 
 const legacyDirtyFormSource = Symbol("setDirtyForm");
 
@@ -99,8 +93,7 @@ function readRuntimeInitialState() {
     barLabelPrefs: readStoredBarLabelPrefs(),
     sidebarOpen: readStoredSidebarOpen() ?? readDefaultSidebarOpen(),
     minimiseWeekends: readStoredMinimiseWeekends(),
-    snapToWeekStart: readStoredSnapToWeekStart(),
-    compactView: readStoredCompactView(),
+    weekSnapEnabled: readStoredWeekSnapOverride(),
     fakeSignedIn: readStoredFakeSignedIn(),
     activeRole: null,
     activeRoleStatus: "not-applicable" as const,
@@ -109,7 +102,8 @@ function readRuntimeInitialState() {
   };
 }
 
-function applyDirtyFormSource(state: StoreState, source: symbol, dirty: boolean) {
+type ApplyDirtyFormSourceOptions = { state: StoreState; source: symbol; dirty: boolean };
+function applyDirtyFormSource({ state, source, dirty }: ApplyDirtyFormSourceOptions) {
   const dirtyFormSources = new Set(state.dirtyFormSources);
   if (dirty) dirtyFormSources.add(source);
   else dirtyFormSources.delete(source);
@@ -118,8 +112,8 @@ function applyDirtyFormSource(state: StoreState, source: symbol, dirty: boolean)
 
 /** Device preferences and transient application/session state. */
 export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> = (set, get) => {
-  // Every device-global preference setter has the same body — write the pref to its own
-  // localStorage key, then publish it — so the shape is declared ONCE here and each setter below
+  // Every device-global preference setter has the same body, write the pref to its own
+  // localStorage key, then publish it, so the shape is declared once here and each setter below
   // names only its key and its writer. setTheme stays bespoke: it also repaints the DOM.
   return {
     ...readRuntimeInitialState(),
@@ -135,23 +129,25 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
       })),
     // Retain the boolean API as one owned source. Component publishers use setDirtyFormSource so
     // clearing one contribution can never erase another still-dirty owner.
-    setDirtyForm: (value) => set((state) => applyDirtyFormSource(state, legacyDirtyFormSource, value)),
-    setDirtyFormSource: (source, dirty) => set((state) => applyDirtyFormSource(state, source, dirty)),
+    setDirtyForm: (value) =>
+      set((state) => applyDirtyFormSource({ state: state, source: legacyDirtyFormSource, dirty: value })),
+    setDirtyFormSource: ({ source, dirty }) =>
+      set((state) => applyDirtyFormSource({ state: state, source: source, dirty: dirty })),
     setDraggingAllocation: (id) => set({ draggingAllocationId: id }),
     setTheme: (preference) => {
       writeStoredTheme(preference);
       applyThemeToDom(preference);
       set({ theme: preference });
     },
-    // The two pref MAPS stay written out: a shared factory over them needs a double cast to keep
+    // The two pref maps stay written out: a shared factory over them needs a double cast to keep
     // the mapped key/value pair typed, which costs more clarity than the four lines it saves.
-    setUtilizationPref: (key, value) =>
+    setUtilizationPref: ({ key, value }) =>
       set((state) => {
         const next = { ...state.utilizationPrefs, [key]: value };
         writeStoredUtilizationPrefs(next);
         return { utilizationPrefs: next };
       }),
-    setBarLabelPref: (key, value) =>
+    setBarLabelPref: ({ key, value }) =>
       set((state) => {
         const next = { ...state.barLabelPrefs, [key]: value };
         writeStoredBarLabelPrefs(next);
@@ -159,8 +155,6 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
       }),
     setSidebarOpen: createPersistedFlagSetter(set, "sidebarOpen", (open) => writeStoredSidebarOpen({ open })),
     setMinimiseWeekends: createPersistedFlagSetter(set, "minimiseWeekends", writeStoredMinimiseWeekends),
-    setSnapToWeekStart: createPersistedFlagSetter(set, "snapToWeekStart", writeStoredSnapToWeekStart),
-    setCompactView: createPersistedFlagSetter(set, "compactView", writeStoredCompactView),
     setFakeSignedIn: createPersistedFlagSetter(set, "fakeSignedIn", writeStoredFakeSignedIn),
     setActiveRole: (role, status = role === null ? "not-applicable" : "resolved") =>
       set({ activeRole: role, activeRoleStatus: status }),

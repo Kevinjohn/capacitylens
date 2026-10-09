@@ -1,17 +1,17 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { attachPersistence, flushPendingWrites, retryActiveAccountLoad, switchAndAwaitHydration } from "./persist";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { resetStoreWithAccount } from "../test/fixtures";
+import { resetStoreWithAccount } from "@/test/fixtures";
 import { internalClient, requireCallback, makeLocalTwoAccounts, accountSwitchSlices } from "./__tests__/persistTestKit";
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account AND makes it active, so the add* calls below
+  // Seeds a single account and makes it active, so the add* calls below
   // (which now require an active account) work.
   resetStoreWithAccount();
 });
@@ -83,10 +83,12 @@ async function attachFailedSwitchWithParkedEdit() {
   const saveAll = vi.fn().mockResolvedValue(undefined);
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
-  useStore.getState().setAccountSummaries([
-    { id: "a1", name: "Alpha", role: "owner" },
-    { id: "b1", name: "Beta", role: "owner" },
-  ]);
+  useStore.getState().setAccountSummaries({
+    list: [
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+    ],
+  });
   const detach = attachPersistence({
     store: useStore,
     adapter: { loadAll, saveAll },
@@ -155,10 +157,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const saveAll = vi.fn().mockRejectedValueOnce(new Error("A save failed")).mockResolvedValue(undefined);
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll },
@@ -195,10 +199,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
         .mockRejectedValueOnce(new Error("B unavailable"));
       useStore.getState().replaceAll(emptyAppData());
       useStore.getState().setActiveAccount(null);
-      useStore.getState().setAccountSummaries([
-        { id: "a1", name: "Alpha", role: "owner" },
-        { id: "b1", name: "Beta", role: "owner" },
-      ]);
+      useStore.getState().setAccountSummaries({
+        list: [
+          { id: "a1", name: "Alpha", role: "owner" },
+          { id: "b1", name: "Beta", role: "owner" },
+        ],
+      });
       const detach = attachPersistence({
         store: useStore,
         adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
@@ -229,10 +235,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
         .mockRejectedValueOnce(new Error("B unavailable"));
       useStore.getState().replaceAll(emptyAppData());
       useStore.getState().setActiveAccount(null);
-      useStore.getState().setAccountSummaries([
-        { id: "a1", name: "Alpha", role: "owner" },
-        { id: "b1", name: "Beta", role: "owner" },
-      ]);
+      useStore.getState().setAccountSummaries({
+        list: [
+          { id: "a1", name: "Alpha", role: "owner" },
+          { id: "b1", name: "Beta", role: "owner" },
+        ],
+      });
       const detach = attachPersistence({
         store: useStore,
         adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
@@ -270,10 +278,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       const saveAll = vi.fn().mockResolvedValue(undefined);
       useStore.getState().replaceAll(emptyAppData());
       useStore.getState().setActiveAccount(null);
-      useStore.getState().setAccountSummaries([
-        { id: "a1", name: "Alpha", role: "owner" },
-        { id: "b1", name: "Beta", role: "owner" },
-      ]);
+      useStore.getState().setAccountSummaries({
+        list: [
+          { id: "a1", name: "Alpha", role: "owner" },
+          { id: "b1", name: "Beta", role: "owner" },
+        ],
+      });
       const detach = attachPersistence({
         store: useStore,
         adapter: { loadAll, saveAll },
@@ -313,10 +323,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const saveAll = vi.fn().mockResolvedValue(undefined);
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll },
@@ -353,10 +365,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const saveAll = vi.fn().mockRejectedValueOnce(new Error("A save failed")).mockResolvedValue(undefined);
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll },
@@ -390,11 +404,13 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     });
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-      { id: "c1", name: "Gamma", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+        { id: "c1", name: "Gamma", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
@@ -449,11 +465,13 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const saveAll = vi.fn().mockResolvedValue(undefined);
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-      { id: "c1", name: "Gamma", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+        { id: "c1", name: "Gamma", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll },
@@ -481,8 +499,8 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     detach();
   });
 
-  // The §5 correctness core at the persist layer: a tenant switch hydrates THAT account's slice and
-  // re-seeds the adapter's diff snapshot atomically, with NO spurious save of the loaded slice.
+  // The §5 correctness core at the persist layer: a tenant switch hydrates that account's slice and
+  // re-seeds the adapter's diff snapshot atomically, with no spurious save of the loaded slice.
   it("lets the account-transition owner await the subscriber's exact hydration, including null", async () => {
     let resolveLoad!: (data: AppData) => void;
     const load = new Promise<AppData>((resolve) => {
@@ -494,7 +512,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     };
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
     const detach = attachPersistence({
       store: useStore,
       adapter: adapter,
@@ -523,7 +541,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const load = new Promise<AppData>(() => undefined);
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll: vi.fn(async () => load), saveAll: vi.fn(async () => {}) },
@@ -559,7 +577,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     // Server-mode attach with an empty store (the pre-pick state in auth-on).
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
     const detach = attachPersistence({
       store: useStore,
       adapter: adapter,
@@ -572,7 +590,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
     expect(loadAll).toHaveBeenCalledWith("a2"); // per-account hydration
     expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["c2"]); // slice loaded into the store
-    // The slice load must NOT read as a user edit → no save of the loaded slice.
+    // The slice load must not read as a user edit → no save of the loaded slice.
     expect(saveAll).not.toHaveBeenCalled();
     detach();
   });
@@ -591,7 +609,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
       useStore.getState().replaceAll(emptyAppData());
       useStore.getState().setActiveAccount(null);
-      useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+      useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
       detach = attachPersistence({
         store: useStore,
         adapter: adapter,
@@ -616,20 +634,22 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
   });
 
   it("FLUSHES (does not drop) account A's pending debounced edits before loading B's slice", async () => {
-    // Regression guard for the data-loss edge (P1.13): a user edits account A and switches to B
-    // WITHIN the debounce window. The orchestrator used to clearTimeout + pending=null, silently
-    // DROPPING A's last edit. It must instead FLUSH that pending write while data===A AND the diff
-    // snapshot===A (so the diff is A-vs-A, correct), landing it BEFORE B's slice load reseeds the
-    // snapshot to B — never a cross-account diff. Uses the REAL ServerSyncAdapter so the actual
+    // Regression guard for the data-loss edge: a user edits account A and switches to B
+    // within the debounce window. The orchestrator used to clearTimeout + pending=null, silently
+    // dropping A's last edit. It must instead flush that pending write while data===A and the diff
+    // snapshot===A (so the diff is A-vs-A, correct), landing it before B's slice load reseeds the
+    // snapshot to B, never a cross-account diff. Uses the real ServerSyncAdapter so the actual
     // diff/snapshot logic runs against a fake fetch; we assert on the wire traffic.
     const { adapter, wire } = recordingAccountSwitchAdapter();
 
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-    ]);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ],
+    });
     const detach = attachPersistence({
       store: useStore,
       adapter: adapter,
@@ -641,25 +661,25 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
     expect(useStore.getState().activeAccountId).toBe("a1");
 
-    // Genuine edit to A → DEBOUNCED (not yet on the wire). Capture its id to find it later.
+    // Genuine edit to A → debounced (not yet on the wire). Capture its id to find it later.
     const edited = requireCreated(useStore.getState().addClient({ name: "A only", color: "#222222" }));
-    expect(wire.some((w) => w.ops)).toBe(false); // nothing flushed yet — still inside the 300ms window
+    expect(wire.some((w) => w.ops)).toBe(false); // nothing flushed yet, still inside the 300ms window
 
-    // Switch to B BEFORE the debounce timer fires → must FLUSH A's edit, then load B.
+    // Switch to B before the debounce timer fires → must flush A's edit, then load B.
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "reloaded" });
 
     // A's edit reached the adapter (flushed, not dropped): a batch carrying A's client (a PUT, so
-    // its accountId rides on the row — DELETEs carry a top-level accountId, PUTs carry the full row).
+    // its accountId rides on the row, DELETEs carry a top-level accountId, PUTs carry the full row).
     const carriesA = (o: NonNullable<AccountSwitchWireEntry["ops"]>[number]) =>
       o.row?.accountId === "a1" || o.accountId === "a1";
     const aBatchIdx = wire.findIndex((w) => w.ops?.some((o) => o.id === edited.id && carriesA(o)));
     expect(aBatchIdx).toBeGreaterThanOrEqual(0);
-    // And it landed BEFORE B's slice load (no window where a diff could cross accounts).
+    // And it landed before B's slice load (no window where a diff could cross accounts).
     const bLoadIdx = wire.findIndex((w) => w.url.includes("accountId=b1"));
     expect(bLoadIdx).toBeGreaterThanOrEqual(0);
     expect(aBatchIdx).toBeLessThan(bLoadIdx);
 
-    // After B loaded, NO batch carries A's ops (no cross-account diff B-vs-A).
+    // After B loaded, no batch carries A's ops (no cross-account diff B-vs-A).
     const afterB = wire.slice(bLoadIdx);
     expect(afterB.some((w) => w.ops?.some(carriesA))).toBe(false);
     expect(useStore.getState().activeAccountId).toBe("b1");
@@ -690,10 +710,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
       useStore.getState().replaceAll(emptyAppData());
       useStore.getState().setActiveAccount(null);
-      useStore.getState().setAccountSummaries([
-        { id: "a1", name: "Alpha", role: "owner" },
-        { id: "b1", name: "Beta", role: "owner" },
-      ]);
+      useStore.getState().setAccountSummaries({
+        list: [
+          { id: "a1", name: "Alpha", role: "owner" },
+          { id: "b1", name: "Beta", role: "owner" },
+        ],
+      });
       detach = attachPersistence({
         store: useStore,
         adapter: adapter,

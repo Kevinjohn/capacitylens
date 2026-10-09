@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { m } from "@/i18n";
 import type { JoiningPolicySettings } from "@capacitylens/shared/account/types";
-import { teamAccessClient } from "../../account/teamAccessClient";
-import { Alert, AlertDescription } from "../ui/alert";
-import { Button } from "../ui/button";
+import { teamAccessClient } from "@/account/teamAccessClient";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { JoiningPolicySection } from "./JoiningPolicySection";
 
 type LoadState = { kind: "loading" } | { kind: "failed" } | { kind: "ready"; settings: JoiningPolicySettings };

@@ -55,9 +55,9 @@ local-time snapshots (from earlier releases) remain valid restore inputs.
 The on-host snapshot directory protects against many application and operator mistakes,
 but not loss of the whole host. For real disaster recovery, also copy snapshots off-host
 — to a separate account, region or provider, with tools like restic, rclone or rsync —
-encrypt that destination, and monitor snapshot freshness. Set
-`CAPACITYLENS_STORAGE_ENCRYPTED=1` only after you have verified that the database, audit
-log and backup storage are encrypted at rest. Deep health reports
+encrypt that destination, and monitor snapshot freshness. Keep the database, audit log and
+backup storage on volumes encrypted at rest; CapacityLens does not encrypt them itself. Deep
+health reports
 `backup.status` and `backup.lastSuccessAt`; see
 [Monitoring and health checks](/self-hosting/monitoring).
 
@@ -85,15 +85,17 @@ drill_dir="$(mktemp -d /var/tmp/capacitylens-restore-drill.XXXXXX)" && install -
 
 Start the API with an empty inherited environment, the same sign-in mode and deployment
 profile as production, and separate storage paths. The example below is for password mode.
-For SSO or mixed mode, use the stored issuer and its discovery URL with non-production
-drill client credentials; this storage drill does not attempt provider sign-in.
+For Google or Microsoft company login, use an isolated staging origin and that provider's
+non-production client registration and callback to rehearse sign-in separately. CapacityLens
+supports those named providers; generic OIDC configuration is retired. This loopback storage
+drill does not attempt provider sign-in.
 
 ```bash
 env -i PATH="$PATH" NODE_ENV=production \
-  SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password \
-  SMALLSASS_ACCOUNT_MODE=password-only \
-  SMALLSASS_ACCOUNT_SECRET='<drill-only secret of at least 32 characters>' \
-  SMALLSASS_ACCOUNT_PUBLIC_URL=http://127.0.0.1:8877 \
+  CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-password \
+  CAPACITYLENS_MODE=password-only \
+  CAPACITYLENS_SECRET='<drill-only secret of at least 32 characters>' \
+  CAPACITYLENS_PUBLIC_URL=http://127.0.0.1:8877 \
   CAPACITYLENS_RATE_LIMIT=300 \
   CAPACITYLENS_HEALTH_DEEP=1 \
   CAPACITYLENS_DB="$drill_dir/capacitylens.db" \
@@ -132,7 +134,8 @@ you start — steps 1-2 below do this for you.
 
 1. Stop the API cleanly and wait for it to exit.
 2. Copy the live database and its `-wal`/`-shm` sidecars somewhere safe, in case you need
-   to roll back the restore itself.
+   to roll back the restore itself. Preserve the current and rotated audit logs separately;
+   a scheduled database snapshot does not replace those files.
 3. Copy a selected dated `capacitylens-utc-YYYYMMDD-HHMMSS-sss.db` (or older
    `capacitylens-YYYYMMDD-HHMMSS-sss.db`) scheduled snapshot to the configured database
    path. Don't select a `capacitylens-pre-migration-*` file here — those belong to the

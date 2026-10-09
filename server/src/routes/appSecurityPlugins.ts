@@ -3,28 +3,29 @@ import helmetPlugin from "@fastify/helmet";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { resolveRequestClientIp } from "./appErrors";
 import type { AppOptions } from "../app";
+import { REPLY_ERRORS } from "./replyErrors";
 
 export function installSecurityPlugins(app: FastifyInstance, options: AppOptions, rateLimitMax: number) {
-  // Baseline security headers (P0.5.3, @fastify/helmet): ON by default — these are pure
+  // Baseline security headers (@fastify/helmet): on by default. These are pure
   // hardening with no precondition, for an API server that returns JSON only (the SPA is
-  // served by Nginx, not here). Registered EARLY, before route plugins, so its onRequest
+  // served by Nginx, not here). Registered early, before route plugins, so its onRequest
   // hook decorates every response. helmet defaults already give us nosniff
   // (X-Content-Type-Options) and X-Frame-Options: DENY (frameguard) for legacy browsers; we
   // add a strict, minimal CSP whose frame-ancestors 'none' is the modern clickjacking guard,
   // and a no-referrer Referrer-Policy. The CSP carries exactly the minimal API directives plus
-  // legacy and current reporting targets — useDefaults:false below keeps
+  // legacy and current reporting targets, useDefaults:false below keeps
   // helmet from merging its defaults (script-src/style-src 'unsafe-inline'/img-src/etc.), since
-  // nothing here loads scripts or styles. HSTS is the ONE header
-  // gated — see opts.https: it is only valid over real HTTPS, so it follows the https public URL
+  // nothing here loads scripts or styles. HSTS is the one header
+  // gated: see opts.https: it is only valid over real HTTPS, so it follows the https public URL
   // (or CAPACITYLENS_HTTPS) rather than being always on.
   void app.register(helmetPlugin, {
     contentSecurityPolicy: {
-      // useDefaults:false — we emit EXACTLY these directives, nothing merged in. This is a
+      // useDefaults:false: we emit exactly these directives, nothing merged in. This is a
       // JSON-only API (no script/style/img sources are ever needed), so helmet's defaults
       // (script-src/style-src 'unsafe-inline'/img-src/font-src/form-action/upgrade-insecure-
       // requests) would only ship surface this server never uses. Leaving useDefaults at its
-      // true default silently merged all of that — including 'unsafe-inline' and upgrade-
-      // insecure-requests — past the explicit set below; this pins the wire CSP to the minimal set.
+      // true default silently merged all of that, including 'unsafe-inline' and upgrade-
+      // insecure-requests: past the explicit set below; this pins the wire CSP to the minimal set.
       useDefaults: false,
       directives: {
         "default-src": ["'self'"],
@@ -41,13 +42,13 @@ export function installSecurityPlugins(app: FastifyInstance, options: AppOptions
     // X-Frame-Options: DENY for legacy browsers (helmet's default is SAMEORIGIN); the modern
     // equivalent is the CSP frame-ancestors 'none' above. This API is never framed, so DENY.
     frameguard: { action: "deny" },
-    // OFF over HTTP; only emitted when real HTTPS fronts the origin (opts.https, derived from
+    // Off over HTTP; only emitted when real HTTPS fronts the origin (opts.https, derived from
     // CAPACITYLENS_HTTPS or the https public URL). Host-only: sibling subdomains are not ours to pin.
     hsts: options.https === true ? { maxAge: 63072000, includeSubDomains: false } : false,
   });
 
-  // Rate limiting (P1.5, flag CAPACITYLENS_RATE_LIMIT): registered ONLY when a positive limit
-  // was configured — off means the plugin doesn't exist in the app at all. Keyed per IP;
+  // Rate limiting (flag CAPACITYLENS_RATE_LIMIT): registered only when a positive limit
+  // was configured, off means the plugin doesn't exist in the app at all. Keyed per IP;
   // behind the Nginx proxy every socket is loopback, so trustProxyHeaders swaps the
   // key to the first X-Forwarded-For hop there (and only there). 429s flow through the
   // setErrorHandler above, so the refusal is the API's usual { error } JSON shape.
@@ -59,7 +60,7 @@ export function installSecurityPlugins(app: FastifyInstance, options: AppOptions
       // @fastify/rate-limit's default error has only a duck-typed statusCode, indistinguishable
       // from an arbitrary thrown object whose message could contain internal details.
       errorResponseBuilder: (_req, context) =>
-        Object.assign(new Error("Rate limit exceeded"), {
+        Object.assign(new Error(REPLY_ERRORS.rateLimited), {
           code: "CAPACITYLENS_RATE_LIMITED",
           statusCode: context.statusCode,
         }),

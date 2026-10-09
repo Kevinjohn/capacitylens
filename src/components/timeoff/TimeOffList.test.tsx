@@ -1,18 +1,18 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TimeOffList } from "./TimeOffList";
 import { TimeOffForm } from "./TimeOffForm";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import {
   DEFAULT_ACCOUNT_ID,
   WORKDAYS,
   requireValue,
   resetStoreWithAccount,
   setPlaceholdersEnabled,
-} from "../../test/fixtures";
-import { PermissionContext } from "../../auth/permissionContext";
+} from "@/test/fixtures";
+import { PermissionContext } from "@/auth/permissionContext";
 
 const resourceDraft = {
   kind: "person" as const,
@@ -45,8 +45,8 @@ beforeEach(() => {
   resetStoreWithAccount();
   useStore.getState().clearFilters();
   // The placeholder-hiding behaviour is the system under test in some cases; default the device
-  // pref ON here so the pre-existing tests are unaffected, and flip it OFF in the dedicated tests.
-  setPlaceholdersEnabled(true);
+  // pref on here so the pre-existing tests are unaffected, and flip it off in the dedicated tests.
+  setPlaceholdersEnabled({ on: true });
 });
 
 afterEach(() => {
@@ -219,7 +219,7 @@ it("states the year in an action name when the time off crosses one", () => {
   });
   render(<TimeOffList />);
 
-  // Without the years this reads "from Mon 28th Dec to Fri 8th Jan" — a range running backwards
+  // Without the years this reads "from Mon 28th Dec to Fri 8th Jan", a range running backwards
   // through the year rather than the twelve days it is.
   expect(
     screen.getByRole("button", { name: "Edit Alice time off from Mon 28th Dec 2026 to Fri 8th Jan 2027" }),
@@ -292,7 +292,7 @@ it("confirms before deleting and removes the entry on confirm", async () => {
 });
 
 it('shows a placeholder time-off entry (named "Placeholder") when placeholders are ON', () => {
-  setPlaceholdersEnabled(true);
+  setPlaceholdersEnabled({ on: true });
   const ph = requireCreated(useStore.getState().addResource(placeholderDraft));
   useStore
     .getState()
@@ -304,14 +304,14 @@ it('shows a placeholder time-off entry (named "Placeholder") when placeholders a
 });
 
 it("HIDES a placeholder time-off entry when placeholders are OFF (data stays intact)", () => {
-  setPlaceholdersEnabled(true);
+  setPlaceholdersEnabled({ on: true });
   const ph = requireCreated(useStore.getState().addResource(placeholderDraft));
   useStore
     .getState()
     .addTimeOff({ resourceId: ph.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" });
 
-  // Turn placeholders OFF — the entry must disappear from the rendered list…
-  setPlaceholdersEnabled(false);
+  // Turn placeholders off. The entry must disappear from the rendered list…
+  setPlaceholdersEnabled({ on: false });
   render(<TimeOffList />);
   expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
   // …falling through to the empty-state, not an error.
@@ -321,7 +321,7 @@ it("HIDES a placeholder time-off entry when placeholders are OFF (data stays int
 });
 
 it("still shows a non-placeholder entry when a placeholder entry is hidden (OFF)", () => {
-  setPlaceholdersEnabled(true);
+  setPlaceholdersEnabled({ on: true });
   const alice = requireCreated(useStore.getState().addResource(resourceDraft));
   const ph = requireCreated(useStore.getState().addResource(placeholderDraft));
   useStore
@@ -329,7 +329,7 @@ it("still shows a non-placeholder entry when a placeholder entry is hidden (OFF)
     .addTimeOff({ resourceId: alice.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" });
   useStore.getState().addTimeOff({ resourceId: ph.id, startDate: "2026-09-10", endDate: "2026-09-12", type: "sick" });
 
-  setPlaceholdersEnabled(false);
+  setPlaceholdersEnabled({ on: false });
   render(<TimeOffList />);
 
   expect(screen.getAllByTestId("timeoff-row")).toHaveLength(1);
@@ -467,7 +467,7 @@ it.each(["editor", "viewer"] as const)("hides and omits Note for role %s", (role
 
 describe("TimeOffForm resource picker (placeholder gating)", () => {
   it("EXCLUDES placeholders from the picker when the pref is OFF", async () => {
-    setPlaceholdersEnabled(false);
+    setPlaceholdersEnabled({ on: false });
     useStore.getState().addResource(resourceDraft); // a person, should appear
     useStore.getState().addResource(placeholderDraft); // a placeholder, should be omitted
     render(<TimeOffForm onClose={() => {}} />);
@@ -479,7 +479,7 @@ describe("TimeOffForm resource picker (placeholder gating)", () => {
   });
 
   it("risk A: editing a time-off entry already ON a hidden placeholder still offers that placeholder", async () => {
-    setPlaceholdersEnabled(true);
+    setPlaceholdersEnabled({ on: true });
     const ph = requireCreated(useStore.getState().addResource(placeholderDraft));
     const entry = requireCreated(
       useStore
@@ -490,7 +490,7 @@ describe("TimeOffForm resource picker (placeholder gating)", () => {
     // Hide placeholders, then edit the existing placeholder entry. The picker must keep the
     // currently-selected (hidden) placeholder so the value shows and the entry can't silently
     // reassign on save.
-    setPlaceholdersEnabled(false);
+    setPlaceholdersEnabled({ on: false });
     render(<TimeOffForm timeOff={entry} onClose={() => {}} />);
 
     const select = screen.getByLabelText("Resource");

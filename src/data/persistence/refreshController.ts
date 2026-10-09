@@ -1,10 +1,10 @@
 import type { RefreshOutcome } from "./facades";
 import type { StoreApi } from "zustand";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import type { StoreState } from "../../store/useStore";
-import type { PersistenceAdapter } from "../PersistenceAdapter";
-import { applyOps, diffOps } from "../syncOps";
-import { incrementPersistenceDiagnostic } from "../persistenceDiagnostics";
+import type { StoreState } from "@/store/useStore";
+import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
+import { applyOps, diffOps } from "@/data/syncOps";
+import { incrementPersistenceDiagnostic } from "@/data/persistenceDiagnostics";
 import type { AttachmentState } from "./attachmentState";
 import type { WriteQueue } from "./writeQueue";
 
@@ -159,11 +159,8 @@ function installLoadedSlice(input: RefreshSequenceInput): void {
   onSuccess?.();
 }
 
-async function flushBeforeLoad(
-  input: CreateRefreshControllerInput,
-  token: number,
-  preserveParkedEdit: boolean,
-): Promise<boolean> {
+type FlushBeforeLoadOptions = { input: CreateRefreshControllerInput; token: number; preserveParkedEdit: boolean };
+async function flushBeforeLoad({ input, token, preserveParkedEdit }: FlushBeforeLoadOptions): Promise<boolean> {
   const { owner, writes } = input;
   // First let the prior account's write settle. Then flush pending debounce data while store data
   // and adapter snapshot still describe the same account, before loadAll re-seeds the snapshot.
@@ -209,7 +206,8 @@ async function runRefresh(
   // flush, or load are parked until they can be included before re-seed or rebased afterward.
   const resume = owner.beginSuspension({ external: false, writes });
   try {
-    if (!(await flushBeforeLoad(input, myToken, preserveParkedEdit))) return { kind: "skipped" };
+    if (!(await flushBeforeLoad({ input: input, token: myToken, preserveParkedEdit: preserveParkedEdit })))
+      return { kind: "skipped" };
     if (abortIfSaveFailed && owner.current.failedSinceSuccess) return { kind: "skipped" };
     // A pre-armed retry must not fire during load against the old snapshot and then have its
     // discarded save hidden by the successful reload bookkeeping.
@@ -262,15 +260,15 @@ export function createRefreshController({
   // cross-account / garbage delta. The token discipline below also makes a late refresh that
   // resolves after a newer switch/refresh a no-op, so the two callers can't clobber each other.
   //
-  // A per-switch token guards the whole sequence: each call bumps `switchToken`, and a SECOND
+  // A per-switch token guards the whole sequence: each call bumps `switchToken`, and a second
   // switch/refresh that supersedes a slow first one makes the first's late-resolving load a no-op
   // (it must not seed a stale account over the newer one).
   //
-  // SEQUENCE (token-guarded throughout, see the inline (a)/(a′)/(b)/(c) markers):
+  // Sequence (token-guarded throughout, see the inline (a)/(a′)/(b)/(c) markers):
   //   (a) await any in-flight save so a write cannot land against the new snapshot;
-  //  (a′) FLUSH (not drop) the current account's pending debounced edits while data AND the snapshot
-  //       are BOTH still this account → the diff is self-vs-self (correct), landed BEFORE (b) reseeds;
-  //   (b) adapter.loadAll(id) → returns the slice AND re-seeds lastSynced to it;
+  //  (a′) flush (not drop) the current account's pending debounced edits while data and the snapshot
+  //       are both still this account → the diff is self-vs-self (correct), landed before (b) reseeds;
+  //   (b) adapter.loadAll(id) → returns the slice and re-seeds lastSynced to it;
   //   (c) replaceAll(slice) under loadingSlice so the data subscription doesn't read it as an edit,
   //       then advance lastData.
   //
@@ -279,14 +277,14 @@ export function createRefreshController({
   // server slice. This retains remote additions/lifecycle changes and avoids resurrecting rows,
   // while the rebased state is parked for an ordinary confirmed save after suspension lifts.
   //
-  // abortIfSaveFailed (refresh-on-focus + the lifecycle hook's post-mutation reload — NOT tenant
-  // switches): when the flush/await above still leaves a save FAILED, the refresh is ABANDONED.
-  // Proceeding would loadAll+replaceAll the server's copy over the optimistic state AND re-seed the
-  // diff snapshot to it, so the scheduled retry (which re-reads store state) would diff to ZERO ops,
-  // "succeed", and clear the failure — permanently discarding the user's un-persisted edit. Aborting
+  // abortIfSaveFailed (refresh-on-focus + the lifecycle hook's post-mutation reload, not tenant
+  // switches): when the flush/await above still leaves a save failed, the refresh is abandoned.
+  // Proceeding would loadAll+replaceAll the server's copy over the optimistic state and re-seed the
+  // diff snapshot to it, so the scheduled retry (which re-reads store state) would diff to zero ops,
+  // "succeed", and clear the failure, permanently discarding the user's un-persisted edit. Aborting
   // keeps the edit in play: the retry/stranded-write machinery still holds it, and the persist banner
-  // (raised via save's onError) already tells the user they're not synced. A tenant SWITCH deliberately
-  // does NOT abort — refusing the load would leave account A's data rendered under account B's id (a
+  // (raised via save's onError) already tells the user they're not synced. A tenant switch deliberately
+  // does not abort, refusing the load would leave account A's data rendered under account B's id (a
   // cross-tenant display, strictly worse); its flush failure is surfaced the same way and the loss is
   // bounded to the un-flushed edits.
 

@@ -18,10 +18,7 @@ type Input = {
 };
 
 export function createConfiguredMicrosoftProof(input: Input) {
-  if (
-    !input.environment.SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID ||
-    !input.environment.SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET
-  )
+  if (!input.environment.CAPACITYLENS_MICROSOFT_CLIENT_ID || !input.environment.CAPACITYLENS_MICROSOFT_CLIENT_SECRET)
     return null;
   const currentAuth = () => {
     const auth = input.getAuth();
@@ -35,7 +32,7 @@ export function createConfiguredMicrosoftProof(input: Input) {
     secret: input.secret,
     publicUrl: input.publicUrl,
     applicationId: input.applicationId,
-    tenantId: resolveMicrosoftTenantId(input.environment.SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID, input.AuthConfigError),
+    tenantId: resolveMicrosoftTenantId(input.environment.CAPACITYLENS_MICROSOFT_TENANT_ID, input.AuthConfigError),
     trustedOrigins: input.trustedOrigins,
     getSession: (headers) => currentAuth().api.getSession({ headers }),
     oauthStart: async (headers, intent) => {

@@ -2,7 +2,7 @@
 
 **Area:** Privacy / server integrity · **Persona:** Account owner and permitted non-owner editor ·
 **Coverage:** `server/src/app.authz.test.ts` → "private client/project names — owner-only server
-projection" + `server/src/db.tenantStore.test.ts`
+projection" + `server/src/db.accountStore.test.ts`
 
 ## Goal
 

@@ -3,7 +3,8 @@ import { createApp } from "./app";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { insertRow, openDb } from "./db";
 import { createInvite } from "./controlTables";
-import { PASSWORD_ENV, readCookies, registerServerFixtureCleanup } from "./testHelpers";
+import { PASSWORD_ENV, readCookies } from "./testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 
 const fixtures = registerServerFixtureCleanup();
 const origin = "http://localhost:8787";
@@ -18,16 +19,16 @@ async function configured(options: { mode?: "password-and-sso" | "sso-only"; tru
   const db = fixtures.trackDb(openDb(":memory:"));
   const { mode, auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_MODE: options.mode ?? "sso-only",
-    SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: bootstrap.email,
-    SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-client",
-    SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
-    SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
-    SMALLSASS_ACCOUNT_MAIL_HOST: "mail.example.test",
-    SMALLSASS_ACCOUNT_MAIL_PORT: "587",
-    SMALLSASS_ACCOUNT_MAIL_USER: "mailer",
-    SMALLSASS_ACCOUNT_MAIL_PASSWORD: "mail-secret",
-    SMALLSASS_ACCOUNT_MAIL_FROM: "identity@example.test",
+    CAPACITYLENS_MODE: options.mode ?? "sso-only",
+    CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS: bootstrap.email,
+    CAPACITYLENS_MICROSOFT_CLIENT_ID: "microsoft-client",
+    CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
+    CAPACITYLENS_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
+    CAPACITYLENS_MAIL_HOST: "mail.example.test",
+    CAPACITYLENS_MAIL_PORT: "587",
+    CAPACITYLENS_MAIL_USER: "mailer",
+    CAPACITYLENS_MAIL_PASSWORD: "mail-secret",
+    CAPACITYLENS_MAIL_FROM: "identity@example.test",
   });
   if (!auth) throw new Error("Expected configured Microsoft authentication.");
   await runAuthMigrations(auth);

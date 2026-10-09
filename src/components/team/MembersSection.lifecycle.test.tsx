@@ -1,15 +1,15 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "../../test/fixtures";
-import { useStore } from "../../store/useStore";
-import { refreshActiveAccountSlice } from "../../data/persist";
-import { setOfflineReadState } from "../../data/offlineCache";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "@/test/fixtures";
+import { useStore } from "@/store/useStore";
+import { refreshActiveAccountSlice } from "@/data/persist";
+import { setOfflineReadState } from "@/data/offlineCache";
 import { m } from "@/i18n";
-import { teamAccessClient } from "../../account/teamAccessClient";
-import * as resourceAvatars from "../../account/useResourceAvatars";
+import { teamAccessClient } from "@/account/teamAccessClient";
+import * as resourceAvatars from "@/account/useResourceAvatars";
 import {
   chooseMemberAction,
   waitForMemberRow,
@@ -22,30 +22,30 @@ import {
   requireCallback,
   requireValue,
   saveRoleVia,
-  type RawMember,
 } from "./MembersSection.testSupport";
+import type { RawMember } from "./MembersSection.testSupport";
 
 const accountTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
 
-vi.mock("../../auth/accountTransition", () => ({
+vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-// MembersSection is the Team & access management UI. It renders ONLY in auth-on + server mode and
+// MembersSection is the Team & access management UI. It renders only in auth-on + server mode and
 // self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
-// true) and fetch, and assert the OWNER-ONLY affordances are hidden for an admin (no owner option, no
+// true) and fetch, and assert the owner-only affordances are hidden for an admin (no owner option, no
 // controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
 
 // Make the section "enabled": a configured server. The real module reads import.meta.env, which the
 // test env leaves unset; mocking it is the clean way to flip server mode on.
-vi.mock("../../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: () => true,
 }));
 
-vi.mock("../../data/persist", () => ({
+vi.mock("@/data/persist", () => ({
   refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
   flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
   suspendServerWrites: vi.fn(() => vi.fn()),
@@ -58,20 +58,20 @@ vi.mock("../../data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
-  setOfflineReadState("cleanup", false);
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
 describe("MembersSection — member lifecycle", () => {
-  // Transfer ownership is deliberately NOT here: #175 removed the per-member button, and the
-  // action returns under a follow-up ticket as its own owner-only section. Its server route and
-  // client method are untouched, so this describe covers what the ROW can now do instead.
+  // Transfer ownership is deliberately not here: there is no per-member button.
+  // Its server route and
+  // client method are untouched, so this describe covers what the row can now do instead.
   const lifecycleMembers: RawMember[] = [
     { userId: "me", role: "owner", isSelf: true },
     { userId: "ed", role: "editor" },
@@ -414,7 +414,7 @@ function registerLifecycleVisibilityTests(): void {
     renderSection();
     await openInactiveGroup(user);
     const edRow = await waitForMemberRow(/ed@x\.io/);
-    // A non-active member must stay REACHABLE and legible, or the state is unreversible.
+    // A non-active member must stay reachable and legible, or the state is unreversible.
     expect(within(edRow).getByTestId("member-status")).toHaveTextContent(m.settings_member_status_disabled());
 
     await openMemberMenu(user, edRow);
@@ -448,7 +448,7 @@ function registerLifecycleVisibilityTests(): void {
     // into a silent reinstatement. Restore is the only way back, and it is its own audited action.
     expect(within(edRow).queryByTestId("member-edit")).not.toBeInTheDocument();
 
-    // The gear is NOT withdrawn with it: disabling someone must never cost an administrator the
+    // The gear is not withdrawn with it: disabling someone must never cost an administrator the
     // ability to rotate their password, kill their sessions, or remove them outright.
     await openMemberMenu(user, edRow);
     expect(screen.getByTestId("member-reset-password")).toBeInTheDocument();
@@ -470,7 +470,7 @@ function registerLifecycleDisclosureTests(): void {
     );
     renderSection();
 
-    // The main table is the TEAM. Two of these three memberships are history and must not pad it out.
+    // The main table is the team. Two of these three memberships are history and must not pad it out.
     const mainTable = await screen.findByTestId("members-table");
     expect(within(mainTable).getAllByTestId("member-row")).toHaveLength(1);
     expect(within(mainTable).queryByText(/ed@x\.io/)).not.toBeInTheDocument();
@@ -500,7 +500,7 @@ function registerLifecycleDisclosureTests(): void {
       .map((badge) => badge.textContent);
     expect(badges).toEqual([m.settings_member_status_disabled(), m.settings_member_status_archived()]);
 
-    // It closes again — this is a disclosure, not a one-way reveal.
+    // It closes again. This is a disclosure, not a one-way reveal.
     await user.click(toggle);
     expect(screen.queryByTestId("members-inactive-table")).not.toBeInTheDocument();
   });
@@ -534,7 +534,7 @@ function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
     const selfRow = await waitForMemberRow(/me@x\.io/);
 
     // Self-suspension would be an unrecoverable in-app lockout; the Owner is protected because the
-    // single-active-Owner invariant keys on role='owner' AND status='active'.
+    // single-active-Owner invariant keys on role='owner' and status='active'.
     await openMemberMenu(user, selfRow);
     expect(screen.queryByTestId("member-disable")).not.toBeInTheDocument();
     expect(screen.queryByTestId("member-archive")).not.toBeInTheDocument();
@@ -711,7 +711,7 @@ function registerLifecycleConcurrencyTests(): void {
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /disable/i }));
 
     // While the first mutation is in flight the row's own affordances are disabled, so a second
-    // action cannot even be raised — the beginAction lock and the disabled state agree.
+    // action cannot even be raised, the beginAction lock and the disabled state agree.
     await waitFor(() => expect(within(editorRow).getByTestId("member-menu")).toBeDisabled());
     expect(within(editorRow).getByTestId("member-edit")).toBeDisabled();
     await user.click(within(editorRow).getByTestId("member-menu"));

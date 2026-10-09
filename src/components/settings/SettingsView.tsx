@@ -1,23 +1,20 @@
 import { useEffect } from "react";
 import { m } from "@/i18n";
-import { ListPage } from "../common/ui";
-import { ImportExport } from "../ImportExport";
+import { ListPage } from "@/components/common/ui";
+import { ImportExport } from "@/components/ImportExport";
 import { ArchivedSection } from "./ArchivedSection";
-import { SettingsAccountOptions, SettingsBuildDetails, SettingsDiagnostics } from "./SettingsAccountSections";
+import { SettingsAccountOptions, SettingsBuildDetails } from "./SettingsAccountSections";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
 import { SettingsDataSection } from "./SettingsDataSection";
-import {
-  ScheduleViewSection,
-  SettingsCompanySetupSections,
-  SchedulingFeatureSections,
-} from "./SettingsSchedulingSection";
+import { CompanyFeaturesSection, ScheduleViewSection, SettingsCompanySetupSections } from "./SettingsSchedulingSection";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsSection } from "./SettingsSection";
 import { useSettingsViewController } from "./useSettingsViewController";
 
 type Controller = ReturnType<typeof useSettingsViewController>;
 
-function useSettingsOnboardingTarget(ready: boolean) {
+type UseSettingsOnboardingTargetOptions = { ready: boolean };
+function useSettingsOnboardingTarget({ ready }: UseSettingsOnboardingTargetOptions) {
   useEffect(() => {
     if (!ready) return;
     const id = window.location.hash.slice(1);
@@ -50,24 +47,14 @@ function SettingsBottomSections({ controller }: { controller: Controller }) {
       <ArchivedSection collapsible defaultOpen={false} />
       <SettingsImportSection />
       <SettingsAccountOptions activeAccount={controller.activeAccount} scheduling={scheduling} />
-      <SettingsBuildDetails
-        serverMode={controller.serverMode}
-        persistenceDiagnostics={controller.persistenceDiagnostics}
-        stamp={controller.stamp}
-        feedback={controller.feedback}
-      />
-      <SettingsDiagnostics
-        diagnostics={controller.diagnostics}
-        diagnosticsCopyState={controller.diagnosticsCopyState}
-        copyDiagnostics={controller.copyDiagnostics}
-      />
+      <SettingsBuildDetails stamp={controller.stamp} feedback={controller.feedback} />
     </>
   );
 }
 
 export function SettingsView() {
   const controller = useSettingsViewController();
-  useSettingsOnboardingTarget(controller.activeAccount !== null);
+  useSettingsOnboardingTarget({ ready: controller.activeAccount !== null });
   if (!controller.activeAccount) return null;
   const { scheduling, display, localData, auth } = controller;
   return (
@@ -87,14 +74,17 @@ export function SettingsView() {
           />
         </SettingsGroup>
         <SettingsGroup title={m.settings_features_heading()} description={m.settings_features_description()}>
-          <SchedulingFeatureSections
+          <CompanyFeaturesSection
             canEdit={controller.canEdit}
             {...scheduling}
             updateSetting={controller.updateSetting}
           />
         </SettingsGroup>
         <SettingsGroup title={m.settings_display_heading()} description={m.settings_display_description()}>
-          <ScheduleViewSection {...display} />
+          <ScheduleViewSection
+            minimiseWeekends={display.minimiseWeekends}
+            setMinimiseWeekends={display.setMinimiseWeekends}
+          />
           <SettingsAppearanceSection
             barLabelPrefs={display.barLabelPrefs}
             setBarLabelPref={display.setBarLabelPref}

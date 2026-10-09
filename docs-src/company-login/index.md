@@ -55,7 +55,7 @@ listed domains, so `team.example.com` is different from `example.com`.
 
 Open the company-specific joining link and choose an available sign-in method.
 Google, Microsoft and, in mixed mode, experimental GitHub may be available together.
-An existing password user signs in and finishes any required second factor before
+An existing password user signs in before choosing
 **Join company**. The server admits only identities with current trusted email proof
 that meet the company's policy; password signup through an open or domain policy is
 not available. A person without that proof can use an eligible verified provider or
@@ -75,12 +75,13 @@ to confirm your identity again before connecting.
 
 If you cancel **Confirm it's you**, no connection starts. If confirmation still
 cannot refresh your session, sign out, sign in again, and retry. If CapacityLens
-says your local account email is unverified, ask your server operator to check
-and correct your sign-in email through the guarded account repair route, then
-sign in again. The joining verification link is for company admission and does
+says your local account email is unverified, ask the operator to confirm mailbox ownership
+and an authorised Owner or Admin to arrange the guarded repair in mixed mode. That administrator
+needs a recent confirmed sign-in and authority over your identity across its companies.
+The repair revokes your sessions; sign in again afterwards. The joining verification link is for company admission and does
 not verify the local account email required for this connection. See
 [Require company sign-in](/company-login/move-to-single-sign-on#connect-existing-accounts)
-for the operator recovery steps.
+for the recovery steps and the API request; there is no email-correction button in Account.
 
 CapacityLens does not merge accounts because their email addresses match.
 Explicit connection preserves your existing memberships and work. A provider
@@ -107,17 +108,11 @@ If confirming through Google or Microsoft sends you away from the page, return
 to the action you were taking and submit it again. Signing in confirms your
 identity; it does not apply the original change.
 
-## Two-factor sign-in
+## Multi-factor sign-in at your provider
 
-In password-capable modes, the server operator can require authenticator-app codes before
-people can access company data. Save the recovery codes when enrolling. If you
-lose both the authenticator and those codes, contact the server operator; there
-is no administrator button to bypass them.
-
-For company sign-in, configure and verify multi-factor authentication at Google
-or Microsoft. Do not assume that enabling a provider also enables its MFA policy.
-The server's MFA attestation records the operator's assurance; it does not switch
-on MFA at the provider.
+For company sign-in, configure and verify multi-factor sign-in at Google or Microsoft.
+CapacityLens cannot see or enforce the provider's policy, and enabling a provider does not
+switch it on. Test the policy, its recovery path and session behaviour before you rely on it.
 
 ## When someone leaves
 

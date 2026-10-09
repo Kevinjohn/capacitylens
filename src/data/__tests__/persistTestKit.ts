@@ -2,9 +2,9 @@
 // Extracted from the former single-file persist.test.ts; bodies unchanged.
 
 import { expect, vi } from "vitest";
-import { attachPersistence, switchAndAwaitHydration } from "../persist";
-import type { PersistenceAdapter } from "../PersistenceAdapter";
-import { useStore } from "../../store/useStore";
+import { attachPersistence, switchAndAwaitHydration } from "@/data/persist";
+import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
+import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
@@ -41,7 +41,7 @@ export function makeLocalTwoAccounts() {
   };
 }
 
-// ── Shared server-mode refresh helpers ────────────────────────────────────────────────────────────
+// Shared server-mode refresh helpers.
 // Used by the refresh-on-focus, refreshActiveAccountSlice, and batch-conflict suites (hoisted so the
 // three don't carry verbatim copies).
 
@@ -111,7 +111,7 @@ interface AttachActiveA2Input {
 export async function attachActiveA2({ adapter, debounceMs = 0, onError, onSuccess }: AttachActiveA2Input) {
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
-  useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+  useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Beta", role: "owner" }] });
   const detach = attachPersistence({
     store: useStore,
     adapter: adapter,

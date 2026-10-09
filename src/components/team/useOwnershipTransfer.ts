@@ -1,32 +1,24 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type RefObject,
-  type SetStateAction,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import { m } from "@/i18n";
-import {
-  teamAccessClient,
-  type OwnershipTransferOutcomeView,
-  type OwnershipTransferTerminalView,
-  type OwnershipTransferProjectionView,
-  type TeamAccessResult,
-  type TeamMember,
-} from "../../account/teamAccessClient";
-import { resolveRejectionMessage } from "../../account/accessResult";
-import type { OwnershipTransferStep } from "../../account/accountClient";
-import { reprojectAccess } from "../../auth/reprojectAccess";
-import { useStore } from "../../store/useStore";
+import { teamAccessClient } from "@/account/teamAccessClient";
+import type {
+  OwnershipTransferOutcomeView,
+  OwnershipTransferTerminalView,
+  OwnershipTransferProjectionView,
+  TeamAccessResult,
+  TeamMember,
+} from "@/account/teamAccessClient";
+import { resolveRejectionMessage } from "@/account/accessResult";
+import type { OwnershipTransferStep } from "@/account/accountClient";
+import { reprojectAccess } from "@/auth/reprojectAccess";
+import { useStore } from "@/store/useStore";
 
 /**
  * The ownership transfer ceremony as one screen's worth of state.
  *
  * Every command is answered by re-reading the server's projection rather than by patching local
- * state: the ceremony spans sessions and days, several of its outcomes are written by OTHER people
+ * state: the ceremony spans sessions and days, several of its outcomes are written by other people
  * or by the server itself (an expiry, an invalidation caused by a role change), and a card that
  * advanced its own state would confidently show a ceremony that no longer exists.
  */
@@ -40,8 +32,8 @@ interface OwnershipTransferReadState {
 
 export interface OwnershipTransferState extends OwnershipTransferReadState {
   /** The first read is still in flight. Derived, not stored: a projection is an object once the
-   *  server has answered, so "no projection yet and no error" IS the loading state — and deriving
-   *  it keeps the card from briefly claiming there is no transfer. */
+   * server has answered, so "no projection yet and no error" is the loading state, and deriving
+   * it keeps the card from briefly claiming there is no transfer. */
   loading: boolean;
 }
 
@@ -56,7 +48,7 @@ export interface OwnershipTransferController extends OwnershipTransferState {
   nominate(targetPrincipalId: string): Promise<void>;
   command(input: CommandInput): Promise<void>;
   /** The committed terminal outcome of the last command, if it had one. Cleared by the next
-   *  command, so a stale explanation cannot outlive the thing it explains. */
+   * command, so a stale explanation cannot outlive the thing it explains. */
   lastTerminal: OwnershipTransferTerminalView | null;
 }
 
@@ -71,9 +63,9 @@ interface CeremonyRead {
 /**
  * Read both halves of what the card shows.
  *
- * A failed half answers `null`, which the caller merges by KEEPING what it already had: the last
- * thing the server said is better evidence than nothing. A rejected request — offline, a dropped
- * connection, the request timeout aborting — is a failed read like any other and is reported, never
+ * A failed half answers `null`, which the caller merges by keeping what it already had: the last
+ * thing the server said is better evidence than nothing. A rejected request (offline, a dropped
+ * connection, the request timeout aborting) is a failed read like any other and is reported, never
  * thrown: an exception here would leave the card loading or busy forever with nothing said.
  */
 async function readCeremony(accountId: string): Promise<CeremonyRead> {
@@ -85,7 +77,7 @@ async function readCeremony(accountId: string): Promise<CeremonyRead> {
     return {
       projection: projection.kind === "ok" ? projection.value : null,
       members: directory.kind === "ok" ? directory.value.members : null,
-      // EITHER half failing is a failed read. Without the directory the card cannot name anybody or
+      // Either half failing is a failed read. Without the directory the card cannot name anybody or
       // offer a nominee, so silently rendering nothing would look exactly like "you have no
       // transfer and cannot start one" to the one person who can.
       error: projection.kind === "ok" && directory.kind === "ok" ? null : m.ownership_transfer_read_failed(),
@@ -100,15 +92,12 @@ async function readCeremony(accountId: string): Promise<CeremonyRead> {
 
 /**
  * @param keepStale Keep what the server last said when a half fails. True while the card is only
- *   watching — the last answer is better evidence than nothing. FALSE after a command: the ceremony
- *   has just moved, so the old projection would offer controls at a revision the server will now
- *   refuse, and "I do not know" is the honest answer.
+ * watching. The last answer is better evidence than nothing. False after a command: the ceremony
+ * has just moved, so the old projection would offer controls at a revision the server will now
+ * refuse, and "I do not know" is the honest answer.
  */
-function mergeCeremonyRead(
-  previous: OwnershipTransferReadState,
-  next: CeremonyRead,
-  keepStale = true,
-): OwnershipTransferReadState {
+type MergeCeremonyReadOptions = { previous: OwnershipTransferReadState; next: CeremonyRead; keepStale?: boolean };
+function mergeCeremonyRead({ previous, next, keepStale = true }: MergeCeremonyReadOptions): OwnershipTransferReadState {
   return {
     ...previous,
     projection: next.projection ?? (keepStale ? previous.projection : null),
@@ -118,10 +107,10 @@ function mergeCeremonyRead(
 }
 
 /**
- * Is the answer we are holding still the one the card asked for LAST?
+ * Is the answer we are holding still the one the card asked for last?
  *
- * Every answer this hook waits for — the first read, a command, the re-read that follows it — can
- * be overtaken. Comparing companies is not enough: two reads of the SAME company can resolve out of
+ * Every answer this hook waits for (the first read, a command, the re-read that follows it) can
+ * be overtaken. Comparing companies is not enough: two reads of the same company can resolve out of
  * order, and applying the older one puts a nomination back on screen that has already been accepted,
  * with a revision every later click would be refused for. A counter answers both cases.
  */
@@ -143,7 +132,7 @@ const EMPTY_STATE: OwnershipTransferReadState = {
 /**
  * Keep the card's projection in step with the company it is showing.
  *
- * Changing company empties the card FIRST, before the new read lands. Merging keeps what the server
+ * Changing company empties the card first, before the new read lands. Merging keeps what the server
  * last said, which is right within one company and wrong across two: it would leave one company's
  * nomination, and the two people it names, on another company's screen if the new read failed.
  */
@@ -164,7 +153,7 @@ function useCeremonyRead({ accountId, beginRead, apply, forgetOutcome }: Ceremon
     if (!accountId) return;
     void (async () => {
       const next = await readCeremony(accountId);
-      if (isLatest()) apply((previous) => mergeCeremonyRead(previous, next));
+      if (isLatest()) apply((previous) => mergeCeremonyRead({ previous: previous, next: next }));
     })();
   }, [accountId, beginRead, apply, forgetOutcome]);
 }
@@ -173,7 +162,7 @@ function useCeremonyRead({ accountId, beginRead, apply, forgetOutcome }: Ceremon
  * Send one command and turn its answer into the sentence to show, if any.
  *
  * A committed terminal outcome is a success with an explanation, not a failure. Only a
- * SERVER-AUTHORED refusal may be shown verbatim ({@link resolveRejectionMessage}); "the response
+ * server-authored refusal may be shown verbatim ({@link resolveRejectionMessage}); "the response
  * did not decode" and "the write may or may not have landed" describe our uncertainty, so the
  * localised sentence is the better one. A rejected request never escapes: it would leave every
  * control disabled behind a `busy` that nothing clears.
@@ -181,7 +170,7 @@ function useCeremonyRead({ accountId, beginRead, apply, forgetOutcome }: Ceremon
 interface CommandAnswer {
   failure: string | null;
   /** The committed terminal outcome to explain, if the server committed one. Returned rather than
-   *  stored directly, so it can be discarded with the rest of a superseded answer. */
+   * stored directly, so it can be discarded with the rest of a superseded answer. */
   terminal: OwnershipTransferTerminalView | null;
   /** Did the roles actually move? Only completion changes the caller's own authority. */
   completed: boolean;
@@ -242,6 +231,11 @@ interface TransferCommandInput {
   refreshAuth: () => Promise<void>;
 }
 
+type RunTransferCommandOptions = {
+  perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>;
+  mayChangeCallerAccess?: boolean;
+};
+
 function useTransferCommand({
   accountId,
   beginRead,
@@ -252,10 +246,7 @@ function useTransferCommand({
 }: TransferCommandInput) {
   const issuedCommand = useRef(0);
   return useCallback(
-    async (
-      perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>,
-      mayChangeCallerAccess = false,
-    ): Promise<void> => {
+    async ({ perform, mayChangeCallerAccess = false }: RunTransferCommandOptions): Promise<void> => {
       if (!accountId) return;
       const commandId = ++issuedCommand.current;
       const ownsCommand = () => issuedCommand.current === commandId && currentAccount.current === accountId;
@@ -276,7 +267,7 @@ function useTransferCommand({
       if (!isLatest() || !ownsCommand()) return;
       setLastTerminal(answer.terminal);
       apply((previous) => ({
-        ...mergeCeremonyRead(previous, next, false),
+        ...mergeCeremonyRead({ previous: previous, next: next, keepStale: false }),
         busy: false,
         error: answer.failure ?? next.error,
       }));
@@ -303,7 +294,8 @@ export function useOwnershipTransfer(
     if (!accountId) return;
     const isLatest = beginRead();
     const next = await readCeremony(accountId);
-    if (isLatest() && currentAccount.current === accountId) setState((previous) => mergeCeremonyRead(previous, next));
+    if (isLatest() && currentAccount.current === accountId)
+      setState((previous) => mergeCeremonyRead({ previous: previous, next: next }));
   }, [accountId, beginRead]);
 
   // Completion can change the caller's role, including when its response is uncertain.
@@ -319,31 +311,32 @@ export function useOwnershipTransfer(
   const nominate = useCallback(
     async (targetPrincipalId: string): Promise<void> => {
       const live = state.projection?.live ?? null;
-      await run(() =>
-        teamAccessClient.initiateOwnershipTransfer({
-          workspaceId: accountId ?? "",
-          targetPrincipalId,
-          // Naming the predecessor is what makes replacement atomic: if it moved since this card
-          // read it, the server refuses rather than replacing something else.
-          ...(live ? { replaces: { requestId: live.id, revision: live.revision } } : {}),
-        }),
-      );
+      await run({
+        perform: () =>
+          teamAccessClient.initiateOwnershipTransfer({
+            workspaceId: accountId ?? "",
+            targetPrincipalId,
+            // Naming the predecessor is what makes replacement atomic: if it moved since this card
+            // read it, the server refuses rather than replacing something else.
+            ...(live ? { replaces: { requestId: live.id, revision: live.revision } } : {}),
+          }),
+      });
     },
     [accountId, run, state.projection],
   );
 
   const command = useCallback(
     async ({ requestId, step, expectedRevision }: CommandInput): Promise<void> => {
-      await run(
-        () =>
+      await run({
+        perform: () =>
           teamAccessClient.commandOwnershipTransfer({
             workspaceId: accountId ?? "",
             requestId,
             step,
             expectedRevision,
           }),
-        step === "complete",
-      );
+        mayChangeCallerAccess: step === "complete",
+      });
     },
     [accountId, run],
   );

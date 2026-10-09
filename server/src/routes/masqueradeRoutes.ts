@@ -1,21 +1,16 @@
 import type { EffectiveRoleResult } from "./appAuthorization";
-import { NO_REPROMPT, type AuthorizeRouteInput } from "./routeShared";
+import { NO_REPROMPT } from "./routeShared";
+import type { AuthorizeRouteInput, ParseResult } from "./routeShared";
+import { REPLY_ERRORS } from "./replyErrors";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { AccountMode, Role } from "@capacitylens/shared/account/types";
 import type { AccountAuditPort, IdentityPort } from "@capacitylens/shared/account/ports";
-import {
-  MASQUERADE_ERROR_CODES,
-  type MasqueradeEndReason,
-  type MasqueradeState,
-} from "@capacitylens/shared/domain/masquerade";
+import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
+import type { MasqueradeEndReason, MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 import { cleanText } from "@capacitylens/shared/lib/strings";
-import {
-  MasqueradeAlreadyActiveError,
-  MasqueradeRegistry,
-  type MasqueradeRecord,
-  type StoredMasqueradeRecord,
-} from "../MasqueradeRegistry";
+import { MasqueradeAlreadyActiveError } from "../MasqueradeRegistry";
+import type { MasqueradeRecord, StoredMasqueradeRecord, MasqueradeRegistry } from "../MasqueradeRegistry";
 
 /** Dependencies required by the session-scoped masquerade HTTP adapter. */
 export interface MasqueradeRouteDependencies {
@@ -26,7 +21,7 @@ export interface MasqueradeRouteDependencies {
   identity: IdentityPort;
   authorize(input: AuthorizeRouteInput): boolean;
   roleForPrincipal(principalId: string, accountId: string): Role | null;
-  effectiveRole(request: FastifyRequest, accountId: string): EffectiveRoleResult;
+  effectiveRole(req: FastifyRequest, accountId: string): EffectiveRoleResult;
 }
 
 interface EnqueueMasqueradeEndAuditInput {
@@ -78,35 +73,46 @@ async function readMasqueradeState(
   };
 }
 
-function readTargetUserId(body: unknown): string | null {
+interface MasqueradeStartRoute {
+  Params: { accountId: string };
+}
+
+function parseTargetUserId(body: unknown): ParseResult<string, string> {
   const { targetUserId } = (body ?? {}) as { targetUserId?: unknown };
-  return typeof targetUserId === "string" && targetUserId.length > 0 ? targetUserId : null;
+  return typeof targetUserId === "string" && targetUserId.length > 0
+    ? { kind: "parsed", value: targetUserId }
+    : { kind: "invalid", failure: REPLY_ERRORS.masqueradeTargetRequired };
+}
+
+function parseMasqueradeEnd(body: unknown): ParseResult<{ token: string; reason: MasqueradeEndReason }, string> {
+  const { token, reason } = (body ?? {}) as { token?: unknown; reason?: unknown };
+  if (typeof token !== "string" || token.length === 0 || (reason !== "explicit" && reason !== "account_switch")) {
+    return { kind: "invalid", failure: REPLY_ERRORS.masqueradeEndInvalid };
+  }
+  return { kind: "parsed", value: { token, reason } };
 }
 
 function registerMasqueradeStartRoute(app: FastifyInstance, dependencies: MasqueradeRouteDependencies): void {
   const { authMode, applicationId, accountAudit, registry, identity, authorize, roleForPrincipal } = dependencies;
 
-  app.post("/api/accounts/:accountId/masquerade", async (request, reply) => {
-    const session = request.session;
+  app.post<MasqueradeStartRoute>("/api/accounts/:accountId/masquerade", async (req, reply) => {
+    const session = req.session;
     if (session && registry.lookup(session.id)) {
-      return reply
-        .code(409)
-        .send({ error: "This session is already masquerading.", code: MASQUERADE_ERROR_CODES.active });
+      return reply.code(409).send({ error: REPLY_ERRORS.masqueradeAlreadyActive, code: MASQUERADE_ERROR_CODES.active });
     }
-    if (authMode === "off" || !session) return reply.code(403).send({ error: "Forbidden." });
-    const { accountId } = request.params as { accountId: string };
-    if (!authorize({ req: request, reply, accountId, action: "masquerade", options: NO_REPROMPT })) return;
-    const targetUserId = readTargetUserId(request.body);
-    if (targetUserId === null) {
-      return reply.code(400).send({ error: "targetUserId must be a non-empty string." });
-    }
+    if (authMode === "off" || !session) return reply.code(403).send({ error: REPLY_ERRORS.forbidden });
+    const { accountId } = req.params;
+    if (!authorize({ req, reply, accountId, action: "masquerade", options: NO_REPROMPT })) return;
+    const parsed = parseTargetUserId(req.body);
+    if (parsed.kind === "invalid") return reply.code(400).send({ error: parsed.failure });
+    const targetUserId = parsed.value;
     if (targetUserId === session.principal.id) {
-      return reply.code(400).send({ error: "You cannot masquerade as yourself." });
+      return reply.code(400).send({ error: REPLY_ERRORS.masqueradeSelf });
     }
     const effectiveRole = roleForPrincipal(targetUserId, accountId);
-    if (effectiveRole === null) return reply.code(404).send({ error: "Member not found." });
+    if (effectiveRole === null) return reply.code(404).send({ error: REPLY_ERRORS.memberNotFound });
     if (session.expiresAt === null) {
-      return reply.code(503).send({ error: "The session expiry could not be verified." });
+      return reply.code(503).send({ error: REPLY_ERRORS.sessionExpiryUnverified });
     }
     const record: MasqueradeRecord = {
       sessionHandle: session.id,
@@ -135,7 +141,9 @@ function registerMasqueradeStartRoute(app: FastifyInstance, dependencies: Masque
       });
     } catch (error) {
       if (error instanceof MasqueradeAlreadyActiveError) {
-        return reply.code(409).send({ error: error.message, code: MASQUERADE_ERROR_CODES.active });
+        return reply
+          .code(409)
+          .send({ error: REPLY_ERRORS.masqueradeAlreadyActive, code: MASQUERADE_ERROR_CODES.active });
       }
       throw error;
     }
@@ -145,18 +153,18 @@ function registerMasqueradeStartRoute(app: FastifyInstance, dependencies: Masque
 
 function registerMasqueradeStatusRoute(app: FastifyInstance, dependencies: MasqueradeRouteDependencies): void {
   const { authMode, registry, identity, effectiveRole } = dependencies;
-  app.get("/api/masquerade", async (request, reply) => {
-    if (authMode === "off") return reply.code(403).send({ error: "Forbidden." });
-    const session = request.session;
-    if (!session) return reply.code(401).send({ error: "Sign in to continue." });
+  app.get("/api/masquerade", async (req, reply) => {
+    if (authMode === "off") return reply.code(403).send({ error: REPLY_ERRORS.forbidden });
+    const session = req.session;
+    if (!session) return reply.code(401).send({ error: REPLY_ERRORS.signInRequired });
     const record = registry.lookup(session.id);
-    if (!record) return { active: false };
-    const resolved = effectiveRole(request, record.accountId);
+    if (!record) return reply.code(200).send({ active: false });
+    const resolved = effectiveRole(req, record.accountId);
     if (resolved.kind === "ended") {
-      return reply.code(403).send({ error: "Masquerade ended.", code: MASQUERADE_ERROR_CODES.ended });
+      return reply.code(403).send({ error: REPLY_ERRORS.masqueradeEnded, code: MASQUERADE_ERROR_CODES.ended });
     }
-    if (resolved.role === null) return reply.code(403).send({ error: "Forbidden." });
-    return { active: true, ...(await readMasqueradeState(record, identity, resolved.role)) };
+    if (resolved.role === null) return reply.code(403).send({ error: REPLY_ERRORS.forbidden });
+    return reply.code(200).send({ active: true, ...(await readMasqueradeState(record, identity, resolved.role)) });
   });
 }
 
@@ -164,19 +172,13 @@ function registerMasqueradeEndRoute(app: FastifyInstance, dependencies: Masquera
   const { authMode, applicationId, accountAudit, registry } = dependencies;
   const auditEnd = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void =>
     enqueueMasqueradeEndAudit({ accountAudit, applicationId, record, reason });
-  app.delete("/api/masquerade", async (request, reply) => {
-    if (authMode === "off") return reply.code(403).send({ error: "Forbidden." });
-    const body = (request.body ?? {}) as { token?: unknown; reason?: unknown };
-    if (
-      typeof body.token !== "string" ||
-      body.token.length === 0 ||
-      (body.reason !== "explicit" && body.reason !== "account_switch")
-    ) {
-      return reply.code(400).send({ error: "A valid token and end reason are required." });
-    }
-    const reason = body.reason;
-    if (request.session) {
-      registry.end(request.session.id, body.token, (record) => auditEnd(record, reason));
+  app.delete("/api/masquerade", async (req, reply) => {
+    if (authMode === "off") return reply.code(403).send({ error: REPLY_ERRORS.forbidden });
+    const parsed = parseMasqueradeEnd(req.body);
+    if (parsed.kind === "invalid") return reply.code(400).send({ error: parsed.failure });
+    const { token, reason } = parsed.value;
+    if (req.session) {
+      registry.end(req.session.id, token, (record) => auditEnd(record, reason));
     }
     return reply.code(204).send();
   });

@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { emptyAppData, SCOPED_KEYS, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import {
   makeAccount,
   makeActivity,
@@ -11,7 +12,7 @@ import {
   makeResource,
   makeTimeOff,
   requireValue,
-} from "../test/fixtures";
+} from "@/test/fixtures";
 import {
   resolveSharedActiveData,
   resolveSharedScopedData,

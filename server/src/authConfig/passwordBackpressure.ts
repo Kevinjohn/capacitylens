@@ -3,7 +3,7 @@ import type { PasswordHasher } from "../passwordSecurity";
 import { WorkQueueFullError } from "../workQueue";
 
 /** Translate password-work backpressure before Better Auth can mistake it for a credential verdict
- * or an undifferentiated internal error — shared by verify and hash, since queue pressure is
+ * or an undifferentiated internal error, shared by verify and hash, since queue pressure is
  * availability, not an unclassified authentication failure, in either direction. */
 async function withPasswordQueueBackpressure<T>(op: () => Promise<T>): Promise<T> {
   try {

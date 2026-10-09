@@ -1,4 +1,4 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
@@ -10,8 +10,8 @@ import {
   refreshActiveAccountSlice,
   switchAndAwaitHydration,
 } from "./persist";
-import { useStore } from "../store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAccount, makeAppData, resetStoreWithAccount } from "../test/fixtures";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -29,10 +29,12 @@ let detach: (() => void) | undefined;
 beforeEach(() => {
   localStorage.clear();
   resetStoreWithAccount();
-  useStore.getState().setAccountSummaries([
-    { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" },
-    { id: secondAccount.id, name: secondAccount.name, role: "owner" },
-  ]);
+  useStore.getState().setAccountSummaries({
+    list: [
+      { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" },
+      { id: secondAccount.id, name: secondAccount.name, role: "owner" },
+    ],
+  });
 });
 afterEach(() => {
   detach?.();

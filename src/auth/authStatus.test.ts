@@ -27,7 +27,7 @@ describe("parseAuthProviders", () => {
 });
 
 it.each([true, false, undefined, "true"])("parses the signed-out reset-email flag %s", async (passwordResetEmail) => {
-  const { accountClient } = await import("../account/accountClient");
+  const { accountClient } = await import("@/account/accountClient");
   const { fetchAuthStatus } = await import("./fetchAuthStatus");
   const request = vi
     .spyOn(accountClient, "me")

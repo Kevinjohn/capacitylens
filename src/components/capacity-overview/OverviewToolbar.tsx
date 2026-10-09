@@ -1,7 +1,6 @@
 import { m } from "@/i18n";
-import { SegmentedControl, TogglePill } from "../common/ui";
+import { SegmentedControl, TogglePill } from "@/components/common/ui";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
-import { useStore } from "../../store/useStore";
 import { resolveHorizonWeekCount } from "./capacityOverviewDates";
 import type { CapacityOverviewHorizon } from "./capacityOverviewDates";
 import { TentativeSwatch } from "./OverviewLegend";
@@ -20,12 +19,10 @@ export interface OverviewToolbarProps {
 }
 
 export function OverviewToolbar(props: OverviewToolbarProps) {
-  const compact = useStore((state) => state.compactView);
   return (
     <div
       data-testid="capacity-overview-toolbar"
-      data-compact={compact || undefined}
-      className="flex flex-wrap items-center gap-x-[18px] gap-y-2 border-b border-line bg-canvas px-[26px] py-3.5 data-compact:py-2"
+      className="flex flex-wrap items-center gap-x-[18px] gap-y-2 border-b border-line bg-canvas px-[26px] py-3.5"
     >
       <div className="min-w-0">
         <h1 className="text-[19px] font-semibold tracking-[-0.02em]">{m.capacity_overview_title()}</h1>

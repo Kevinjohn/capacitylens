@@ -14,8 +14,8 @@ import {
   assertNoContextSpecificPassword,
   assertPasswordNotBreached,
   createScryptPasswordHasher,
-  type PasswordHasher,
 } from "../passwordSecurity";
+import type { PasswordHasher } from "../passwordSecurity";
 import { preparedPasswordHashCapture } from "./captureContexts";
 
 type SessionDeletionLifecycleRef = {
@@ -126,7 +126,7 @@ export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<Bette
       "capacitylens-server: TEST credential profile active — scrypt cost is reduced and breached-password screening is disabled; never retain these credentials or expose this process.",
     );
   }
-  const breachCheckEnabled = env.SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK !== "off" && !testRuntime;
+  const breachCheckEnabled = env.CAPACITYLENS_PASSWORD_BREACH_CHECK !== "off" && !testRuntime;
   const baseHasher = createScryptPasswordHasher(testRuntime ? 2 ** 10 : undefined);
   const { assertCredentialPasswordLength, assertAuthRequestPasswordLength } = createPasswordLengthAssertions();
   const passwordHash = createPasswordHash({
@@ -141,10 +141,10 @@ export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<Bette
       enabled: allowsPasswordSignIn(mode),
       // The live before hook owns sign-up gating; the browser's first-run bootstrap uses this route.
       disableSignUp: false,
-      // PIN the minimum length to the shared constant rather than inheriting Better Auth's default,
+      // Pin the minimum length to the shared constant rather than inheriting Better Auth's default,
       // so the server bound and the client reset-page pre-check (both read MIN_PASSWORD_LENGTH) can't
-      // drift — and a library-default change can't silently move the server's floor. UNCONDITIONAL:
-      // no boot, flagged or not, ever lowers this — see the bootstrap comment above for how the
+      // drift, and a library-default change can't silently move the server's floor. Unconditional:
+      // no boot, flagged or not, ever lowers this. See the bootstrap comment above for how the
       // required operator-supplied bootstrap password must satisfy the same policy.
       minPasswordLength: MIN_PASSWORD_LENGTH,
       // Better Auth counts UTF-16 code units. Give its transport guard enough room for 128 astral

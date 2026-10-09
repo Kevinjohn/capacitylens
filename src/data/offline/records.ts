@@ -1,7 +1,7 @@
 import type { SliceRewriteResult } from "./state";
 import { isAccountRole } from "@capacitylens/shared/account/types";
-import { parseAuthUser } from "../../auth/validateAuthUser";
-import { isAuthMode } from "../../auth/authStatus";
+import { parseAuthUser } from "@/auth/validateAuthUser";
+import { isAuthMode } from "@/auth/authStatus";
 import { STORE_NAME, MAX_AGE_MS } from "./constants";
 import { awaitRequest, awaitTx, openOfflineDb } from "./idb";
 import {
@@ -169,7 +169,7 @@ export function createCachedRecord<T, A extends unknown[] = []>(
   validate: (value: unknown, ...parameters: A) => T | null,
   options: {
     /** Reads that require a verified scope. The identity snapshot deliberately does not: a cold
-     * offline boot reads it BEFORE any scope exists. */
+     * offline boot reads it before any scope exists. */
     readNeedsScope?: boolean;
     /** Runs after the guards with the key and envelope timestamp. Returns a skipped result or a
      * write-required result carrying complete, called only once the write has landed. */

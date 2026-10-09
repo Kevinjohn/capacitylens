@@ -2,10 +2,10 @@ import type { StateCreator } from "zustand";
 import { addDaysISO, startOfWeekISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { lifecycleStatus } from "@capacitylens/shared/domain/lifecycle";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
-import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from "../../lib/schedulerConfig";
+import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from "@/lib/schedulerConfig";
 import type { AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
-import type { Filters, SchedulerUI, StoreState } from "../types";
-import { resolveTimeZone, resolveWeekStart } from "../selectors";
+import type { Filters, SchedulerUI, StoreState } from "@/store/types";
+import { resolveTimeZone, resolveWeekStart } from "@/store/selectors";
 
 type SchedulerSliceKeys =
   | "ui"
@@ -30,9 +30,9 @@ export function buildWeekAnchor(weekStart: ISODate): { originDate: ISODate; focu
   return { originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS), focusDate: weekStart };
 }
 
-/** The same pair for an account's CURRENT week, read through its own calendar settings. Used both
- *  by "go to today" and by the tenant-boundary resets in useStore, so a company always opens on the
- *  week its own time zone / week start says it is. */
+/** The same pair for an account's current week, read through its own calendar settings. Used both
+ * by "go to today" and by the tenant-boundary resets in useStore, so a company always opens on the
+ * week its own time zone / week start says it is. */
 export function readCurrentWeekAnchor(
   data: AppData,
   accountId: ID | null,
@@ -56,8 +56,8 @@ function createDefaultSchedulerUi(emptyFilters: () => Filters): SchedulerUI {
   };
 }
 
-/** Open the grid on `weekStart` and ask it to scroll there — the shared body of the two
- *  "navigate to a week" actions. */
+/** Open the grid on `weekStart` and ask it to scroll there, the shared body of the two
+ * "navigate to a week" actions. */
 function recenterOn(state: StoreState, weekStart: ISODate): { ui: SchedulerUI } {
   return {
     ui: {

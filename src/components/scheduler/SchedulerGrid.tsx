@@ -2,26 +2,26 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom";
 import { SlidersHorizontal, Users } from "lucide-react";
 import { m } from "@/i18n";
-import { useStore } from "../../store/useStore";
-import type { SchedulerUI } from "../../store/useStore";
-import { useCanEdit } from "../../auth/permissionContext";
-import { resolveSharedScopedData } from "../../store/useScopedData";
-import { listAccountWorkingDays } from "../../store/selectors";
-import { EmptyState } from "../common/ui";
+import { useStore } from "@/store/useStore";
+import type { SchedulerUI } from "@/store/useStore";
+import { useCanEdit } from "@/auth/permissionContext";
+import { resolveSharedScopedData } from "@/store/useScopedData";
+import { listAccountWorkingDays } from "@/store/selectors";
+import { EmptyState } from "@/components/common/ui";
 import { LAYOUT } from "./layout";
 import { SchedulerGridHeader } from "./SchedulerGridHeader";
 import { useSchedulerViewport } from "./useSchedulerViewport";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ID, ISODate } from "@capacitylens/shared/types/entities";
-import { TooltipProvider } from "../ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { isCreationStartBlocked } from "./creationAvailability";
 import { SchedulerGridRows } from "./SchedulerGridRows";
 import type { ModalState } from "./schedulerGridModal";
 import { useSchedulerGridPreferences, useSchedulerGridModel } from "./useSchedulerGridModel";
 import { useSchedulerGridVirtualization } from "./useSchedulerGridVirtualization";
-import { PersonScheduleSheet } from "../person-schedule/PersonScheduleSheet";
-import { usePersonScheduleDrawer } from "../person-schedule/usePersonScheduleDrawer";
-import { useResourceAvatars } from "../../account/useResourceAvatars";
+import { PersonScheduleSheet } from "@/components/person-schedule/PersonScheduleSheet";
+import { usePersonScheduleDrawer } from "@/components/person-schedule/usePersonScheduleDrawer";
+import { useResourceAvatars } from "@/account/useResourceAvatars";
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
@@ -31,7 +31,7 @@ const AllocationModal = lazy(() =>
   })),
 );
 const TimeOffForm = lazy(() =>
-  import("../timeoff/TimeOffForm").then((module) => ({
+  import("@/components/timeoff/TimeOffForm").then((module) => ({
     default: module.TimeOffForm,
   })),
 );
@@ -275,7 +275,7 @@ function SchedulerGridFooter({
 /**
  * The scroll container's contribution to the grid's shared geometry variables: the measured sticky
  * header, and the timeline area actually on screen. Each size is published only once it has been
- * measured — a still-unmeasured `0` would clamp every visible-portion overlay to nothing, whereas
+ * measured. A still-unmeasured `0` would clamp every visible-portion overlay to nothing, whereas
  * an absent variable falls back to not clamping at all (see visibleSpanInsets).
  */
 function buildViewportVariables({
@@ -344,12 +344,12 @@ export function SchedulerGrid() {
   const clearFilters = useStore((state) => state.clearFilters);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const resourceAvatars = useResourceAvatars(activeAccountId);
-  const { accountPrefs, ui, minimiseWeekends, snapToWeekStart } = preferences;
+  const { accountPrefs, ui, minimiseWeekends, weekSnapEnabled } = preferences;
   const interactions = useSchedulerInteractions(ui);
   const viewport = useSchedulerViewport({
     ui,
     minimiseWeekends,
-    snapToWeekStart,
+    weekSnapEnabled,
     calendarWeekStartsOn: accountPrefs.calendarWeekStartsOn,
   });
   const gridModel = useSchedulerGridModel(preferences, viewport);

@@ -7,9 +7,8 @@ import {
   nextOwnershipTransferState,
   OWNERSHIP_TRANSFER_ACTIONS,
   OWNERSHIP_TRANSFER_STATES,
-  type OwnershipTransferAction,
-  type OwnershipTransferState,
 } from "./ownershipTransfer";
+import type { OwnershipTransferAction, OwnershipTransferState } from "./ownershipTransfer";
 
 // The closed vocabularies. Written out rather than imported so the sweep is its own source of
 // truth; the `satisfies` ties each list to its union, so a new member that is not listed here is a
@@ -34,7 +33,7 @@ const ACTIONS = [
 ] as const satisfies readonly OwnershipTransferAction[];
 
 /** The whole state machine as a table, written from the product contract rather than derived from
- *  the implementation — a table derived from the code under test would agree with any bug in it. */
+ * the implementation, a table derived from the code under test would agree with any bug in it. */
 const EXPECTED: Record<OwnershipTransferState, Record<OwnershipTransferAction, boolean>> = {
   awaiting_target: {
     initiate: false,
@@ -113,7 +112,7 @@ describe("nextOwnershipTransferState", () => {
     expect(nextOwnershipTransferState("awaiting_owner", "cancel")).toBe("cancelled");
   });
 
-  // Withdrawal is the one edge that goes BACKWARDS, and it must not be confused with a decline:
+  // Withdrawal is the one edge that goes backwards, and it must not be confused with a decline:
   // the nominee may accept again, so the Owner's original nomination survives.
   it("returns withdrawal to awaiting_target rather than to a terminal state", () => {
     expect(nextOwnershipTransferState("awaiting_owner", "withdraw")).toBe("awaiting_target");

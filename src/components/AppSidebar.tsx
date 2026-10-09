@@ -1,15 +1,16 @@
 import { EyeIcon, MoonIcon, SunIcon } from "lucide-react";
 import { matchPath, NavLink, useLocation } from "react-router-dom";
-import { useAuth } from "../auth/authContext";
-import { usePermissionStatus, useRole } from "../auth/permissionContext";
-import { useOfflineState } from "../data/useOfflineState";
-import { resolveAccessLabel } from "../lib/accessCopy";
-import { resolveAccessExperience } from "../lib/resolveAccessExperience";
-import { FAKE_USER } from "../lib/fakeAuth";
-import demoAvatarUrl from "../assets/avatar-demo.svg";
-import { DEFAULT_COLORS } from "../lib/palette";
+import { useAuth } from "@/auth/authContext";
+import { usePermissionStatus, useRole } from "@/auth/permissionContext";
+import { useOfflineState } from "@/data/useOfflineState";
+import { resolveAccessLabel } from "@/lib/accessCopy";
+import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
+import { FAKE_USER } from "@/lib/fakeAuth";
+import demoAvatarUrl from "@/assets/avatar-demo.svg";
+import { DEFAULT_COLORS } from "@/lib/palette";
 import { Avatar } from "./common/ui";
-import { ACCOUNT_LINK, type NavigationLinkDefinition } from "../lib/navLinks";
+import { ACCOUNT_LINK } from "@/lib/navLinks";
+import type { NavigationLinkDefinition } from "@/lib/navLinks";
 import { Badge } from "./ui/badge";
 import {
   Sidebar,
@@ -28,9 +29,9 @@ import {
 } from "./ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { m } from "@/i18n";
-import { buildSchedulerDensity } from "./scheduler/layout";
-import { useStore } from "../store/useStore";
-import { resolveTheme, subscribeToSystemScheme } from "../lib/theme";
+import { SCHEDULER_DENSITY } from "./scheduler/layout";
+import { useStore } from "@/store/useStore";
+import { resolveTheme, subscribeToSystemScheme } from "@/lib/theme";
 import { useSyncExternalStore } from "react";
 import type React from "react";
 import { APP_NAME } from "@capacitylens/shared/brand";
@@ -59,7 +60,6 @@ export function AppSidebar({
   const { pathname } = useLocation();
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
   const expanded = isMobile ? openMobile : open;
-  const compactView = useStore((state) => state.compactView);
   const toggleLabel = expanded ? m.nav_collapse_menu() : m.nav_expand_menu();
   // On mobile the sidebar is an overlay sheet; following a link must dismiss it or the destination
   // stays hidden behind the nav. On desktop the sidebar is persistent, so this is a no-op.
@@ -67,14 +67,14 @@ export function AppSidebar({
     if (isMobile) setOpenMobile(false);
   };
 
-  // Vertical density ("Compact view" device pref, default OFF = roomier). Published as CSS custom
+  // Vertical density (the schedule's roomy rhythm). Published as CSS custom
   // properties on the sidebar root rather than threaded as props: the nav is assembled from several
   // groups (the primary destinations, the pinned admin group, the account footer), and the rules
   // below key off the shadcn primitives' own `data-slot` hooks, so every menu inside the sidebar
-  // picks the rhythm up without each one having to read the store. Only GAPS and PADDING move — item
+  // picks the rhythm up without each one having to read the store. Only gaps and padding move, item
   // height is untouched, so the collapsed icon rail (which pins each button square) is unaffected.
   // See src/index.css.
-  const density = buildSchedulerDensity({ compact: compactView });
+  const density = SCHEDULER_DENSITY;
 
   return (
     <Sidebar
@@ -136,8 +136,8 @@ function SidebarNavigation({
 }) {
   return (
     <SidebarContent>
-      {/* ONE <nav> landmark around both groups. The admin group is a separate visual block (issues
-          #169/#172) but the same navigation region, so screen-reader users still hear a single
+      {/* One <nav> landmark around both groups. The admin group is a separate visual block
+          but the same navigation region, so screen-reader users still hear a single
           "Navigation" landmark rather than two competing ones. `mt-auto` pushes it to the bottom of
           the scroll area whenever the primary list is shorter than the viewport. */}
       <nav className="flex flex-1 flex-col">
@@ -207,8 +207,8 @@ function SidebarAccountFooter({
 }
 
 /** One menu of nav destinations. Shared by the primary list and the pinned admin group so both
- *  render identical markup — same active matching, same `data-nav` tour anchor, same collapsed-rail
- *  tooltip — and can never drift apart. */
+ * render identical markup (same active matching, same `data-nav` tour anchor, same collapsed-rail
+ * tooltip) and can never drift apart. */
 function NavMenu({
   links,
   onNavigate,
@@ -242,9 +242,9 @@ function NavMenu({
 }
 
 /** Fast light/dark access beside the persistent administration destinations. Settings retains the
- *  full three-way preference, including Match system; this button deliberately makes an explicit
- *  light or dark choice rather than cycling through the three-way setting. Its label, icon and
- *  target follow the scheme actually displayed, so Match system resolves through the OS. */
+ * full three-way preference, including Match system; this button deliberately makes an explicit
+ * light or dark choice rather than cycling through the three-way setting. Its label, icon and
+ * target follow the scheme actually displayed, so Match system resolves through the OS. */
 function ThemeToggleMenuItem() {
   const theme = useStore((state) => state.theme);
   const setTheme = useStore((state) => state.setTheme);

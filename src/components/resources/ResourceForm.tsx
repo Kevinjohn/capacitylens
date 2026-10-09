@@ -1,22 +1,19 @@
 import { useMemo } from "react";
-import { useStore } from "../../store/useStore";
-import { hasDisciplinesEnabled } from "../../store/selectors";
-import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
-import { useFieldError } from "../../hooks/useFieldError";
+import { useStore } from "@/store/useStore";
+import { hasDisciplinesEnabled } from "@/store/selectors";
+import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
+import { useFieldError } from "@/hooks/useFieldError";
 import { m } from "@/i18n";
-import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
-import { FieldError, FieldGroup } from "../ui/field";
-import { buildResourceEngagementOptions } from "../../lib/metadata";
-import { useResourceFormState, type ResourceFormState } from "./useResourceFormState";
-import { useResourceSubmit, type ResourceSubmitDraft } from "./useResourceSubmit";
+import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField } from "@/components/common/ui";
+import type { Option } from "@/components/common/ui";
+import { FieldError, FieldGroup } from "@/components/ui/field";
+import { buildResourceEngagementOptions } from "@/lib/metadata";
+import { useResourceFormState } from "./useResourceFormState";
+import type { ResourceFormState } from "./useResourceFormState";
+import { useResourceSubmit } from "./useResourceSubmit";
+import type { ResourceSubmitDraft } from "./useResourceSubmit";
 import { ResourceAvailabilityFields } from "./ResourceAvailabilityFields";
-import {
-  type Client,
-  type Discipline,
-  type Project,
-  type Resource,
-  type ResourceKind,
-} from "@capacitylens/shared/types/entities";
+import type { Client, Discipline, Project, Resource, ResourceKind } from "@capacitylens/shared/types/entities";
 
 type ResourceFormProps = { resource?: Resource; kind?: ResourceKind; onClose: () => void };
 type ProjectOptionsInput = {
@@ -45,7 +42,8 @@ function useProjectOptions({ resource, projects, clients, rawProjects, rawClient
   return [...baseOptions, { value: resource.projectId, label, disabled: true }];
 }
 
-function resolveFormTitle(resource: Resource | undefined, isPlaceholder: boolean) {
+type ResolveFormTitleOptions = { resource: Resource | undefined; isPlaceholder: boolean };
+function resolveFormTitle({ resource, isPlaceholder }: ResolveFormTitleOptions) {
   if (resource) return isPlaceholder ? m.form_resource_edit_placeholder_title() : m.form_resource_edit_resource_title();
   return isPlaceholder ? m.form_resource_add_placeholder_title() : m.form_resource_add_resource_title();
 }
@@ -224,7 +222,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
   });
   return (
     <Modal
-      title={resolveFormTitle(resource, isPlaceholder)}
+      title={resolveFormTitle({ resource: resource, isPlaceholder: isPlaceholder })}
       onClose={onClose}
       onSubmit={submit}
       footer={<FormActions onCancel={onClose} disabled={submitting} />}

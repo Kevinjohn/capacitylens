@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { ErrorBoundary, ErrorFallback, RouteError } from "./ErrorBoundary";
 
 const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
-vi.mock("../../lib/reloadPage", () => reloadMock);
+vi.mock("@/lib/reloadPage", () => reloadMock);
 
 function Boom(): never {
   throw new Error("boom");
@@ -58,7 +58,7 @@ describe("RouteError (React Router errorElement)", () => {
 
     render(<RouterProvider router={router} />);
 
-    // The data router catches the in-tree throw and renders our errorElement (NOT its
+    // The data router catches the in-tree throw and renders our errorElement (not its
     // own bland default), so the recovery UI appears.
     expect(screen.getByText("Something went wrong")).toBeInTheDocument();
     expect(screen.getByText("boom")).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("ErrorFallback", () => {
   });
 
   it("reloads the application from its sole recovery control", () => {
-    // The button reboots through lib/reloadPage — the one boundary over `location.reload()` — so
+    // The button reboots through lib/reloadPage, the one boundary over `location.reload()`, so
     // the spy is a module mock rather than a replacement window.location (jsdom's reload is
     // non-configurable). reloadPage.test.ts covers that the boundary really does reload.
     reloadMock.reloadPage.mockClear();

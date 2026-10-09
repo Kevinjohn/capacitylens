@@ -10,8 +10,8 @@ import {
   durableSnapshotPublisher,
   ensurePrivateBackupDirectory,
   writeVerifiedSnapshot,
-  type DurableSnapshotPublisher,
 } from "./publish";
+import type { DurableSnapshotPublisher } from "./publish";
 import { isProtectedDatabasePath, listSnapshots, readMainDatabaseIdentity, prune } from "./retention";
 // Only sweep temp files at least this old at start-up. A snapshot takes seconds, so one hour is
 // generous headroom for "abandoned by a crashed process" without racing a *live* writer during a

@@ -1,10 +1,7 @@
 import { addDaysISO, daysInclusive } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import {
-  generateRepeatingStartDates,
-  TIME_OFF_REPEAT_POLICY,
-  type RepeatPattern,
-} from "@capacitylens/shared/lib/repeatingDates";
+import { generateRepeatingStartDates, TIME_OFF_REPEAT_POLICY } from "@capacitylens/shared/lib/repeatingDates";
+import type { RepeatPattern } from "@capacitylens/shared/lib/repeatingDates";
 import type { ISODate, TimeOff } from "@capacitylens/shared/types/entities";
 import type { Draft } from "@/store/useStore";
 

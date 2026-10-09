@@ -4,22 +4,23 @@ import type {
   OwnershipTransferState,
   OwnershipTransferTerminalReason,
 } from "@capacitylens/shared/account/ownershipTransfer";
-import type { OwnershipTransferView, TeamMember } from "../../account/teamAccessClient";
-import { useAuth } from "../../auth/authContext";
-import { useStore } from "../../store/useStore";
+import type { OwnershipTransferView, TeamMember } from "@/account/teamAccessClient";
+import { useAuth } from "@/auth/authContext";
+import { useStore } from "@/store/useStore";
 import { formatInstant, formatInstantDate } from "@/lib/dateDisplay";
-import { Modal } from "../common/ui";
-import { SelectField } from "../common/fields/SelectField";
-import { Alert, AlertDescription } from "../ui/alert";
-import { Button } from "../ui/button";
-import { useOwnershipTransfer, type OwnershipTransferController } from "./useOwnershipTransfer";
+import { Modal } from "@/components/common/ui";
+import { SelectField } from "@/components/common/fields/SelectField";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { useOwnershipTransfer } from "./useOwnershipTransfer";
+import type { OwnershipTransferController } from "./useOwnershipTransfer";
 
 /**
  * The three-step ownership transfer ceremony, for whichever side of it the viewer is on.
  *
- * The section renders NOTHING for anyone who is not a participant. That is not tidiness: a transfer in
+ * The section renders nothing for anyone who is not a participant. That is not tidiness: a transfer in
  * progress, and who it names, is not ordinary member-management information, and the server returns
- * an empty projection to everyone else — so there is nothing to render even if this decided
+ * an empty projection to everyone else, so there is nothing to render even if this decided
  * otherwise. Every control's authority is re-checked by the server; hiding is never the mechanism.
  */
 
@@ -29,7 +30,7 @@ function memberLabel(members: readonly TeamMember[], userId: string): string {
 }
 
 /** One sentence for one terminal reason. Shared by the historic outcome and by the outcome a
- *  command just committed, so the two can never explain the same reason differently. */
+ * command just committed, so the two can never explain the same reason differently. */
 function describeReason(reason: OwnershipTransferTerminalReason | null, state: OwnershipTransferState): string {
   switch (reason) {
     case "target_declined":
@@ -52,7 +53,7 @@ function describeReason(reason: OwnershipTransferTerminalReason | null, state: O
 }
 
 /** The two things the dialog says about the last action: what it committed, and what went wrong.
- *  Both are answers to the command the viewer just gave, so they live together. */
+ * Both are answers to the command the viewer just gave, so they live together. */
 function CeremonyAlerts({ controller }: { controller: OwnershipTransferController }) {
   const terminal = controller.lastTerminal;
   return (
@@ -80,9 +81,9 @@ interface NominatePanelProps {
   replacing: boolean;
 }
 
-/** The Owner's half: choose an Admin and propose. Only active Admins are offered — the ceremony
- *  hands the company to someone who already administers it, so a lower tier would be an elevation
- *  of two steps on one person's say-so, and the server refuses it regardless. */
+/** The Owner's half: choose an Admin and propose. Only active Admins are offered, the ceremony
+ * hands the company to someone who already administers it, so a lower tier would be an elevation
+ * of two steps on one person's say-so, and the server refuses it regardless. */
 function NominatePanel({ controller, candidates, replacing }: NominatePanelProps) {
   const [selected, setSelected] = useState("");
   if (candidates.length === 0) {
@@ -117,7 +118,7 @@ function NominatePanel({ controller, candidates, replacing }: NominatePanelProps
 }
 
 /** Who may be nominated: the company's active Admins, never the person a live request already
- *  names. Offering the current nominee again would ask the server to replace a request with itself. */
+ * names. Offering the current nominee again would ask the server to replace a request with itself. */
 function adminCandidates(members: readonly TeamMember[], excludeUserId?: string): readonly TeamMember[] {
   return members.filter(
     (member) => member.role === "admin" && member.status === "active" && member.userId !== excludeUserId,
@@ -148,8 +149,8 @@ interface StepButtonProps {
 }
 
 /** One ceremony step as a button. Every step sends the same command against the same request at the
- *  revision the dialog read, so the only things that vary are which step, how it reads and whether it
- *  is the primary action of the pair. */
+ * revision the dialog read, so the only things that vary are which step, how it reads and whether it
+ * is the primary action of the pair. */
 function StepButton({ controller, request, step, label, variant }: StepButtonProps) {
   return (
     <Button
@@ -255,7 +256,7 @@ interface CeremonyBodyProps {
 }
 
 /** What the dialog shows once it has something to say: the live ceremony, or the nomination control,
- *  or the explanation of how the last one ended. */
+ * or the explanation of how the last one ended. */
 function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProps) {
   const live = controller.projection?.live ?? null;
   const outcome = controller.projection?.latestOutcome ?? null;
@@ -264,7 +265,7 @@ function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProp
   }
   return (
     <>
-      {/* Shown ALONGSIDE the nominate control, never instead of it. The Owner is the one person who
+      {/* Shown alongside the nominate control, never instead of it. The Owner is the one person who
           can always start a transfer, so an either/or would hand them a fresh panel and no word of
           the decline, expiry or invalidation that ended the last one while they were away. */}
       <LastOutcome outcome={outcome} />
@@ -276,7 +277,7 @@ function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProp
 }
 
 /** How the last ceremony this viewer took part in ended, dated. The row is retained for a year, so
- *  an undated sentence would read as news every time the team page is opened. */
+ * an undated sentence would read as news every time the team page is opened. */
 function LastOutcome({ outcome }: { outcome: OwnershipTransferView | null }) {
   if (outcome === null) return null;
   const said = describeReason(outcome.terminalReason, outcome.state);
@@ -291,7 +292,7 @@ function LastOutcome({ outcome }: { outcome: OwnershipTransferView | null }) {
 }
 
 /** Only the current Owner may propose, and only when nothing is already live. The server enforces
- *  this; hiding the control merely keeps the card honest about what it offers. */
+ * this; hiding the control merely keeps the card honest about what it offers. */
 function mayNominate(controller: OwnershipTransferController, principalId: string | null): boolean {
   if (controller.projection?.live) return false;
   return controller.members.some((member) => member.userId === principalId && member.role === "owner");
@@ -301,11 +302,12 @@ function mayNominate(controller: OwnershipTransferController, principalId: strin
  * Has this section anything to tell this viewer?
  *
  * Nothing live, nothing to explain and no standing to start one: render nothing rather than an
- * empty section that invites a question it cannot answer. A failure IS something to say, so it keeps
- * the entry point visible — a nominee whose read failed must not be shown the same blank page as a nominee
+ * empty section that invites a question it cannot answer. A failure is something to say, so it keeps
+ * the entry point visible. A nominee whose read failed must not be shown the same blank page as a nominee
  * who has no request at all.
  */
-function hasSomethingToSay(controller: OwnershipTransferController, nominatable: boolean): boolean {
+type HasSomethingToSayOptions = { controller: OwnershipTransferController; nominatable: boolean };
+function hasSomethingToSay({ controller, nominatable }: HasSomethingToSayOptions): boolean {
   if (controller.loading) return false;
   if (nominatable || controller.error !== null || controller.lastTerminal !== null) return true;
   return Boolean(controller.projection?.live ?? controller.projection?.latestOutcome);
@@ -318,7 +320,7 @@ export function OwnershipTransferCard() {
   const controller = useOwnershipTransfer(activeAccountId, refreshAuth);
   const principalId = user?.id ?? null;
   const nominatable = mayNominate(controller, principalId);
-  if (!hasSomethingToSay(controller, nominatable)) return null;
+  if (!hasSomethingToSay({ controller: controller, nominatable: nominatable })) return null;
 
   return (
     <section data-testid="ownership-transfer-card" className="flex flex-wrap items-start justify-between gap-3">

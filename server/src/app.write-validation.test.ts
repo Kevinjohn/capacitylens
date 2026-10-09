@@ -235,7 +235,7 @@ function createAllocationReferenceValidationTests(): void {
   });
 
   it("fails closed when a corrupt project-bound activity points at another account's project", async () => {
-    const { app, db } = freshApp(true, { multiAccount: true });
+    const { app, db } = freshApp({ allowReset: true, extra: { multiAccount: true } });
     await post(app, "accounts", account("a1"));
     await post(app, "accounts", account("a2"));
     await post(app, "clients", client("c2", "a2"));
@@ -348,7 +348,7 @@ function createExternalResourceConversionAcceptanceTests(): void {
   it("rejects flipping a resource to external even without disallowed dependents", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    // A zero-load allocation is already valid for an external, so it must NOT block the flip.
+    // A zero-load allocation is already valid for an external, so it must not block the flip.
     await post(
       app,
       "allocations",

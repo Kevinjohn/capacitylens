@@ -3,10 +3,10 @@ import { screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { m } from "@/i18n";
 import { AllocationBar } from "./AllocationBar";
-import { PermissionContext } from "../../auth/permissionContext";
-import { useStore } from "../../store/useStore";
-import { resetStoreWithAccount } from "../../test/fixtures";
-import { buildVisibleRange } from "../../store/selectors";
+import { PermissionContext } from "@/auth/permissionContext";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount } from "@/test/fixtures";
+import { buildVisibleRange } from "@/store/selectors";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
 
 import { barFor, getStoredAllocation, seedAllocation } from "./__tests__/allocationBarInteractionTestKit";
@@ -40,8 +40,8 @@ function registerViewerAndAnnotationPopoverTests() {
     const user = userEvent.setup();
     const allocation = seedAllocation({ note: "Call the client before kickoff" });
     const onEdit = vi.fn();
-    useStore.getState().setBarLabelPref("showClient", false);
-    useStore.getState().setBarLabelPref("showProject", false);
+    useStore.getState().setBarLabelPref({ key: "showClient", value: false });
+    useStore.getState().setBarLabelPref({ key: "showProject", value: false });
     render(
       <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
         <AllocationBar

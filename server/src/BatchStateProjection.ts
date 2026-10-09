@@ -1,10 +1,5 @@
-import {
-  APP_DATA_KEYS,
-  SCOPED_KEYS,
-  type Allocation,
-  type AppData,
-  type AppDataKey,
-} from "@capacitylens/shared/types/entities";
+import { APP_DATA_KEYS, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
+import type { Allocation, AppData, AppDataKey } from "@capacitylens/shared/types/entities";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
 import type { RewrittenAllocationRevision } from "./db";
@@ -169,7 +164,7 @@ export class BatchStateProjection implements ValidationDataLookup {
 
   /** Mirror replaceGeneratedBuiltin's reparent-before-delete database sequence. */
   replaceGeneratedBuiltin(generatedId: string, row: Record<string, unknown>): void {
-    // Defensive re-check: see the matching comment in upsert() — sanitizeWrite's assertIdPresent
+    // Defensive re-check: see the matching comment in upsert(), sanitizeWrite's assertIdPresent
     // already guarantees this upstream of every caller.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
     const projectRelationship = this.resolveRelationshipIndex("clients", "projects", "clientId");

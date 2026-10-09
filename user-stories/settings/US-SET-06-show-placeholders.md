@@ -2,7 +2,7 @@
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/placeholders.spec.ts` → "hidden by default: the seeded placeholder is absent from the schedule and Resources list", "turning it on in Settings reveals the placeholder with a \"?\" avatar and \"Placeholder\" name", "the choice survives a reload (per-account pref)"
 
-**Documentation:** [Settings](../../docs-src/guide/settings.md)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 

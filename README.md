@@ -66,6 +66,15 @@ If you need Jira, use Jira. This is the thing you look at _before_ you open Jira
 Agency owners, studio and operations leads, resource planners and project leads: the people who get
 asked "can we take this on?" and need a shared, honest answer.
 
+## Project status
+
+CapacityLens is alpha software with a single maintainer. Database upgrades are tested from thirteen
+released database snapshots, the oldest from 0.20.0-alpha.1, so a database created by that release
+or any later one is expected to upgrade in place. Beta will mean the upgrade path and the settings are stable.
+
+Details: [how it is tested](docs-src/reference/how-it-is-tested.md) ·
+[philosophy](docs-src/reference/philosophy.md)
+
 ## Run it for real
 
 Every release from 0.73.0-alpha.1 carries a server archive. Node 24 is the only prerequisite.
@@ -73,23 +82,23 @@ Node 26 compatibility is still under investigation; see [the compatibility notes
 
 1. **Download** `capacitylens-X.Y.Z.tar.gz` from the [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
 2. **Pick a folder** for the database; its file is created there on first start.
-3. **Configure:** copy `capacitylens.env.example` and fill in its three empty lines: the address, and two values from `openssl rand -base64 48`. Set `CAPACITYLENS_DB` to a file in step 2's folder.
+3. **Configure:** in the unpacked folder, run `node server/dist/index.mjs init --public-url <address> --db <file in step 2's folder>`. It prints the environment file with both secrets generated: paste it into your host's environment editor, or add `--out /etc/capacitylens.env` to write the file.
 4. **Start it** with `node --env-file=<your env file> server/dist/index.mjs`, or as a service.
 5. **Open the address** and create your company with the setup token from step 3.
 
-[Install CapacityLens](docs-src/getting-started/install.md) has the commands for a managed host
+[Install CapacityLens](docs-src/self-hosting/install.md) has the commands for a managed host
 or a Linux host. Docker is [another way to install](docs-src/self-hosting/install-with-docker.md).
 
 ## Sign-in, in short
 
-Password sign-in is the stable self-hosted default, with breached-password screening, optional
-required TOTP MFA and user-controlled session revocation. Google Workspace and Microsoft Entra ID
+Password sign-in is the stable self-hosted default, with breached-password screening and
+user-controlled session revocation. Google Workspace and Microsoft Entra ID
 are the supported company sign-in providers; GitHub remains experimental in mixed mode. Optional offline access keeps a
 read-only snapshot for up to seven days — it never queues or syncs edits, and SQLite stays the
 source of truth.
 
 Details: [how sign-in works](docs-src/company-login/index.md) ·
-[offline access](docs-src/guide/offline-access.md)
+[offline access](docs-src/using/settings.md#offline-access)
 
 ## Documentation
 
@@ -97,15 +106,18 @@ Read the [CapacityLens documentation](https://kevinjohn.github.io/capacitylens/)
 docs ship with the repository: open [`docs/index.html`](docs/) straight from a checkout — no server,
 no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
 
-- [Getting started](docs-src/getting-started/what-is-capacitylens.md) — the two-minute demo,
-  installation routes, first Owner and schedule, invites and roles.
-- [Using CapacityLens](docs-src/guide/the-schedule.md) — the schedule, people and placeholders,
-  projects and allocations, time off and settings.
+- [What is CapacityLens?](docs-src/getting-started/what-is-capacitylens.md) — the product on one
+  page, the quick start and the two-minute demo.
+- [Use CapacityLens day to day](docs-src/using/index.md) — for schedulers: the schedule, overview,
+  resources, projects, time off and settings.
+- [Set up your company as the Owner](docs-src/owner/index.md) and
+  [Administer your company](docs-src/admin/index.md) — the first Owner's handover, then invites,
+  roles, scheduled people and company settings.
 - [Company login (SSO)](docs-src/company-login/index.md) — setting up Google or Microsoft and
   connecting existing accounts.
-- [Self-hosting](docs-src/self-hosting/index.md) — Docker, direct Node and
-  [managed VPS](docs-src/self-hosting/managed-vps/index.md) deployment, plus configuration,
-  TLS, backups, monitoring and incident response.
+- [Install and run CapacityLens](docs-src/self-hosting/index.md) — the release archive, Docker
+  and [managed VPS](docs-src/self-hosting/managed-vps/index.md) installation, plus
+  configuration, TLS, backups, monitoring and incident response.
 - [Security and privacy](docs-src/security/index.md) — posture, stored data and operator
   responsibilities.
 - [Glossary](docs-src/reference/glossary.md) — the terms the docs rely on, in plain language.
@@ -140,7 +152,7 @@ numbers, cross-browser checks and CI jobs. Also worth reading: the
 architecture, and the [changelog](CHANGELOG.md).
 
 [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Security policy](SECURITY.md) ·
-[Security review](docs-src/security/security-review-2026-08-18.md) ·
+[Security review](docs-src/security/reviews/security-review-2026-08-18.md) ·
 [ASVS 5.0.0 ledger](docs-src/security/owasp-asvs-5.0.0.md) · [Trademarks](TRADEMARKS.md)
 
 ## Licence

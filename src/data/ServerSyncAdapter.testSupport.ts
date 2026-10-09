@@ -3,7 +3,8 @@ import { IDBFactory } from "fake-indexeddb";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, Allocation, AppData, Client, Project, TimeOff } from "@capacitylens/shared/types/entities";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
-import { cacheAuthSnapshot, clearAllOfflineData, setOfflineReadState, type OfflineAuthSnapshot } from "./offlineCache";
+import { cacheAuthSnapshot, clearAllOfflineData, setOfflineReadState } from "./offlineCache";
+import type { OfflineAuthSnapshot } from "./offlineCache";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 export const TS1 = "2026-01-01T00:00:00.000Z";
@@ -78,7 +79,7 @@ export const scopedData = (accountId: string, over: Partial<AppData>): AppData =
     ],
   });
 
-// Drop known table keys from a slice to simulate an OLDER server omitting them (rolling-deploy skew).
+// Drop known table keys from a slice to simulate an older server omitting them (rolling-deploy skew).
 export const omitKeys = (data: AppData, ...keys: string[]): Record<string, unknown> =>
   Object.fromEntries(Object.entries(data).filter(([key]) => !keys.includes(key)));
 
@@ -182,7 +183,7 @@ export async function withOfflineCache(run: () => Promise<void>): Promise<void> 
     await run();
   } finally {
     await clearAllOfflineData();
-    setOfflineReadState("cleanup", false);
+    setOfflineReadState({ owner: "cleanup", readOnly: false });
     localStorage.clear();
     vi.unstubAllGlobals();
   }

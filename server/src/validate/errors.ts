@@ -1,11 +1,11 @@
 import type { DomainErrorCode } from "@capacitylens/shared/domain/errors";
-/** A caller-fault error (bad request body) — mapped to HTTP 400. Distinct from an
- *  unexpected server/db error, which must surface as 500. */
+/** A caller-fault error (bad request body), mapped to HTTP 400. Distinct from an
+ * unexpected server/db error, which must surface as 500. */
 export class ValidationError extends Error {
   readonly code?: DomainErrorCode;
 
   // Accepts ErrorOptions so a re-tag from a catch can forward `{ cause }` and preserve the full
-  // chain (not just the message) — see validateWrite below.
+  // chain (not just the message), see validateWrite below.
   constructor(message: string, options?: ErrorOptions & { code?: DomainErrorCode }) {
     super(message, options);
     this.name = "ValidationError";

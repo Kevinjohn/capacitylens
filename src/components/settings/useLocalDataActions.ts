@@ -1,19 +1,19 @@
 import { m } from "@/i18n";
 import { useRef, useState } from "react";
-import { useAuth } from "../../auth/authContext";
-import { clearCapacitylensLocalStorage } from "../../data/clearLocalStorage";
+import type { useAuth } from "@/auth/authContext";
+import { clearCapacitylensLocalStorage } from "@/data/clearLocalStorage";
 import {
   cacheAccountSlice,
   cacheAccountSummaries,
   cacheAuthSnapshot,
   clearAllOfflineData,
   setOfflineReadEnabled,
-} from "../../data/offlineCache";
-import { useExclusiveAction } from "../../hooks/useExclusiveAction";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { reloadPage } from "../../lib/reloadPage";
+} from "@/data/offlineCache";
+import { useExclusiveAction } from "@/hooks/useExclusiveAction";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { reloadPage } from "@/lib/reloadPage";
 
-import type { StoreState } from "../../store/useStore";
+import type { StoreState } from "@/store/useStore";
 
 interface LocalDataActionInput {
   offlineEnabled: boolean;

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../data/apiConfig", () => ({ API_BASE: "http://api.test" }));
+vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test" }));
 
 import {
   cancelMicrosoftConnection,

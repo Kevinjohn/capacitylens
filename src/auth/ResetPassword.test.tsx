@@ -10,7 +10,7 @@ const apiConfigMock = vi.hoisted(() => ({
   isServerConfigured: vi.fn(() => true),
 }));
 
-vi.mock("../data/apiConfig", () => ({
+vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: apiConfigMock.isServerConfigured,
 }));
@@ -39,7 +39,7 @@ afterEach(() => {
 
 // Pins the library-shape sniff in messageForFailure (DEFENSIVE-CODING.md §2: a sniff of a library's
 // message/body shape must be test-pinned). Better Auth's redeem endpoint answers a 400 with a typed
-// `{ code }`; this test locks the mapping from each recognised code — and every unrecognised shape —
+// `{ code }`; this test locks the mapping from each recognised code, and every unrecognised shape,
 // to the exact user-facing message, so a future Better Auth upgrade that renames/drops a code fails
 // this test instead of silently regressing to the generic fallback (or worse, staying silent).
 describe("ResetPassword — messageForFailure (Better Auth 400 body → surfaced message)", () => {
@@ -72,7 +72,7 @@ describe("ResetPassword — messageForFailure (Better Auth 400 body → surfaced
   });
 
   it("falls back to the generic message for a non-object body (e.g. a bare JSON `null`)", () => {
-    // The call site casts an untyped fetch body `as { code?: string }` without validating shape —
+    // The call site casts an untyped fetch body `as { code?: string }` without validating shape,
     // a server that answers valid-but-unexpected JSON (null, a string, an array) must not throw here.
     expect(resolveResetPasswordFailureMessage(null as unknown as { code?: string })).toBe(m.reset_err_generic());
   });

@@ -1,20 +1,22 @@
-import { Fragment, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { isServerConfigured } from "../../data/apiConfig";
-import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "../../data/fetchInactiveSlice";
-import { useStore, type LifecycleEntity } from "../../store/useStore";
-import { useInactiveScopedData } from "../../store/useScopedData";
-import { useLifecycleActions } from "../../hooks/useLifecycleActions";
-import { useCan } from "../../auth/permissionContext";
-import { useExclusiveAction } from "../../hooks/useExclusiveAction";
-import { useDeadlineClock } from "../../hooks/useDeadlineClock";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { ConfirmDialog } from "../common/ui";
-import { Button } from "../ui/button";
+import { Fragment, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { isServerConfigured } from "@/data/apiConfig";
+import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "@/data/fetchInactiveSlice";
+import { useStore } from "@/store/useStore";
+import type { LifecycleEntity } from "@/store/useStore";
+import { useInactiveScopedData } from "@/store/useScopedData";
+import { useLifecycleActions } from "@/hooks/useLifecycleActions";
+import { useCan } from "@/auth/permissionContext";
+import { useExclusiveAction } from "@/hooks/useExclusiveAction";
+import { useDeadlineClock } from "@/hooks/useDeadlineClock";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { ConfirmDialog } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
 import { m } from "@/i18n";
 import { canPurge, lifecycleStatus, PURGE_MIN_AGE_DAYS } from "@capacitylens/shared/domain/lifecycle";
 import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
 import type { Activity, AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
 import { SettingsSection } from "./SettingsSection";
 import { SettingsGroupContext } from "./settingsGroupContext";
 interface Row {
@@ -263,7 +265,7 @@ export function ArchivedSection({ collapsible = false, defaultOpen = true }: Arc
   const activeAccountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
   const hintBaseId = useId();
-  // A null role must stay permitted for OFF/local mode; useCan owns that policy.
+  // A null role must stay permitted for off/local mode; useCan owns that policy.
   const mayPurge = useCan("purge");
   const sectionEnabled = mayPurge;
   const localData = useInactiveScopedData();

@@ -1,9 +1,9 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import { chooseOption } from "./__tests__/schedulerTestKit";
 import {
   required,
@@ -15,8 +15,8 @@ import {
 } from "./__tests__/allocationModalTestKit";
 
 type CapacityAdvisoryMockInput =
-  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisory>[0]
-  | Parameters<typeof import("../../lib/capacity").buildCapacityAdvisoryFromLoad>[0];
+  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisory>[0]
+  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisoryFromLoad>[0];
 const capacityAdvisoryMock = vi.hoisted(() =>
   vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
     overDays: 0,
@@ -26,9 +26,9 @@ const capacityAdvisoryMock = vi.hoisted(() =>
 
 // Both entry points share one mock: the repeat path advises against a batch-shared load bucket
 // (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory VERDICTS the modal renders.
-vi.mock("../../lib/capacity", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../lib/capacity")>()),
+// care only about the advisory verdicts the modal renders.
+vi.mock("@/lib/capacity", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
@@ -346,7 +346,7 @@ describe("AllocationModal days mode", () => {
   });
 
   it("rejects a work volume that would derive more than 24h/day (no silent clamp)", async () => {
-    // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24 —
+    // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24,
     // silently discarding the entered volume. The modal must reject so preview === saved.
     enableDays();
     const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
@@ -380,7 +380,7 @@ describe("AllocationModal days mode", () => {
   it('rejects an EMPTY "Days over" submitted via Enter (no blur) instead of saving a 0-hour allocation', async () => {
     // The NaN hole: a valid "Days of work" but a "Days over" left empty/part-typed emits NaN
     // (NumberField only clamps to min on blur). hoursPerDayFor(daysOfWork, NaN, whpd) is NaN, the
-    // store's clampHoursPerDay(NaN) → 0, so a SILENT 0-hour allocation would save. Submitting via
+    // store's clampHoursPerDay(NaN) → 0, so a silent 0-hour allocation would save. Submitting via
     // Enter directly from the field skips the blur-clamp, exercising exactly that path. The load
     // guard must reject (NaN fails Number.isFinite) and persist nothing.
     enableDays();
@@ -405,7 +405,7 @@ describe("AllocationModal days mode", () => {
     fireEvent.change(screen.getByLabelText("Days of work"), {
       target: { value: "5" },
     });
-    // Empty the "Days over" field — emits NaN — then submit the form directly (Enter from a
+    // Empty the "Days over" field, emits NaN, then submit the form directly (Enter from a
     // single number input), which skips the field's on-blur clamp.
     const daysOver = screen.getByLabelText("Days over");
     fireEvent.change(daysOver, { target: { value: "" } });
@@ -469,7 +469,7 @@ describe("AllocationModal days mode", () => {
   it("does not drift hours when an unevenly-dividing allocation is re-saved unchanged", async () => {
     enableDays();
     const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
-    // 5h/day over 3 working days = 1.875 days of work — a value 2-dp rounding would distort.
+    // 5h/day over 3 working days = 1.875 days of work. A value 2-dp rounding would distort.
     const alloc = requireCreated(
       useStore.getState().addAllocation({
         resourceId: r.id,

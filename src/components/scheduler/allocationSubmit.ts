@@ -3,14 +3,14 @@ import { newId } from "@capacitylens/shared/lib/id";
 import { validateAllocationAssignment } from "@capacitylens/shared/lib/integrity";
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strings";
-import { resolveDomainErrorMessage, resolveErrorMessage } from "../../lib/errorMessage";
-import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from "../../lib/repeatingAllocations";
-import { parseText } from "../../lib/validation";
-import type { useStore } from "../../store/useStore";
+import { resolveDomainErrorMessage, resolveErrorMessage } from "@/lib/errorMessage";
+import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from "@/lib/repeatingAllocations";
+import { parseText } from "@/lib/validation";
+import type { useStore } from "@/store/useStore";
 import { resolveEndDate, validateAllocationDraft } from "./allocationDraft";
 import { resolveEffectiveWeekCreationBlockReason } from "./creationAvailability";
 
-import type { FieldError } from "../../hooks/useFieldError";
+import type { FieldError } from "@/hooks/useFieldError";
 import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
 type CommandInput = Omit<AllocationModalSnapshot, "editId" | "repeatUntilMinimum"> &
   Pick<

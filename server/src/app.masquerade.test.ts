@@ -4,9 +4,12 @@ import type { AuditEntry, AuditSink } from "./audit";
 import { createAuthFromEnvironment, runAuthMigrations, SESSION_INACTIVITY_TTL_SECONDS } from "./auth";
 import { createApp } from "./app";
 import { upsertMember } from "./controlTables";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
-import { insertAll, openDb, type Db } from "./db";
-import { PASSWORD_ENV, call, registerServerFixtureCleanup, signUp } from "./testHelpers";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
+import { insertAll, openDb } from "./db";
+import type { Db } from "./db";
+import { PASSWORD_ENV, call, signUp } from "./testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 const TS = "2026-09-01T10:00:00.000Z";
@@ -616,7 +619,7 @@ function registerExpiryAndMutationGuardTests(): void {
 
 function registerOwnershipTransferConcealmentTest(): void {
   // The global policy refuses every unsafe method, so the ceremony's six commands are already
-  // covered. The READ is not, and it names who is being handed the company — so it conceals rather
+  // covered. The read is not, and it names who is being handed the company, so it conceals rather
   // than redacts: a masquerading session is not the participant whose ceremony this is.
   it("refuses the ownership transfer read while masquerading, and admits it otherwise", async () => {
     const { app, db } = await fixture();

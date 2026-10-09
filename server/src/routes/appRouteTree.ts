@@ -1,6 +1,6 @@
 import type { LifecycleRedactionInput } from "./lifecycleRoutes";
 import type { FastifyInstance } from "fastify";
-import { type SsoCutoverIdentityPort } from "../accounts/betterAuthIdentityPort";
+import type { SsoCutoverIdentityPort } from "../accounts/betterAuthIdentityPort";
 import { registerFederatedIdentityRoutes } from "../accounts/federatedIdentityRoutes";
 import { registerAccountRoutes } from "../accounts/accountRoutes";
 import { registerExampleDataRoutes } from "./exampleDataRoutes";
@@ -10,7 +10,8 @@ import { registerLifecycleRoutes } from "./lifecycleRoutes";
 import { registerAuthProxyRoutes } from "./authProxyRoutes";
 import { registerMicrosoftProofRoutes } from "./microsoftProofRoutes";
 import { registerJoiningProofRoutes } from "./joiningProofRoutes";
-import { withSendBudget, type MailSender } from "../authConfig/mailSender";
+import { withSendBudget } from "../authConfig/mailSender";
+import type { MailSender } from "../authConfig/mailSender";
 import { registerBatchRoutes } from "./batchRoutes";
 import { registerEntityRoutes } from "./entityRoutes";
 import { registerImportRoutes } from "./importRoutes";
@@ -19,7 +20,8 @@ import { registerSystemRoutes } from "./systemRoutes";
 import { isStaleWrite, ownsRow } from "./routeShared";
 import { registerMasqueradeRoutes } from "./masqueradeRoutes";
 import { registerAccountEntityRoutes } from "./accountEntityRoutes";
-import { type Db, isInitialized } from "../db";
+import { isInitialized } from "../db";
+import type { Db } from "../db";
 import { enqueueAudit } from "../auditOutbox";
 import {
   toWebHeaders,
@@ -167,7 +169,7 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
     authorize: authorizeAllowed,
     // Only the ceremony read consults this: the global masquerade policy already refuses every
     // unsafe method, so the six commands need no check of their own.
-    isMasquerading: (request) => request.session !== null && masquerades.peek(request.session.id) !== undefined,
+    isMasquerading: (req) => req.session !== null && masquerades.peek(req.session.id) !== undefined,
     command: createAccountCommand,
     audit,
     fail: accountFail,
@@ -258,7 +260,7 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
   registerSystemRoutes(app, { ...dependencies.system, section: "public" });
   registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "identity" });
   if (authMode !== "off" && auth) {
-    registerMicrosoftProofRoutes(app, auth, options.trustProxyHeaders === true);
+    registerMicrosoftProofRoutes({ app: app, auth: auth, trustProxyHeaders: options.trustProxyHeaders === true });
     if (options.joiningProof)
       registerJoiningProofRoutes(app, {
         db,
@@ -292,9 +294,9 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
 
 export function registerApiRoutes(input: RegisterApiRoutesInput): void {
   const { app } = input;
-  // Every route below registers through a child plugin, NOT directly on the root:
+  // Every route below registers through a child plugin, not directly on the root:
   // @fastify/rate-limit attaches to routes via an onRoute hook that only exists once the
-  // plugin LOADS (at ready(), in registration order) — a route declared straight on the
+  // plugin loads (at ready(), in registration order), a route declared straight on the
   // root would register first and silently escape the limiter. The child loads after it,
   // so its routes are seen, and it inherits the root CORS hook + error handler. The
   // callback shadows `app` deliberately: the route code is identical without the wrapper.

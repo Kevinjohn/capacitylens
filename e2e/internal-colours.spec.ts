@@ -1,12 +1,10 @@
 import { test, expect } from "./fixtures";
 import { openApp, selectShadOption } from "./browserTestSupport";
 
-// Covers US-SET-14: Internal work is neutral by default without discarding saved project colours.
-test("Internal work defaults grey and palette mode restores the project picker and colour", async ({ page }) => {
+// Covers US-SET-14: Internal work is always neutral grey, and Settings has no colour mode for it.
+test("Internal work is always grey and hides the project colour picker", async ({ page }) => {
   await openApp(page, "Wayne Enterprises", "/settings");
-
-  await expect(page.getByRole("radio", { name: "Neutral grey" })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByRole("radio", { name: "Colour palette" })).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByRole("radiogroup", { name: "Internal work colours" })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Projects" }).click();
   await page.getByRole("button", { name: "Add project" }).click();
@@ -20,15 +18,8 @@ test("Internal work defaults grey and palette mode restores the project picker a
 
   const row = page.getByTestId("project-row").filter({ hasText: "Quarterly planning" });
   await expect(row.locator("span.inline-block.rounded-sm").first()).toHaveCSS("background-color", "rgb(156, 163, 175)");
-
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("radio", { name: "Colour palette" }).click();
-  await page.getByRole("link", { name: "Projects" }).click();
-
-  // The project kept its original default pink while grey was displayed; palette mode restores it.
-  await expect(row.locator("span.inline-block.rounded-sm").first()).toHaveCSS("background-color", "rgb(218, 45, 146)");
   await row.getByRole("button", { name: /^Edit / }).click();
-  await expect(
-    page.getByRole("dialog", { name: "Edit project" }).getByRole("button", { name: /^Colour/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Edit project" }).getByRole("button", { name: /^Colour/ })).toHaveCount(
+    0,
+  );
 });

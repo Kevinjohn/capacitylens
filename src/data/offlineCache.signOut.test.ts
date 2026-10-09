@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IDBFactory, IDBObjectStore as FakeIDBObjectStore } from "fake-indexeddb";
 
 import { seed } from "@capacitylens/shared/data/seed";
-import { SCOPED_KEYS, emptyAppData, scopedTables, type AppData } from "@capacitylens/shared/types/entities";
+import { SCOPED_KEYS, emptyAppData, scopedTables } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 
 import {
   cacheAccountSlice,
@@ -147,7 +148,7 @@ describe("offline tenant cache sign-out failures", () => {
 
   it("drops page-local offline state when the offline database cannot open", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
-    setOfflineReadState("tenant", true, 123);
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: 123 });
     vi.spyOn(indexedDB, "open").mockImplementation(() => {
       throw new Error("The offline database could not open.");
     });

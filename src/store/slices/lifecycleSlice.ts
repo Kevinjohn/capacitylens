@@ -9,8 +9,9 @@ import {
 } from "@capacitylens/shared/domain/lifecycle";
 import { m } from "@/i18n";
 import type { AppData, ID, Resource } from "@capacitylens/shared/types/entities";
-import { PURGE_CASCADES, touchAfter, type StoreInternals } from "../storeInternal";
-import type { LifecycleEntity, StoreState } from "../types";
+import { PURGE_CASCADES, touchAfter } from "@/store/storeInternal";
+import type { StoreInternals } from "@/store/storeInternal";
+import type { LifecycleEntity, StoreState } from "@/store/types";
 
 type LifecycleSlice = Pick<StoreState, "archiveEntity" | "unarchiveEntity" | "softDeleteEntity" | "purgeEntity">;
 type LifecycleSliceInternals = Pick<
@@ -24,18 +25,18 @@ export function createLifecycleSlice(
   return (_set, get) => {
     const { createGuardedAction, resolveOwnedRow, assertNotBuiltinClient, mutate, mutateIrreversible } = internals;
     return {
-      // --- Data-lifecycle actions (P2.5b DEMO-build path). See the StoreState block above for the
-      // shared contract. Active → Archived → Soft-deleted → Purged is the ONLY removal path for the
+      // Data-lifecycle actions (demo-build path). See the StoreState block above for the
+      // shared contract. Active → Archived → Soft-deleted → Purged is the only removal path for the
       // tombstone-carrying tables (resources / clients / projects / activities); there is no immediate hard-delete
-      // action for them — a physical row removal happens only at the END of the lifecycle, in purgeEntity,
-      // which composes the shared delete*Cascade so the tombstone AND its children go together (a
+      // action for them, a physical row removal happens only at the end of the lifecycle, in purgeEntity,
+      // which composes the shared delete*Cascade so the tombstone and its children go together (a
       // resource's allocations/time-off; a client's projects/activities/allocations; a project's
       // phases/activities/allocations). Single-sourced from shared/lib/integrity.ts so the purge cascade
       // can't drift from the cascade the other tables' delete* actions use.
       archiveEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
         if (!resolveOwnedRow(get().data, entity, id)) return;
         assertNotBuiltinClient(entity, id, "archived");
-        // archive() THROWS if the row isn't 'active' (defense-in-depth — the UI gates via canArchive
+        // archive() throws if the row isn't 'active' (defense-in-depth, the UI gates via canArchive
         // first). Surface-not-swallow: let it throw, exactly like the builtin guards above.
         mutate((data) => ({
           ...data,
@@ -49,7 +50,7 @@ export function createLifecycleSlice(
       unarchiveEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
         if (!resolveOwnedRow(get().data, entity, id)) return;
         // No builtin guard: the Internal client can never reach 'archived' (archiveEntity rejects it), so
-        // unarchive() would throw 'not archived' anyway. unarchive() THROWS if the row isn't archived.
+        // unarchive() would throw 'not archived' anyway. unarchive() throws if the row isn't archived.
         mutate((data) => ({
           ...data,
           [entity]: data[entity].map((entity) =>
@@ -61,10 +62,10 @@ export function createLifecycleSlice(
       purgeEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
         const existing = resolveOwnedRow(get().data, entity, id);
         if (!existing) return;
-        // The built-in Internal client cannot be purged — every account must keep exactly one.
+        // The built-in Internal client cannot be purged. Every account must keep exactly one.
         assertNotBuiltinClient(entity, id, "deleted");
         // Enforce the grace window: canPurge is false unless this is a soft-deleted tombstone aged at
-        // least PURGE_MIN_AGE_DAYS. A refused purge is a gated affordance, NOT corruption — surface a
+        // least PURGE_MIN_AGE_DAYS. A refused purge is a gated affordance, not corruption; surface a
         // notice and no-op rather than throw (the throw idiom is reserved for tenancy/integrity bugs).
         // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would let
         // the client stay up to ~24h more conservative than the server's own boundary check.
@@ -72,7 +73,7 @@ export function createLifecycleSlice(
           get().setNotice(m.notice_purge_grace_window({ days: PURGE_MIN_AGE_DAYS }), "error");
           return;
         }
-        // Hard purge: physically remove the row AND cascade its children (see PURGE_CASCADES).
+        // Hard purge: physically remove the row and cascade its children (see PURGE_CASCADES).
         mutateIrreversible((data) => PURGE_CASCADES[entity](data, id));
       }),
     };
@@ -86,9 +87,9 @@ function createSoftDeleteAction(internals: LifecycleSliceInternals, get: StoreAp
     // The Internal client can never be 'archived' (so softDelete would throw), but guard explicitly
     // for a display-safe message and parity with the delete path.
     assertNotBuiltinClient(entity, id, "deleted");
-    // softDelete() THROWS unless the row is 'archived' (prior-archival rule). For a resource, COMPOSE
-    // the shared obfuscateResource so the local tombstone carries NO original PII (the obfuscation
-    // string is single-sourced from lifecycle.ts — never hand-written here).
+    // softDelete() throws unless the row is 'archived' (prior-archival rule). For a resource, compose
+    // the shared obfuscateResource so the local tombstone carries no original PII (the obfuscation
+    // string is single-sourced from lifecycle.ts, never hand-written here).
     const applyDelete = (data: AppData): AppData => ({
       ...data,
       [entity]: data[entity].map((lifecycleRow) => {

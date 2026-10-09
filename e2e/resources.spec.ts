@@ -1,4 +1,5 @@
-import { test, expect, type Locator } from "./fixtures";
+import { test, expect } from "./fixtures";
+import type { Locator } from "./fixtures";
 import {
   dismissLandscapeHint,
   goToSeedWeek,
@@ -259,10 +260,11 @@ test("favourites a person and keeps them first in the resource list and discipli
     .toEqual([1, 2]);
 });
 
-test("groups Studio before Supplementary and restores one People order when disabled", async ({ page }) => {
+test("groups Studio before Supplementary only while someone is Supplementary", async ({ page }) => {
   await openApp(page, "Wayne Enterprises", "/resources");
-  await expect(page.getByRole("heading", { name: "Studio" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Supplementary" })).toBeVisible();
+  // The seeded company is Studio-only, so People is one list.
+  await expect(page.getByRole("heading", { name: "Studio" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Supplementary" })).toHaveCount(0);
 
   const barry = page.getByTestId("resource-row").filter({ hasText: "Barry Allen" });
   await barry.getByRole("button", { name: "Edit Barry Allen" }).click();
@@ -284,9 +286,11 @@ test("groups Studio before Supplementary and restores one People order when disa
     })
     .toEqual([1, 2]);
 
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("switch", { name: "Group resources by engagement" }).click();
+  // Moving the only Supplementary person back to Studio restores one favourites-first order.
   await page.getByRole("link", { name: "Resources" }).click();
+  await barry.getByRole("button", { name: "Edit Barry Allen" }).click();
+  await page.getByRole("radio", { name: "Studio" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("heading", { name: "Studio" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Supplementary" })).toHaveCount(0);
   await expect(page.getByTestId("resource-row").first()).toContainText("Barry Allen");

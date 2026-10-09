@@ -3,18 +3,19 @@ import { createApp } from "./app";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { insertRow, openDb } from "./db";
 import { upsertMember } from "./controlTables";
-import { PASSWORD_ENV, call, registerServerFixtureCleanup, signUp } from "./testHelpers";
+import { PASSWORD_ENV, call, signUp } from "./testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "./testHelpers/registerServerFixtureCleanup";
 
 const { sendMail } = vi.hoisted(() => ({ sendMail: vi.fn() }));
 vi.mock("nodemailer", () => ({ default: { createTransport: () => ({ sendMail }) } }));
 const fixtures = registerServerFixtureCleanup();
 const origin = "http://localhost:8787";
 const mailEnvironment = {
-  SMALLSASS_ACCOUNT_MAIL_HOST: "mail.example.test",
-  SMALLSASS_ACCOUNT_MAIL_PORT: "587",
-  SMALLSASS_ACCOUNT_MAIL_USER: "mailer",
-  SMALLSASS_ACCOUNT_MAIL_PASSWORD: "mail-secret",
-  SMALLSASS_ACCOUNT_MAIL_FROM: "identity@example.test",
+  CAPACITYLENS_MAIL_HOST: "mail.example.test",
+  CAPACITYLENS_MAIL_PORT: "587",
+  CAPACITYLENS_MAIL_USER: "mailer",
+  CAPACITYLENS_MAIL_PASSWORD: "mail-secret",
+  CAPACITYLENS_MAIL_FROM: "identity@example.test",
 };
 beforeEach(() => {
   sendMail.mockReset().mockResolvedValue({});
@@ -115,9 +116,9 @@ describe("password reset email in SSO-only mode", () => {
     const { mode, auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
       ...mailEnvironment,
-      SMALLSASS_ACCOUNT_MODE: "sso-only",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      CAPACITYLENS_MODE: "sso-only",
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     if (!auth) throw new Error("Expected SSO authentication.");
     await runAuthMigrations(auth);

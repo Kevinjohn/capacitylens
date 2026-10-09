@@ -12,31 +12,13 @@ import {
 } from "./auth";
 import { recordSessionAssurance } from "./accounts/state";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
-import { call, PASSWORD_ENV } from "./testHelpers";
+import { call, PASSWORD_ENV, cookiesOf, headerValues } from "./testHelpers/passwordAuth";
+import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function headerValues(value: string | string[] | undefined): string[] {
-  if (Array.isArray(value)) return value;
-  if (value === undefined) return [];
-  return [value];
-}
-
-// This suite keeps its own cookie reader rather than testHelpers' readCookies. readCookies models
-// a browser cookie jar: it de-duplicates by name and drops expired cookies. This one reports every
-// Set-Cookie the server actually sent. The difference is load-bearing in app.auth.bootstrap.test.ts,
-// whose assertions require that a rejected sign-up set no session cookie at all — a cleared cookie
-// must still be visible to fail them. Kept in every file of the suite so the reader is consistent.
-function cookiesOf(res: LightMyRequestResponse): string {
-  const raw = res.headers["set-cookie"];
-  return headerValues(raw)
-    .map((c) => String(c).split(";")[0])
-    .join("; ");
-}
-
-// P3.1/P3.2/P3.5 (flag SMALLSASS_ACCOUNT_MODE → opts.authMode/auth). The load-bearing assertion set:
-// OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
-// by running unchanged — these tests add the /api/auth/me surface and the absence of the
-// Better Auth routes); password gates every data route on a real session; sso issues a
+// The CAPACITYLENS_MODE flag (opts.authMode/auth). The load-bearing assertion set: off is
+// byte-for-byte today (the whole existing app.test.ts suite already enforces that by running
+// unchanged; these tests add the /api/auth/me surface and the absence of the Better Auth
+// routes); password gates every data route on a real session; sso issues a
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
 
 const TS = "2026-01-01T00:00:00.000Z";
@@ -123,11 +105,6 @@ function parseTotpSecret(res: LightMyRequestResponse): string {
   return secret;
 }
 
-function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
-  if (auth === null) throw new Error("Expected authentication to be configured.");
-  return auth;
-}
-
 function totpCode(secret: string, at = Date.now()): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = "";
@@ -152,18 +129,11 @@ function totpCode(secret: string, at = Date.now()): string {
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
-  SMALLSASS_ACCOUNT_MODE: "sso-only",
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+  CAPACITYLENS_MODE: "sso-only",
+  CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
 
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+  CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
 };
-
-async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, env);
-  await runAuthMigrations(parseConfiguredAuth(auth));
-  return createApp(db, { authMode: mode, auth });
-}
 
 /* c8 ignore start */
 async function createSessionManagementFixture() {
@@ -365,10 +335,10 @@ const sessionActivityBoundaryCases: SessionActivityBoundaryInput[] = (
   ).map(([label, elapsed, active]) => ({ _label: `${label} (${rep})`, rep, elapsed, active })),
 );
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("accepts federated assurance as MFA in mixed mode and advertises provider step-up", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password-and-sso" });
+    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_MODE: "password-and-sso" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const principalId = "federated-principal";
     db.prepare(
@@ -425,7 +395,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("requires enrollment, verifies TOTP, and challenges every later password sign-in", async () => {
     const { app, email, password, signupCookie } = await createRequiredMfaFixture();
     const { enrolledCookie, secret } = await completeRequiredMfaEnrollment({
@@ -481,9 +451,9 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("sign-up → session cookie → the session authenticates and /api/auth/me reports the user", async () => {
-    const app = await appWithAuth(PASSWORD_ENV);
+    const { app } = await appWithAuth({ env: PASSWORD_ENV });
     const signUp = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -507,14 +477,14 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     expect(parseAuthMeResponse(me).user.email).toBe("tester@capacitylens.dev");
     expect(parseAuthMeResponse(me).mfaRequired).toBe(false);
     expect(me.json()).toMatchObject({ requireMfa: false });
-    // P1.7a: emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
-    // verification infra, so Better Auth leaves the flag false — confirming the normalized flag
-    // is present and defaults correctly (the P1.10 invite-bind gate depends on it).
+    // emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
+    // verification infra, so Better Auth leaves the flag false, confirming the normalized flag
+    // is present and defaults correctly (the invite-bind gate depends on it).
     expect(parseAuthMeResponse(me).user.emailVerified).toBe(false);
 
-    // The GENERIC account create is CLOSED auth-on (403 → POST /api/orgs): the bare row write never
-    // minted a membership, so it could only produce orphan accounts — /api/orgs is the atomic path.
-    // A session is still proven to authenticate (403, an authz refusal — not the session-less 401).
+    // The generic account create is closed auth-on (403 → POST /api/orgs): the bare row write never
+    // minted a membership, so it could only produce orphan accounts, /api/orgs is the atomic path.
+    // A session is still proven to authenticate (403, an authz refusal, not the session-less 401).
     const write = await call(app, {
       method: "POST",
       url: "/api/accounts",
@@ -523,8 +493,8 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     });
     expect(write.statusCode).toBe(403);
     expect(parseErrorMessage(write)).toContain("/api/orgs");
-    // P1.13: the no-arg whole read is CLOSED in auth-on (tenant isolation — the P1.4 carry-forward).
-    // A logged-in user must hydrate PER ACCOUNT via ?accountId=, so the bare GET /api/state now 400s.
+    // The no-arg whole read is closed in auth-on (tenant isolation).
+    // A logged-in user must hydrate per account via ?accountId=, so the bare GET /api/state now 400s.
     const noArg = await call(app, {
       method: "GET",
       url: "/api/state",
@@ -532,7 +502,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     });
     expect(noArg.statusCode).toBe(400);
     // No membership exists for this fresh user, so the membership-existence guard 403s a scoped read
-    // of 'a1' — the slice path itself is exercised in app.accounts.test.ts (member → 200). Here we
+    // of 'a1', the slice path itself is exercised in app.accounts.test.ts (member → 200). Here we
     // only pin that no-arg is closed.
     const scoped = await call(app, {
       method: "GET",
@@ -543,11 +513,13 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("emits a valid __Host session cookie for an HTTPS public origin", async () => {
-    const app = await appWithAuth({
-      ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_PUBLIC_URL: "https://capacity.example",
+    const { app } = await appWithAuth({
+      env: {
+        ...PASSWORD_ENV,
+        CAPACITYLENS_PUBLIC_URL: "https://capacity.example",
+      },
     });
     const signUp = await call(app, {
       method: "POST",
@@ -570,10 +542,10 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it.each([
     ["ordinary cookie", PASSWORD_ENV],
-    ["secure __Host- cookie", { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_PUBLIC_URL: "https://capacity.example" }],
+    ["secure __Host- cookie", { ...PASSWORD_ENV, CAPACITYLENS_PUBLIC_URL: "https://capacity.example" }],
   ] as const)(
     "expires an idle session carried by an %s before a direct authenticated auth operation can use it",
     async (_label, env) => {
@@ -594,7 +566,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
         },
       });
       const cookie = cookiesOf(signUp);
-      // ISO-8601 text is what Better Auth's node:sqlite adapter actually stores — writing the
+      // ISO-8601 text is what Better Auth's node:sqlite adapter actually stores, writing the
       // production representation here is what makes this a regression test for the CAS that
       // silently never matched integer-vs-text.
       db.prepare(`UPDATE session SET updatedAt = ?`).run(
@@ -628,7 +600,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   );
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("expires a session whose activity timestamp is in the future", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -662,7 +634,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   // Both storage representations exercise the real `date` column representation.
   it.each(sessionActivityBoundaryCases)(
     "treats a session $_label the inactivity deadline as active=$rep",
@@ -690,7 +662,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   );
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it.each([
     { caseName: "fresh concurrent activity", next: "2026-07-31T09:00:00.000Z", preparationFails: false },
     { caseName: "malformed concurrent activity", next: "not-a-timestamp", preparationFails: false },
@@ -744,7 +716,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
   });
 });
 
-describe("SMALLSASS_ACCOUNT_MODE password", () => {
+describe("CAPACITYLENS_MODE password", () => {
   it("touches active sessions without extending their absolute expiry", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);

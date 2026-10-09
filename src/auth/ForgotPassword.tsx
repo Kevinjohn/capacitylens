@@ -1,11 +1,12 @@
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState } from "react";
+import type { FormEvent } from "react";
 import { m } from "@/i18n";
 import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
-import { API_BASE } from "../data/apiConfig";
-import { createRequestSignal } from "../data/requestTimeout";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Field, FieldError, FieldLabel } from "../components/ui/field";
+import { API_BASE } from "@/data/apiConfig";
+import { createRequestSignal } from "@/data/requestTimeout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 
 /** Optional self-service recovery; success never reveals whether an address is registered. */
 export function ForgotPassword() {

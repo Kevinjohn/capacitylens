@@ -5,11 +5,12 @@ import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import {
   buildCapacityWindow as capacityForWindowWithWeek,
   resolveUtilization as utilizationWithWeek,
-} from "../../lib/capacity";
-import { buildEmptyFilters } from "../../store/useStore";
-import { makeActivity, makeAllocation, makeClient, makeProject, makeResource } from "../../test/fixtures";
+} from "@/lib/capacity";
+import { buildEmptyFilters } from "@/store/useStore";
+import { makeActivity, makeAllocation, makeClient, makeProject, makeResource } from "@/test/fixtures";
 import { buildColumnGeometry } from "./columnGeometry";
-import { buildSchedulerModel, type GroupModel } from "./schedulerModel";
+import { buildSchedulerModel } from "./schedulerModel";
+import type { GroupModel } from "./schedulerModel";
 
 interface CapacityForWindowOfTestInput {
   resource: Resource;

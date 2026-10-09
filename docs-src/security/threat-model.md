@@ -1,12 +1,15 @@
 ---
 title: CapacityLens threat model
-description: The security objectives, assets, actors, abuse cases and accepted risks that shape CapacityLens's design, updated 2026-09-23.
+description: The security objectives, assets, actors, abuse cases and accepted risks that shape CapacityLens's design, with an authentication update from 2026-10-08.
 ---
 
 # CapacityLens threat model
 
-Version: 2026-09-23. Review this model after changes to authentication, tenancy, imports, offline
-storage, deployment topology or external services.
+Baseline version: 2026-09-23. Authentication posture update: 2026-10-08. The update corrects the
+password MFA configuration claims below against the
+[2026-07-14 security review, with its 2026-10-01 addendum](/security/reviews/security-review-2026-07-14);
+it is not a fresh review of the full model. Review this model after changes to authentication,
+tenancy, imports, offline storage, deployment topology or external services.
 
 ## Security objectives
 
@@ -32,7 +35,7 @@ priority over keeping a misconfigured production process running.
 | Identity, password, MFA and provider-link state   | Better Auth, versioned scrypt, encrypted recovery/tokens, explicit verified linking    | Auth/provider/API and database boundary    |
 | Session, reset and invite bearer values           | HttpOnly cookies or one-time values; hashes where supported; expiry/revocation        | Browser/API and operator delivery boundary |
 | Offline snapshot                                  | Opt-in, role-filtered, AES-256-GCM, seven-day expiry, viewer-only                     | Browser-origin/device boundary             |
-| Database, WAL, audit and snapshots                | `0600` files, `0700` backup directory, optional encrypted-volume attestation          | Process/host boundary                      |
+| Database, WAL, audit and snapshots                | `0600` files, `0700` backup directory, operator-provided encrypted volumes            | Process/host boundary                      |
 | Audit and security events                         | Data-minimised JSON, local restrictive file plus optional separately forwarded stream | Process/log-collector boundary             |
 | Build and release inputs                          | Lockfile, pinned images/actions, dependency review, SBOM, scans and provenance        | Contributor/CI/registry boundary           |
 
@@ -59,8 +62,8 @@ must not be publicly reachable and the proxy must overwrite rather than append f
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | BOLA/IDOR or cross-tenant mutation        | Membership fetched server-side for each operation; every scoped entity has `accountId`; row-addressed generic writes make absent and foreign ids response-indistinguishable; row/reference validation fails closed when a project-bound allocation cannot resolve its project in the same account; cross-account tests | `app.authz`, `app.members`, tenant-store, route and shared mutation tests |
 | Function/field privilege escalation       | Central action matrix; protected-name projection/preservation; owner-only import; fresh session for privileged actions                                                                                                                                                                                                 | access, privacy and route tests                                           |
-| Credential stuffing/password cracking     | Positive global/API throttling; five-attempt MFA lock; 15–128 Unicode code points; HIBP range check; scrypt `N=2^17,r=8,p=1`; no default password                                                                                                                                                                      | password/auth/rate-limit tests                                            |
-| Password-only account takeover            | Opt-in required TOTP wall before tenant data; otherwise long passwords, HIBP by default, scrypt, throttling and bounded/revocable sessions; one-time MFA recovery codes                                                                                                                                                | real auth integration and UI tests                                        |
+| Credential stuffing/password cracking     | Positive global/API throttling; 15–128 Unicode code points; HIBP range check; scrypt `N=2^17,r=8,p=1`; no default password                                                                                                                                                                      | password/auth/rate-limit tests                                            |
+| Password-only account takeover            | Long passwords, HIBP by default, scrypt, throttling and bounded/revocable sessions; the server-side TOTP implementation remains, but current settings and interface do not let an operator require it for password sign-in                                                                                                 | real auth integration and UI tests                                        |
 | Session theft/fixation                    | Secure HttpOnly SameSite `__Host-` cookies; new token on auth; fixed 12-hour and 30-minute idle limits; revocation/reset invalidation; session inventory                                                                                                                                                               | auth and member revocation tests                                          |
 | CSRF and cross-origin data use            | Unsafe-method Origin/Sec-Fetch-Site rejection; exact configured or trusted-proxy-derived same origin; SameSite cookie; safe HTTP methods                                                                                                                                                                               | CSRF/CORS and packaged-proxy tests                                        |
 | Injection/XSS/mass assignment             | React text rendering; no untrusted HTML; parameterized SQLite; explicit table/column codecs; sanitisation and structural limits; CSP                                                                                                                                                                                   | server/shared/CSP tests                                                   |
@@ -95,8 +98,10 @@ must not be publicly reachable and the proxy must overwrite rather than append f
   remain operator responsibilities.
 - The sole-Owner recovery command is deliberate host-operator authority. It cannot be contained from
   an attacker who already controls the application database and process environment.
-- Required TOTP is optional. Password-only deployments do not meet ASVS 5.0 Level 2 requirement
-  V6.3.3; when enabled, TOTP meets L2 but remains phishable and insufficient for L3.
+- Password-only deployments have no current setting to require local TOTP and do not meet ASVS 5.0
+  Level 2 requirement V6.3.3. For Google or Microsoft company login, the operator must require
+  multi-factor sign-in through the provider's policy; CapacityLens cannot enforce or verify that
+  policy. TOTP remains phishable and is insufficient for Level 3.
 - Existing legacy Better Auth scrypt hashes use the former weaker profile until the user changes or
   resets the password. They are verify-only; new material never uses that format.
 - The application has no IP/device-risk engine, anomalous-login user notification, global

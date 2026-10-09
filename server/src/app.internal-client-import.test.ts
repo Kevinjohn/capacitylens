@@ -7,7 +7,6 @@ import { emptyAppData, EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/
 import {
   TS,
   meta,
-  deferred,
   freshApp,
   account,
   client,
@@ -18,6 +17,7 @@ import {
   timeOff,
   closure,
 } from "./fixtures/appTestEntities";
+import { deferred } from "./testHelpers/deferred";
 import { call, readErrorResponse, post, put, batch } from "./fixtures/appTestHttp";
 import { readFirstProject } from "./fixtures/appTestSnapshotSchedule";
 import { readOnlyTimeOff, readFirstResource } from "./fixtures/appTestSnapshotAccount";
@@ -112,13 +112,16 @@ function createInternalClientMutationRejectionTests(): void {
 function createInternalClientSingletonAcceptanceTests(): void {
   it("accepts the canonical same-batch duplicate of a freshly generated Internal client", async () => {
     const auditEntries: AuditEntry[] = [];
-    const { app } = freshApp(true, {
-      audit: {
-        append: (entry) => {
-          auditEntries.push(entry);
-          return true;
+    const { app } = freshApp({
+      allowReset: true,
+      extra: {
+        audit: {
+          append: (entry) => {
+            auditEntries.push(entry);
+            return true;
+          },
+          degraded: false,
         },
-        degraded: false,
       },
     });
     const res = await batch(app, [
@@ -146,12 +149,14 @@ function createInternalClientSingletonAcceptanceTests(): void {
       },
     ]);
   });
+}
 
+function registerPerAccountBuiltinTest(): void {
   it("creates one protected builtin in each account", async () => {
-    // multiAccount: true — this test deliberately creates a SECOND company on one instance, which
+    // multiAccount: true, this test deliberately creates a second company on one instance, which
     // the default single-company cap would otherwise 403 (see app.singleCompanyCap.test.ts for the
     // cap's own coverage); this test is about per-account builtin scoping, not the cap.
-    const { app } = freshApp(true, { multiAccount: true });
+    const { app } = freshApp({ allowReset: true, extra: { multiAccount: true } });
     await post(app, "accounts", account("a1"));
     await post(app, "accounts", account("a2"));
     expect(
@@ -179,12 +184,16 @@ describe("built-in Internal client is a per-account singleton on direct writes",
   createInternalClientCreationRejectionTests();
   createInternalClientMutationRejectionTests();
   createInternalClientSingletonAcceptanceTests();
+  registerPerAccountBuiltinTest();
 });
 
 async function testBoundedImportSaturation(): Promise<void> {
-  const { app } = freshApp(true, {
-    importWorker: async () => {
-      throw new WorkQueueFullError("Import preparation is temporarily at capacity. Retry shortly.");
+  const { app } = freshApp({
+    allowReset: true,
+    extra: {
+      importWorker: async () => {
+        throw new WorkQueueFullError("Import preparation is temporarily at capacity. Retry shortly.");
+      },
     },
   });
   await post(app, "accounts", account("a1"));
@@ -225,7 +234,7 @@ function exportFile(accountId: string) {
 }
 
 async function testImportTimeOffAndClosures(): Promise<void> {
-  const { app } = freshApp(true, { multiAccount: true });
+  const { app } = freshApp({ allowReset: true, extra: { multiAccount: true } });
   await post(app, "accounts", account("a1"));
   await post(app, "accounts", account("a2"));
   const missingResource = timeOff({
@@ -305,12 +314,15 @@ async function testStaleImportConflict(): Promise<void> {
     auditedActions.push(record.action);
     return true;
   });
-  const { app } = freshApp(true, {
-    audit: { append: appendAudit, degraded: false },
-    importWorker: async (request) => {
-      workerStarted.resolve();
-      await releaseWorker.promise;
-      return runImportWorker(request);
+  const { app } = freshApp({
+    allowReset: true,
+    extra: {
+      audit: { append: appendAudit, degraded: false },
+      importWorker: async (request) => {
+        workerStarted.resolve();
+        await releaseWorker.promise;
+        return runImportWorker(request);
+      },
     },
   });
   await post(app, "accounts", account("a1"));
@@ -342,12 +354,15 @@ async function testStaleImportConflict(): Promise<void> {
 async function testCrossAccountImportConcurrency(): Promise<void> {
   const workerStarted = deferred();
   const releaseWorker = deferred();
-  const { app } = freshApp(true, {
-    multiAccount: true,
-    importWorker: async (request) => {
-      workerStarted.resolve();
-      await releaseWorker.promise;
-      return runImportWorker(request);
+  const { app } = freshApp({
+    allowReset: true,
+    extra: {
+      multiAccount: true,
+      importWorker: async (request) => {
+        workerStarted.resolve();
+        await releaseWorker.promise;
+        return runImportWorker(request);
+      },
     },
   });
   await post(app, "accounts", account("a1"));
@@ -440,7 +455,7 @@ async function testDanglingImportForeignKeys(): Promise<void> {
   await post(app, "accounts", account("a1"));
   // A hand-edited file: a project/phase whose required parent is absent (must be
   // dropped before SQLite's FKs reject the whole import), and an activity/resource whose
-  // OPTIONAL parent is absent (must survive, unbound to general / no discipline).
+  // optional parent is absent (must survive, unbound to general / no discipline).
   const file = {
     schemaVersion: 3,
     data: {
@@ -542,7 +557,8 @@ async function testRejectsMalformedImportVersion(): Promise<void> {
   });
 
   expect(res.statusCode).toBe(400);
-  expect(readErrorResponse(res).error).toMatch(/schema version must be a non-negative safe integer/i);
+  // The parse failure is the only import 400 with this fixed text; the parser's own reason is logged.
+  expect(readErrorResponse(res).error).toBe("The import data is not valid CapacityLens data.");
   expect(await state(app)).toEqual(before);
 }
 

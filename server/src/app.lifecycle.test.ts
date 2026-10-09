@@ -2,29 +2,27 @@ import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, expect, vi } from "vitest";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify from "fastify";
+import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, type CompleteAccountSlice, type Db, type ProjectedAccountSlice } from "./db";
+import { openDb, insertAll } from "./db";
+import type { CompleteAccountSlice, Db, ProjectedAccountSlice } from "./db";
 import { upsertMember } from "./controlTables";
-import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { createFileAuditSink, type AuditRecord } from "./audit";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
+import { createFileAuditSink } from "./audit";
+import type { AuditRecord } from "./audit";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
-import {
-  emptyAppData,
-  type AppData,
-  type Activity,
-  type Client,
-  type Project,
-  type Resource,
-} from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData, Activity, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
-import type { TenantStore } from "./tenantStore";
-import { seedMemberResourceLink } from "./fixtures/memberResourceTestSupport";
+import type { AccountStore } from "./accountStore";
+import { seedMemberResourceLink } from "./fixtures/seedMemberResourceLink";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
+import { FROZEN_REPLY_MESSAGES } from "@capacitylens/shared/api/replyMessages";
 
-// P2.5a entity-lifecycle routes — the SERVER half of the Active→Archived→Soft-deleted→Purged machine.
+// Entity-lifecycle routes, the server half of the Active→Archived→Soft-deleted→Purged machine.
 // This suite drives archive/unarchive/delete/purge and admin inactive reads end-to-end, asserting
 // authorization, interlocks, cascades, persisted obfuscation and audit wiring. Pure transitions
 // remain unit-tested in shared/domain/lifecycle.test.ts.
@@ -123,7 +121,7 @@ const allocation = ({ id, accountId, resourceId, activityId }: AllocationInput) 
 });
 
 // A 31-day-old soft-delete tombstone: aged just past PURGE_MIN_AGE_DAYS (30) so canPurge passes. The
-// archivedAt precedes it (soft-delete requires prior archival), but deletedAt WINS for the state read.
+// archivedAt precedes it (soft-delete requires prior archival), but deletedAt wins for the state read.
 const THIRTY_ONE_DAYS_AGO = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
 const archivedTombstone = { archivedAt: TS, deletedAt: THIRTY_ONE_DAYS_AGO };
 const justArchived = { archivedAt: TS };
@@ -146,7 +144,7 @@ it("rolls a lifecycle transition back when response redaction fails", async () =
     accounts: [account("a1")],
     resources: [person("r1", "a1")],
   } as AppData;
-  const store: TenantStore = {
+  const store: AccountStore = {
     readSlice: () => data as ProjectedAccountSlice,
     readFullSlice: () => data as CompleteAccountSlice,
     readLifecycleRow: (accountId, entity, id) =>
@@ -189,20 +187,6 @@ it("rolls a lifecycle transition back when response redaction fails", async () =
   await app.close();
 });
 
-/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
-async function appWithAuth(
-  securityLog?: (event: Record<string, unknown>) => void,
-): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!auth) throw new Error("Expected password authentication to be configured.");
-  await runAuthMigrations(auth);
-  return {
-    app: createApp(db, { authMode: mode, auth, ...(securityLog === undefined ? {} : { securityLog }) }),
-    db,
-  };
-}
-
 interface LifecycleActionInput {
   app: FastifyInstance;
   entity: string;
@@ -212,7 +196,7 @@ interface LifecycleActionInput {
   cookie?: string | undefined;
 }
 
-// ---- Lifecycle action requests (cookie carries the session in auth-on; omit it for OFF). ----
+// Lifecycle action requests (cookie carries the session in auth-on; omit it for off).
 
 const lifecycleAction = ({ app, entity, id, action, accountId, cookie }: LifecycleActionInput) =>
   call(app, {
@@ -492,14 +476,14 @@ function readDeletedResourceState(response: unknown, id: string): DeletedResourc
 }
 
 // One built-in Internal client whose id is captured so the built-in-guard test can target it (its id is
-// random per buildInternalClient call, so it MUST be built once and reused — not rebuilt at assert time).
+// random per buildInternalClient call, so it must be built once and reused, not rebuilt at assert time).
 const INTERNAL = buildInternalClient("a1", TS);
 
 /**
  * Seed one account a1 with a client/project/resource in each of the states a test needs:
- *  - c1/p1/r1: ACTIVE  (archive/delete-interlock subjects)
- *  - cArc/pArc/rArc: ARCHIVED (unarchive/delete subjects)
- *  - rDel: a soft-delete TOMBSTONE aged 31 days (purge-eligible)
+ *  - c1/p1/r1: active  (archive/delete-interlock subjects)
+ *  - cArc/pArc/rArc: archived (unarchive/delete subjects)
+ *  - rDel: a soft-delete tombstone aged 31 days (purge-eligible)
  *  - rYoung: a soft-delete tombstone aged 0 days (purge-too-young → 409)
  *  - INTERNAL: the built-in Internal client (builtin:true)
  * a2 carries c2 so cross-tenant tests have a foreign target.
@@ -628,7 +612,7 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it("non-member (signed in, no membership): every lifecycle route + read-inactive → 403", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
-    const { cookie } = await signUp(app, "stranger-lc@capacitylens.dev"); // NO membership
+    const { cookie } = await signUp(app, "stranger-lc@capacitylens.dev"); // No membership
 
     expect(
       (await lifecycleAction({ app, entity: "clients", id: "c1", action: "archive", accountId: "a1", cookie }))
@@ -653,7 +637,7 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
 describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it("requires a fresh admin session for read-inactive while ordinary state remains readable", async () => {
     const events: Array<Record<string, unknown>> = [];
-    const { app, db } = await appWithAuth((event) => events.push(event));
+    const { app, db } = await appWithAuth({ securityLog: (event) => events.push(event) });
     seedStates(db);
     const { cookie, userId } = await signUp(app, "stale-admin-lc@capacitylens.dev");
     upsertMember(db, {
@@ -691,8 +675,8 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
 });
 
 describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
-  // The freshness deadline is INCLUSIVE (`>=` in authorize()): a session exactly at the bound is
-  // stale. The bound is pinned here at millisecond precision — the coarse 16-minute test above
+  // The freshness deadline is inclusive (`>=` in authorize()): a session exactly at the bound is
+  // stale. The bound is pinned here at millisecond precision, the coarse 16-minute test above
   // proves the wiring, these prove the operator.
   it.each([
     ["one millisecond inside the freshness window", ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000 - 1, 200],
@@ -709,7 +693,7 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
       status: "active",
       createdAt: TS,
     });
-    // Pin the clock AFTER sign-up so the session's updatedAt (written at real time) is never in
+    // Pin the clock after sign-up so the session's updatedAt (written at real time) is never in
     // the pinned clock's future, then age createdAt to the exact boundary under test.
     const now = Date.now();
     db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`).run(new Date(now - age).toISOString(), userId);
@@ -873,8 +857,8 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       createdAt: TS,
     });
 
-    // rDel is a soft-delete tombstone (deletedAt set). Unarchive accepts archived rows ONLY, so clearing
-    // archivedAt here would leave the tombstone still 'deleted' — the transition refuses outright.
+    // rDel is a soft-delete tombstone (deletedAt set). Unarchive accepts archived rows only, so clearing
+    // archivedAt here would leave the tombstone still 'deleted', the transition refuses outright.
     const res = await lifecycleAction({
       app,
       entity: "resources",
@@ -961,7 +945,7 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       createdAt: TS,
     });
 
-    // 'phases' is scoped but carries NO lifecycle tombstone → 404 on a lifecycle route.
+    // 'phases' is scoped but carries no lifecycle tombstone → 404 on a lifecycle route.
     expect(
       (await lifecycleAction({ app, entity: "phases", id: "x", action: "archive", accountId: "a1", cookie }))
         .statusCode,
@@ -974,11 +958,18 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       headers: { cookie },
     });
     expect(noAcct.statusCode).toBe(400);
-    // a row that isn't there → 404 (after authorize passes).
-    expect(
-      (await lifecycleAction({ app, entity: "clients", id: "nope", action: "archive", accountId: "a1", cookie }))
-        .statusCode,
-    ).toBe(404);
+    // a row that isn't there → 404 (after authorize passes). The body text is the frozen wire
+    // contract the client's archive sync matches to treat the row as already gone.
+    const missing = await lifecycleAction({
+      app,
+      entity: "clients",
+      id: "nope",
+      action: "archive",
+      accountId: "a1",
+      cookie,
+    });
+    expect(missing.statusCode).toBe(404);
+    expect(missing.json()).toEqual({ error: FROZEN_REPLY_MESSAGES.notFound });
   });
 });
 
@@ -1047,7 +1038,7 @@ describe("P2.5a lifecycle — activities are first-class tombstone roots", () =>
 describe("P2.5a lifecycle — purge cascade removes the row + its descendants", () => {
   it("purging a tombstoned client removes its projects/phases/activities/allocations", async () => {
     const { app, db } = await appWithAuth();
-    // Seed a client with a full subtree (project → phase → activity → allocation) AND an aged tombstone
+    // Seed a client with a full subtree (project → phase → activity → allocation) and an aged tombstone
     // on the client, so it is purge-eligible without going through archive→delete here.
     const d = emptyAppData() as unknown as Record<string, unknown[]>;
     d.accounts = [account("a1")];
@@ -1073,7 +1064,7 @@ describe("P2.5a lifecycle — purge cascade removes the row + its descendants", 
         .statusCode,
     ).toBe(204);
 
-    // Read the FULL (admin) slice and confirm the client AND its whole subtree are GONE.
+    // Read the full (admin) slice and confirm the client and its whole subtree are gone.
     const after = await readInactive(app, "a1", cookie);
     expect(after.statusCode).toBe(200);
     const ids = readLifecycleStateIds(after);
@@ -1096,7 +1087,7 @@ describe("P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds
   }
 
   // The web store's purgeEntity passes nextDataRevision so a survivor whose FK is cleared (a
-  // placeholder unbound from the purged project) gets a fresh updatedAt. The server MUST match:
+  // placeholder unbound from the purged project) gets a fresh updatedAt. The server must match:
   // without it the survivor keeps its old updatedAt, so a colleague's stale session passes the
   // optimistic-concurrency check yet fails referential validation with a 400 (not the 409 that drives
   // the server-wins reload) and persist.ts wedges behind a permanent save banner.
@@ -1110,7 +1101,7 @@ describe("P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds
     const { app, db } = await appWithAuth();
     const d = emptyAppData() as unknown as Record<string, unknown[]>;
     d.accounts = [account("a1")];
-    // A purge-eligible (aged tombstone) project, a placeholder BOUND to it, and an UNRELATED resource.
+    // A purge-eligible (aged tombstone) project, a placeholder bound to it, and an unrelated resource.
     d.clients = [client("c1", "a1")];
     d.projects = [project({ id: "pBound", accountId: "a1", clientId: "c1", extra: archivedTombstone })];
     const futureOffsetRevision = "2099-01-01T01:00:00+01:00";
@@ -1138,11 +1129,11 @@ describe("P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds
     expect(state.projectIds).not.toContain("pBound");
     const phBound = state.resources.find((resource) => resource.id === "phBound");
     if (!phBound) throw new Error("Expected the unbound placeholder to survive the purge.");
-    // Survivor: unbound from the purged project AND re-stamped after its future, non-canonical
+    // Survivor: unbound from the purged project and re-stamped after its future, non-canonical
     // offset revision. This proves purge ordering is chronological rather than lexical.
     expect(phBound.projectId ?? null).toBeNull();
     expect(Date.parse(phBound.updatedAt)).toBeGreaterThan(Date.parse(futureOffsetRevision));
-    // Untouched by the cascade → its revision must NOT be gratuitously bumped.
+    // Untouched by the cascade → its revision must not be gratuitously bumped.
     const rFree = state.resources.find((resource) => resource.id === "rFree");
     if (!rFree) throw new Error("Expected the unrelated resource to survive the purge.");
     expect(rFree.updatedAt).toBe(TS);
@@ -1302,7 +1293,7 @@ describe("P2.5a lifecycle — cross-tenant: a1 member acting on a2 row → 403/4
       (await lifecycleAction({ app, entity: "clients", id: "c2", action: "archive", accountId: "a2", cookie }))
         .statusCode,
     ).toBe(403);
-    // Claiming accountId=a1 (where they ARE a member) for a2's row id → the a1 slice has no such row → 404.
+    // Claiming accountId=a1 (where they are a member) for a2's row id → the a1 slice has no such row → 404.
     expect(
       (await lifecycleAction({ app, entity: "clients", id: "c2", action: "archive", accountId: "a1", cookie }))
         .statusCode,
@@ -1317,13 +1308,13 @@ describe("P2.5a lifecycle — targeted writes preserve unrelated siblings", () =
 
   it("archiving one active row leaves an unrelated archived row, a tombstone, and a time-off note intact", async () => {
     const db = openDb(":memory:");
-    const app = createApp(db); // OFF mode: allow-all, and the read returns the time-off note (includeTimeOffNote)
+    const app = createApp(db); // Off mode: allow-all, and the read returns the time-off note (includeTimeOffNote)
     const d = emptyAppData() as unknown as Record<string, unknown[]>;
     d.accounts = [account("a1")];
     d.resources = [
       person("rActive", "a1"), // the mutation target (active → archived)
-      person("rArc", "a1", justArchived), // UNRELATED already-archived sibling (archivedAt must survive)
-      person("rDel", "a1", archivedTombstone), // UNRELATED soft-delete tombstone (deletedAt must survive)
+      person("rArc", "a1", justArchived), // Unrelated already-archived sibling (archivedAt must survive)
+      person("rDel", "a1", archivedTombstone), // Unrelated soft-delete tombstone (deletedAt must survive)
     ];
     // A time-off row on the mutation target carries a note the lifecycle write must not touch.
     d.timeOff = [
@@ -1368,7 +1359,7 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     const file = join(dir, "audit.jsonl");
     const db = openDb(":memory:");
     const app = createApp(db, { audit: createFileAuditSink(file, () => {}) });
-    // A resource whose name is a sentinel — to prove the audit line carries the field NAME, not the value.
+    // A resource whose name is a sentinel, to prove the audit line carries the field name, not the value.
     const SENTINEL = "AUDIT_SENTINEL_NAME";
     const d = emptyAppData() as unknown as Record<string, unknown[]>;
     d.accounts = [account("a1")];
@@ -1392,7 +1383,7 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     expect(rec.entity).toBe("resources");
     expect(rec.id).toBe("rA");
     expect(rec.accountId).toBe("a1");
-    expect(rec.userId).toBe("demo"); // DEMO_USER in OFF mode
+    expect(rec.userId).toBe("demo"); // DEMO_USER in off mode
     expect(rec.changedFields).toEqual(["archivedAt"]);
     // No value leak: the sentinel name never reaches the audit line.
     expect(readFileSync(file, "utf8")).not.toContain(SENTINEL);
@@ -1405,8 +1396,8 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     const file = join(dir, "audit.jsonl");
     const db = openDb(":memory:");
     const app = createApp(db, { audit: createFileAuditSink(file, () => {}) });
-    // An ALREADY-ARCHIVED resource (delete requires prior archival) whose name is a unique sentinel —
-    // the delete route both obfuscates the name AND audits 'name' as a field NAME; neither must leak the value.
+    // An already-archived resource (delete requires prior archival) whose name is a unique sentinel,
+    // the delete route both obfuscates the name and audits 'name' as a field name; neither must leak the value.
     const SENTINEL = "AUDIT_DELETE_SENTINEL_NAME";
     const NOTE_SENTINEL = "AUDIT_DELETE_SENTINEL_NOTE";
     const d = emptyAppData() as unknown as Record<string, unknown[]>;
@@ -1454,8 +1445,8 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     expect(rec.entity).toBe("resources");
     expect(rec.id).toBe("rDelAudit");
     expect(rec.accountId).toBe("a1");
-    expect(rec.userId).toBe("demo"); // DEMO_USER in OFF mode
-    // The audit carries the obfuscated field's NAME ('name'), never the scrubbed value.
+    expect(rec.userId).toBe("demo"); // DEMO_USER in off mode
+    // The audit carries the obfuscated field's name ('name'), never the scrubbed value.
     expect(rec.changedFields).toEqual(["deletedAt", "name", "allocations.note", "timeOff.note"]);
     // No value leak: the original (PII) name never reaches the audit line.
     expect(readFileSync(file, "utf8")).not.toContain(SENTINEL);
@@ -1529,14 +1520,14 @@ const rowById = async ({ app, entity, accountId, id }: RowByIdInput) => {
 };
 
 describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
-  // Two integrity guards keeping the GENERIC write path (POST/PUT/PATCH/batch) from bypassing the
-  // dedicated lifecycle routes: (1) sanitizeWrite PINS archivedAt/deletedAt to the stored row, so a
-  // crafted body can neither SET a tombstone on an active row (skipping the archived-first interlock +
-  // the resource-name PII scrub, and — with a back-dated deletedAt — making it instantly purgeable) NOR
-  // CLEAR an existing one via an unrelated edit (which would silently RESURRECT an archived/soft-deleted
-  // row — there is no un-delete route anywhere), and (2) validateWrite refuses to convert the built-in
-  // Internal client back to a regular one. OFF mode is used (authorize is a no-op there), so these prove
-  // the SANITIZE/VALIDATE layer itself, independent of the auth gate.
+  // Two integrity guards keeping the generic write path (POST/PUT/PATCH/batch) from bypassing the
+  // dedicated lifecycle routes: (1) sanitizeWrite pins archivedAt/deletedAt to the stored row, so a
+  // crafted body can neither set a tombstone on an active row (skipping the archived-first interlock +
+  // the resource-name PII scrub, and, with a back-dated deletedAt, making it instantly purgeable) nor
+  // clear an existing one via an unrelated edit (which would silently resurrect an archived/soft-deleted
+  // row: there is no un-delete route anywhere), and (2) validateWrite refuses to convert the built-in
+  // Internal client back to a regular one. Off mode is used (authorize is a no-op there), so these prove
+  // the sanitize/validate layer itself, independent of the auth gate.
 
   it("PATCH cannot set deletedAt/archivedAt on a resource (stripped; row stays active)", async () => {
     const { app } = offAppWith({
@@ -1555,7 +1546,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     const r1 = await rowById({ app, entity: "resources", accountId: "a1", id: "r1" });
     expect(r1?.deletedAt).toBeUndefined();
     expect(r1?.archivedAt).toBeUndefined();
-    // Still ACTIVE: it appears in the DEFAULT (active-only) read too — the forged delete never took.
+    // Still active: it appears in the default (active-only) read too. The forged delete never took.
     const active = await call(app, {
       method: "GET",
       url: "/api/state?accountId=a1",
@@ -1592,9 +1583,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       payload: { builtin: false },
     });
     expect(res.statusCode).toBe(400);
-    // The flag survived — the singleton is intact.
+    // The flag survived. The singleton is intact.
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: INTERNAL.id }))?.builtin).toBe(true);
-    // A regular client still updates normally (control — the guard is surgical, not a blanket clients lock).
+    // A regular client still updates normally (control, the guard is surgical, not a blanket clients lock).
     const ok = await call(app, {
       method: "PATCH",
       url: "/api/clients/c1",
@@ -1603,7 +1594,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(ok.statusCode).toBe(200);
   });
 
-  // The OTHER direction of the pin (regression: the strip used to be blind, so an unrelated edit on a
+  // The other direction of the pin (regression: the strip used to be blind, so an unrelated edit on a
   // tombstoned row NULLed the tombstone and resurrected the row). archive/delete set the tombstone via
   // the dedicated route; a subsequent generic edit must leave it intact.
 });
@@ -1617,7 +1608,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(
       (await lifecycleAction({ app, entity: "resources", id: "r1", action: "archive", accountId: "a1" })).statusCode,
     ).toBe(200);
-    // Edit an unrelated field — the body never mentions archivedAt, but the merge spreads the stored
+    // Edit an unrelated field. The body never mentions archivedAt, but the merge spreads the stored
     // tombstone, and a blind strip would clear it. The pin keeps it.
     const res = await call(app, {
       method: "PATCH",
@@ -1627,8 +1618,8 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(res.statusCode).toBe(200);
     const r1 = await rowById({ app, entity: "resources", accountId: "a1", id: "r1" });
     expect(typeof r1?.archivedAt).toBe("string"); // tombstone survived the edit
-    expect(r1?.role).toBe("Senior Designer"); // the legit field DID change
-    // Still ARCHIVED: absent from the DEFAULT (active-only) read — it was NOT resurrected.
+    expect(r1?.role).toBe("Senior Designer"); // the legit field did change
+    // Still archived: absent from the default (active-only) read. It was not resurrected.
     const active = await call(app, {
       method: "GET",
       url: "/api/state?accountId=a1",
@@ -1663,7 +1654,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(after?.deletedAt).toBe(before?.deletedAt); // soft-delete tombstone intact
     expect(after?.archivedAt).toBe(before?.archivedAt); // archive tombstone intact
     expect(after?.color).toBe(before?.color);
-    // Still DELETED: absent from the DEFAULT (active-only) read — not resurrected.
+    // Still deleted: absent from the default (active-only) read, not resurrected.
     const active = await call(app, {
       method: "GET",
       url: "/api/state?accountId=a1",
@@ -1845,7 +1836,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
         .statusCode,
     ).toBe(200);
 
-    // PUT the FULL row (person() omits archivedAt): pre-fix this NULLed the column; now it's pinned.
+    // PUT the full row (person() omits archivedAt): pre-fix this NULLed the column; now it's pinned.
     const archivedPut = await rowById({ app, entity: "resources", accountId: "a1", id: "rPut" });
     const put = await call(app, {
       method: "PUT",
@@ -1860,7 +1851,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       "string",
     );
 
-    // Same via the batch sync path (the real client verb) — the changed call site is covered too.
+    // Same via the batch sync path (the real client verb). The changed call site is covered too.
     const archivedBatch = await rowById({ app, entity: "resources", accountId: "a1", id: "rBatch" });
     const batch = await call(app, {
       method: "POST",

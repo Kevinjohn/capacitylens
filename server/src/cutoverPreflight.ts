@@ -1,13 +1,12 @@
 import { assertAuditOutboxCurrent } from "./auditOutbox";
 import { assertAccountControlPlaneCurrent } from "./accounts/sqliteAccountAdminPort";
-import {
-  evaluateCompanyProviderCutoverReadiness,
-  type SsoCompanyProviderReadinessIssue,
-} from "./accounts/companyProviderReadiness";
+import { evaluateCompanyProviderCutoverReadiness } from "./accounts/companyProviderReadiness";
+import type { SsoCompanyProviderReadinessIssue } from "./accounts/companyProviderReadiness";
 import { evaluateSsoCutoverReadiness } from "./accounts/ssoCutover";
 import { assertFederatedIdentitySchemaCurrent } from "./auth";
 import { mixedModeCutoverContext } from "./cutoverContext";
-import { planDatabaseMigrations, type Db } from "./db";
+import { planDatabaseMigrations } from "./db";
+import type { Db } from "./db";
 
 type SsoCutoverPreflightIssue =
   | SsoCompanyProviderReadinessIssue
@@ -33,7 +32,7 @@ export async function inspectSsoCutoverPreflight(db: Db, environment: Record<str
   assertFederatedIdentitySchemaCurrent(db);
   const providers = context.auth.providers.filter((provider) => !provider.experimental);
   const providerIds = new Set(providers.map((provider) => provider.id));
-  const openSignup = context.resolvedEnvironment.env.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1";
+  const openSignup = context.resolvedEnvironment.env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1";
   const inspection = context.identity.readSsoCutoverSnapshot(() => {
     const providerSnapshots = providers.map((provider) => ({
       providerId: provider.id,

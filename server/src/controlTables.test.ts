@@ -29,14 +29,14 @@ import {
   InviteAlreadyUsedError,
   looksLikeEmail,
   inviteTokenHash,
-  type AccountMember,
   ensureAccountMemberResources,
 } from "./controlTables";
+import type { AccountMember } from "./controlTables";
 import { ensureAccountBoundaryState } from "./accounts/state";
 import { ACCESS_RESTRICTIONS_V47_SQL } from "./db/migrations/accessRestrictionsV47";
 import type { Db } from "./db";
 
-// Unit tests for the membership server-CONTROL table (P1.1). The control rows are intentionally
+// Unit tests for the membership server-control table. The control rows are intentionally
 // decoupled from AppData/openDb; only the resource table required by v43's cleanup trigger is added
 // below. (openDb wiring + the AppData-exclusion guarantees are covered in app.controlTables.test.ts.)
 
@@ -176,7 +176,7 @@ describe("upsertMember + getMemberRole", () => {
     upsertMember(db, member({ role: "viewer" }));
     upsertMember(db, member({ role: "owner" }));
     expect(getMemberRole(db, "acc-1", "user-1")).toBe("owner");
-    // The PK keeps it to a single row — the upsert mutated in place, it did not insert a second.
+    // The PK keeps it to a single row. The upsert mutated in place, it did not insert a second.
     expect(listMembershipsForUser(db, "user-1")).toHaveLength(1);
   });
 
@@ -207,7 +207,7 @@ describe("listMembershipsForUser", () => {
   });
 });
 
-// ── P1.11 member-management helpers ────────────────────────────────────────────────────────────
+// Member-management helpers.
 
 describe("listMembersForAccount", () => {
   it("lists only the requested account's members, in a stable createdAt order", () => {
@@ -321,14 +321,14 @@ const registerSingleOwnerMigrationOwnerlessRepairTest = () => {
 
 const registerSingleOwnerMigrationAdminPromotionTest = () => {
   it("promotes the highest-tier member (admin) over an OLDER viewer, via the non-elevated warn path", () => {
-    // The security fix: an older viewer must NOT be silently escalated to Owner when a more-privileged
+    // The security fix: an older viewer must not be silently escalated to Owner when a more-privileged
     // member exists. The (younger) admin is promoted; the older viewer is left untouched.
     const db = freshDb();
     upsertMember(db, member({ userId: "old-viewer", role: "viewer", createdAt: "2026-01-01T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "new-admin", role: "admin", createdAt: "2026-01-03T00:00:00.000Z" }));
     migrateSingleOwnerControlPlaneV10(db); // installs the single-owner index the final assertion requires
 
-    // Snapshot the recorded lines BEFORE mockRestore (which clears mock.calls) so the assertions
+    // Snapshot the recorded lines before mockRestore (which clears mock.calls) so the assertions
     // below still see them.
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -368,7 +368,7 @@ const registerSingleOwnerMigrationEditorPromotionTest = () => {
     const errorLines = (() => {
       try {
         reportOwnerlessPromotionsV11(migrateOwnerlessControlPlaneV11(db));
-        return errorSpy.mock.calls.map((c) => String(c[0])); // snapshot BEFORE mockRestore clears it
+        return errorSpy.mock.calls.map((c) => String(c[0])); // snapshot before mockRestore clears it
       } finally {
         errorSpy.mockRestore();
       }
@@ -378,7 +378,7 @@ const registerSingleOwnerMigrationEditorPromotionTest = () => {
     expect(getMemberRole(db, "acc-1", "a-viewer")).toBe("viewer");
     expect(getMemberRole(db, "acc-1", "c-viewer")).toBe("viewer");
     expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow();
-    // An editor is below admin — the elevated path fires exactly once, naming account + member + role.
+    // An editor is below admin, the elevated path fires exactly once, naming account + member + role.
     expect(errorLines).toHaveLength(1);
     expect(errorLines[0]).toContain("acc-1");
     expect(errorLines[0]).toContain("b-editor");
@@ -389,7 +389,7 @@ const registerSingleOwnerMigrationEditorPromotionTest = () => {
 const registerSingleOwnerMigrationViewerFallbackTest = () => {
   it("an all-viewers account still gets exactly one Owner (documented fallback) and warns LOUDLY", () => {
     // Nobody outranks a viewer here, so the exactly-one-Owner invariant forces a viewer promotion
-    // rather than bricking startup. That last-resort escalation MUST be loud (below-admin → error).
+    // rather than bricking startup. That last-resort escalation must be loud (below-admin → error).
     const db = freshDb();
     upsertMember(db, member({ userId: "v-late", role: "viewer", createdAt: "2026-01-02T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "v-early", role: "viewer", createdAt: "2026-01-01T00:00:00.000Z" }));
@@ -399,7 +399,7 @@ const registerSingleOwnerMigrationViewerFallbackTest = () => {
     const errorLines = (() => {
       try {
         reportOwnerlessPromotionsV11(migrateOwnerlessControlPlaneV11(db));
-        return errorSpy.mock.calls.map((c) => String(c[0])); // snapshot BEFORE mockRestore clears it
+        return errorSpy.mock.calls.map((c) => String(c[0])); // snapshot before mockRestore clears it
       } finally {
         errorSpy.mockRestore();
       }
@@ -421,7 +421,7 @@ const registerSingleOwnerMigrationTieBreakTest = () => {
     const db = freshDb();
     upsertMember(db, member({ userId: "admin-b", role: "admin", createdAt: "2026-01-02T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "admin-a", role: "admin", createdAt: "2026-01-01T00:00:00.000Z" }));
-    // Same createdAt as admin-a — the userId ascending tie-break decides ('admin-a' < 'admin-c').
+    // Same createdAt as admin-a, the userId ascending tie-break decides ('admin-a' < 'admin-c').
     upsertMember(db, member({ userId: "admin-c", role: "admin", createdAt: "2026-01-01T00:00:00.000Z" }));
     migrateSingleOwnerControlPlaneV10(db); // installs the single-owner index the final assertion requires
 
@@ -454,14 +454,14 @@ const registerSingleOwnerMigrationCeremonyScopeTest = () => {
       "suspended",
       TS,
     );
-    // Links minted BEFORE the repair (inserted after the upserts, so upsertMember's own
+    // Links minted before the repair (inserted after the upserts, so upsertMember's own
     // privilege-change revocation cannot be what removes them).
     db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run("owner-reset", "kept-owner");
     db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run("demoted-reset", "demoted-admin");
     db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run("inactive-reset", "inactive-member");
 
     migrateOwnerResetCeremoniesV12(db);
-    // THE GAP v14 closes: v12's owners-only scope leaves the demoted (now-admin) identity's link live.
+    // The gap v14 closes: v12's owners-only scope leaves the demoted (now-admin) identity's link live.
     expect(db.prepare(`SELECT id FROM verification ORDER BY id`).all()).toEqual([
       { id: "demoted-reset" },
       { id: "inactive-reset" },
@@ -469,7 +469,7 @@ const registerSingleOwnerMigrationCeremonyScopeTest = () => {
 
     migrateMemberResetCeremoniesV14(db);
     expect(db.prepare(`SELECT id FROM verification ORDER BY id`).all()).toEqual([{ id: "inactive-reset" }]);
-    // Membership rows are untouched — v14 only burns ceremonies, it never rewrites roles or statuses.
+    // Membership rows are untouched, v14 only burns ceremonies, it never rewrites roles or statuses.
     expect(getMemberRole(db, "acc-1", "kept-owner")).toBe("owner");
     expect(getMemberRole(db, "acc-1", "demoted-admin")).toBe("admin");
   });
@@ -601,7 +601,7 @@ describe("listInvitesForAccount", () => {
 
     const list = listInvitesForAccount(db, "acc-1");
     expect(list.map((i) => i.id)).toEqual(["inv-2", "inv-1"]); // newest first
-    // No token field on ANY row (it's a write-once secret — never on a read path).
+    // No token field on any row (it's a write-once secret, never on a read path).
     expect(list.every((i) => !("token" in i))).toBe(true);
     expect(JSON.stringify(list)).not.toContain("tok-");
   });
@@ -661,7 +661,7 @@ const registerInviteExpiryPruneTests = (tsExpired: string) => {
 
     expect(pruneInvites(db)).toBe(1); // only the dead unused link is removed
     expect(getInvite(db, "tok-dead")).toBeNull();
-    // A recent USED invite survives even when its bearer expiry is past.
+    // A recent used invite survives even when its bearer expiry is past.
     expect(getInvite(db, "tok-used")).not.toBeNull();
     expect(getInvite(db, "tok-live")).not.toBeNull();
   });

@@ -41,4 +41,7 @@ regexes = [
   # An immutable historical test fixture introduced before the naming convention above. Keep this
   # exact and anchored: the current test uses the standard low-entropy fixture password instead.
   '''^unique-passphrase-2026$''',
+  # The production-defaults test uses this repeated hexadecimal counter as its dummy secret.
+  # Historical commits retain the value, so keep the exception exact for full-history scans.
+  '''^0123456789abcdef0123456789abcdef$''',
 ]

@@ -13,8 +13,8 @@ import {
   resolvePlaceholderDisplayName,
   buildLabels,
   buildLabelOptions,
-  type LabelMessages,
 } from "./metadata";
+import type { LabelMessages } from "./metadata";
 import type { AllocationStatus, Resource, TimeOffType } from "@capacitylens/shared/types/entities";
 
 const makeResource = (over: Partial<Resource> = {}): Resource => ({
@@ -133,7 +133,7 @@ describe("resourceDisplayName / placeholderDisplayName", () => {
 
 // The two derivation primitives, now exported so a surface with an enum table of its own reuses them
 // instead of re-implementing the loop. Tested directly (rather than only through the enum accessors
-// above) because the LAZY-RESOLUTION rule is the one a caller can break by accident.
+// above) because the lazy-resolution rule is the one a caller can break by accident.
 describe("labelsFrom / toOptions", () => {
   it("resolves every message at CALL time, so a locale switch is live", () => {
     let locale = "en";

@@ -11,8 +11,16 @@ function normalizedEmail(email) {
   return email.trim().toLowerCase();
 }
 
-export function isDcoExemptPullRequestAuthor(author) {
-  return author === "dependabot[bot]";
+// Dependabot authors its commits under GitHub's bot address and GitHub commits them, so the
+// exemption follows each commit rather than whoever pushed or merged it.
+const DEPENDABOT_AUTHOR_EMAIL = "49699333+dependabot[bot]@users.noreply.github.com";
+const GITHUB_COMMITTER_EMAIL = "noreply@github.com";
+
+export function isDcoExemptCommit({ authorEmail, committerEmail }) {
+  return (
+    normalizedEmail(authorEmail) === DEPENDABOT_AUTHOR_EMAIL &&
+    normalizedEmail(committerEmail) === GITHUB_COMMITTER_EMAIL
+  );
 }
 
 export function isMergeCommit(parents) {
@@ -106,12 +114,7 @@ function isDcoRatifiedCommit(target, ratifications, head) {
   return evaluateDcoRatification(target, ratification, { authorEmail, committerEmail, message, patch });
 }
 
-export function verifyDcoRange(base, head, pullRequestAuthor) {
-  if (isDcoExemptPullRequestAuthor(pullRequestAuthor)) {
-    console.log("Dependabot commits are exempt from DCO sign-off.");
-    return true;
-  }
-
+export function verifyDcoRange(base, head) {
   const commits = git(["rev-list", `${base}..${head}`])
     .trim()
     .split("\n")
@@ -133,6 +136,10 @@ export function verifyDcoRange(base, head, pullRequestAuthor) {
       "--format=%aE%x00%cE%x00%B",
       commit,
     ]).split("\0");
+    if (isDcoExemptCommit({ authorEmail, committerEmail })) {
+      console.log(`Skipping Dependabot commit ${commit}; Dependabot commits are exempt from DCO sign-off.`);
+      continue;
+    }
     const result = evaluateDcoCommit({ authorEmail, committerEmail, message });
     if (!result.valid && isDcoRatifiedCommit({ commit, authorEmail, committerEmail }, ratifications, head)) {
       console.log(`Accepting ratified DCO commit ${commit}.`);
@@ -146,13 +153,13 @@ export function verifyDcoRange(base, head, pullRequestAuthor) {
 }
 
 function main() {
-  const [base, head, pullRequestAuthor = ""] = process.argv.slice(2);
+  const [base, head] = process.argv.slice(2);
   if (!base || !head) {
-    console.error("Usage: node scripts/check-dco.mjs <base-sha> <head-sha> [pull-request-author]");
+    console.error("Usage: node scripts/check-dco.mjs <base-sha> <head-sha>");
     process.exitCode = 2;
     return;
   }
-  if (!verifyDcoRange(base, head, pullRequestAuthor)) process.exitCode = 1;
+  if (!verifyDcoRange(base, head)) process.exitCode = 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

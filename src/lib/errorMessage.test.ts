@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { resolveErrorMessage, resolveDomainErrorMessage } from "./errorMessage";
-import { DomainError, type DomainErrorCode } from "@capacitylens/shared/domain/errors";
+import { DomainError } from "@capacitylens/shared/domain/errors";
+import type { DomainErrorCode } from "@capacitylens/shared/domain/errors";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 
 describe("errorMessage", () => {
@@ -71,7 +72,7 @@ describe("errorMessage", () => {
 
 describe("domainErrorMessage", () => {
   // Every `DomainErrorCode` (bar `date_span_too_long`, covered separately below) maps to its own
-  // fixed, translated string. Pinning the exact text — not just "is a non-empty string" — kills
+  // fixed, translated string. Pinning the exact text, not just "is a non-empty string", kills
   // both the StringLiteral mutants on the case labels and the ConditionalExpression mutants that
   // collapse a case into an unconditional fallthrough.
   const fixedMessageCases: Array<[DomainErrorCode, string]> = [

@@ -1,5 +1,6 @@
 import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";
-import { isJoiningPolicy, type JoiningPolicySettings } from "@capacitylens/shared/account/types";
+import { isJoiningPolicy } from "@capacitylens/shared/account/types";
+import type { JoiningPolicySettings } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 
 export function readJoiningPolicy(db: Db, accountId: string): JoiningPolicySettings {

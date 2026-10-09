@@ -3,16 +3,16 @@ title: Install without Docker
 description: Install CapacityLens on a Linux host from the release archive in five steps, with systemd and Caddy, and no Docker or build tools.
 prev:
   text: Install CapacityLens
-  link: /getting-started/install
+  link: /self-hosting/install
 next:
-  text: Configure the service
-  link: /installation/configure-the-service
+  text: Configuration
+  link: /self-hosting/configuration
 ---
 
 # Install without Docker
 
 This installs CapacityLens on a Linux host you manage yourself, from the release archive. It
-takes the five steps from [Install CapacityLens](/getting-started/install), with a command or
+takes the five steps from [Install CapacityLens](/self-hosting/install), with a command or
 two for each of the first four. Each `sudo` line does what a managed host does when you create a site: a user, a
 folder, a service and a proxy. The target is ten minutes on a host that already has Node 24
 and a hostname pointing at it.
@@ -49,23 +49,19 @@ use its version instead; the `VERSION` file in the archive names the one you hav
    sudo install -d -o capacitylens -g capacitylens -m 0700 /var/lib/capacitylens
    ```
 
-3. Configure. Copy the environment example to `/etc/capacitylens.env`, readable only by root, and
-   open it:
+3. Configure. Write `/etc/capacitylens.env` with `init`, using the address people will open:
 
    ```bash
-   sudo sh -c 'umask 077 && cp -n /opt/capacitylens/current/capacitylens.env.example /etc/capacitylens.env' && sudo nano /etc/capacitylens.env
+   sudo node /opt/capacitylens/current/server/dist/index.mjs init --public-url https://capacity.example.com --db /var/lib/capacitylens/capacitylens.db --out /etc/capacitylens.env
    ```
 
-   Fill in the three empty lines: the address people will open, and two different values pasted
-   from `openssl rand -base64 48`. The first is `SMALLSASS_ACCOUNT_SECRET`; the second is
-   `SMALLSASS_ACCOUNT_SETUP_TOKEN`. Everything else has a default, including
-   `CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db`. The server refuses to start while a
-   required line is empty, and names it. [Configure the service](/installation/configure-the-service)
-   lists every other setting.
+   It generates `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN`, writes the file readable only
+   by root, and refuses to overwrite an existing one, so running it again cannot replace keys. It
+   then prints the setup token: you enter it once, to create the Owner. Everything else has a
+   default. [Configuration](/self-hosting/configuration) lists every other setting.
 
    systemd reads the file as root before it starts the service, so the service user needs no
-   access to it. [Write the file in one command](#write-the-environment-file-in-one-command) if you
-   prefer.
+   access to it.
 
 4. Start it as a systemd service:
 
@@ -76,7 +72,7 @@ use its version instead; the `VERSION` file in the archive names the one you hav
    Then put HTTPS in front of it, as described in [HTTPS](#https).
 
 5. Open the address and create your company. The page asks for the setup token: it is the
-   `SMALLSASS_ACCOUNT_SETUP_TOKEN` line in `/etc/capacitylens.env`.
+   `CAPACITYLENS_SETUP_TOKEN` line in `/etc/capacitylens.env`.
 
 ## Check that it is healthy
 
@@ -131,7 +127,7 @@ sudo ln -s /etc/nginx/sites-available/capacitylens /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-The server sends HSTS itself when the address in `SMALLSASS_ACCOUNT_PUBLIC_URL` is `https`.
+The server sends HSTS itself when the address in `CAPACITYLENS_PUBLIC_URL` is `https`.
 [TLS and networking](/self-hosting/tls-and-networking) covers the proxy requirements.
 
 Open the public address and check it through the proxy too:
@@ -142,10 +138,10 @@ curl -fsS https://capacity.example.com/api/health
 
 ## Hand over the setup token
 
-Give the intended Owner the address and the `SMALLSASS_ACCOUNT_SETUP_TOKEN` value through a
+Give the intended Owner the address and the `CAPACITYLENS_SETUP_TOKEN` value through a
 private channel. They enter it once, on the first-owner screen. Do not create the Owner for them.
 
-After the Owner has signed in, delete the `SMALLSASS_ACCOUNT_SETUP_TOKEN` line from
+After the Owner has signed in, delete the `CAPACITYLENS_SETUP_TOKEN` line from
 `/etc/capacitylens.env` and restart the service:
 
 ```bash
@@ -154,7 +150,7 @@ sudo systemctl restart capacitylens
 
 First-owner setup is open only while the database holds no users and a token is set. Erasing the
 sole identity later reopens it, so set a new token only when you mean to create a new first
-Owner. [Verify and hand over](/installation/verify-and-hand-over) finishes the job.
+Owner. [Verify and hand over](/self-hosting/verify-and-hand-over) finishes the job.
 
 ## Customise the service
 
@@ -188,19 +184,10 @@ curl -LO https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alp
 sha256sum -c capacitylens-0.73.0-alpha.1.tar.gz.sha256
 ```
 
-### Write the environment file in one command
-
-This replaces step 3 with fresh secrets. It refuses to overwrite an existing file, so running it
-again cannot replace keys. Change the address first:
-
-```bash
-sudo sh -c 'set -C; umask 077; secret="$(openssl rand -base64 48)" && token="$(openssl rand -base64 48)" && printf "NODE_ENV=production\nSMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com\nSMALLSASS_ACCOUNT_SECRET=%s\nSMALLSASS_ACCOUNT_SETUP_TOKEN=%s\nCAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db\n" "$secret" "$token" > /etc/capacitylens.env'
-```
-
 ## What's next
 
 - [Upgrades](/self-hosting/upgrades) to install a newer release.
-- [Secure the connection](/installation/secure-the-connection) for the proxy requirements before
+- [TLS and networking](/self-hosting/tls-and-networking) for the proxy requirements before
   anyone outside your network reaches this host.
 - [Backups and restore](/self-hosting/backups-and-restore) to protect the database this
   install just created.

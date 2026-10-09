@@ -78,9 +78,9 @@ export function isGettingStartedComplete(steps: GettingStartedSteps): boolean {
 }
 
 /** Whether every step is complete. `Object.values(...).every(Boolean)`
- *  is exhaustive BY CONSTRUCTION over {@link GettingStartedSteps}' fields — unlike a hand-enumerated
- *  `steps.a && steps.b && ...`, adding a fifth step here can't silently compile against a stale
- *  list and hide the card too early. */
+ * is exhaustive by construction over {@link GettingStartedSteps}' fields, unlike a hand-enumerated
+ * `steps.a && steps.b && ...`, adding a fifth step here can't silently compile against a stale
+ * list and hide the card too early. */
 export function hasCompletedAllSteps(steps: GettingStartedSteps): boolean {
   return Object.values(steps).every(Boolean);
 }

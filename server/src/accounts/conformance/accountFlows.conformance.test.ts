@@ -9,7 +9,8 @@ import type {
   Membership,
   PasswordResetCeremony,
 } from "@capacitylens/shared/account/types";
-import { openDb, type Db } from "../../db";
+import { openDb } from "../../db";
+import type { Db } from "../../db";
 import type { LocalIdentityPort } from "../betterAuthIdentityPort";
 import { wasAccountCommandReplayed } from "../commands";
 import { createLocalAccountFlows } from "../createLocalAccountFlows";
@@ -17,6 +18,7 @@ import { KeyedOperationLock } from "../KeyedOperationLock";
 import type { LocalAccountAdminPort } from "../sqliteAccountAdminPort";
 import { finishAccountCommand, reserveAccountCommand } from "../state";
 import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS } from "../WriteOnceSecretReplay";
+import { deferred } from "../../testHelpers/deferred";
 
 const command = { commandId: "command-1", idempotencyKey: "idempotency-1" };
 const actor: ActorContext = {
@@ -52,15 +54,6 @@ const session: ApplicationSession = {
 
 function contractError(code: ConstructorParameters<typeof AccountContractError>[0]["code"]) {
   return new AccountContractError({ code, message: code, retryable: false });
-}
-
-/** A promise paired with the callback that resolves it, for coordinating a side effect with its release. */
-function deferred(): { promise: Promise<void>; resolve: () => void } {
-  let resolve!: () => void;
-  const promise = new Promise<void>((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
 }
 
 function reserveTestCommand(db: Db, overrides: Partial<Parameters<typeof reserveAccountCommand>[1]> = {}): void {
@@ -196,8 +189,8 @@ type MembershipAdministrationMethods = Pick<
 >;
 
 /** The seven ceremony stubs. Every command answers with the same committed-terminal outcome: these
- *  are conformance placeholders, and a single shape keeps the stub set from implying behaviour the
- *  flows under test do not exercise. */
+ * are conformance placeholders, and a single shape keeps the stub set from implying behaviour the
+ * flows under test do not exercise. */
 function ownershipTransferMethods(): Pick<
   MembershipAdministrationMethods,
   | "readOwnershipTransfer"
@@ -411,7 +404,8 @@ function harness(
   };
 }
 
-function inFlightSignupFixture(failCompensation: boolean) {
+type InFlightSignupFixtureOptions = { failCompensation: boolean };
+function inFlightSignupFixture({ failCompensation }: InFlightSignupFixtureOptions) {
   const { promise: entered, resolve: identityEntered } = deferred();
   const { promise: release, resolve: releaseIdentity } = deferred();
   const claimFailure = contractError("NOT_FOUND");
@@ -445,11 +439,16 @@ function inFlightSignupFixture(failCompensation: boolean) {
   return { entered, releaseIdentity, claimFailure, compensate, flows };
 }
 
-async function expectInFlightSignupOutcome(
-  fixture: ReturnType<typeof inFlightSignupFixture>,
-  signupFailure: unknown,
-  failCompensation: boolean,
-): Promise<void> {
+type ExpectInFlightSignupOutcomeOptions = {
+  fixture: ReturnType<typeof inFlightSignupFixture>;
+  signupFailure: unknown;
+  failCompensation: boolean;
+};
+async function expectInFlightSignupOutcome({
+  fixture,
+  signupFailure,
+  failCompensation,
+}: ExpectInFlightSignupOutcomeOptions): Promise<void> {
   expect(fixture.compensate).toHaveBeenCalledOnce();
   if (failCompensation) {
     expect(signupFailure).toMatchObject({
@@ -845,7 +844,7 @@ it.each([
   ["compensates after the claim fails", false],
   ["retains exact repair state when compensation also fails", true],
 ] as const)("keeps an in-flight signup command durable across erasure and %s", async (_case, failCompensation) => {
-  const fixture = inFlightSignupFixture(failCompensation);
+  const fixture = inFlightSignupFixture({ failCompensation: failCompensation });
   const signup = fixture.flows.acceptInviteWithPasswordSignup({
     token: "invite-erased-during-signup",
     email: "person@example.com",
@@ -897,7 +896,11 @@ it.each([
     status: "pending",
     workspaceId: "workspace-1",
   });
-  await expectInFlightSignupOutcome(fixture, signupFailure, failCompensation);
+  await expectInFlightSignupOutcome({
+    fixture: fixture,
+    signupFailure: signupFailure,
+    failCompensation: failCompensation,
+  });
 });
 
 it("deprovisions an erased workspace principal set through one bulk identity call", async () => {

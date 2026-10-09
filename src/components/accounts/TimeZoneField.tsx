@@ -1,11 +1,11 @@
 import { ChevronDown } from "lucide-react";
 import { useId, useRef, useState } from "react";
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "../ui/command";
-import { Button } from "../ui/button";
-import { Field } from "../ui/field";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { RequiredFieldLabel } from "../common/fields/fieldLayout";
-import type { Option } from "../common/ui";
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RequiredFieldLabel } from "@/components/common/fields/fieldLayout";
+import type { Option } from "@/components/common/ui";
 import { m } from "@/i18n";
 import { cn } from "@/lib/cn";
 

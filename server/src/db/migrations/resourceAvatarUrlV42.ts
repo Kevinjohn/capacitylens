@@ -1,5 +1,5 @@
-import { assertTenantEntityIndexesCurrent } from "../../tenantIndexes";
-import { assertTenantRelationshipIntegrityCurrent } from "../../tenantIntegrity";
+import { assertAccountEntityIndexesCurrent } from "../../accountIndexes";
+import { assertAccountRelationshipIntegrityCurrent } from "../../accountIntegrity";
 import { tableHasColumns } from "../introspection";
 import { defineMigration } from "../migrationLedger";
 
@@ -14,8 +14,8 @@ export const RESOURCE_AVATAR_URL_V42_MIGRATION = defineMigration(
     if (!tableHasColumns(db, "resources", ["avatarUrl"])) {
       db.exec("ALTER TABLE resources ADD COLUMN avatarUrl TEXT;");
     }
-    assertTenantRelationshipIntegrityCurrent(db);
-    assertTenantEntityIndexesCurrent(db);
+    assertAccountRelationshipIntegrityCurrent(db);
+    assertAccountEntityIndexesCurrent(db);
   },
 );
 

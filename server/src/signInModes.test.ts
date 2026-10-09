@@ -3,22 +3,22 @@ import { createApp } from "./app";
 import { recordSessionAssurance } from "./accounts/state";
 import { createAuthFromEnvironment, parseAuthMode, runAuthMigrations } from "./auth";
 import { openDb } from "./db";
-import { PASSWORD_ENV, readCookies } from "./testHelpers";
+import { PASSWORD_ENV, readCookies } from "./testHelpers/passwordAuth";
 
 const google = {
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+  CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+  CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 const github = {
-  SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client",
-  SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-secret",
+  CAPACITYLENS_GITHUB_CLIENT_ID: "github-client",
+  CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-secret",
 };
 
 function configured(mode: "password-only" | "password-and-sso" | "sso-only", providers = {}) {
   const db = openDb(":memory:");
   const result = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_MODE: mode,
+    CAPACITYLENS_MODE: mode,
     ...providers,
   });
   if (!result.auth) throw new Error("Expected authentication to be configured.");
@@ -85,7 +85,7 @@ it("does not accept an existing password session after switching to sso-only", a
 
     const sso = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "sso-only",
+      CAPACITYLENS_MODE: "sso-only",
       ...google,
     });
     if (!sso.auth) throw new Error("Expected SSO authentication.");

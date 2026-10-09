@@ -1,20 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { flushPendingWrites } from "../../data/persist";
-import { BatchReconciliationError, BatchValidationError } from "../../data/sync/batchErrors";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { isStaleEdit } from "../../lib/isStaleEdit";
-import { DEFAULT_COLORS } from "../../lib/palette";
-import { parseText, validateWorkingDays } from "../../lib/validation";
-import type { StoreState } from "../../store/types";
+import { flushPendingWrites } from "@/data/persist";
+import { BatchReconciliationError, BatchValidationError } from "@/data/sync/batchErrors";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { isStaleEdit } from "@/lib/isStaleEdit";
+import { DEFAULT_COLORS } from "@/lib/palette";
+import { parseText, validateWorkingDays } from "@/lib/validation";
+import type { StoreState } from "@/store/types";
 import { m } from "@/i18n";
-import {
-  FULL_DAY_HOURS,
-  placeholderCapacityDefaults,
-  type Resource,
-  type ResourceEngagement,
-  type ResourceKind,
-  type Weekday,
-} from "@capacitylens/shared/types/entities";
+import { FULL_DAY_HOURS, placeholderCapacityDefaults } from "@capacitylens/shared/types/entities";
+import type { Resource, ResourceEngagement, ResourceKind, Weekday } from "@capacitylens/shared/types/entities";
 
 /** Editable values submitted by the person or placeholder form. */
 export type ResourceSubmitDraft = {
@@ -197,9 +191,9 @@ function completeResourceSubmit(input: SubmitInput, result: FlushResult, submitt
 }
 
 /** Recovery is already running for a reconciliation failure, so its raw text would contradict the
- *  retry the user is about to see. BatchValidationError is the exception: it carries the server's
- *  own explanation of a deterministic 400, which is the only account the user ever gets of why the
- *  save was refused, and resolvePersistenceErrorNotice only restates it when it carries a code. */
+ * retry the user is about to see. BatchValidationError is the exception: it carries the server's
+ * own explanation of a deterministic 400, which is the only account the user ever gets of why the
+ * save was refused, and resolvePersistenceErrorNotice only restates it when it carries a code. */
 function resolveFlushFailureMessage(error: unknown): string {
   if (error instanceof BatchValidationError) return resolveErrorMessage(error);
   return error instanceof BatchReconciliationError ? m.app_persist_error() : resolveErrorMessage(error);

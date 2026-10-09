@@ -7,21 +7,16 @@ import {
   readOptionalString,
   readRequiredString,
   assertModeledKeys,
-  type AccountSnapshot,
-  type ClosureSnapshot,
-  type ResourceSnapshot,
-  type TimeOffSnapshot,
 } from "./appTestSnapshotCore";
+import type { AccountSnapshot, ClosureSnapshot, ResourceSnapshot, TimeOffSnapshot } from "./appTestSnapshotCore";
 import { readProjectBindings, readResourceSnapshot } from "./appTestSnapshotSchedule";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 export function addAccountDisplayOptions(snapshot: AccountSnapshot, row: Record<string, unknown>): void {
   const disciplinesEnabled = readOptionalBoolean(row, "disciplinesEnabled", "account row");
   const externalEnabled = readOptionalBoolean(row, "externalEnabled", "account row");
-  const groupResourcesByEngagement = readOptionalBoolean(row, "groupResourcesByEngagement", "account row");
   const placeholdersEnabled = readOptionalBoolean(row, "placeholdersEnabled", "account row");
   if (disciplinesEnabled !== undefined) snapshot.disciplinesEnabled = disciplinesEnabled;
   if (externalEnabled !== undefined) snapshot.externalEnabled = externalEnabled;
-  if (groupResourcesByEngagement !== undefined) snapshot.groupResourcesByEngagement = groupResourcesByEngagement;
   if (placeholdersEnabled !== undefined) snapshot.placeholdersEnabled = placeholdersEnabled;
 }
 
@@ -29,14 +24,10 @@ export function addAccountWorkflowOptions(snapshot: AccountSnapshot, row: Record
   const capacityOverviewAccess = readOptionalString(row, "capacityOverviewAccess", "account row");
   const dateStyle = readOptionalString(row, "dateStyle", "account row");
   const inlineActivityCreateEnabled = readOptionalBoolean(row, "inlineActivityCreateEnabled", "account row");
-  const showInternalActivities = readOptionalBoolean(row, "showInternalActivities", "account row");
-  const showInternalProjects = readOptionalBoolean(row, "showInternalProjects", "account row");
   const showTaskFieldInSchedule = readOptionalBoolean(row, "showTaskFieldInSchedule", "account row");
   if (capacityOverviewAccess !== undefined) snapshot.capacityOverviewAccess = capacityOverviewAccess;
   if (dateStyle !== undefined) snapshot.dateStyle = dateStyle;
   if (inlineActivityCreateEnabled !== undefined) snapshot.inlineActivityCreateEnabled = inlineActivityCreateEnabled;
-  if (showInternalActivities !== undefined) snapshot.showInternalActivities = showInternalActivities;
-  if (showInternalProjects !== undefined) snapshot.showInternalProjects = showInternalProjects;
   if (showTaskFieldInSchedule !== undefined) snapshot.showTaskFieldInSchedule = showTaskFieldInSchedule;
 }
 
@@ -50,16 +41,12 @@ export function readAccountSnapshot(row: Record<string, unknown>): AccountSnapsh
       "dateStyle",
       "disciplinesEnabled",
       "externalEnabled",
-      "groupResourcesByEngagement",
       "id",
       "inlineActivityCreateEnabled",
-      "internalColourMode",
       "language",
       "name",
       "placeholdersEnabled",
       "schedulingMode",
-      "showInternalActivities",
-      "showInternalProjects",
       "showTaskFieldInSchedule",
       "timezone",
       "updatedAt",
@@ -68,7 +55,6 @@ export function readAccountSnapshot(row: Record<string, unknown>): AccountSnapsh
     ],
     "account row",
   );
-  const internalColourMode = readOptionalString(row, "internalColourMode", "account row");
   const language = readOptionalString(row, "language", "account row");
   const schedulingMode = readOptionalString(row, "schedulingMode", "account row");
   const timezone = readOptionalString(row, "timezone", "account row");
@@ -81,7 +67,6 @@ export function readAccountSnapshot(row: Record<string, unknown>): AccountSnapsh
     name: readRequiredString(row, "name", "account row"),
     updatedAt: readRequiredString(row, "updatedAt", "account row"),
   };
-  if (internalColourMode !== undefined) snapshot.internalColourMode = internalColourMode;
   if (language !== undefined) snapshot.language = language;
   if (schedulingMode !== undefined) snapshot.schedulingMode = schedulingMode;
   if (timezone !== undefined) snapshot.timezone = timezone;
@@ -186,6 +171,10 @@ export function readResourceResponse(response: LightMyRequestResponse): Resource
   return readFirstResource(readResourceSnapshots([response.json()]));
 }
 
-export async function patchResourceFavourite(app: FastifyInstance, isFavourite: boolean): Promise<ResourceSnapshot> {
+type PatchResourceFavouriteOptions = { app: FastifyInstance; isFavourite: boolean };
+export async function patchResourceFavourite({
+  app,
+  isFavourite,
+}: PatchResourceFavouriteOptions): Promise<ResourceSnapshot> {
   return readResourceResponse(await patch({ app, entity: "resources", id: "r1", payload: { isFavourite } }));
 }

@@ -1,14 +1,15 @@
-import { memo, useMemo, useState, type KeyboardEventHandler, type PointerEventHandler } from "react";
+import { memo, useMemo, useState } from "react";
+import type { KeyboardEventHandler, PointerEventHandler } from "react";
 import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
 import type { ID } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { useCanEdit } from "../../auth/permissionContext";
-import { formatDayMonthEndpoint } from "../../lib/dateDisplay";
-import { useDateStyle } from "../../store/useDateStyle";
-import type { BarLabelPreferences } from "../../lib/displayPrefs";
-import { resolveAllocationStatusAnnotation } from "../../lib/metadata";
-import { useStore } from "../../store/useStore";
-import { hasVisibleTaskFieldInSchedule } from "../../store/selectors";
+import { useCanEdit } from "@/auth/permissionContext";
+import { formatDayMonthEndpoint } from "@/lib/dateDisplay";
+import { useDateStyle } from "@/store/useDateStyle";
+import type { BarLabelPreferences } from "@/lib/displayPrefs";
+import { resolveAllocationStatusAnnotation } from "@/lib/metadata";
+import { useStore } from "@/store/useStore";
+import { hasVisibleTaskFieldInSchedule } from "@/store/selectors";
 import { AllocationBarView } from "./AllocationBarView";
 import type { ColumnGeometry } from "./columnGeometry";
 import { buildAllocationBarInset } from "./layout";
@@ -23,7 +24,8 @@ function resolveKeyboardMode(event: React.KeyboardEvent): "move" | "resize-start
   return "move";
 }
 
-function resolveBarCursor(canEdit: boolean, dragging: boolean) {
+type ResolveBarCursorOptions = { canEdit: boolean; dragging: boolean };
+function resolveBarCursor({ canEdit, dragging }: ResolveBarCursorOptions) {
   if (!canEdit) return "default";
   return dragging ? "grabbing" : "grab";
 }
@@ -69,10 +71,10 @@ function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedul
 
 function useBarAriaLabel(input: AriaLabelInput) {
   const { bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel } = input;
-  // The dates in this name are formatted INSIDE the memo, so the style has to be a dependency:
+  // The dates in this name are formatted inside the memo, so the style has to be a dependency:
   // without it the name keeps its old format until something else invalidates the memo. Today that
-  // happens by accident — changing the account rebuilds `state.data`, then the view-model, then
-  // `bar` — but the accident is not the guarantee, and a bar name is what a screen-reader user
+  // happens by accident, changing the account rebuilds `state.data`, then the view-model, then
+  // `bar`: but the accident is not the guarantee, and a bar name is what a screen-reader user
   // hears while dragging.
   const dateStyle = useDateStyle();
   // The name cannot change mid-gesture, so memoise it instead of rebuilding it on every pointermove
@@ -200,7 +202,7 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
       background={background}
       ink={ink}
       canEdit={canEdit}
-      cursor={resolveBarCursor(canEdit, gesture.dragging)}
+      cursor={resolveBarCursor({ canEdit: canEdit, dragging: gesture.dragging })}
       dragging={gesture.dragging}
       hideHours={hideHours}
       insetLeft={insetLeft}

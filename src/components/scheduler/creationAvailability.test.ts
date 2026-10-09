@@ -6,7 +6,7 @@ import {
   isCreationStartBlocked,
 } from "./creationAvailability";
 import type { Closure, Resource } from "@capacitylens/shared/types/entities";
-import { makeResource, makeTimeOff } from "../../test/fixtures";
+import { makeResource, makeTimeOff } from "@/test/fixtures";
 
 const person = makeResource({ name: "Bruce Wayne" });
 
@@ -205,7 +205,7 @@ function registerReasonPrecedenceTests() {
         closures: [],
       }),
     ).toBe(null);
-    // The per-allocation override bypasses the calendars ONLY — time off passed in still blocks.
+    // The per-allocation override bypasses the calendars only, time off passed in still blocks.
     expect(
       resolveCreationBlockReason({
         resource: person,
@@ -220,7 +220,7 @@ function registerReasonPrecedenceTests() {
 }
 
 describe("#257 characterization: creation and move gate boundaries", () => {
-  // PERMANENT invariants: creation never accepts the override, and the override never bypasses time off.
+  // Permanent invariants: creation never accepts the override, and the override never bypasses time off.
   it("keeps a creation start blocked where the existing-allocation move override is allowed", () => {
     const companyMondayToThursday = [1, 2, 3, 4] as Resource["workingDays"];
 

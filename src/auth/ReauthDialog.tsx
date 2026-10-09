@@ -1,16 +1,16 @@
 import { useId, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { Modal } from "../components/common/ui";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Field, FieldError, FieldLabel } from "../components/ui/field";
+import { Modal } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { authClient } from "./authClient";
 import { m } from "@/i18n";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
 import { completeReauth } from "./reauthCoordinator";
 import type { ReauthAction } from "./reauthCoordinator";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
-import { ExternalProviderButton } from "../components/common/ExternalProviderButton";
+import { ExternalProviderButton } from "@/components/common/ExternalProviderButton";
 
 interface ReauthDialogProps {
   authMode: "password-only" | "sso-only" | "password-and-sso";
@@ -92,7 +92,7 @@ async function confirmPassword(email: string, state: ReauthState) {
       state.setBusy(false);
       return;
     }
-    completeReauth(true);
+    completeReauth({ reauthenticated: true });
   } catch (error) {
     console.error("ReauthDialog: password re-auth request failed", error);
     state.setError(m.login_network_error());
@@ -113,7 +113,7 @@ async function confirmSecondFactor(state: ReauthState) {
       state.setBusy(false);
       return;
     }
-    completeReauth(true);
+    completeReauth({ reauthenticated: true });
   } catch (error) {
     console.error("ReauthDialog: second-factor re-auth verification failed", error);
     state.setError(m.login_network_error());
@@ -128,7 +128,7 @@ async function reauthWithProvider(provider: AuthProviderInfo, state: ReauthState
   state.setPendingProvider(provider);
   try {
     const result = await dispatchExternalProviderSignIn(provider);
-    // A settled call WITHOUT an error means the provider accepted the hand-off and the browser is
+    // A settled call without an error means the provider accepted the hand-off and the browser is
     // navigating away: the dialog stays busy and announces the redirect rather than reporting a
     // failure it cannot know about. Only a returned error is a real failure, and only that path
     // becomes retryable. Same contract as LoginScreen's provider sign-in.
@@ -154,7 +154,7 @@ export function ReauthDialog({
   action = null,
 }: ReauthDialogProps) {
   const state = useReauthState();
-  const cancel = () => completeReauth(false);
+  const cancel = () => completeReauth({ reauthenticated: false });
   if (reauthMethod === "provider") {
     const selected = reauthProviderId ? providers.filter((provider) => provider.id === reauthProviderId) : providers;
     return <ProviderDialog providers={selected} state={state} cancel={cancel} action={action} />;

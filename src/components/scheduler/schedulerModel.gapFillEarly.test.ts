@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildEmptyFilters } from "../../store/useStore";
-import { makeAllocation, makeResource, requireValue } from "../../test/fixtures";
+import { buildEmptyFilters } from "@/store/useStore";
+import { makeAllocation, makeResource, requireValue } from "@/test/fixtures";
 import { buildSchedulerModel } from "./schedulerModel";
 import { allBars, build, dataset, days, end, geom, start } from "./schedulerModel.testSupport";
 
@@ -71,9 +71,9 @@ function buildBlockTimeOffRows() {
 function registerMovedSchedulerTests20101() {
   it("search is TRIMMED before matching (leading/trailing whitespace is not part of the term)", () => {
     const d = dataset();
-    // A resource whose displayName/name/role all collapse to the SAME single word, so there's no
+    // A resource whose displayName/name/role all collapse to the same single word, so there's no
     // duplicate occurrence anywhere in the searched string to coincidentally rescue an un-trimmed
-    // search — the only way 'zed ' (trailing space) matches is if it's trimmed to 'zed' first.
+    // search: the only way 'zed ' (trailing space) matches is if it's trimmed to 'zed' first.
     d.resources.push(
       makeResource({
         id: "r-zed",
@@ -173,7 +173,7 @@ function registerMovedSchedulerTests20104() {
 }
 
 function registerMovedSchedulerTests20105() {
-  it("an internal activity is grey by default and palette mode restores the RESOURCE colour", () => {
+  it("an internal activity bar is always neutral grey", () => {
     const d = dataset();
     d.activities.push({
       id: "t-int",
@@ -210,27 +210,6 @@ function registerMovedSchedulerTests20105() {
       "internal bar",
     );
     expect(greyBar.color).toBe("#9ca3af");
-
-    const paletteModel = buildSchedulerModel({
-      data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: true,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-        blocksMode: false,
-        internalColourMode: "palette",
-      },
-    });
-    const paletteBar = requireValue(
-      allBars(paletteModel).find((b) => b.allocation.id === "a-int"),
-      "internal bar",
-    );
-    expect(paletteBar.color).toBe("#4");
   });
 }
 
@@ -258,7 +237,7 @@ function registerMovedSchedulerTests20106() {
 function registerMovedSchedulerTests20107() {
   it("positions time-off blocks with real fields (id/x/width/label/note), and marks only its OWN days unavailable", () => {
     const d = dataset();
-    // TWO time-off rows for the SAME resource, so the resourceId -> TimeOff[] map must accumulate
+    // Two time-off rows for the same resource, so the resourceId -> TimeOff[] map must accumulate
     // (push into an existing bucket) rather than each write clobbering the last one.
     d.timeOff.push(
       {
@@ -300,7 +279,7 @@ function registerMovedSchedulerTests20107() {
       model.flatMap((g) => g.rows).find((r) => r.resource.id === "r1"),
       "r1 scheduler row",
     );
-    expect(r1.timeOff).toHaveLength(2); // both accumulate — neither write drops the other
+    expect(r1.timeOff).toHaveLength(2); // both accumulate, neither write drops the other
     const t1 = requireValue(
       r1.timeOff.find((t) => t.id === "to1"),
       "to1 time-off block",

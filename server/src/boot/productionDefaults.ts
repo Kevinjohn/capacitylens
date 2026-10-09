@@ -19,6 +19,12 @@ function databaseDirectory(databasePath: string): string | null {
   return dirname(databasePath);
 }
 
+/** Origin of the configured public URL, or null when it is unset or unparseable. */
+function publicOrigin(publicUrl: string | undefined): string | null {
+  const trimmed = publicUrl?.trim();
+  return trimmed && URL.canParse(trimmed) ? new URL(trimmed).origin : null;
+}
+
 /**
  * Fill production defaults into `environment` (mutating it). No-op unless NODE_ENV=production.
  * The sign-in mode is the one value an empty string also counts as unset for, because the mode
@@ -27,8 +33,14 @@ function databaseDirectory(databasePath: string): string | null {
 export function applyProductionDefaults(environment: Environment): void {
   if (environment.NODE_ENV !== "production") return;
   for (const [name, value] of UNSET_DEFAULTS) environment[name] ??= value;
-  if (environment.SMALLSASS_ACCOUNT_MODE === undefined || environment.SMALLSASS_ACCOUNT_MODE === "") {
-    environment.SMALLSASS_ACCOUNT_MODE = "password-only";
+  if (environment.CAPACITYLENS_MODE === undefined || environment.CAPACITYLENS_MODE === "") {
+    environment.CAPACITYLENS_MODE = "password-only";
+  }
+  // The browser-facing origin is the one cross-origin caller a production deployment expects. An
+  // explicitly empty value (Compose's pass-through) keeps the fail-closed empty allow-list.
+  const origin = publicOrigin(environment.CAPACITYLENS_PUBLIC_URL);
+  if (environment.CAPACITYLENS_CORS_ORIGIN === undefined && origin !== null) {
+    environment.CAPACITYLENS_CORS_ORIGIN = origin;
   }
   if (environment.CAPACITYLENS_BACKUP_DIR === undefined) {
     const directory = databaseDirectory(environment.CAPACITYLENS_DB ?? "capacitylens.db");
@@ -44,5 +56,5 @@ export function resolveHttps(environment: Environment): boolean {
   const explicit = environment.CAPACITYLENS_HTTPS;
   if (explicit === "1") return true;
   if (explicit === "0") return false;
-  return /^https:\/\//i.test(environment.SMALLSASS_ACCOUNT_PUBLIC_URL ?? "");
+  return /^https:\/\//i.test(environment.CAPACITYLENS_PUBLIC_URL ?? "");
 }

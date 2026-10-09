@@ -217,12 +217,13 @@ test("ships an environment example whose only blanks are the three values to fil
   const settings = example.split("\n").filter((line) => line !== "" && !line.startsWith("#"));
   assert.deepEqual(settings, [
     "NODE_ENV=production",
-    "SMALLSASS_ACCOUNT_PUBLIC_URL=",
-    "SMALLSASS_ACCOUNT_SECRET=",
-    "SMALLSASS_ACCOUNT_SETUP_TOKEN=",
+    "CAPACITYLENS_PUBLIC_URL=",
+    "CAPACITYLENS_SECRET=",
+    "CAPACITYLENS_SETUP_TOKEN=",
     "CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db",
   ]);
-  assert.match(example, /^# SMALLSASS_ACCOUNT_MODE=password-only$/m);
+  assert.match(example, /^# CAPACITYLENS_MODE=password-only$/m);
+  assert.doesNotMatch(example, /openssl/);
 });
 
 test("ships a service unit that runs the release with the system Node and the root-only environment", async () => {

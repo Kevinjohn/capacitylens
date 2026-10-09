@@ -17,14 +17,14 @@ describe("operator documentation", () => {
 
   it("runs the managed-host background process as the isolated site user", () => {
     expect(page("self-hosting/managed-vps/index.md")).toContain("background process that runs as the site's user");
-    expect(page("getting-started/install.md")).toContain("background process (daemon) that runs as the site's user");
+    expect(page("self-hosting/install.md")).toContain("background process (daemon) that runs as the site's user");
   });
 
   it("distinguishes password and SSO first-owner bootstrap settings", () => {
     const configuration = page("self-hosting/configuration.md");
-    const setupTokenRow = configuration.match(/\| `SMALLSASS_ACCOUNT_SETUP_TOKEN` \| ([^|]+)/u)?.[1];
+    const setupTokenRow = configuration.match(/\| `CAPACITYLENS_SETUP_TOKEN` \| ([^|]+)/u)?.[1];
     expect(setupTokenRow).toContain("fresh password-mode instance");
-    expect(setupTokenRow).toContain("SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS");
+    expect(setupTokenRow).toContain("CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS");
   });
 
   it("includes an executable Compose named-volume restore path", () => {
@@ -71,5 +71,12 @@ describe("operator documentation", () => {
     expect(configuration).toContain("over-maximum values clamp to 10,000 with a startup warning");
     expect(configuration).toContain("clamps over-maximum values to 35,000 with a warning");
     expect(configuration).not.toContain("over-maximum values use the safe default");
+  });
+});
+
+describe("operator log commands", () => {
+  // systemd rejects a bare relative time such as `--since=30m`; it needs "ago" or a leading minus.
+  it("gives journalctl a relative time it can parse", () => {
+    expect(page("self-hosting/monitoring.md")).toContain('journalctl -u capacitylens --since "30 min ago"');
   });
 });

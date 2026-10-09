@@ -1,103 +1,53 @@
 ---
-title: Before you start
-description: What you need to self-host CapacityLens, how the pieces fit together, and which page in this section covers which job.
+title: Install and run CapacityLens
+description: The technical guide to installing, configuring, operating and recovering a self-hosted CapacityLens service.
+prev: false
+next: false
 ---
 
-# Before you start
+<span id="choose-an-installation-route"></span>
+<span id="the-moving-parts"></span>
+<span id="common-questions"></span>
+<span id="what-s-next"></span>
 
-CapacityLens runs as a small web app and API behind TLS, storing everything in a single
-SQLite file. This page explains what to have ready before you install it, how the moving
-parts fit together, and which page to read next for the job in front of you.
+# Install and run CapacityLens
 
-## Choose an installation route
+This guide is for the technical person who puts CapacityLens on a server and keeps it healthy.
+CapacityLens runs as a small web app and API behind TLS, storing everything in a single SQLite
+file. Installation ends when the service works, storage survives a restart and the first Owner
+has everything needed to create their company.
 
-CapacityLens supports three ways to install. Choose the route that matches how you manage
-your host:
+After handover, the same person, or a named operator, owns backups, upgrades, monitoring,
+configuration changes and the recovery procedures that deliberately have no in-product override.
+The routine minimum is tested backups, monitored health and disk space, supported upgrades, and
+configuration changes through a reviewed restart, coordinated with an Owner or Admin when they
+affect sign-in or members. Open the page that matches the task in front of you.
 
-- [Install without Docker](/self-hosting/install-without-docker) runs the release archive on a
-  Linux host with Node 24 and systemd. No pnpm or build is needed. Caddy is recommended for
-  HTTPS and nginx is optional.
-- [Deploy on a managed VPS platform](/self-hosting/managed-vps/) is its own five steps in the
-  labels of Forge, Ploi, RunCloud and similar platforms that manage nginx, background
-  processes and release directories for you.
-- [Install with Docker](/self-hosting/install-with-docker) requires Docker and Docker
-  Compose. The packaged stack manages the web app and API services.
+## Install
 
-Docker is not a shared prerequisite. Each installation page lists only what its route
-needs.
+- [Install CapacityLens](/self-hosting/install): five steps from the release archive, on a
+  managed host or a Linux host.
+- [Deploy on a managed VPS platform](/self-hosting/managed-vps/) such as Forge, Ploi or RunCloud.
+- [Install without Docker](/self-hosting/install-without-docker) on a Linux host with Node 24 and
+  systemd.
+- [Install with Docker](/self-hosting/install-with-docker) when your host already runs Docker and
+  Docker Compose.
+- [Configuration](/self-hosting/configuration): every environment variable, including sign-in and
+  storage.
+- [TLS and networking](/self-hosting/tls-and-networking): the certificate, proxy and network
+  boundary to complete before anyone enters a password.
+- [Verify and hand over](/self-hosting/verify-and-hand-over) to the first Owner and operator.
+- [Try the demo](/getting-started/try-the-demo) if you need to inspect the product first. It does
+  not install a persistent service.
 
-Whichever route you choose, you also need a domain name and a TLS certificate if the
-instance is reachable from the internet. You need persistent storage for the database,
-the audit log and, if you turn them on, scheduled backups.
+## Operate
 
-An internet-facing production instance takes longer than a local installation, mostly
-because of DNS and certificates.
-
-## The moving parts
-
-A CapacityLens deployment is three pieces:
-
-- **The web app** — the built single-page app, served as static files. In the Docker
-  image, nginx serves it and reverse-proxies API calls.
-- **The server** — a Node API that handles sign-in, reads and writes. It's the only
-  thing that talks to the database.
-- **SQLite** — one file on disk is the source of truth for every company, person,
-  project and allocation. There's no separate database server to run.
-
-The web app and the server are meant to live behind the same public origin, with TLS
-terminated in front of them. See [TLS and networking](/self-hosting/tls-and-networking)
-for the exact topology.
-
-## Common questions
-
-**How big does the SQLite file get?** The database itself stays small — it holds
-companies, people, projects and allocations, which are a few thousand rows even for a
-large team, not raw event data. The part that actually grows over time is the audit log
-(every product-data change, written as JSONL); see the `CAPACITYLENS_AUDIT_MAX_MB`
-entry in [Configuration](/self-hosting/configuration#the-database-and-backups) for how
-it's capped and rotated. Watch disk space as routine maintenance either way — see
-[Monitoring and health checks](/self-hosting/monitoring).
-
-**How do I move to a new host?** Take a backup on the old host, restore it on the new
-one, then repoint DNS at the new host once you've verified sign-in and the account list.
-Don't duplicate the steps here — follow
-[Backups and restore](/self-hosting/backups-and-restore) for both halves of that move.
-
-**How do I uninstall completely?** For a Docker Compose install, stop the stack and
-remove its containers and named volumes:
-
-::: warning This permanently deletes the installation data
-The volume removal below destroys the database, audit log, scheduled backups and the
-internal certificate. Confirm that you have a readable off-host backup and no restore
-drill or incident still depends on these volumes before continuing. This data cannot be
-recovered from Docker after the volumes are removed.
-:::
-
-```bash
-docker compose down
-docker volume rm capacitylens_capacitylens-db capacitylens_capacitylens-backups capacitylens_capacitylens-internal-tls
-```
-
-Adjust the `capacitylens_` prefix if `docker compose config` shows a different one for
-your install (see the historical-prefix note in
-[Upgrades](/self-hosting/upgrades#one-time-check-for-older-compose-installations)).
-That removes the database, the audit log, scheduled backups and the internal
-certificate — there is nothing else CapacityLens writes outside those volumes and the
-checkout directory itself, which you can delete once you've confirmed you don't need
-it.
-
-## What's next
-
-- Installing for the first time: choose [Install with Docker](/self-hosting/install-with-docker),
-  [Install without Docker](/self-hosting/install-without-docker), or
-  [Deploy on a managed VPS platform](/self-hosting/managed-vps/).
-- Choosing sign-in mode, secrets and other environment variables:
-  [Configuration](/self-hosting/configuration).
-- Putting a domain and certificate in front of it:
-  [TLS and networking](/self-hosting/tls-and-networking).
-- Protecting your data once it's running:
-  [Backups and restore](/self-hosting/backups-and-restore).
-- Moving to a new release: [Upgrades](/self-hosting/upgrades).
-- Watching a running instance: [Monitoring and health checks](/self-hosting/monitoring).
-- Recovering a blocked ownership transfer: [Ownership-transfer recovery](/self-hosting/ownership-transfer-recovery).
-- Something looks wrong right now: [When something goes wrong](/self-hosting/incidents).
+- [Backups and restore](/self-hosting/backups-and-restore): start here if operational ownership
+  has just been handed to you.
+- [Upgrades](/self-hosting/upgrades) to another release.
+- [Monitoring and health checks](/self-hosting/monitoring) for health, storage and certificates.
+- [Company login](/company-login/): set up Google or Microsoft sign-in, or move an existing team
+  to it.
+- [Recover a blocked ownership transfer](/self-hosting/ownership-transfer-recovery).
+- [When something goes wrong](/self-hosting/incidents) for diagnosis and recovery.
+- [Install and operations FAQ](/self-hosting/faq).

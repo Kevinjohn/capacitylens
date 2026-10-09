@@ -74,11 +74,16 @@ function createConfiguredAuditSink(input: ServerRuntimeInput) {
     : auditFileSink;
 }
 
-function formatApplicationStartupFailure(
-  error: unknown,
-  startingBackups: boolean,
-  backupConfig: BackupConfig | null,
-): string {
+type FormatApplicationStartupFailureOptions = {
+  error: unknown;
+  startingBackups: boolean;
+  backupConfig: BackupConfig | null;
+};
+function formatApplicationStartupFailure({
+  error,
+  startingBackups,
+  backupConfig,
+}: FormatApplicationStartupFailureOptions): string {
   if (startingBackups && backupConfig) return formatBackupStartupFailure(backupConfig.dir, error);
   return error instanceof Error ? error.message : String(error);
 }
@@ -93,7 +98,7 @@ function createServerApplication(input: ServerRuntimeInput): {
     if (allowsPasswordSignIn(input.applicationOptions.authMode ?? "off") && input.userCount === 0) {
       input.logWarning(
         "capacitylens-server: SETUP LOCKED — no user accounts exist yet; owner creation requires the " +
-          "configured SMALLSASS_ACCOUNT_SETUP_TOKEN.",
+          "configured CAPACITYLENS_SETUP_TOKEN.",
       );
     }
     let backupController: BackupController | null = null;
@@ -126,7 +131,13 @@ function createServerApplication(input: ServerRuntimeInput): {
   } catch (error) {
     closeDbSafely(input.db);
     input.startupSignals.dispose();
-    refuseToStart(formatApplicationStartupFailure(error, startingBackups, input.backupConfig));
+    refuseToStart(
+      formatApplicationStartupFailure({
+        error: error,
+        startingBackups: startingBackups,
+        backupConfig: input.backupConfig,
+      }),
+    );
   }
 }
 

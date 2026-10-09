@@ -6,7 +6,7 @@ import { m } from "@/i18n";
 
 // One-time-per-session nudge for portrait phones: the schedule is a wide
 // week-at-a-glance grid, so landscape is the orientation the app is built for.
-// Session-scoped (sessionStorage, not localStorage) on purpose — a dismissed hint
+// Session-scoped (sessionStorage, not localStorage) on purpose, a dismissed hint
 // stays away for the visit but comes back next time, unlike the device-global
 // display prefs. Rotating to landscape hides it; rotating back re-shows it unless
 // it was dismissed.
@@ -20,7 +20,7 @@ function isPortraitPhone(): boolean {
       return window.matchMedia(PORTRAIT_PHONE_QUERY).matches;
     }
   } catch {
-    // matchMedia unavailable (jsdom) — never show
+    // matchMedia unavailable (jsdom), never show
   }
   return false;
 }
@@ -51,7 +51,7 @@ export function RotateHint() {
     try {
       sessionStorage.setItem(DISMISS_KEY, "1");
     } catch {
-      // storage blocked — the in-memory state still hides it for this mount
+      // storage blocked, the in-memory state still hides it for this mount
     }
     setDismissed(true);
   };

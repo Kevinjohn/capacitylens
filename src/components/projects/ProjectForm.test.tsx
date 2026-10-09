@@ -1,11 +1,11 @@
-import { requireCreated } from "../../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProjectForm } from "./ProjectForm";
-import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
-import { PermissionContext } from "../../auth/permissionContext";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
+import { PermissionContext } from "@/auth/permissionContext";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 
 beforeEach(() => resetStoreWithAccount());
@@ -139,7 +139,7 @@ describe("ProjectForm", () => {
     expect(screen.queryByRole("button", { name: /^Colour/ })).not.toBeInTheDocument();
   });
 
-  it("reveals the existing picker in palette mode and preserves a hidden saved colour on edit", async () => {
+  it("hides the colour picker for an Internal project and preserves its saved colour on edit", async () => {
     const user = userEvent.setup();
     const internal = installInternalClient();
     const project = requireCreated(
@@ -150,22 +150,15 @@ describe("ProjectForm", () => {
       }),
     );
 
-    const hidden = render(<ProjectForm project={project} onClose={vi.fn()} />);
+    render(<ProjectForm project={project} onClose={vi.fn()} />);
     expect(screen.queryByRole("button", { name: /^Colour/ })).not.toBeInTheDocument();
     await user.clear(screen.getByLabelText("Name"));
     await user.type(screen.getByLabelText("Name"), "Planning updated");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(useStore.getState().data.projects[0]?.color).toBe("#da2d92");
-    hidden.unmount();
-
-    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { internalColourMode: "palette" });
-    const updatedProject = useStore.getState().data.projects[0];
-    if (!updatedProject) throw new Error("Expected project");
-    render(<ProjectForm project={updatedProject} onClose={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /^Colour/ })).toBeInTheDocument();
   });
 
-  // Editing a project whose client is ARCHIVED (hidden from the active-only picker): the current
+  // Editing a project whose client is archived (hidden from the active-only picker): the current
   // client must appear as a disabled-but-selected option so an unrelated edit (rename) can save
   // the unchanged clientId instead of being blocked by the picker or the store's ref check.
   it("renames a project under an archived client without forcing a reassignment", async () => {

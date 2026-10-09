@@ -1,18 +1,19 @@
 import { useState } from "react";
-import { can, canSeePrivateNames, canSeeTimeOffNote, type Role } from "@capacitylens/shared/domain/access";
-import { usePermissionStatus, useRole } from "../../auth/permissionContext";
-import { useAuth } from "../../auth/authContext";
-import { resolveAccessLabel, resolveAccessSummary } from "../../lib/accessCopy";
-import { resolveAccessExperience } from "../../lib/resolveAccessExperience";
-import { useOfflineState } from "../../data/useOfflineState";
+import { can, canSeePrivateNames, canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
+import type { Role } from "@capacitylens/shared/domain/access";
+import { usePermissionStatus, useRole } from "@/auth/permissionContext";
+import { useAuth } from "@/auth/authContext";
+import { resolveAccessLabel, resolveAccessSummary } from "@/lib/accessCopy";
+import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
+import { useOfflineState } from "@/data/useOfflineState";
 import { MembersSection } from "./MembersSection";
 import { JoiningPolicyPanel } from "./JoiningPolicyPanel";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import { OwnershipTransferCard } from "./OwnershipTransferCard";
-import { Badge } from "../ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
-import { Alert, AlertDescription } from "../ui/alert";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { m } from "@/i18n";
 
 interface Capability {
@@ -77,7 +78,7 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
 
   if (effectiveRole) {
     // Collapsed by default: the tick list is reference material, not something anyone reads
-    // on every visit, and expanded it pushed the member table below the fold (#175).
+    // on every visit, and expanded it pushed the member table below the fold.
     accessDetails = (
       <>
         <button

@@ -1,9 +1,11 @@
-import { createMailSender, type MailSender } from "./mailSender";
+import { createMailSender } from "./mailSender";
+import type { MailSender } from "./mailSender";
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { randomBytes } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
-import { allowsProviderSignIn, type BoundApplication } from "@capacitylens/shared/account/types";
+import { allowsProviderSignIn } from "@capacitylens/shared/account/types";
+import type { BoundApplication } from "@capacitylens/shared/account/types";
 import { boundApplicationFailure } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
 import { gateLibraryTransactions } from "./gateLibraryTransactions";
@@ -15,7 +17,8 @@ import { buildDatabaseHooks } from "./databaseHooks";
 import { buildRequestHooks } from "./requestHooks";
 import { buildSessionPolicy } from "./sessionPolicy";
 import { buildPlugins } from "./plugins";
-import { DEFAULT_ACCOUNT_APPLICATION, type Auth, type AccountMode } from "./authTypes";
+import { DEFAULT_ACCOUNT_APPLICATION } from "./authTypes";
+import type { Auth, AccountMode } from "./authTypes";
 import {
   MIN_BETTER_AUTH_SECRET_LENGTH,
   RESET_LINK_TTL_SECONDS,
@@ -34,10 +37,8 @@ import type { createAuthAdapterFactory } from "./authAdapter";
 import type { MicrosoftProof } from "./microsoftProof";
 import { createConfiguredMicrosoftProof } from "./microsoftProofSetup";
 import { parsePublicUrl } from "./publicUrlConfig";
-import {
-  currentJoiningProviderFacts,
-  type createJoiningProviderCallbacks,
-} from "../accounts/adminPort/joiningProviderCallbacks";
+import { currentJoiningProviderFacts } from "../accounts/adminPort/joiningProviderCallbacks";
+import type { createJoiningProviderCallbacks } from "../accounts/adminPort/joiningProviderCallbacks";
 
 type Env = Record<string, string | undefined>;
 type AuthFromEnvOptions = {
@@ -96,10 +97,10 @@ function assertApplication(
 }
 
 function requireSecret(environment: Env, mode: AccountMode, dependencies: FactoryDependencies): string {
-  const secret = dependencies.required(environment, "SMALLSASS_ACCOUNT_SECRET", `SMALLSASS_ACCOUNT_MODE=${mode}`);
+  const secret = dependencies.required(environment, "CAPACITYLENS_SECRET", `CAPACITYLENS_MODE=${mode}`);
   if (secret.length < MIN_BETTER_AUTH_SECRET_LENGTH) {
     throw new dependencies.AuthConfigError(
-      `SMALLSASS_ACCOUNT_SECRET must be at least ${MIN_BETTER_AUTH_SECRET_LENGTH} characters when SMALLSASS_ACCOUNT_MODE=${mode} (got ${secret.length}).`,
+      `CAPACITYLENS_SECRET must be at least ${MIN_BETTER_AUTH_SECRET_LENGTH} characters when CAPACITYLENS_MODE=${mode} (got ${secret.length}).`,
     );
   }
   return secret;
@@ -139,10 +140,10 @@ function requireSetupToken(
   mode: AccountMode,
   AuthConfigError: FactoryDependencies["AuthConfigError"],
 ) {
-  const configuredSetupToken = environment.SMALLSASS_ACCOUNT_SETUP_TOKEN;
+  const configuredSetupToken = environment.CAPACITYLENS_SETUP_TOKEN;
   const setupToken = configuredSetupToken === "" ? undefined : configuredSetupToken;
   if (allowsPasswordSignIn(mode) && setupToken && Buffer.byteLength(setupToken, "utf8") < 32) {
-    throw new AuthConfigError("SMALLSASS_ACCOUNT_SETUP_TOKEN must be at least 32 bytes.");
+    throw new AuthConfigError("CAPACITYLENS_SETUP_TOKEN must be at least 32 bytes.");
   }
   return setupToken;
 }
@@ -160,8 +161,8 @@ function createEnabledAuthContext(input: {
   const secret = requireSecret(input.environment, input.mode, input.dependencies);
   const baseURL = input.dependencies.required(
     input.environment,
-    "SMALLSASS_ACCOUNT_PUBLIC_URL",
-    `SMALLSASS_ACCOUNT_MODE=${input.mode}`,
+    "CAPACITYLENS_PUBLIC_URL",
+    `CAPACITYLENS_MODE=${input.mode}`,
   );
   const publicUrl = parsePublicUrl(baseURL, input.runtimeEnvironment, input.dependencies.AuthConfigError);
   return {
@@ -170,21 +171,21 @@ function createEnabledAuthContext(input: {
     secret,
     baseURL,
     publicUrl,
-    mail: input.environment.SMALLSASS_ACCOUNT_MAIL_HOST ? createMailSender(input.environment) : null,
+    mail: input.environment.CAPACITYLENS_MAIL_HOST ? createMailSender(input.environment) : null,
     sessionDeletionLifecycleRef: { current: null },
   };
 }
 
 // Retain one facade-owned error class and policy surface without a runtime cycle.
 export function createAuthFromEnvironmentFactory(dependencies: FactoryDependencies) {
-  /** Build the Better Auth instance for the parsed mode — or null in 'off' mode, where no
-   *  env beyond SMALLSASS_ACCOUNT_MODE itself is read. `trustedOrigins` should be the same browser
-   *  origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
-   *  the same-origin production deploy needs none.
+  /** Build the Better Auth instance for the parsed mode, or null in 'off' mode, where no
+   * env beyond CAPACITYLENS_MODE itself is read. `trustedOrigins` should be the same browser
+   * origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
+   * the same-origin production deploy needs none.
    *
-   *  Cookie security is derived from `SMALLSASS_ACCOUNT_PUBLIC_URL`, the browser-facing public origin. It must
-   *  never be tied to whether the Node hop itself terminates TLS: the normal nginx deployment uses
-   *  HTTPS in the browser and HTTP between nginx and Node. */
+   * Cookie security is derived from `CAPACITYLENS_PUBLIC_URL`, the browser-facing public origin. It must
+   * never be tied to whether the Node hop itself terminates TLS: the normal nginx deployment uses
+   * HTTPS in the browser and HTTP between nginx and Node. */
   return function authFromEnv(
     db: Db,
     environment: Env,
@@ -192,7 +193,7 @@ export function createAuthFromEnvironmentFactory(dependencies: FactoryDependenci
   ): { mode: AccountMode; auth: Auth | null } {
     const runtimeEnvironment = environment.NODE_ENV ?? process.env.NODE_ENV;
     const resolvedEnvironment = resolveAccountEnvironment(environment).env;
-    const mode = dependencies.parseAuthMode(resolvedEnvironment.SMALLSASS_ACCOUNT_MODE);
+    const mode = dependencies.parseAuthMode(resolvedEnvironment.CAPACITYLENS_MODE);
     if (mode === "off") return { mode, auth: null };
     const context = createEnabledAuthContext({
       db,
@@ -216,7 +217,7 @@ function buildProviderPolicies(context: EnabledAuthContext, microsoftProof: Micr
   // setup token, allowing exactly one first-owner bootstrap; static disableSignUp would
   // leave signup open after that owner existed. ALLOW_OPEN_SIGNUP remains the explicit
   // trusted-instance/dev override. External principals still require provider admission.
-  const allowOpenSignup = environment.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1";
+  const allowOpenSignup = environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1";
   const setupToken = requireSetupToken(environment, mode, dependencies.AuthConfigError);
   const providerConfig = buildProviders({
     env: environment,
@@ -228,12 +229,12 @@ function buildProviderPolicies(context: EnabledAuthContext, microsoftProof: Micr
   });
   if (allowsProviderSignIn(mode) && providerConfig.configuredProviderInfo.length === 0) {
     throw new dependencies.AuthConfigError(
-      `SMALLSASS_ACCOUNT_MODE=${mode} requires at least one configured sign-in provider.`,
+      `CAPACITYLENS_MODE=${mode} requires at least one configured sign-in provider.`,
     );
   }
   if (mode === "sso-only" && companyProviderIds(providerConfig.configuredProviderInfo).size === 0) {
     throw new dependencies.AuthConfigError(
-      "SMALLSASS_ACCOUNT_MODE=sso-only requires Google or tenant-specific Microsoft; GitHub is experimental.",
+      "CAPACITYLENS_MODE=sso-only requires Google or tenant-specific Microsoft; GitHub is experimental.",
     );
   }
   return { pluginOptions, allowOpenSignup, setupToken, providerConfig };
@@ -285,7 +286,6 @@ function buildAuthPolicies(
     configuredFederatedIssuers: providers.providerConfig.configuredFederatedIssuers,
     permittedCompanyProviderIds: companyProviderIds(providers.providerConfig.configuredProviderInfo),
     allowOpenSignup: providers.allowOpenSignup,
-    requirePasswordMfa: allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1",
     externalIdentityAdmission: async (candidate) =>
       microsoftProof?.admitsNewJoiningIdentity(candidate) === true ||
       (await options.externalIdentityAdmission?.(candidate)) === true,

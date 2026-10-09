@@ -1,16 +1,16 @@
-import { useStore } from "../../store/useStore";
-import { useActiveScopedData } from "../../store/useScopedData";
-import { useEntityListState } from "../../hooks/useEntityListState";
-import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
-import { NEUTRAL_COLOR } from "../../lib/palette";
+import { useStore } from "@/store/useStore";
+import { useActiveScopedData } from "@/store/useScopedData";
+import { useEntityListState } from "@/hooks/useEntityListState";
+import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "@/components/common/ui";
+import { NEUTRAL_COLOR } from "@/lib/palette";
 import { DisciplineForm } from "./DisciplineForm";
 import type { Discipline } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { Fragment, useMemo } from "react";
 import { Plus, Tag } from "lucide-react";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { byName } from "../../lib/displayOrder";
-import { useConfirmDelete } from "../../hooks/useConfirmDelete";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
+import { byName } from "@/lib/displayOrder";
+import { useConfirmDelete } from "@/hooks/useConfirmDelete";
 
 export function DisciplineList() {
   const disciplines = useActiveScopedData().disciplines;

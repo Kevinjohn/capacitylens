@@ -10,8 +10,8 @@ import {
   snapToPresetColor,
   FALLBACK_PRESET_COLOR,
   PRESET_COLORS,
-  type BarColorMaps,
 } from "./color";
+import type { BarColorMaps } from "./color";
 import type { Allocation, Client, Project, Resource, Activity } from "../types/entities";
 
 // Build the id→entity maps resolveBarColor consumes, from plain arrays.
@@ -102,7 +102,7 @@ describe("resolveBarColor", () => {
     expect(resolveBarColor(alloc("ext", "t"), m)).toBe("#9ca3af");
   });
 
-  it("defaults an internal activity bar to grey and restores its resource colour in palette mode", () => {
+  it("always shows an internal activity bar in grey", () => {
     const internal: Activity = {
       id: "internal",
       accountId: "acct",
@@ -113,12 +113,11 @@ describe("resolveBarColor", () => {
     };
     const base = maps({ activities: [internal], resources: [resource("r", "person")] });
     expect(resolveBarColor(alloc("r", "internal"), base)).toBe("#9ca3af");
-    expect(resolveBarColor(alloc("r", "internal"), { ...base, internalColourMode: "palette" })).toBe("#123456");
   });
 });
 
 describe("resolveBarColor project attribution", () => {
-  it("defaults an Internal-owned project to grey and restores its saved colour in palette mode", () => {
+  it("always shows an Internal-owned project in grey while keeping its saved colour", () => {
     const internalClient: Client = {
       id: "c",
       accountId: "acct",
@@ -136,9 +135,8 @@ describe("resolveBarColor project attribution", () => {
       resources: [resource("r", "person")],
     });
     expect(resolveBarColor(alloc("r", "t"), base)).toBe("#9ca3af");
-    expect(resolveBarColor(alloc("r", "t"), { ...base, internalColourMode: "palette" })).toBe("#abcdef");
     expect(resolveProjectColor(saved, internalClient)).toBe("#9ca3af");
-    expect(resolveProjectColor(saved, internalClient, "palette")).toBe("#abcdef");
+    expect(saved.color).toBe("#abcdef");
   });
 
   it("does not treat a project-less all-projects activity as internal work", () => {
@@ -251,7 +249,7 @@ describe("readableTextColor", () => {
 
   it("returns the dark-ink guard value directly for an unparseable hex", () => {
     // calculateRelativeLuminance(hex) is null here, so the load-bearing guard must return DARK_INK
-    // itself — not fall through into contrastRatio, where both sides would tie at the
+    // itself: not fall through into contrastRatio, where both sides would tie at the
     // "no contrast info" value of 1 and hand the answer to white ink instead.
     expect(readableTextColor("#zzzzzz")).toBe("#1c2230");
   });
@@ -281,14 +279,14 @@ describe("resolveAccessibleBarColors", () => {
 
   it("zero-pads a single-hex-digit channel back to two digits", () => {
     // The adjusted red channel here rounds to 0, i.e. a single hex digit ("0")
-    // that MUST be left-padded to "00" — dropping the padStart pad character
+    // that must be left-padded to "00"; dropping the padStart pad character
     // would shorten the whole hex string.
     expect(resolveAccessibleBarColors("#0070f8")).toEqual({ bg: "#0067e4", ink: "#ffffff" });
   });
 
   it("passes an already-AA-compliant colour through verbatim, never entering the nudge loop", () => {
     // Pure black clears 4.5:1 against white ink on the very first contrastWithInk() check
-    // (21:1), so the loop body never runs and `nudged` stays false — bg must equal the input
+    // (21:1), so the loop body never runs and `nudged` stays false, bg must equal the input
     // hex exactly (the caller's own string), not a toHex() round-trip of the same RGB.
     expect(resolveAccessibleBarColors("#000000")).toEqual({ bg: "#000000", ink: "#ffffff" });
   });
@@ -312,7 +310,7 @@ describe("snapToPresetColor", () => {
   });
 
   it("maps a non-preset colour to its nearest preset by RGB distance", () => {
-    // #7cd9e4 is 2/-1/+1 off PRESET_COLORS[20] (#7adae3) — nearer to it (distance 6) than to
+    // #7cd9e4 is 2/-1/+1 off PRESET_COLORS[20] (#7adae3), nearer to it (distance 6) than to
     // any other preset (the next-nearest is 51+ away in this palette).
     expect(PRESET_COLORS[20]).toBe("#7adae3");
     expect(snapToPresetColor("#7cd9e4")).toBe("#7adae3");
@@ -320,7 +318,7 @@ describe("snapToPresetColor", () => {
 
   it("breaks an exact distance tie by palette order (first minimal-distance preset wins)", () => {
     // #f6c3bb sits exactly midway between PRESET_COLORS[0] (#f5bcbc) and PRESET_COLORS[1]
-    // (#f7caba) — both distance 51, every other preset much farther (500+). A `<=` instead of
+    // (#f7caba): both distance 51, every other preset much farther (500+). A `<=` instead of
     // `<` in the scan (or scanning in the wrong order) would instead pick index 1.
     expect(PRESET_COLORS[0]).toBe("#f5bcbc");
     expect(PRESET_COLORS[1]).toBe("#f7caba");

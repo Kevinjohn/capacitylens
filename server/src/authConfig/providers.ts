@@ -16,13 +16,13 @@ function configuredProviderInfo(environment: Env): AuthProviderInfo[] {
   const add = (id: string, label: string, brand: AuthProviderBrand): void => {
     providers.push({ id, label, kind: "social", brand, experimental: id === "github" });
   };
-  if (environment.SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID && environment.SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET) {
+  if (environment.CAPACITYLENS_GOOGLE_CLIENT_ID && environment.CAPACITYLENS_GOOGLE_CLIENT_SECRET) {
     add("google", "Google", "google");
   }
-  if (environment.SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID && environment.SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET) {
+  if (environment.CAPACITYLENS_MICROSOFT_CLIENT_ID && environment.CAPACITYLENS_MICROSOFT_CLIENT_SECRET) {
     add("microsoft", "Microsoft", "microsoft");
   }
-  if (environment.SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID && environment.SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET) {
+  if (environment.CAPACITYLENS_GITHUB_CLIENT_ID && environment.CAPACITYLENS_GITHUB_CLIENT_SECRET) {
     add("github", "GitHub", "generic");
   }
   return providers;
@@ -54,7 +54,7 @@ export function buildProviders({
   if (configuredSocialProviders.microsoft) {
     configuredFederatedIssuers.set(
       "microsoft",
-      `urn:better-auth:microsoft:${resolveMicrosoftTenantId(env.SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID, AuthConfigError)}`,
+      `urn:better-auth:microsoft:${resolveMicrosoftTenantId(env.CAPACITYLENS_MICROSOFT_TENANT_ID, AuthConfigError)}`,
     );
   }
   if (configuredSocialProviders.github) configuredFederatedIssuers.set("github", "urn:better-auth:github");

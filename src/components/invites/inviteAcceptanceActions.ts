@@ -1,17 +1,13 @@
 import type { Dispatch, SetStateAction, RefObject } from "react";
 import type { InviteAcceptState } from "./InviteAcceptView";
-import {
-  accountClient,
-  readUnknownAccountCommandOutcome,
-  createBrowserAccountCommand,
-  type BrowserAccountCommand,
-} from "../../account/accountClient";
+import { accountClient, readUnknownAccountCommandOutcome, createBrowserAccountCommand } from "@/account/accountClient";
+import type { BrowserAccountCommand } from "@/account/accountClient";
 import { m } from "@/i18n";
 import { readAccountFailure, resolveMessageForStatus } from "./inviteResponses";
-import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
+import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
 import { isAccountRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 
 interface Dependencies {
   token: string | undefined;
@@ -44,11 +40,16 @@ async function refreshInvalidResult(setState: InviteStateSetter): Promise<void> 
   setState({ kind: "error", message });
 }
 
-async function resolveRejectedMessage(
-  response: Response,
-  outcomeUnknown: boolean,
-  failure: Awaited<ReturnType<typeof readAccountFailure>>,
-): Promise<string> {
+type ResolveRejectedMessageOptions = {
+  response: Response;
+  outcomeUnknown: boolean;
+  failure: Awaited<ReturnType<typeof readAccountFailure>>;
+};
+async function resolveRejectedMessage({
+  response,
+  outcomeUnknown,
+  failure,
+}: ResolveRejectedMessageOptions): Promise<string> {
   let reconciliation = "";
   if (outcomeUnknown) {
     const list = await refreshAccountSummaries({ allowCachedFallback: false });
@@ -73,7 +74,11 @@ async function reportRejectedAcceptance(
     setState({ kind: "auth", message: resolveMessageForStatus(401, failure.message ?? undefined) });
     return;
   }
-  const message = await resolveRejectedMessage(response, outcomeUnknown, failure);
+  const message = await resolveRejectedMessage({
+    response: response,
+    outcomeUnknown: outcomeUnknown,
+    failure: failure,
+  });
   setState({
     kind: "error",
     message,

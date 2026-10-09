@@ -1,4 +1,4 @@
-// Shared scheduler tuning. The timeline shows a preset number of WEEKS; the
+// Shared scheduler tuning. The timeline shows a preset number of weeks; the
 // day-column width is derived to fit that many weeks into the available width
 // (see resolveColumnFit). Pixel row geometry lives in components/scheduler/layout.ts.
 
@@ -19,35 +19,35 @@ export const DAY_COLUMN_MIN_WIDTH = 18;
 /** At/above this day width the header also shows weekday letters (Mon/Tue…). */
 export const WEEKDAY_LABEL_MIN_WIDTH = 36;
 
-/** Bare-minimum width of a Sat/Sun column when "minimise weekends" is on — just room for a
- *  two-digit date. Expressed in REM (not px) so it tracks the user's font size / zoom; it's
- *  resolved to px against the root font size where the ColumnGeometry is built. Only applies at
- *  fine zoom (dayWidth >= DAY_COLUMN_MIN_WIDTH); buildColumnGeometry also caps it at dayWidth. */
+/** Bare-minimum width of a Sat/Sun column when "minimise weekends" is on, just room for a
+ * two-digit date. Expressed in rem (not px) so it tracks the user's font size / zoom; it's
+ * resolved to px against the root font size where the ColumnGeometry is built. Only applies at
+ * fine zoom (dayWidth >= DAY_COLUMN_MIN_WIDTH); buildColumnGeometry also caps it at dayWidth. */
 export const WEEKEND_COLUMN_REM = 1.4; // ≈ a 2-digit number at text-xs + a little padding
 
-/** Idle delay (ms) after a FREE horizontal scroll settles before the "snap to week start" pref
- *  floors the left edge back to the current week's first day — long enough that a continuous drag
- *  isn't fought mid-gesture, short enough to feel immediate once the user lets go. */
+/** Idle delay (ms) after a free horizontal scroll settles before the week snap
+ * floors the left edge back to the current week's first day, long enough that a continuous drag
+ * isn't fought mid-gesture, short enough to feel immediate once the user lets go. */
 export const WEEK_SNAP_IDLE_MS = 120;
 
-/** How many days the timeline spans FORWARD from the focus date. */
+/** How many days the timeline spans forward from the focus date. */
 export const DEFAULT_RANGE_DAYS = 120;
-/** Scrollable history kept to the LEFT of the focus date (default view, Today,
- *  jump-to-date, account switch). The view still opens scrolled to the focus date —
- *  the buffer exists so a leftward swipe PANS into the past instead of overscrolling
- *  the left edge, which macOS treats as browser back-navigation. A whole number of
- *  weeks, so the origin stays on the same weekday as the focused Monday. */
+/** Scrollable history kept to the left of the focus date (default view, Today,
+ * jump-to-date, account switch). The view still opens scrolled to the focus date,
+ * the buffer exists so a leftward swipe pans into the past instead of overscrolling
+ * the left edge, which macOS treats as browser back-navigation. A whole number of
+ * weeks, so the origin stays on the same weekday as the focused Monday. */
 export const PAST_BUFFER_DAYS = 28;
 
 /**
- * Window (days, forward from TODAY) for the `overSoon` red flag ONLY — the near-term, zoom/pan-
- * INDEPENDENT "over soon" overbooking radar, so a person slammed this week reads as overbooked
- * regardless of the visible range. This is deliberately SEPARATE from the DISPLAYED utilisation %
+ * Window (days, forward from today) for the `overSoon` red flag only, the near-term, zoom/pan-
+ * independent "over soon" overbooking radar, so a person slammed this week reads as overbooked
+ * regardless of the visible range. This is deliberately separate from the displayed utilisation %
  * (per-person / per-discipline avg / overall), which since the visible-window change is computed
- * over the currently VISIBLE span (the zoom toggle's `zoom * 7` days at the scroll left edge) so
- * "63% utilisation" answers "over the weeks I'm looking at". A third signal — the per-day
- * over-marker — still flags every over-allocated day across the whole timeline. Three distinct
- * over/utilisation signals, kept apart (CLAUDE.md / DECISIONS.md).
+ * over the currently visible span (the zoom toggle's `zoom * 7` days at the scroll left edge) so
+ * "63% utilisation" answers "over the weeks I'm looking at". A third signal, the per-day
+ * over-marker, still flags every over-allocated day across the whole timeline. Three distinct
+ * over/utilisation signals, kept apart (AGENTS.md / DECISIONS.md).
  */
 export const UTILIZATION_WINDOW_DAYS = 14;
 
@@ -55,10 +55,10 @@ export const UTILIZATION_WINDOW_DAYS = 14;
  * Integer column fit for one of the scheduler's week zooms.
  *
  * `weekendWidth` (optional) is the px width of a minimised Sat/Sun column. When given, the fit
- * accounts for the narrowed weekends — a week of viewport is then 5 weekday columns + 2 narrow
+ * accounts for the narrowed weekends. A week of viewport is then 5 weekday columns + 2 narrow
  * weekend columns, so the weekday columns are widened to fill `weeks` weeks (otherwise the
  * narrow weekends leave the right edge under-filled and a "1-week" view shows ~1.5 weeks). The
- * caller passes it ONLY when minimise is actually narrowing (weekday width > weekendWidth);
+ * caller passes it only when minimise is actually narrowing (weekday width > weekendWidth);
  * omit it (or pass a non-positive / non-finite value) for the uniform 7-equal-columns fit.
  *
  * `dayWidth` is the base width. ColumnGeometry distributes the remainder up to `weekWidth`

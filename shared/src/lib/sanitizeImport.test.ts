@@ -102,8 +102,8 @@ function registerImportedRecordBasics(): void {
 
 function registerImportedResourceTests(): void {
   it("de-duplicates a resource’s working days so length reflects real coverage", () => {
-    // [1×7] must NOT reach length 7 (which the scheduling math reads as a full 7-day
-    // week and flips weekend-awareness off) — a Monday-only resource stays Monday-only.
+    // [1×7] must not reach length 7 (which the scheduling math reads as a full 7-day
+    // week and flips weekend-awareness off). A Monday-only resource stays Monday-only.
     expect(sanitizeImportedRecord("resources", { workingDays: [1, 1, 1, 1, 1, 1, 1] }).workingDays).toEqual([1]);
     expect(sanitizeImportedRecord("resources", { workingDays: [5, 1, 3, 1, 5] }).workingDays).toEqual([1, 3, 5]);
   });
@@ -131,9 +131,9 @@ function registerImportedResourceTests(): void {
   it("keeps only 0–6 integer weekdays, dropping out-of-range and non-numbers", () => {
     // Only real Weekday values survive: 7 / -1 / 9 / 'x' are all dropped, leaving [1].
     expect(sanitizeImportedRecord("resources", { workingDays: [1, 7, -1, "x", 9] }).workingDays).toEqual([1]);
-    // 0 (Sun) and 6 (Sat) are INCLUSIVE bounds — a weekend-only week is legal, not clipped.
+    // 0 (Sun) and 6 (Sat) are inclusive bounds. A weekend-only week is legal, not clipped.
     expect(sanitizeImportedRecord("resources", { workingDays: [0, 3, 6] }).workingDays).toEqual([0, 3, 6]);
-    // an ARRAY that filters empty still falls back to Mon–Fri (not to [], which would model a
+    // an array that filters empty still falls back to Mon–Fri (not to [], which would model a
     // no-working-day resource).
     expect(sanitizeImportedRecord("resources", { workingDays: [9] }).workingDays).toEqual([1, 2, 3, 4, 5]);
     expect(sanitizeImportedRecord("resources", { workingDays: [1.5, 2] }).workingDays).toEqual([2]);
@@ -273,7 +273,7 @@ function registerImportedDateTests(): void {
     expect(sanitizeImportedRecord("allocations", { startDate: "  2026-6-1  " }).startDate).toBe("2026-06-01");
     // pads a 1-digit month even when the day is already 2 digits (the whole string must match)
     expect(sanitizeImportedRecord("allocations", { startDate: "2026-6-12" }).startDate).toBe("2026-06-12");
-    // a prefixed / suffixed value is NOT a date — it's left verbatim for validateDateRange to reject,
+    // a prefixed / suffixed value is not a date. It's left verbatim for validateDateRange to reject,
     // never partially rewritten from an embedded match.
     expect(sanitizeImportedRecord("allocations", { startDate: "x2026-6-1" }).startDate).toBe("x2026-6-1");
     expect(sanitizeImportedRecord("allocations", { startDate: "2026-6-1x" }).startDate).toBe("2026-6-1x");
@@ -310,9 +310,9 @@ function registerImportedTextFieldTests(): void {
   });
 
   it("cleans a single-line name (collapsing newlines) but preserves newlines in multiline notes", () => {
-    // resources.name uses the DEFAULT (single-line) mode — a newline collapses to a space...
+    // resources.name uses the default (single-line) mode, a newline collapses to a space...
     expect(sanitizeImportedRecord("resources", { name: "a\nb", role: "r" }).name).toBe("a b");
-    // ...whereas allocation / time-off NOTES are multiline, so a newline is preserved.
+    // ...whereas allocation / time-off notes are multiline, so a newline is preserved.
     expect(sanitizeImportedRecord("allocations", { note: "a\nb" }).note).toBe("a\nb");
     expect(sanitizeImportedRecord("timeOff", { note: "a\nb" }).note).toBe("a\nb");
     // and a note is still stripped of emoji junk (proving the cleaned field really is 'note')
@@ -407,7 +407,7 @@ function registerImportedLifecycleTests(): void {
   });
 }
 
-// Lifecycle timestamps (archivedAt / deletedAt — P2.1) are optional ISO strings on
+// Lifecycle timestamps (archivedAt / deletedAt) are optional ISO strings on
 // resources / clients / projects / activities; a valid string is kept, anything non-string is
 // dropped (its absence reads back as active / not-deleted).
 function registerImportedLifecycleSuites(): void {
@@ -517,7 +517,7 @@ function registerAccountTimezoneTests(): void {
 
   it("strips a non-string timezone even if it stringifies to a valid zone (type-guard, not coercion)", () => {
     // Only a real string may be kept: the `typeof !== 'string'` branch must strip an object,
-    // NOT fall through to Intl (which would String()-coerce it to a valid zone and keep junk).
+    // not fall through to Intl (which would String()-coerce it to a valid zone and keep junk).
     const rec: Record<string, unknown> = { timezone: { toString: () => "Europe/London" } };
     sanitizeAccount(rec);
     expect(rec.timezone).toBeUndefined();
@@ -573,13 +573,6 @@ function registerAccountFeatureTests(): void {
     expect(sanitizeAccount({ disciplinesEnabled: true }).disciplinesEnabled).toBe(true);
   });
 
-  it("keeps boolean engagement grouping and drops malformed values", () => {
-    expect(sanitizeAccount({ groupResourcesByEngagement: false }).groupResourcesByEngagement).toBe(false);
-    expect(sanitizeAccount({ groupResourcesByEngagement: true }).groupResourcesByEngagement).toBe(true);
-    expect(sanitizeAccount({ groupResourcesByEngagement: "yes" }).groupResourcesByEngagement).toBeUndefined();
-    expect(sanitizeAccount({ groupResourcesByEngagement: null }).groupResourcesByEngagement).toBeUndefined();
-  });
-
   it("strips a non-boolean placeholdersEnabled", () => {
     expect(sanitizeAccount({ placeholdersEnabled: "yes" }).placeholdersEnabled).toBeUndefined();
     expect(sanitizeAccount({ placeholdersEnabled: 1 }).placeholdersEnabled).toBeUndefined();
@@ -604,35 +597,6 @@ function registerAccountFeatureTests(): void {
 }
 
 function registerAccountVisibilityTests(): void {
-  it("keeps the two Internal colour modes and drops unknown values to the grey-by-absence default", () => {
-    expect(sanitizeAccount({ internalColourMode: "grey" }).internalColourMode).toBe("grey");
-    expect(sanitizeAccount({ internalColourMode: "palette" }).internalColourMode).toBe("palette");
-    expect(sanitizeAccount({ internalColourMode: "rainbow" }).internalColourMode).toBeUndefined();
-    expect(sanitizeAccount({ internalColourMode: 1 }).internalColourMode).toBeUndefined();
-  });
-
-  it("strips a non-boolean showInternalProjects", () => {
-    expect(sanitizeAccount({ showInternalProjects: "yes" }).showInternalProjects).toBeUndefined();
-    expect(sanitizeAccount({ showInternalProjects: 1 }).showInternalProjects).toBeUndefined();
-    expect(sanitizeAccount({ showInternalProjects: null }).showInternalProjects).toBeUndefined();
-  });
-
-  it("keeps a boolean showInternalProjects (both true and false survive import)", () => {
-    expect(sanitizeAccount({ showInternalProjects: false }).showInternalProjects).toBe(false);
-    expect(sanitizeAccount({ showInternalProjects: true }).showInternalProjects).toBe(true);
-  });
-
-  it("strips a non-boolean showInternalActivities", () => {
-    expect(sanitizeAccount({ showInternalActivities: "yes" }).showInternalActivities).toBeUndefined();
-    expect(sanitizeAccount({ showInternalActivities: 1 }).showInternalActivities).toBeUndefined();
-    expect(sanitizeAccount({ showInternalActivities: null }).showInternalActivities).toBeUndefined();
-  });
-
-  it("keeps a boolean showInternalActivities (both true and false survive import)", () => {
-    expect(sanitizeAccount({ showInternalActivities: false }).showInternalActivities).toBe(false);
-    expect(sanitizeAccount({ showInternalActivities: true }).showInternalActivities).toBe(true);
-  });
-
   it("strips a non-boolean inlineActivityCreateEnabled", () => {
     expect(sanitizeAccount({ inlineActivityCreateEnabled: "yes" }).inlineActivityCreateEnabled).toBeUndefined();
     expect(sanitizeAccount({ inlineActivityCreateEnabled: 1 }).inlineActivityCreateEnabled).toBeUndefined();

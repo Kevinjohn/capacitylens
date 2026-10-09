@@ -5,7 +5,7 @@ import { DEFAULT_ACCOUNT_ID, makeAccount, makeAppData, makeResource, resetStoreW
 import { useStore } from "@/store/useStore";
 import { CapacityOverviewView } from "./CapacityOverviewView";
 
-vi.mock("../scheduler/useCalendarToday", () => ({ useCalendarToday: () => "2026-09-10" }));
+vi.mock("@/components/scheduler/useCalendarToday", () => ({ useCalendarToday: () => "2026-09-10" }));
 
 describe("CapacityOverviewView", () => {
   beforeEach(() => resetStoreWithAccount());
@@ -89,7 +89,7 @@ describe("CapacityOverviewView", () => {
     const user = userEvent.setup();
     renderOverview();
 
-    const groupToggle = screen.getByRole("button", { name: /Studio/ });
+    const groupToggle = screen.getByRole("button", { name: /Overall/ });
     await user.click(groupToggle);
     await user.click(screen.getByRole("radio", { name: "12 weeks" }));
 

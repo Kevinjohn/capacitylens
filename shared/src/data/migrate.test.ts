@@ -7,7 +7,7 @@ import { migrateV3toV4 } from "./migrate/steps/v1-v6";
 describe("migrate", () => {
   // Guards a development-time mistake: a migration step added to POST_REPAIR_BASE_STEPS (in
   // migrate.ts) without EXPORT_SCHEMA_VERSION bumped to match, or vice versa. That invariant used
-  // to throw at module-evaluation time, which meant merely IMPORTING shared/data/migrate (as
+  // to throw at module-evaluation time, which meant merely importing shared/data/migrate (as
   // src/data/sync/loadSlice.ts and src/data/validateAccountSlice.ts do, both on the app's entry
   // graph) could white-screen the whole app before any error boundary exists. It is now asserted
   // lazily, the first time migrate() actually runs, so importing the module can never throw and a
@@ -202,25 +202,6 @@ describe("migrate versionless resource data", () => {
   });
 });
 
-describe("migrate privacy defaults", () => {
-  it("leaves a v7 account without internalColourMode absent so it reads as grey", () => {
-    const data = {
-      ...emptyAppData(),
-      accounts: [
-        {
-          id: "a1",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Studio",
-          color: "#2d75da",
-        },
-      ],
-    };
-    const out = migrate({ schemaVersion: 7, data });
-    expect(out.accounts[0]?.internalColourMode).toBeUndefined();
-  });
-});
-
 describe("migrate account and client defaults", () => {
   it("keeps schema-v6 clients and projects without privacy fields public", () => {
     const out = migrate({
@@ -264,8 +245,8 @@ describe("migrate account and client defaults", () => {
 
 describe("migrate schedule visibility defaults", () => {
   it("leaves a v8 account without the schedule view prefs absent so they read as shown/enabled (v8 → v9)", () => {
-    // v8→v9 is a metadata-only step (like v7→v8): the three new optional booleans stay ABSENT so the
-    // client's `?? true` reads them as shown/enabled — the migration materialises no defaults.
+    // v8→v9 is a metadata-only step (like v7→v8): the three new optional booleans stay absent so the
+    // client's `?? true` reads them as shown/enabled, the migration materialises no defaults.
     const data = {
       ...emptyAppData(),
       accounts: [
@@ -279,14 +260,12 @@ describe("migrate schedule visibility defaults", () => {
       ],
     };
     const out = migrate({ schemaVersion: 8, data });
-    expect(out.accounts[0]?.showInternalProjects).toBeUndefined();
-    expect(out.accounts[0]?.showInternalActivities).toBeUndefined();
     expect(out.accounts[0]?.inlineActivityCreateEnabled).toBeUndefined();
   });
 });
 
 describe("migrate schedule preference defaults", () => {
-  it("preserves explicit false schedule view prefs across migration (v8 → v9)", () => {
+  it("preserves an explicit false schedule preference across migration (v8 → v9)", () => {
     const data = {
       ...emptyAppData(),
       accounts: [
@@ -296,15 +275,11 @@ describe("migrate schedule preference defaults", () => {
           updatedAt: "t",
           name: "Studio",
           color: "#2d75da",
-          showInternalProjects: false,
-          showInternalActivities: false,
           inlineActivityCreateEnabled: false,
         },
       ],
     };
     const out = migrate({ schemaVersion: 8, data });
-    expect(out.accounts[0]?.showInternalProjects).toBe(false);
-    expect(out.accounts[0]?.showInternalActivities).toBe(false);
     expect(out.accounts[0]?.inlineActivityCreateEnabled).toBe(false);
   });
 });
@@ -399,7 +374,7 @@ describe("migrate engagement defaults", () => {
     expect(out.resources[0]).toEqual(resource);
   });
 
-  it("leaves v12 engagement grouping absent so the default-on selector applies", () => {
+  it("adds no account fields beyond working days when migrating v12", () => {
     const account = {
       id: "a1",
       createdAt: "t",
@@ -410,14 +385,13 @@ describe("migrate engagement defaults", () => {
 
     const out = migrate({ schemaVersion: 12, data: { ...emptyAppData(), accounts: [account] } });
     expect(out.accounts[0]).toEqual({ ...account, workingDays: [1, 2, 3, 4, 5] });
-    expect(out.accounts[0]?.groupResourcesByEngagement).toBeUndefined();
   });
 });
 
 describe("migrate activity and client repairs", () => {
   it("backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable", () => {
-    // Legacy input still carries the OLD `tasks` key (pre-rename); migrate renames it to
-    // `activities` (v4→v5) so the OUTPUT is asserted on `out.activities`.
+    // Legacy input still carries the old `tasks` key (pre-rename); migrate renames it to
+    // `activities` (v4→v5) so the output is asserted on `out.activities`.
     const out = migrate({
       schemaVersion: 3,
       data: {

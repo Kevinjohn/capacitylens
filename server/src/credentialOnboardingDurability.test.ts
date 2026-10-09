@@ -4,7 +4,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { openDb, type Db } from "./db";
+import { openDb } from "./db";
+import type { Db } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import type { Auth } from "./authConfig/authTypes";
 import { getAccountCommand, readAccountCommandAndFlagStalePending, reserveAccountCommand } from "./accounts/state";
@@ -22,10 +23,10 @@ afterEach(() => {
 function createPasswordAuth(db: Db): Auth {
   const configured = createAuthFromEnvironment(db, {
     NODE_ENV: "test",
-    SMALLSASS_ACCOUNT_MODE: "password-only",
-    SMALLSASS_ACCOUNT_SECRET: "correlation-test-secret-0123456789abcdef",
-    SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
-    SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off",
+    CAPACITYLENS_MODE: "password-only",
+    CAPACITYLENS_SECRET: "correlation-test-secret-0123456789abcdef",
+    CAPACITYLENS_PUBLIC_URL: "http://localhost:8787",
+    CAPACITYLENS_PASSWORD_BREACH_CHECK: "off",
   });
   const auth = configured.auth;
   if (!auth) throw new Error("Expected password authentication to be configured.");

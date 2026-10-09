@@ -9,10 +9,11 @@ import {
   createJoiningProviderCallbacks,
   currentJoiningProviderFacts,
 } from "../accounts/adminPort/joiningProviderCallbacks";
-import { PASSWORD_ENV, readCookies, registerServerFixtureCleanup, signUp } from "../testHelpers";
+import { PASSWORD_ENV, readCookies, signUp } from "../testHelpers/passwordAuth";
+import { registerServerFixtureCleanup } from "../testHelpers/registerServerFixtureCleanup";
 
 const fixtures = registerServerFixtureCleanup();
-const origin = PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL;
+const origin = PASSWORD_ENV.CAPACITYLENS_PUBLIC_URL;
 
 function mockGoogle(profile: { sub: string; email: string; name: string; email_verified: boolean }) {
   const claims = {
@@ -39,7 +40,8 @@ function mockGoogle(profile: { sub: string; email: string; name: string; email_v
   );
 }
 
-function mockGithub(email: string, verified: boolean) {
+type MockGithubOptions = { email: string; verified: boolean };
+function mockGithub({ email, verified }: MockGithubOptions) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: Request | string | URL) => {
@@ -68,16 +70,16 @@ async function fixture() {
   const provider = createJoiningProviderCallbacks({
     db,
     applicationId: "capacitylens",
-    secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
+    secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
     secureCookies: false,
   });
   const environment = {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_MODE: "password-and-sso",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
-    SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client",
-    SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-secret",
+    CAPACITYLENS_MODE: "password-and-sso",
+    CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+    CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+    CAPACITYLENS_GITHUB_CLIENT_ID: "github-client",
+    CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-secret",
   };
   const { auth } = createAuthFromEnvironment(db, environment, {
     joiningProviderCallbacks: provider,
@@ -111,7 +113,7 @@ async function fixture() {
       multiAccount: true,
       allowOpenSignup: true,
       joiningProof: {
-        secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
+        secret: PASSWORD_ENV.CAPACITYLENS_SECRET,
         publicUrl: new URL(origin),
       },
     }),
@@ -254,7 +256,7 @@ it("admits GitHub alongside Google in mixed mode only from its selected verified
   expect(started.statusCode, started.body).toBe(200);
   const state = new URL(started.json<{ url: string }>().url).searchParams.get("state");
   if (!state) throw new Error("Expected native provider state.");
-  mockGithub("diana@studio.example", true);
+  mockGithub({ email: "diana@studio.example", verified: true });
   const callback = await app.inject({
     url: `/api/auth/callback/github?code=controlled-code&state=${encodeURIComponent(state)}`,
     headers: { cookie: readCookies(started) },
@@ -285,7 +287,7 @@ it("does not create a GitHub joining identity from an unverified selected addres
   });
   const state = new URL(started.json<{ url: string }>().url).searchParams.get("state");
   if (!state) throw new Error("Expected native provider state.");
-  mockGithub("diana@studio.example", false);
+  mockGithub({ email: "diana@studio.example", verified: false });
   await app.inject({
     url: `/api/auth/callback/github?code=controlled-code&state=${encodeURIComponent(state)}`,
     headers: { cookie: readCookies(started) },

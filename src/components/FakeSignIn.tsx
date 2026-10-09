@@ -1,21 +1,21 @@
-import avatarUrl from "../assets/avatar-demo.svg";
-import { FAKE_USER } from "../lib/fakeAuth";
+import avatarUrl from "@/assets/avatar-demo.svg";
+import { FAKE_USER } from "@/lib/fakeAuth";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
-// COSMETIC demo sign-in — a Google-account-chooser look shown BEFORE the account picker so
-// a viewer sees the intended "log in first, then pick a company" flow. There is NO real
-// authentication and NO popup: clicking an account just flips the device-global
+// Cosmetic demo sign-in, a Google-account-chooser look shown before the account picker so
+// a viewer sees the intended "log in first, then pick a company" flow. There is no real
+// authentication and no popup: clicking an account just flips the device-global
 // `fakeSignedIn` flag (via onSignIn) and reveals the picker. The real, server-authoritative
-// auth seam is `src/auth/` (AuthProvider / LoginScreen); AppShell only mounts THIS screen
-// when that auth is OFF (authMode === 'off'), so the two never double-gate. Restyle the
+// auth seam is `src/auth/` (AuthProvider / LoginScreen); AppShell only mounts this screen
+// when that auth is off (authMode === 'off'), so the two never double-gate. Restyle the
 // persona via `src/lib/fakeAuth.ts` and `src/assets/avatar-demo.svg`.
 
 /** The multi-colour Google "G" mark. Decorative (aria-hidden) and inline so the demo needs
- *  no network request. */
+ * no network request. */
 function GoogleMark() {
   return (
     <svg viewBox="0 0 48 48" width="22" height="22" aria-hidden="true" focusable="false">
@@ -42,8 +42,8 @@ function GoogleMark() {
 /**
  * The demo sign-in gate.
  *
- * @param onSignIn called when the viewer "signs in" (clicks the account) — the host
- *   (AppShell) flips the device-global flag and advances to the account picker.
+ * @param onSignIn called when the viewer "signs in" (clicks the account), the host
+ * (AppShell) flips the device-global flag and advances to the account picker.
  */
 export function FakeSignIn({ onSignIn }: { onSignIn: () => void }) {
   return (

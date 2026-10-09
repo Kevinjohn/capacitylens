@@ -1,8 +1,9 @@
-import { requireCreated } from "../test/requireCreated";
+import { requireCreated } from "@/test/requireCreated";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Allocation } from "@capacitylens/shared/types/entities";
-import { DEFAULT_ACCOUNT_ID, makeResourceDraft, requireValue, resetStoreWithAccount, WORKDAYS } from "../test/fixtures";
-import { useStore, type Draft } from "./useStore";
+import { DEFAULT_ACCOUNT_ID, makeResourceDraft, requireValue, resetStoreWithAccount, WORKDAYS } from "@/test/fixtures";
+import { useStore } from "./useStore";
+import type { Draft } from "./useStore";
 
 const state = () => useStore.getState();
 
@@ -350,7 +351,7 @@ describe("updateAllocation clamp ordering", () => {
     state().updateAllocation(allocation.id, { hoursPerDay: 99 });
 
     expect(state().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
-      hoursPerDay: 24, // clamped into [0,24] like creation and import — not rejected
+      hoursPerDay: 24, // clamped into [0,24] like creation and import, not rejected
     });
     expect(state().notice).toBeNull();
   });

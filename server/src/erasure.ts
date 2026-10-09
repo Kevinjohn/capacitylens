@@ -1,7 +1,7 @@
 import type { Db } from "./db";
 import { deleteRow } from "./db";
 import { forgetWorkspaceSyncProvenance } from "./syncOrdering";
-import { TENANT_RELATIONSHIPS } from "./tenantIntegrity";
+import { ACCOUNT_RELATIONSHIPS } from "./accountIntegrity";
 import { removeAccountMemberResourcesForAccount } from "./controlTables/accountMemberResources";
 
 interface CrossTenantErasureEdge {
@@ -17,12 +17,12 @@ interface CrossTenantErasureEdge {
  * The schema's id-only foreign keys cannot express the account boundary. Normal writes validate
  * it, but an operator repair, old migration or restored corrupt database can still contain a child
  * labelled for another account. Deleting the parent account would then silently delete or unbind
- * that other account's row. Built from tenantIntegrity's canonical TENANT_RELATIONSHIPS list (same
- * order as the relationships documented in tables.ts) — mirrors its crossTenantEdgeSql generator,
+ * that other account's row. Built from accountIntegrity's canonical ACCOUNT_RELATIONSHIPS list (same
+ * order as the relationships documented in tables.ts), mirrors its crossAccountEdgeSql generator,
  * scoped here to the one workspace being erased instead of the whole database.
  */
 export const CROSS_TENANT_ERASURE_EDGE_SQL =
-  TENANT_RELATIONSHIPS.map(
+  ACCOUNT_RELATIONSHIPS.map(
     (relationship) => `
   SELECT '${relationship.childTable}.${relationship.parentColumn} -> ${relationship.parentTable}.id' AS relationship,
          parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId

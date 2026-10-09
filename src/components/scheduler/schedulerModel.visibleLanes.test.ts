@@ -1,13 +1,15 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
-import { emptyAppData, type ISODate } from "@capacitylens/shared/types/entities";
-import { buildEmptyFilters, useStore } from "../../store/useStore";
-import { makeActivity, makeAllocation, makeResource, requireValue } from "../../test/fixtures";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { ISODate } from "@capacitylens/shared/types/entities";
+import { buildEmptyFilters, useStore } from "@/store/useStore";
+import { makeActivity, makeAllocation, makeResource, requireValue } from "@/test/fixtures";
 import { buildColumnGeometry } from "./columnGeometry";
 import { applyVisibleUtilization, buildSchedulerModel } from "./schedulerModel";
 import { partiallyExposesNextColumn, usePartiallyExposedNextColumn } from "./useSchedulerGridModel";
 
+type ProjectWindowOptions = { partiallyExposesNextColumn: boolean };
 describe("visible-window lane projection", () => {
   it.each([false, true])(
     "derives partial next-column exposure for aligned and offset scroll positions (minimise weekends: %s)",
@@ -25,7 +27,7 @@ describe("visible-window lane projection", () => {
     },
   );
 
-  function projectWindow(partiallyExposesNextColumn: boolean) {
+  function projectWindow({ partiallyExposesNextColumn }: ProjectWindowOptions) {
     const data = {
       ...emptyAppData(),
       resources: [makeResource({ id: "r1", accountId: "acct-test", name: "Diana Prince" })],
@@ -76,7 +78,7 @@ describe("visible-window lane projection", () => {
   }
 
   it("packs the partially exposed next column with the visible window", () => {
-    const row = projectWindow(true);
+    const row = projectWindow({ partiallyExposesNextColumn: true });
     expect(Object.fromEntries(row.bars.map((bar) => [bar.allocation.id, bar.top]))).toEqual({
       "visible-allocation": 10,
       "partially-exposed-allocation": 40,
@@ -85,7 +87,7 @@ describe("visible-window lane projection", () => {
   });
 
   it("does not pack a fully off-screen next column", () => {
-    const row = projectWindow(false);
+    const row = projectWindow({ partiallyExposesNextColumn: false });
     expect(Object.fromEntries(row.bars.map((bar) => [bar.allocation.id, bar.top]))).toEqual({
       "visible-allocation": 10,
       "partially-exposed-allocation": 10,

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { RefObject } from "react";
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
-import { useStore } from "../../store/useStore";
+import { useStore } from "@/store/useStore";
 import { resolvePersonScheduleIdentity, usePersonSchedule } from "./usePersonSchedule";
 
 interface PersonScheduleSelection {

@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { useStore } from "../../store/useStore";
-import { useFieldError } from "../../hooks/useFieldError";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { validatePresetColor, parseName } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/isStaleEdit";
+import { useStore } from "@/store/useStore";
+import { useFieldError } from "@/hooks/useFieldError";
+import { resolveErrorMessage } from "@/lib/errorMessage";
+import { validatePresetColor, parseName } from "@/lib/validation";
+import { isStaleEdit } from "@/lib/isStaleEdit";
 import { m } from "@/i18n";
-import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
-import { PrivateNameFields } from "../common/PrivateNameFields";
-import { usePrivateNameFields } from "../common/usePrivateNameFields";
-import { FieldError } from "../ui/field";
-import { DEFAULT_COLORS } from "../../lib/palette";
+import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
+import { PrivateNameFields } from "@/components/common/PrivateNameFields";
+import { usePrivateNameFields } from "@/components/common/usePrivateNameFields";
+import { FieldError } from "@/components/ui/field";
+import { DEFAULT_COLORS } from "@/lib/palette";
 import type { Client } from "@capacitylens/shared/types/entities";
 
 function ClientFormFields({
@@ -74,7 +74,7 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
     const privacy = privateNameFields.parsePrivacyPatch();
     if (!privacy) return;
     if (!validatePresetColor(color, fail)) return;
-    // The store throws (with a display-safe message) on a tenancy/integrity rejection — surface it
+    // The store throws (with a display-safe message) on a tenancy/integrity rejection, surface it
     // as a form error rather than letting it escape as an uncaught React error. (See the store CRUD
     // contract.) Today the form's own validation precedes it, but the SQLite server seam adds real
     // failure modes, and a caught-and-shown message is the standard.

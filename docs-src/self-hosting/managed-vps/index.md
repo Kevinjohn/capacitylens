@@ -6,7 +6,7 @@ description: Install CapacityLens on Forge, Ploi, RunCloud and similar platforms
 # Deploy on a managed VPS platform
 
 This installs CapacityLens on a server that a platform such as Laravel Forge, Ploi or RunCloud
-manages for you. It takes the five steps from [Install CapacityLens](/getting-started/install),
+manages for you. It takes the five steps from [Install CapacityLens](/self-hosting/install),
 in the platform's own labels, and needs no terminal. The target is ten minutes on a site that
 already exists.
 
@@ -45,17 +45,15 @@ version instead.
 2. **Data folder:** `/home/forge/capacitylens-data`, outside the release so upgrades keep it.
    The first line of the deploy script creates it, so there is nothing to do by hand.
 
-3. **Environment:** paste these five lines into the site's environment editor. Fill in the
-   address and two different values, each pasted from `openssl rand -base64 48`; the second is
-   the one-time setup token for your Owner.
+3. **Environment:** run `init` once in the site's command runner (Forge: the site's Commands
+   panel, which starts in the site's folder), with your address:
 
-   ```dotenv
-   NODE_ENV=production
-   SMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com
-   SMALLSASS_ACCOUNT_SECRET=
-   SMALLSASS_ACCOUNT_SETUP_TOKEN=
-   CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db
+   ```bash
+   node current/server/dist/index.mjs init --public-url https://capacity.example.com --db /home/forge/capacitylens-data/capacitylens.db
    ```
+
+   It prints five lines with the session secret and the one-time setup token for your Owner
+   generated. Paste them into the site's environment editor.
 
    Store the setup token in a password manager before you save. The server refuses to start
    while the address, the secret or the token is empty, and names the one that is missing.
@@ -129,11 +127,11 @@ with your own address. Expect `"ok":true`, `"db":true`, `"audit":"ok"` and a `ba
 
 Then work through these pages:
 
-- [Verify and hand over](/installation/verify-and-hand-over) gives the Owner the setup token,
+- [Verify and hand over](/self-hosting/verify-and-hand-over) gives the Owner the setup token,
   then removes it from the environment once they have signed in.
 - [Upgrades](/self-hosting/upgrades) and
   [Backups and restore](/self-hosting/backups-and-restore) are the routine for a running site.
-- [Configure the service](/installation/configure-the-service) lists every setting, including
+- [Configuration](/self-hosting/configuration) lists every setting, including
   company login.
 
 ## Long-form pages
@@ -151,8 +149,8 @@ release that predates the archive, and for the operating routine on a shared ser
 4. [Deploy and upgrade safely](/self-hosting/managed-vps/deploy-and-upgrade-safely) — stop,
    activate and start one API version at a time, with backups and rollback points.
 5. [Finish and operate the installation](/self-hosting/managed-vps/finish-and-operate-the-installation)
-   — hand over to the [Owner](/reference/glossary), move to the final domain, add
-   [company login](/reference/glossary) and monitor the instance.
+   — hand over to the [Owner](/owner/), move to the final domain, add
+   [company login](/company-login/) and monitor the instance.
 
 ## Worksheet
 

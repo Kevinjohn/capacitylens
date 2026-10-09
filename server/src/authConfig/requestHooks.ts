@@ -124,7 +124,7 @@ function createBeforeRequestHook(options: RequestHookOptions) {
       return continuingContext;
     }
     // A fresh password instance is never claimable merely because it is reachable. The operator
-    // configures SMALLSASS_ACCOUNT_SETUP_TOKEN and the owner-setup form presents it in this header.
+    // configures CAPACITYLENS_SETUP_TOKEN and the owner-setup form presents it in this header.
     // index.ts also refuses a fresh password boot when the secret is absent.
     if (isBootstrapSetupRequest(context, options)) {
       // Validate before acquiring the one-at-a-time bootstrap claim: a malformed password must not
@@ -138,7 +138,7 @@ function createBeforeRequestHook(options: RequestHookOptions) {
         },
       };
     }
-    // The EXACT refusal Better Auth's own disableSignUp emits (sign-up.mjs, 1.6.23), so the client
+    // The exact refusal Better Auth's own disableSignUp emits (sign-up.mjs, 1.6.23), so the client
     // and tests see one unchanged error shape regardless of which gate closed the door.
     throw APIError.from("BAD_REQUEST", {
       message: "Email and password sign up is not enabled",
@@ -178,7 +178,7 @@ export function buildRequestHooks(options: RequestHookOptions): Pick<BetterAuthO
         }
       },
     },
-    // The LIVE sign-up gate (see the SECURE DEFAULT comment above): allowed when the operator
+    // The live sign-up gate (see the secure default comment above): allowed when the operator
     // opted in, or for the empty-table owner bootstrap when the request proves knowledge of the
     // configured setup secret. countUsers(db) is consulted per request so the bootstrap route
     // closes immediately after the first identity is created.

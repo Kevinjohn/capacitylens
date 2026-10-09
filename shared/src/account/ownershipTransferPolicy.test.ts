@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { OWNERSHIP_TRANSFER_ACTIONS, type OwnershipTransferAction } from "./ownershipTransfer";
+import { OWNERSHIP_TRANSFER_ACTIONS } from "./ownershipTransfer";
+import type { OwnershipTransferAction } from "./ownershipTransfer";
 import {
   canActOnOwnershipTransfer,
   canReadOwnershipTransfer,
@@ -7,12 +8,13 @@ import {
   OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS,
   OWNERSHIP_TRANSFER_TTL_MS,
 } from "./ownershipTransferPolicy";
-import { ACCOUNT_ROLES, type Role } from "./types";
+import { ACCOUNT_ROLES } from "./types";
+import type { Role } from "./types";
 
 const ROLES: readonly Role[] = ACCOUNT_ROLES;
 
 /** Every standing a caller can hold relative to one request. A caller cannot be both participants:
- *  the table forbids equal ids, so that combination is not modelled. */
+ * the table forbids equal ids, so that combination is not modelled. */
 const STANDINGS = [
   { label: "initiator", isInitiator: true, isTarget: false },
   { label: "target", isInitiator: false, isTarget: true },
@@ -23,7 +25,7 @@ const STANDINGS = [
  * The authorisation matrix, written from the product contract.
  *
  * The rows that matter most are the Admin ones: `admin/target` may accept, withdraw and decline,
- * and `admin/bystander` may do NOTHING. If tier alone decided, those two rows would be identical —
+ * and `admin/bystander` may do nothing. If tier alone decided, those two rows would be identical,
  * and every Admin in the company could consent on the nominee's behalf, which is the exact consent
  * the ceremony exists to obtain.
  */
@@ -65,7 +67,7 @@ describe("canActOnOwnershipTransfer", () => {
   });
 
   // The Owner is above Admin in every other threshold in the product; here they are deliberately
-  // NOT, because consent that the Owner can give themselves is not consent.
+  // not, because consent that the Owner can give themselves is not consent.
   it("does not let the Owner accept, withdraw or decline on the nominee's behalf", () => {
     for (const action of ["accept", "withdraw", "decline"] as const) {
       for (const { isInitiator, isTarget } of STANDINGS) {

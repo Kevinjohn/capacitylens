@@ -14,7 +14,7 @@ function createCorsOriginConfigurationTests() {
       headers: { origin: "http://localhost:5173" },
     });
     expect(local.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
-    // …but an arbitrary site gets NO ACAO header (the browser blocks it) — the factory
+    // …but an arbitrary site gets no ACAO header (the browser blocks it), the factory
     // never opens to '*' unless explicitly told to.
     const evil = await call(app, {
       method: "GET",
@@ -100,8 +100,8 @@ function createCorsCredentialAndRequestGateTests() {
 
   it("answers a write preflight with 204 + CORS headers (no OPTIONS route exists)", async () => {
     // Regression guard: every cross-origin write (JSON POST/PUT/PATCH/DELETE) is
-    // preflighted by the browser, and OPTIONS matches no route — the 204 comes from the
-    // ROOT-level onRequest hook on the not-found path. When the hook briefly moved into
+    // preflighted by the browser, and OPTIONS matches no route. The 204 comes from the
+    // root-level onRequest hook on the not-found path. When the hook briefly moved into
     // the routes child plugin, preflights became bare 404s without CORS headers and the
     // db-backed e2e app could no longer save anything.
     const { app } = freshApp();
@@ -199,7 +199,7 @@ function createCorsSameOriginTests() {
 
 function createCorsCrossSiteAndTlsTests() {
   it("lets a cross-site write through when its Origin is on the credentialed allow-list (Fetch Metadata notwithstanding)", async () => {
-    // FIX: an Origin EXACTLY on the CORS allow-list is the operator's explicit cross-site contract,
+    // Fix: an Origin exactly on the CORS allow-list is the operator's explicit cross-site contract,
     // so it must pass the gate even when the browser labels the request Sec-Fetch-Site: cross-site
     // (the legitimate configured cross-origin call). The old gate 403'd it on the fetchSite clause
     // despite the allow-list match; now the allow-listed Origin is reflected and the write proceeds.
@@ -241,10 +241,10 @@ function createCorsCrossSiteAndTlsTests() {
 
 function createCorsTlsTerminationTests() {
   it("treats a TLS-terminated https Origin as same-origin when only the scheme differs from http req.protocol", async () => {
-    // FIX: with no Fetch Metadata and forwarded-proto NOT trusted, the standard TLS-termination
+    // Fix: with no Fetch Metadata and forwarded-proto not trusted, the standard TLS-termination
     // deploy has the browser-set Origin claim https:// while req.protocol sees http (cleartext hop
-    // behind the proxy). When the Origin's host:port matches our Host and the ONLY difference is
-    // that scheme upgrade, it is same-origin — the browser sets the Origin host, so it can't be
+    // behind the proxy). When the Origin's host:port matches our Host and the only difference is
+    // that scheme upgrade, it is same-origin, the browser sets the Origin host, so it can't be
     // forged from another site. No allow-list entry and no trustProxyHeaders here.
     const app = createApp(openDb(":memory:"), {
       allowReset: true,
@@ -281,9 +281,9 @@ function createCorsTlsTerminationTests() {
 
 function createCorsMalformedHostAndHeaderTests() {
   it("returns a clean 403 (not a 500) when a broken proxy sends a malformed Host header", async () => {
-    // REGRESSION: the same-origin check reconstructs `${protocol}://${host}` from the Host header, an
+    // Regression: the same-origin check reconstructs `${protocol}://${host}` from the Host header, an
     // untrusted, proxy-influenced string. A broken proxy (or a forged request) can send a Host that
-    // `new URL` rejects — here 'exa mple.com' (embedded space). That reconstruct MUST be guarded: an
+    // `new URL` rejects, here 'exa mple.com' (embedded space). That reconstruct must be guarded: an
     // unparseable Host is "cannot prove same-origin" → fail closed → clean cross-site 403. A refactor
     // once moved the reconstruct out of the try/catch, turning this into an uncaught TypeError → 500.
     const app = createApp(openDb(":memory:"), {

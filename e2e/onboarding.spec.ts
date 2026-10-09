@@ -57,6 +57,5 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
     await expect(
       accountOptions.getByRole("row", { name: /Time zone London.*Europe\/London.*(?:BST|GMT)/ }),
     ).toBeVisible();
-    await expect(page.getByTestId("settings-language")).toHaveText("English");
   });
 });

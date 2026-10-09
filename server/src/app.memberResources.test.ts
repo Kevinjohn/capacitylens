@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "./app";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { upsertMember } from "./controlTables";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { insertAll, openDb } from "./db";
-import { call, PASSWORD_ENV, signUp } from "./testHelpers";
+import { call, PASSWORD_ENV, signUp } from "./testHelpers/passwordAuth";
 
 const TS = "2026-01-01T00:00:00.000Z";
 

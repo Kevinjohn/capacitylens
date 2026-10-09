@@ -1,13 +1,13 @@
 # US-INS-01 — Install CapacityLens for one agency
 
-**Area:** Installation · **Persona:** Technical person at a small agency, or a managed host's site owner · **Coverage:** the gate's `release-package-smoke` job (unpacks the release archive, starts it and checks deep health, the web app and the bundled recovery tool), `server/src/routes/staticWeb.test.ts` and `server/src/boot/productionDefaults.test.ts`; manual for a managed host and a Linux host
+**Area:** Installation · **Persona:** Technical person at a small agency, or a managed host's site owner · **Coverage:** the gate's `release-package-smoke` job (unpacks the release archive, starts it and checks deep health, the web app and the bundled recovery tool), `server/src/cli/init.test.ts`, `server/src/routes/staticWeb.test.ts` and `server/src/boot/productionDefaults.test.ts`; manual for a managed host and a Linux host
 
-**Documentation:** [Install CapacityLens](../../docs-src/getting-started/install.md)
+**Documentation:** [Install CapacityLens](../../docs-src/self-hosting/install.md)
 
 ## Goal
 
-Run CapacityLens on a host the agency controls, from one downloaded archive, in five steps: three
-values to fill in and one command per step.
+Run CapacityLens on a host the agency controls, from one downloaded archive, in five steps: two
+values to choose and one command per step.
 
 ## Why
 
@@ -22,8 +22,9 @@ start while a required value is missing is one a generalist can finish and trust
 
 1. Download the release archive and unpack it.
 2. Pick a folder for the data. The database file is created there on first start.
-3. Copy `capacitylens.env.example` and fill in its three empty lines: the public address, and two
-   different values pasted from `openssl rand -base64 48`.
+3. Run `init` with the public address and the database file. It generates the session secret and
+   the setup token, and prints the environment file or writes it with `--out`, readable only by
+   its owner and never over an existing file.
 4. Start the server: as a background process on a managed host, or as the systemd service from the
    archive on a Linux host, with HTTPS in front of it.
 5. Open the address. The first-owner screen appears. Enter the setup token from step 3 and create

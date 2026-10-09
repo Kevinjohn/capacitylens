@@ -7,13 +7,14 @@ import { DEFAULT_COLORS } from "@/lib/palette";
 import { useStore } from "@/store/useStore";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
-import { Avatar, ListPage } from "../common/ui";
-import { Button } from "../ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { SecuritySection } from "../settings/SecuritySection";
-import { SettingsSection } from "../settings/SettingsSection";
+import { Avatar, ListPage } from "@/components/common/ui";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { SecuritySection } from "@/components/settings/SecuritySection";
+import { SettingsSection } from "@/components/settings/SettingsSection";
 
-function resolveIdentity(auth: ReturnType<typeof useAuth>, demo: boolean) {
+type ResolveIdentityOptions = { auth: ReturnType<typeof useAuth>; demo: boolean };
+function resolveIdentity({ auth, demo }: ResolveIdentityOptions) {
   const identity = demo ? FAKE_USER : auth.user;
   return {
     name: identity?.name ?? identity?.email ?? m.account_local_identity(),
@@ -44,7 +45,7 @@ export function AccountView() {
   const auth = useAuth();
   const demo = useDemoAuthActive();
   const signOutDemo = useStore((state) => state.signOutDemo);
-  const { name, email, imageUrl } = resolveIdentity(auth, demo);
+  const { name, email, imageUrl } = resolveIdentity({ auth: auth, demo: demo });
   const [passwordOpen, setPasswordOpen] = useState(false);
 
   return (

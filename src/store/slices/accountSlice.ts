@@ -6,9 +6,10 @@ import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, ID } from "@capacitylens/shared/types/entities";
-import { buildClearedSession, resetSchedulerView, stamp, type StoreInternals } from "../storeInternal";
+import { buildClearedSession, resetSchedulerView, stamp } from "@/store/storeInternal";
+import type { StoreInternals } from "@/store/storeInternal";
 import { readCurrentWeekAnchor } from "./schedulerSlice";
-import type { Draft, Patch, StoreState } from "../types";
+import type { Draft, Patch, StoreState } from "@/store/types";
 
 type AccountSlice = Pick<
   StoreState,
@@ -58,7 +59,6 @@ function createAddAccountAction({ internals, set }: AccountActionContext): Store
       placeholdersEnabled: false,
       externalEnabled: false,
       inlineActivityCreateEnabled: false,
-      internalColourMode: "grey",
       ...input,
       workingDays: normalizeAccountWorkingDays(input.workingDays, weekStartsOn),
       color: snapColor({ color: input.color }),
@@ -141,7 +141,11 @@ function resolveAccountSelection(rawId: ID | null, get: AccountSliceGet): { id: 
   return { id: null, unknown: true };
 }
 
-function buildAccountNoticeTransition(switching: boolean, unknown: boolean): Partial<StoreState> {
+type BuildAccountNoticeTransitionOptions = { switching: boolean; unknown: boolean };
+function buildAccountNoticeTransition({
+  switching,
+  unknown,
+}: BuildAccountNoticeTransitionOptions): Partial<StoreState> {
   if (unknown) {
     return { ...buildClearedSession(), notice: { message: m.notice_company_not_found(), tone: "error" } };
   }
@@ -164,7 +168,7 @@ function createSetActiveAccountAction({ set, get }: AccountActionContext): Store
         previousAccountId: id === null ? state.activeAccountId : null,
         past: [],
         future: [],
-        ...buildAccountNoticeTransition(switching, unknown),
+        ...buildAccountNoticeTransition({ switching: switching, unknown: unknown }),
         ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(state.data, id)),
       };
     });
@@ -172,7 +176,7 @@ function createSetActiveAccountAction({ set, get }: AccountActionContext): Store
 }
 
 function createSetAccountSummariesAction({ set, get }: AccountActionContext): StoreState["setAccountSummaries"] {
-  return (list, requestId, complete = true) => {
+  return ({ list, requestId, complete = true }) => {
     if (requestId !== undefined) {
       if (requestId !== get().accountSummariesRequestId) return false;
       set({ accountSummaries: list, accountSummariesComplete: complete });
@@ -202,7 +206,7 @@ export function createAccountSlice(internals: AccountSliceInternals): StateCreat
       deleteAccount: createDeleteAccountAction(context),
       setActiveAccount: createSetActiveAccountAction(context),
 
-      // Plain transient state (NOT mutate): never on the undo/redo stack or in AppData/export.
+      // Plain transient state (not mutate): never on the undo/redo stack or in AppData/export.
       beginAccountSummariesRequest: () => {
         const requestId = get().accountSummariesRequestId + 1;
         set({ accountSummariesRequestId: requestId });

@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
+import type { ReactNode } from "react";
 import { CircleHelp } from "lucide-react";
 import { m } from "@/i18n";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
 import { Modal } from "./dialogs";
 
 export function SectionHelp({ title, children }: { title: string; children: ReactNode }) {

@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { existsSync, fsyncSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createFileAuditSink, createStreamAuditSink, type AuditEntry, type AuditRecord, type AuditSink } from "./audit";
+import { createFileAuditSink, createStreamAuditSink } from "./audit";
+import type { AuditEntry, AuditRecord, AuditSink } from "./audit";
 import {
   AUDIT_DRAIN_PAGE_SIZE,
   drainAuditOutbox,
@@ -499,8 +500,8 @@ describe("stream sink retry idempotence", () => {
     const appendMany = sink.appendMany;
     if (appendMany === undefined) throw new Error("stream sink does not support batch append");
     appendMany([entry("y-1")]);
-    appendMany([entry("y-1")]); // retry — skipped
-    appendMany([entry("y-2")]); // fresh record — emitted
+    appendMany([entry("y-1")]); // retry: skipped
+    appendMany([entry("y-2")]); // fresh record, emitted
     expect(lines).toHaveLength(2);
   });
 });

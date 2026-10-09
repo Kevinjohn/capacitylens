@@ -4,13 +4,13 @@ import type { ReactNode } from "react";
 import { PermissionContext, useCan, useCanEdit } from "./permissionContext";
 import { can } from "@capacitylens/shared/domain/access";
 import type { Action, Role } from "@capacitylens/shared/domain/access";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 
 // The generalised affordance gate. Two things must hold and neither is visible from a component
-// test: a RESOLVED role delegates to the pure `can` matrix untouched (so client affordances and the
-// server's route guard cannot diverge), and a NULL role permits everything — the OFF/demo/no-provider
+// test: a resolved role delegates to the pure `can` matrix untouched (so client affordances and the
+// server's route guard cannot diverge), and a NULL role permits everything, the off/demo/no-provider
 // regression guard that keeps the shipped no-login deploy byte-identical to the app before
-// permissions existed. permissionGating.test.tsx covers what the components then DO with the answer.
+// permissions existed. permissionGating.test.tsx covers what the components then do with the answer.
 
 // Hard-coded rather than imported as a list, so the sweep is its own source of truth. The
 // `satisfies` ties it to the union: a new Action that isn't listed here is a compile error.

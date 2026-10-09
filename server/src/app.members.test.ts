@@ -1,44 +1,24 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
+import { openDb } from "./db";
+import type { Db } from "./db";
 import { upsertMember, getMemberRole, getInvite } from "./controlTables";
-import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
-import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import type { Auth } from "./auth";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
 import { recordSessionAssurance } from "./accounts/state";
+import { seedTwo } from "./app.members.testSupport";
 
-// P1.11 — Owner/Admin member-management endpoints. Mirrors app.invites.test.ts: drives sign-up →
+// Owner/Admin member-management endpoints. Mirrors app.invites.test.ts: drives sign-up →
 // membership → the five new routes (GET/PATCH/DELETE members, GET/DELETE invites) plus the Owner
 // rejection on POST /api/invites. Asserts the gates (owner/admin allowed, editor/viewer/non-member 403,
 // session-less 401), the role-change matrix (Owner changes only through transfer), that the
 // exactly-one-Owner backstop refuses generic demotion/removal/duplication, that the
-// invites LIST never carries the token, cross-tenant revoke is a no-op, and — the headline — that an
+// invites list never carries the token, cross-tenant revoke is a no-op, and, the headline, that an
 // admin of one account cannot read another account's members (cross-tenant member leak → 403).
 
 const TS = "2026-01-01T00:00:00.000Z";
-const meta = () => ({ createdAt: TS, updatedAt: TS });
-const account = (id: string) => ({
-  id,
-  name: `Studio ${id}`,
-  color: "#3b82f6",
-  ...meta(),
-});
-
-/** Seed two pre-existing accounts directly (a1 + a2, for the cross-tenant cases). */
-function seedTwo(db: Db): void {
-  const d = emptyAppData() as unknown as Record<string, unknown[]>;
-  d.accounts = [account("a1"), account("a2")];
-  insertAll(db, d as unknown as AppData);
-}
-
-async function appWithAuth(options: { rateLimit?: number } = {}): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  if (!auth) throw new Error("Expected auth configuration.");
-  await runAuthMigrations(auth);
-  return { app: createApp(db, { authMode: mode, auth, ...options }), db };
-}
 
 const membersReq = (app: FastifyInstance, accountId: string, headers: Record<string, string> = {}) =>
   call(app, {
@@ -336,8 +316,8 @@ function registerMemberGateIdentityTest(): void {
 function registerMemberGateResetCapabilityTest(): void {
   it("reports mayResetPassword per-row from the SERVER's full cross-account judgment", async () => {
     // The client hides the reset control off this field, so it must equal what the reset route would
-    // decide — true for an ordinary same-account target and the caller\'s own row, false for a target
-    // whose GLOBAL identity outranks the caller in another account (the cross-account takeover the
+    // decide: true for an ordinary same-account target and the caller\'s own row, false for a target
+    // whose global identity outranks the caller in another account (the cross-account takeover the
     // reset route refuses). Proving the affordance can\'t drift open past the enforcement.
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -358,7 +338,7 @@ function registerMemberGateResetCapabilityTest(): void {
       status: "active",
       createdAt: TS,
     });
-    // A member who is a mere editor in a1 but the OWNER of a2 → the owner of a1 has no standing in a2.
+    // A member who is a mere editor in a1 but the owner of a2 → the owner of a1 has no standing in a2.
     const crossOwner = await signUp(app, "cross-owner-mrp@capacitylens.dev");
     upsertMember(db, {
       accountId: "a1",
@@ -596,11 +576,11 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
   createStaleSessionRevocationTest();
 });
 
-// ── Step-up freshness gate: fail CLOSED on a missing session timestamp ─────────────────────────
+// Step-up freshness gate: fail closed on a missing session timestamp.
 //
 // The real Better Auth path always stamps sessionCreatedAt (auth.api.getSession derives it from the
-// session row), so a verified session WITHOUT it can only come from a nonstandard adapter or a
-// corrupted session record. That shape must count as NOT fresh (403 SESSION_NOT_FRESH — the
+// session row), so a verified session without it can only come from a nonstandard adapter or a
+// corrupted session record. That shape must count as not fresh (403 SESSION_NOT_FRESH, the
 // re-auth dialog recovers by minting a dated session), never as fresh: the field is unverifiable,
 // and treating its absence as "fresh" would let it bypass the step-up gate entirely.
 
@@ -666,7 +646,7 @@ function createMissingTimestampRejectionTest(): void {
     const result = await revokeSessionsReq({ app, accountId: "a1", userId: "undated-target" });
     expect(result.statusCode).toBe(403);
     expect(parseErrorCode(result.json())).toBe("SESSION_NOT_FRESH");
-    // The membership itself is intact — only the freshness gate refused, not authorization.
+    // The membership itself is intact, only the freshness gate refused, not authorization.
     expect(getMemberRole(db, "a1", "undated-target")).toBe("editor");
   });
 }
@@ -1105,7 +1085,7 @@ describe("GET /api/accounts/:id/invites — list omits the token", () => {
 
     const res = await invitesReq(app, "a1", { cookie: owner.cookie });
     expect(res.statusCode).toBe(200);
-    // Assert the RAW body carries no token (not just the parsed objects).
+    // Assert the raw body carries no token (not just the parsed objects).
     expect(res.body).not.toContain(token);
     const invites = (res.json() as { invites: Array<Record<string, unknown>> }).invites;
     expect(invites).toHaveLength(1);
@@ -1147,7 +1127,7 @@ describe("DELETE /api/accounts/:id/invites/:inviteId — revoke", () => {
     if (!invite) throw new Error("Expected the created invitation.");
     const inviteId = invite.id;
 
-    // An admin of a DIFFERENT account (a2) cannot revoke a1's invite. The gate is on a2 here
+    // An admin of a different account (a2) cannot revoke a1's invite. The gate is on a2 here
     // (cross-tenant authorize → 403), the strongest guarantee.
     const otherOwner = await signUp(app, "a2-rev-owner@capacitylens.dev");
     upsertMember(db, {
@@ -1157,7 +1137,7 @@ describe("DELETE /api/accounts/:id/invites/:inviteId — revoke", () => {
       status: "active",
       createdAt: TS,
     });
-    // a2 owner tries to revoke a1's invite VIA the a2 path (the accountId predicate makes it a no-op).
+    // a2 owner tries to revoke a1's invite via the a2 path (the accountId predicate makes it a no-op).
     expect(
       (
         await call(app, {
@@ -1166,7 +1146,7 @@ describe("DELETE /api/accounts/:id/invites/:inviteId — revoke", () => {
           headers: { cookie: otherOwner.cookie },
         })
       ).statusCode,
-    ).toBe(204); // 204 but the row is NOT deleted (wrong accountId predicate)
+    ).toBe(204); // 204 but the row is not deleted (wrong accountId predicate)
     expect(getInvite(db, token)).not.toBeNull(); // still live
 
     // The real owner revokes it (204) and it's gone; a second revoke is still 204 (idempotent).

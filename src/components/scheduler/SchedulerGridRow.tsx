@@ -1,20 +1,21 @@
 import type { ComponentProps, Dispatch, SetStateAction } from "react";
 import { Plus } from "lucide-react";
 import { m } from "@/i18n";
-import { formatUtilizationPercent } from "../../lib/formatUtilizationPercent";
-import { UTILIZATION_WINDOW_DAYS } from "../../lib/schedulerConfig";
-import { resolveResourceDisplayName } from "../../lib/metadata";
-import { LAYOUT, buildSchedulerDensity } from "./layout";
+import { formatUtilizationPercent } from "@/lib/formatUtilizationPercent";
+import { UTILIZATION_WINDOW_DAYS } from "@/lib/schedulerConfig";
+import { resolveResourceDisplayName } from "@/lib/metadata";
+import type { buildSchedulerDensity } from "./layout";
+import { LAYOUT } from "./layout";
 import { ResourceLane } from "./ResourceLane";
 import { buildRowScreenReaderSummary } from "./buildRowScreenReaderSummary";
 import type { GroupModel, RowModel } from "./schedulerModel";
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate } from "@capacitylens/shared/types/entities";
-import { Button } from "../ui/button";
-import { PersonScheduleTrigger } from "../person-schedule/PersonScheduleTrigger";
-import { resolveResourceAvatarUrl } from "../../account/resolveResourceAvatarUrl";
+import { Button } from "@/components/ui/button";
+import { PersonScheduleTrigger } from "@/components/person-schedule/PersonScheduleTrigger";
+import { resolveResourceAvatarUrl } from "@/account/resolveResourceAvatarUrl";
 import type { ModalState } from "./schedulerGridModal";
-import type { SchedulerUI, StoreState } from "../../store/useStore";
+import type { SchedulerUI, StoreState } from "@/store/useStore";
 
 type LaneProps = ComponentProps<typeof ResourceLane>;
 export interface SchedulerGridRowProps {
@@ -196,7 +197,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
   const { resource, rowHeight, bars, dayStates, timeOff, dimmed } = row;
   return (
     /* One scheduler-row surface on the whole row (not just the sticky header) keeps the divider
-         on ONE background — without it the border crosses the frozen left column
+         on one background, without it the border crosses the frozen left column
          and the darker timeline, reading as a two-tone line. */
     <div
       role="row"
@@ -240,9 +241,9 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         bars={bars}
         placeholder={resource.kind === "placeholder"}
         weekStartsOn={calendarWeekStartsOn}
-        // Viewer (P1.12): pass NO edit/draw callbacks — the lane then bails its draw gesture and
+        // Viewer: pass no edit/draw callbacks; the lane then bails its draw gesture and
         // drops the hover "+" hint (display-only). Editable (null/owner/admin/editor, incl.
-        // OFF/local) gets the stable memoised callbacks, byte-identical to today.
+        // off/local) gets the stable memoised callbacks, byte-identical to today.
         {...(canEdit && onEdit ? { onEdit: onEdit } : {})}
         {...(canEdit && onDraw ? { onDraw: onDraw } : {})}
       />

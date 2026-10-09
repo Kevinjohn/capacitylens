@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { ValidationError } from "../validate";
+import { REPLY_ERRORS } from "./replyErrors";
 
 // SQLite extended constraint codes that describe caller-supplied row data. Deliberately exclude
 // TRIGGER (1811), FUNCTION (1043), VTAB (2323), COMMIT_HOOK (531) and other internal constraint
@@ -28,8 +29,8 @@ function isSqliteConstraintError(error: unknown): boolean {
   );
 }
 
-// Map a thrown error to an HTTP status. Caller-fault errors — domain validation
-// (ValidationError) and DB constraint/FK violations — are 400; anything else is an
+// Map a thrown error to an HTTP status. Caller-fault errors, domain validation
+// (ValidationError) and DB constraint/FK violations, are 400; anything else is an
 // unexpected server/db bug and must surface as 500 (not be hidden as a 400).
 // Exported for unit testing the classification.
 export function resolveErrorStatus(error: unknown): number {
@@ -56,18 +57,15 @@ export function resolveRequestClientIp({ request, trustProxyHeaders }: ResolveRe
 export function fail(reply: FastifyReply, error: unknown, logError: (e: unknown) => void = console.error) {
   const status = resolveErrorStatus(error);
   // A 500 is an unexpected server/db bug: log the real error server-side but return a
-  // GENERIC body so we never leak internals (stack-ish messages, SQL, paths).
+  // generic body so we never leak internals (stack-ish messages, SQL, paths).
   if (status === 500) {
     logError(error);
-    return reply.code(500).send({ error: "Internal server error" });
+    return reply.code(500).send({ error: REPLY_ERRORS.internalServerError });
   }
-  // 400s: a curated ValidationError message is safe AND useful (it's a friendly sentence we
+  // 400s: a curated ValidationError message is safe and useful (it's a friendly sentence we
   // authored). A raw DB-constraint message (e.g. "NOT NULL constraint failed: clients.color")
-  // leaks schema internals — genericise it, mirroring the 500 redaction one tier down.
-  const message =
-    error instanceof ValidationError
-      ? error.message
-      : "That change references missing data or conflicts with an existing record.";
+  // leaks schema internals, genericise it, mirroring the 500 redaction one tier down.
+  const message = error instanceof ValidationError ? error.message : REPLY_ERRORS.constraintViolation;
   return reply.code(status).send({
     error: message,
     ...(error instanceof ValidationError && error.code ? { code: error.code } : {}),
