@@ -75,7 +75,8 @@ the coordinator, never the identity adapter or control tables.
 The browser uses `src/account/accountClient.ts` for every account endpoint. That client owns request
 idempotency headers, reauthentication behavior and the longer timeout used for bulk erasure.
 Member and invitation directories contain identity and admission data, so listing either requires
-an active membership with the Owner or Admin role and any applicable multi-factor sign-in policy.
+an active membership with the Owner or Admin role. Any company-provider MFA policy is enforced
+upstream by Google or Microsoft, not by the account authorization layer.
 These reads do not require the fifteen-minute freshness check described in [Sessions and staying
 signed in](/company-login/#sessions-and-staying-signed-in); an expired or revoked session still
 cannot read them. The shared `membershipRevision` is identity-global: a membership change in one

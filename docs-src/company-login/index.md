@@ -113,7 +113,7 @@ identity; it does not apply the original change.
 
 ## Multi-factor sign-in at your provider
 
-For company sign-in, configure and verify multi-factor sign-in at Google or Microsoft.
+If your agency requires MFA for company sign-in, configure and verify it at Google or Microsoft.
 CapacityLens cannot see or enforce the provider's policy, and enabling a provider does not
 switch it on. Test the policy, its recovery path and session behaviour before you rely on it.
 

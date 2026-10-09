@@ -99,8 +99,8 @@ must not be publicly reachable and the proxy must overwrite rather than append f
 - The sole-Owner recovery command is deliberate host-operator authority. It cannot be contained from
   an attacker who already controls the application database and process environment.
 - Password-only deployments have no local MFA and do not meet ASVS 5.0
-  Level 2 requirement V6.3.3. For Google or Microsoft company login, the operator must require
-  multi-factor sign-in through the provider's policy; CapacityLens cannot enforce or verify that
+  Level 2 requirement V6.3.3. If an agency requires MFA for Google or Microsoft company login,
+  the operator configures it through the provider's policy; CapacityLens cannot enforce or verify that
   policy. A federated session does not establish whether the provider challenged with MFA.
 - Existing legacy Better Auth scrypt hashes use the former weaker profile until the user changes or
   resets the password. They are verify-only; new material never uses that format.
