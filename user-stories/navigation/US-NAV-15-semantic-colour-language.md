@@ -20,8 +20,8 @@ and discipline swatches remain data colours rather than being confused with the 
 1. Open a seeded company in the default light theme and note the CapacityLens wordmark and active
    navigation accent.
 2. Open a form such as **Clients → Add client**. Confirm the primary **Save** action is green.
-3. Open a destructive confirmation or Settings → **Clear device data**. Confirm its action is red,
-   and its label states the destructive operation explicitly.
+3. Open an available destructive confirmation. Confirm its action is red, and its label states
+   the destructive operation explicitly.
 4. Switch to **Dark** in Settings and repeat the visual check. Confirm the identity, positive and
    destructive roles remain distinct and legible.
 5. Pick a user-defined client/project/discipline swatch. Confirm it changes that entity's data

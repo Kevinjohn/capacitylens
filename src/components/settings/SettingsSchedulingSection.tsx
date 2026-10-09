@@ -89,6 +89,7 @@ function SchedulingModeSection({
         onChange={(value) => updateSetting({ schedulingMode: value })}
         options={buildLabelOptions(buildLabels(SCHEDULING_MESSAGES))}
         disabled={!canEdit}
+        fullWidth
       />
     </SettingsSection>
   );

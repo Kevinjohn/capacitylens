@@ -1,15 +1,14 @@
-# US-SET-12 — Inline archives and Deleted items
+# US-SET-12 — Inline archives and deleted records
 
-**Area:** Settings · **Persona:** Studio manager / admin · **Linked E2E:** `e2e/archived.spec.ts` → "archive a resource → it vanishes from the schedule + active list → inline restore → re-archive → delete → Settings tombstone (purge locked)"
+**Area:** Lifecycle · **Persona:** Studio manager / admin · **Linked E2E:** `e2e/archived.spec.ts` → archive, restore and soft-delete a resource
 
-**Documentation:** [Settings](../../docs-src/using/settings.md)
+**Documentation:** [Resources](../../docs-src/using/resources.md)
 
 ## Goal
 
 Give owners and administrators an expanded archive section at the bottom of each Resources, Clients,
 Projects and Activities list, where they can restore an accidental archive immediately or **delete**
-it to start the purge countdown. Keep soft-deleted items in **Settings → Data and support → Deleted items** until they
-become eligible for permanent deletion.
+it to start the purge countdown. Settings does not show a Deleted items section.
 
 ## Why
 
@@ -37,28 +36,22 @@ surfaces here.
    the Resources list.
 4. Re-archive Barry and on the archived row click **Delete Barry
    Allen** → confirm **Delete** in the _"Delete this item?"_ dialog.
-5. Open **Settings → Data and support → Deleted items**. Barry appears under **Deleted** (`data-testid="deleted-row"`) with the obfuscated name
-   **"Removed person #…"** (the original name is gone). Its **Delete permanently**
-   (`data-testid="archived-purge"`) button is **disabled**, with the hint _"Can be permanently deleted
-   30 days after deletion"_ (the tombstone is brand-new, < 30 days).
-6. (After 30 days, or for an older tombstone) the **Delete permanently** button is enabled; clicking
-   it and confirming the strong _"Permanently delete?"_ dialog removes the row and its children for
-   good.
+5. The deleted resource leaves the inline archive. Its tombstone remains in company data and the
+   original name has been scrubbed.
 
 ## Acceptance criteria
 
 - ✅ Each list's archive section is expanded and visible only to owners/admins. Resources groups
   inactive rows as Archived Studio, Archived Supplementary, Archived External, then Archived placeholders
   when present. A non-admin/viewer never receives or sees inactive rows.
-- ✅ **Settings → Data and support → Deleted items** is an independent disclosure, closed by default, and lists only
-  soft-deleted resources, clients, projects and activities.
+- ✅ Settings does not show a Deleted items section. Existing lifecycle actions and their access
+  rules remain enforced on the entity pages and server.
 - ✅ **Restore** on an archived row returns it to active (reappears on the schedule + its list).
-- ✅ **Delete** on an archived row soft-deletes it (a confirm first): it moves to Deleted items,
+- ✅ **Delete** on an archived row soft-deletes it (a confirm first): it moves to the deleted state,
   and a **resource's name is scrubbed** to _"Removed person #…"_. There is **no Restore** on a
   tombstone.
-- ✅ **Delete permanently** on a tombstone is **disabled** with the locked hint until it is ≥ 30 days
-  old (`PURGE_MIN_AGE_DAYS`); once eligible it is enabled and requires a strong confirm. It is shown
-  only to a caller who **may purge** (always in OFF/local; admin+ on an auth-on server).
+- ✅ No Settings UI currently exposes permanent deletion. The underlying store and server purge
+  operations still enforce `PURGE_MIN_AGE_DAYS` and authorization tiers.
 - ✅ Permanently deleting a client or project removes its owned project-specific work. A shared
   All-projects allocation survives with its project attribution cleared.
 - ✅ In **server mode** each action POSTs the dedicated route (`POST /api/:entity/:id/{archive,

@@ -32,11 +32,14 @@ The report lists:
 A value the page cannot read shows **Unknown** or **unavailable**. The demo has no server, so its
 server values are always unavailable.
 
+When the build provides a revision or feedback address, **Build details** shows the revision and
+may include a **Send feedback** link. A build without either value omits that section.
+
 ## What the report leaves out
 
 The report contains no names, email addresses, identifiers, company data, passwords, invitation or
 session values, hostnames, file paths or raw error messages. It is a snapshot, not a live monitor:
 reopen the page to observe the server again.
 
-Editors and Viewers can still report a problem with the build stamp under **Settings → Data and
-support → Build details**.
+Editors and Viewers cannot open Diagnostics; Owners and Admins can share its build details with a
+support report.

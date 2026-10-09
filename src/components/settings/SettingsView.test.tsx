@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsView } from "./SettingsView";
@@ -7,9 +7,6 @@ import { useStore } from "@/store/useStore";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { PermissionContext } from "@/auth/permissionContext";
 import { resolveDateStyle } from "@/store/selectors";
-
-const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
-vi.mock("@/lib/reloadPage", () => reloadMock);
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
 
@@ -147,7 +144,6 @@ describe("SettingsView — section help", () => {
       "Allocation labels on this device",
       "Utilisation figures on this device",
       "Appearance on this device",
-      "Device data",
       "Import and export",
       "Company details",
     ]) {
@@ -330,13 +326,8 @@ describe("SettingsView — date style", () => {
 });
 
 describe("SettingsView — Import and export disclosure (issue #169)", () => {
-  it("keeps import/export closed by default and company details before build details", async () => {
+  it("keeps import/export closed by default above company details", async () => {
     const user = userEvent.setup();
-    // Build details renders only for a stamped build or a feedback link.
-    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
-    onTestFinished(() => {
-      vi.unstubAllEnvs();
-    });
     render(<SettingsView />);
 
     expect(screen.getByRole("heading", { name: "Import and export" })).toBeInTheDocument();
@@ -350,8 +341,9 @@ describe("SettingsView — Import and export disclosure (issue #169)", () => {
     expect(screen.getByTestId("import-input")).toHaveAttribute("type", "file");
 
     const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
-    expect(headings.slice(-2)).toEqual(["Company details", "Build details"]);
+    expect(headings.slice(-1)).toEqual(["Company details"]);
     expect(screen.queryByTestId("copy-diagnostics")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("settings-build-details")).not.toBeInTheDocument();
   });
 });
 
@@ -528,107 +520,12 @@ describe("SettingsView — switch target size (WCAG 2.5.8 AA, ≥24px)", () => {
   });
 });
 
-// The action reboots through lib/reloadPage, the one boundary over `location.reload()`, so the
-// spy is a module mock rather than a replacement window.location (jsdom's reload is
-// non-configurable). reloadPage.test.ts covers that the boundary really does reload.
-const reload = reloadMock.reloadPage;
-
-beforeEach(() => {
-  reload.mockClear();
-  localStorage.clear();
-});
-
-afterEach(() => {
-  localStorage.clear();
-});
-
-const openDeviceData = async (user: ReturnType<typeof userEvent.setup>) => {
-  const disclosure = screen.getByRole("button", { name: "Device data" });
-  expect(disclosure).toHaveAttribute("aria-expanded", "false");
+it("keeps Device data and Deleted items unavailable in Settings", () => {
+  render(<SettingsView />);
+  expect(screen.queryByRole("heading", { name: "Device data" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Deleted items" })).not.toBeInTheDocument();
   expect(screen.queryByTestId("clear-local-storage")).not.toBeInTheDocument();
-  await user.click(disclosure);
-};
-
-it("shows a destructive Clear device data button that opens a confirm modal", async () => {
-  const user = userEvent.setup();
-  render(<SettingsView />);
-  await openDeviceData(user);
-
-  const button = screen.getByTestId("clear-local-storage");
-  expect(button).toHaveTextContent("Clear device data");
-  // No modal until clicked.
-  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-
-  await user.click(button);
-  const dialog = screen.getByRole("alertdialog");
-  expect(dialog).toHaveTextContent(/Clear device data\?/i);
-  expect(dialog).toHaveTextContent(/cannot be undone/i);
-});
-
-it("Cancel is a no-op — it neither clears storage nor reloads", async () => {
-  const user = userEvent.setup();
-  localStorage.setItem("capacitylens/offlineRead", "on");
-  localStorage.setItem("capacitylens/theme", "dark");
-  render(<SettingsView />);
-  await openDeviceData(user);
-
-  await user.click(screen.getByTestId("clear-local-storage"));
-  await user.click(screen.getByRole("button", { name: "Cancel" }));
-
-  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-  expect(localStorage.getItem("capacitylens/offlineRead")).toBe("on");
-  expect(localStorage.getItem("capacitylens/theme")).toBe("dark");
-  expect(reload).not.toHaveBeenCalled();
-});
-
-it("Confirm clears every capacitylens/ key and reloads", async () => {
-  const user = userEvent.setup();
-  localStorage.setItem("capacitylens/offlineRead", "on");
-  localStorage.setItem("capacitylens/theme", "dark");
-  localStorage.setItem("unrelated", "leave-me"); // a sibling tool's key must survive
-  render(<SettingsView />);
-  await openDeviceData(user);
-
-  await user.click(screen.getByTestId("clear-local-storage"));
-  // Scope to the alert dialog, the section button and confirm action share the label.
-  await user.click(
-    within(screen.getByRole("alertdialog")).getByRole("button", {
-      name: "Clear device data",
-    }),
-  );
-
-  expect(localStorage.getItem("capacitylens/offlineRead")).toBeNull();
-  expect(localStorage.getItem("capacitylens/theme")).toBeNull();
-  expect(localStorage.getItem("unrelated")).toBe("leave-me");
-  expect(reload).toHaveBeenCalledTimes(1);
-});
-
-it("locks both confirmation actions while device cleanup is in flight", async () => {
-  let finishCleanup!: () => void;
-  offlineMocks.clearAll.mockImplementation(
-    () =>
-      new Promise<void>((resolve) => {
-        finishCleanup = resolve;
-      }),
-  );
-  const user = userEvent.setup();
-  render(<SettingsView />);
-  await openDeviceData(user);
-  await user.click(screen.getByTestId("clear-local-storage"));
-  const dialog = screen.getByRole("alertdialog");
-  const confirm = within(dialog).getByRole("button", { name: "Clear device data" });
-  const cancel = within(dialog).getByRole("button", { name: "Cancel" });
-
-  await user.click(confirm);
-
-  expect(offlineMocks.clearAll).toHaveBeenCalledTimes(1);
-  expect(confirm).toBeDisabled();
-  expect(cancel).toBeDisabled();
-  fireEvent.click(confirm);
-  expect(offlineMocks.clearAll).toHaveBeenCalledTimes(1);
-
-  finishCleanup();
-  await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+  expect(screen.queryByTestId("archived-section")).not.toBeInTheDocument();
 });
 
 describe("SettingsView — account options selected at creation", () => {

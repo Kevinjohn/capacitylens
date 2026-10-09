@@ -33,6 +33,8 @@ export function SettingsDateFormatSection({
         onChange={onChange}
         options={buildLabelOptions(buildLabels(DATE_STYLE_MESSAGES))}
         disabled={!canEdit}
+        fullWidth
+        density="compact"
       />
     </SettingsSection>
   );
