@@ -88,8 +88,7 @@ function installResponseHooks(input: InstallResponseHooksInput): void {
   app.addHook("onResponse", async (req: FastifyRequest, reply: FastifyReply) => {
     const path = req.url.split("?", 1)[0] ?? req.url;
     const authOperation =
-      req.method !== "OPTIONS" &&
-      /^\/api\/auth\/(sign-in|sign-out|callback|two-factor|change-password|reset-password)/.test(path);
+      req.method !== "OPTIONS" && /^\/api\/auth\/(sign-in|sign-out|callback|change-password|reset-password)/.test(path);
     if (authOperation || reply.statusCode === 429) {
       let outcome = "blocked";
       if (authOperation) outcome = reply.statusCode < 400 ? "success" : "failure";

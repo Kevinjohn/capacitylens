@@ -57,7 +57,7 @@ export function buildActorContextFromSession(
     id: string;
     principal: { id: string };
     freshUntil: string | null;
-    assurance: "trusted-local" | "password" | "mfa" | "federated";
+    assurance: "trusted-local" | "password" | "federated";
   },
   now = Date.now(),
 ): ActorContext {
@@ -66,7 +66,6 @@ export function buildActorContextFromSession(
     sessionId: input.id,
     assurance: input.assurance,
     fresh: input.freshUntil !== null && Date.parse(input.freshUntil) > now,
-    mfaSatisfied: input.assurance === "mfa" || input.assurance === "federated" || input.assurance === "trusted-local",
   };
 }
 

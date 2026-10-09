@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsView } from "./SettingsView";
@@ -30,12 +30,13 @@ beforeEach(() => {
   );
 });
 
+afterEach(() => vi.unstubAllEnvs());
+
 describe("SettingsView — grouped information architecture", () => {
   it("groups company, feature, device and support controls in the agreed heading order", () => {
-    // Build details renders only for a stamped build or a feedback link.
     vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
+    vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", "owner@example.com");
     render(<SettingsView />);
-    vi.unstubAllEnvs();
 
     expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
       "Company setup",
@@ -47,7 +48,7 @@ describe("SettingsView — grouped information architecture", () => {
     const features = screen.getByRole("region", { name: "Scheduling features" });
     const display = screen.getByRole("region", { name: "My display" });
     const support = screen.getByRole("region", { name: "Data and support" });
-    expect(within(company).getByText(/Company setting/)).toBeVisible();
+    expect(within(company).queryByText(/Company setting/)).not.toBeInTheDocument();
     expect(within(company).getByRole("radio", { name: "Days" })).toBeVisible();
     expect(within(company).getByRole("group", { name: "Company working days" })).toBeVisible();
     expect(within(company).getByRole("heading", { name: "Date format", level: 3 })).toBeVisible();
@@ -62,7 +63,7 @@ describe("SettingsView — grouped information architecture", () => {
     ]) {
       expect(within(features).getByRole("switch", { name })).toBeVisible();
     }
-    expect(within(display).getByText(/This device/)).toBeVisible();
+    expect(within(display).queryByText(/This device/)).not.toBeInTheDocument();
     for (const heading of [
       "Schedule on this device",
       "Allocation labels on this device",
@@ -71,10 +72,14 @@ describe("SettingsView — grouped information architecture", () => {
     ]) {
       expect(within(display).getByRole("heading", { name: heading, level: 3 })).toBeVisible();
     }
-    for (const heading of ["Device data", "Import and export", "Company details", "Build details"]) {
+    for (const heading of ["Import and export", "Company details"]) {
       expect(within(support).getByRole("heading", { name: heading, level: 3 })).toBeVisible();
     }
-    expect(within(support).getByTestId("settings-build-details")).toBeVisible();
+    expect(within(support).queryByRole("heading", { name: "Device data" })).not.toBeInTheDocument();
+    expect(within(support).queryByRole("heading", { name: "Deleted items" })).not.toBeInTheDocument();
+    expect(within(support).queryByTestId("settings-build-details")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("build-stamp")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("send-feedback")).not.toBeInTheDocument();
     expect(within(support).getByText(/Read-only company details/)).toBeVisible();
     expect(within(support).queryByRole("heading", { name: "Diagnostics" })).not.toBeInTheDocument();
   });
@@ -119,11 +124,10 @@ describe("SettingsView — grouped information architecture", () => {
     }
   });
 
-  it("keeps Deleted items inside Data and support when its existing access gate resolves", async () => {
+  it("hides Device data and Deleted items in Settings", async () => {
     render(<SettingsView />);
     const support = screen.getByRole("region", { name: "Data and support" });
-    const deleted = await within(support).findByRole("heading", { name: "Deleted items", level: 3 });
-    expect(deleted).toBeVisible();
-    expect(within(support).getByRole("button", { name: "Deleted items" })).toHaveAttribute("aria-expanded", "false");
+    expect(within(support).queryByRole("heading", { name: "Device data", level: 3 })).not.toBeInTheDocument();
+    expect(within(support).queryByRole("heading", { name: "Deleted items", level: 3 })).not.toBeInTheDocument();
   });
 });

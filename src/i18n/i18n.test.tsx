@@ -28,7 +28,6 @@ describe("i18n scaffolding (Paraglide)", () => {
     const app = "Renamed Product";
     expect(m.settings_revoke_sessions_message({ member: "Avery", app })).toContain(app);
     expect(m.settings_revoke_self_sessions_message({ app })).toContain(app);
-    expect(m.mfa_enrollment_description({ app })).toContain(app);
     expect(m.notice_sync_conflict({ app })).toContain(app);
   });
 

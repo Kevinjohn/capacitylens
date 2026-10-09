@@ -91,17 +91,6 @@ function PasswordForm({ controller }: { controller: Controller }) {
   );
 }
 
-function MfaStatus({ enabled }: { enabled: boolean }) {
-  return (
-    <div>
-      <h3 className="text-sm font-medium text-ink">{m.account_mfa_title()}</h3>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {enabled ? m.account_mfa_enabled() : m.account_mfa_not_enabled()}
-      </p>
-    </div>
-  );
-}
-
 function PasswordDialog({
   open,
   onOpenChange,
@@ -136,12 +125,6 @@ function PasswordDialog({
   );
 }
 
-function shouldShowMfa(auth: ReturnType<typeof useAuth>): boolean {
-  return (
-    allowsPasswordSignIn(auth.authMode) && auth.requireMfa === true && typeof auth.user?.twoFactorEnabled === "boolean"
-  );
-}
-
 export function SecuritySection({
   passwordOpen = false,
   onPasswordOpenChange = () => {},
@@ -159,8 +142,7 @@ export function SecuritySection({
     if (!open) controller.password.reset();
     onPasswordOpenChange(open);
   };
-  const showMfa = shouldShowMfa(auth);
-  const showSection = providers.length > 0 || showMfa;
+  const showSection = providers.length > 0;
   return (
     <>
       {showSection && (
@@ -173,7 +155,6 @@ export function SecuritySection({
           {providers.map((provider) => (
             <ProviderConnection key={provider.id} provider={provider} controller={controller} />
           ))}
-          {showMfa && <MfaStatus enabled={auth.user?.twoFactorEnabled === true} />}
         </SettingsSection>
       )}
       {showPassword && <PasswordDialog open={passwordOpen} onOpenChange={changePasswordOpen} controller={controller} />}

@@ -209,13 +209,13 @@ that section. Unknown extensionless URLs still reach the in-app
 
 Settings is one page with four permanent groups in order: **Company setup**, **Scheduling features**,
 **My display**, and **Data and support**. Compact rows stack their labels and controls on narrow
-screens. Group descriptions distinguish company-wide settings from preferences saved in this browser.
-Editors and above can change ordinary company settings; Owners and Admins manage Overview access.
-Everyone can adjust their device preferences. See [Settings](../docs-src/using/settings.md).
+screens. Multiple-choice controls fill their available row width. Editors and above can change
+ordinary company settings; Owners and Admins manage Overview access. Everyone can adjust their
+device preferences. See [Settings](../docs-src/using/settings.md).
 
 The **Import and export** row (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
-in **Data and support**, below **Deleted items** and above the compact company-details
-summary. It used to be a "Data" section in the sidebar; it moved because a full-slice export or
+in **Data and support**, above the compact company-details summary. **Device data** and
+**Deleted items** are not shown in Settings. It used to be a "Data" section in the sidebar; it moved because a full-slice export or
 replacement is a rare administrative act that does not warrant permanent navigation real estate.
 In an authenticated
 server deployment, **Import JSON** is owner-only because a slice replacement can author or erase
@@ -732,7 +732,7 @@ separate always-on **navigation** snap (Weeks visible / Prev-Next / Today, see _
 above) re-anchors to the week start on every deliberate navigation.
 
 **Company details (per-account, FROZEN after creation — P1.14).** In **Data and support**,
-this compact, read-only three-row table appears before Build details:
+this compact, read-only three-row table shows:
 **Company name**, **Week starts on** and
 **Time zone** (including its numeric UTC offset). Language is not shown while English is the only
 option. It replaces the editable Company card and the disabled Calendar controls. These values
@@ -746,10 +746,8 @@ as `'en'` on the Account.)
 
 **Settings help and disclosures.** Every Settings row has an icon-only question-mark action whose
 accessible name and native hover title are `About <section>`. Activating it opens a labelled modal
-with a fuller explanation. **Device data**, **Deleted items** and **Import and export** are
-separate disclosures, each closed by default and independently
-expandable; opening one never closes another. Safety consequences remain in destructive confirmation
-dialogs rather than depending on hidden help copy.
+with a fuller explanation. **Import and export** is a disclosure, closed by default. Safety
+consequences remain in destructive confirmation dialogs rather than depending on hidden help copy.
 
 > **i18n note.** Every Settings + Team & access label/heading/button/placeholder/hint quoted in
 > this file is rendered from a Paraglide message key (`settings_*` in `messages/en.json`) rather
@@ -869,12 +867,8 @@ added.** The server independently refuses anyone below Admin with **403** and a 
 any of those rows with **409**. The rows are ordinary rows with no sample flag, so deleting them
 leaves no trace.
 
-**Clear device data (Settings → Device data).** A closed-by-default maintenance disclosure near the
-bottom of Settings contains a `Clear device data` button
-(`data-testid="clear-local-storage"`). Clicking it opens the standard confirm dialog (title
-`Clear device data?`, danger `Clear device data` confirm + `Cancel`). It removes the opt-in offline
-snapshot and CapacityLens preferences from **THIS browser**, leaves server data and unrelated origin
-keys alone, and reloads. **Cancel is a no-op.**
+**Clear device data.** The destructive clear action and its underlying device-data behavior remain
+implemented, but Settings no longer exposes a control for it.
 
 **Offline cache health (Settings → Offline access).** When offline access remains opted in but a
 snapshot write fails, Settings keeps the switch on and shows that recent snapshots could not be
@@ -884,23 +878,22 @@ available in production builds. Vite development/demo servers reject enablement 
 message because their on-demand module graph cannot provide a complete, immutable shell for safe
 offline promotion.
 
-**Build stamp + feedback link (Settings, flag-gated).** When the build sets
-`VITE_CAPACITYLENS_BUILD_SHA`, the **Build details** row in Settings → **Data and support** includes a muted one-line stamp containing the
+**Build stamp + feedback link (Diagnostics, flag-gated).** When the build sets
+`VITE_CAPACITYLENS_BUILD_SHA`, **Diagnostics → Build details** includes a muted one-line stamp containing the
 stamp (`data-testid="build-stamp"`) reading `build <sha> · server` (a server backend is
 configured, i.e. `VITE_CAPACITYLENS_API` was baked in) or `build <sha> · demo` (in-memory
 mode). When the build also sets `VITE_CAPACITYLENS_FEEDBACK_MAILTO`, a **Send feedback** link
 (`data-testid="send-feedback"`) sits beside the stamp — a `mailto:` whose subject carries
 the build stamp, so reports arrive pinned to a build. The build value must be one valid email
 address; invalid build configuration is rejected, and the address is safely encoded into the URI.
-The default dev/local build leaves both variables unset, so the row is absent. Settings no longer
-shows persistence diagnostics.
+The default dev/local build leaves both variables unset, so the Build details section is absent.
 
 **Diagnostics (`/diagnostics`; Owner and Admin).** The **Diagnostics** link follows **Settings**
 in the sidebar administration group and in the command palette. It is shown to Owners and Admins,
 and to every session without a membership role (sign-in off, demo). Editors and Viewers see no link,
 and a direct visit redirects them to the schedule; while the role is resolving the route shows a
-loading status. Settings no longer has a Diagnostics row; editors and viewers report problems with
-the **Build details** stamp.
+loading status. Settings no longer has a Diagnostics row or Build details section; only roles that
+can open Diagnostics can read its build stamp or feedback link.
 
 The page (`data-testid="diagnostics-report"`) shows a **Support report** as plain text
 (`data-testid="diagnostics-report-text"`), exactly as **Copy diagnostics**
@@ -980,6 +973,9 @@ policy.
 row and supply their current password in the dialog. The **Security** section
 (`data-testid="security-section"`) appears when a configured company-provider connection is
 available. Session tokens are never displayed after their one-time use.
+CapacityLens has no local authenticator or recovery-code controls. A company that requires MFA
+sets and manages it with its Google or Microsoft provider; enabling company sign-in alone does
+not enable MFA.
 
 On a mixed deployment, Account's Security section shows **Company sign-in**
 (`data-testid="sso-connection"`) for each configured company provider. **Connect _provider_**
@@ -1464,19 +1460,15 @@ whenever `GET /api/auth/me` reports `canCreateAccount: false`: the single-compan
 or under auth-on the caller lacks owner/admin standing on any account),
 `settings-example-data` and `add-example-data` (Settings → Example data row and its button; shown only
 to an Owner or Admin of an empty company on a server-backed deploy),
-`clear-local-storage` (Settings → Device data danger button; opens a destructive confirm),
 `archived-resources-section`, `archived-clients-section`, `archived-projects-section` and
 `archived-activities-section` (expanded sections below their active management lists; shown in local
 mode and to owners/admins on an auth-on server), `archived-row` (one per directly archived row;
-carries a **Restore <name>** + **Delete <name>** button), `archived-section` (Settings → Deleted items),
-`deleted-row` (one per soft-deleted tombstone; carries
-`archived-purge` — the **Permanently delete <name>** button, disabled with a locked hint until the
-30-day grace elapses, purge-tier/admin-only),
+carries a **Restore <name>** + **Delete <name>** button),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
 deploy that also renders the company block, which needs two or more accessible companies; absent for
 any non-viewer role and wherever the company block is hidden),
-`diagnostics-report` (Diagnostics page support-report card), `diagnostics-report-text` (the report text it copies), `copy-diagnostics` (Diagnostics page copy action; server and demo modes), `settings-build-details` (Settings → Data and support → Build details row), `build-stamp` (Settings → Build details; only rendered when the build sets
-`VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings → Build details mailto; only when the build sets
+`diagnostics-report` (Diagnostics page support-report card), `diagnostics-report-text` (the report text it copies), `copy-diagnostics` (Diagnostics page copy action; server and demo modes), `settings-build-details` (Diagnostics → Build details section), `build-stamp` (Diagnostics → Build details; only rendered when the build sets
+`VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Diagnostics → Build details mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,
 `r-ph-designer`, `r-ext-northstar` (external party), `p-acme` (Project Watchtower), `p-brand` (Metropolis Rebrand), `t-wires`.
@@ -1584,13 +1576,14 @@ multiple).
 - **Archived & soft-deleted resources/clients/projects/activities are hidden from scheduling,
   active list sections, form option-pickers and the command palette** — they remain in the DB **and
   in export**. Archived rows surface in the owner/admin section at the bottom of their management
-  page; soft-deleted rows surface under **Settings → Deleted items**.
+  page. Settings does not show a Deleted items section.
   A non-active entity is one with `archivedAt` set (archived) or `deletedAt` set (soft-deleted); the
   hide is applied by the shared `activeOnly` projection in both the client view seam
   (`useActiveScopedData`) and the server per-account read (`GET /api/state?accountId=` →
   `includeInactive:false`). The tester-facing affordances are: each management list's **per-row
   archive** action (Resources / Clients / Projects / Activities — see below), inline archive sections
-  that restore or soft-delete them, and **Settings → Deleted items**, which permanently deletes them. The server
+  that restore or soft-delete them. Settings does not expose permanent deletion; server lifecycle
+  routes retain purge-tier and 30-day enforcement. The server
   lifecycle routes (below) enforce the same machine server-side. The **"archived vanishes"
   end-to-end story is `e2e/archived.spec.ts`** (LOCAL mode).
 
@@ -1612,7 +1605,7 @@ the row POSTs `POST /api/:entity/:id/archive {accountId}` and reloads the active
 button (it's hidden from the Clients list and the store/server backstop it). Hook:
 `src/hooks/useLifecycleActions.ts` (the shared server/local dispatch).
 
-### Inline archives and Settings → Deleted items
+### Inline archives and deleted records
 
 Each management page ends with expanded archive sections for owners and administrators. The Resources section mirrors the active grouping with non-empty
 **Archived Studio**, **Archived Supplementary** and **Archived External** groups in that order, followed
@@ -1629,18 +1622,12 @@ cannot leak into scheduling or persistence. Each successful lifecycle action ref
 - **Archived** (`data-testid="archived-row"`, one per archived resource/client/project/activity) — each shows
   the entity name and two actions: **Restore** (aria
   _"Restore <name>"_ → unarchive, back to active) and **Delete** (aria _"Delete <name>"_ → a confirm
-  dialog _"Delete this item?"_, then soft-delete: it moves to Settings → Deleted items and a resource's name
+  dialog _"Delete this item?"_, then soft-delete: its state changes and a resource's name
   is scrubbed to _"Removed person #…"_).
-- **Deleted** (`data-testid="deleted-row"`, one per soft-deleted tombstone) — shows the (for a
-  resource, already-obfuscated _"Removed person #…"_) name + type tag and a **Delete permanently**
-  button (`data-testid="archived-purge"`, aria _"Permanently delete <name>"_). It is **disabled** with
-  the hint _"Can be permanently deleted 30 days after deletion"_ until the tombstone is ≥ 30 days old;
-  once eligible it's enabled and a strong confirm dialog (_"Permanently delete?"_, confirm _"Delete
-  permanently"_) is required. The permanent-delete button is **purge-tier (admin+)**: it is shown only
-  when the caller may purge (always in OFF/local; admin+ on an auth-on server) — the server 403 is the
-  backstop. There is **no Restore on a tombstone**. An **empty state** (_"Nothing archived or
-  deleted."_) shows when nothing is deleted. The Settings component is
-  `src/components/settings/ArchivedSection.tsx`; spec `e2e/archived.spec.ts`.
+- Soft-deleted rows remain in company data and exports; Settings does not expose a deleted-record
+  or permanent-delete control. Server lifecycle routes retain purge-tier and 30-day enforcement.
+  Component tests cover inactive-row permissions and confirmation behavior; `e2e/archived.spec.ts`
+  covers archive, restore and soft-delete.
 
 ### Generic scoped write privacy
 

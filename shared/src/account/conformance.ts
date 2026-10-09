@@ -5,13 +5,13 @@
  * same values become package metadata; consumers must never infer security currency from the
  * product version alone.
  */
-export const ACCOUNT_CONTRACT_VERSION = "2.0.0";
+export const ACCOUNT_CONTRACT_VERSION = "3.0.0";
 /** Version of the account conformance suite an adapter must pass. */
-export const ACCOUNT_CONFORMANCE_VERSION = "2.1.0";
+export const ACCOUNT_CONFORMANCE_VERSION = "3.0.0";
 /** Lowest account security baseline version an adapter may declare. */
-export const MINIMUM_ACCOUNT_SECURITY_VERSION = "1.1.0";
+export const MINIMUM_ACCOUNT_SECURITY_VERSION = "2.0.0";
 /** Identifier of the account security baseline this contract version enforces. */
-export const ACCOUNT_SECURITY_BASELINE_ID = "ACCOUNT-SEC-2026-08-07-01";
+export const ACCOUNT_SECURITY_BASELINE_ID = "ACCOUNT-SEC-2026-10-09-01";
 
 /** Every supported account deployment profile. */
 export const ACCOUNT_DEPLOYMENT_PROFILES = Object.freeze([

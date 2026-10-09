@@ -138,7 +138,6 @@ export function createMicrosoftProofJoining(input: {
     headers: Headers;
     actor: ActorContext;
     providerId: string | null;
-    requireMfa: boolean;
   }): Intent & { accountId: string; oid: string } {
     const intent = fromHeaders(input.headers);
     if (
@@ -149,7 +148,7 @@ export function createMicrosoftProofJoining(input: {
       !intent.oid ||
       intent.expiresAt <= Date.now() ||
       input.providerId !== "microsoft" ||
-      (input.requireMfa && !input.actor.mfaSatisfied)
+      input.actor.assurance !== "federated"
     ) {
       throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403);
     }
@@ -161,7 +160,6 @@ export function createMicrosoftProofJoining(input: {
     actor: ActorContext;
     providerId: string | null;
     invitationToken?: string;
-    requireMfa: boolean;
   }) {
     const intent = assertJoiningCompletion(input);
     return tx(

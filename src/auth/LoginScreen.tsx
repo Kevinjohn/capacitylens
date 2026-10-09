@@ -21,7 +21,6 @@ import {
 import { LoginForm } from "./LoginForm";
 import { useOwnerSetup } from "./useOwnerSetup";
 import { usePasswordSignIn } from "./usePasswordSignIn";
-import { useSecondFactor } from "./useSecondFactor";
 import { startMicrosoftConnection } from "./microsoftConnectionClient";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 
@@ -63,12 +62,10 @@ export function LoginScreen({
   );
   const [busy, setBusy] = useState(false);
   const [pendingProvider, setPendingProvider] = useState<AuthProviderInfo | null>(null);
-  const secondFactor = useSecondFactor({ setError, setBusy, onSignedIn });
   const passwordSignIn = usePasswordSignIn({
     setError,
     setBusy,
     onSignedIn,
-    setTwoFactorPending: secondFactor.setTwoFactorPending,
   });
   const ownerSetup = useOwnerSetup({
     email: passwordSignIn.email,
@@ -100,7 +97,6 @@ export function LoginScreen({
       error={error}
       setError={setError}
       ids={ids}
-      secondFactor={secondFactor}
       passwordSignIn={passwordSignIn}
       ownerSetup={ownerSetup}
       signInWithProvider={createProviderSignIn({
@@ -190,7 +186,6 @@ type LoginViewProps = {
     setupTokenHelp: string;
     error: string;
   };
-  secondFactor: ReturnType<typeof useSecondFactor>;
   passwordSignIn: ReturnType<typeof usePasswordSignIn>;
   ownerSetup: ReturnType<typeof useOwnerSetup>;
   signInWithProvider: (provider: AuthProviderInfo) => Promise<void>;
@@ -215,7 +210,6 @@ function LoginView(props: LoginViewProps) {
                 busy={props.busy}
                 pendingProvider={props.pendingProvider}
                 error={props.error}
-                twoFactorPending={props.secondFactor.twoFactorPending}
                 signInWithProvider={props.signInWithProvider}
               />
             )}
@@ -231,16 +225,11 @@ function LoginView(props: LoginViewProps) {
               passwordAutoFocus={!showLoginProviders}
               busy={props.busy}
               error={props.error}
-              setError={props.setError}
               ids={props.ids}
-              secondFactor={props.secondFactor}
               passwordSignIn={props.passwordSignIn}
               ownerSetup={props.ownerSetup}
             />
-            {props.passwordResetEmail &&
-              allowsPasswordSignIn(props.authMode) &&
-              !setup &&
-              !props.secondFactor.twoFactorPending && <ForgotPassword />}
+            {props.passwordResetEmail && allowsPasswordSignIn(props.authMode) && !setup && <ForgotPassword />}
             {showTrailingProviders && (
               <ProviderButtons
                 authMode={props.authMode}
@@ -251,7 +240,6 @@ function LoginView(props: LoginViewProps) {
                 busy={props.busy}
                 pendingProvider={props.pendingProvider}
                 error={props.error}
-                twoFactorPending={props.secondFactor.twoFactorPending}
                 signInWithProvider={props.signInWithProvider}
               />
             )}
@@ -270,20 +258,17 @@ function getProviderPlacement({
   authMode,
   needsSetup,
   providers,
-  secondFactor,
   ownerSetup,
-}: Pick<LoginViewProps, "authMode" | "needsSetup" | "providers" | "secondFactor" | "ownerSetup">) {
+}: Pick<LoginViewProps, "authMode" | "needsSetup" | "providers" | "ownerSetup">) {
   const preserveBootstrapFlow = needsSetup && !ownerSetup.setupClosed;
   const loginProviders = preserveBootstrapFlow ? [] : providers;
   const trailingProviders = preserveBootstrapFlow ? providers : [];
-  const hideProviders = secondFactor.twoFactorPending;
   return {
     loginProviders,
     trailingProviders,
     preserveBootstrapFlow,
-    showLoginProviders: loginProviders.length > 0 && !hideProviders,
-    showTrailingProviders:
-      trailingProviders.length > 0 || (authMode === "sso-only" && providers.length === 0 && !hideProviders),
+    showLoginProviders: loginProviders.length > 0,
+    showTrailingProviders: trailingProviders.length > 0 || (authMode === "sso-only" && providers.length === 0),
   };
 }
 
@@ -323,7 +308,6 @@ type ProviderButtonsProps = Pick<
   "authMode" | "providers" | "busy" | "pendingProvider" | "error" | "signInWithProvider"
 > & {
   setup: boolean;
-  twoFactorPending: boolean;
   showSeparator?: boolean;
   errorId?: string;
 };
@@ -335,12 +319,10 @@ function ProviderButtons({
   busy,
   pendingProvider,
   error,
-  twoFactorPending,
   showSeparator = false,
   signInWithProvider,
   errorId,
 }: ProviderButtonsProps) {
-  if (twoFactorPending) return null;
   if (providers.length === 0)
     return !setup && authMode === "sso-only" ? <FieldError>{m.login_sso_unavailable()}</FieldError> : null;
   return (

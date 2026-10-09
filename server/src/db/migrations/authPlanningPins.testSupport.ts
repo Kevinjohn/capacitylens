@@ -76,4 +76,9 @@ export const CHECKSUM_PINNED_MIGRATIONS = [
     name: "bind-microsoft-company-joining-browser",
     checksum: "07d02c213db96189e3b8feec9b2920802cd585ee626c9a77771463d6b6d73117",
   },
+  {
+    version: 52,
+    name: "retire-local-second-factor-auth-shape",
+    checksum: "063c0c9c2c67d56a9771cd0ed28083b405e21585bf543961f4c00e6bd57262b4",
+  },
 ];

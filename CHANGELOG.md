@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Removed local multi-factor enrolment, challenges and recovery codes. Google and Microsoft company providers now own any multi-factor policy; password sign-in and existing credentials remain available in modes that allow them.
+
 ### Documentation
 
 - Added complete Editor and Viewer starting routes, expanded Owner, Admin, joining, Account and discipline journeys, and added current screenshots for role-specific controls. Corrected operator guidance for MFA, provider linking, backups and monitoring.
@@ -37,6 +41,7 @@ new features and **patch** versions carry fixes.
 ### Changed
 
 - Company-wide weekday labels and checkboxes now share larger targets that wrap on narrow Settings layouts (#1128).
+- Settings uses full-width multiple-choice controls, hides Device data and Deleted items, and moves Build details to Diagnostics. The Settings scope paragraphs are removed (#1439).
 - Require Node 24.19.0 or newer within 24.x for the supported runtime. Admit Node 26.9.0 or
   newer within 26.x experimentally, with a focused local compatibility check and no scheduled
   Node 26 CI. Source and packaged entrypoints enforce the same minimums (#710).

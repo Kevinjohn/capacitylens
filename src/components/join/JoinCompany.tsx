@@ -96,49 +96,6 @@ function Approved({ flow }: { flow: Flow }) {
   );
 }
 
-function SecondFactor({ flow }: { flow: Flow }) {
-  if (flow.secondFactorVerified) {
-    return (
-      <form className="flex flex-col gap-3" onSubmit={(event) => void flow.verifySecondFactor(event)}>
-        <p className="text-sm text-muted-foreground">{m.joining_mfa_complete()}</p>
-        <Button type="submit" disabled={flow.busy}>
-          {m.joining_join_company()}
-        </Button>
-      </form>
-    );
-  }
-  const prompt = flow.useRecoveryCode ? m.login_mfa_recovery_prompt() : m.login_mfa_authenticator_prompt();
-  const label = flow.useRecoveryCode ? m.login_mfa_recovery_code() : m.login_mfa_authentication_code();
-  return (
-    <form className="flex flex-col gap-3" onSubmit={(event) => void flow.verifySecondFactor(event)}>
-      <p className="text-sm text-muted-foreground">{prompt}</p>
-      <TextField
-        label={label}
-        type="text"
-        autoComplete="one-time-code"
-        value={flow.secondFactorCode}
-        onChange={(value) => flow.setSecondFactorCode(value.trim())}
-      />
-      <div className="flex items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={flow.busy}
-          onClick={() => {
-            flow.setUseRecoveryCode(!flow.useRecoveryCode);
-            flow.setSecondFactorCode("");
-          }}
-        >
-          {flow.useRecoveryCode ? m.login_mfa_use_authenticator() : m.login_mfa_use_recovery()}
-        </Button>
-        <Button type="submit" disabled={flow.busy || !flow.secondFactorCode}>
-          {m.login_mfa_verify()}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
 function JoinContent({ flow, invitationToken }: { flow: Flow; invitationToken: string | null }) {
   switch (flow.stage) {
     case "entry":
@@ -147,8 +104,6 @@ function JoinContent({ flow, invitationToken }: { flow: Flow; invitationToken: s
       return <Pending flow={flow} />;
     case "approved":
       return <Approved flow={flow} />;
-    case "second-factor":
-      return <SecondFactor flow={flow} />;
     case "local":
       return <p>{m.invite_local_mode({ app: APP_NAME })}</p>;
     case "error":

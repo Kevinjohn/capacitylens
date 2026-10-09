@@ -1,12 +1,11 @@
 ---
 title: OWASP ASVS 5.0.0 complete control ledger
-description: Every ASVS 5.0.0 requirement assessed as Pass, Partial, Gap or Not Applicable for alpha4 on 2026-08-18.
+description: ASVS 5.0.0 control ledger assessed in 2026 with a 2026-10-09 local MFA update.
 ---
 
 # OWASP ASVS 5.0.0 complete control ledger
 
-Assessment date: 2026-08-18. Target: ASVS Level 2 when optional hardening
-is enabled, with every Level 1–3 requirement assessed.
+Assessment date: 2026-08-18; local MFA posture updated 2026-10-09. Every Level 1–3 requirement is assessed. Password-only deployments do not meet the Level 2 multi-factor requirement.
 Baseline: OWASP Application Security Verification Standard 5.0.0 (May 2025), 345 requirements.
 
 This ledger is an evidence-based source/configuration review, not an OWASP certification. It uses:
@@ -22,8 +21,7 @@ TLS, disks, collectors, secret stores and identity-provider policy cannot become
 an environment acknowledgement is set; those stay Partial where deployment evidence is required.
 Requirement descriptions are not reproduced here; use the official ASVS release alongside these IDs.
 
-Point-in-time totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. These counts include all
-levels; they are not a score or certification percentage.
+Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Following the 2026-10-09 local MFA removal, the amended rows total **194 Pass, 46 Partial, 8 Gap and 97 N/A = 345**. These are not a score or certification percentage.
 
 ## V1 Encoding and sanitization
 
@@ -41,7 +39,7 @@ levels; they are not a score or certification percentage.
 | ----------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------- | ------- | --- | -------------- |
 | V2.1 Documentation      | `AGENTS.md`, `DEFENSIVE-CODING.md`, domain invariants and control inventory define shape/context/limits | V2.1.1, V2.1.2, V2.1.3 | —       | —   | —              |
 | V2.2 Enforcement        | Server/domain validation is authoritative; related entity/account/date/activity rules checked           | V2.2.1, V2.2.2, V2.2.3 | —       | —   | —              |
-| V2.3 Flows/transactions | Setup/invite/MFA/link/cutover order, SQLite transactions, sync provenance, stale-import checks and atomic replacement | V2.3.1, V2.3.2, V2.3.3 | —       | —   | V2.3.4, V2.3.5 |
+| V2.3 Flows/transactions | Setup/invite/link/cutover order, SQLite transactions, sync provenance, stale-import checks and atomic replacement | V2.3.1, V2.3.2, V2.3.3 | —       | —   | V2.3.4, V2.3.5 |
 | V2.4 Anti-automation    | API/health throttling and request/import/batch bounds                                                   | V2.4.1                 | —       | —   | V2.4.2         |
 
 ## V3 Web frontend security
@@ -78,11 +76,11 @@ levels; they are not a score or certification percentage.
 
 | Section                          | Evidence summary                                                                                                                                                                                                         | Pass                                                                                     | Partial | Gap            | N/A                            |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- | ------- | -------------- | ------------------------------ |
-| V6.1 Documentation               | Auth pathways, throttling/lockout, context words, password/MFA/SSO strength documented                                                                                                                                   | V6.1.1, V6.1.2, V6.1.3                                                                   | —       | —              | —                              |
+| V6.1 Documentation               | Auth pathways, throttling/lockout, context words, password and company-provider strength documented                                                                                                                                   | V6.1.1, V6.1.2, V6.1.3                                                                   | —       | —              | —                              |
 | V6.2 Passwords                   | 15–128, change/current-password flow, HIBP by default, no composition rule, paste/managers, exact bytes, no periodic expiry; breach checking can be disabled with a warning                                              | V6.2.1, V6.2.2, V6.2.3, V6.2.4, V6.2.5, V6.2.6, V6.2.7, V6.2.8, V6.2.9, V6.2.10, V6.2.11 | V6.2.12 | —              | —                              |
-| V6.3 Authentication controls     | API throttling/MFA lockout, no default account, opt-in required TOTP, consistent documented paths and generic failures; default password mode is single-factor and no phishing-resistant factor/user notifications exist | V6.3.1, V6.3.2, V6.3.4, V6.3.6, V6.3.8                                                   | V6.3.3  | V6.3.5, V6.3.7 | —                              |
-| V6.4 Recovery                    | Production setup avoids initial passwords; reset preserves MFA/revokes sessions; stopped-server sole-Owner recovery uses the same single-use flow and exact eligibility; lost TOTP requires an enrollment-issued recovery code | V6.4.1, V6.4.2, V6.4.3, V6.4.4, V6.4.6                                                | —       | —              | V6.4.5                         |
-| V6.5 Factor properties           | CSPRNG seeds/codes, protected recovery material, 30-second TOTP/server time, lockout and revocation; library does not evidence same-window TOTP replay storage                                                           | V6.5.2, V6.5.3, V6.5.4, V6.5.5, V6.5.6, V6.5.8                                           | V6.5.1  | —              | V6.5.7                         |
+| V6.3 Authentication controls     | API throttling, no default account, consistent documented paths and generic failures; password mode has no local MFA or phishing-resistant factor/user notifications | V6.3.1, V6.3.2, V6.3.4, V6.3.6, V6.3.8                                                   | —       | V6.3.3, V6.3.5, V6.3.7 | —                              |
+| V6.4 Recovery                    | Production setup avoids initial passwords; password reset revokes sessions; stopped-server sole-Owner recovery uses the same single-use flow and exact eligibility; local MFA recovery does not apply | V6.4.1, V6.4.2, V6.4.3, V6.4.4, V6.4.6                                                | —       | —              | V6.4.5                         |
+| V6.5 Factor properties | No local authenticator, TOTP enrolment or recovery-code flow; Google and Microsoft own any factor policy | — | — | — | V6.5.1, V6.5.2, V6.5.3, V6.5.4, V6.5.5, V6.5.6, V6.5.7, V6.5.8 |
 | V6.6 Out-of-band/PSTN            | No SMS, phone, email-code or push factor                                                                                                                                                                                 | —                                                                                        | —       | —              | V6.6.1, V6.6.2, V6.6.3, V6.6.4 |
 | V6.7 Cryptographic authenticator | No hardware cryptographic authenticator                                                                                                                                                                                  | —                                                                                        | —       | —              | V6.7.1, V6.7.2                 |
 | V6.8 Federated identity          | Provider+subject identity, asymmetric signature validation, verified-email admission and explicit linking; SSO MFA remains an operator assurance rather than claim-level enforcement                                    | V6.8.1, V6.8.2                                                                           | V6.8.4  | —              | V6.8.3                         |
@@ -95,7 +93,7 @@ levels; they are not a score or certification percentage.
 | V7.2 Token creation/verification | Backend stateful CSPRNG reference sessions; new token on authentication                                                             | V7.2.1, V7.2.2, V7.2.3, V7.2.4         | —       | —   | —   |
 | V7.3 Timeouts                    | Fixed 12-hour absolute limit, 30-minute server-enforced inactivity expiry and no sliding absolute refresh                           | V7.3.1, V7.3.2                         | —       | —   | —   |
 | V7.4 Termination                 | Logout/expiry/deletion/reset/revocation are immediate; self/admin controls and visible logout                                       | V7.4.1, V7.4.2, V7.4.3, V7.4.4, V7.4.5 | —       | —   | —   |
-| V7.5 Reauthentication            | Current password/MFA verification and fresh privileged actions; session termination uses freshness rather than an always-new prompt | V7.5.1, V7.5.3                         | V7.5.2  | —   | —   |
+| V7.5 Reauthentication | Current password or provider sign-in and fresh privileged actions; session termination uses freshness rather than an always-new prompt | V7.5.1, V7.5.3 | V7.5.2 | — | — |
 | V7.6 Federation                  | Session creation is user-initiated; provider logout/lifetime coordination needs provider testing                                    | V7.6.2                                 | V7.6.1  | —   | —   |
 
 ## V8 Authorization
@@ -105,7 +103,7 @@ levels; they are not a score or certification percentage.
 | V8.1 Documentation           | Function/data/field/action rules and only contextual control (session freshness) are documented                                                                                            | V8.1.1, V8.1.2, V8.1.3, V8.1.4 | —       | —      | —   |
 | V8.2 Enforcement             | Central role/action, account/object/parent-reference and field rules; project-bound writes fail closed when the parent cannot be resolved in-tenant; no adaptive environment/device engine | V8.2.1, V8.2.2, V8.2.3         | —       | V8.2.4 | —   |
 | V8.3 Trusted layer/immediacy | Server-side DB membership on every operation; changes/revocations immediate; no privilege-bearing intermediary                                                                             | V8.3.1, V8.3.2, V8.3.3         | —       | —      | —   |
-| V8.4 Multi-tenancy/admin     | Independent cross-tenant enforcement; admin always has freshness and may have required MFA, but no continuous device/risk assessment                                                       | V8.4.1                         | V8.4.2  | —      | —   |
+| V8.4 Multi-tenancy/admin | Independent cross-tenant enforcement; only specified sensitive actions require freshness; no local MFA gate or continuous device/risk assessment | V8.4.1 | V8.4.2 | — | — |
 
 ## V9 Self-contained tokens
 
@@ -192,8 +190,7 @@ levels; they are not a score or certification percentage.
 
 ## Interpretation
 
-The application can be configured for the ASVS Level 2 risk band but the community defaults no
-longer force that posture: password MFA is optional and breach screening can be disabled. A
+Password-only deployments cannot meet the ASVS Level 2 multi-factor requirement through CapacityLens. Google or Microsoft provider MFA may meet an agency policy when configured and tested there; CapacityLens cannot verify that provider policy. Breach screening can be disabled. A
 password-only deployment therefore does not meet V6.3.3 L2. A Gap in a Level 3-only requirement
 still documents a conscious higher-assurance boundary rather than an L2 failure. Partial/Gap L1/L2
 controls remain real limitations, particularly optional authentication hardening, federated-provider

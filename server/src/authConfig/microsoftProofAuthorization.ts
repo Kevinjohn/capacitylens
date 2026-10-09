@@ -26,10 +26,7 @@ function assertFreshLinkSession(
   const assurance = db
     .prepare("SELECT assurance FROM account_session_assurance WHERE sessionId = ? AND principalId = ?")
     .get(session.session.id, session.user.id) as { assurance: string } | undefined;
-  if (
-    !assurance ||
-    (session.user.twoFactorEnabled && assurance.assurance !== "mfa" && assurance.assurance !== "federated")
-  ) {
+  if (!assurance || (assurance.assurance !== "password" && assurance.assurance !== "federated")) {
     throw new MicrosoftProofError("MICROSOFT_LINK_SESSION_EXPIRED", 401);
   }
 }

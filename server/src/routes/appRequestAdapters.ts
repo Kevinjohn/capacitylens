@@ -24,15 +24,8 @@ export function buildSessionUser(session: ApplicationSession): SessionUser {
     emailVerified: session.principal.emailVerified,
     name: session.principal.displayName,
     image: session.principal.image ?? null,
-    twoFactorEnabled: hasRequiredSessionMfa(session),
     sessionCreatedAt: session.createdAt,
   };
-}
-
-/** CapacityLens treats provider-authenticated and trusted-local sessions as satisfying its local
- * MFA gate; provider-side MFA enforcement remains an explicit operator responsibility. */
-export function hasRequiredSessionMfa(session: ApplicationSession): boolean {
-  return session.assurance === "mfa" || session.assurance === "federated" || session.assurance === "trusted-local";
 }
 
 export function parseReplayAccountCommand(req: FastifyRequest): CommandIdentity | null {

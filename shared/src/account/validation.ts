@@ -42,7 +42,6 @@ function hasBrandingShape(value: unknown): value is BoundApplication["branding"]
   const branding = value as Record<string, unknown>;
   const passwordContextWords = branding.passwordContextWords;
   return (
-    hasBoundedNameShape(branding.totpIssuer) &&
     hasBoundedNameShape(branding.defaultProviderLabel) &&
     Array.isArray(passwordContextWords) &&
     passwordContextWords.length > 0 &&
@@ -99,7 +98,7 @@ function inspectBoundApplication(application: unknown): string | null {
     return `The account application display name must be 1–${MAX_NAME_LENGTH} characters.`;
   }
   if (!hasBrandingShape(candidate.branding)) {
-    return `Account branding must define a TOTP issuer and provider label of at most ${MAX_NAME_LENGTH} characters, plus 1–${MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS} non-empty password context words of at most ${MAX_PASSWORD_LENGTH} characters each.`;
+    return `Account branding must define a provider label of at most ${MAX_NAME_LENGTH} characters, plus 1–${MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS} non-empty password context words of at most ${MAX_PASSWORD_LENGTH} characters each.`;
   }
   return null;
 }

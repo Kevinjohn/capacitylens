@@ -33,7 +33,7 @@ export function createAuthorityChangedError(commandId: string): AccountContractE
 export function isAuthorityDenial(error: unknown): boolean {
   return (
     error instanceof AccountContractError &&
-    ["FORBIDDEN", "NOT_MEMBER", "SESSION_NOT_FRESH", "MFA_REQUIRED"].includes(error.failure.code)
+    ["FORBIDDEN", "NOT_MEMBER", "SESSION_NOT_FRESH"].includes(error.failure.code)
   );
 }
 

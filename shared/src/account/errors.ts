@@ -3,7 +3,6 @@ import type { CommandId } from "./types";
 /** Every failure code an account operation may report. */
 export type AccountErrorCode =
   | "AUTHENTICATION_REQUIRED"
-  | "MFA_REQUIRED"
   | "SESSION_NOT_FRESH"
   | "FORBIDDEN"
   | "NOT_FOUND"
@@ -71,7 +70,6 @@ export class AccountContractError extends Error {
 
 const ACCOUNT_FAILURE_STATUS = {
   AUTHENTICATION_REQUIRED: 401,
-  MFA_REQUIRED: 403,
   SESSION_NOT_FRESH: 403,
   FORBIDDEN: 403,
   NOT_FOUND: 404,

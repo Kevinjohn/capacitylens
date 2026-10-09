@@ -268,7 +268,6 @@ function createWorkspaceProvisioningFlows(
           sessionId: "trusted-local",
           assurance: "trusted-local",
           fresh: true,
-          mfaSatisfied: true,
         },
         multiWorkspace,
         bootstrapAuthorized: false,

@@ -272,8 +272,10 @@ This is the short, present-tense record of decisions that constrain future work.
   proxy. Legacy account environment names were removed before beta with no migration window; they
   are now unknown and ignored like any other unrecognised variable.
 - Password mode defaults to breached-password screening. Password sign-in offers no
-  authenticator-code step to enable or require (2026-10-01); the underlying code stays dormant
-  pending a separate investigation. Sessions have a fixed twelve-hour lifetime; privileged actions
+  authenticator-code step to enable or require. Local MFA implementation was removed
+  (2026-10-09). Google and Microsoft providers own any MFA policy, enrolment and recovery;
+  enabling company sign-in alone does not enable MFA, and a federated session does not prove
+  that an upstream MFA challenge occurred. Sessions have a fixed twelve-hour lifetime; privileged actions
   require a session no older than fifteen minutes. The client answers the freshness refusal with an
   in-place "confirm it's you" re-authentication dialog that mints a fresh session and retries,
   never a full sign-out that discards working state.

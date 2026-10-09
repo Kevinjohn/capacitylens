@@ -34,7 +34,6 @@ interface CreateSqliteAccountAdminPortInput {
   db: Db;
   lock: KeyedOperationLock;
   trustedLocal?: boolean;
-  requireMfa?: boolean;
   audit?: AccountAuditPort;
   /** Test seam; production uses the bounded default. */
   writeOnceReplayCapacity?: number;
@@ -110,7 +109,7 @@ function writeMutationAudit<Execute extends () => unknown>(
 
 function isDeniedMutation(error: unknown): boolean {
   if (!(error instanceof AccountContractError)) return false;
-  return ["FORBIDDEN", "NOT_MEMBER", "SESSION_NOT_FRESH", "MFA_REQUIRED"].includes(error.failure.code);
+  return ["FORBIDDEN", "NOT_MEMBER", "SESSION_NOT_FRESH"].includes(error.failure.code);
 }
 
 interface RecordFailedMutationInput<Execute extends () => unknown> {
@@ -204,13 +203,13 @@ function createRunMutation(dependencies: MutationDependencies): AdminPortContext
 }
 
 export function createSqliteAccountAdminPort(input: CreateSqliteAccountAdminPortInput): SsoCutoverAccountAdminPort {
-  const { applicationId, db, lock, trustedLocal = false, requireMfa = false } = input;
+  const { applicationId, db, lock, trustedLocal = false } = input;
   const audit = createAccountAuditWriter(applicationId, input.audit);
   const invitationSecretReplay = new WriteOnceSecretReplay<CreatedInvitation>(
     input.writeOnceReplayCapacity ?? MAX_SECRET_REPLAYS,
   );
   const runMutation = createRunMutation({ applicationId, db, lock, audit });
-  const context = { applicationId, audit, db, trustedLocal, requireMfa, invitationSecretReplay, runMutation };
+  const context = { applicationId, audit, db, trustedLocal, invitationSecretReplay, runMutation };
   return {
     ...createAuthority(context),
     ...createCutover(context),

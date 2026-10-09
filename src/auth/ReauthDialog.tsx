@@ -28,12 +28,6 @@ interface ReauthState {
   setError: Dispatch<SetStateAction<string | null>>;
   busy: boolean;
   setBusy: Dispatch<SetStateAction<boolean>>;
-  twoFactorPending: boolean;
-  setTwoFactorPending: Dispatch<SetStateAction<boolean>>;
-  code: string;
-  setCode: Dispatch<SetStateAction<string>>;
-  useRecoveryCode: boolean;
-  setUseRecoveryCode: Dispatch<SetStateAction<boolean>>;
   pendingProvider: AuthProviderInfo | null;
   setPendingProvider: Dispatch<SetStateAction<AuthProviderInfo | null>>;
   errorId: string;
@@ -43,9 +37,6 @@ function useReauthState(): ReauthState {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [twoFactorPending, setTwoFactorPending] = useState(false);
-  const [code, setCode] = useState("");
-  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
   const [pendingProvider, setPendingProvider] = useState<AuthProviderInfo | null>(null);
   return {
     password,
@@ -54,22 +45,10 @@ function useReauthState(): ReauthState {
     setError,
     busy,
     setBusy,
-    twoFactorPending,
-    setTwoFactorPending,
-    code,
-    setCode,
-    useRecoveryCode,
-    setUseRecoveryCode,
     pendingProvider,
     setPendingProvider,
     errorId: useId(),
   };
-}
-
-function hasTwoFactorRedirect(value: unknown): boolean {
-  return (
-    typeof value === "object" && value !== null && "twoFactorRedirect" in value && value.twoFactorRedirect === true
-  );
 }
 
 async function confirmPassword(email: string, state: ReauthState) {
@@ -81,41 +60,15 @@ async function confirmPassword(email: string, state: ReauthState) {
   state.setBusy(true);
   state.setError(null);
   try {
-    const { data, error } = await authClient.signIn.email({ email, password: state.password });
+    const { error } = await authClient.signIn.email({ email, password: state.password });
     if (error) {
       state.setError(error.message ?? m.reauth_failed());
-      state.setBusy(false);
-      return;
-    }
-    if (hasTwoFactorRedirect(data)) {
-      state.setTwoFactorPending(true);
       state.setBusy(false);
       return;
     }
     completeReauth({ reauthenticated: true });
   } catch (error) {
     console.error("ReauthDialog: password re-auth request failed", error);
-    state.setError(m.login_network_error());
-    state.setBusy(false);
-  }
-}
-
-async function confirmSecondFactor(state: ReauthState) {
-  if (state.busy) return;
-  state.setBusy(true);
-  state.setError(null);
-  try {
-    const result = state.useRecoveryCode
-      ? await authClient.twoFactor.verifyBackupCode({ code: state.code, trustDevice: false })
-      : await authClient.twoFactor.verifyTotp({ code: state.code, trustDevice: false });
-    if (result.error) {
-      state.setError(result.error.message ?? m.reauth_failed());
-      state.setBusy(false);
-      return;
-    }
-    completeReauth({ reauthenticated: true });
-  } catch (error) {
-    console.error("ReauthDialog: second-factor re-auth verification failed", error);
     state.setError(m.login_network_error());
     state.setBusy(false);
   }
@@ -159,7 +112,6 @@ export function ReauthDialog({
     const selected = reauthProviderId ? providers.filter((provider) => provider.id === reauthProviderId) : providers;
     return <ProviderDialog providers={selected} state={state} cancel={cancel} action={action} />;
   }
-  if (state.twoFactorPending) return <SecondFactorDialog state={state} cancel={cancel} action={action} />;
   return (
     <PasswordDialog
       state={state}
@@ -215,73 +167,6 @@ function ProviderDialog({
         </div>
       ) : null}
     </Modal>
-  );
-}
-
-function SecondFactorDialog({
-  state,
-  cancel,
-  action,
-}: {
-  state: ReauthState;
-  cancel: () => void;
-  action: ReauthAction | null | undefined;
-}) {
-  return (
-    <Modal
-      title={action ? `${m.reauth_title()} — ${reauthActionLabel(action)}` : m.reauth_title()}
-      onClose={() => {
-        if (!state.busy) cancel();
-      }}
-      onSubmit={() => void confirmSecondFactor(state)}
-      guardDirty={false}
-      footer={
-        <>
-          <CancelButton busy={state.busy} cancel={cancel} />
-          <Button size="sm" type="submit" data-testid="reauth-2fa-submit" disabled={state.busy || !state.code}>
-            {m.reauth_2fa_submit()}
-          </Button>
-        </>
-      }
-    >
-      <SecondFactorFields state={state} />
-    </Modal>
-  );
-}
-
-function SecondFactorFields({ state }: { state: ReauthState }) {
-  const toggleRecovery = () => {
-    state.setUseRecoveryCode((value) => !value);
-    state.setCode("");
-    state.setError(null);
-  };
-  return (
-    <>
-      <p className="text-sm text-muted-foreground">
-        {state.useRecoveryCode ? m.reauth_2fa_recovery_body() : m.reauth_2fa_body()}
-      </p>
-      <Field>
-        <FieldLabel htmlFor="reauth-2fa-code">
-          {state.useRecoveryCode ? m.reauth_2fa_recovery_label() : m.reauth_2fa_label()}
-        </FieldLabel>
-        <Input
-          id="reauth-2fa-code"
-          data-testid="reauth-2fa-code"
-          type="text"
-          inputMode={state.useRecoveryCode ? "text" : "numeric"}
-          autoComplete="one-time-code"
-          value={state.code}
-          onChange={(event) => state.setCode(event.target.value.trim())}
-          aria-invalid={state.error ? true : undefined}
-          aria-describedby={state.error ? state.errorId : undefined}
-          autoFocus
-        />
-      </Field>
-      <FieldError id={state.errorId}>{state.error}</FieldError>
-      <Button size="sm" type="button" variant="outline" disabled={state.busy} onClick={toggleRecovery}>
-        {state.useRecoveryCode ? m.reauth_2fa_use_authenticator() : m.reauth_2fa_use_recovery()}
-      </Button>
-    </>
   );
 }
 

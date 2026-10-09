@@ -20,7 +20,7 @@ import { createAccountFailure } from "./failures";
  * path and the row-command path can each stay readable, and so neither has to import the other.
  */
 
-export type TransferContext = Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa" | "runMutation" | "audit">;
+export type TransferContext = Pick<AdminPortContext, "db" | "trustedLocal" | "runMutation" | "audit">;
 /**
  * A row whose deadline has passed is not a live ceremony: it is an expiry nobody has committed yet.
  *

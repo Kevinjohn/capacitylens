@@ -77,7 +77,6 @@ export interface AdminPortContext {
   audit: (event: AccountAuditInput) => void;
   db: Db;
   trustedLocal: boolean;
-  requireMfa: boolean;
   invitationSecretReplay: WriteOnceSecretReplay<CreatedInvitation>;
   runMutation: <Execute extends () => unknown>(options: {
     operation: string;

@@ -44,6 +44,9 @@ self-registration closes automatically and only the Sign in form below is reacha
 - Unauthenticated: the Sign in screen replaces the whole app — no company picker, no nav,
   no data; direct API reads (e.g. `GET /api/state`) return 401.
 - The form submits with Enter; a failed sign-in shows an inline alert and no navigation.
+- A correct password signs in without a CapacityLens authenticator or recovery-code challenge.
+  Google or Microsoft may require MFA under the agency's provider policy; enabling company sign-in
+  alone does not enable it.
 - When the named Google provider is configured, its action is visibly Google-branded, remains
   sharp on high-density displays without an outer wrapper shadow, and is named exactly **Sign in with Google**
   (including while disabled during the provider hand-off).

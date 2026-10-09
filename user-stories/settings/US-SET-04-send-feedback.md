@@ -1,6 +1,8 @@
 # US-SET-04 — Send feedback pinned to the build I'm on
 
-**Area:** Settings · **Persona:** Tester on the hosted demo · **Linked E2E:** `e2e/settings-build-stamp.spec.ts` → "no Send feedback link in the default dev build"
+**Area:** Diagnostics · **Persona:** Owner or Admin reporting a problem · **Linked E2E:** `e2e/settings-build-stamp.spec.ts` → default build omits feedback link
+
+**Documentation:** [Diagnostics](../../docs-src/admin/diagnostics.md)
 
 > **Flag-gated:** the link only exists in builds made with `VITE_CAPACITYLENS_FEEDBACK_MAILTO`
 > set (the deploy script sets it to the owner's address). The default dev/local build
@@ -21,27 +23,27 @@ on arrival.
 
 ## How (end-to-end, hosted demo)
 
-**Precondition:** the deployed site, signed in past Basic Auth; click **Settings**.
+**Precondition:** the deployed site, signed in past Basic Auth as an Owner or Admin; open
+**Diagnostics** below Settings.
 
-1. Scroll to the footer below **Appearance**: next to the build stamp sits a
+1. Scroll below the support report: next to the build stamp sits a
    **Send feedback** link (`data-testid="send-feedback"`).
 2. Click it — the mail client opens a draft to the owner's address with the subject
    `CapacityLens feedback — build <sha> · server`.
 3. Describe the problem and send.
 
-**Precondition (default local build):** run `pnpm run dev`, open Settings.
+**Precondition (default local build):** run `pnpm run dev`, open Diagnostics.
 
 4. Confirm there is **no** Send feedback link (and no footer at all).
 
 ## Acceptance criteria
 
-- With `VITE_CAPACITYLENS_FEEDBACK_MAILTO=<addr>` baked into the build, Settings shows a
+- With `VITE_CAPACITYLENS_FEEDBACK_MAILTO=<addr>` baked into the build, Diagnostics shows a
   **Send feedback** `mailto:` link beside the build stamp when `<addr>` is one valid email address;
   the recipient is URI-encoded so reserved characters remain part of the mailbox.
 - An invalid feedback address is rejected during client build/startup rather than producing a
   malformed mail action.
 - The mailto subject contains the build stamp when `VITE_CAPACITYLENS_BUILD_SHA` is also set
   (the demo deploy sets both), and a plain `CapacityLens feedback` subject otherwise.
-- Without the variable (dev server, plain `pnpm run build`), the link is absent —
-  today's Settings, unchanged.
+- Without the variable (dev server, plain `pnpm run build`), the link is absent.
 - The link is plain text-styled, keyboard-focusable, and does not affect the axe audit.

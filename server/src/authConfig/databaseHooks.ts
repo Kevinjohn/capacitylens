@@ -1,4 +1,3 @@
-import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
 import { cleanText } from "@capacitylens/shared/lib/strings";
@@ -26,7 +25,6 @@ interface HookOptions {
     context: { path?: string; params?: Record<string, unknown> } | null | undefined,
   ) => string | null;
   countUsers: (db: Db) => number;
-  twoFactorEnabledLookupStatement: (db: Db) => ReturnType<Db["prepare"]>;
   externalIdentityPath: (path: string | undefined) => boolean;
 }
 type DatabaseHooks = Exclude<BetterAuthOptions["databaseHooks"], undefined>;
@@ -39,7 +37,7 @@ type SessionDeleteAfter = Exclude<
   Exclude<Exclude<DatabaseHooks["session"], undefined>["delete"], undefined>["after"],
   undefined
 >;
-type Assurance = "federated" | "mfa" | "password";
+type Assurance = "federated" | "password";
 type PresentHookContext = NonNullable<Parameters<UserBefore>[1]>;
 
 const sanitizeUser = (user: Parameters<UserBefore>[0]) => {
@@ -109,7 +107,6 @@ function buildUserBefore(options: HookOptions): UserBefore {
 
 function resolveAssurance(options: HookOptions, path: string | undefined): Assurance {
   if (options.externalIdentityPath(path)) return "federated";
-  if (path?.startsWith("/two-factor/")) return "mfa";
   return "password";
 }
 
@@ -127,14 +124,6 @@ function resolveProviderId(options: HookOptions, assurance: Assurance, context: 
   return providerId;
 }
 
-function readEnrolledMfa(options: HookOptions, principalId: string): unknown {
-  // Strict-SSO schemas omit Better Auth's password/MFA columns, so never query them in SSO mode.
-  if (!allowsPasswordSignIn(options.mode)) return false;
-  return (
-    options.twoFactorEnabledLookupStatement(options.db).get(principalId) as { twoFactorEnabled?: unknown } | undefined
-  )?.twoFactorEnabled;
-}
-
 function buildSessionAfter(options: HookOptions): SessionAfter {
   return async (session, context) => {
     const assurance = resolveAssurance(options, context?.path);
@@ -148,9 +137,7 @@ function buildSessionAfter(options: HookOptions): SessionAfter {
       assurance,
       providerId,
     });
-    const enrolledMfa = readEnrolledMfa(options, principalId);
-    const awaitsMfa = assurance === "password" && (enrolledMfa === true || enrolledMfa === 1 || enrolledMfa === "1");
-    if (!awaitsMfa) confirmTrackedMemberSignIn(options.db, principalId);
+    confirmTrackedMemberSignIn(options.db, principalId);
   };
 }
 
@@ -180,7 +167,6 @@ export function buildDatabaseHooks({
   onFederatedSession,
   providerIdFromExternalContext,
   countUsers,
-  twoFactorEnabledLookupStatement,
   externalIdentityPath,
 }: HookOptions): Pick<BetterAuthOptions, "databaseHooks"> {
   const options: HookOptions = {
@@ -194,7 +180,6 @@ export function buildDatabaseHooks({
     ...(onFederatedSession === undefined ? {} : { onFederatedSession }),
     providerIdFromExternalContext,
     countUsers,
-    twoFactorEnabledLookupStatement,
     externalIdentityPath,
   };
   return {

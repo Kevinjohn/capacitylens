@@ -6,7 +6,7 @@ import { disableCssMotion, openApp } from "./browserTestSupport";
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 const groups = ["Company setup", "Scheduling features", "My display", "Data and support"];
-const disclosures = ["Device data", "Deleted items", "Import and export"];
+const disclosures = ["Import and export"];
 
 async function assertAccessible(page: Page) {
   await disableCssMotion(page);
@@ -64,6 +64,14 @@ async function assertReflow(page: Page) {
     expect(target!.width).toBeGreaterThanOrEqual(24);
     expect(target!.height).toBeGreaterThanOrEqual(24);
   }
+  for (const name of ["Scheduling input", "Date format", "Overview access", "Theme"]) {
+    const control = page.getByRole("radiogroup", { name });
+    const box = await control.boundingBox();
+    const row = await control.locator("xpath=..").boundingBox();
+    expect(box).not.toBeNull();
+    expect(row).not.toBeNull();
+    expect(box!.width).toBeGreaterThanOrEqual(row!.width - 2);
+  }
 }
 
 for (const width of [1280, 390, 320]) {
@@ -91,19 +99,8 @@ for (const width of [1280, 390, 320]) {
       await assertReflow(page);
       await assertAccessible(page);
     }
-    // Closing one row must preserve the other rows' independently expanded state.
-    const device = page.getByRole("button", { name: "Device data", exact: true });
-    await device.focus();
-    await page.keyboard.press("Space");
-    await expect(device).toHaveAttribute("aria-expanded", "false");
-    await expect(page.getByRole("button", { name: "Deleted items", exact: true })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-    await expect(page.getByRole("button", { name: "Import and export", exact: true })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
+    await expect(page.getByRole("heading", { name: "Device data" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Deleted items" })).toHaveCount(0);
   });
 }
 
@@ -117,7 +114,7 @@ test("Settings working-day controls remain accessible in light and dark themes",
   await assertAccessible(page);
 });
 
-test("help restores focus and destructive confirmation supports keyboard cancellation", async ({ page }) => {
+test("help restores focus and removed maintenance sections stay hidden", async ({ page }) => {
   await openApp(page, "Wayne Enterprises", "/settings");
   const help = page.getByRole("button", { name: "About Company details", exact: true });
   await help.focus();
@@ -128,19 +125,6 @@ test("help restores focus and destructive confirmation supports keyboard cancell
   await page.keyboard.press("Escape");
   await expect(explanation).toBeHidden();
   await expect(help).toBeFocused();
-
-  const device = page.getByRole("button", { name: "Device data", exact: true });
-  await device.focus();
-  await page.keyboard.press("Enter");
-  const clear = page.getByRole("button", { name: "Clear device data", exact: true });
-  await clear.focus();
-  await page.keyboard.press("Enter");
-  const confirmation = page.getByRole("alertdialog", { name: "Clear device data?", exact: true });
-  await expect(confirmation).toBeVisible();
-  await expect(confirmation.getByRole("button", { name: "Clear device data", exact: true })).toBeVisible();
-  await assertAccessible(page);
-  await confirmation.getByRole("button", { name: "Cancel", exact: true }).focus();
-  await page.keyboard.press("Enter");
-  await expect(confirmation).toBeHidden();
-  await expect(page.getByRole("button", { name: "Device data", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("heading", { name: "Device data" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Deleted items" })).toHaveCount(0);
 });

@@ -44,6 +44,7 @@ import { IDENTITY_EMAIL_PROOF_V48_MIGRATION } from "./identityEmailProofV48";
 import { JOINING_POLICIES_V49_MIGRATION } from "./joiningPoliciesV49";
 import { MICROSOFT_JOIN_V50_MIGRATION } from "./microsoftJoinV50";
 import { MICROSOFT_JOIN_BROWSER_V51_MIGRATION } from "./microsoftJoinBrowserV51";
+import { AUTH_SHAPE_V52_MIGRATION } from "./authShapeV52";
 import { BASELINE_V8_MIGRATION } from "./baselineV8";
 import { assertMigrationSequence } from "./assertMigrationSequence";
 import {
@@ -375,5 +376,6 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   JOINING_POLICIES_V49_MIGRATION,
   MICROSOFT_JOIN_V50_MIGRATION,
   MICROSOFT_JOIN_BROWSER_V51_MIGRATION,
+  AUTH_SHAPE_V52_MIGRATION,
 ];
 assertMigrationSequence(DATABASE_MIGRATIONS, DB_SCHEMA_VERSION);

@@ -7,7 +7,6 @@ describe("validateAuthUser", () => {
       id: "user-1",
       name: "Ada",
       email: "ada@example.com",
-      twoFactorEnabled: true,
       image: null,
       futureField: "retained",
     };
@@ -22,7 +21,6 @@ describe("validateAuthUser", () => {
     { id: "" },
     { id: "user-1", name: 1 },
     { id: "user-1", email: 1 },
-    { id: "user-1", twoFactorEnabled: "yes" },
     { id: "user-1", image: 1 },
   ])("rejects a malformed auth response: %j", (value) => {
     expect(parseAuthUser({ value: value })).toBeNull();

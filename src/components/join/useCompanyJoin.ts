@@ -14,7 +14,7 @@ import { runExternalSignIn } from "@/components/invites/externalSignIn";
 import { readMetadata, readStatus, resolveJoinStatus } from "./joinStatus";
 import type { Metadata } from "./joinStatus";
 
-type Stage = "loading" | "entry" | "pending" | "approved" | "second-factor" | "joined" | "error" | "local";
+type Stage = "loading" | "entry" | "pending" | "approved" | "joined" | "error" | "local";
 async function responseError(response: Response): Promise<string> {
   return (await readApiError(response)) ?? m.joining_failed();
 }
@@ -32,7 +32,7 @@ async function readJoinResponses([metadataResponse, statusResponse, microsoftRes
   return { metadata, local, microsoft };
 }
 
-// eslint-disable-next-line max-lines-per-function -- The account-keyed journey coordinates provider, password MFA and completion state.
+// eslint-disable-next-line max-lines-per-function -- The account-keyed journey coordinates provider, password and completion state.
 export function useCompanyJoin(accountId: string | undefined, invitationToken: string | null) {
   const { user, refreshAuth, providers = [], authMode } = useAuth();
   const [stage, setStage] = useState<Stage>(isServerConfigured() ? "loading" : "local");
@@ -41,9 +41,6 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   const [emailHint, setEmailHint] = useState("");
   const [providerId, setProviderId] = useState<string | null>(null);
   const [existingPassword, setExistingPassword] = useState("");
-  const [secondFactorCode, setSecondFactorCode] = useState("");
-  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
-  const [secondFactorVerified, setSecondFactorVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [verificationToken, setVerificationToken] = useState(() =>
@@ -225,25 +222,6 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
       if (!user) {
         const signIn = await authClient.signIn.email({ email, password: existingPassword });
         if (signIn.error) throw new Error(signIn.error.message ?? m.login_failed());
-        if ((signIn.data as { twoFactorRedirect?: unknown } | null)?.twoFactorRedirect === true) {
-          setStage("second-factor");
-          return;
-        }
-      }
-      await completeExisting();
-    });
-  };
-
-  const verifySecondFactor = async (event: FormEvent) => {
-    event.preventDefault();
-    if (busy || (!secondFactorVerified && !secondFactorCode)) return;
-    await runAction(m.login_network_error(), async () => {
-      if (!secondFactorVerified) {
-        const result = useRecoveryCode
-          ? await authClient.twoFactor.verifyBackupCode({ code: secondFactorCode, trustDevice: false })
-          : await authClient.twoFactor.verifyTotp({ code: secondFactorCode, trustDevice: false });
-        if (result.error) throw new Error(result.error.message ?? m.login_failed());
-        setSecondFactorVerified(true);
       }
       await completeExisting();
     });
@@ -276,21 +254,15 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     providerId,
     eligibleProviders,
     existingPassword,
-    secondFactorCode,
-    secondFactorVerified,
-    useRecoveryCode,
     error,
     busy,
     user,
     setEmail,
     setExistingPassword,
-    setSecondFactorCode,
-    setUseRecoveryCode,
     startProvider,
     resend,
     restart,
     signInAndJoin,
-    verifySecondFactor,
     completeProvider,
   };
 }

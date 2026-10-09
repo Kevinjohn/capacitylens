@@ -85,7 +85,7 @@ exit means it's already expired or will within 30 days; run
 - **Native systemd**: `sudo journalctl -u capacitylens`.
 - **Managed VPS**: use the provider's application log view for the site.
 - **Security events**: typed `capacitylens.security` JSON events for sign-in outcomes,
-  CSRF and authorization rejections, multi-factor gates, rate limiting, session
+  CSRF and authorization rejections, rate limiting, session
   revocation and server errors — on stdout alongside the process logs. Alert on bursts
   and suspicious cross-account patterns; the absence of an application event is not proof
   that proxy or identity-provider traffic was benign.

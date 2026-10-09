@@ -1,34 +1,28 @@
-# US-SET-08 — Clear device data
+# US-SET-08 — Device data and offline snapshots
 
-**Area:** Settings · **Persona:** User · **Linked E2E:** `e2e/clear-local-storage.spec.ts`
+**Area:** Device data · **Persona:** User · **Linked coverage:** `src/data/clearLocalStorage.test.ts` and offline cache cleanup tests
 
 **Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 
-Remove CapacityLens preferences and opt-in offline snapshots from this browser without deleting
-server data.
+Keep browser-owned preferences and optional offline snapshots separate from company data. Settings
+does not currently expose a control to wipe all CapacityLens data from this browser.
 
 ## Why
 
-A user needs one explicit recovery/privacy boundary for device-owned state without confusing it
-with deletion of the company schedule held by the server.
+Offline snapshots clear when a user turns off offline access or signs out. Ordinary display
+preferences remain saved in the browser.
 
 ## How (end-to-end)
 
-**Precondition:** Settings open with at least one CapacityLens preference, an opt-in offline cache
-entry, and an unrelated origin-storage key present.
+**Precondition:** Offline access is enabled on this browser.
 
-1. In **Data and support**, expand **Device data**, then click **Clear device data** (`data-testid="clear-local-storage"`).
-2. Read the confirmation, then click **Cancel** and verify all device data remains.
-3. Open the confirmation again and click **Clear device data**.
-4. After the automatic reload, inspect browser-owned storage and reopen the selected company.
+1. Turn off **Make this device available offline** or sign out to clear the cached company snapshot.
+2. Confirm ordinary display preferences remain saved in this browser.
 
 ## Acceptance criteria
 
-- ✅ **Device data** is an independent disclosure, closed by default; opening it shows **Clear
-  device data** (`data-testid="clear-local-storage"`).
-- ✅ The confirmation says it affects this browser and cannot be undone.
-- ✅ Cancel changes nothing.
-- ✅ Confirm clears the current user's offline cache and CapacityLens-prefixed preferences, leaves
-  unrelated origin keys and the server database untouched, then reloads.
+- ✅ Signing out clears the current user's offline snapshots; turning off offline access clears its
+  cached snapshot.
+- ✅ Settings does not display the Device data section or a clear-all action.

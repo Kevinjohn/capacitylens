@@ -343,9 +343,44 @@ function registerClientPurgeTest() {
   });
 }
 
+function registerProjectPurgeTest() {
+  it("clears a purged project's attribution while preserving its shared booking", () => {
+    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const project = requireCreated(s().addProject({ name: "Project Watchtower", clientId: client.id, color: "#2" }));
+    const activity = requireCreated(s().addActivity({ name: "Planning", kind: "repeatable" }));
+    const resource = requireCreated(s().addResource(personDraft));
+    const allocation = requireCreated(
+      s().addAllocation({
+        resourceId: resource.id,
+        activityId: activity.id,
+        projectId: project.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-01",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
+
+    const old = longAgoISO();
+    const data = s().data;
+    s().replaceAll({
+      ...data,
+      projects: data.projects.map((row) => (row.id === project.id ? { ...row, archivedAt: old, deletedAt: old } : row)),
+    });
+    s().setActiveAccount(requireValue(data.accounts[0], "account").id);
+
+    s().purgeEntity("projects", project.id);
+
+    expect(s().data.projects.some((row) => row.id === project.id)).toBe(false);
+    const survivingAllocation = requireById(s().data.allocations, allocation.id, "shared allocation");
+    expect(survivingAllocation).not.toHaveProperty("projectId");
+  });
+}
+
 describe("purgeEntity", () => {
   registerResourcePurgeTests();
   registerClientPurgeTest();
+  registerProjectPurgeTest();
 });
 
 describe("built-in Internal client is protected from every lifecycle action", () => {

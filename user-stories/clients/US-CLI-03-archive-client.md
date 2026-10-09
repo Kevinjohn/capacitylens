@@ -12,8 +12,8 @@ retained and can be restored or deleted from Archived clients below the Clients 
 
 When an account pauses or ends, the manager wants the client off the schedule in one action — but
 without destroying months of work. Archiving hides the client from the active views while retaining
-its data; soft-delete and permanent removal are separate, later steps reached from Settings →
-Deleted items. Permanent removal cascades client-owned projects and project-specific work;
+its data; soft-delete and permanent removal are separate lifecycle steps. Settings no longer shows
+a Deleted items section. Permanent removal cascades client-owned projects and project-specific work;
 shared All-projects bookings remain and become unattributed. Because archiving is reversible, the
 action is undoable.
 

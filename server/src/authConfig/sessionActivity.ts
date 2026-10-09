@@ -207,7 +207,6 @@ export function buildSessionUser(raw: RawSessionUser): SessionUser {
     id: raw.id,
     email: raw.email,
     emailVerified: raw.emailVerified ?? false,
-    twoFactorEnabled: raw.twoFactorEnabled === true,
     name: name || "User",
     image: parseImageUrl(raw.image),
   };
@@ -217,18 +216,4 @@ export function buildSessionUser(raw: RawSessionUser): SessionUser {
  * cannot reach the client as an image source. */
 function parseImageUrl(value: unknown): string | null {
   return typeof value === "string" && value.startsWith("https://") ? value : null;
-}
-
-// session.create.after (in authFromEnv below) runs on every newly created session, cache the
-// prepared MFA-enrolment lookup per Db handle instead of re-preparing it on each call. WeakMap
-// keyed by the Db handle: an entry is collected with its handle, so tests that spin up many
-// short-lived in-memory handles don't leak.
-const twoFactorEnabledLookupCache = new WeakMap<Db, ReturnType<Db["prepare"]>>();
-
-export function createTwoFactorEnabledLookupStatement(db: Db): ReturnType<Db["prepare"]> {
-  const cached = twoFactorEnabledLookupCache.get(db);
-  if (cached) return cached;
-  const statement = db.prepare("SELECT twoFactorEnabled FROM user WHERE id = ?");
-  twoFactorEnabledLookupCache.set(db, statement);
-  return statement;
 }

@@ -391,10 +391,9 @@ describe("normalizeSessionUser (P1.7a)", () => {
       email: "u1@capacitylens.dev",
       emailVerified: true,
       name: "U One",
-      twoFactorEnabled: false,
       image: null,
     });
-    expect(Object.keys(out).sort()).toEqual(["email", "emailVerified", "id", "image", "name", "twoFactorEnabled"]);
+    expect(Object.keys(out).sort()).toEqual(["email", "emailVerified", "id", "image", "name"]);
   });
 
   it("carries a validated https avatar URL through as image", () => {
@@ -426,31 +425,6 @@ describe("CAPACITYLENS_MODE password", () => {
     const me = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(me.statusCode).toBe(401);
     expect(parseResponseAuthMode(me)).toBe("password-only"); // the login screen needs the mode
-  });
-
-  it("allowlists the Better Auth proxy surface so unclassified account mutations stay closed", async () => {
-    const { app } = await appWithAuth({ env: PASSWORD_ENV });
-    for (const url of [
-      "/api/auth/oauth2/link",
-      "/api/auth/link-social",
-      "/api/auth/unlink-account",
-      "/api/auth/update-user",
-      "/api/auth/change-email",
-      "/api/auth/delete-user",
-      "/api/auth/revoke-sessions",
-      "/api/auth/future-account-mutation",
-    ]) {
-      const response = await call(app, { method: "POST", url, payload: {} });
-      expect(response.statusCode, url).toBe(404);
-    }
-    expect((await call(app, { method: "GET", url: "/api/auth/future-read-route" })).statusCode).toBe(404);
-    expect((await call(app, { method: "GET", url: "/api/auth/get-session" })).statusCode).not.toBe(404);
-    expect((await call(app, { method: "POST", url: "/api/auth/two-factor/disable", payload: {} })).statusCode).not.toBe(
-      404,
-    );
-    expect(
-      (await call(app, { method: "POST", url: "/api/auth/two-factor/generate-backup-codes", payload: {} })).statusCode,
-    ).not.toBe(404);
   });
 });
 

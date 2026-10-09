@@ -1,4 +1,4 @@
-import { allowsPasswordSignIn, allowsProviderSignIn } from "@capacitylens/shared/account/types";
+import { allowsProviderSignIn } from "@capacitylens/shared/account/types";
 import { accountClient } from "@/account/accountClient";
 import { cacheAuthSnapshot, readCachedAuthSnapshot, setOfflineReadState } from "@/data/offlineCache";
 import { hasUnsavedPersistenceWrites } from "@/data/persist";
@@ -13,8 +13,6 @@ import { parseAuthUser } from "./validateAuthUser";
 interface AuthResponseFields {
   authMode: unknown;
   canCreateAccount: unknown;
-  mfaRequired: unknown;
-  requireMfa: unknown;
   multiAccount: unknown;
   needsSetup: unknown;
   passwordResetEmail: unknown;
@@ -33,8 +31,6 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
   return {
     authMode: readField(value, "authMode"),
     canCreateAccount: readField(value, "canCreateAccount"),
-    mfaRequired: readField(value, "mfaRequired"),
-    requireMfa: readField(value, "requireMfa"),
     multiAccount: readField(value, "multiAccount"),
     needsSetup: readField(value, "needsSetup"),
     passwordResetEmail: readField(value, "passwordResetEmail"),
@@ -96,8 +92,6 @@ function parsePassResult(body: unknown, acceptEffects: () => boolean): AuthStatu
     user,
     canCreateAccount: resolveBooleanField({ value: fields.canCreateAccount, fallback: true }),
     multiAccount: resolveBooleanField({ value: fields.multiAccount, fallback: true }),
-    mfaRequired: allowsPasswordSignIn(authMode) && resolveBooleanField({ value: fields.mfaRequired, fallback: false }),
-    requireMfa: allowsPasswordSignIn(authMode) && resolveBooleanField({ value: fields.requireMfa, fallback: false }),
     providers: authMode === "password-only" ? [] : parseAuthProviders(fields.providers),
     reauthMethod: fields.reauthMethod === "provider" || authMode === "sso-only" ? "provider" : "password",
     reauthProviderId: typeof fields.reauthProviderId === "string" ? fields.reauthProviderId : null,
@@ -132,8 +126,6 @@ async function readOfflineIdentity(error: unknown, acceptEffects: () => boolean)
       user: cached.value.user,
       canCreateAccount: false,
       multiAccount: cached.value.multiAccount,
-      mfaRequired: false,
-      requireMfa: false,
       providers: [],
       reauthMethod: "password",
       reauthProviderId: null,

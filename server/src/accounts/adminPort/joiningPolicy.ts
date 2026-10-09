@@ -6,15 +6,15 @@ import { assertAccountAuthority, assertAdministrativeAssurance } from "./authori
 import type { AdminPortContext } from "./contracts";
 import { createAccountFailure } from "./failures";
 
-type JoiningPolicyContext = Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa" | "runMutation">;
+type JoiningPolicyContext = Pick<AdminPortContext, "db" | "trustedLocal" | "runMutation">;
 
 export function createJoiningPolicyAdministration(
   context: JoiningPolicyContext,
 ): Pick<AccountAdminPort, "readJoiningPolicy" | "setJoiningPolicy"> {
-  const { db, trustedLocal, requireMfa } = context;
+  const { db, trustedLocal } = context;
   return {
     async readJoiningPolicy({ actor, workspaceId }) {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, requireFresh: false });
+      assertAdministrativeAssurance({ actor, trustedLocal, requireFresh: false });
       assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
       return readJoiningPolicy(db, workspaceId);
     },
@@ -30,7 +30,6 @@ export function createJoiningPolicyAdministration(
       const assertOwner = () => {
         assertAdministrativeAssurance({
           actor,
-          requireMfa,
           trustedLocal,
           requireFresh: false,
           commandId: command.commandId,

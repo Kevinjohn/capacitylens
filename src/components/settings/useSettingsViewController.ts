@@ -3,7 +3,6 @@ import { useId } from "react";
 import { useAuth } from "@/auth/authContext";
 import { useCanEdit, useRole } from "@/auth/permissionContext";
 import { isServerConfigured } from "@/data/apiConfig";
-import { readBuildStamp, readFeedbackMailto } from "@/data/buildInfo";
 import { useOfflineReadEnabled, useOfflineState } from "@/data/useOfflineState";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import {
@@ -102,7 +101,5 @@ export function useSettingsViewController() {
     offlineEnabled,
     offlineState,
     localData,
-    stamp: readBuildStamp(),
-    feedback: readFeedbackMailto(),
   };
 }

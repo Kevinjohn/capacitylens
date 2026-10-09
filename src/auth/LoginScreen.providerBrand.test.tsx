@@ -6,7 +6,6 @@ vi.mock("./authClient", () => ({
   authClient: {
     signIn: { email: vi.fn(), social: vi.fn() },
     signUp: { email: vi.fn() },
-    twoFactor: { verifyTotp: vi.fn(), verifyBackupCode: vi.fn() },
   },
 }));
 

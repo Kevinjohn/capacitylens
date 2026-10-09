@@ -12,7 +12,6 @@ describe("account failure status mapping", () => {
     RATE_LIMITED: 429,
     DEPENDENCY_UNAVAILABLE: 503,
     VALIDATION_FAILED: 400,
-    MFA_REQUIRED: 403,
     SESSION_NOT_FRESH: 403,
     NOT_FOUND: 404,
     NOT_MEMBER: 403,

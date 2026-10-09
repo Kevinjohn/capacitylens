@@ -61,7 +61,6 @@ const application = {
   applicationId: "capacitylens",
   displayName: "Wayne Enterprises",
   branding: {
-    totpIssuer: "CapacityLens",
     passwordContextWords: ["Wayne", "Enterprises"],
     defaultProviderLabel: "Wayne Identity",
   },

@@ -55,7 +55,7 @@ interface ResolvedRepair {
 }
 
 const REPAIR_COMPATIBLE_MIGRATIONS = new Set([
-  25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,
+  25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
 ]);
 
 function assertRepairSchema(db: Db, operation: CutoverRepairOperation): void {
@@ -83,7 +83,8 @@ function assertRepairSchema(db: Db, operation: CutoverRepairOperation): void {
   // intent tables; repair neither reads nor creates those records. v50 rebuilds the Microsoft proof
   // table while copying its rows and preserving the columns used by repair; v51 adds only a nullable
   // browser binding and its index. Repair runs with the server stopped and does not depend on the new
-  // joining-proof purpose or browser binding. Stopped-server repair skips cleanup for optional tables
+  // joining-proof purpose or browser binding. v52 records the retired auth plugin shape without DDL.
+  // Stopped-server repair skips cleanup for optional tables
   // when they predate the database, but treats a missing table at its declared schema version as
   // corruption.
   // These are safe to remain pending before this stopped-server repair. Keep this allowlist explicit

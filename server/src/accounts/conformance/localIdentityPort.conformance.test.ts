@@ -276,7 +276,7 @@ it("does not upgrade a password-authenticated session merely because the user ha
   });
 });
 
-it("does not infer per-session MFA assurance from account-level MFA enrollment", async () => {
+it("does not infer provider assurance from a historical local MFA flag", async () => {
   insertIdentityUser({ db, id: sessionUser.id, name: sessionUser.name, email: sessionUser.email });
   insertIdentityAccount({
     db,
@@ -862,7 +862,6 @@ it("removes malformed session timestamps while retaining a genuinely absent expi
         sessionId: handle,
         assurance: "password",
         fresh: true,
-        mfaSatisfied: false,
       },
     }),
   ).resolves.toEqual([{ id: handle, createdAt: now, expiresAt: null, current: true }]);
@@ -1572,14 +1571,14 @@ it.each([
     "session listing",
     (port: ReturnType<typeof createBetterAuthIdentityPort>) =>
       port.listSessions({
-        actor: { principalId: "p", sessionId: "s", assurance: "password", fresh: true, mfaSatisfied: false },
+        actor: { principalId: "p", sessionId: "s", assurance: "password", fresh: true },
       }),
   ],
   [
     "session revocation",
     (port: ReturnType<typeof createBetterAuthIdentityPort>) =>
       port.revokeOwnSession({
-        actor: { principalId: "p", sessionId: "s", assurance: "password", fresh: true, mfaSatisfied: false },
+        actor: { principalId: "p", sessionId: "s", assurance: "password", fresh: true },
         sessionId: "s",
         command: { commandId: "c", idempotencyKey: "k" },
       }),

@@ -10,12 +10,11 @@ import { createSqliteAccountAdminPort } from "./sqliteAccountAdminPort";
 const actor: ActorContext = {
   principalId: "owner-1",
   sessionId: "session-1",
-  assurance: "mfa",
+  assurance: "password",
   fresh: true,
-  mfaSatisfied: true,
 };
 
-function seedMfaAuditFixture(db: Db): {
+function seedAuditFixture(db: Db): {
   auditEvents: AccountAuditEvent[];
   port: ReturnType<typeof createSqliteAccountAdminPort>;
 } {
@@ -46,7 +45,6 @@ function seedMfaAuditFixture(db: Db): {
       applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
-      requireMfa: true,
       audit,
     }),
   };
@@ -287,15 +285,15 @@ function registerSqliteAccountAdminPortTest29(): void {
 }
 
 function registerSqliteAccountAdminPortTest31(): void {
-  it("keeps MFA required when a member directory explicitly opts out of freshness", async () => {
+  it("allows member-directory reads when freshness is explicitly waived", async () => {
     const db = openDb(":memory:");
     try {
-      const { port } = seedMfaAuditFixture(db);
-      const staleWithoutMfa = { ...actor, fresh: false, mfaSatisfied: false };
+      const { port } = seedAuditFixture(db);
+      const staleActor = { ...actor, fresh: false };
 
       await expect(
-        port.listMemberships({ actor: staleWithoutMfa, workspaceId: "workspace-1", requireFresh: false }),
-      ).rejects.toMatchObject({ failure: { code: "MFA_REQUIRED" } });
+        port.listMemberships({ actor: staleActor, workspaceId: "workspace-1", requireFresh: false }),
+      ).resolves.toBeDefined();
     } finally {
       db.close();
     }

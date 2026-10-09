@@ -27,7 +27,6 @@ interface Dependencies {
   mail: MailSender | null;
   applicationId: string;
   authMode: AccountMode;
-  requireMfa: boolean;
   trustProxyHeaders: boolean;
   secret: string;
   publicUrl: URL;
@@ -213,11 +212,7 @@ function registerProviderRoutes(app: FastifyInstance, input: Dependencies): void
 
 function requirePasswordPrincipal(req: FastifyRequest, input: Dependencies): string {
   if (!allowsPasswordSignIn(input.authMode)) invalid(REPLY_ERRORS.joiningPasswordUnavailable);
-  if (
-    !req.accountActor ||
-    (req.accountActor.assurance !== "password" && req.accountActor.assurance !== "mfa") ||
-    (input.requireMfa && !req.accountActor.mfaSatisfied)
-  ) {
+  if (!req.accountActor || req.accountActor.assurance !== "password") {
     throw createAccountFailure("AUTHENTICATION_REQUIRED", REPLY_ERRORS.joiningPasswordSignInRequired);
   }
   return req.accountActor.principalId;
@@ -328,7 +323,6 @@ function registerCompletionRoutes(app: FastifyInstance, input: Dependencies): vo
           headers: toWebHeaders(req.headers),
           actor: req.accountActor,
           providerId: req.authenticationProviderId,
-          requireMfa: input.requireMfa,
           ...(invitationToken === undefined ? {} : { invitationToken }),
         }),
       );
@@ -351,7 +345,6 @@ function registerMicrosoftCompletion(app: FastifyInstance, input: Dependencies):
           headers: toWebHeaders(req.headers),
           actor: req.accountActor,
           providerId: req.authenticationProviderId,
-          requireMfa: input.requireMfa,
           ...(invitationToken === undefined ? {} : { invitationToken }),
         }),
       );

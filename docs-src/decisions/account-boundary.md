@@ -4,6 +4,8 @@
 > Contract: `1.0.0`
 > Conformance: `1.0.0`
 > Minimum security version: `1.0.0` (`ACCOUNT-SEC-2026-07-18-01`)
+> Current state (2026-10-09): the account contract is `3.0.0`, conformance is `3.0.0`, and
+> minimum security version is `2.0.0` (`ACCOUNT-SEC-2026-10-09-01`). Local MFA is removed.
 
 ## Outcome
 
@@ -73,7 +75,8 @@ the coordinator, never the identity adapter or control tables.
 The browser uses `src/account/accountClient.ts` for every account endpoint. That client owns request
 idempotency headers, reauthentication behavior and the longer timeout used for bulk erasure.
 Member and invitation directories contain identity and admission data, so listing either requires
-an active membership with the Owner or Admin role and any applicable multi-factor sign-in policy.
+an active membership with the Owner or Admin role. Any company-provider MFA policy is enforced
+upstream by Google or Microsoft, not by the account authorization layer.
 These reads do not require the fifteen-minute freshness check described in [Sessions and staying
 signed in](/company-login/#sessions-and-staying-signed-in); an expired or revoked session still
 cannot read them. The shared `membershipRevision` is identity-global: a membership change in one
@@ -92,10 +95,10 @@ claims or membership authorization.
 There is exactly one application per deployment today; keeping the application id in contracts
 prevents a future transport from allowing caller-selected authorization scope.
 
-Application display names, TOTP issuers and provider labels are limited to the shared single-line
+Application display names and provider labels are limited to the shared single-line
 label length. Password screening accepts at most 32 application-specific context words, and no
 context word may exceed the maximum password length. Invalid composition fails during startup
-before the branding reaches an identity provider, QR payload or password-policy loop.
+before the branding reaches an identity provider or password-policy loop.
 
 A local principal belongs to one product installation. A federated identity is a distinct upstream
 fact keyed by exact `(issuer, subject)`. Email is used only for verified initial admission and

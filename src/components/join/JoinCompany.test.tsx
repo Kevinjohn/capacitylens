@@ -6,12 +6,11 @@ import { AuthContext } from "@/auth/authContext";
 import type { AuthContextValue } from "@/auth/authContext";
 import { JoinCompany } from "./JoinCompany";
 
-const authClientMock = vi.hoisted(() => ({ signInEmail: vi.fn(), verifyTotp: vi.fn(), verifyBackupCode: vi.fn() }));
+const authClientMock = vi.hoisted(() => ({ signInEmail: vi.fn() }));
 const handoffMock = vi.hoisted(() => ({ replaceWithJoinedAccount: vi.fn() }));
 vi.mock("@/auth/authClient", () => ({
   authClient: {
     signIn: { email: authClientMock.signInEmail },
-    twoFactor: { verifyTotp: authClientMock.verifyTotp, verifyBackupCode: authClientMock.verifyBackupCode },
   },
 }));
 vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
@@ -73,8 +72,6 @@ beforeEach(() => {
   window.history.replaceState({}, "", "/join/a-studio");
   vi.clearAllMocks();
   authClientMock.signInEmail.mockResolvedValue({ error: null });
-  authClientMock.verifyTotp.mockResolvedValue({ error: null });
-  authClientMock.verifyBackupCode.mockResolvedValue({ error: null });
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -192,28 +189,6 @@ it("signs in an existing password identity and joins only through the policy end
   expect(JSON.parse(String(completion?.[1]?.body))).toEqual({});
   expect(screen.queryByRole("button", { name: "Create account and join" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Send verification email" })).not.toBeInTheDocument();
-});
-
-it("does not complete policy joining before the password second factor", async () => {
-  const fetchMock = stubJoin({
-    extra: (url) => {
-      if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
-        return Response.json({ accountId: "a-studio", role: "viewer" });
-      throw new Error(`Unexpected request: ${url}`);
-    },
-  });
-  authClientMock.signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-  const user = userEvent.setup();
-  renderJoin();
-  await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
-  await user.type(screen.getByLabelText("Password"), "password");
-  await user.click(screen.getByRole("button", { name: "Join company" }));
-  expect(await screen.findByLabelText("Authentication code")).toBeInTheDocument();
-  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/join/complete-existing"))).toBe(false);
-  await user.type(screen.getByLabelText("Authentication code"), "123456");
-  await user.click(screen.getByRole("button", { name: "Verify" }));
-  await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
-  expect(authClientMock.verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false });
 });
 
 it("explains missing trusted proof and offers the addressed password invitation", async () => {

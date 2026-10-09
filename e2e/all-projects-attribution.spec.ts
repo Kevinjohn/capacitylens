@@ -10,84 +10,9 @@ import {
   showPlaceholders,
   showScheduleFilters,
 } from "./browserTestSupport";
-import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 
 const attributedBar = (page: Page) =>
   page.locator('[data-resource-id="r-nike"]').getByTestId("allocation-bar").filter({ hasText: "Design" });
-
-const PURGE_IMPORT = {
-  schemaVersion: EXPORT_SCHEMA_VERSION,
-  data: {
-    disciplines: [],
-    clients: [
-      {
-        id: "purge-client",
-        accountId: "import",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-        name: "Old Client",
-        color: "#3b82f6",
-      },
-    ],
-    projects: [
-      {
-        id: "purge-project",
-        accountId: "import",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-        archivedAt: "2026-01-01T00:00:00.000Z",
-        deletedAt: "2026-01-01T00:00:00.000Z",
-        name: "Old Project",
-        clientId: "purge-client",
-        color: "#3b82f6",
-      },
-    ],
-    phases: [],
-    activities: [
-      {
-        id: "purge-activity",
-        accountId: "import",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-        name: "Shared Planning",
-        kind: "repeatable",
-      },
-    ],
-    allocations: [
-      {
-        id: "purge-allocation",
-        accountId: "import",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-        resourceId: "purge-person",
-        activityId: "purge-activity",
-        projectId: "purge-project",
-        startDate: "2026-06-15",
-        endDate: "2026-06-15",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-    ],
-    closures: [],
-    timeOff: [],
-    resources: [
-      {
-        id: "purge-person",
-        accountId: "import",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-        kind: "person",
-        name: "Bruce Wayne",
-        role: "Planner",
-        employmentType: "permanent",
-        engagement: "studio",
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        color: "#3b82f6",
-      },
-    ],
-  },
-};
 
 async function stableBoundingBox(locator: Locator) {
   let previous: Awaited<ReturnType<typeof boundingBoxOrThrow>> | undefined;
@@ -117,17 +42,6 @@ async function createAttributedDesign(page: Page, repeatUntil?: string) {
     await dialog.getByLabel("Repeat until").fill(repeatUntil);
   }
   await dialog.getByRole("button", { name: "Save" }).click();
-}
-
-async function openImportedData(page: Page, body: object) {
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("button", { name: "Import and export", exact: true }).click();
-  await page.getByTestId("import-input").setInputFiles({
-    name: "all-projects-attribution.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(body)),
-  });
-  await page.getByRole("alertdialog", { name: "Import data?" }).getByRole("button", { name: "Replace data" }).click();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -268,25 +182,5 @@ test("restores an archived attributed project and preserves it through a drag", 
   await bar.click();
   await expect(page.getByRole("dialog", { name: "Edit allocation" }).getByLabel("Project", { exact: true })).toHaveText(
     /Project Watchtower/,
-  );
-});
-
-test("project purge clears attribution without deleting the shared booking", async ({ page }) => {
-  await openImportedData(page, PURGE_IMPORT);
-  await page.getByRole("link", { name: "Schedule" }).click();
-  await expect(page.getByTestId("allocation-bar").filter({ hasText: "Shared Planning" })).toHaveCount(0);
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("button", { name: "Deleted items", exact: true }).click();
-  const projectRow = page.getByTestId("deleted-row").filter({ hasText: "Old Project" });
-  await projectRow.getByTestId("archived-purge").click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Delete permanently", exact: true }).click();
-  await page.getByRole("link", { name: "Schedule" }).click();
-  await setZoom(page, 4);
-  await resetSchedulerScroll(page);
-  const surviving = page.getByTestId("allocation-bar").filter({ hasText: "Shared Planning" });
-  await expect(surviving).toBeVisible();
-  await surviving.click();
-  await expect(page.getByRole("dialog", { name: "Edit allocation" }).getByLabel("Project", { exact: true })).toHaveText(
-    "No specific project",
   );
 });
