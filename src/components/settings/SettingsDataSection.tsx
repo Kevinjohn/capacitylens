@@ -1,5 +1,4 @@
 import { m } from "@/i18n";
-import { APP_NAME } from "@capacitylens/shared/brand";
 import { useState } from "react";
 import { accountClient } from "@/account/accountClient";
 import type { useAuth } from "@/auth/authContext";
@@ -10,7 +9,7 @@ import { resolveErrorMessage } from "@/lib/errorMessage";
 import { readApiError } from "@/lib/readApiError";
 import { useScopedData } from "@/store/useScopedData";
 import { useStore } from "@/store/useStore";
-import { ConfirmDialog, SwitchField } from "@/components/common/ui";
+import { SwitchField } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
 import { SettingsSection } from "./SettingsSection";
 
@@ -108,32 +107,6 @@ function ExampleDataSection() {
   );
 }
 
-function DeviceDataSection({
-  setConfirmingClear,
-}: {
-  setConfirmingClear: ReturnType<typeof useLocalDataActions>["setConfirmingClear"];
-}) {
-  return (
-    <SettingsSection
-      title={m.settings_device_data_heading()}
-      description={m.settings_device_scope()}
-      help={m.settings_clear_desc_server({ app: APP_NAME })}
-      danger
-      collapsible
-      defaultOpen={false}
-    >
-      <Button
-        size="sm"
-        variant="danger-soft"
-        data-testid="clear-local-storage"
-        onClick={() => setConfirmingClear(true)}
-      >
-        {m.settings_clear_storage_button()}
-      </Button>
-    </SettingsSection>
-  );
-}
-
 export function SettingsDataSection({
   serverMode,
   authMode,
@@ -141,10 +114,6 @@ export function SettingsDataSection({
   offlineEnabled,
   offlineBusy,
   offlineState,
-  confirmingClear,
-  setConfirmingClear,
-  clearBusy,
-  clearLocalStorage,
   toggleOffline,
 }: {
   serverMode: boolean;
@@ -153,10 +122,6 @@ export function SettingsDataSection({
   offlineEnabled: boolean;
   offlineBusy: boolean;
   offlineState: ReturnType<typeof useOfflineState>;
-  confirmingClear: ReturnType<typeof useLocalDataActions>["confirmingClear"];
-  setConfirmingClear: ReturnType<typeof useLocalDataActions>["setConfirmingClear"];
-  clearBusy: ReturnType<typeof useLocalDataActions>["clearBusy"];
-  clearLocalStorage: ReturnType<typeof useLocalDataActions>["clearLocalStorage"];
   toggleOffline: ReturnType<typeof useLocalDataActions>["toggleOffline"];
 }) {
   const canAddExampleData = useCan("manageMembers");
@@ -171,21 +136,6 @@ export function SettingsDataSection({
           offlineBusy={offlineBusy}
           offlineState={offlineState}
           toggleOffline={toggleOffline}
-        />
-      )}
-
-      {/* Device data is limited to the opt-in offline snapshot and preferences. Scheduling data is
-            server-owned or temporary demo memory, so this action never deletes company data. */}
-      <DeviceDataSection setConfirmingClear={setConfirmingClear} />
-
-      {confirmingClear && (
-        <ConfirmDialog
-          title={m.settings_clear_storage_confirm_title()}
-          confirmLabel={m.settings_clear_storage_button()}
-          message={m.settings_clear_confirm_server({ app: APP_NAME })}
-          busy={clearBusy}
-          onConfirm={() => void clearLocalStorage()}
-          onCancel={() => setConfirmingClear(false)}
         />
       )}
     </>

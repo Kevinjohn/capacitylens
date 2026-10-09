@@ -228,15 +228,15 @@ function readOptionalEnvironmentString(value: unknown, variableName: string): st
   return value;
 }
 
-/** The muted Settings footer line, e.g. `build a1b2c3d · server`, or null when the build
- * carries no sha (render nothing, today's Settings exactly). */
+/** The muted Diagnostics build line, e.g. `build a1b2c3d · server`, or null when the build
+ * carries no sha. */
 export function readBuildStamp(): string | null {
   const revision = readBuildRevision();
   if (!revision) return null;
   return `build ${revision} · ${isServerConfigured() ? "server" : "demo"}`;
 }
 
-/** The Settings "Send feedback" mailto href (flag VITE_CAPACITYLENS_FEEDBACK_MAILTO), or
+/** The Diagnostics "Send feedback" mailto href (flag VITE_CAPACITYLENS_FEEDBACK_MAILTO), or
  * null when the build carries no address (render nothing). The subject carries the build
  * stamp when there is one, so tester reports arrive pinned to a build. */
 export function readFeedbackMailto(): string | null {

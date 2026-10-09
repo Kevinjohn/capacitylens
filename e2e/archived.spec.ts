@@ -1,16 +1,13 @@
 import { test, expect } from "./fixtures";
 import { openApp } from "./browserTestSupport";
 
-// P2.5b — the DEFERRED P2.4 "archived vanishes" end-to-end story, now landable because the client
-// admin UI (the Archive affordance + inline archive sections + Settings deleted items) exists. In-memory demo mode,
-// no auth server needed. The lifecycle store actions mutate the current demo state, so archiving a
-// row hides it from the scheduler + lists immediately and surfaces it
-// in the admin view. Browser-agnostic — no UA branching.
+// The temporary demo state exercises archive, restore and soft-delete without a server.
+// Each action must update the scheduler and active list together.
 
 const RESOURCE = "Barry Allen"; // seed `r-alex` (a freelancer; no over-marker entanglement)
 
 test.describe("Inline archives and deleted items (demo mode)", () => {
-  test("archive a resource → it vanishes from the schedule + active list → inline restore → re-archive → delete → Settings tombstone (purge locked)", async ({
+  test("archive a resource → it vanishes from the schedule + active list → inline restore → re-archive → soft-delete", async ({
     page,
   }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
@@ -70,22 +67,10 @@ test.describe("Inline archives and deleted items (demo mode)", () => {
     await expect(deleteDialog).toBeVisible();
     await deleteDialog.getByRole("button", { name: "Delete", exact: true }).click();
 
-    // It leaves the list, then appears as a tombstone under Settings → Deleted items.
+    // Soft-delete removes it from the inline archive. The tombstone remains in company data,
+    // while Settings no longer exposes the Deleted items section.
     await expect(section2).toHaveCount(0);
     await page.getByRole("link", { name: "Settings", exact: true }).click();
-    await page.getByRole("button", { name: "Deleted items", exact: true }).click();
-    const deletedSection = page.getByTestId("archived-section");
-    const deletedRow = deletedSection.getByTestId("deleted-row");
-    await expect(deletedRow).toBeVisible();
-    await expect(deletedRow).toHaveText(/Removed person #/);
-    // The original name is gone everywhere in the admin view.
-    await expect(deletedSection.getByText(RESOURCE)).toHaveCount(0);
-
-    // The Purge ("Delete permanently") button is DISABLED (the tombstone is "now", <30 days old) with
-    // the locked hint.
-    const purgeBtn = deletedRow.getByTestId("archived-purge");
-    await expect(purgeBtn).toBeVisible();
-    await expect(purgeBtn).toBeDisabled();
-    await expect(deletedRow).toContainText("Can be permanently deleted 30 days after deletion");
+    await expect(page.getByRole("heading", { name: "Deleted items" })).toHaveCount(0);
   });
 });

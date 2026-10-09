@@ -84,8 +84,6 @@ Open **Settings → My display** for spacing, booking labels, utilisation figure
 These preferences apply to this browser. Company-wide controls are read-only for a Viewer;
 changing your display does not change another person's plan or preferences.
 
-![Viewer Settings with disabled company-wide allocation units, working days, date format and Overview access](../screenshots/flows/viewer_company_settings.jpg)
-
 Open **Account** at the bottom of the menu to check your signed-in identity and its available
 personal security controls. Use **Sign out** when you have finished on a shared device.
 [Settings](/using/settings) and [Account](/using/account) explain the available choices.

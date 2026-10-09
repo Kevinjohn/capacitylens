@@ -205,7 +205,7 @@ function registerActiveSectionMarkedAriaCurrentTest() {
 }
 
 function registerUsesBlueIdentityGreenPositiveTest() {
-  test("uses blue identity, green positive actions and red destructive actions", async ({ page }) => {
+  test("uses blue identity and green positive actions while hiding maintenance sections", async ({ page }) => {
     await openApp(page);
 
     await expect(page.getByText("CapacityLens", { exact: true }).first()).toHaveAttribute(
@@ -220,8 +220,8 @@ function registerUsesBlueIdentityGreenPositiveTest() {
     await clientDialog.getByRole("button", { name: "Cancel" }).click();
 
     await page.getByRole("link", { name: "Settings", exact: true }).click();
-    await page.getByRole("button", { name: "Device data", exact: true }).click();
-    await expect(page.getByTestId("clear-local-storage")).toHaveAttribute("data-variant", "danger-soft");
+    await expect(page.getByRole("heading", { name: "Device data" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Deleted items" })).toHaveCount(0);
   });
 }
 

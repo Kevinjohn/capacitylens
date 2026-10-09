@@ -60,6 +60,7 @@ export function SettingsAppearanceSection({
           value={theme}
           onChange={setTheme}
           options={buildLabelOptions(buildLabels(THEME_MESSAGES))}
+          fullWidth
         />
       </SettingsSection>
     </>

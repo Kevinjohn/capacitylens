@@ -51,4 +51,5 @@ open the app in a build with `VITE_CAPACITYLENS_DEMO=1`.
   as **Unknown**.
 - A successful copy and a clipboard failure each produce generic user-visible feedback.
 - The page has no serious or critical axe violations.
-- Settings has no Diagnostics row; its **Build details** stamp remains for every role.
+- Settings has no Diagnostics row or Build details section. Build details are available on Diagnostics
+  only to Owners and Admins, or to everyone when sign-in is off.
