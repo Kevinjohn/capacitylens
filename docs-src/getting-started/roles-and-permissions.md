@@ -35,6 +35,8 @@ throughout these docs.
 
 ## Take a role-based tour
 
+![Viewer tour highlighting the Schedule grid with progress 1 of 2](../screenshots/flows/tour_viewer.png)
+
 Owners, Admins and Editors can select **Show me around** on the Getting started card. Anyone can
 open **Help** from the sidebar to start the tour for their role. It remains available after an
 Owner or Admin dismisses Getting started. The tour starts with that role and continues through

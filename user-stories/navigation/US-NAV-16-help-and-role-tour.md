@@ -2,7 +2,7 @@
 
 **Area:** Navigation & shell · **Persona:** Any company member · **Linked coverage:** `e2e/navigation.spec.ts`, `e2e/mobile.spec.ts`, `e2e/help.auth.spec.ts`, `src/components/AppShell.test.tsx`, `src/components/CommandPalette.test.tsx`, `src/components/HelpView.test.tsx`
 
-**Documentation:** [Use CapacityLens day to day](../../docs-src/using/index.md), [Take a role-based tour](../../docs-src/getting-started/roles-and-permissions.md#take-a-role-based-tour)
+**Documentation:** [Help](../../docs-src/using/help.md), [Take a role-based tour](../../docs-src/getting-started/roles-and-permissions.md#take-a-role-based-tour)
 
 ## Goal
 

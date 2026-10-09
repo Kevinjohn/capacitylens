@@ -11,7 +11,7 @@ next: false
 
 # Use CapacityLens day to day
 
-![Schedule with the left menu and James Gordon's work](../screenshots/flows/using_read_the_schedule_1.png)
+![Schedule with the left menu and Bruce Wayne's work](../screenshots/flows/using_read_the_schedule_1.png)
 
 This guide is for everyone who reads or plans the schedule: the people booked on it, and the
 Editors who arrange their work. CapacityLens shows your team's planned work, time off and
@@ -20,7 +20,7 @@ availability on one shared grid. Open [Schedule](/using/read-the-schedule) to fi
 
 Each page in the left menu has its own page here. Viewers can read every page their company
 allows; Editors, Admins and Owners can also schedule and change work. Your role is shown in
-[Team & access](/using/team-access). Open [Help](/help) for a role-based tour and links to these
+[Team & access](/using/team-access). Open [Help](/using/help) for a role-based tour and links to these
 guides; the tour remains available after Getting started is dismissed.
 
 ## Choose your day-to-day route
@@ -48,7 +48,7 @@ access-management responsibilities have separate [Owner](/owner/) and [Admin](/a
 - [Team & access](/using/team-access): your access and, for Owners and Admins, members and
   invitations.
 - [Settings](/using/settings): company-wide planning rules, device preferences and offline access.
-- [Help](/help): start the tour for your role and browse the user guides.
+- [Help](/using/help): start the tour for your role and browse the user guides.
 - [Account](/using/account): your signed-in identity and personal account controls.
 
 ## Tasks

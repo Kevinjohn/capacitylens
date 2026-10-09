@@ -78,7 +78,7 @@ Use [Resources](/using/resources), [Clients and projects](/using/projects),
 
 ## Make the display comfortable
 
-![Viewer Settings showing editable My display controls beneath read-only company controls](../screenshots/flows/viewer_my_display.jpg)
+![Viewer Settings showing editable My display controls and device preferences](../screenshots/flows/viewer_my_display.jpg)
 
 Open **Settings → My display** for spacing, booking labels, utilisation figures and appearance.
 These preferences apply to this browser. Company-wide controls are read-only for a Viewer;

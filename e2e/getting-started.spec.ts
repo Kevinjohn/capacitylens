@@ -13,6 +13,23 @@ async function finishTour(popover: Locator, stopCount: number, finalTitle: strin
   await expect(popover).toHaveCount(0);
 }
 
+function registerDismissalTest() {
+  test("No keeps guidance and Yes dismisses it", async ({ page }) => {
+    await openNewCompany(page, "Queen Consolidated");
+    await page.getByTestId("getting-started-dismiss").click();
+    await expect(page.getByText("Do you really want to hide this forever?")).toBeVisible();
+    await page.getByRole("button", { name: "No" }).click();
+    await expect(page.getByTestId("getting-started-progress")).toBeVisible();
+    await page.getByTestId("getting-started-dismiss").click();
+    await page.getByRole("button", { name: "Yes" }).click();
+    await expect(page.getByTestId("getting-started-progress")).toHaveCount(0);
+    await page.getByRole("link", { name: "Help", exact: true }).click();
+    await page.getByTestId("show-tour").click();
+    await expect(page.locator(".driver-popover")).toContainText("1 of 7");
+    await finishTour(page.locator(".driver-popover"), 7, "Viewer: Search, filters and weeks");
+  });
+}
+
 test.describe("getting started", () => {
   test("shows five independent milestones and progress across pages", async ({ page }) => {
     await openNewCompany(page, "Queen Consolidated");
@@ -53,16 +70,7 @@ test.describe("getting started", () => {
     await expect(card.getByRole("link", { name: "Add a client" })).toBeVisible();
   });
 
-  test("No keeps guidance and Yes dismisses it", async ({ page }) => {
-    await openNewCompany(page, "Queen Consolidated");
-    await page.getByTestId("getting-started-dismiss").click();
-    await expect(page.getByText("Do you really want to hide this forever?")).toBeVisible();
-    await page.getByRole("button", { name: "No" }).click();
-    await expect(page.getByTestId("getting-started-progress")).toBeVisible();
-    await page.getByTestId("getting-started-dismiss").click();
-    await page.getByRole("button", { name: "Yes" }).click();
-    await expect(page.getByTestId("getting-started-progress")).toHaveCount(0);
-  });
+  registerDismissalTest();
 
   test('"Show me around" runs the role tour in the demo', async ({ page }) => {
     await openNewCompany(page, "Queen Consolidated");

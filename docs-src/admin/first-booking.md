@@ -19,7 +19,7 @@ Open Schedule in the left menu. Select the plus button on the person's row, or d
 
 ## Save the booking
 
-![New allocation for James Gordon: Project, Activity, dates, Days of work and Save](../screenshots/flows/using_schedule_work_2.png)
+![New allocation for Bruce Wayne: Project, Activity, dates, daily hours and Save](../screenshots/flows/using_schedule_work_2.png)
 
 Choose Project, then Activity. Use Internal or No specific project for work without a project.
 

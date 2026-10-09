@@ -136,6 +136,23 @@ function registerLifecycleTests() {
     expect(disconnectSpy).toHaveBeenCalledOnce();
   });
 
+  it("shares one tour across launchers during loading and allows a new tour after teardown", async () => {
+    document.body.classList.add("driver-active");
+    const first = launchTour();
+    const second = startTour({ role: "viewer", navigate, serverMode: true });
+    expect(second).toBe(first);
+    await vi.waitFor(() => expect(driveSpy).toHaveBeenCalledOnce());
+    expect(driverMock).toHaveBeenCalledOnce();
+    expect(driveSpy).toHaveBeenCalledOnce();
+
+    document.body.classList.remove("driver-active");
+    await Promise.all([first, second]);
+    await startTour({ role: "viewer", navigate, serverMode: true });
+    expect(driverMock).toHaveBeenCalledTimes(2);
+    expect(getDriverConfig().steps).toHaveLength(8);
+    expect(driverMock.mock.calls[1]?.[0]?.steps).toHaveLength(2);
+  });
+
   it("watches only class changes on document.body", async () => {
     const observeSpy = vi.spyOn(MutationObserver.prototype, "observe");
 

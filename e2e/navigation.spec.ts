@@ -131,7 +131,7 @@ function registerPinsTeamAccessSettingsBelowTest() {
       "/diagnostics",
     ]);
 
-    // Demo keeps company switching in the footer; Account is the only session row.
+    // Demo keeps company switching in the footer, with Help directly above Account.
     await expect(page.getByRole("button", { name: "Switch company" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Help", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Account", exact: true })).toBeVisible();

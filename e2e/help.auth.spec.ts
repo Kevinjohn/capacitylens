@@ -3,7 +3,8 @@ import { AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./au
 import { waitForAppLanding } from "./browserTestSupport";
 
 const STAMP = Date.now();
-const COMPANY = `Help Studio ${STAMP}`;
+const COMPANY = `Wayne Enterprises ${STAMP}`;
+const NAMES = { owner: "Lucius Fox", admin: "Alfred Pennyworth", editor: "Barbara Gordon", viewer: "James Gordon" };
 const USERS = {
   owner: `help-owner-${STAMP}@capacitylens.dev`,
   admin: `help-admin-${STAMP}@capacitylens.dev`,
@@ -12,10 +13,10 @@ const USERS = {
 };
 
 test("every company role can open Help; a Viewer can start the read-only tour", async ({ page, request, context }) => {
-  const owner = await signUpUser(USERS.owner);
+  const owner = await signUpUser(USERS.owner, NAMES.owner);
   const accountId = await bootstrapOrg(request, owner.cookie, COMPANY);
   for (const role of ["admin", "editor", "viewer"] as const) {
-    const member = await signUpUser(USERS[role]);
+    const member = await signUpUser(USERS[role], NAMES[role]);
     seedFixtureMember(accountId, member.email, role);
   }
 

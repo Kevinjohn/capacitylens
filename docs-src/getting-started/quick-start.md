@@ -27,6 +27,8 @@ asks for confirmation. Dismissing hides
 the guidance for everyone in that company. Editors can view and toggle the checklist; Viewers do
 not see it.
 
+![Owner tour highlighting Settings for imports, with progress 1 of 8](../screenshots/flows/tour_owner.png)
+
 Owners, Admins and Editors can select **Show me around** on the Getting started card. Viewers do not
 see that card. Everyone can open **Help** from the sidebar to start the tour for their role and find
 the user guides. Help remains available after Getting started is dismissed. The tour opens Schedule

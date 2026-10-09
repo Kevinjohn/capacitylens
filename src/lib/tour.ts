@@ -59,18 +59,23 @@ function buildDriverSteps(steps: ReturnType<typeof buildRoleTour>) {
   });
 }
 
-/** Launch the role tour. Builds steps fresh (locale-correct copy) and drives from stop 1.
- * Async so the driver.js import can be dynamic (see the file header). Callers must `void` or
- * `await` it. */
-export async function startTour({
-  role,
-  navigate,
-  serverMode,
-}: {
+interface TourInput {
   role: Role | null;
   navigate: (path: string) => void;
   serverMode: boolean;
-}): Promise<void> {
+}
+
+let currentTour: Promise<void> | null = null;
+
+/** Launch the role tour, sharing its lifecycle across launchers until it closes. */
+export function startTour(input: TourInput): Promise<void> {
+  currentTour ??= runTour(input).finally(() => {
+    currentTour = null;
+  });
+  return currentTour;
+}
+
+async function runTour({ role, navigate, serverMode }: TourInput): Promise<void> {
   if (window.location.pathname !== "/") navigate("/");
   const { driver } = await import("driver.js");
   await new Promise<void>((resolve, reject) => {
