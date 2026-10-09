@@ -1,3 +1,4 @@
+import { assertSupportedNodeVersion } from "../scripts/check-node.mjs";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -69,6 +70,8 @@ function resolveWebDir(configured: string | undefined): string | undefined {
   const isGeneratedRelease = existsSync(join(releaseRoot, ".capacitylens-generated-release"));
   return isGeneratedRelease && existsSync(join(bundledWebDir, "index.html")) ? bundledWebDir : undefined;
 }
+
+assertSupportedNodeVersion();
 
 // Secrets, SQLite/WAL files, audit logs, and backups created by this process must never inherit a
 // permissive shell/container umask. Individual writers also pin 0600 for defence in depth.

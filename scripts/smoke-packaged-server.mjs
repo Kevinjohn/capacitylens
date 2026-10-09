@@ -70,7 +70,7 @@ export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port
   }
   return Object.assign(environment, {
     NODE_ENV: "test",
-    SMALLSASS_ACCOUNT_MODE: "off",
+    CAPACITYLENS_MODE: "off",
     CAPACITYLENS_AUDIT: "off",
     CAPACITYLENS_SEED_DEMO: "1",
     CAPACITYLENS_HEALTH_DEEP: "1",

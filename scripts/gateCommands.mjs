@@ -45,6 +45,7 @@ const commands = {
     ["exec", "prettier", "--check", "server", "shared"],
     ["--filter", "capacitylens-server", "type-check"],
     ["--filter", "capacitylens-server", "build:runtime"],
+    ["run", "policy:node-runtime:test"],
     ["--filter", "capacitylens-server", "test"],
     ["exec", "eslint", "server", "shared", "--max-warnings", "0"],
   ],

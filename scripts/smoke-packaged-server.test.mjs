@@ -13,6 +13,7 @@ test("packaged smoke strips deployment settings before applying its loopback fix
     CAPACITYLENS_HOST: "0.0.0.0",
     CAPACITYLENS_INTERNAL_TLS_KEY: "/private/key",
     SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://identity.example.test",
+    CAPACITYLENS_OIDC_DISCOVERY_URL: "https://identity.example.test",
     BETTER_AUTH_SECRET: "inherited",
     VITE_CAPACITYLENS_API: "https://api.example.test",
   };
@@ -24,9 +25,10 @@ test("packaged smoke strips deployment settings before applying its loopback fix
 
   assert.equal(environment.PATH, "/tools");
   assert.equal(environment.CAPACITYLENS_HOST, "127.0.0.1");
-  assert.equal(environment.SMALLSASS_ACCOUNT_MODE, "off");
+  assert.equal(environment.CAPACITYLENS_MODE, "off");
   assert.equal(environment.CAPACITYLENS_INTERNAL_TLS_KEY, undefined);
   assert.equal(environment.SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL, undefined);
+  assert.equal(environment.CAPACITYLENS_OIDC_DISCOVERY_URL, undefined);
   assert.equal(environment.BETTER_AUTH_SECRET, undefined);
   assert.equal(environment.VITE_CAPACITYLENS_API, undefined);
 });

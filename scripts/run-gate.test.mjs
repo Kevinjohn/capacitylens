@@ -156,3 +156,12 @@ test("mode selection returns independent argument arrays and includes the runner
   }
   assert.throws(() => gateCommands("unknown"), /Expected app, server, or all/);
 });
+
+test("runtime boundary checks follow the server bundle build in server and all gates", () => {
+  for (const mode of ["server", "all"]) {
+    const commands = gateCommands(mode);
+    const build = commands.findIndex((args) => args.includes("build:runtime"));
+    assert.ok(build >= 0);
+    assert.deepEqual(commands[build + 1], ["run", "policy:node-runtime:test"]);
+  }
+});

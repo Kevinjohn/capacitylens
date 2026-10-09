@@ -95,8 +95,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
-- Prepare experimental Node 26 compatibility checks while retaining Node 24 as the default;
-  official fixed-runtime acceptance remains pending (#710).
+- Require Node 24.19.0 or newer within 24.x for the supported runtime. Admit Node 26.9.0 or
+  newer within 26.x experimentally, with a focused local compatibility check and no scheduled
+  Node 26 CI. Source and packaged entrypoints enforce the same minimums (#710).
 
 ## [0.73.0-alpha.1] - 2026-10-01
 

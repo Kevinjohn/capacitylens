@@ -1,15 +1,37 @@
-// Preflight for every server entry script. The API uses Node's built-in `node:sqlite`, which
-// needs Node 24+ (.nvmrc / engines). On an older Node the real failure is a link-time
-// "No such built-in module: node:sqlite" thrown from deep inside tsx BEFORE any of our code
-// runs (module resolution precedes evaluation, so an in-file guard can never fire) — this
-// check runs as its own process first, so the error names the fix instead of the symptom.
-const major = Number(process.versions.node.split(".")[0]);
-if (!Number.isInteger(major) || major < 24) {
-  console.error(
-    `capacitylens-server needs Node 24+ — found ${process.versions.node}. The API uses the ` +
-      `built-in node:sqlite module (stable from Node 24; see .nvmrc). Fix: run \`nvm use\` in ` +
-      `the repo root, or install Node 24+ from https://nodejs.org. If you only want to try ` +
-      `the app without the server, \`pnpm run dev:demo\` runs on older Node.`,
+import { basename } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const SUPPORTED_RANGE = "Node >=24.19.0 <25 or >=26.9.0 <27";
+
+/** Returns whether the exact runtime version is admitted for server execution. */
+export function supportsNodeVersion(version) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  if (!match) return false;
+  const [, major, minor, patch] = match.map(Number);
+  return (
+    (major === 24 && (minor > 19 || (minor === 19 && patch >= 0))) ||
+    (major === 26 && (minor > 9 || (minor === 9 && patch >= 0)))
   );
-  process.exit(1);
+}
+
+/** Refuses an unadmitted runtime before the caller can read or write application data. */
+export function assertSupportedNodeVersion(version = process.versions.node) {
+  if (!supportsNodeVersion(version)) {
+    throw new Error(
+      `capacitylens-server requires ${SUPPORTED_RANGE}; found Node ${version}. Use \`nvm use\` for the default Node 24 runtime.`,
+    );
+  }
+}
+
+if (
+  process.argv[1] &&
+  basename(fileURLToPath(import.meta.url)) === "check-node.mjs" &&
+  fileURLToPath(import.meta.url) === process.argv[1]
+) {
+  try {
+    assertSupportedNodeVersion();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  }
 }

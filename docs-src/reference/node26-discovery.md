@@ -1,11 +1,27 @@
 ---
 title: Review the Node 26 discovery
-description: Evidence, proposed runtime minimums and remaining acceptance checks for Node 24 and Node 26 support.
+description: Historical SQLite backup investigation and the current supported Node 24 and experimental Node 26 policy.
 ---
 
 # Review the Node 26 discovery
 
-This reference preserves the findings for contributors assessing [issue #710](https://github.com/Kevinjohn/capacitylens/issues/710). It records the investigation as of 11 September 2026 and the candidate in [draft PR #779](https://github.com/Kevinjohn/capacitylens/pull/779). It is evidence for a future support decision, not a release announcement.
+## Current policy — 9 October 2026
+
+Node 24.x from 24.19.0 is supported and recommended. Node 26.x from 26.9.0 has experimental,
+best-effort compatibility. The runtime floors are enforced for source and packaged usage.
+The [local compatibility check](/reference/development#check-node-26-compatibility) provides
+selected coverage without scheduled Node 26 GitHub runs or a new check on every small fix.
+Complete Node 26 functionality is not guaranteed; current results and limitations are recorded
+in [issue #710](https://github.com/Kevinjohn/capacitylens/issues/710).
+
+## Historical investigation and superseded acceptance
+
+The record below preserves the September investigation. Its proposals for complete dual-runtime
+support, a minimum/latest CI matrix and the four-job recurring workflow are superseded by the
+current experimental policy. Historic test counts and runtime results apply to their named
+revisions, not the current application.
+
+This reference preserves the findings for contributors assessing [issue #710](https://github.com/Kevinjohn/capacitylens/issues/710). It records the investigation as of 11 September 2026 and the then-draft candidate in [PR #779](https://github.com/Kevinjohn/capacitylens/pull/779). It is evidence for a future support decision, not a release announcement.
 
 **Status update, 21 September 2026:** Official [Node 26.9.0](https://nodejs.org/en/blog/release/v26.9.0)
 shipped on 16 September with the upstream SQLite backup fix. The project has not completed
@@ -27,7 +43,7 @@ The intended policy is to test the minimum and latest patch of each supported ma
 
 Long-term support remains bounded by upstream maintenance. The [Node release schedule](https://github.com/nodejs/Release/blob/main/schedule.json), as checked during discovery, gives Node 24 an end date of 30 April 2028 and Node 26 an LTS start of 28 October 2026 and end date of 30 April 2029.
 
-PR #779 remains draft and unmerged. Its manual/weekly compatibility workflow is prepared but inactive. Discovery does not authorise merging, activating that schedule, deploying, releasing, changing the default runtime, or distributing an experimental patched Node binary.
+At the 11 September investigation snapshot, PR #779 was draft and unmerged, and its proposed manual/weekly compatibility workflow was inactive. The current candidate removes that workflow. The historical investigation did not authorise merging, deploying, releasing, changing the default runtime, or distributing an experimental patched Node binary.
 
 ## Correct the initial diagnosis
 

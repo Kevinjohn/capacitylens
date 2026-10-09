@@ -7,7 +7,7 @@ description: Install CapacityLens from a release archive in five steps, on a man
 
 Every host takes the same five steps: three values to fill in and one command per step. Only
 step 4, starting the server, differs between hosts. The target is ten minutes on a host that
-already has Node 24 and a hostname pointing at it.
+already has supported Node 24 and a hostname pointing at it.
 
 The steps use the release archive, `capacitylens-0.73.0-alpha.1.tar.gz`. It holds the built web
 app, the server and everything it needs to run, so there is nothing to build and no Docker.
@@ -20,9 +20,13 @@ Just want to look around first? [Try the demo](/getting-started/try-the-demo) in
 no persistent data or sign-in setup required.
 :::
 
+Node 26.9.0 or newer within 26.x is experimental and maintained on a best-effort basis.
+Complete functionality is not guaranteed; Node 24 is recommended. Use current patches within
+either line. See [the compatibility policy](/reference/development#check-node-26-compatibility).
+
 ## You need
 
-- Node 24 on the host's system path. Check with `node --version`.
+- Node 24.19.0 or newer within 24.x on the host's system path. Check with `node --version`.
 - A hostname that points at the host, with HTTPS in front of CapacityLens. A managed host issues
   the certificate for you; on your own host, [Caddy](/self-hosting/install-without-docker#https)
   does it in four lines.
