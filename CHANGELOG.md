@@ -84,6 +84,11 @@ new features and **patch** versions carry fixes.
 - Update the transitive `source-map-js` package to 1.2.2 for the indexed source-map
   denial-of-service advisory (#1404).
 
+### Security
+
+- Updated the transitive `source-map-js` dependency to 1.2.2, resolving a high-severity
+  event-loop denial-of-service advisory (GHSA-68fv-2mgg-jv7q).
+
 ## [0.73.0-alpha.1] - 2026-10-01
 
 ### Added
