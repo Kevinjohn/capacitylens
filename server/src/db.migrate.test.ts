@@ -33,6 +33,7 @@ import {
   FEDERATED_SUBJECT_UNIQUE_INDEX,
   assertFederatedIdentitySchemaCurrent,
   createAuthFromEnvironment,
+  planAuthSchemaMigrations,
   runAuthMigrations,
 } from "./auth";
 import type { Auth } from "./auth";
@@ -1126,7 +1127,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const committed = readdirSync(join(process.cwd(), "src", "fixtures", "databases"))
       .filter((name) => name.endsWith(".db"))
       .sort();
-    expect(committed).toEqual([...RELEASED_FIXTURE_NAMES].sort());
+    expect(committed).toEqual([...RELEASED_FIXTURE_NAMES, "v51-password.db"].sort());
   });
 });
 
@@ -3648,6 +3649,46 @@ describe("schema migration of an existing on-disk DB", () => {
       }
     },
   );
+});
+
+describe("Better Auth package upgrade compatibility", () => {
+  it("upgrades the pre-1.7.7 password fixture without changing its schema or auth records", async () => {
+    const copied = copyFixture("v51-password.db");
+    let db: Db | undefined;
+    try {
+      db = openDb(copied.path);
+      const initialSchema = schemaFingerprint(db);
+      const initialValues = captureMigrationValues(db);
+      const originalUsers = db.prepare(`SELECT id, email FROM user ORDER BY id`).all();
+      const originalAccounts = db.prepare(`SELECT id, providerId, accountId, userId FROM account ORDER BY id`).all();
+      const originalSessions = db.prepare(`SELECT id, userId FROM session ORDER BY id`).all();
+
+      expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(
+        DB_SCHEMA_VERSION,
+      );
+      expect(originalUsers).toHaveLength(1);
+      expect(originalAccounts).toHaveLength(1);
+      expect(originalAccounts[0]).toMatchObject({ providerId: "credential" });
+      expect(originalSessions).toHaveLength(1);
+
+      const auth = createFixtureAuth(db);
+      await runAuthMigrations(auth);
+
+      expect(await planAuthSchemaMigrations(auth)).toEqual({ pending: false, tables: [], problems: [] });
+      expect(schemaFingerprint(db)).toEqual(initialSchema);
+      expect(captureMigrationValues(db)).toEqual(initialValues);
+      expect(db.prepare(`SELECT id, email FROM user ORDER BY id`).all()).toEqual(originalUsers);
+      expect(db.prepare(`SELECT id, providerId, accountId, userId FROM account ORDER BY id`).all()).toEqual(
+        originalAccounts,
+      );
+      expect(db.prepare(`SELECT id, userId FROM session ORDER BY id`).all()).toEqual(originalSessions);
+      expect((db.prepare(`PRAGMA quick_check`).get() as { quick_check: string }).quick_check).toBe("ok");
+      expect(db.prepare(`PRAGMA foreign_key_check`).all()).toEqual([]);
+    } finally {
+      db?.close();
+      copied.cleanup();
+    }
+  });
 });
 
 describe("schema migration of an existing on-disk DB", () => {

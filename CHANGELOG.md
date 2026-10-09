@@ -78,6 +78,11 @@ new features and **patch** versions carry fixes.
 ### Fixed
 
 - Password sign-in reaches the company picker without requesting an unscoped state snapshot (#1338).
+- Update Better Auth to 1.7.7 for upstream security fixes and match its namespaced OAuth state
+  lookup so provider errors keep their configured callback route. Restart provider sign-in or
+  linking flows that were in progress during the upgrade (#1404).
+- Update the transitive `source-map-js` package to 1.2.2 for the indexed source-map
+  denial-of-service advisory (#1404).
 
 ### Security
 
