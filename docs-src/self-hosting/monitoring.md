@@ -28,7 +28,7 @@ sudo systemctl status capacitylens --no-pager
 ```
 
 ```bash
-sudo journalctl -u capacitylens --since=30m --no-pager
+sudo journalctl -u capacitylens --since "30 min ago" --no-pager
 ```
 
 On a managed VPS, use the provider's process status and application log view for the site; see

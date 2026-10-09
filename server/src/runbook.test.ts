@@ -73,3 +73,10 @@ describe("operator documentation", () => {
     expect(configuration).not.toContain("over-maximum values use the safe default");
   });
 });
+
+describe("operator log commands", () => {
+  // systemd rejects a bare relative time such as `--since=30m`; it needs "ago" or a leading minus.
+  it("gives journalctl a relative time it can parse", () => {
+    expect(page("self-hosting/monitoring.md")).toContain('journalctl -u capacitylens --since "30 min ago"');
+  });
+});
