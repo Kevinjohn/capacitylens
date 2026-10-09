@@ -16,13 +16,13 @@ Viewers need a way to understand the read-only schedule. The same tour remains u
 
 1. Open **Help** in the sidebar footer, immediately above **Account**, or find it in the command palette.
 2. Read the short description and follow **Browse the user guides** for detailed instructions.
-3. Select **Show me around**. The tour starts on Schedule and follows the current role's section and any lower-role guidance.
+3. Select **Show tour**. The tour starts on Schedule and follows the current role's section and any lower-role guidance.
 4. As a Viewer, use the two read-only stops to learn the schedule and its toolbar.
 
 ## Acceptance criteria
 
 - Help (`/help`) is available to Owner, Admin, Editor and Viewer, above Account in the expanded, collapsed and mobile sidebar.
 - Direct navigation sets the page title to **Help · CapacityLens**. The command palette lists Help exactly once and navigates to `/help`.
-- The page links to the existing user guides and provides a **Show me around** launcher.
+- The page links to the existing user guides and provides a **Show tour** launcher.
 - The launcher uses the shared permission, offline, duplicate-start and failure behavior. Starting away from Schedule opens Schedule first; a Viewer sees progress 1 of 2.
 - Help and its tour remain available when Getting started is hidden or dismissed.

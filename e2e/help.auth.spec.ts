@@ -21,17 +21,18 @@ test("every company role can open Help; a Viewer can start the read-only tour", 
 
   for (const email of Object.values(USERS)) {
     await context.clearCookies();
-    await page.goto("/");
+    await page.goto("/help");
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(AUTH_PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
     await page.getByRole("button", { name: COMPANY, exact: true }).click();
-    await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
+    await waitForAppLanding(page, page.getByRole("heading", { name: "Help" }));
 
-    await page.getByRole("link", { name: "Help", exact: true }).click();
+    await expect(page.getByRole("link", { name: "Help", exact: true })).toBeVisible();
     await expect(page).toHaveURL(/\/help$/);
     await expect(page).toHaveTitle("Help · CapacityLens");
     await expect(page.getByTestId("show-tour")).toBeEnabled();
+    await expect(page.getByTestId("show-tour")).toHaveAccessibleName("Show tour");
     if (email !== USERS.viewer) continue;
 
     await page.getByTestId("show-tour").click();
@@ -39,6 +40,8 @@ test("every company role can open Help; a Viewer can start the read-only tour", 
     const viewerTour = page.locator(".driver-popover");
     await expect(viewerTour).toContainText("Viewer: Read the schedule");
     await expect(viewerTour).toContainText("1 of 2");
+    await viewerTour.getByRole("button", { name: "Next" }).click();
+    await expect(viewerTour).toContainText("2 of 2");
     await viewerTour.getByRole("button", { name: "Done" }).click();
   }
 });

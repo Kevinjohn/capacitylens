@@ -50,7 +50,7 @@ an Owner or Admin retire the guidance once it is no longer useful.
   lower roles, with eight server-backed Owner stops, seven Admin stops and five Editor stops. The
   Viewer section closes those tours with two read-only stops; Viewers have no Getting started
   launcher. The demo omits only the server example-data stop. It returns to Schedule when needed.
-- Help (`/help`) is available to every role above Account in the sidebar. Its Show me around button
+- Help (`/help`) is available to every role above Account in the sidebar. Its Show tour button
   uses the same permission, offline, in-progress and failure behavior as the Getting started action.
 - The launcher is disabled while permission status is pending or unavailable, or when the app is
   showing a read-only offline snapshot. A tour failure surfaces an error and leaves the card usable.

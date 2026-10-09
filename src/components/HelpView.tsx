@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { useTourAction } from "@/hooks/useTourAction";
 import { m } from "@/i18n";
 import { useStore } from "@/store/useStore";
@@ -21,12 +20,15 @@ export function HelpView() {
           aria-busy={tourBusy || undefined}
           onClick={() => void showTour()}
         >
-          {m.gs_show_me_around()}
+          {m.help_show_tour()}
         </Button>
         <p className="text-sm">
-          <Link className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline" to="/using/">
+          <a
+            className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline"
+            href="https://kevinjohn.github.io/capacitylens/using/"
+          >
             {m.help_user_guides()}
-          </Link>
+          </a>
         </p>
       </div>
     </ListPage>

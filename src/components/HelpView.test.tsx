@@ -29,8 +29,12 @@ describe("HelpView", () => {
     renderHelp(role);
 
     expect(screen.getByRole("heading", { name: "Help" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Browse the user guides" })).toHaveAttribute("href", "/using/");
+    expect(screen.getByRole("link", { name: "Browse the user guides" })).toHaveAttribute(
+      "href",
+      "https://kevinjohn.github.io/capacitylens/using/",
+    );
     const launcher = screen.getByTestId("show-tour");
+    expect(launcher).toHaveAccessibleName("Show tour");
     expect(launcher).toBeEnabled();
     await user.click(launcher);
 

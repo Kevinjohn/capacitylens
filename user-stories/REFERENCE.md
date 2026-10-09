@@ -140,7 +140,8 @@ accept responses never include it.
    see eight server-backed stops, Admins seven and Editors five; the Editor tour ends with two
    read-only Viewer stops. Viewers see neither the Getting started bar nor its launcher, and can
    start their two-stop read-only tour from Help. The Help route is `/help`, appears above Account
-   in the sidebar footer for every role, and links to the user guides. Server-backed companies
+   in the sidebar footer for every role, and links to the user guides. Its **Show tour** launcher
+   has `data-testid="show-tour"`. Server-backed companies
    include the Admin example-data stop, while the in-memory demo omits it. Starting on another page
    returns to Schedule first.
    Next/Back/Done buttons, Escape bails, and the highlighted controls remain inert during the tour.
