@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -49,6 +58,15 @@ test("source preflight refuses versions immediately below each floor", (t) => {
     assert.equal(result.status, 1, result.stderr);
     assert.match(result.stderr, new RegExp(`found Node ${version.replaceAll(".", "\\.")}`));
   }
+});
+
+test("source preflight still refuses when invoked through a symlinked directory", (t) => {
+  const { directory, preload } = fixture(t, "24.18.99");
+  const linked = join(directory, "scripts");
+  symlinkSync(join(root, "server/scripts"), linked, "dir");
+  const result = runWithVersion(preload, join(linked, "check-node.mjs"));
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /found Node 24\.18\.99/);
 });
 
 test("built entrypoints refuse before initialization or recovery can write", (t) => {

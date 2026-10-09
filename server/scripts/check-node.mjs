@@ -1,3 +1,4 @@
+import { realpathSync } from "node:fs";
 import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,7 +27,8 @@ export function assertSupportedNodeVersion(version = process.versions.node) {
 if (
   process.argv[1] &&
   basename(fileURLToPath(import.meta.url)) === "check-node.mjs" &&
-  fileURLToPath(import.meta.url) === process.argv[1]
+  // ESM resolves import.meta.url through symlinks while argv keeps the invoked path.
+  fileURLToPath(import.meta.url) === realpathSync(process.argv[1])
 ) {
   try {
     assertSupportedNodeVersion();
