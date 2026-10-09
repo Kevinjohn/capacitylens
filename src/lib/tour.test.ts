@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Config, Driver } from "driver.js";
-import { m } from "@/i18n";
-import { TOUR_ANCHORS } from "./tourAnchors";
+import { buildRoleTour } from "./tourSteps";
 
 // driver.js itself is loaded lazily inside startTour (see the file header comment in tour.ts), so
 // the mock only needs to cover the dynamic `import("driver.js")`, not a static import binding.
@@ -10,32 +9,22 @@ vi.mock("driver.js", () => ({ driver: driverMock }));
 
 import { startTour } from "./tour";
 
-const expectedSteps: NonNullable<Config["steps"]> = [
-  { element: TOUR_ANCHORS[0], popover: { title: m.tour_grid_title(), description: m.tour_grid_desc() } },
-  { element: TOUR_ANCHORS[1], popover: { title: m.tour_toolbar_title(), description: m.tour_toolbar_desc() } },
-  {
-    element: TOUR_ANCHORS[2],
-    popover: { title: m.tour_people_title(), description: m.tour_people_desc(), side: "right" },
-  },
-  {
-    element: TOUR_ANCHORS[3],
-    popover: { title: m.tour_clients_title(), description: m.tour_clients_desc(), side: "right" },
-  },
-  {
-    element: TOUR_ANCHORS[4],
-    popover: { title: m.tour_settings_title(), description: m.tour_settings_desc(), side: "right" },
-  },
+const expectedAnchors = [
+  '[data-nav="/settings"]',
+  '[data-nav="/team"]',
+  '[data-nav="/settings"]',
+  '[data-nav="/resources"]',
+  '[data-nav="/clients"]',
+  '[data-testid="scheduler-grid"]',
+  '[data-testid="scheduler-grid"]',
+  '[data-testid="scheduler-toolbar"]',
 ];
+const navigate = vi.fn();
+const launchTour = () => startTour({ role: "owner", navigate, serverMode: true });
 function getDriverConfig(): Config {
   const config = driverMock.mock.calls[0]?.[0];
   if (!config) throw new Error("driver mock was not called with a config");
   return config;
-}
-
-function getFirstExpectedStep(): NonNullable<Config["steps"]>[number] {
-  const step = expectedSteps[0];
-  if (!step) throw new Error("tour test steps are unexpectedly empty");
-  return step;
 }
 
 function unexpectedDriverCall(): never {
@@ -72,27 +61,39 @@ function createDriverStub(drive: () => void, destroy: () => void): Driver {
 let driveSpy: ReturnType<typeof vi.fn<() => void>>;
 
 function registerConfigurationTests() {
-  it("builds the five spotlight steps from the shared anchors and translated copy, in order", async () => {
-    await startTour();
+  it("builds the eight role stops in order with locale-resolved copy", async () => {
+    await launchTour();
 
     expect(driverMock).toHaveBeenCalledOnce();
     const config = getDriverConfig();
-    expect(config.steps).toEqual(expectedSteps);
+    const steps = config.steps;
+    if (!steps) throw new Error("tour config did not include steps");
+    expect(steps.map((step) => step.element)).toEqual(expectedAnchors);
+    expect(steps.every((step) => Boolean(step.popover?.title && step.popover.description))).toBe(true);
+    expect(steps.map((step) => step.waitForElement ?? 0)).toEqual([0, 0, 0, 0, 0, 1000, 1000, 1000]);
+    expect(steps.filter((_step, index) => [0, 1, 3, 6].includes(index)).map((step) => step.popover?.title)).toEqual([
+      expect.stringMatching(/^Owner:/),
+      expect.stringMatching(/^Admin:/),
+      expect.stringMatching(/^Editor:/),
+      expect.stringMatching(/^Viewer:/),
+    ]);
+    expect(steps.every((step) => (step.popover?.description ?? "").trim().split(/\s+/).length <= 25)).toBe(true);
   });
 
   it("configures progress display and nav copy through the Paraglide messages", async () => {
-    await startTour();
+    await launchTour();
 
     const config = getDriverConfig();
     expect(config.showProgress).toBe(true);
-    expect(config.progressText).toBe(m.tour_progress({ step: "{{current}}", total: "{{total}}" }));
-    expect(config.nextBtnText).toBe(m.tour_next());
-    expect(config.prevBtnText).toBe(m.tour_prev());
-    expect(config.doneBtnText).toBe(m.tour_done());
+    expect(config.progressText).toContain("{{current}}");
+    expect(config.progressText).toContain("{{total}}");
+    expect(config.nextBtnText).toBe("Next");
+    expect(config.prevBtnText).toBe("Back");
+    expect(config.doneBtnText).toBe("Done");
   });
 
   it("keeps spotlighted elements inert so a stray click can't navigate away mid-tour", async () => {
-    await startTour();
+    await launchTour();
 
     const config = getDriverConfig();
     expect(config.disableActiveInteraction).toBe(true);
@@ -101,13 +102,15 @@ function registerConfigurationTests() {
 
 function registerNavigationTests() {
   it("hands teardown ownership to driver.js's own destroy through onDestroyStarted", async () => {
-    const promise = startTour();
+    const promise = launchTour();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const config = getDriverConfig();
+    const firstStep = config.steps?.[0];
+    if (!firstStep) throw new Error("tour config did not include its first step");
     const destroySpy = vi.fn();
     const activeTour = createDriverStub(vi.fn(), destroySpy);
-    config.onDestroyStarted?.(undefined, getFirstExpectedStep(), {
+    config.onDestroyStarted?.(undefined, firstStep, {
       config,
       state: {},
       driver: activeTour,
@@ -119,7 +122,7 @@ function registerNavigationTests() {
   });
 
   it("drives the tour after building it", async () => {
-    await startTour();
+    await launchTour();
 
     expect(driveSpy).toHaveBeenCalledOnce();
   });
@@ -129,7 +132,7 @@ function registerLifecycleTests() {
   it("resolves once driven, when the body never carried the driver-active class", async () => {
     const disconnectSpy = vi.spyOn(MutationObserver.prototype, "disconnect");
 
-    await expect(startTour()).resolves.toBeUndefined();
+    await expect(launchTour()).resolves.toBeUndefined();
 
     expect(disconnectSpy).toHaveBeenCalledOnce();
   });
@@ -137,7 +140,7 @@ function registerLifecycleTests() {
   it("watches only class changes on document.body", async () => {
     const observeSpy = vi.spyOn(MutationObserver.prototype, "observe");
 
-    await startTour();
+    await launchTour();
 
     expect(observeSpy).toHaveBeenCalledOnce();
     expect(observeSpy).toHaveBeenCalledWith(document.body, {
@@ -150,7 +153,7 @@ function registerLifecycleTests() {
     document.body.classList.add("driver-active");
 
     let resolved = false;
-    const promise = startTour().then(() => {
+    const promise = launchTour().then(() => {
       resolved = true;
     });
 
@@ -172,13 +175,28 @@ function registerLifecycleTests() {
       throw failure;
     });
 
-    await expect(startTour()).rejects.toBe(failure);
+    await expect(launchTour()).rejects.toBe(failure);
+  });
+
+  it("navigates to the schedule before starting when launched off-page", async () => {
+    window.history.replaceState({}, "", "/settings");
+    await startTour({ role: "editor", navigate, serverMode: true });
+    expect(navigate).toHaveBeenCalledWith("/");
+  });
+
+  it("builds the selected role's own segment and lower stops", () => {
+    expect(buildRoleTour({ role: "viewer", serverMode: true }).map((step) => step.id)).toEqual([
+      "viewer-grid",
+      "viewer-toolbar",
+    ]);
   });
 }
 
 describe("startTour", () => {
   beforeEach(() => {
     document.body.className = "";
+    window.history.replaceState({}, "", "/");
+    navigate.mockReset();
     driveSpy = vi.fn<() => void>();
     driverMock.mockReset().mockReturnValue(createDriverStub(driveSpy, vi.fn()));
   });

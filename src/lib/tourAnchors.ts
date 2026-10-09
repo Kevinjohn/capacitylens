@@ -25,4 +25,5 @@ export const TOUR_ANCHORS = [
   `[data-nav="${ROUTE_RESOURCES}"]`,
   `[data-nav="${ROUTE_CLIENTS}"]`,
   `[data-nav="${ROUTE_SETTINGS}"]`,
+  `[data-nav="${ROUTE_TEAM}"]`,
 ] as const;

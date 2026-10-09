@@ -135,10 +135,15 @@ accept responses never include it.
    **Schedule the first piece of work**. Completion comes from active, coherent company data,
    including imports. Internal work remains available but does not skip the client or project steps.
    The completed 5/5 bar remains visible until permanently dismissed.
-   **Show me around** (`data-testid="getting-started-tour"`) runs a loose five-stop driver.js
-   spotlight tour (schedule grid → toolbar → People → Clients & projects → Settings; Next/Back/
-   Done buttons, Escape bails, never navigates). The button is busy and cannot start a duplicate
-   tour while the lazy tour code is loading. If that code cannot load or start, the
+   **Show me around** (`data-testid="getting-started-tour"`) runs a role-based driver.js
+   spotlight tour from the current Owner, Admin or Editor section through the lower roles. Owners
+   see eight server-backed stops, Admins seven and Editors five; the Editor tour ends with two
+   read-only Viewer stops. Viewers see neither the Getting started bar nor its launcher. Server-backed
+   companies include the Admin example-data stop, while the in-memory demo omits it. Starting on
+   another page returns to Schedule first.
+   Next/Back/Done buttons, Escape bails, and the highlighted controls remain inert during the tour.
+   The button is disabled while permissions are unresolved or unavailable, while an offline snapshot
+   is read-only, and while the tour is running. If that code cannot load or start, the
    card remains usable and a persistent error says **The tour could not start. Check your connection
    and try again.** An Owner or Admin can permanently **Dismiss** Getting started for everyone in
    the current company. Before 5/5, confirmation asks **Do you really want to hide this forever?**
@@ -1445,7 +1450,7 @@ shown for the few seconds of POST + re-hydrate; not dismissable, locks all editi
 Retry succeeds or another company is chosen),
 `product-orientation` (the non-blocking **How CapacityLens works** region),
 `getting-started-progress` (the company-wide 0–5 bar), `getting-started` (the toggleable checklist
-card), `getting-started-tour` (its **Show me around** button — runs the driver.js orientation tour),
+card), `getting-started-tour` (its **Show me around** button — runs the role-based driver.js tour),
 `getting-started-dismiss` (the Owner/Admin **Dismiss** button; saves company-wide dismissal),
 `create-language` (company-create form's read-only Language row — **English**; frozen, P1.14),
 `new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —

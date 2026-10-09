@@ -1,8 +1,17 @@
 import { test, expect } from "./fixtures";
+import type { Locator } from "./fixtures";
 import { openNewCompany, selectShadOption } from "./browserTestSupport";
 import { TOUR_ANCHORS } from "../src/lib/tourAnchors";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
+
+async function finishTour(popover: Locator, stopCount: number, finalTitle: string): Promise<void> {
+  for (let stop = 1; stop < stopCount; stop += 1) await popover.getByRole("button", { name: "Next" }).click();
+  await expect(popover.getByText(`${stopCount} of ${stopCount}`)).toBeVisible();
+  await expect(popover.getByText(finalTitle)).toBeVisible();
+  await popover.getByRole("button", { name: "Done" }).click();
+  await expect(popover).toHaveCount(0);
+}
 
 test.describe("getting started", () => {
   test("shows five independent milestones and progress across pages", async ({ page }) => {
@@ -55,15 +64,17 @@ test.describe("getting started", () => {
     await expect(page.getByTestId("getting-started-progress")).toHaveCount(0);
   });
 
-  test('"Show me around" runs the loose orientation tour', async ({ page }) => {
+  test('"Show me around" runs the role tour in the demo', async ({ page }) => {
     await openNewCompany(page, "Queen Consolidated");
-    for (const selector of TOUR_ANCHORS) await expect(page.locator(selector)).toBeVisible();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "Show checklist" }).click();
     await page.getByTestId("getting-started-tour").click();
     const popover = page.locator(".driver-popover");
     await expect(popover).toBeVisible();
-    await popover.getByRole("button", { name: "Next" }).click();
-    await expect(popover.getByText("Search, filters and zoom")).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(popover).toHaveCount(0);
+    await expect(page).toHaveURL(/\/$/);
+    await expect(popover.getByText("Owner: Import and restore schedules")).toBeVisible();
+    await expect(popover.getByText("1 of 7")).toBeVisible();
+    for (const selector of TOUR_ANCHORS) await expect(page.locator(selector)).toBeVisible();
+    await finishTour(popover, 7, "Viewer: Search, filters and weeks");
   });
 });

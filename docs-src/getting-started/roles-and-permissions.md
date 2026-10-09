@@ -33,6 +33,17 @@ contractors without ever creating a sign-in for them. See the
 [glossary](/reference/glossary) for precise definitions of these and other terms used
 throughout these docs.
 
+## Take a role-based tour
+
+Owners, Admins and Editors can select **Show me around** on the Getting started card. The tour starts
+with that role and continues through lower-role guidance. Owners see eight server-backed stops,
+Admins seven and Editors five; the Editor tour ends with two read-only Viewer stops. Viewers do not
+see the Getting started card or its launcher. Server-backed companies include the Admin example-data
+stop; the temporary demo omits it.
+
+If you start from another page, the tour opens Schedule first. It is unavailable while permissions
+are being checked or unavailable, and while a read-only offline snapshot is open.
+
 ## Roles in one table
 
 | Capability                                     |  Viewer  |  Editor  | Admin | Owner |
