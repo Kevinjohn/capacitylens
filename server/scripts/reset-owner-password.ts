@@ -1,3 +1,4 @@
+import { assertSupportedNodeVersion } from "./check-node.mjs";
 import { applyProductionDefaults } from "../src/boot/productionDefaults";
 import { resetOwnerPassword } from "../src/resetOwnerPassword";
 
@@ -6,6 +7,8 @@ import { resetOwnerPassword } from "../src/resetOwnerPassword";
 // shell only parses argv and prints the single-line JSON result. The printed link is the secret:
 // deliver it to the Owner over a channel you trust. It is single-use and expires in 24 hours.
 // pnpm forwards the argument separator itself with `pnpm run <script> -- <args>`; tolerate it.
+assertSupportedNodeVersion();
+
 const args = process.argv.slice(2).filter((arg, index) => !(index === 0 && arg === "--"));
 const [databasePath, email, confirmFlag, ...extra] = args;
 if (
