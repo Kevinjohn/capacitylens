@@ -149,8 +149,8 @@ release that predates the archive, and for the operating routine on a shared ser
 4. [Deploy and upgrade safely](/self-hosting/managed-vps/deploy-and-upgrade-safely) — stop,
    activate and start one API version at a time, with backups and rollback points.
 5. [Finish and operate the installation](/self-hosting/managed-vps/finish-and-operate-the-installation)
-   — hand over to the [Owner](/reference/glossary), move to the final domain, add
-   [company login](/reference/glossary) and monitor the instance.
+   — hand over to the [Owner](/owner/), move to the final domain, add
+   [company login](/company-login/) and monitor the instance.
 
 ## Worksheet
 

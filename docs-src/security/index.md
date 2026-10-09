@@ -13,16 +13,20 @@ evidence for anyone who needs it, and explains how to report a problem.
 
 - **Sign-in.** Password sign-in checks new and changed passwords against the Have I Been Pwned
   breached-password list before accepting them, and stores them with a modern, slow hashing
-  algorithm. Optional [company login](/company-login/) (single sign-on through your identity
-  provider) is available as a first-class alternative.
-- **Multi-factor sign-in.** An operator can require TOTP (a six-digit code from an authenticator
-  app) for every password identity. It is opt-in, not on by default, and is turned on through
-  [server configuration](/self-hosting/configuration).
+  algorithm. Optional [company login](/company-login/) through Google or Microsoft is available
+  as a first-class alternative.
+- **Multi-factor sign-in.** CapacityLens does not currently offer a setting to require its local
+  [TOTP](/reference/glossary#mfa-totp) (a six-digit authenticator-app code) for password sign-in.
+  For Google or Microsoft company
+  login, require multi-factor sign-in in the provider's own policy; CapacityLens cannot enforce or
+  verify that policy. See [company login](/company-login/) and its
+  [provider setup guide](/company-login/set-up-company-login).
 - **Sessions.** A signed-in session lasts twelve hours at most and expires after thirty minutes of
   inactivity. The session cookie is host-only, so it's confined to your exact CapacityLens
   address, and it's held back from cross-site background requests — it's only sent on the
-  top-level return from your identity provider during company login. People can see and revoke
-  their own sessions, and an administrator can revoke a teammate's.
+  top-level return from your identity provider during company login. Signing out ends the current
+  session; changing a local password revokes other sessions. Account does not show a session list.
+  An authorised Owner or Admin can revoke a teammate's sessions through Team & access.
 - **Isolation between companies.** Every request checks the signed-in person's membership and
   role in that specific company before it can read or change anything, so one company's data
   never leaks into another's.

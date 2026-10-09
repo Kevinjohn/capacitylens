@@ -19,7 +19,7 @@ has room for more work. Choose the guide for your role.
 
 | Guide | For | Use it to |
 | --- | --- | --- |
-| [Use CapacityLens day to day](/using/) | Scheduler | Join your team, read the schedule, find available capacity, and plan or check work. |
+| [Use CapacityLens day to day](/using/) | Editor or Viewer | Join your team, read the schedule, find available capacity, and plan or check work. |
 | [Set up your company as the Owner](/owner/) | Owner | Create your company, appoint an Admin, and hand over everyday setup. |
 | [Administer your company](/admin/) | Admin | Invite teammates, add people to the schedule, choose settings, and prepare the first piece of work. |
 | [Install and run CapacityLens](/self-hosting/) | Tech | Put CapacityLens on a server, hand it to the Owner, then back up, upgrade, monitor and recover it. |

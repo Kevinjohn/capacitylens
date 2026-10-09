@@ -11,7 +11,7 @@ next: false
 
 # Invite teammates and manage access
 
-![Team & access: Invite someone](../screenshots/flows/admin_invite_teammates_1.png)
+![Team & access: Invite someone](../screenshots/flows/admin_invite_editor_form.jpg)
 
 Open Team & access in the left menu and select the primary **Invite someone** button. The
 role, email and optional Resource fields open in a centered dialog.
@@ -49,6 +49,8 @@ close it before the invite finishes creating, a notice says the link was not sho
 
 ## What the invitee sees
 
+![Invitation preview showing company, proposed role, expiry and existing-account sign-in](../screenshots/flows/join_invitation_preview.jpg)
+
 The invite link opens outside the normal sign-in wall, so the recipient can safely
 preview what they're joining before anything happens: your company name, the proposed
 role, what that role can and can't do, and when the link expires. Just opening the link
@@ -73,7 +75,7 @@ Either way, they land directly on your schedule with their role visible.
 
 ## After they join
 
-![Team & access: an accepted member row showing role, email, Resource link and actions](../screenshots/flows/admin_invite_teammates_2.png)
+![Team & access: an accepted member row showing role, email, Resource link and actions](../screenshots/flows/owner_members_current.jpg)
 
 The teammate appears in the members list after accepting. Send them the [day-to-day guide](/using/).
 
@@ -109,11 +111,11 @@ to open the centered Resource selector directly. Choosing a person saves immedia
 already exists, **Remove link to resource** removes it immediately; closing the dialog never
 reverses a completed change. See [Link a person to a member](/using/resources#link-a-person-to-a-member).
 
-![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/remove_resource_link.png)
+![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/admin_resource_link_remove.jpg)
 
 ## Stop access
 
-Open Member settings beside the member. **Disable Access** stops this person opening the company
+Open Member actions beside the member. **Disable Access** stops this person opening the company
 immediately, including through an existing session or a later invitation, and prevents rejoining
 until an Owner or Admin selects **Enable Access**. The restriction remains visible even after
 removal. Only an Owner or Admin can enable access, including for a removed person listed under
@@ -135,6 +137,8 @@ permits it. Archiving or removal alone does not prevent a new invitation, and a 
 receives the invitation's role. Other company memberships remain usable throughout.
 
 ## Review who can join
+
+![Admin view of Who can join with the current policy and joining link, without Owner-only policy editing](../screenshots/flows/admin_joining_policy_readonly.jpg)
 
 **Who can join** in Team & access shows the current joining policy and every approved
 email domain. Only the Owner can change it. Ask them to review the policy if a

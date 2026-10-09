@@ -22,6 +22,16 @@ Each page in the left menu has its own page here. Viewers can read every page th
 allows; Editors, Admins and Owners can also schedule and change work. Your role is shown in
 [Team & access](/using/team-access).
 
+## Choose your day-to-day route
+
+- [Plan work as an Editor](/using/editor): prepare records, check capacity, make and update bookings,
+  and recover from scheduling interruptions.
+- [Check the plan as a Viewer](/using/viewer): find your work, understand availability and absences,
+  choose personal preferences, and get help with missing access.
+
+Owners and Admins can use the Editor route for their scheduling work. Their company setup and
+access-management responsibilities have separate [Owner](/owner/) and [Admin](/admin/) guides.
+
 ## Pages
 
 - [Schedule](/using/read-the-schedule): the day-by-day planning grid for allocations,
