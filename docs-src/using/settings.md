@@ -326,12 +326,13 @@ If a selected company cannot be loaded, a recovery screen hides the previously o
 data. **Retry** loads the selected company again without changing your selection, or you can choose
 another company.
 
-![Account page showing separate avatar, name, email and actions columns with Change password beside Sign out](../screenshots/flows/account.jpg)
+![Account page showing separate avatar, name, email and actions columns with Change password beside Sign out](../screenshots/flows/account_identity_current.jpg)
 
-For local-password identities, Account offers **Change password** in a dialog. It shows multi-factor
-authentication status when the operator requires it. Company single sign-on shows its connection
-without a local password control. A long email is truncated, and its full address is available on hover or keyboard focus. Active
-session details are hidden. Demo mode identifies the fictional persona; installations with
+For local-password identities, Account offers **Change password** in a dialog. A configured company
+provider can show its connection controls. Provider sign-in may hide the local password control;
+required multi-factor checks are managed by the provider. There is no local authenticator setup
+control in the current installation. A long email is truncated, and its full address is available on hover or keyboard focus. Active
+session details are hidden. See [Account](/using/account) for password, provider and recovery steps. Demo mode identifies the fictional persona; installations with
 sign-in off have no credential controls or sign-out action.
 
 ## What's next

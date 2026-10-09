@@ -7,7 +7,7 @@ next: false
 
 # Team & access
 
-![Team and access showing a Viewer's access explanation](../screenshots/flows/using_team_access_1.png)
+![Team and access showing a Viewer's access explanation](../screenshots/flows/viewer_access_current.jpg)
 
 Open Team & access near the bottom of the left menu. Your access shows your role.
 

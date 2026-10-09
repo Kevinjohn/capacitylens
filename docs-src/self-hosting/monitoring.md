@@ -21,6 +21,19 @@ docker compose logs --since=30m api
 curl -fsS https://capacity.example.com/api/health
 ```
 
+For a native systemd install, check the service and recent logs instead:
+
+```bash
+sudo systemctl status capacitylens --no-pager
+```
+
+```bash
+sudo journalctl -u capacitylens --since "30 min ago" --no-pager
+```
+
+On a managed VPS, use the provider's process status and application log view for the site; see
+[Finish and operate the installation](/self-hosting/managed-vps/finish-and-operate-the-installation).
+
 With `CAPACITYLENS_HEALTH_DEEP=1` (Docker Compose sets this by default), the response
 also runs a constant SQLite readiness query and reports:
 
@@ -43,7 +56,7 @@ full foreign-key integrity check before the API accepts any traffic at all.
 | Signal               | Alert when                                                                                                                                                                                 |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `audit`              | `degraded` — the audit sink has failed and events are queued. `recovering` with a nonzero `auditPending` is expected briefly after a restart; alert if it doesn't drain.                   |
-| `backup.status`      | `degraded` after any failed snapshot attempt, or `pending` for longer than one configured backup interval.                                                                                 |
+| `backup.status`      | `degraded` after any failed snapshot attempt, or `pending` for longer than one configured backup interval. Alert on `unavailable` when scheduled backups are expected; check whether backups were deliberately disabled before treating it as a failure. |
 | `internalTls.status` | `expiring` or `expired`. `expiring` starts at the same 30-day boundary the renewal script uses — renew before it reaches zero. See [TLS and networking](/self-hosting/tls-and-networking). |
 | HTTP `5xx`           | Any occurrence — investigate immediately.                                                                                                                                                  |
 | HTTP `401`/`403`     | Repeated occurrences — treat as access events worth reviewing.                                                                                                                             |
@@ -69,6 +82,8 @@ exit means it's already expired or will within 30 days; run
 
 - **Application/process logs**: `docker compose logs api` (and `web`). Set
   `CAPACITYLENS_LOG=1` for structured per-request JSON logs.
+- **Native systemd**: `sudo journalctl -u capacitylens`.
+- **Managed VPS**: use the provider's application log view for the site.
 - **Security events**: typed `capacitylens.security` JSON events for sign-in outcomes,
   CSRF and authorization rejections, multi-factor gates, rate limiting, session
   revocation and server errors — on stdout alongside the process logs. Alert on bursts

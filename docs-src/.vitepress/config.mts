@@ -34,6 +34,8 @@ const usingSidebar = [
     items: [
       { text: "Start here", link: "/using/" },
       { text: "Join your team", link: "/using/join-your-team" },
+      { text: "Plan work as an Editor", link: "/using/editor" },
+      { text: "Check the plan as a Viewer", link: "/using/viewer" },
       {
         text: "Page guide",
         items: [

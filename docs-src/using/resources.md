@@ -39,7 +39,7 @@ saves immediately. Choose a different Resource to change the link, or use **Remo
 to unlink it. Each member can have one person Resource, and each person Resource can have one member. The association does
 not grant access or create schedule data.
 
-![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/remove_resource_link.png)
+![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/admin_resource_link_remove.jpg)
 
 Only active members and active scheduled people can be new link targets. Existing links
 to inactive members or people can be removed from the centered dialog. To move an occupied person's
