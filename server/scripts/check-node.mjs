@@ -8,11 +8,8 @@ const SUPPORTED_RANGE = "Node >=24.19.0 <25 or >=26.9.0 <27";
 export function supportsNodeVersion(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
   if (!match) return false;
-  const [, major, minor, patch] = match.map(Number);
-  return (
-    (major === 24 && (minor > 19 || (minor === 19 && patch >= 0))) ||
-    (major === 26 && (minor > 9 || (minor === 9 && patch >= 0)))
-  );
+  const [, major, minor] = match.map(Number);
+  return (major === 24 && minor >= 19) || (major === 26 && minor >= 9);
 }
 
 /** Refuses an unadmitted runtime before the caller can read or write application data. */

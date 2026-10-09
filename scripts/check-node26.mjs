@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { supportsNodeVersion } from "../server/scripts/check-node.mjs";
 import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from "./pnpmSpawn.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -48,8 +49,8 @@ try {
     }),
   );
   if (pnpmVersion !== pinnedPnpm) throw new Error(`Expected pinned pnpm ${pinnedPnpm}; found ${pnpmVersion}.`);
-  const [major, minor] = process.versions.node.split(".").map(Number);
-  if (major !== 26 || minor < 9) {
+  const version = process.versions.node;
+  if (!version.startsWith("26.") || !supportsNodeVersion(version)) {
     throw new Error(`check:node26 requires selected Node >=26.9.0 <27; found ${process.version}.`);
   }
 
