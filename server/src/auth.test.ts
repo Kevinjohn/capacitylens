@@ -413,12 +413,12 @@ const registerStartupControlTests = () => {
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV, { deferDatabaseSetup: true });
     expect(configured.auth).not.toBeNull();
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
-    expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
+    expect(() => ensureAuthControlTables(db)).toThrow(/does not match the current application schema/i);
     expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(
       expect.objectContaining(CHECKSUM_PINNED_MIGRATIONS.at(-1)),
     );
     initializeOpenDb(db, ":memory:");
-    ensureAuthControlTables(db, PASSWORD_ENV);
+    ensureAuthControlTables(db);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
     db.close();
   });
@@ -438,7 +438,7 @@ const registerStartupControlTests = () => {
         claimedAt,
         "stranded-claim",
       );
-      ensureAuthControlTables(db, PASSWORD_ENV);
+      ensureAuthControlTables(db);
       expect(db.prepare(`SELECT id FROM capacitylens_bootstrap_claim`).get()).toBeUndefined();
       db.close();
     },
@@ -568,7 +568,7 @@ const registerStartupMigrationPlanningTest = () => {
     expect(before.tables).toContain("user");
 
     initializeOpenDb(db, ":memory:");
-    ensureAuthControlTables(db, PASSWORD_ENV);
+    ensureAuthControlTables(db);
     await runAuthMigrations(auth);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
     await expect(planAuthSchemaMigrations(auth)).resolves.toEqual({ pending: false, tables: [], problems: [] });
@@ -603,7 +603,7 @@ describe("auth schema check at startup", () => {
     // A library endpoint awaits any pending startup schema check, so an enabled check would reject here.
     await expect(passwordAuth.api.getSession({ headers: new Headers() })).resolves.toBeNull();
     initializeOpenDb(db, ":memory:");
-    ensureAuthControlTables(db, PASSWORD_ENV);
+    ensureAuthControlTables(db);
     await runAuthMigrations(passwordAuth);
 
     expect(logged.filter((line) => /ERROR|schema mismatch|npx auth migrate/.test(line))).toEqual([]);

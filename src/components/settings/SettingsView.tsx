@@ -44,7 +44,13 @@ function SettingsBottomSections({ controller }: { controller: Controller }) {
   return (
     <>
       <SettingsImportSection />
-      <SettingsAccountOptions activeAccount={controller.activeAccount} scheduling={scheduling} />
+      {controller.activeAccount && (
+        <SettingsAccountOptions
+          companyName={controller.activeAccount.name}
+          weekStartsOn={scheduling.weekStartsOn}
+          timezone={scheduling.timezone}
+        />
+      )}
     </>
   );
 }
