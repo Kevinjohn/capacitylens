@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { m } from "@/i18n";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 function StepRow({ done, label, to }: { done: boolean; label: string; to: string }) {
   const labelContent = done ? (
@@ -223,7 +224,10 @@ function useCompanyDismissal(accountId: string, pathname: string, setNotice: (me
       .read(accountId, controller.signal)
       .then(async (response) => {
         if (!response.ok) throw new Error(`Getting started read failed (${response.status})`);
-        const result = (await response.json()) as { dismissed: boolean };
+        const result: unknown = await response.json();
+        if (!isRecord(result) || typeof result.dismissed !== "boolean") {
+          throw new Error("Getting started response was invalid");
+        }
         if (!controller.signal.aborted && !dismissedRef.current) {
           setDismissed(result.dismissed);
           dismissedRef.current = result.dismissed;
