@@ -1,96 +1,104 @@
 ---
-title: Make your first booking
-description: Add a client, project, person and activity, then place the first piece of work on the schedule.
+title: Quick start
+description: The whole setup on one page, for the person doing all of it. Install, create the company, add your people and work, and make the first booking.
 ---
 
-# Make your first booking
+# Quick start
 
 <span id="get-started-quickly"></span>
 
-Use this guide when your company already exists and you have Editor, Admin or Owner access.
-It takes about five minutes.
+At a small agency, one person often installs CapacityLens, owns the company and sets the
+work. This page is that whole route, from download to a booking on screen. Each step links
+to the guide with the detail.
 
-With Viewer access, start with [Read the schedule](/using/read-the-schedule).
+## Install it
 
-## Make your first schedule useful
+You need a server with Node 24 and a hostname pointing at it. On a managed host such as Forge
+you never open a terminal.
 
-When a company is new, **Getting started** shows five milestones: add someone to the schedule,
-add a client, add a project to that client, add an Activity, and schedule the first piece of work.
-Each step completes from the company's records, including imported data. You can create records
-in any order. Internal work is available at any time, though it does not complete the client or
-project steps.
+<div class="steps">
 
-The 0–5 progress bar appears across the application, including Settings. The checklist opens on
-Schedule while setup is incomplete and can be shown or hidden from the bar on any page. At 5/5 it
-starts closed, but stays available until an Owner or Admin dismisses it. If work remains, dismissal
-asks for confirmation. Dismissing hides
-the guidance for everyone in that company. Editors can view and toggle the checklist; Viewers do
-not see it.
+1. **Download** the release archive from the
+   [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
 
-![Owner tour highlighting Settings for imports, with progress 1 of 8](../screenshots/flows/tour_owner.png)
+2. **Pick a folder** for the data. The database file is created there on first start.
 
-Owners, Admins and Editors can select **Show me around** on the Getting started card. Viewers do not
-see that card. Everyone can open **Help** from the sidebar to start the tour for their role and find
-the user guides. Help remains available after Getting started is dismissed. The tour opens Schedule
-first if you are on another page. See
-[Roles and permissions](/getting-started/roles-and-permissions#take-a-role-based-tour) for what each
-role sees.
+3. **Configure** with one command. It prints your settings, with the secrets and a one-time
+   setup token generated for you:
 
-To see a working schedule before entering your own data, an Owner or Admin can choose **Settings,
-Example data, Add example data**. It adds two people, a client, a project and a few bookings, and
-is offered only while the company has no people, clients, projects or allocations.
+   ```bash
+   node server/dist/index.mjs init --public-url https://capacity.example.com --db /var/lib/capacitylens/capacitylens.db
+   ```
 
-![Getting started progress at 0/5 with the five setup milestones on Schedule](../screenshots/flows/getting_started_five_steps.png)
+4. **Start it** as a background process, with HTTPS in front.
 
-## Client
+5. **Open the address.**
 
-![Add client form for Queen Consolidated](../screenshots/flows/quick_start_client.png)
+</div>
 
-Open **Clients**, select **Add client**, enter the name and save.
+[Install CapacityLens](/self-hosting/install) has the exact commands for a managed host and
+for your own Linux server.
 
-## Project
+## Create your company
 
-![Add project form for Project Watchtower under Queen Consolidated](../screenshots/flows/quick_start_project.png)
+<div class="steps">
 
-Open **Projects**, select **Add project**, choose the client, enter the project name and save.
+1. ![First Owner sign-in setup with Name, Email, Create a password and Owner setup token fields](../screenshots/flows/owner_first_signin_setup.jpg)
 
-## Resource
+   **Sign in.** Enter your name, email and a password, and paste the setup token from step 3.
+   Select **Create my sign-in**.
 
-![Add resource form for Bruce Wayne](../screenshots/flows/quick_start_resource.png)
+2. ![First company setup with Company name, Week starts on, Timezone, Language and Start with example data selected](../screenshots/flows/owner_first_company_setup.jpg)
 
-Open **Resources** and select **Add resource**. Enter the person's details and working
-pattern, then save.
+   **Create the company.** Name it and choose the day your week starts and your timezone. These
+   two **cannot be changed later**. Clear **Start with example data** if you'd rather start
+   empty. Select **Create company**.
 
-Adding a person makes them schedulable. It does not give them a sign-in. An Owner or
-Admin can [invite them separately](/admin/invite-teammates).
+</div>
 
-## Activity
+[Set up your company](/owner/) covers company login and what stays with the Owner.
 
-![Add activity form for Design under Project Watchtower](../screenshots/flows/quick_start_activity.png)
+## Make the schedule yours
 
-Open **Activities**, select **Add activity**, choose **Project-specific**, select the project,
-enter the activity name and save.
+<span id="make-your-first-schedule-useful"></span>
 
-## First booking
+<div class="steps">
 
-![Empty Schedule with Bruce Wayne ready for a first booking](../screenshots/flows/quick_start_empty_schedule.png)
+1. ![Add resource form for Bruce Wayne](../screenshots/flows/quick_start_resource.png)
 
-Open **Schedule**. Drag across empty working days in the person's row, or select one empty
-cell for a one-day booking.
+   **Add a person.** Open **Resources**, select **Add resource**, enter their name and working
+   days, and select **Save**.
 
-![New allocation form for Project Watchtower and Design](../screenshots/flows/quick_start_booking_form.png)
+2. ![Add project form for Project Watchtower under Queen Consolidated](../screenshots/flows/quick_start_project.png)
 
-Choose the project and activity, then save.
+   **Add a client and a project.** Open **Clients** and select **Add client**. Then open
+   **Projects**, select **Add project** and choose that client.
 
-![Schedule after the first booking has been saved](../screenshots/flows/quick_start_booking_saved.png)
+3. ![Add activity form for Design under Project Watchtower](../screenshots/flows/quick_start_activity.png)
 
-## Move the booking
+   **Add an activity**, the kind of work being booked. Open **Activities**, select **Add
+   activity**, choose **Project-specific** and pick the project.
 
-![Schedule after the booking has been moved](../screenshots/flows/quick_start_booking_moved.png)
+4. ![New allocation form for Project Watchtower and Design](../screenshots/flows/quick_start_booking_form.png)
 
-Drag the saved bar to another date or person. Use **Undo** to put it back.
+   <span id="first-booking"></span>**Book the work.** Open **Schedule** and drag across some days
+   in the person's row. Choose the project and activity, then select **Save**.
 
-## What's next
+5. ![Schedule after the first booking has been saved](../screenshots/flows/quick_start_booking_saved.png)
 
-Learn how to [read the schedule](/using/read-the-schedule), or continue with the
-[day-to-day guide](/using/) for the tasks you will use most often.
+   **Move it.** Drag the bar to another day or another person. **Undo** puts it back.
+
+</div>
+
+That's a working schedule. While setup is incomplete, the **Getting started** checklist on
+Schedule ticks off these steps as you go, in any order, and **Show me around** starts a short
+tour. An Owner or Admin can dismiss the checklist for everyone.
+
+## Bring in the team
+
+Open **Team & access**, select **Invite someone**, choose a role and enter their email. Most
+people need **Viewer**; give **Editor** to anyone who books work.
+[Get the schedule ready](/admin/) covers roles, settings and linking each invitation to the
+right row on the schedule.
+
+Before you rely on it, [turn on backups](/self-hosting/backups-and-restore).

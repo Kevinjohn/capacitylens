@@ -70,7 +70,7 @@ Send the intended Owner three things through a private channel:
 
 - the final CapacityLens address;
 - the one-time `CAPACITYLENS_SETUP_TOKEN`; and
-- the [Owner setup guide](/owner/).
+- the [Set up your company](/owner/) guide.
 
 The Owner creates their own credentials and company. Do not enter the token or create the Owner on
 their behalf. Do not enable demo seeding on this production installation.

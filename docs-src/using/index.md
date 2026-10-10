@@ -1,6 +1,6 @@
 ---
-title: Use CapacityLens day to day
-description: Find your work, read the schedule, and open the pages that match your role.
+title: See your work
+description: Your first steps on the team. Accept the invitation, find your own week, read the schedule and see who has room.
 prev: false
 next: false
 ---
@@ -9,50 +9,65 @@ next: false
 <span id="when-you-are-done"></span>
 <span id="what-s-next"></span>
 
-# Use CapacityLens day to day
+# See your work
 
-![Schedule with the left menu and Bruce Wayne's work](../screenshots/flows/using_read_the_schedule_1.png)
+Someone at your agency has invited you. CapacityLens shows what you're booked on, when, and
+who else is busy. You don't need to install or set up anything.
 
-This guide is for everyone who reads or plans the schedule: the people booked on it, and the
-Editors who arrange their work. CapacityLens shows your team's planned work, time off and
-availability on one shared grid. Open [Schedule](/using/read-the-schedule) to find your work, or
-[join your team](/using/join-your-team) first if you still need to sign in.
+<div class="steps">
 
-Each page in the left menu has its own page here. Viewers can read every page their company
-allows; Editors, Admins and Owners can also schedule and change work. Your role is shown in
-[Team & access](/using/team-access). Open [Help](/using/help) for a role-based tour and links to these
-guides; the tour remains available after Getting started is dismissed.
+1. ![Invitation preview showing company, role, expiry and the intended email hint](../screenshots/flows/join_invitation_preview.jpg)
 
-## Choose your day-to-day route
+   **Accept the invitation.** Open the link from your email. Sign in, or select **Create
+   account** if you're new, using the address the invitation was sent to. Then select **Accept
+   invite**. [Join your team](/using/join-your-team)
 
-- [Plan work as an Editor](/using/editor): prepare records, check capacity, make and update bookings,
-  and recover from scheduling interruptions.
-- [Check the plan as a Viewer](/using/viewer): find your work, understand availability and absences,
-  choose personal preferences, and get help with missing access.
+2. ![Bruce Wayne's schedule drawer with bookings, time off and remaining capacity](../screenshots/flows/using_read_the_schedule_2.png)
 
-Owners and Admins can use the Editor route for their scheduling work. Their company setup and
-access-management responsibilities have separate [Owner](/owner/) and [Admin](/admin/) guides.
+   **Find your week.** You land on **Schedule**. Find your name and select the avatar beside it.
+   Your bookings, time off and remaining capacity open in one list.
+
+3. ![The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block](../screenshots/flows/schedule.jpg)
+
+   **Read the schedule.** Each bar is a booking: its project, its dates and how much of each day
+   it takes. **Red** means someone has more work than time that day. The percentage beside a
+   name shows how full they are across the weeks on screen. [Read the schedule](/using/read-the-schedule)
+
+4. ![Schedule with Weeks visible, Today, Show filters and utilisation](../screenshots/flows/using_find_capacity_1.png)
+
+   **Look further ahead.** Use **Weeks visible** to show up to eight weeks, and **Today**,
+   **Prev** and **Next** to move. **Show filters** narrows the view to one client, project or
+   activity.
+
+</div>
+
+That's all most people need. If something looks wrong, tell whoever books the work: with the
+**Viewer** role you can look but not change.
+
+## If you book the work
+
+With the **Editor** role you can also change the plan. Drag across empty days to book someone,
+drag a bar to move it, and select **Undo** if you change your mind.
+[Plan work as an Editor](/using/editor) covers the rest.
 
 ## Pages
 
-- [Schedule](/using/read-the-schedule): the day-by-day planning grid for allocations,
-  utilisation and time off.
-- [Overview](/using/overview): each person's remaining capacity, week by week, across four, eight
-  or twelve weeks.
-- [Resources](/using/resources): the people, placeholders and external parties available for
-  scheduling.
-- [Disciplines](/using/disciplines): the coloured groups used for people and schedule rows.
-- [Clients and projects](/using/projects): the organisations whose projects appear in allocations.
-- [Activities](/using/activities): internal, all-projects and project-specific work.
-- [Time off](/using/time-off): company closures and personal time away from work.
-- [Team & access](/using/team-access): your access and, for Owners and Admins, members and
-  invitations.
-- [Settings](/using/settings): company-wide planning rules, device preferences and offline access.
-- [Help](/using/help): start the tour for your role and browse the user guides.
-- [Account](/using/account): your signed-in identity and personal account controls.
+- [Schedule](/using/read-the-schedule): the day-by-day grid of bookings, utilisation and time off.
+- [Overview](/using/overview): each person's free days, week by week. Owners and Admins only,
+  unless your company opens it to everyone.
+- [Resources](/using/resources): the people, placeholders and partners you can schedule.
+- [Disciplines](/using/disciplines): the coloured groups for people and schedule rows.
+- [Clients and projects](/using/projects): the organisations and projects behind each booking.
+- [Activities](/using/activities): the kinds of work you book.
+- [Time off](/using/time-off): holidays, absences and company closures.
+- [Team & access](/using/team-access): your role and, for Owners and Admins, the team's access.
+- [Settings](/using/settings): company planning rules and your own display preferences.
+- [Help](/using/help): a short tour for your role.
+- [Account](/using/account): your sign-in and security.
 
 ## Tasks
 
+- [Check the plan as a Viewer](/using/viewer)
 - [Find available capacity](/using/overview#find-available-capacity)
 - [Schedule and change work](/using/schedule-work)
 - [Record time off](/using/time-off#record-time-off)

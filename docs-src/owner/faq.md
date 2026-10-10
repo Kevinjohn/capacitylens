@@ -16,7 +16,7 @@ next: false
 
 ## Can I stop after I appoint an Admin?
 
-Yes. Wait for the invitation to be accepted, check the Admin role in Team & access, and send the [Admin and settings guide](/admin/).
+Yes. Wait for the invitation to be accepted, check the Admin role in Team & access, and send them the [Get the schedule ready](/admin/) guide.
 
 ## Why is the Admin invitation still pending?
 
@@ -67,7 +67,7 @@ No. Give other company managers the Admin role.
 
 ## What if I am also the Admin?
 
-After creating the company, follow the [Admin and settings guide](/admin/) yourself.
+After creating the company, follow [Get the schedule ready](/admin/) yourself.
 
 ## Why am I asked to confirm my sign-in?
 

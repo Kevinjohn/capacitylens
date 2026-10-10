@@ -29,7 +29,7 @@ compatible: the server stops at start-up on an older version and says so.
 ### Who chooses the company name and calendar rules?
 
 The first Owner does. The installer supplies a working service and first-Owner sign-in
-route, then hands over to the [Owner setup guide](/owner/).
+route, then hands over to the Owner, who follows [Set up your company](/owner/).
 
 ### Who owns backups after installation?
 

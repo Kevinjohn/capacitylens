@@ -1,6 +1,6 @@
 ---
 title: Install and run CapacityLens
-description: The technical guide to installing, configuring, operating and recovering a self-hosted CapacityLens service.
+description: Your first steps as the installer. Install from the release archive, put HTTPS in front, turn on backups and hand the address to the Owner.
 prev: false
 next: false
 ---
@@ -12,42 +12,54 @@ next: false
 
 # Install and run CapacityLens
 
-This guide is for the technical person who puts CapacityLens on a server and keeps it healthy.
-CapacityLens runs as a small web app and API behind TLS, storing everything in a single SQLite
-file. Installation ends when the service works, storage survives a restart and the first Owner
-has everything needed to create their company.
+You put CapacityLens on a server and hand it to the company's Owner. It is one Node process and
+one SQLite file. There is no database server to run and nothing to build. On a host that already
+runs Node 24 and has a hostname pointing at it, the install takes about ten minutes.
 
-After handover, the same person, or a named operator, owns backups, upgrades, monitoring,
-configuration changes and the recovery procedures that deliberately have no in-product override.
-The routine minimum is tested backups, monitored health and disk space, supported upgrades, and
-configuration changes through a reviewed restart, coordinated with an Owner or Admin when they
-affect sign-in or members. Open the page that matches the task in front of you.
+<div class="steps">
 
-## Install
+1. **Install it.** Download the release archive, pick a folder for the data, generate the
+   settings with one command, start the server, and open the address. Those are the
+   [five install steps](/self-hosting/install), the same on a managed host such as Forge as on
+   your own Linux server.
 
-- [Install CapacityLens](/self-hosting/install): five steps from the release archive, on a
-  managed host or a Linux host.
-- [Deploy on a managed VPS platform](/self-hosting/managed-vps/) such as Forge, Ploi or RunCloud.
-- [Install without Docker](/self-hosting/install-without-docker) on a Linux host with Node 24 and
-  systemd.
-- [Install with Docker](/self-hosting/install-with-docker) when your host already runs Docker and
-  Docker Compose.
-- [Configuration](/self-hosting/configuration): every environment variable, including sign-in and
-  storage.
-- [TLS and networking](/self-hosting/tls-and-networking): the certificate, proxy and network
-  boundary to complete before anyone enters a password.
-- [Verify and hand over](/self-hosting/verify-and-hand-over) to the first Owner and operator.
-- [Try the demo](/getting-started/try-the-demo) if you need to inspect the product first. It does
-  not install a persistent service.
+2. **Put HTTPS in front.** A managed host issues the certificate for you. On your own server,
+   [Caddy does it in four lines](/self-hosting/install-without-docker#https). Finish this before
+   anyone enters a password. [TLS and networking](/self-hosting/tls-and-networking)
 
-## Operate
+3. **Turn on backups.** Set `CAPACITYLENS_BACKUP_DIR` and CapacityLens takes a safe snapshot of
+   the database every hour. Keep a copy of the environment file somewhere other than the server.
+   [Backups and restore](/self-hosting/backups-and-restore)
 
-- [Backups and restore](/self-hosting/backups-and-restore): start here if operational ownership
-  has just been handed to you.
-- [Upgrades](/self-hosting/upgrades) to another release.
+4. ![First Owner sign-in setup with Name, Email, Create a password and Owner setup token fields](../screenshots/flows/owner_first_signin_setup.jpg)
+
+   **Hand over.** Check `https://your-address/api/health` returns `{"ok":true`. Send the Owner the
+   address and [Set up your company](/owner/), and send the setup token separately and privately.
+   This is the screen they will see. [Verify and hand over](/self-hosting/verify-and-hand-over)
+
+</div>
+
+## What you're taking on
+
+Self-hosting means you, or someone you name, own the service after handover. That means
+keeping backups tested, watching health and disk space, and installing new releases. Support is
+community help on a best-effort basis, with no guaranteed response time.
+[Get help](/open-source#get-help) explains where to ask.
+
+## Other ways to install
+
+- [Deploy on a managed VPS platform](/self-hosting/managed-vps/) such as Forge, Ploi or
+  RunCloud, working in the platform's own screens.
+- [Install without Docker](/self-hosting/install-without-docker) on a Linux host with systemd.
+- [Install with Docker](/self-hosting/install-with-docker) if your host already runs Docker.
+- [Try the demo](/getting-started/try-the-demo) first if you only want to look around.
+
+## Run it
+
+- [Configuration](/self-hosting/configuration): every setting, including sign-in and storage.
+- [Company login](/company-login/): Google or Microsoft sign-in, and moving a team onto it.
+- [Upgrades](/self-hosting/upgrades) to a newer release.
 - [Monitoring and health checks](/self-hosting/monitoring) for health, storage and certificates.
-- [Company login](/company-login/): set up Google or Microsoft sign-in, or move an existing team
-  to it.
-- [Recover a blocked ownership transfer](/self-hosting/ownership-transfer-recovery).
 - [When something goes wrong](/self-hosting/incidents) for diagnosis and recovery.
+- [Recover a blocked ownership transfer](/self-hosting/ownership-transfer-recovery).
 - [Install and operations FAQ](/self-hosting/faq).

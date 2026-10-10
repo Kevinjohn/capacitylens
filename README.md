@@ -19,16 +19,26 @@ One screen. People down the side, days across the top, the work in between. Red 
 over capacity that day. The percentage next to each name is how full they are across the window
 you're looking at.
 
-## Latest release
+## Get started
 
-[Read the latest release notes](https://github.com/Kevinjohn/capacitylens/releases/latest) for the
-highlights and upgrade notes.
+**Installing it?** Five steps, about ten minutes on a host that already runs Node 24:
+[install CapacityLens](docs-src/self-hosting/index.md).
+
+**Own the company?** Sign in with the setup token, create the company, invite an Admin:
+[set up your company](docs-src/owner/index.md).
+
+**Set the work?** Add your people, clients and projects, then book the first work:
+[get the schedule ready](docs-src/admin/index.md).
+
+**Just want to see your work?** Accept your invitation and your week is on the first screen:
+[see your work](docs-src/using/index.md).
+
+Doing all of it yourself? [The whole setup on one page](docs-src/getting-started/quick-start.md).
 
 ## Try it in two minutes
 
-The demo runs entirely in your browser with sample data. It is fully editable — drag things about,
-book time off, break something. Schedule changes stay in memory and reset when you reload; only
-device choices such as the cosmetic signed-in state and display preferences stay in your browser.
+The demo runs entirely in your browser with sample data. Drag things about, book time off, break
+something: changes reset when you reload.
 
 ```bash
 corepack enable
@@ -77,6 +87,9 @@ Details: [how it is tested](docs-src/reference/how-it-is-tested.md) ·
 
 ## Run it for real
 
+[Read the latest release notes](https://github.com/Kevinjohn/capacitylens/releases/latest) for the
+highlights and upgrade notes.
+
 Every release from 0.73.0-alpha.1 carries a server archive. Node 24.19.0 or newer within 24.x is the supported runtime.
 Node 26.9.0 or newer within 26.x has experimental, best-effort compatibility; see [the compatibility notes](docs-src/reference/development.md#check-node-26-compatibility).
 
@@ -106,21 +119,14 @@ Read the [CapacityLens documentation](https://kevinjohn.github.io/capacitylens/)
 docs ship with the repository: open [`docs/index.html`](docs/) straight from a checkout — no server,
 no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
 
-- [What is CapacityLens?](docs-src/getting-started/what-is-capacitylens.md) — the product on one
-  page, the quick start and the two-minute demo.
-- [Use CapacityLens day to day](docs-src/using/index.md) — for schedulers: the schedule, overview,
-  resources, projects, time off and settings.
-- [Set up your company as the Owner](docs-src/owner/index.md) and
-  [Administer your company](docs-src/admin/index.md) — the first Owner's handover, then invites,
-  roles, scheduled people and company settings.
-- [Company login (SSO)](docs-src/company-login/index.md) — setting up Google or Microsoft and
-  connecting existing accounts.
-- [Install and run CapacityLens](docs-src/self-hosting/index.md) — the release archive, Docker
-  and [managed VPS](docs-src/self-hosting/managed-vps/index.md) installation, plus
-  configuration, TLS, backups, monitoring and incident response.
-- [Security and privacy](docs-src/security/index.md) — posture, stored data and operator
-  responsibilities.
-- [Glossary](docs-src/reference/glossary.md) — the terms the docs rely on, in plain language.
+- [What is CapacityLens?](docs-src/getting-started/what-is-capacitylens.md): why it exists and
+  what it leaves out.
+- The four role guides: [install](docs-src/self-hosting/index.md),
+  [set up your company](docs-src/owner/index.md), [get the schedule ready](docs-src/admin/index.md)
+  and [see your work](docs-src/using/index.md).
+- [Company login (SSO)](docs-src/company-login/index.md): Google or Microsoft sign-in.
+- [Security and privacy](docs-src/security/index.md) and the
+  [glossary](docs-src/reference/glossary.md).
 
 ## Under the hood
 

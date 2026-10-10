@@ -236,7 +236,7 @@ export default defineConfig({
     nav: [
       { text: "What is CapacityLens?", link: "/getting-started/what-is-capacitylens" },
       { text: "Quick start", link: "/getting-started/quick-start" },
-      { text: "Choose your guide", link: "/#choose-your-guide" },
+      { text: "Which one are you?", link: "/#which-one-are-you" },
       { text: "GitHub", link: "https://github.com/Kevinjohn/capacitylens" },
     ],
 

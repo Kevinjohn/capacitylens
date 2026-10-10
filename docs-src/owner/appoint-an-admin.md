@@ -32,7 +32,7 @@ still pending, ask whether they received the email or copied link. If delivery i
 the link from the invitation result. A lost link cannot be recovered: revoke that invite and create
 a replacement.
 
-Send them the [Admin and settings guide](/admin/). They can complete the setup from here.
+Send them the [Get the schedule ready](/admin/) guide. They can complete the setup from here.
 
 You remain the Owner. Appointing an Admin does not transfer ownership.
 
