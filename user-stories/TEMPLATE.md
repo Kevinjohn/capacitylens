@@ -37,6 +37,8 @@ _(use **Coverage:** with a unit test or "manual" instead when no dedicated E2E t
 
 **Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "adds a person and shows them in the list and schedule"
 
+**Documentation:** [Resources — add a person](../docs-src/using/resources.md#add-a-person)
+
 ## Goal
 
 Add a named person (with a role, discipline and working pattern) so they can be scheduled.

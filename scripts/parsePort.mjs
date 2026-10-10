@@ -1,3 +1,4 @@
+/** Parse `value` or its nullish fallback as a port from 1 to 65535, or throw `RangeError`. */
 export function parsePort(value, fallback, name) {
   const raw = value ?? fallback;
   const port = typeof raw === "number" ? raw : Number(raw);

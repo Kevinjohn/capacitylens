@@ -4,8 +4,9 @@ export type PreparedStatement = ReturnType<Db["prepare"]>;
 
 /**
  * Factory for a per-handle prepared-statement cache, so a hot control-table read is prepared at
- * most once per Db handle rather than on every call. WeakMap keyed by the Db handle, mirrors
- * `auth.ts`'s `cachedTableExists` idiom, so an entry is collected with its handle and the many
+ * most once per Db handle rather than on every call. Each factory call owns its cache; failed
+ * `db.prepare` calls propagate and are not cached. WeakMap keyed by the Db handle, mirroring
+ * `auth.ts`'s table-existence probe, so an entry is collected with its handle and the many
  * short-lived `:memory:` handles tests open never leak. SQL text is unchanged; only the repeated
  * `prepare()` call is elided.
  *
