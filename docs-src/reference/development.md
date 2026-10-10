@@ -424,7 +424,8 @@ stored and supplied timestamps. PATCH uses the URL row ID even when a legacy cal
 different valid body ID; the body ID does not move or rename the row. `shared/src/lib/strings.ts` and `src/lib/validation.ts` apply NFC and
 whitespace folding before text length checks; passwords remain exact.
 
-Import is the separate repair path. `shared/src/data/strictJson.ts` scans untrusted JSON for more
+Import is the separate repair path. First external sign-in also repairs a provider-supplied profile
+name, which the person cannot correct in a CapacityLens form. `shared/src/data/strictJson.ts` scans untrusted JSON for more
 than 64 nesting levels, duplicate decoded object keys, non-finite numeric values, unsafe
 integers and nonzero numbers that underflow to zero before `JSON.parse` handles syntax. Browser file reading rejects invalid UTF-8. The
 server applies the scan to application JSON requests and then uses Fastify's default hardened JSON
