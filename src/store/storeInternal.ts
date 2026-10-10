@@ -210,7 +210,7 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     assertHalfDays,
     snapColor,
     applySnappedColor,
-  } = createGuards(get, set);
+  } = createGuards(get);
 
   const { createGuardedAction, createGuardedValueAction, createGuardedAddAction } =
     createGuardedActions(blockedByViewer);

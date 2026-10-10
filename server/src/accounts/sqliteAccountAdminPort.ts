@@ -1,13 +1,12 @@
-import type { StandardAccountAuditAction } from "@capacitylens/shared/account/audit";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { AccountAuditPort } from "@capacitylens/shared/account/ports";
-import type { CommandIdentity, CreatedInvitation } from "@capacitylens/shared/account/types";
+import type { CreatedInvitation } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import { tx } from "../txn";
 import type { SynchronousCallback } from "../txn";
 import { createAccountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
 import { createAuthority } from "./adminPort/authority";
-import type { AdminPortContext, SsoCutoverAccountAdminPort } from "./adminPort/contracts";
+import type { AdminPortContext, MutationOptions, SsoCutoverAccountAdminPort } from "./adminPort/contracts";
 import { createCutover } from "./adminPort/cutover";
 import { createInvitationClaims } from "./adminPort/invitationClaims";
 import { createInvitations } from "./adminPort/invitations";
@@ -37,33 +36,6 @@ interface CreateSqliteAccountAdminPortInput {
   audit?: AccountAuditPort;
   /** Test seam; production uses the bounded default. */
   writeOnceReplayCapacity?: number;
-}
-
-interface MutationOptions<Execute extends () => unknown> {
-  operation: string;
-  actorPrincipalId: string | null;
-  targetPrincipalId?: string | null;
-  workspaceId?: string | null;
-  command: CommandIdentity;
-  payload: unknown;
-  lockKeys: readonly string[];
-  execute: SynchronousCallback<Execute>;
-  persistResult?: (result: ReturnType<Execute>) => unknown;
-  replayResult?: (stored: unknown, commandId: string) => ReturnType<Execute>;
-  replayGuard?: () => void;
-  afterCommit?: (result: ReturnType<Execute>) => void;
-  afterRollback?: () => void;
-  audit?: {
-    action: StandardAccountAuditAction;
-    changedFields: readonly string[];
-    /** Derive the event for a committed result. Failure and denial keep the static action, and
-     * `changedFields` above covers every outcome, a committed result names which event it was,
-     * not which columns moved. */
-    successAction?: (result: ReturnType<Execute>) => {
-      action: StandardAccountAuditAction;
-      eventKey?: string;
-    };
-  };
 }
 
 interface MutationDependencies {

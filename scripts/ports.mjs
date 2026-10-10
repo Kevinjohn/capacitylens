@@ -37,6 +37,7 @@ export const ACCESS_LAB_FIXED_PORTS = Object.freeze({ web: 5473, api: 8897 });
 
 export const FIXED_PORTS_LOCK_FILE = "server/.fixed-ports.lock";
 
+/** Return an integer lane from 0 to `LANE_CEILING - 1`, or throw `RangeError`. */
 export function assertLane(lane) {
   if (!Number.isInteger(lane) || lane < 0 || lane >= LANE_CEILING) {
     throw new RangeError(
@@ -46,7 +47,7 @@ export function assertLane(lane) {
   return lane;
 }
 
-/** Every lane-derived port for one lane, keyed by service. */
+/** Map a valid lane to frozen service ports; invalid lanes throw `RangeError`. */
 export function portsForLane(lane) {
   assertLane(lane);
   return Object.freeze(Object.fromEntries(Object.entries(BASES).map(([service, base]) => [service, base + lane])));
@@ -55,6 +56,7 @@ export function portsForLane(lane) {
 /**
  * The lane this process is running in. Reads the environment only — a process that has not been
  * launched through scripts/with-lane.mjs is lane 0, which is exactly the historical behaviour.
+ * Invalid non-empty values throw `RangeError`.
  */
 export function resolveLane(environment = process.env) {
   const raw = environment[LANE_ENVIRONMENT_KEY];
@@ -68,7 +70,7 @@ export function resolveLane(environment = process.env) {
   return assertLane(lane);
 }
 
-/** The lane-derived ports for this process. */
+/** Return this process's lane-derived ports; invalid lane values throw `RangeError`. */
 export function ports(environment = process.env) {
   return portsForLane(resolveLane(environment));
 }
@@ -77,6 +79,7 @@ export function ports(environment = process.env) {
  * A run's own CPU reservation: how many test workers it may start. scripts/laneClaims.mjs reserves
  * this from a machine-wide pool and exports it. A suite run by hand, outside a lane, gets the same
  * ceiling a solo claim would — half the available cores (see reservationCeiling).
+ * An invalid configured value throws `RangeError`.
  */
 export function testShare(environment = process.env) {
   const raw = environment[SHARE_ENVIRONMENT_KEY];
