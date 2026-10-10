@@ -157,6 +157,25 @@ describe("Getting started", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ["a non-boolean dismissal flag", { dismissed: "false" }],
+    ["a missing dismissal flag", {}],
+    ["an array body", []],
+  ])("shows the load failure and retry for %s", async (_description, body) => {
+    apiMode.demo = false;
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
+    );
+
+    renderChecklist("owner");
+
+    expect(await screen.findByRole("button", { name: "Retry" })).toBeVisible();
+    expect(screen.getByTestId("getting-started-progress")).toBeVisible();
+    expect(errorLog).toHaveBeenCalledWith("GettingStarted: company state could not be loaded");
+  });
+
   it("does not restore the bar when an earlier navigation read finishes after dismissal", async () => {
     apiMode.demo = false;
     let finishRead!: (response: Response) => void;

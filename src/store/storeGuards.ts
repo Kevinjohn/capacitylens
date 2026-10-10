@@ -17,10 +17,7 @@ interface ApplySnappedColorInput<T extends { color?: unknown }> {
   allowNeutral?: boolean | undefined;
 }
 
-export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreApi<StoreState>["setState"]) {
-  // Notices use the store action; retain the factory's get/set dependency boundary.
-  void set;
-
+export function createGuards(get: StoreApi<StoreState>["getState"]) {
   // Every scoped add* stamps the active account. A non-null selection alone is insufficient. The
   // account must either exist in the published data or in the server-authorised summaries while a
   // switch is loading its slice (mid-switch edits are deliberately rebased by persist.ts). An id in

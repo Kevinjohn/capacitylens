@@ -364,7 +364,7 @@ function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; aut
   // betterAuth construction validates its resolved options but does not own this app-specific
   // table. Verify and expire its leases only after configuration and app migrations have succeeded.
   if (!context.options.deferDatabaseSetup) {
-    context.dependencies.ensureAuthControlTables(context.db, context.environment);
+    context.dependencies.ensureAuthControlTables(context.db);
   }
   const auth = context.dependencies.createAuthAdapter({
     db: context.db,
