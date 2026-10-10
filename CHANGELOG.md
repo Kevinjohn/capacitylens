@@ -13,6 +13,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Body text, buttons, fields and menus use 13px type instead of 14px, for a denser desktop
+  layout. Line heights and control sizes are unchanged.
 - Ordinary edits reject invalid supplied values instead of silently repairing them; imports retain
   their separate repair policy. Availability boundaries require valid dates and preserve existing
   limits when a write is rejected.
