@@ -5,50 +5,43 @@ description: Pin each hosted installation to deliberate CapacityLens releases wi
 
 # Choose the release source
 
-This page belongs to the long-form route, which builds CapacityLens from a source checkout.
-To install from the release archive with nothing to build, follow the
-[five steps](/self-hosting/managed-vps/) instead.
+Long-form route: building from a source checkout. To install from the release archive with
+nothing to build, follow the [five steps](/self-hosting/managed-vps/) instead.
 
-This page gives the managed platform a stable branch that changes only when you approve a
-CapacityLens release. It prevents ordinary changes to the public project from deploying to a
-live installation. Allow about ten minutes when your source-control account is already connected.
+Give the platform a branch that changes only when you approve a release, so ordinary changes to
+the public project never deploy to a live installation. About ten minutes when your
+source-control account is already connected.
 
 ## Prerequisites
 
 - Permission to read the public CapacityLens project.
 - Permission to create and write to a private project if you want operational separation.
-- If you use a pinned branch in the public project, permission to create and advance that
-  branch. The managed platform itself only needs read access to the selected project.
+- For a pinned branch in the public project, permission to create and advance it. The platform
+  only needs read access to the selected project.
 - A published CapacityLens release or an exact commit that you have chosen to run.
 
 ## 1. Choose a source pattern
 
-Use one of these patterns.
-
 ### A private deployment mirror
 
-This is the recommended pattern when you operate installations for other organisations. The
-public project stays entirely generic. A private project contains only CapacityLens history and
-neutral deployment branches such as `production-01`.
+Recommended when you operate installations for other organisations. The public project stays
+generic; a private project holds only CapacityLens history and neutral deployment branches such
+as `production-01`. It is not a fork for customer features: never commit secrets, customer data,
+environment files or installation-specific patches to it.
 
-The private project is not a fork where customer features develop. Do not commit secrets,
-customer data, environment files or installation-specific patches to it.
-
-The person who promotes a release needs write access to this private project so they can
-advance `production-01`. Give the managed platform a separate read-only connection when
-the platform supports that distinction.
+Whoever promotes a release needs write access to advance `production-01`. Give the platform a
+separate read-only connection where it supports one.
 
 ### A pinned branch in the public project
 
-This is simpler, but branch names and activity are public. Use a neutral name and point it at a
-released commit. Do not put a customer's name, domain or operational details in the branch.
-The operator needs write access to the public project to create and advance the pinned branch;
-the managed platform only needs read access to fetch it.
+Simpler, but branch names and activity are public. Use a neutral name pointing at a released
+commit, with no customer name, domain or operational detail. The operator needs write access to
+create and advance it; the platform only needs read access.
 
 ### A release tag selected directly
 
-Use this only if the platform can deploy a tag manually and will not follow a moving default
-branch. Confirm how the platform treats detached commits before relying on this pattern.
+Only if the platform can deploy a tag manually and will not follow a moving default branch.
+Confirm how it treats detached commits first.
 
 ## 2. Create a private mirror
 
@@ -85,25 +78,22 @@ Open the private project in your source-control service and confirm:
 
 ## 3. Connect the platform
 
-Connect the managed platform to the source-control account that can read the selected project.
-Choose the project and the pinned production branch.
-
-For the private-mirror example, select:
+Connect the platform to the source-control account that can read the project, and choose the
+project and pinned branch. For the private mirror:
 
 ```text
 Repository: YOUR-ACCOUNT/capacitylens-hosted
 Branch: production-01
 ```
 
-Do not select `main` unless you deliberately want every change on `main` to become eligible for
-deployment.
+Do not select `main` unless you want every change on it to become deployable.
 
 ## 4. Turn automatic deployment off
 
 Disable **Push to deploy**, **Quick deploy**, deployment webhooks or the equivalent platform
 setting. Save the setting, reload the page and confirm it remains disabled.
 
-The intended release flow is:
+The release flow is then:
 
 ```text
 CapacityLens publishes a release
@@ -112,14 +102,12 @@ CapacityLens publishes a release
   -> you click Deploy
 ```
 
-Do not add a scheduled job that pulls the public project automatically. Automation would undo the
-release boundary this page creates.
+Do not add a scheduled job that pulls the public project: it would undo this release boundary.
 
 ### Use one branch for staged manual promotion
 
-A staging installation and a production installation may select the same private project and the
-same pinned branch. They do not need separate Git branches when the release candidate is identical.
-The manual **Deploy** actions create the promotion boundary:
+Staging and production can select the same project and pinned branch; the manual **Deploy**
+actions are the promotion boundary:
 
 ```text
 advance production-01 to the approved release
@@ -128,16 +116,13 @@ advance production-01 to the approved release
   -> click Deploy on production
 ```
 
-Both installations must have automatic deployment disabled. Advancing the branch makes the release
-eligible for both sites, but neither site changes until an operator deploys it. Record the deployed
-commit for each installation because staging and production may temporarily run different commits.
-
-Use separate branches only when staging must run code that is not yet an approved production
-candidate. Do not create an installation-specific branch merely to delay a manual deployment.
+Both must have automatic deployment disabled; neither changes until an operator deploys.
+Record each installation's deployed commit, because they may temporarily differ. Use separate
+branches only when staging must run code that is not yet an approved production candidate.
 
 ## 5. Record the release
 
-Record these values in your private operations notes:
+In your private operations notes, record:
 
 - installation name;
 - source project;
@@ -146,12 +131,12 @@ Record these values in your private operations notes:
 - exact commit; and
 - date deployed.
 
-Do not put customer names, domains, private project names or access details in the public
-CapacityLens project.
+Keep customer names, domains, private project names and access details out of the public
+project.
 
 ## Verify the result
 
-Before continuing, confirm all of the following:
+Confirm:
 
 - The platform can see the selected project and branch.
 - The branch points at the intended released commit.
@@ -159,6 +144,4 @@ Before continuing, confirm all of the following:
 - Pushing an unrelated public change cannot change the branch selected by the platform.
 - No secret or customer-specific configuration exists in source control.
 
-## What's next
-
-Continue to [Create and build the site](/self-hosting/managed-vps/create-and-build-the-site).
+Next: [Create and build the site](/self-hosting/managed-vps/create-and-build-the-site).

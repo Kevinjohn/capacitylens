@@ -9,9 +9,8 @@ next: false
 
 ![Team and access showing a Viewer's access explanation](../screenshots/flows/viewer_access_current.jpg)
 
-Open Team & access near the bottom of the left menu. Your access shows your role.
-
-Select See full capabilities to check what you can do.
+Open **Team & access** near the bottom of the left menu. **Your access** shows your role in this
+company. Select **See full capabilities** to check what you can do.
 
 If you need different access, ask your agency's Owner or Admin.
 

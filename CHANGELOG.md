@@ -24,7 +24,7 @@ new features and **patch** versions carry fixes.
 
 ### Documentation
 
-- Rewrote the documentation front door and README around four roles, each with a short step-by-step quick start with thumbnail screenshots, plus a one-page quick start for the person doing the whole setup.
+- Rewrote the documentation front door and README around four roles, each with a short step-by-step quick start with thumbnail screenshots, plus a one-page quick start for the person doing the whole setup. Every user guide was edited for length and consistency, typically cutting a quarter to two-fifths of the words without dropping any fact, and a few stale statements were corrected.
 - Added complete Editor and Viewer starting routes, expanded Owner, Admin, joining, Account and discipline journeys, and added current screenshots for role-specific controls. Corrected operator guidance for MFA, provider linking, backups and monitoring.
 
 ### Added

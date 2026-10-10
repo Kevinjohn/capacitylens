@@ -5,9 +5,6 @@ description: Check the service, give the first Owner safe setup instructions, an
 
 # Verify and hand over the installation
 
-This final installation task proves that CapacityLens is ready and gives the Owner only
-the information they need to begin.
-
 ## 1. Check the running service
 
 Use the check for your route:
@@ -34,17 +31,16 @@ Use the check for your route:
   ```
 
 Each response must start with `{"ok":true`. Deep health should show a successful database
-check, healthy audit state, and a completed backup with `lastSuccessAt`. Resolve a `503`,
-degraded field or restart loop before handover.
+check, healthy audit state and a completed backup with `lastSuccessAt`. Resolve a `503`, a
+degraded field or a restart loop before handover.
 
-Open the final HTTPS address in a private browser window. Confirm that the sign-in page
-loads without a certificate warning and that refreshing a nested route does not return an
-nginx `404`.
+Open the HTTPS address in a private browser window. The sign-in page must load without a
+certificate warning, and refreshing a nested route must not return an nginx `404`.
 
 ## 2. Prove storage survives a restart
 
-Record the database, audit and backup paths from your chosen route. Restart only that API,
-then repeat the health check:
+Note the database, audit and backup paths for your route. Restart only the API, then repeat the
+health check:
 
 - Docker Compose:
 
@@ -62,26 +58,22 @@ then repeat the health check:
   sudo systemctl is-active capacitylens
   ```
 
-For a managed VPS, use the platform's restart control and confirm its Supervisor process
-returns to running. Check that the same database remains present and that the configured
-backup directory contains a verified dated snapshot.
+On a managed VPS, use the platform's restart control and confirm its Supervisor process returns
+to running. Check the same database is still there and the backup directory holds a verified
+dated snapshot.
 
 ## 3. Hand over
 
-Send the intended Owner the CapacityLens address, the correct sign-in route and the [Owner
-setup guide](/owner/). Transfer the one-time setup token privately in password-capable mode; for
-company login, pre-authorise the Owner's exact verified email.
+Send the intended Owner the address, the sign-in route and the [Owner setup guide](/owner/). In
+password-capable mode, send the one-time setup token privately; for company login,
+pre-authorise the Owner's exact verified email.
 
-After the Owner confirms they can sign in, remove `CAPACITYLENS_SETUP_TOKEN` from the
-runtime environment when it was used, restart the API and confirm health again.
+Once the Owner can sign in, remove `CAPACITYLENS_SETUP_TOKEN` from the runtime environment if it
+was used, restart the API and check health again.
 
-Name the ongoing operator. Give them the [Install and run CapacityLens guide](/self-hosting/) and
-confirm who owns backups, upgrades, monitoring and incidents.
+Name the ongoing operator, give them [Install and run CapacityLens](/self-hosting/), and confirm
+who owns backups, upgrades, monitoring and incidents. Don't send the Owner installation
+documentation: their work starts with creating the company and appointing an Admin.
 
-Do not ask the Owner to follow installation documentation. Their work begins with
-creating the company and appointing an Admin.
-
-## What's next
-
-Use the [Install and operations FAQ](/self-hosting/faq), or move ongoing work to the operations
-pages in [Install and run CapacityLens](/self-hosting/#operate).
+For ongoing work, see the [Install and operations FAQ](/self-hosting/faq) and the operations
+pages under [Run it](/self-hosting/#run-it).

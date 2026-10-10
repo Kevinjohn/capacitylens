@@ -1,6 +1,6 @@
 ---
 title: Prepare clients and work
-description: Create the client, project and activity records that the allocation form uses on the schedule.
+description: Create the clients, projects and activities you choose from when you book work.
 prev: false
 next: false
 ---
@@ -10,32 +10,32 @@ next: false
 
 # Prepare clients and work
 
-![Clients: Add client form](../screenshots/flows/admin_prepare_work_1.png)
+You create the clients, projects and activities that the booking form offers. Internal and All
+projects activities don't need a client or project first.
 
-Open Clients in the left menu. Select Add client, enter the name and Save.
+<div class="steps">
 
-## Add the project
+1. ![Clients: Add client form](../screenshots/flows/admin_prepare_work_1.png)
 
-![Projects: Add project form with Client selected](../screenshots/flows/admin_prepare_work_2.png)
+   **Add the client.** Open **Clients**, select **Add client**, enter the name and select **Save**.
 
-Open Projects and select Add project. Enter the project name, choose its Client and Save.
+2. ![Projects: Add project form with Client selected](../screenshots/flows/admin_prepare_work_2.png)
 
-## Add an activity
+   **Add the project.** Open **Projects**, select **Add project**, enter the name, choose its
+   **Client** and select **Save**.
 
-![Activities: Add activity form for Design review with Project-specific selected and LexCorp / Metropolis Rebrand chosen](../screenshots/flows/admin_prepare_work_3.png)
+3. ![Activities: Add activity form for Design review with Project-specific selected and LexCorp / Metropolis Rebrand chosen](../screenshots/flows/admin_prepare_work_3.png)
 
-Open Activities and select Add activity. Enter its name and choose Kind:
+   **Add an activity.** Open **Activities**, select **Add activity**, enter the name, choose a
+   **Kind** from the table below and select **Save**.
 
-| Kind             | Use                                         |
-| ---------------- | ------------------------------------------- |
-| Project-specific | Choose the project this activity belongs to |
-| All projects     | Reuse the activity across projects          |
-| Internal         | Schedule work without a project             |
+</div>
 
-Select Save. The activity is ready to book.
+| Kind             | Use it for                                   |
+| ---------------- | -------------------------------------------- |
+| Project-specific | One project, which you choose                |
+| All projects     | Work you reuse across projects               |
+| Internal         | Work with no project                         |
 
-Internal and All projects activities can be created without first adding a client or project.
-
-[Make the first booking](/admin/first-booking)
-
+Next: [Make the first booking](/admin/first-booking) ·
 [More activity and project options](/using/activities)

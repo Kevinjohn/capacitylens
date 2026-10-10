@@ -7,56 +7,38 @@ next: false
 
 # Clients and projects
 
-Work in CapacityLens hangs off a simple shape: a client owns projects, and a project
-owns the [activities](/reference/glossary) people are actually booked against.
+A client owns projects, and each booking is made against a project and an
+[activity](/using/activities).
 
 ## Clients
 
 ![Clients showing LexCorp and Queen Consolidated](../screenshots/flows/using_clients_1.png)
 
-To see a client's scheduled work, open Schedule → Show filters and select the client.
+Clients are listed alphabetically. Every company has a built-in **Internal** client for
+non-billable work. It can't be renamed or deleted, and its projects and activities always show in
+neutral grey, so the project form hides the colour picker for it.
 
 ## Projects
 
 ![Projects showing project names with their supporting client names](../screenshots/flows/using_projects_1.png)
 
-Each project shows its client alongside it.
+Projects are sorted by client, then by project, with the client in grey beside each name.
 
-Open Schedule → Show filters and select the project to see its bookings.
-
-Both filters are described with the rest of the [Schedule filters](/using/read-the-schedule#filtering-and-searching).
+To see a client's or project's bookings, open **Schedule**, select **Show filters** and choose it.
+See [Schedule filters](/using/read-the-schedule#filtering-and-searching).
 
 ## Add clients and projects
 
-1. Open **Clients**.
-2. Click **Add client**, then give it a name and a colour.
-3. Open **Projects**.
-4. Click **Add project**. Every project belongs to a client, so choose one from the
-   list.
+1. On **Clients**, select **Add client** and give it a name and colour.
+2. On **Projects**, select **Add project** and choose its client. Every project needs one.
 
 ![The Projects page ordered by client then project, with project names first, client names in grey and an Add project button](../screenshots/flows/projects_by_client.jpg)
 
-The Clients page keeps its rows alphabetical. The Projects page sorts first by client,
-then by project within that client. A private client's or project's code name controls
-its alphabetical position when one is set. Each row still puts the project name first
-and shows its client in grey as supporting information.
-
-Every company starts with one built-in client called **Internal** for non-billable
-work — general admin, internal meetings, anything that isn't client work. It can't be
-renamed or deleted. Its projects, and every internal activity, always appear in neutral grey on the
-schedule, so the project form hides the colour picker once **Internal** is the client.
-
-If a client or project name shouldn't be visible to most of the team — an
-unannounced prospect, for example — turn on **Use code name** when you create or edit
-it. The explanation below **Code name** confirms that everyone below Owner sees the
-code name instead of the real one; only the Owner sees both. See [Roles and permissions](/getting-started/roles-and-permissions)
-for what each role can see.
+To hide a name from most of the team, such as an unannounced prospect, turn on **Use code name**
+when you create or edit the client or project. Everyone below Owner sees the code name; only the
+Owner sees both. A code name also sets the item's alphabetical position. See
+[Roles and permissions](/getting-started/roles-and-permissions).
 
 ![The Add client form with the privacy explanation below the Code name input](../screenshots/flows/client_private_name.jpg)
 
-![The Add project form with the same privacy explanation below its Code name input](../screenshots/flows/project_private_name.jpg)
-
-## What's next
-
-[Activities](/using/activities) explains the work people are booked against, and
-[Schedule work](/using/schedule-work) puts it on the schedule.
+Next: [schedule work](/using/schedule-work) against a project.

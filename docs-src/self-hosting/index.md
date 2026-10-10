@@ -1,6 +1,6 @@
 ---
 title: Install and run CapacityLens
-description: Your first steps as the installer. Install from the release archive, put HTTPS in front, turn on backups and hand the address to the Owner.
+description: Your first steps as the installer. Install from the release archive, put HTTPS in front, check backups and hand the address to the Owner.
 prev: false
 next: false
 ---
@@ -27,8 +27,9 @@ runs Node 24 and has a hostname pointing at it, the install takes about ten minu
    [Caddy does it in four lines](/self-hosting/install-without-docker#https). Finish this before
    anyone enters a password. [TLS and networking](/self-hosting/tls-and-networking)
 
-3. **Turn on backups.** Set `CAPACITYLENS_BACKUP_DIR` and CapacityLens takes a safe snapshot of
-   the database every hour. Keep a copy of the environment file somewhere other than the server.
+3. **Check backups.** In production, CapacityLens snapshots the database every hour into a
+   `backups` folder beside it. Set `CAPACITYLENS_BACKUP_DIR` to change where. Copy the snapshots
+   and the environment file off the server.
    [Backups and restore](/self-hosting/backups-and-restore)
 
 4. ![First Owner sign-in setup with Name, Email, Create a password and Owner setup token fields](../screenshots/flows/owner_first_signin_setup.jpg)
@@ -42,7 +43,9 @@ runs Node 24 and has a hostname pointing at it, the install takes about ten minu
 ## What you're taking on
 
 Self-hosting means you, or someone you name, own the service after handover. That means
-keeping backups tested, watching health and disk space, and installing new releases. Support is
+keeping backups tested, watching health and disk space, installing new releases, and making
+configuration changes through a reviewed restart, agreed with an Owner or Admin when they affect
+sign-in or members. Support is
 community help on a best-effort basis, with no guaranteed response time.
 [Get help](/open-source#get-help) explains where to ask.
 

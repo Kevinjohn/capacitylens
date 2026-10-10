@@ -63,7 +63,7 @@ Clients and Projects when you no longer need them.
 
 Most of the team only need **Viewer**. Give **Editor** to whoever books work.
 
-**Are you an Editor?** You can do steps 2 to 4. Inviting people is for an Admin or the Owner.
+**Are you an Editor?** You can do steps 1 to 4. Inviting people is for an Admin or the Owner.
 [Plan work as an Editor](/using/editor) is your day-to-day guide.
 
 ## Two records, one person

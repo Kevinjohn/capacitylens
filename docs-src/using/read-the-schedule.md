@@ -1,6 +1,6 @@
 ---
 title: Schedule
-description: Find your bookings and four-week work list, then read the grid's rows, columns, bars, utilisation and filters.
+description: Find your four-week work list, then read the grid's rows, columns, bars, utilisation, time off and filters.
 prev: false
 next: false
 ---
@@ -12,258 +12,168 @@ next: false
 
 ![Schedule with Schedule menu item, Bruce Wayne's row and avatar button](../screenshots/flows/using_read_the_schedule_1.png)
 
-Open Schedule in the left menu. Select the avatar beside your name to open your work list.
-
-Hover over the avatar or move keyboard focus to it to reveal the eye icon.
+Open **Schedule** in the left menu. Select the avatar beside your name to open your work list.
+Hovering over the avatar, or focusing it with the keyboard, turns it into an eye icon.
 
 ## Your work list
 
 ![Bruce Wayne's four-week schedule drawer showing bookings and holiday](../screenshots/flows/using_read_the_schedule_2.png)
 
-The list covers the current company week and the following three weeks.
+The list combines your bookings and personal time off for the current company week and the
+following three weeks. It opens over the grid and works for anyone's avatar, not just yours.
 
-It combines your bookings and personal time off.
+The range is fixed. Panning, zooming or filtering the grid does not change it, and the list still
+shows work that a search, filter, **Tentative** setting or draw mode hides on the grid. Company
+closures and ordinary non-working days are left out.
 
-Changing the main Schedule's dates or filters does not change this four-week range.
+Each booking shows its activity, project and client, then its dates and daily hours. A task or note
+appears below when there is one.
 
 ## Booking details
 
 ![One booking with its hover or keyboard-focus details visible](../screenshots/flows/using_read_the_schedule_3.png)
 
-Hover over a booking, or focus it with the keyboard, to see its details.
-
-If your role allows editing, click the booking to open its editing form.
+Hover over a booking, or focus it with the keyboard, to see its details. If your role allows
+editing, click it to open its form.
 
 ## When the work you expect is missing
 
 ![Schedule filters open with person search, Clear Filters and Today](../screenshots/flows/using_read_the_schedule_4.png)
 
-Select Show filters to search for your name or narrow the schedule with a client, project,
-or activity filter.
+Select **Show filters** and search for your name, or check for an active client, project or
+activity filter. **Clear Filters** removes them. **Today** returns to the current week.
 
-Clear Filters removes a search or filter.
-
-Today returns the grid to the current week.
-
-If you still cannot find yourself, ask your agency's Admin to check your access and schedule.
+If you still cannot find yourself, ask your Admin to check your access and schedule.
 
 ## Read the grid
 
-The schedule is the one screen CapacityLens is built around: every person, every
-allocation and every day of time off, all on a single zoomable grid. This page explains
-what you're looking at so you can read [utilisation](/reference/glossary) at a glance
-instead of clicking around to check.
-
 ![The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block](../screenshots/flows/schedule.jpg)
+
+Every person, booking and day of time off sits on one grid, so you can read
+[utilisation](/reference/glossary) without running a report.
 
 ## Rows: your people
 
-Each row is one [person](/reference/glossary) — a real teammate, a freelancer, or a
-[placeholder](/reference/glossary) for a role you haven't filled yet. Rows are grouped
-under a [discipline](/reference/glossary) heading (Design, Development, and so on) when
-your company uses disciplines, which is the default. A collapsed group shows its hidden
-row count — for example, four people display as `4 hidden` — and shows an average utilisation
-figure when that figure is turned on in Settings. The average leaves out external / 3rd-party people,
-as the overall figure does, so a group made up only of external people shows no average.
+Each row is a [person](/reference/glossary): a teammate, a freelancer or a
+[placeholder](/reference/glossary) for an unfilled role. A placeholder row says "Placeholder"
+instead of a name and has a faint diagonal hatch on its header.
 
-Each row starts with an avatar and name, with the person's role shown underneath. A
-placeholder row is labelled with the word "Placeholder" instead of a name, and has a
-faint diagonal hatch on its header so it reads as unfilled at a glance.
+When your company uses [disciplines](/reference/glossary), the default, rows are grouped under
+them. Favourites come first in each group, alphabetically, then everyone else, then placeholders.
+Favourites are shared with the whole company, not a personal preference. Favourite external
+parties lead the External group.
 
-Select the eye beside any visible name to open that person's read-only schedule. The
-drawer covers the current company week and the following three weeks, combining every
-allocation and personal time-off entry that overlaps that range. It opens over the grid,
-so your visible dates, filters and scroll position stay exactly where you left them.
-
-![Bruce Wayne's four-week individual schedule drawer with two project allocations and a personal holiday entry](../screenshots/flows/person_schedule_drawer.jpg)
-
-People marked as favourites stay at the top of their discipline, in alphabetical order.
-Everyone else follows alphabetically, then placeholders. Favourite external parties lead
-the separate External group. Favourites are shared with everyone in the company rather
-than being a personal display preference.
-
-When disciplines are turned off, the same people move into **Studio** and
-**Supplementary** bands. **External / 3rd party** stays last. If disciplines are on but a
-person has not been assigned to one yet, that person also falls back to their Studio or
-Supplementary band after the discipline groups. A team with no active Supplementary people gets a
-single band instead: **Unassigned** for people without a discipline while disciplines are on, or
-**Resources** for everyone when disciplines are off.
+When disciplines are off, people move into **Studio** and **Supplementary** bands, with **External
+/ 3rd party** last. People without a discipline also fall back to these bands, after the
+discipline groups. A team with no active Supplementary people gets one band instead:
+**Unassigned** when disciplines are on, or **Resources** when they are off.
 
 ![The Schedule grouped into Studio, Supplementary and External / 3rd party bands after disciplines have been turned off](../screenshots/flows/schedule_engagement_groups.jpg)
 
-Select a group heading to collapse it when you need more vertical space. The heading
-stays visible and reports how many rows are hidden; select it again to expand the group.
+Select a group heading to collapse it, and again to expand it. A collapsed group shows its hidden
+row count, such as `4 hidden`, and an average utilisation if that is turned on in Settings. The
+average leaves out external people, so an all-external group shows none.
 
 ![The schedule with the Copywriting group collapsed](../screenshots/flows/schedule_group_collapsed.jpg)
 
 ## Columns: the visible weeks
 
-Columns are days, grouped into a zoomable range of one, two, four, six or eight weeks
-at a time — the **Weeks visible** dropdown in the toolbar switches between them. Use the
-arrow buttons (hover for "Back one week" / "Forward one week") to pan a week at a time,
-and **Today** to jump back to the current week.
+Columns are days. **Weeks visible** shows one, two, four, six or eight weeks. The arrow buttons
+(**Back one week** and **Forward one week**) move a week at a time, and **Today** returns to the
+current week.
 
 ![The Schedule toolbar with previous week, Today, next week, two-week zoom, Undo, Redo and Show filters controls](../screenshots/flows/schedule_filters_hidden.jpg)
 
-Weekend columns get a faint tint when you're zoomed in close enough to see individual
-days clearly. In the one- and two-week views, each month and year starts above the first visible
-day it describes. Wider views keep a compact month label in sight as you scroll.
-
-At the same close zoom levels, a person's **Half day** is shown by tinting the bottom
-half of that day's cell. The full cell remains available for clicking, drawing and
-editing work; the tint is a capacity cue, not a smaller interaction target. Time off or
-a fully non-working day still fills the whole cell.
+At close zoom, weekends are tinted and a person's **Half day** tints the bottom half of that
+day's cell. The whole cell still works for clicking, drawing and editing. Time off or a full
+non-working day fills the cell.
 
 ![The two-week schedule with the lower half of Diana Prince's unobscured Wednesday cell tinted to show her saved half-day working pattern](../screenshots/flows/schedule_half_days.jpg)
 
-A Studio or Supplementary person's optional availability dates also apply to these columns. Days
-before **Start date** or after **End date** have zero capacity. Existing allocation bars
-stay visible, so the work and its allocated load remain available for review even when the dates now
-fall outside the person's range. The zero-capacity state does not create a new control or a separate
-row type.
+Days before a person's **Start date** or after their **End date** have zero capacity. Existing
+bookings on those days stay visible so you can review them.
 
 ## Allocation bars
 
-An [allocation](/reference/glossary) — a person booked on a project for a date range —
-shows as a coloured bar spanning the days it covers, coloured by project or
-[activity](/reference/glossary).
-Three statuses are visible directly on the bar:
+An [allocation](/reference/glossary) is a bar across the days it covers, coloured by project or
+[activity](/reference/glossary):
 
-- **Confirmed** — a plain, solid bar. This is the default when you create one.
-- **Tentative** — the same bar with a dashed border and a light diagonal hatch, so
-  work that isn't locked in yet still stands out from confirmed work.
-- **Completed** — the bar's label gets a checkmark prefix.
+- **Confirmed**: a plain, solid bar. New bookings start confirmed.
+- **Tentative**: a dashed border and light diagonal hatch.
+- **Completed**: a checkmark before the label.
 
-Depending on your device preferences, a bar's label can also show the client and
-project name ahead of the activity name, plus the hours booked per day. Companies that
-plan in Blocks don't book hours at all — see
-[Schedule and change work](/using/schedule-work) for how the different
-scheduling modes work.
+Your display preferences can add the client, project and hours per day to the label. Companies
+that plan in Blocks book no hours; see [Schedule and change work](/using/schedule-work).
 
-Allocations created together with **Repeat** show a small repeat cue at the start of
-each linked bar. Hover or focus the bar to see the last surviving date in that series.
-The cue marks the link between occurrences; each occurrence can still be edited on its
-own.
-
-Select a person's avatar to open their individual schedule. The avatar changes to an eye
-when you hover it or move keyboard focus to it. The drawer keeps each allocation compact:
-activity first, quieter project and client context, then its date range and daily hours on
-one line. Task and note details remain below when present. Allocation status and repeat-series
-metadata stay out of this scan-first view.
-
-When **Show task field in schedule** is enabled in [Settings](/using/settings), an allocation can
-also carry a short **Task** description. It appears above Notes when you hover or focus a bar and
-in the person's schedule drawer. The setting is off by default; turning it off hides the field and
-details but preserves existing task text for when it is enabled again.
+Bookings created with **Repeat** show a small repeat cue at the start of each linked bar. Hover or
+focus the bar to see the last date in the series. Each occurrence can still be edited on its own.
 
 ![The schedule with repeat cues at the start of two linked CMS Review allocation bars for Clark Kent](../screenshots/flows/schedule_repeat_cue.jpg)
 
+When **Show task field in schedule** is on in [Settings](/using/settings), a booking can carry a
+short **Task**, shown above Notes in its details and in the work list. The setting is off by
+default; turning it off hides tasks but keeps their text.
+
 ## Reading overwork
 
-CapacityLens never makes you run a report to find out who's overbooked:
-
-- A **utilisation percentage** sits beside each row, and can also be shown as a
-  company-wide total and a per-discipline average — all three are switches in
-  [Settings](/using/settings). A person's own percentage turns bold and red as soon as
-  they're booked over capacity within the next 14 days, regardless of what's currently
-  zoomed into view.
-- Any day where a person is booked for more than they're available gets a red band
-  under the bars for that day, so the exact day that tips someone over capacity is
-  obvious without doing the maths yourself.
+- The **utilisation percentage** beside each person covers the dates on screen. It turns bold and
+  red when the person is booked over capacity within the next 14 days, whatever you are viewing.
+  [Settings](/using/settings) can also show a company-wide total and a per-discipline average.
+- A red band under the bars marks each day a person is booked for more than their available time.
 
 ::: tip
-The utilisation percentage itself is worked out over whatever date range is currently
-visible — one, two, four, six or eight weeks. Zoom out to two weeks and a person's
-percentage will usually drop, because it's now averaged over more days; zoom back to one
-week and it rises again. That's expected, not a bug: the percentage always answers "how
-booked is this person over the weeks I'm looking at right now?" The red over-capacity
-warning is separate and doesn't move when you zoom — it always looks at the fixed next
-14 days, so someone can show red even while you're viewing a wider, less-full-looking
-range.
+Changing **Weeks visible** changes the percentage, because it is averaged over more or fewer days.
+That is expected. The red 14-day warning does not move when you zoom.
 :::
 
 ## Time off on the same canvas
 
-[Time off](/using/time-off) — holiday, sick leave or unpaid leave — is drawn on the same
-grid as work, as a hatched block with no project colour, so a person's real availability
-is always visible in one place rather than hidden in a separate calendar.
+[Time off](/using/time-off) is a hatched block with no project colour, on the same row as work.
+Owners and Admins can read its note; Editors and Viewers see only the dates.
 
-Personal time off also appears in the individual's four-week drawer. Owners and Admins
-can read its note; Editors and Viewers see the dated absence without that private detail.
-Company closures and ordinary non-working days are not repeated in the drawer.
-
-Company closures are created in their own section of the Time off page. Each closure
-appears once as a named band across every person and placeholder it covers, including
-people added later. It does not cover the External group. A personal time-off block can
-overlap the band; both remain visible because they record independent facts.
+A company closure is one named band across every person and placeholder it covers, including
+people added later. It does not cover the External group. Personal time off stays visible where it
+overlaps.
 
 ![The schedule with a Studio shutdown band across 7–9 October and overlapping allocations marked red](../screenshots/flows/schedule_closure_band.jpg)
 
-An Hours or Days allocation that exceeds the remaining availability gets the usual red
-over-capacity band. Blocks deliberately carry no hours and keep utilisation at 0%, but
-a Block that overlaps time off still gets the red conflict treatment so the clash cannot
-disappear inside the holiday hatch. See [Time off](/using/time-off#time-off-and-allocations)
-for an example.
+Hours or Days work that exceeds the remaining availability gets the red over-capacity band. Blocks
+keep utilisation at 0%, but a Block overlapping time off is still marked red.
+[Time off and allocations](/using/time-off#time-off-and-allocations) has an example.
 
 ## Filtering and searching
 
-Use **Show filters** at the right of the toolbar, after Undo and Redo, to open the filter
-row. Select **Hide filters** when you want the extra vertical space back. Hiding the row
-does not clear an active filter.
+Select **Show filters**, after **Undo** and **Redo** in the toolbar, to open the filter row.
+**Hide filters** closes it without clearing anything.
 
 ![The open schedule filter row with person search on the left and the filter, visibility, draw-mode and Clear Filters controls grouped on the right](../screenshots/flows/schedule_filters_open.png)
 
-Person search stays on the left. The discipline, client, project and activity filters sit
-in a group on the right, followed by the **Tentative** pill and the
-**Work** / **Time off** control. The group wraps at narrower desktop widths without
-changing the keyboard order.
+Search people on the left. On the right are the discipline, client, project and activity filters,
+the **Tentative** pill and the **Work** / **Time off** draw mode.
 
-The project menu keeps **All projects** first, then sorts projects by client and project.
-A code name controls the alphabetical position when one is set. In each option, the
-client and slash are grey so the project name is easier to scan; the complete
-**Client / Project** label remains available to assistive technology. Selecting a client narrows
-the project menu to that client's eligible projects while keeping **All projects** available;
-clearing the client restores the full eligible project list and resets the project filter to
-**All projects**. If the selected project belongs to the newly selected client it remains selected,
-otherwise it resets to **All projects**. Selecting a
-client or project narrows the bars and rows to that work. The active value stays visible, and
-**Clear Filters** turns red so the filtered state cannot be mistaken for the complete
-schedule.
+The project menu lists **All projects** first, then projects by client, sorted by code name where
+one is set. Selecting a client limits the project menu to that client. If the selected project
+belongs to another client, it resets to **All projects**. An active filter turns **Clear Filters**
+red, so a filtered view is never mistaken for the whole schedule.
 
 ![The Schedule filtered to a project, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.png)
 
-After selecting a client, project or activity, turn on **Show unallocated** to bring
-people with no matching work back into the result. Their rows are dimmed, which makes
-them useful candidates to staff without implying they are already booked to the filter.
+With a client, project or activity selected, turn on **Show unallocated** to bring back people
+with no matching work. Their rows are dimmed: candidates to staff, not people already on it.
 
 ![A project filter with Show unallocated selected and Diana Prince shown dimmed](../screenshots/flows/schedule_filter_unallocated.png)
 
-**Clear Filters** stays at the far right of the open row. It is quiet and disabled when
-nothing is filtered, then turns red with a bin icon when a filter is active. One click
-resets the search, every dropdown and **Show unallocated**, and turns **Tentative** back on.
+**Clear Filters** resets the search, every dropdown and **Show unallocated**, and turns
+**Tentative** back on.
 
-An individual schedule is independent of this grid view. Its fixed four-week range does
-not change when you pan or zoom, and it includes the person's matching commitments even
-when a search, project filter, tentative-work setting or draw mode hides them on the grid.
-
-Every change on the schedule — dragging, resizing, deleting an allocation — can be
-undone and redone from the toolbar, or with Ctrl/Cmd+Z, if you have edit access.
-
-::: tip
-Rows, colours and percentages update live as you drag. There's nothing to refresh and
-nothing to recalculate — what you see is always current.
-:::
+With edit access, you can undo and redo every change from the toolbar or with Ctrl/Cmd+Z. The grid
+updates live as you drag; there is nothing to refresh.
 
 ## Jump to a page with the command palette
 
 Press **⌘K** on macOS or **Ctrl+K** on Windows and Linux to open the command palette from any
-screen, even while a text field is focused — unless a dialog has unsaved changes or another dialog
-is already open, in which case ⌘K/Ctrl+K is blocked until it's closed or saved. With no query, the
-**Pages** section lists the fixed application routes, including **Account**; select one to navigate
-there and close the palette. Type a page name, person, project or date to narrow the results. Press
-**Escape** or click outside the palette to close it without navigating.
+screen, even in a text field. It is blocked while a dialog has unsaved changes or another dialog is
+open. With no query, **Pages** lists every page, including **Account**. Type a page name, person,
+project or date to narrow the results. Press **Escape** or click outside to close it.
 
-## What's next
-
-[Schedule work](/using/schedule-work) on the grid, or read [Resources](/using/resources) for who can
-appear on the schedule.
+Next: [Schedule and change work](/using/schedule-work).

@@ -92,7 +92,7 @@ for your own Linux server.
 
 That's a working schedule. While setup is incomplete, the **Getting started** checklist on
 Schedule ticks off these steps as you go, in any order, and **Show me around** starts a short
-tour. An Owner or Admin can dismiss the checklist for everyone.
+tour. An Owner or Admin can dismiss the checklist for everyone; if steps remain, they're asked to confirm. Editors can open and close it, and Viewers don't see it. Steps complete from the company's records, including imported ones, and internal work doesn't count towards the client or project steps.
 
 ## Bring in the team
 
@@ -101,4 +101,4 @@ people need **Viewer**; give **Editor** to anyone who books work.
 [Get the schedule ready](/admin/) covers roles, settings and linking each invitation to the
 right row on the schedule.
 
-Before you rely on it, [turn on backups](/self-hosting/backups-and-restore).
+Before you rely on it, [check your backups](/self-hosting/backups-and-restore).

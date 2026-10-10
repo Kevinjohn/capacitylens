@@ -1,6 +1,6 @@
 ---
 title: Check the plan as a Viewer
-description: Join your company, find your work, understand capacity and time off, adjust your display and get help with missing access.
+description: Check your company and role, inspect bookings, read availability correctly, set your display and sort out missing access.
 prev: false
 next: false
 ---
@@ -9,110 +9,86 @@ next: false
 
 ![Viewer Schedule with navigation, read-only bookings, confidential code names and utilisation](../screenshots/flows/viewer_schedule_current.jpg)
 
-A Viewer can read the company's planning data and use personal display controls. This is the
-right role when you need to check work rather than change the team's plan. Editing bookings,
-resources, time off and company settings requires Editor access or above.
+As a Viewer you can read the whole plan and change only your own display. Changing bookings,
+resources, time off or company settings needs the Editor role or above.
+[See your work](/using/) covers joining and finding your week.
 
 ## Join and check your access
 
-Open the invitation or company joining link your Owner or Admin supplies. Use the authorised
-email address and follow [Join your team](/using/join-your-team). An invitation, a reusable joining
-link and a sign-in account have different purposes; signing in does not by itself admit you to a
-company.
-
 ![Team & access showing the Viewer role and its limits](../screenshots/flows/viewer_access_current.jpg)
 
-After joining, open **Team & access** near the bottom of the menu to check your company and role.
-If several companies are available, use **Switch company** to select the intended one. Ask an
-Owner or Admin when that company is missing or when your duties require a different role.
-Open **Help** just above Account for a short Viewer tour and links to the user guides.
+Open **Team & access** near the bottom of the menu to see your company and role. If you belong to
+several companies, use **Switch company** to choose one. Ask an Owner or Admin if a company is
+missing or you need a different role. Signing in alone does not admit you to a company: you need
+the invitation or joining link. [Join your team](/using/join-your-team) covers both.
 
-Your scheduled resource is separate from membership. An Admin can link your membership to the
-right person on the schedule. If there is no link yet, you can still find that person's row by
-name.
+**Help**, just above **Account**, has a short Viewer tour.
+
+Your sign-in is separate from your row on the schedule. An Admin can link the two. Until then,
+find your row by name.
 
 ## Find and understand your work
 
-1. Open **Schedule** in the left menu and select **Today**.
-2. Use **Weeks visible**, **Prev** and **Next** to choose the period you want to inspect.
-3. Select **Show filters** to find the person, client, project or activity you need. Clear a filter
-   when expected rows or work disappear.
-4. Read the bars on the person's row. Their dates, amount and status describe planned work;
-   tentative work is provisional.
-5. Open the avatar beside the person's name for the read-only work list. Close it to return to
-   the shared schedule.
-
 ![A Viewer opening read-only booking details with dates and daily hours](../screenshots/flows/viewer_booking_details.jpg)
 
-[Read the schedule](/using/read-the-schedule) shows the grid, filters, bar details, work list and
-keyboard controls. A Viewer can inspect a booking, but cannot move, resize, reassign or delete it.
-Ask the person responsible for the plan when something needs changing.
+Hover over a bar, or focus it with the keyboard, to see its dates and daily hours. A bar with a
+dashed border and hatching is tentative. You can't move, resize, reassign or delete a booking; ask
+whoever books the work. [Read the schedule](/using/read-the-schedule) explains the grid, filters
+and your work list.
 
 ## Read availability in context
 
-Utilisation beside a person describes the dates currently visible. A separate warning looks
-forward over the next two weeks. A blank date or a low percentage is not the whole story: working
-patterns, company closures, personal time off and existing bookings also affect availability.
-At 100% a person is fully booked, not over capacity; over capacity means more work than available
-time. Blocks do not measure capacity.
+The percentage beside a person covers only the dates on screen. It turns red when the person is
+over capacity in the next 14 days, whatever you are viewing. At 100% a person is fully booked;
+over capacity means more work than time. Blocks do not measure capacity.
 
-If **Overview** is available, it compares free capacity week by week. Choose **4 weeks**,
-**8 weeks** or **12 weeks**, use **Has availability**, and decide whether to include **Tentative**
-work. [Overview](/using/overview) explains the figures and rounding. The page is restricted to
-Owners and Admins by default, so a missing menu link is expected until your company allows Viewers
-to use it.
+An empty day is not proof of free time. Working patterns, closures and time off also count.
+
+**Overview** compares free capacity week by week. Only Owners and Admins see it by default, so a
+missing menu link is expected until your company opens it to Viewers.
+[Overview](/using/overview) explains the figures.
 
 ## Check people, work and time off
 
-**Resources** shows scheduled people and their working patterns. **Clients**, **Projects** and
-**Activities** describe the work used by bookings. **Disciplines** appears when your company has
-that feature enabled. These pages are useful for reading even when you have no edit buttons.
-
-**Time off** shows personal absences and company closures. You can see their effect on the plan,
-but time-off notes are restricted to Owners and Admins. Private client and project real names are
-visible only to the Owner; everyone else uses their code names. A missing confidential field is
-an access rule, not a failed load.
-
-Use [Resources](/using/resources), [Clients and projects](/using/projects),
-[Activities](/using/activities) and [Time off](/using/time-off) for the specific page controls.
+**Resources**, **Clients**, **Projects**, **Activities** and **Time off** are all readable without
+edit buttons. **Disciplines** appears when your company uses them. Time-off notes are visible only
+to Owners and Admins. Private client and project real names are visible only to the Owner;
+everyone else sees code names. A missing confidential field is an access rule, not a failed load.
 
 ## Make the display comfortable
 
 ![Viewer Settings showing editable My display controls and device preferences](../screenshots/flows/viewer_my_display.jpg)
 
-Open **Settings → My display** for spacing, booking labels, utilisation figures and appearance.
-These preferences apply to this browser. Company-wide controls are read-only for a Viewer;
-changing your display does not change another person's plan or preferences.
+**Settings → My display** sets spacing, booking labels, utilisation figures and appearance for
+this browser. It never changes anyone else's view. Company settings are read-only for you.
 
-Open **Account** at the bottom of the menu to check your signed-in identity and its available
-personal security controls. Use **Sign out** when you have finished on a shared device.
-[Settings](/using/settings) and [Account](/using/account) explain the available choices.
+**Account**, at the bottom of the menu, shows your sign-in and its security controls. Use **Sign
+out** on a shared device. [Settings](/using/settings) and [Account](/using/account) have the
+details.
 
-An export is an optional planning-data download, not a system backup. Viewer exports omit archived
-and deleted records and use confidential code names. A Viewer cannot import data. Do not mistake
-a restricted export for a missing record in the live company.
+A Viewer export leaves out archived and deleted records and uses code names. It is a planning
+download, not a backup. A Viewer cannot import.
 
 ## When you need help
 
 ### Why are there no buttons to add or change work?
 
-That is expected for a Viewer. Ask an Owner or Admin for Editor access if your responsibilities
-include maintaining the plan. Do not try to work around a hidden control with a direct URL.
+That is expected for a Viewer. Ask an Owner or Admin for Editor access if you need to maintain the
+plan.
 
 ### Why is a person or booking missing?
 
-Check the company, selected dates and active filters first. The record may also be archived, or a
-feature such as placeholders or external resources may be disabled. Ask the person managing the
-plan if the expected work is still absent.
+Check the company, the dates on screen and any active filters. The record may be archived, or a
+feature such as placeholders or external resources may be turned off. Ask the person managing the
+plan if it is still missing.
 
 ### Why can I not open Overview or Diagnostics?
 
-Overview depends on the company's access setting. Diagnostics is reserved for Owners and Admins.
-You can still read the Schedule; ask an Admin to review capacity or collect a support report when
-needed.
+Your company decides who opens Overview. Diagnostics is for Owners and Admins only. Ask an Admin to
+check capacity or collect a support report.
 
 ### What if the page cannot load or shows an offline banner?
 
-Use the offered retry or company-recovery control. An offline snapshot is always read-only and
-expires after seven days. It may be older than the live plan; reconnect before relying on a recent
-change. [Day-to-day FAQ](/using/faq) covers connection and access interruptions.
+Use the retry or recovery control offered. An offline snapshot is read-only, expires after seven
+days and may be older than the live plan. Reconnect before relying on a recent change.
+[Day-to-day FAQ](/using/faq) covers more interruptions.

@@ -54,7 +54,7 @@ drag a bar to move it, and select **Undo** if you change your mind.
 
 - [Schedule](/using/read-the-schedule): the day-by-day grid of bookings, utilisation and time off.
 - [Overview](/using/overview): each person's free days, week by week. Owners and Admins only,
-  unless your company opens it to everyone.
+  unless your company opens it to Editors or everyone.
 - [Resources](/using/resources): the people, placeholders and partners you can schedule.
 - [Disciplines](/using/disciplines): the coloured groups for people and schedule rows.
 - [Clients and projects](/using/projects): the organisations and projects behind each booking.

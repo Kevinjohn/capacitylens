@@ -1,81 +1,73 @@
 ---
 title: Backups and restore
-description: What CapacityLens backs up automatically, and the exact steps to restore a snapshot when you need one.
+description: What CapacityLens backs up automatically, what you must copy yourself, and the exact steps to restore a snapshot.
 ---
 
 # Backups and restore
 
-CapacityLens can take scheduled backups of its SQLite database automatically. This page
-covers what gets backed up, how the automatic snapshots work, and — as a complete,
-standalone procedure — how to restore one. If you're here because something has gone
-wrong, skip straight to [Restore a snapshot](#restore-a-snapshot).
+In production, CapacityLens snapshots its database automatically. You still need to copy
+snapshots off the host, keep the environment file safe and rehearse a restore. Restoring now?
+Go to [Restore a snapshot](#restore-a-snapshot).
 
 ## What to back up
 
-- **The SQLite database file** — the single source of truth for every company, person,
-  project and allocation.
-- **Its `-wal` and `-shm` sidecar files**, if present, whenever you copy it by hand — see
-  the warning below. A scheduled snapshot is a standalone SQLite file and does not need
-  sidecars.
-- **The audit log** (JSONL), including the rotated `<file>.1` generation when it exists.
-  The database and the audit log share a single durability boundary: SQLite retains
-  pending audit events until they're durably written to disk, so a complete recovery
-  bundle includes both.
-- **The environment file** — `/etc/capacitylens.env` on a native install, or the site's
+- **The SQLite database file.** It holds every company, person, project and allocation. When
+  you copy it by hand, also copy its `-wal` and `-shm` sidecar files if present. A scheduled
+  snapshot is a standalone SQLite file and needs no sidecars.
+- **The audit log** (JSONL), including the rotated `<file>.1` generation when it exists. SQLite
+  holds pending audit events until they are durably written, so a complete recovery bundle
+  includes both the database and the audit log.
+- **The environment file**: `/etc/capacitylens.env` on a native install, or the site's
   environment on a managed host. It holds the secrets and settings the database runs with, so a
   restore onto a new host needs it. Keep a copy in a password manager or off-host store, not
   beside the snapshots.
 
 ::: warning
 Never `cp` a live database file as a backup. SQLite keeps recent writes in the `-wal`
-file, so a plain file copy of `capacitylens.db` alone can be missing data or be
-internally inconsistent. Use the scheduled snapshot mechanism below, or stop the API
-first if you must copy files by hand.
+file, so a plain copy of `capacitylens.db` alone can be missing data or be internally
+inconsistent. Use the scheduled snapshots below, or stop the API first if you must copy
+files by hand.
 :::
 
 ## Automatic snapshots
 
-Set `CAPACITYLENS_BACKUP_DIR` to a directory and CapacityLens takes an online SQLite
-backup at boot and on a configurable interval (`CAPACITYLENS_BACKUP_INTERVAL_MIN`,
-default 60 minutes) — this uses SQLite's own backup API, not a file copy, so it's safe to
-run against a live database. Under `NODE_ENV=production` it is on by default, snapshotting
-into a `backups` folder beside the database file; Docker Compose snapshots into the
+Set `CAPACITYLENS_BACKUP_DIR` to a directory and CapacityLens takes an online SQLite backup at
+boot and every `CAPACITYLENS_BACKUP_INTERVAL_MIN` minutes (default 60). It uses SQLite's backup
+API, not a file copy, so it is safe against a live database. Under `NODE_ENV=production` it is on
+by default, writing to a `backups` folder beside the database file; Docker Compose writes to the
 `capacitylens-backups` volume. Set `CAPACITYLENS_BACKUP_DIR=` (explicitly empty) to turn it off.
 
-Every snapshot is verified — an integrity check, a foreign-key check and a schema-version
-check — before it's given its final name or counted for retention. A failed check is
-logged as `backup FAILED`, the unpublished attempt is discarded, and every older restore
-point is left untouched. `CAPACITYLENS_BACKUP_KEEP` (default 48, maximum 10,000) controls
-how many snapshots are retained before the oldest are pruned.
+Each snapshot passes an integrity check, a foreign-key check and a schema-version check before
+it is given its final name or counted for retention. A failed check is logged as
+`backup FAILED`, the attempt is discarded, and older restore points are untouched.
+`CAPACITYLENS_BACKUP_KEEP` (default 48, maximum 10,000) sets how many snapshots are kept before
+the oldest are pruned.
 
-New snapshots are named with a UTC-sortable timestamp:
-`capacitylens-utc-YYYYMMDD-HHMMSS-sss.db`. Older `capacitylens-YYYYMMDD-HHMMSS-sss.db`
-local-time snapshots (from earlier releases) remain valid restore inputs.
+Snapshots are named `capacitylens-utc-YYYYMMDD-HHMMSS-sss.db`. Older local-time
+`capacitylens-YYYYMMDD-HHMMSS-sss.db` snapshots from earlier releases remain valid restore inputs.
 
-The on-host snapshot directory protects against many application and operator mistakes,
-but not loss of the whole host. For real disaster recovery, also copy snapshots off-host
-— to a separate account, region or provider, with tools like restic, rclone or rsync —
-encrypt that destination, and monitor snapshot freshness. Keep the database, audit log and
-backup storage on volumes encrypted at rest; CapacityLens does not encrypt them itself. Deep
-health reports
+On-host snapshots do not survive loss of the whole host. Also copy them off-host, to a separate
+account, region or provider (with restic, rclone or rsync, for example), encrypt that
+destination, and monitor snapshot freshness. Keep the database, audit log and backup storage on
+volumes encrypted at rest; CapacityLens does not encrypt them itself. Deep health reports
 `backup.status` and `backup.lastSuccessAt`; see
 [Monitoring and health checks](/self-hosting/monitoring).
 
 ## Schedule a restore drill
 
-Rehearse this before launch, and again after any material storage change — new host,
-new volume driver, new backup destination. Don't let the first real restore be the first
-time anyone has run it.
+Rehearse a restore before launch, and again after any material storage change: new host, new
+volume driver or new backup destination.
 
-Use a staging host or a scratch folder with its own storage. Before starting, have
-the exact release that will run the restored snapshot, unpacked from its archive, a dated `capacitylens-utc-*.db` or older
-local-time `capacitylens-*.db` snapshot, free space for a second copy, and a private
-place to record the result. The `capacitylens-pre-migration-*` files are only for
-[upgrade rollback](/self-hosting/upgrades). Do not use production database or named
-volumes, production ports, public proxies or provider callback URLs.
+Use a staging host or a scratch folder with its own storage. You need:
 
-The archive already holds the built server at `server/dist/index.mjs`, so there is nothing to
-install or build. Run the next commands from the unpacked release folder.
+- the exact release that will run the restored snapshot, unpacked from its archive (it already
+  holds the built server at `server/dist/index.mjs`, so there is nothing to install or build);
+- a dated `capacitylens-utc-*.db` or older local-time `capacitylens-*.db` snapshot. The
+  `capacitylens-pre-migration-*` files are only for [upgrade rollback](/self-hosting/upgrades);
+- free space for a second copy, and a private place to record the result.
+
+Do not use production database or named volumes, production ports, public proxies or provider
+callback URLs. Run the next commands from the unpacked release folder.
 
 Create a loopback-only scratch environment and copy the snapshot into it:
 
@@ -83,12 +75,9 @@ Create a loopback-only scratch environment and copy the snapshot into it:
 drill_dir="$(mktemp -d /var/tmp/capacitylens-restore-drill.XXXXXX)" && install -d -m 700 "$drill_dir/backups" && cp /path/to/capacitylens-utc-YYYYMMDD-HHMMSS-sss.db "$drill_dir/capacitylens.db"
 ```
 
-Start the API with an empty inherited environment, the same sign-in mode and deployment
-profile as production, and separate storage paths. The example below is for password mode.
-For Google or Microsoft company login, use an isolated staging origin and that provider's
-non-production client registration and callback to rehearse sign-in separately. CapacityLens
-supports those named providers; generic OIDC configuration is retired. This loopback storage
-drill does not attempt provider sign-in.
+Start the API with an empty inherited environment, the same sign-in mode and deployment profile
+as production, separate storage paths and a newly generated signing secret (never the production
+one). The example is for password mode:
 
 ```bash
 env -i PATH="$PATH" NODE_ENV=production \
@@ -105,29 +94,28 @@ env -i PATH="$PATH" NODE_ENV=production \
   node server/dist/index.mjs
 ```
 
-Use a newly generated signing secret for the drill; do not copy the production secret.
-Do not expose the port, change the provider's registered callback, or reuse production
-storage paths. Leave the process running and, in a second shell, check the isolated API:
+Do not expose the port or change the provider's registered callback. Leave the process running
+and, in a second shell, check the isolated API:
 
 ```bash
 curl -fsS http://127.0.0.1:8877/api/health
 ```
 
 Confirm deep health reports a successful database check, healthy audit state and a completed
-backup. This proves the selected release can migrate and open the copied storage. Rehearse
-sign-in, reads and writes separately on an isolated staging origin configured with its own
-provider callback; an SSO deployment cannot complete sign-in through this loopback-only
-storage drill. Stop the process, retain the result required by your recovery policy, and
-remove only the temporary directory. This native drill also works for a snapshot copied off
-a Compose host; use the off-host copy so the drill never mounts production volumes.
+backup. That proves the release can migrate and open the copied storage. This loopback drill
+cannot complete Google or Microsoft sign-in: rehearse sign-in, reads and writes separately on an
+isolated staging origin with that provider's non-production client registration and callback.
+
+Stop the process, keep the result your recovery policy requires, and remove only the temporary
+directory. The drill also works for a snapshot copied off a Compose host; use the off-host copy
+so the drill never mounts production volumes.
 
 ## Restore a snapshot
 
 ::: warning
 Restoring replaces the live database with an older snapshot. Anything written after that
-snapshot's timestamp is lost from the live database (it's still recoverable from an even
-older snapshot only if that data existed there too). Preserve the current database before
-you start — steps 1-2 below do this for you.
+snapshot's timestamp is lost from the live database. Preserve the current database before you
+start; steps 1–2 below do this.
 :::
 
 ### General procedure
@@ -138,8 +126,8 @@ you start — steps 1-2 below do this for you.
    a scheduled database snapshot does not replace those files.
 3. Copy a selected dated `capacitylens-utc-YYYYMMDD-HHMMSS-sss.db` (or older
    `capacitylens-YYYYMMDD-HHMMSS-sss.db`) scheduled snapshot to the configured database
-   path. Don't select a `capacitylens-pre-migration-*` file here — those belong to the
-   [upgrade rollback procedure](/self-hosting/upgrades) instead.
+   path. Don't select a `capacitylens-pre-migration-*` file here; those belong to the
+   [upgrade rollback procedure](/self-hosting/upgrades).
 4. Remove any stale `-wal` and `-shm` sidecars next to the restored file.
 5. Start the API and check deep health.
 6. Verify sign-in, the account list, recent expected data and one safe write.
@@ -147,15 +135,15 @@ you start — steps 1-2 below do this for you.
 
 ### Docker Compose named-volume procedure
 
-The packaged Compose deployment stores `/data` and `/backups` in named Docker volumes,
-so host-path `cp` commands can't reach them. Run everything below from the checkout that
-has the active `.env` and `docker-compose.yml`. The commands use the API image's normal
-unprivileged `node` user, so the restored files keep the ownership the API expects.
+The packaged Compose deployment keeps `/data` and `/backups` in named Docker volumes, so
+host-path `cp` commands can't reach them. Run everything below from the checkout that has the
+active `.env` and `docker-compose.yml`. The commands run as the API image's unprivileged `node`
+user, so restored files keep the ownership the API expects.
 
-Before you start, confirm `docker compose config` renders the physical volume prefix
-this installation actually uses. New deployments use `capacitylens_`. A deployment
-created before the project name was pinned may carry a different historical prefix
-through `COMPOSE_PROJECT_NAME` in `.env` — don't remove or change that override.
+First confirm `docker compose config` renders the volume prefix this installation actually
+uses. New deployments use `capacitylens_`. A deployment created before the project name was
+pinned may carry a different historical prefix through `COMPOSE_PROJECT_NAME` in `.env`; don't
+remove or change that override.
 
 ::: warning
 If an upgrade unexpectedly presents an empty instance, do not create a company or remove
@@ -185,9 +173,9 @@ later.
    '
    ```
 
-2. List the available snapshots and choose the exact filename. Then copy it into place, verify its mode
-   and owner, atomically replace the live database, and remove sidecars. The basename
-   check keeps the value confined to `/backups`:
+2. List the snapshots and choose the exact filename. The second command copies it into place,
+   verifies its mode and owner, atomically replaces the live database and removes sidecars. The
+   basename check keeps the value confined to `/backups`:
 
    ```bash
    docker compose run --rm --no-deps --entrypoint sh api -eu -c 'ls -l /backups/capacitylens-*.db'
@@ -219,7 +207,7 @@ later.
    unset RESTORE_SNAPSHOT
    ```
 
-3. Start the API back up and check it:
+3. Start the API and check it:
 
    ```bash
    docker compose up -d api
@@ -230,17 +218,8 @@ later.
 4. Complete the sign-in, account, recent-data and safe-write checks from the general
    procedure above before removing the preserved `manual-restore-*` directory from step 1.
 
-If `CAPACITYLENS_DB` or `CAPACITYLENS_BACKUP_DIR` was deliberately changed from the
-packaged paths, adapt and rehearse this procedure for those mounts before you actually
-need it.
+If `CAPACITYLENS_DB` or `CAPACITYLENS_BACKUP_DIR` was changed from the packaged paths, adapt
+and rehearse this procedure for those mounts before you need it.
 
-`server/src/restore.drill.test.ts` continuously exercises the backup, corruption and
-restore path in CI, but that's not a substitute for an operator running this drill with
-real storage and credentials.
-
-## What's next
-
-- [Upgrades](/self-hosting/upgrades) covers the separate pre-migration snapshot and
-  application-rollback procedure for a schema-bearing release.
-- [Monitoring and health checks](/self-hosting/monitoring) for watching backup freshness
-  day to day.
+For the separate pre-migration snapshot and application rollback, see
+[Upgrades](/self-hosting/upgrades).

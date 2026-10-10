@@ -1,6 +1,6 @@
 ---
 title: Owner FAQ
-description: Answers to common questions about company setup, handover and ownership.
+description: Answers to common questions about company setup, handing over to an Admin, and ownership.
 prev: false
 next: false
 ---
@@ -16,59 +16,46 @@ next: false
 
 ## Can I stop after I appoint an Admin?
 
-Yes. Wait for the invitation to be accepted, check the Admin role in Team & access, and send them the [Get the schedule ready](/admin/) guide.
+Yes. Once their row in **Team & access** shows **Admin**, send them
+[Get the schedule ready](/admin/). If you will run the schedule yourself, follow that guide
+instead.
 
 ## Why is the Admin invitation still pending?
 
-Check that you shared the link or that the invitation email was sent, then ask the recipient to
-accept it. CapacityLens emails addressed invitations when SMTP is configured and sending is
-available. If email is unavailable or sending fails, copy the link and send it yourself.
-
-If the link is lost, revoke it under Outstanding invites and create a replacement.
+They have not accepted it yet. Check the email was sent, or send the link yourself with **Copy**.
+If the link is lost, revoke it under **Outstanding invites** and create a new one.
 
 ## Does an Admin invitation transfer ownership?
 
-No. It gives the person sign-in access with the Admin role. Ownership changes only through the
-**Manage ownership** modal in Company ownership, after the nominee agrees and the current Owner
-selects Confirm the transfer.
-
-## Why can I not choose a language when I create the company?
-
-The Language select contains only English and is read-only. You choose Week starts on and Timezone during creation, and those settings are fixed afterward.
+No. Ownership changes only through **Manage ownership**, after the nominee agrees and you confirm.
+There is only ever one Owner; give other managers the Admin role.
+[Transfer ownership](/owner/responsibilities#transfer-ownership)
 
 ## Why is there no Admin to choose as Next Owner?
 
-Only another active Admin can be nominated. Use the Admin invitation flow first, then return to Team & access after they accept.
-
-[Owner responsibilities](/owner/responsibilities)
-
-## Who can change the joining policy?
-
-Only the Owner can change **Who can join** under **Team & access**. Admins can read the current
-policy and copy the joining link. Policy-based joins give new members Viewer access; send an
-addressed invitation when someone needs another role. See [Decide who can join](/owner/responsibilities#decide-who-can-join).
-
-## What if I cannot find Delete company?
-
-In a signed-in installation, **Switch company** appears only when you can access two or more
-companies. Only the company's Owner sees **Delete** in the chooser. If the switch is missing, ask
-the service operator for the supported way to remove that company. When the confirmation appears,
-select **Export first** if you need a copy and type the exact company name before selecting **Delete**.
+Only an active Admin can be nominated. Invite them as Admin first, then return once they accept.
 
 ## What happens if an ownership transfer ends?
 
-Open **Manage ownership** in **Team & access** to see the latest outcome. The request may have been
-declined, cancelled, replaced, expired after seven days, or ended when a participant's membership
-changed. No transfer occurs unless the nominee agrees and the Owner confirms.
+Nothing changes: you remain the Owner. **Manage ownership** shows whether it was declined,
+cancelled, replaced, expired after seven days, or ended because a participant's membership changed.
 
-## Can there be more than one Owner?
+## Can I change the week start, timezone or language?
 
-No. Give other company managers the Admin role.
+No. Week start and timezone are fixed when the company is created, and English is the only
+language.
 
-## What if I am also the Admin?
+## Who can change the joining policy?
 
-After creating the company, follow [Get the schedule ready](/admin/) yourself.
+Only you. Admins can see it and copy the joining link. People who join through the policy get
+Viewer; send an addressed invitation for any other role.
+[Decide who can join](/owner/responsibilities#decide-who-can-join)
+
+## Why can't I find Delete company?
+
+**Delete** is in the company chooser, which appears only when you can access two or more
+companies. If it is missing, ask the service operator.
 
 ## Why am I asked to confirm my sign-in?
 
-Sensitive actions such as ownership transfer, import and company deletion require a recent sign-in.
+Transferring ownership, importing and deleting the company need a recent sign-in.

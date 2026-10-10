@@ -5,70 +5,46 @@ description: Install CapacityLens from a release archive in five steps, on a man
 
 # Install CapacityLens
 
-Every host takes the same five steps: three values to fill in and one command per step. Only
-step 4, starting the server, differs between hosts. The target is ten minutes on a host that
-already has supported Node 24 and a hostname pointing at it.
-
-The steps use the release archive, `capacitylens-0.73.0-alpha.1.tar.gz`. It holds the built web
-app, the server and everything it needs to run, so there is nothing to build and no Docker.
-0.73.0-alpha.1 is the first release that carries it; for an earlier release, use
-[Docker](/self-hosting/install-with-docker). For a newer release, use its version in place of
-0.73.0-alpha.1 below.
-
-::: tip
-Just want to look around first? [Try the demo](/getting-started/try-the-demo) instead —
-no persistent data or sign-in setup required.
-:::
-
-Node 26.9.0 or newer within 26.x is experimental and maintained on a best-effort basis.
-Complete functionality is not guaranteed; Node 24 is recommended. Use current patches within
-either line. See [the compatibility policy](/reference/development#check-node-26-compatibility).
+Five steps, three values to fill in, one command per step. Only step 4 differs between hosts. On
+a host that already runs Node 24 and has a hostname pointing at it, it takes about ten minutes;
+an internet-facing instance takes longer, mostly because of DNS and certificates.
 
 ## You need
 
 - Node 24.19.0 or newer within 24.x on the host's system path. Check with `node --version`.
-- A hostname that points at the host, with HTTPS in front of CapacityLens. A managed host issues
-  the certificate for you; on your own host, [Caddy](/self-hosting/install-without-docker#https)
-  does it in four lines.
+- A hostname that points at the host, with HTTPS in front. A managed host issues the certificate;
+  on your own host, [Caddy](/self-hosting/install-without-docker#https) does it in four lines.
 - Linux. The archive is tested on Ubuntu x86-64; other Linux distributions and macOS are expected
   to work but are not tested.
 - Persistent storage for the database, the audit log and, if you turn them on, scheduled backups.
 
-An internet-facing production instance takes longer than the ten-minute target, mostly because of
-DNS and certificates.
+Node 26.9.0 or newer within 26.x is experimental, best-effort and not guaranteed to be fully
+functional. Use current patches within either line. See
+[the compatibility policy](/reference/development#check-node-26-compatibility).
 
-## The moving parts
-
-A CapacityLens deployment is three pieces:
-
-- **The web app** — the built single-page app, served as static files. The release archive's
-  server serves it; in the Docker image, nginx serves it and reverse-proxies API calls.
-- **The server** — a Node API that handles sign-in, reads and writes. It's the only
-  thing that talks to the database.
-- **SQLite** — one file on disk is the source of truth for every company, person,
-  project and allocation. There's no separate database server to run.
-
-The web app and the server are meant to live behind the same public origin, with TLS
-terminated in front of them. See [TLS and networking](/self-hosting/tls-and-networking)
-for the exact topology.
+Just want to look around? [Try the demo](/getting-started/try-the-demo) instead.
 
 ## 1. Download
 
-Download the archive from the release's assets and unpack it. The release also lists a `.sha256`
-file to check the download against.
+Download the release archive and unpack it. It holds the built web app and the server, so there
+is nothing to build and no Docker. The release also lists a `.sha256` file to check it against.
 
 ```text
 https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capacitylens-0.73.0-alpha.1.tar.gz
 ```
 
+0.73.0-alpha.1 is the first release with an archive; for an earlier one, use
+[Docker](/self-hosting/install-with-docker). For a newer release, use its version in place of
+0.73.0-alpha.1.
+
 - **Managed host:** put the data-folder, download, unpack and link commands in the site's deploy
-  script. The first line creates the data folder from step 2, so no terminal is needed.
+  script. Its first line creates the data folder from step 2, so no terminal is needed.
 - **Linux host:** unpack it into `/opt/capacitylens` and link `current` to the release folder.
 
 ## 2. Pick a folder for the data
 
-The database file is created in this folder on first start. Keep it outside the unpacked release,
-so an upgrade never touches it.
+The database file is created here on first start. Keep it outside the unpacked release, so an
+upgrade never touches it.
 
 - **Managed host:** `/home/forge/capacitylens-data`, next to the site folder. The deploy script
   creates it. `forge` is the site's user; a site with website isolation uses its own user, so
@@ -77,15 +53,15 @@ so an upgrade never touches it.
 
 ## 3. Configure
 
-Run `init` from the unpacked release folder. Give it the address people open and a database
-file in the data folder from step 2:
+Run `init` from the unpacked release folder, with the address people open and a database file
+in the data folder:
 
 ```bash
 node server/dist/index.mjs init --public-url https://capacity.example.com --db /var/lib/capacitylens/capacitylens.db
 ```
 
-It prints the environment file, with the session secret and the setup token generated for you.
-Everything else has a default.
+It prints the environment file, with the session secret and setup token generated. Everything
+else has a default.
 
 ```dotenv
 NODE_ENV=production
@@ -95,17 +71,15 @@ CAPACITYLENS_SETUP_TOKEN=<generated>
 CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db
 ```
 
-Then it prints the setup token once more. You enter it once, to create the Owner. The server
-refuses to start while a required line is empty, and names the one that is missing.
+It then prints the setup token again; it is entered once, to create the Owner. The server refuses
+to start while a required line is empty, and names the missing one.
 
 - **Managed host:** run it with `--db /home/forge/capacitylens-data/capacitylens.db` (or your site
   user's folder) and paste the output into the site's environment editor.
 - **Linux host:** add `--out /etc/capacitylens.env` and run it with `sudo`. It writes the file
-  readable only by root, and refuses to overwrite one that already exists.
+  readable only by root, and refuses to overwrite an existing one.
 
 ## 4. Start it
-
-This is the step that differs.
 
 - **Managed host:** add a background process (daemon) that runs as the site's user and runs
   `node --env-file=../.env server/dist/index.mjs` in the site's `current` folder. In the site's
@@ -114,32 +88,29 @@ This is the step that differs.
 - **Linux host:** install the `capacitylens.service` file from the archive as a systemd service,
   and put Caddy or nginx in front.
 
-The server serves the web app as well as the API, so one reverse-proxy line in front of it covers
-the whole site.
+The server serves the web app as well as the API, so one reverse-proxy line covers the whole
+site. [TLS and networking](/self-hosting/tls-and-networking) has the proxy requirements.
 
 ## 5. Open the address
 
-Open the address from step 3 and create your company. The page asks for the setup token: it is
-the `CAPACITYLENS_SETUP_TOKEN` line from step 3. From there, the
-[Owner guide](/owner/) takes over.
+Open the address from step 3 and create your company. The page asks for the setup token: the
+`CAPACITYLENS_SETUP_TOKEN` line from step 3. The [Owner guide](/owner/) takes over from there.
 
 ## Choose your host
 
 - [Deploy on a managed VPS platform](/self-hosting/managed-vps/) such as Forge, Ploi or
-  RunCloud. You work in the platform's screens; no terminal is needed.
-- [Install without Docker](/self-hosting/install-without-docker) on a Linux host that you manage
-  yourself. Caddy handles HTTPS.
+  RunCloud, in the platform's screens.
+- [Install without Docker](/self-hosting/install-without-docker) on a Linux host you manage,
+  with Caddy for HTTPS.
 
-Both end with the same checks. Then [secure the connection](/self-hosting/tls-and-networking)
-and [verify and hand over](/self-hosting/verify-and-hand-over); [Configuration](/self-hosting/configuration)
-covers every other setting.
+Both end with [TLS and networking](/self-hosting/tls-and-networking) and
+[Verify and hand over](/self-hosting/verify-and-hand-over).
+[Configuration](/self-hosting/configuration) covers every other setting.
 
 ## Other ways to install
 
-- [Install with Docker](/self-hosting/install-with-docker) builds and runs the packaged Compose
-  stack from a checkout. Use it if your host already runs Docker. Docker is not a shared
-  prerequisite: each installation page lists only what its route needs.
-- Building from source is for a release that predates the archive, or for your own changes. The
-  [long-form managed host pages](/self-hosting/managed-vps/choose-the-release-source) build
-  from a tagged checkout, and the [development guide](/reference/development) covers running it
-  from a clone.
+- [Install with Docker](/self-hosting/install-with-docker) builds and runs the Compose stack from
+  a checkout, if your host already runs Docker.
+- To build from source, for a release before the archive or your own changes, the
+  [long-form managed host pages](/self-hosting/managed-vps/choose-the-release-source) build from
+  a tagged checkout, and the [development guide](/reference/development) runs it from a clone.

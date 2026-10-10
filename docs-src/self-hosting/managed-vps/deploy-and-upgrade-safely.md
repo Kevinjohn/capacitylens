@@ -5,14 +5,12 @@ description: Promote, deploy and roll back CapacityLens releases without running
 
 # Deploy and upgrade safely
 
-This page belongs to the long-form route, which builds CapacityLens from a source checkout.
-To install from the release archive with nothing to build, follow the
-[five steps](/self-hosting/managed-vps/) instead.
+Long-form route: building from a source checkout. To install from the release archive with
+nothing to build, follow the [five steps](/self-hosting/managed-vps/) instead.
 
-This page turns the initial build into a repeatable manual deployment with a safe API handover.
-It prevents two CapacityLens versions from writing to the same SQLite database. Allow about thirty
-minutes to configure and test the first time; later deployments take only a few minutes plus your
-backup and smoke checks.
+Turn the initial build into a repeatable manual deployment that never lets two CapacityLens
+versions write to the same database. Allow about thirty minutes the first time; later deployments
+take a few minutes plus your backup and smoke checks.
 
 ## Prerequisites
 
@@ -22,16 +20,16 @@ backup and smoke checks.
 - Confirm automatic deployment remains disabled.
 
 ::: warning Do not use overlapping processes
-CapacityLens does not support an old API and a new API writing to one database at the same time.
-Build while the old API serves traffic, then stop it before activating the release. A brief outage
-is expected and safer than a platform's generic zero-downtime handover.
+An old and a new API must never write to one database at the same time. Build while the old API
+serves traffic, then stop it before activating the release. The brief outage is expected, and
+safer than a platform's zero-downtime handover.
 :::
 
 ## 1. Save the permanent Forge deployment script
 
-Replace the two values at the top with the isolated site user and exact Supervisor group recorded
-from the background process. This script needs Bash, Forge's default deployment shell —
-`set -eo pipefail` is a syntax error under plain `sh`.
+Replace the two values at the top with the isolated site user and the exact Supervisor group. The
+script needs Bash, Forge's default deployment shell: `set -eo pipefail` is a syntax error under
+plain `sh`.
 
 ```bash
 set -eo pipefail
@@ -78,19 +76,15 @@ The order is load-bearing:
 4. Start the API from the stable `current` working directory.
 5. Let the platform check the public health URL.
 
-Do not replace stop and start with a process-manager reload that overlaps workers. Do not activate
-before stopping the old process.
-
-A failure before `supervisorctl stop` leaves the old release serving traffic. A failure after the
-stop needs the recovery steps below; the script does not restart the old release automatically.
+Don't replace stop and start with a reload that overlaps workers, and don't activate before
+stopping. A failure before `supervisorctl stop` leaves the old release serving traffic; a failure
+after it needs the recovery steps below, because the script does not restart the old release.
 
 ### First transition to the production artifact paths
 
-Releases from before this change use `/dist` as the web directory and start
-`server/dist/index.mjs`. Do not change either saved path while such a release is still active: nginx
-or Supervisor would immediately point at files that do not exist there.
-
-Treat the first release containing `production/` as a coordinated maintenance-window cutover:
+Older releases use `/dist` as the web directory and start `server/dist/index.mjs`. Don't change
+either saved path while such a release is active, or nginx and Supervisor point at missing files.
+Treat the first release containing `production/` as a maintenance-window cutover:
 
 1. Build the new release and confirm all three `production/` files checked by the script exist.
 2. Keep the old release active while you record its `/dist` web directory and
@@ -106,26 +100,23 @@ the old API. For a schema-bearing release, restore its pre-release database snap
 under rollback below before starting old code. Once every retained rollback release contains
 `production/`, the ordinary deployment script can keep both saved paths unchanged.
 
-The first deployment is deliberately different from every later deployment. It activates the
-initial build without Supervisor commands. Create the background process from that active release,
-record its generated group name, then save the permanent script above. Run one rehearsal deployment
-of the same commit before relying on the workflow for an upgrade. The rehearsal must show the API
-stop, activation, start and successful public health check in that order.
+The first deployment activates the initial build without Supervisor commands. Create the
+background process from that release, record its group name, then save the permanent script.
+Before relying on it for an upgrade, rehearse a deployment of the same commit: it must show the
+API stop, activation, start and a successful public health check, in that order.
 
 Keep `NODE_ENV=production` on the API process rather than in the shared `.env` file. Vite reads
 `.env` while building the browser app, and `pnpm run build` already selects production mode. The
-managed process command in the API configuration sets `NODE_ENV=production` directly, so a release
-build no longer emits a warning about the server runtime setting. Stop for an actual non-zero
-command exit or a missing build output.
+managed process command sets `NODE_ENV=production` directly. Stop for an actual non-zero command
+exit or a missing build output.
 
-On a platform without Forge's release functions, preserve the same ordering with its checkout,
+On a platform without Forge's release functions, keep the same order with its checkout,
 activation and service-control commands.
 
 ### Keep operator tooling in a separate maintenance checkout
 
-The activated release deliberately removes pnpm, `tsx` and development dependencies. Recovery,
-cutover and rehearsal commands therefore run from a separate private maintenance checkout, never
-from `current/`:
+The activated release has no pnpm, `tsx` or development dependencies, so recovery, cutover and
+rehearsal commands run from a separate private maintenance checkout, never from `current/`:
 
 1. Select the revision required by the operation. Recovery and repair commands use the exact tag or
    commit currently serving production. A pre-upgrade migration rehearsal uses the intended target
@@ -139,44 +130,35 @@ from `current/`:
 5. Remove the maintenance checkout and its dependency tree when the operation and evidence capture
    are complete. Never point nginx or Supervisor at it.
 
-Use [When something goes wrong](/self-hosting/incidents) for the command-specific safeguards. The
-maintenance checkout is tooling, not another running release, and must never start a second API
-against the production database.
+[When something goes wrong](/self-hosting/incidents) has the command-specific safeguards. The
+maintenance checkout must never start a second API against the production database.
 
 ## 2. Give the deployment script permission to stop and start the process
 
-The deployment script runs unattended. It cannot answer a password prompt, so the user that runs it
-must be able to run `supervisorctl` without one. With website isolation enabled, the isolated site
-user usually cannot.
-
-First find out whether you already have permission. Run this as the user the deployment script runs
-as:
+The script runs unattended, so its user must run `supervisorctl` without a password prompt. With
+website isolation, the site user usually cannot. Check, as the user the script runs as:
 
 ```bash
 sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf status
 ```
 
-`-n` means "never ask for a password". If you will keep `supervisorctl`, run `sudo -l`. Continue
-only if it lists exactly four commands — `status`, `stop`, `start` and `restart` — each pinned to
-this Supervisor configuration path. Only the three process-changing commands — `stop`, `start` and
-`restart` — are additionally pinned to this Supervisor group; `status` intentionally lists all
-Supervisor processes. A bare `/usr/bin/supervisorctl` entry is the old, broad grant and must be
-replaced first. If you replace both process-control calls with separate platform stop and start
-actions instead, continue after configuring and testing those actions. If the status command
-prints `sudo: a password is required`, choose one of the two fixes below.
+`-n` means "never ask for a password". If you keep `supervisorctl`, run `sudo -l` and continue
+only if it lists exactly four commands, `status`, `stop`, `start` and `restart`, each pinned to
+this Supervisor configuration path, with `stop`, `start` and `restart` also pinned to this group.
+A bare `/usr/bin/supervisorctl` entry is the old, broad grant: replace it first. If the status
+command prints `sudo: a password is required`, choose one of the two fixes below.
 
 ### Use the platform's separate stop and start actions
 
-Some platforms expose separate stop and start commands or API endpoints for a background process
-that do not need `sudo` at all. If yours does, use them in place of the two `supervisorctl` lines in
-the script. A single restart action at both boundaries breaks the required stop, activate, start
-order. Platform actions are the better option because the platform keeps them working when it
-changes how processes are managed.
+If your platform has separate stop and start commands or API endpoints that need no `sudo`, use
+them in place of the two `supervisorctl` lines, and test them. This is the better option: the
+platform keeps them working when it changes how processes are managed. A single restart action at
+both points breaks the stop, activate, start order.
 
 ### Or grant exactly four commands
 
-If there is no platform action, grant the site user permission to run `supervisorctl` and nothing
-else. As a user with full `sudo` rights, run:
+Otherwise, grant the site user `supervisorctl` and nothing else. As a user with full `sudo`
+rights, run:
 
 ```bash
 sudo visudo -f /etc/sudoers.d/capacitylens-supervisor
@@ -192,9 +174,8 @@ which supervisorctl
 ls -l /etc/supervisor/supervisord.conf
 ```
 
-If either command prints a different path, use that path below instead. Then add these four lines,
-replacing `capacity-example` with your isolated site user and `daemon-1234567` with its exact
-Supervisor group:
+If either prints a different path, use it below. Add these four lines, replacing
+`capacity-example` with your site user and `daemon-1234567` with its exact Supervisor group:
 
 ```text
 capacity-example ALL=(root) NOPASSWD: /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf status
@@ -203,24 +184,21 @@ capacity-example ALL=(root) NOPASSWD: /usr/bin/supervisorctl -c /etc/supervisor/
 capacity-example ALL=(root) NOPASSWD: /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf restart daemon-1234567\:\*
 ```
 
-Save and exit. `visudo` checks the syntax before writing; if it reports an error, fix it there
-rather than saving a broken file, because a broken sudoers file can lock everyone out of `sudo`.
+Save and exit. If `visudo` reports a syntax error, fix it there: a broken sudoers file can lock
+everyone out of `sudo`.
 
-Sudoers matches the arguments as one string. The escaped colon and asterisk therefore match the
-literal group argument, while an extra process name is denied. The `status` command still lists all
-Supervisor processes, but it cannot change them; stop, start and restart are limited to this group.
-Other sudoers rules and a Supervisor socket readable by the site user remain outside this limited
-rule set.
+Sudoers matches the arguments as one string, so the escaped colon and asterisk match the literal
+group argument and an extra process name is denied. `status` lists all Supervisor processes but
+cannot change them. Other sudoers rules, and a Supervisor socket the site user can read, are
+outside this rule set.
 
-If you already installed the broad line, edit the same file with `visudo -f` and replace it with the
-four lines above. Run `sudo -l -U capacity-example` and confirm no unrestricted `supervisorctl`
-entry remains in this or any other sudoers file.
-
-Then re-run the pinned status command as the site user and confirm it works.
+If you installed the broad line, replace it in the same file with `visudo -f`. Run
+`sudo -l -U capacity-example` and confirm no unrestricted `supervisorctl` entry remains in any
+sudoers file. Then re-run the pinned status command as the site user.
 
 ## 3. Test the stop and start commands
 
-Before the next real release, stop the API through the exact saved command:
+Before the next real release, stop the API with the exact saved command:
 
 ```bash
 sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf stop 'daemon-1234567:*'
@@ -235,9 +213,8 @@ sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf start 'daemon
 Confirm the process returns to **Running** and the public health endpoint returns `200` with
 `"ok":true`.
 
-If either command still requires an interactive password, return to step 2. A deployment must not
-pause at an unseen password prompt: the platform will report a timeout long after the API has
-already stopped.
+If either still asks for a password, return to step 2. Otherwise a deployment pauses at an
+unseen prompt and times out long after the API has stopped.
 
 ## 4. Prepare every release
 
@@ -254,45 +231,41 @@ Before advancing the production branch:
 
 ### Take a fresh snapshot
 
-CapacityLens has no "snapshot now" button. It writes a verified snapshot into
-`CAPACITYLENS_BACKUP_DIR` when the API starts, and again every
-`CAPACITYLENS_BACKUP_INTERVAL_MIN` minutes. Use one of these:
+There is no "snapshot now" button. CapacityLens writes a verified snapshot into
+`CAPACITYLENS_BACKUP_DIR` when the API starts, and every `CAPACITYLENS_BACKUP_INTERVAL_MIN`
+minutes after that.
 
-**Restart the API.** A restart begins the asynchronous snapshot attempt. This is the simplest method
-and it costs the same few seconds of downtime the deployment will cost anyway:
+**Restart the API.** The simplest method, costing the same few seconds of downtime as the
+deployment:
 
 ```bash
 sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf restart 'daemon-1234567:*'
 ```
 
-Wait for the attempt to finish, then confirm the backup directory contains the new verified file
-before relying on it.
+Wait for the snapshot to finish and confirm the new verified file is in the backup directory.
 
-**Or take the latest scheduled snapshot.** If the newest file is only minutes old and nothing
-important has been written since, it is already a valid restore point.
+**Or use the latest scheduled snapshot**, if it is only minutes old and nothing important has been
+written since.
 
-Either way, list the backup directory newest first and read the top line:
+Either way, list the backup directory newest first:
 
 ```bash
 ls -lt /home/capacity-example/backups | head -3
 ```
 
-Each filename carries its own timestamp — `capacitylens-utc-20260911-140233-118.db` was written at
-14:02:33 UTC on 11 September 2026, not in your local time zone. Confirm the newest file is the one
-you expect before you go any further.
-
-Then copy that one file off the server. Run this on your own machine, not on the server:
+Filenames carry a UTC timestamp: `capacitylens-utc-20260911-140233-118.db` was written at
+14:02:33 UTC on 11 September 2026. Confirm the newest file is the one you expect, then copy it off
+the server. Run this on your own machine:
 
 ```bash
 scp capacity-example@your-server:/home/capacity-example/backups/capacitylens-utc-YYYYMMDD-HHMMSS-sss.db .
 ```
 
 ::: warning Never copy the live database file
-Do not `cp` or `scp` `capacitylens.db` itself while the API is running. SQLite keeps recent writes
-in a separate `-wal` file beside it, so a copy of the database alone can be missing data or be
-internally inconsistent — and you will not find out until the restore fails. Copy a snapshot from
-the backup directory, which CapacityLens has already integrity-checked before publishing it, or
-stop the API first. [Backups and restore](/self-hosting/backups-and-restore) covers both.
+Do not `cp` or `scp` `capacitylens.db` while the API is running. SQLite keeps recent writes in a
+separate `-wal` file, so the copy can be missing data or inconsistent, and you won't find out until
+the restore fails. Copy an integrity-checked snapshot from the backup directory, or stop the API
+first. [Backups and restore](/self-hosting/backups-and-restore) covers both.
 :::
 
 ## 5. Advance the production branch
@@ -303,13 +276,13 @@ From a trusted checkout, fetch the release:
 git fetch origin --tags
 ```
 
-Inspect the target tag and confirm it is the release you intend to run:
+Confirm the target tag is the release you intend to run:
 
 ```bash
 git show --no-patch --decorate vX.Y.Z
 ```
 
-Switch to the installation branch and merge the released tag without rewriting history:
+Fast-forward the installation branch to the tag:
 
 ```bash
 git switch production-01
@@ -325,14 +298,12 @@ Push it to the source selected by the platform:
 git push hosted production-01
 ```
 
-If `--ff-only` fails, stop. The private deployment branch contains commits that are not in the
-release history. Do not force-push or hide that divergence; inspect it before deploying.
+If `--ff-only` fails, stop: the branch has commits outside the release history. Don't force-push;
+inspect the divergence before deploying.
 
 ## 6. Deploy manually
 
-Open the managed site and click **Deploy**. Watch the complete log.
-
-A successful deployment must show, in order:
+Open the site, click **Deploy** and watch the complete log. It must show, in order:
 
 - the expected Node and pinned pnpm versions;
 - successful dependency, web and API builds;
@@ -341,7 +312,7 @@ A successful deployment must show, in order:
 - the new API starting; and
 - a successful public health check.
 
-Do not treat “release activated” as success if the API failed to start or health failed.
+“Release activated” is not success if the API failed to start or health failed.
 
 ## 7. Smoke-test the release
 
@@ -355,23 +326,21 @@ After health passes:
 6. Check the process log for restart loops, migration failures or security errors.
 7. Confirm a new scheduled backup succeeds.
 
-Keep the previous release and pre-release snapshot until you are satisfied with these checks.
+Keep the previous release and pre-release snapshot until these checks pass.
 
 ## 8. Roll back correctly
 
-If the new release did not change the database schema, stop the API, activate the previous release,
-start the API and verify health.
+Without a schema change: stop the API, activate the previous release, start it and verify health.
 
-If the release changed the schema, switching code alone is not a rollback. Follow the complete
-[rollback procedure](/self-hosting/upgrades#roll-back): stop the API, restore the matching pre-migration
-snapshot without stale `-wal` or `-shm` files, activate the previous release, then start and verify
-it.
-
-Do not let the old release start against a database already migrated by the new release.
+With a schema change, switching code alone is not a rollback, and the old release must never start
+against a database the new one has migrated. Follow the
+[rollback procedure](/self-hosting/upgrades#roll-back): stop the API, restore the matching
+pre-migration snapshot without stale `-wal` or `-shm` files, activate the previous release, then
+start and verify it.
 
 ## Verify the result
 
-Confirm all of the following:
+Confirm:
 
 - The saved script runs under Bash and exits on a failed command, failed pipeline or missing build
   output before it stops the old API.
@@ -384,6 +353,4 @@ Confirm all of the following:
 - A fresh off-server backup and a rollback release are available.
 - Push-to-deploy remains disabled.
 
-## What's next
-
-Continue to [Finish and operate the installation](/self-hosting/managed-vps/finish-and-operate-the-installation).
+Next: [Finish and operate the installation](/self-hosting/managed-vps/finish-and-operate-the-installation).

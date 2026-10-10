@@ -1,6 +1,6 @@
 ---
 title: Handle ongoing administration
-description: Keep member access, scheduled people, time off, company closures and settings accurate as work changes.
+description: Keep access, working patterns and company closures up to date as your team and work change.
 prev: false
 next: false
 ---
@@ -11,61 +11,53 @@ next: false
 
 # Handle ongoing administration
 
-![Team & access: Member actions dialog](../screenshots/flows/admin_member_actions.jpg)
+You keep access, working patterns and closures up to date as people and work change.
 
 ## Change access
 
-Open Team & access. Use the pencil beside a member to change their role.
+![Change member role dialog explaining Editor permissions before saving](../screenshots/flows/admin_change_member_role.jpg)
 
-Use the link icon beside a member to open **Link to Resource**. Selecting a scheduled person saves
-immediately; use **Remove link to resource** to unlink them. Member actions contains **Disable Access**,
-**Enable Access**, **Archive user** and **Restore membership**. [Invite teammates and manage access](/admin/invite-teammates)
-explains these choices.
+Open **Team & access**. Review **Outstanding invites** and revoke any that are no longer needed.
+Use the pencil to change a member's role and the link icon to change their schedule row.
+
+![Team & access: Member actions dialog](../screenshots/flows/admin_member_actions.jpg)
+
+**More actions** holds **Disable Access**, **Enable Access**, **Archive user**, **Restore
+membership** and **Remove**. Disable Access blocks entry to the company even after removal, until an
+Owner or Admin clears it. Archive keeps the record and can be restored. Removal ends the membership
+in this company only. [Stop access](/admin/invite-teammates#stop-access) covers each one.
 
 ## Change working patterns
 
-Open Resources and edit the person. Update Working days or their Start date and End date, then Save.
+Open **Resources**, edit the person, update **Working days** or **Start date** and **End date**, and
+select **Save**.
 
-Working days set the person's capacity together with the company's working days. Changing them
-recalculates utilisation and conflicts; it does not move existing bookings. Availability dates are
-inclusive. Outside that range, capacity is zero, but existing bookings remain visible. Check the
-[Resources guide](/using/resources#set-availability-dates) before narrowing someone's availability.
+A person's working days, together with the company's, set their capacity. Changing them
+recalculates Utilisation and conflicts; it does not move bookings. Availability dates are inclusive.
+Outside them capacity is zero, but existing bookings stay visible. Check
+[Set availability dates](/using/resources#set-availability-dates) before narrowing someone's
+availability.
 
-Archive a resource when they should leave active scheduling. Archived records are available at the bottom of Resources.
+Archive a person when they leave active scheduling. Archived people are listed at the bottom of
+Resources.
 
 ## Add a company closure
 
 ![Time off: Company closures with Add closure form](../screenshots/flows/admin_ongoing_administration_2.png)
 
-Open Time off in the left menu. Under Company closures, select Add closure.
+Open **Time off**. Under **Company closures**, select **Add closure**, enter the name and the
+**Start** and **End** dates (inclusive), and select **Save**.
 
-Enter the name, Start and End dates, then Save. The dates are inclusive. The closure makes capacity
-zero for every person and placeholder on those dates, including people added later. It does not
-cover external parties or remove existing bookings; overlapping work remains visible as a conflict.
-If you shorten or delete the closure, capacity returns without changing the booking dates.
+A closure sets capacity to zero for every person and placeholder on those dates, including people
+added later. It does not cover external parties or remove bookings; overlapping work shows as a
+conflict. Shortening or deleting the closure restores capacity without moving bookings.
 
-For one person's absence, use [Record time off](/using/time-off#record-time-off).
+For one person's absence, [record time off](/using/time-off#record-time-off).
 
-## Review members and invitations
+## Who to ask
 
-![Change member role dialog explaining Editor permissions before saving](../screenshots/flows/admin_change_member_role.jpg)
+Ask the Owner to transfer ownership, delete the company or import scheduling data. Ask the service
+operator about backups, upgrades and company-login setup. When something goes wrong, copy a report
+from [Diagnostics](/admin/diagnostics).
 
-On **Team & access**, review outstanding invites and the member list. Change a member's role with
-the pencil. **Member actions** lets an Owner or Admin disable or enable access, archive or restore
-membership, or remove a member. Disable Access blocks company entry even if the membership is later
-removed; only an Owner or Admin can clear that restriction. Archive stops membership access while
-keeping its history and can be restored. Removal ends that membership; it does not disable the
-identity or remove the person's other company memberships. See [Invite teammates and manage access](/admin/invite-teammates#stop-access)
-for each action and its restrictions.
-
-## Settings and support
-
-[Company settings](/admin/company-settings) controls shared working days, optional features and Overview access.
-
-When something goes wrong, copy a support report from [Diagnostics](/admin/diagnostics).
-
-Ask the Owner about ownership transfer, company deletion or importing scheduling data.
-
-Ask the service operator about backups, upgrades and company-login configuration.
-
-[Admin FAQ](/admin/faq)
+[Company settings](/admin/company-settings) · [Admin FAQ](/admin/faq)

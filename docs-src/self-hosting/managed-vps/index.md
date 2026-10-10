@@ -5,27 +5,21 @@ description: Install CapacityLens on Forge, Ploi, RunCloud and similar platforms
 
 # Deploy on a managed VPS platform
 
-This installs CapacityLens on a server that a platform such as Laravel Forge, Ploi or RunCloud
-manages for you. It takes the five steps from [Install CapacityLens](/self-hosting/install),
-in the platform's own labels, and needs no terminal. The target is ten minutes on a site that
-already exists.
-
-Laravel Forge is the worked example. Other platforms use different labels for the same five
-things.
+The [five install steps](/self-hosting/install) on a server that Laravel Forge, Ploi, RunCloud
+or a similar platform manages, in the platform's own screens and with no terminal. About ten
+minutes on a site that already exists. Forge is the worked example; other platforms use
+different labels for the same things.
 
 ## Before you start
 
-- A site on the server: create an **Other** or **Custom application** site, never a PHP framework
-  template, with the platform's website isolation switched on. Its HTTPS certificate and hostname
-  come from the platform.
-- Node 24 on the server. The platform's server settings show the installed version.
-- Nothing to build: the archive holds the built app, the server and the pieces it needs.
+- A site created as **Other** or **Custom application**, never a PHP framework template, with
+  website isolation switched on. The platform provides its hostname and HTTPS certificate.
+- Node 24 on the server, as shown in the platform's server settings.
 
-`/home/forge/capacity.example.com` below stands for your site's folder; use yours. `forge` is
-the site's user; a site with website isolation uses its own user, so use that name in every
-`/home/forge` path below and in `CAPACITYLENS_DB`. The commands
-name release 0.73.0-alpha.1, the first to carry the archive. For a newer release, use its
-version instead.
+`/home/forge/capacity.example.com` stands for your site's folder. `forge` is the site's user; a
+site with website isolation uses its own user, so use that name in every `/home/forge` path and
+in `CAPACITYLENS_DB`. The commands name release 0.73.0-alpha.1, the first with an archive; for a
+newer release, use its version.
 
 ## The five steps
 
@@ -39,11 +33,11 @@ version instead.
    tar -xzf capacitylens-0.73.0-alpha.1.tar.gz && ln -sfn capacitylens-0.73.0-alpha.1 current
    ```
 
-   Run the deploy once. To upgrade later, run it with the new version, then restart the
-   background process from step 4 so it runs the new release.
+   Run the deploy once. To upgrade, run it with the new version, then restart the background
+   process from step 4.
 
 2. **Data folder:** `/home/forge/capacitylens-data`, outside the release so upgrades keep it.
-   The first line of the deploy script creates it, so there is nothing to do by hand.
+   The deploy script's first line creates it.
 
 3. **Environment:** run `init` once in the site's command runner (Forge: the site's Commands
    panel, which starts in the site's folder), with your address:
@@ -52,11 +46,10 @@ version instead.
    node current/server/dist/index.mjs init --public-url https://capacity.example.com --db /home/forge/capacitylens-data/capacitylens.db
    ```
 
-   It prints five lines with the session secret and the one-time setup token for your Owner
-   generated. Paste them into the site's environment editor.
-
-   Store the setup token in a password manager before you save. The server refuses to start
-   while the address, the secret or the token is empty, and names the one that is missing.
+   It prints five lines, with the session secret and the Owner's one-time setup token generated.
+   Paste them into the site's environment editor, and store the setup token in a password
+   manager before you save. The server refuses to start while the address, the secret or the
+   token is empty, and names the missing one.
 
 4. **Background process (daemon) and nginx:** create one background process that runs as the
    site's user, with the directory `/home/forge/capacity.example.com/current` and this command:
@@ -66,9 +59,8 @@ version instead.
    ```
 
    Then, in the site's nginx file, replace the generated `location /` block with these
-   locations, which send every request to the server. It serves the web app itself. Keep the
-   platform's other generated lines, and do not add a second `location /`, which fails the
-   platform's configuration test:
+   locations, which send every request to the server. Keep the platform's other generated lines,
+   and do not add a second `location /`: it fails the platform's configuration test.
 
    ```nginx
    client_max_body_size 6m;
@@ -106,39 +98,36 @@ version instead.
    }
    ```
 
-   The first location is the whole proxy. Keep the three `access_log off` locations too: without
-   them, the host's access log records links that anyone reading it could use to accept an
-   invitation or reset a password.
+   The first location is the whole proxy. Keep the three `access_log off` locations: without
+   them, anyone who can read the access log could use the links in it to accept an invitation or
+   reset a password.
 
 5. **Open the address** and create your company with the setup token from step 3. The
    [Owner guide](/owner/) takes over from there.
 
 ::: warning One process per database
-Exactly one CapacityLens process may use a database. If the platform offers a zero-downtime
-deploy that starts the new release beside the old one, switch it off for this site. Restart
-the background process after the deploy script instead.
+Exactly one CapacityLens process may use a database. Switch off any zero-downtime deploy that
+starts the new release beside the old one, and restart the background process after the deploy
+script instead.
 :::
 
 ## After the first start
 
-Check that the server is healthy: open `https://capacity.example.com/api/health` in a browser,
-with your own address. Expect `"ok":true`, `"db":true`, `"audit":"ok"` and a `backup` whose `status` is `"ok"`. It reads
-`"pending"` for a moment after the first start.
+Open `https://capacity.example.com/api/health`, with your own address. Expect `"ok":true`,
+`"db":true`, `"audit":"ok"` and a `backup` whose `status` is `"ok"`; it reads `"pending"` for a
+moment after the first start.
 
-Then work through these pages:
-
-- [Verify and hand over](/self-hosting/verify-and-hand-over) gives the Owner the setup token,
-  then removes it from the environment once they have signed in.
-- [Upgrades](/self-hosting/upgrades) and
-  [Backups and restore](/self-hosting/backups-and-restore) are the routine for a running site.
-- [Configuration](/self-hosting/configuration) lists every setting, including
-  company login.
+- [Verify and hand over](/self-hosting/verify-and-hand-over): give the Owner the setup token, then
+  remove it once they have signed in.
+- [Upgrades](/self-hosting/upgrades) and [Backups and restore](/self-hosting/backups-and-restore):
+  the routine for a running site.
+- [Configuration](/self-hosting/configuration): every setting, including company login.
 
 ## Long-form pages
 
-These pages build CapacityLens from a tagged source checkout, which the archive makes
-unnecessary. They remain as the long-form reference for a platform that must build, for a
-release that predates the archive, and for the operating routine on a shared server:
+These pages build CapacityLens from a tagged source checkout instead of the archive. Use them
+for a platform that must build, a release before the archive, or the operating routine on a
+shared server:
 
 1. [Choose the release source](/self-hosting/managed-vps/choose-the-release-source) — pin
    releases and prevent automatic deployment from the public project.
@@ -154,8 +143,7 @@ release that predates the archive, and for the operating routine on a shared ser
 
 ## Worksheet
 
-The long-form pages use these values. Replace every placeholder in them from this private
-worksheet. Do not store secret values in it.
+The long-form pages use these placeholders. Record your values privately.
 
 | Value | Example | Your value |
 | --- | --- | --- |

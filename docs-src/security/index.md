@@ -5,55 +5,39 @@ description: The security defaults CapacityLens ships with, where the detailed e
 
 # Security overview
 
-This page is for anyone evaluating or operating CapacityLens who wants to know what protects
-their data without reading the source code. It summarises the defaults, points to the detailed
-evidence for anyone who needs it, and explains how to report a problem.
+These are the defaults of the self-hosted, open-source application. The operator's
+configuration, network and backup policy also matter; see [Self-hosting](/self-hosting/).
 
 ## What's on by default
 
-- **Sign-in.** Password sign-in checks new and changed passwords against the Have I Been Pwned
-  breached-password list before accepting them, and stores them with a modern, slow hashing
-  algorithm. Optional [company login](/company-login/) through Google or Microsoft is available
-  as a first-class alternative.
-- **Multi-factor sign-in.** CapacityLens has no local MFA for password sign-in. If your agency requires MFA for Google or Microsoft company
-  login, configure it in the provider's own policy; CapacityLens cannot enforce or
-  verify that policy. Enabling company sign-in alone does not turn MFA on. See [company login](/company-login/) and its
+- **Passwords.** New and changed passwords are checked against the Have I Been Pwned
+  breached-password list and stored with a modern, slow hashing algorithm.
+  [Company login](/company-login/) through Google or Microsoft is a first-class alternative.
+- **Multi-factor sign-in.** There is no local MFA. If your agency requires MFA, configure it in
+  Google's or Microsoft's own policy; CapacityLens cannot enforce or verify it, and enabling
+  company sign-in does not turn it on. See [company login](/company-login/) and the
   [provider setup guide](/company-login/set-up-company-login).
-- **Sessions.** A signed-in session lasts twelve hours at most and expires after thirty minutes of
-  inactivity. The session cookie is host-only, so it's confined to your exact CapacityLens
-  address, and it's held back from cross-site background requests — it's only sent on the
-  top-level return from your identity provider during company login. Signing out ends the current
-  session; changing a local password revokes other sessions. Account does not show a session list.
-  An authorised Owner or Admin can revoke a teammate's sessions through Team & access.
-- **Isolation between companies.** Every request checks the signed-in person's membership and
-  role in that specific company before it can read or change anything, so one company's data
-  never leaks into another's.
-- **No tracking.** CapacityLens ships with no product analytics, advertising or crash-reporting
-  service. See [Privacy](/security/privacy) for exactly what is stored and where.
+- **Sessions.** A session lasts at most twelve hours and expires after thirty minutes of
+  inactivity. The cookie is host-only, confined to your exact CapacityLens address, and held back
+  from cross-site background requests; it is only sent on the top-level return from your identity
+  provider during company login. Signing out ends the current session; changing a local password revokes
+  your other sessions. Account shows no session list. An authorised Owner or Admin can revoke a
+  teammate's sessions in **Team & access**.
+- **Isolation between companies.** Every request checks the signed-in person's membership and role
+  in that company before reading or changing anything.
+- **No tracking.** No product analytics, advertising or crash-reporting service. See
+  [Privacy](/security/privacy) for what is stored and where.
 
-These are the defaults for the self-hosted, open-source application. An operator's own
-configuration, network setup and backup policy also matter — see
-[Self-hosting](/self-hosting/) for the deployment side of the picture.
+## Detailed evidence
 
-## Where the detailed evidence lives
-
-The bullets above are a summary. The full, dated evidence — what was reviewed, what passed, what
-is only partial, and what is out of scope — lives in the compliance artifacts. Start at
-[Reviews and compliance](/security/reviews) for an index of all of them, including the OWASP ASVS
-5.0.0 ledger, the security review, the threat model, the control inventories and the
-mutation-testing reviews.
+[Reviews and compliance](/security/reviews) indexes the dated evidence: what was reviewed, what
+passed, what is partial and what is out of scope. It includes the OWASP ASVS 5.0.0 ledger, the
+security review, the threat model, the control inventories and the mutation-testing reviews.
 
 ## Report a vulnerability
 
-CapacityLens has a published [security policy](https://github.com/Kevinjohn/capacitylens/blob/main/SECURITY.md)
-on GitHub. In short: use
-[GitHub private vulnerability reporting](https://github.com/Kevinjohn/capacitylens/security/advisories/new)
-rather than a public issue, discussion or pull request, and include the affected
-version/commit, prerequisites, reproduction steps and impact. The maintainer aims to acknowledge
-reports within five working days. Read the full policy for scope, response process and what is
-out of scope.
-
-## What's next
-
-Read [Privacy](/security/privacy) for what data CapacityLens stores and what stays in the
-browser, or go straight to [Reviews and compliance](/security/reviews) for the detailed evidence.
+Use [GitHub private vulnerability reporting](https://github.com/Kevinjohn/capacitylens/security/advisories/new),
+never a public issue, discussion or pull request. Include the affected version or commit,
+prerequisites, reproduction steps and impact. The maintainer aims to acknowledge reports within
+five working days. The full [security policy](https://github.com/Kevinjohn/capacitylens/blob/main/SECURITY.md)
+covers scope and the response process.

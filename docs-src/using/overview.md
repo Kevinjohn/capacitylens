@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: Find available capacity, then compare free capacity, tentative work and overbooking week by week across four, eight or twelve weeks.
+description: See who has room for more work, comparing free capacity, tentative work and overbooking week by week across four, eight or twelve weeks.
 prev: false
 next: false
 ---
@@ -9,150 +9,90 @@ next: false
 
 ![Overview ledger showing each person's free days out of capacity for this week and the next three weeks](../screenshots/flows/using_overview_1.png)
 
-Overview shows who has room for more work, one week at a time. It starts with the rest of this
-week and the next three weeks.
+Overview shows who has room for more work, one week per column. Open **Overview**, just above
+**Schedule** in the left menu. It starts with the rest of this week and the next three weeks.
 
-Ledger shows free days and a horizontal bar. Grey hatching marks tentative work.
+If Overview is missing from your menu, your company restricts it; see
+[Control access](#control-access). It shows no capacity figures in Blocks mode: switch to Hours or
+Days in **Settings** to use it.
 
-Has availability filters the table to people with spare capacity.
-
-Totals adds each week's committed percentage and free days above the table.
-
-Turn Tentative off to see capacity without provisional bookings.
-
-## Look further ahead
-
-![Overview with twelve week columns, weekly totals and the Load curve display](../screenshots/flows/using_overview_2.png)
-
-Choose 8 weeks or 12 weeks to look further ahead. Every column is still one week; scroll across
-the table to see the later weeks.
-
-Load curve replaces the figures with vertical bars. Hover a cell for its figures, or
-switch back to Ledger.
-
-The avatar beside a name opens that person's [work list](/using/read-the-schedule#your-work-list).
-
-If Overview is missing from your menu, your company may restrict access.
-
-Overview does not show capacity figures in Blocks mode.
-
-## Find available capacity
-
-![Schedule with Weeks visible, Today, Show filters and utilisation](../screenshots/flows/using_find_capacity_1.png)
-
-Open Schedule in the left menu. Use Today and Weeks visible to choose the period to compare.
-
-Show filters lets you narrow the schedule by person, discipline, client, project or activity.
-
-The utilisation percentage beside each person uses the dates currently visible. An empty cell alone does not prove availability: working patterns, time off and closures also affect capacity.
-
-### Compare the team in Overview
-
-In Overview, select Has availability to find people with spare capacity.
-
-If Overview is missing from the menu, ask an Admin about access.
-
-## Open the overview
-
-Overview shows who can take work during the remainder of this week and the complete company
-weeks that follow. The four-, eight- and twelve-week choices each show one column per week. It
-uses the same working patterns, time off and company closures as the Schedule.
+## Read a week
 
 ![Overview ledger with the Totals row on, showing each person's free days out of capacity for four weeks, a red overbooked figure and grey tentative hatches](../screenshots/flows/capacity_overview.png)
 
-Choose **Overview** immediately above **Schedule** in the sidebar. The table shows active people
-in the same order and groups as the Schedule. Each group row names its group and people count;
-external resources and archived or deleted people are excluded.
+People appear in the same order and groups as on the Schedule. External resources and archived or
+deleted people are left out. Overview uses the same working patterns, time off and closures as the
+Schedule.
 
-Each week cell shows a person's free days out of their capacity for that week, for example
-**2d / 5d**. Beneath the figures, a bar fills with the share of capacity still free:
+Each cell shows free days out of that week's capacity, such as **2d / 5d**. The bar beneath fills
+with the free share:
 
 - green when at least 80% of the week is free;
 - amber when at least 40% is free;
 - red when less than 40% is free.
 
-Tentative work appears as a grey hatch after the free portion of the bar. A muted dash replaces
-the figure when the person has no free time, whether fully booked or unavailable. An overbooked
-week prints the overbooked days in red in place of the capacity figure; the bar itself only ever
-shows free time, so overbooking never paints it. Hover the cell to read the full breakdown.
+Grey hatching after the free portion is tentative work. A muted dash means no free time, whether
+fully booked or unavailable. An overbooked week shows the overbooked days in red instead of the
+capacity figure; the bar only ever shows free time. Hover a cell for the full breakdown.
 
-Free capacity is rounded down to the nearest quarter-day. Overbooking is rounded up. Weekly totals
-calculate from exact values before rounding.
+Free capacity rounds down to the nearest quarter-day and overbooking rounds up. Weekly totals use
+exact values.
 
-If placeholders are enabled, their allocations appear separately as **Unassigned demand**. This
-demand is rounded up to the nearest quarter-day, is not counted as people capacity, and never
-carries a bar.
+With placeholders turned on, their bookings appear as **Unassigned demand**. It rounds up to the
+nearest quarter-day, does not count as people capacity and has no bar.
 
-Hover or focus a person's avatar to reveal an eye icon. Selecting it opens that person's
-read-only schedule drawer, covering the current company week and the following three weeks
-rather than the Overview's own columns, without changing the table's filters or scroll
-position — the same drawer as [the schedule](/using/read-the-schedule).
+Select the avatar beside a name to open that person's
+[work list](/using/read-the-schedule#your-work-list). It covers their own four weeks, not
+Overview's columns, and leaves the table as it was.
 
-## Choose a cell display
+## Look further ahead
 
-![Overview in Load curve display across twelve weeks with the Totals row on: each cell is a vertical fill showing the person's free share of the week](../screenshots/flows/using_overview_2.png)
+![Overview with twelve week columns, weekly totals and the Load curve display](../screenshots/flows/using_overview_2.png)
 
-**Ledger** starts selected and shows the figures and a horizontal bar in every cell.
+Choose **8 weeks** or **12 weeks** to add more weeks, and scroll across to reach them. Weeks follow
+the company's Monday or Sunday start, and each heading shows its dates. The subtitle under the
+title names the range in use. The choice returns to **4 weeks** when you reopen or reload the page.
 
-Choose **Load curve** for a vertical fill that rises with the person's free share of the week.
-The tentative hatch sits above it.
-
-Hover a cell to read its figures, or return to **Ledger**.
-
-Switching between the two changes only the inside of each week cell. The header, group rows and
-column widths stay exactly where they are.
-
-## Choose a planning horizon
-
-The horizon control starts at **4 weeks**: the remainder of the current company week followed by
-the next three complete company weeks. Choose **8 weeks** or **12 weeks** to add complete company
-weeks, one column each. Scroll horizontally to reach the later weeks.
-
-The subtitle under the page title states the horizon in use.
-
-Every horizon follows the company's Monday or Sunday week start. Column headings show each week's
-date range, so a range crossing a calendar year reads in context without repeating the year.
-
-The choice resets to **4 weeks** when you reopen Overview or reload the page. It is temporary page
-state, not a company or device preference. Switching it keeps your tentative-work, availability,
-totals and display-mode choices, as well as collapsed groups.
+**Load curve** replaces the figures with a vertical fill that rises with each person's free share,
+tentative hatching above it. Hover a cell for its figures, or return to **Ledger**.
 
 ## Filter the table
 
-**Tentative** starts on. Turn it off to recalculate people's capacity and unassigned demand from
-confirmed allocations only; the tentative hatch disappears from every bar and total.
+**Tentative** starts on. Turn it off to count confirmed bookings only, for people and unassigned
+demand.
 
-Turn on **Has availability** to show only people with at least 0.25 free days in any displayed
-week. Placeholders remain when they have displayed demand.
+**Has availability** shows only people with at least 0.25 free days in a displayed week.
+Placeholders stay when they have demand in the displayed weeks.
 
 ## Show weekly totals
 
-**Totals** starts off. Turn it on to add a second header row above the table with, for each week
-across the people currently shown:
+Turn on **Totals** to add a row above the table. For the people shown, each week gives:
 
 - the percentage of their combined capacity committed to confirmed work;
 - their combined free days;
-- a bar with the committed share in blue and the tentative share as a grey hatch.
+- a bar with confirmed work in blue and tentative work as grey hatching.
 
-The percentage turns red once committed and tentative work together reach 90% of the week. Hover
-a total to read the committed days, capacity and tentative days behind it. Adding or removing the
-totals row never moves the columns.
+The percentage turns red once confirmed and tentative work together reach 90% of the week. Hover a
+total for the days behind it.
 
-Companies using Blocks mode see an explanation because Blocks do not measure capacity. Switch to
-Hours or Days in **Settings** to use the overview.
+## Find available capacity
+
+![Schedule with Weeks visible, Today, Show filters and utilisation](../screenshots/flows/using_find_capacity_1.png)
+
+In Overview, turn on **Has availability**.
+
+Without Overview, open **Schedule** and use **Today** and **Weeks visible** to choose the period.
+**Show filters** narrows it by person, discipline, client, project or activity. The utilisation
+percentage beside each person covers the dates on screen. An empty cell alone does not prove
+availability: working patterns, time off and closures also count.
 
 ## Control access
 
-Overview is available to Owners and Admins by default. An Owner or Admin can open **Settings**,
-find **Overview access**, and choose **Admins**, **Admins & Editors**, or
-**Everyone**.
+Owners and Admins can open Overview by default. An Owner or Admin can open **Settings**, find
+**Overview access** and choose **Admins**, **Admins & Editors** or **Everyone**. This applies to
+both the menu link and the `/overview` address.
 
-The chosen access applies to both the sidebar link and the direct `/overview` route.
+It controls who can open the page, not who can see the data: everyone in the company already sees
+the same bookings and resources on the Schedule.
 
-This setting controls who can open the page, not the underlying data: everyone with sign-in
-access to the company already receives the same allocations and resources through the schedule.
-
-## What's next
-
-[Schedule work](/using/schedule-work) for the person with room, or read the [Schedule](/using/read-the-schedule)
-for filters and the day-by-day grid.
+Next: [Schedule work](/using/schedule-work) for the person with room.

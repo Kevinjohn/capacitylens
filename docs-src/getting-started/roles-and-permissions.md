@@ -1,157 +1,123 @@
 ---
 title: Roles and permissions
-description: What each of CapacityLens's four roles can see and do, and how sign-in, membership and the schedule stay separate.
+description: What each of the four roles can see and do, and why a sign-in, a company membership and a place on the schedule are separate.
 ---
 
 # Roles and permissions
 
-CapacityLens has four roles, strictly nested: **Viewer < Editor < [Admin](/reference/glossary)
-< [Owner](/reference/glossary)**. A role changes what's editable and visible inside each page,
-and that's enforced on the server, not just hidden in the interface. Navigation can also depend on
-company settings: for example, [Overview access](/using/overview#control-access) defaults
-to Owners and Admins and can include Editors or everyone. People without access do not see its
-sidebar link and cannot open its route directly. This page explains what each role can do and clears
-up a common point of confusion: the difference between having a sign-in, being a member of a
-company, and being on the schedule.
+Use this page to choose a role for someone, or to find out why a control is missing. Roles are
+nested: **Viewer < Editor < [Admin](/reference/glossary) < [Owner](/reference/glossary)**. The
+server enforces them; hiding a control in the interface is not the only protection.
+
+Some pages also depend on company settings. [Overview access](/using/overview#control-access), for
+example, defaults to Owners and Admins. People without access don't see the link and cannot open
+the page directly.
+
+## Roles in one table
+
+| Capability                                            |  Viewer  |  Editor  | Admin | Owner |
+| ----------------------------------------------------- | :------: | :------: | :---: | :---: |
+| See the schedule                                      |   Yes    |   Yes    |  Yes  |  Yes  |
+| Create and edit scheduling data                       |    —     |   Yes    |  Yes  |  Yes  |
+| Change ordinary company settings                      |    —     |   Yes    |  Yes  |  Yes  |
+| See time-off notes                                    |    —     |    —     |  Yes  |  Yes  |
+| See private client/project real names                 |    —     |    —     |   —   |  Yes  |
+| List members and manage invites                       |    —     |    —     |  Yes  |  Yes  |
+| Disable or Enable Access; archive or restore a member |    —     |    —     |  Yes  |  Yes  |
+| Export the schedule                                   | Redacted | Redacted | Full  | Full  |
+| Import, delete the company, transfer ownership        |    —     |    —     |   —   |  Yes  |
+
+Each company has exactly one Owner. Nobody becomes Owner through an invitation or a role change, only
+through [an ownership transfer](#hand-the-company-to-someone-else). An Admin can invite, remove,
+disable or change the role of any other member except the Owner. Nobody, not even the Owner, can
+disable or archive the Owner or themselves.
+
+![Members table showing roles, Resource links and row actions](../screenshots/flows/team_access_members.png)
+
+**Team & access** lists members by role, Owner first. Disabled, archived and removed people move to
+the collapsed **No longer active** table beneath.
+[Managing someone who already joined](/admin/invite-teammates#managing-someone-who-already-joined)
+covers each action. If a company has no Owner at all, see
+[A company has no Owner](/self-hosting/incidents#a-company-has-no-owner).
 
 ## The three kinds of "person"
 
-CapacityLens keeps three things separate that can all look like "a
-[person](/reference/glossary)" in the interface:
+Three separate things can look like a [person](/reference/glossary) in the interface:
 
-- A **sign-in identity** — the email and password (or company login) someone uses to
-  reach CapacityLens at all. One identity can belong to several companies.
-- A **member** — a sign-in identity's role in one specific company, created by [inviting
-  them](/admin/invite-teammates). This controls what they can see and do in
-  that company.
-- A **person** on the schedule — a schedulable resource that can receive allocations and
-  time off. Adding a person doesn't give them a sign-in, and inviting a member doesn't put
-  them on the schedule.
+- A **sign-in identity**: the email and password, or company login, someone uses to reach
+  CapacityLens. One identity can belong to several companies.
+- A **member**: that identity's role in one company, created by
+  [inviting them](/admin/invite-teammates).
+- A **person** on the schedule: a row that can receive bookings and time off.
 
-Most agencies end up with a few members and many people: you schedule freelancers and
-contractors without ever creating a sign-in for them. See the
-[glossary](/reference/glossary) for precise definitions of these and other terms used
-throughout these docs.
+Adding a person doesn't give them a sign-in, and inviting a member doesn't put them on the
+schedule. You can schedule freelancers and contractors without ever giving them a sign-in.
+
+## Hand the company to someone else
+
+Ownership moves in three steps, and nothing changes until all three happen:
+
+1. The Owner opens **Team & access → Company ownership → Manage ownership** and nominates an active
+   Admin.
+2. The nominated Admin agrees. Nobody can agree on their behalf. They can decline, or withdraw
+   their agreement before the last step.
+3. The same Owner confirms. They swap: the nominee becomes Owner and the old Owner becomes Admin.
+
+Only those two people see the request. The Owner can cancel it or nominate someone else, which
+replaces it. A request expires seven days after it is made, and ends if the nominee stops being an
+active Admin or the Owner stops being the Owner. In every case the company keeps its current Owner.
+Both people need a recent sign-in confirmation for their step.
+
+[Transfer ownership](/owner/responsibilities#transfer-ownership) has the full procedure and
+recovery steps.
 
 ## Take a role-based tour
 
 ![Viewer tour highlighting the Schedule grid with progress 1 of 2](../screenshots/flows/tour_viewer.png)
 
-Owners, Admins and Editors can select **Show me around** on the Getting started card. Anyone can
-open **Help** from the sidebar to start the tour for their role. It remains available after an
-Owner or Admin dismisses Getting started. The tour starts with that role and continues through
-lower-role guidance. Owners see eight server-backed stops,
-Admins seven and Editors five; the Editor tour ends with two read-only Viewer stops. Viewers do not
-see the Getting started card or its launcher. Their Help tour has two read-only stops. Server-backed
-companies include the Admin example-data stop; the temporary demo omits it.
+Anyone can start the tour for their role from **Help** in the sidebar, even after Getting started is dismissed. Owners, Admins and Editors
+can also select **Show me around** on the Getting started card; Viewers don't see that card. The
+tour opens Schedule first and continues through the guidance for lower roles:
 
-If you start from another page, the tour opens Schedule first. It is unavailable while permissions
-are being checked or unavailable, and while a read-only offline snapshot is open.
+| Role   | Stops                                                         |
+| ------ | ------------------------------------------------------------- |
+| Owner  | Eight                                                         |
+| Admin  | Seven                                                         |
+| Editor | Five, ending with the two Viewer stops                        |
+| Viewer | Two, read-only                                                |
 
-## Roles in one table
-
-| Capability                                     |  Viewer  |  Editor  | Admin | Owner |
-| ---------------------------------------------- | :------: | :------: | :---: | :---: |
-| See the schedule                               |   Yes    |   Yes    |  Yes  |  Yes  |
-| Create and edit scheduling data                |    —     |   Yes    |  Yes  |  Yes  |
-| Change ordinary company settings               |    —     |   Yes    |  Yes  |  Yes  |
-| See time-off notes                             |    —     |    —     |  Yes  |  Yes  |
-| See private client/project real names          |    —     |    —     |   —   |  Yes  |
-| List members and manage invites                |    —     |    —     |  Yes  |  Yes  |
-| Disable or Enable Access; archive or restore a member |    —     |    —     |  Yes  |  Yes  |
-| Export the schedule                            | Redacted | Redacted | Full  | Full  |
-| Import, delete the company, transfer ownership |    —     |    —     |   —   |  Yes  |
-
-There is exactly one Owner per company, and Owner can't be assigned through an invite or
-an ordinary role change — only through the ownership transfer described in [Hand the
-company to someone else](#hand-the-company-to-someone-else). An Admin can invite,
-remove, Disable Access or change the role of any other member, but can't touch the Owner — and nobody, not even the Owner, can disable or archive the Owner
-or themselves. Disable Access stops company entry immediately and persists through removal; only Enable Access clears it. Archiving stops current membership access while retaining its history; it can be restored separately. Those
-people leave the main member list and move into the **No longer active** group beneath it,
-which stays closed until you open it. If a company somehow ends up with no Owner at all, see [A company has
-no Owner](/self-hosting/incidents#a-company-has-no-owner) for the automatic upgrade repair and
-the guarded operator procedure.
-
-![Members table showing roles, Resource links and row actions](../screenshots/flows/team_access_members.png)
-
-The member table groups people by role—Owner, Admin, Editor, then Viewer—and keeps restricted,
-archived, and removed-with-restriction entries in the collapsed **No longer active** table. See
-[Invite teammates and manage access](/admin/invite-teammates#managing-someone-who-already-joined) for the
-member-management details.
-
-## Hand the company to someone else
-
-Ownership moves in three steps, and nothing changes until all three have happened:
-
-1. The **Owner opens Manage ownership** in **Team & access → Company ownership**, then nominates an
-   Admin in the modal. Only active Admins can be nominated: the new Owner is someone who already administers the company,
-   not a promotion of two steps on one person's say-so.
-2. The **nominated Admin agrees**. Nobody can agree on their behalf — not another Admin,
-   and not the Owner who asked. They can decline instead, or take their agreement back
-   again at any point before the last step.
-3. The **same Owner confirms**. Only then do the two of you swap: they become the Owner,
-   you become an Admin.
-
-Both people can open the request from **Team & access**, and nobody else sees that entry point — a transfer in
-progress, and who it names, isn't ordinary member information. Either side can stop it:
-the Owner can cancel, and the nominee can decline. The Owner can also nominate somebody
-else instead, which replaces the standing request rather than opening a second one.
-
-Opening **Manage ownership** reads the latest request, including an answer given while you were
-away. If the request cannot be loaded, select **Try again** in the modal. After the Owner confirms,
-CapacityLens refreshes their access; if that fails, it closes the company view and asks them to
-restore access before continuing.
-
-A request expires seven days after it is made, whether or not the nominee has agreed. It
-also ends by itself if the people it names stop being the right people: if the nominee
-stops being an active Admin, or the Owner who asked stops being the Owner, the request
-ends and the modal says so. In every case the company keeps the Owner it already had.
-
-Both people need a recent sign-in confirmation for their step, the same as every other
-sensitive action. If a company somehow ends up with no Owner at all, see [A company has
-no Owner](/self-hosting/incidents#a-company-has-no-owner).
+Server-backed companies include an Admin stop about example data; the demo leaves it out. The tour
+is unavailable while permissions are being checked or can't be confirmed, and while a read-only
+offline snapshot is open.
 
 ## Masquerade (view as a member)
 
-An Owner or Admin can check what another active member sees without changing that
-member's role. In **Team & access**, select the eye button on the member's row and confirm
-the prompt. A red **Masquerading as _name_** bar stays visible while the member's view is
-active.
+An Owner or Admin can see what another active member sees without changing their role. In **Team &
+access**, select the eye button on the member's row and confirm. A red **Masquerading as _name_**
+bar stays visible throughout.
 
-Masquerade is a read projection, not control of the other person's identity. CapacityLens
-uses that member's role, field redaction and member-directory capabilities for the current
-company, but blocks every change on the server and in the interface. The projection never
-applies to another company.
+You see the company with that member's role and redactions, but you cannot change anything; the
+server blocks every change. It never applies to another company.
 
-Select **End now** to reload your real view and return to the schedule. Choosing another
-company also ends the projection first. Signing out, revoking the session, disabling either
-membership or letting the session expire ends it automatically. Starting and ending are
-recorded in the audit log.
+Select **End now** to return to your own view. Switching company, signing out, a revoked or expired
+session, a disabled membership on either side, or a server restart also ends it. Starting and ending
+are recorded in the audit log.
 
-The projection belongs to the current browser session. A server restart ends it rather
-than attempting to restore it. This fail-closed behaviour is deliberate.
+## Exports and offline snapshots
 
-## Details
-
-**Export.** An export is redacted the same way the screen is:
+An export is redacted the same way as the screen:
 
 | What the export contains     | Viewer / Editor | Admin      | Owner      |
 | ---------------------------- | --------------- | ---------- | ---------- |
 | Archived and deleted rows    | Left out        | Included   | Included   |
 | Private client/project names | Code names      | Code names | Real names |
 
-So an Admin's export holds the full set of rows, but only an Owner's export contains
-the real private client and project names.
-
-**Offline snapshots.** [Offline access](/using/settings#offline-access) always behaves like a
-Viewer, no matter your real role — while a cached snapshot is shown, creating, editing,
-deleting, importing and changing membership are all unavailable for everyone. The
-snapshot reflects whatever that person could see the last time they were online: a
-non-owner's snapshot uses code names, while an owner's may contain real private names —
-so protect an owner's device accordingly.
+[Offline access](/using/settings#offline-access) always behaves like Viewer access: while a cached
+snapshot is open, nobody can create, edit, delete, import or change membership. A snapshot holds
+what that person could see when last online, so an Owner's snapshot may contain real private names.
+Protect the Owner's device accordingly.
 
 <span id="what-s-next"></span>
 
-[Owner responsibilities](/owner/responsibilities)
-
+[Owner responsibilities](/owner/responsibilities) ·
 [Invite teammates and manage access](/admin/invite-teammates)

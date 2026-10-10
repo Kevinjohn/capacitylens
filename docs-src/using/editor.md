@@ -1,6 +1,6 @@
 ---
 title: Plan work as an Editor
-description: Join your company, prepare a booking, check capacity, change the plan and recover from common scheduling interruptions.
+description: Check your role, prepare what a booking needs, book and change work within the scheduling rules, and recover from common interruptions.
 prev: false
 next: false
 ---
@@ -9,128 +9,112 @@ next: false
 
 ![Schedule showing existing bookings, time off, utilisation and the controls for adding work](../screenshots/flows/editor_schedule_current.jpg)
 
-This route is for the person who keeps the team's plan up to date. An Editor can create and
-change scheduling records and ordinary company settings. An Admin or Owner manages membership;
-only the Owner controls company joining policy, imports and company deletion.
+As an Editor you keep the team's plan up to date: bookings, resources, time off, clients,
+projects, activities and ordinary company settings. Admins and Owners manage membership. Only the
+Owner controls joining policy, imports and company deletion.
+[See your work](/using/) covers joining and finding your way round the Schedule.
 
 ## Join the right company
 
-Use the invitation or company joining link supplied by your Owner or Admin. Follow
-[Join your team](/using/join-your-team) with the address they authorised. Sign-in alone does not
-make you a member, and a scheduled person is not automatically a sign-in account.
-
 ![Team & access identifying the Editor role and its restrictions](../screenshots/flows/editor_access_current.jpg)
 
-After entering the company, open **Team & access** near the bottom of the left menu and check your
-role. If it says Viewer, ask an Owner or Admin for Editor access before trying to change work.
-If you belong to several companies, use **Switch company** and choose the one whose plan you
-intend to change. Your role can be different in each company.
+Open **Team & access** near the bottom of the menu and check your role. If it says Viewer, ask an
+Owner or Admin for Editor access. If you belong to several companies, use **Switch company** to
+choose the plan you mean to change; your role can differ in each.
+
+Signing in alone does not make you a member: follow [Join your team](/using/join-your-team) with
+the address you were invited on. Being on the schedule does not give someone a sign-in, either.
 
 ## Check the period and the person
 
-1. Open **Schedule**, select **Today**, then use **Weeks visible** to show the period you need.
-2. Select **Show filters** to narrow the rows or work by person, discipline, client, project or
-   activity. Clear a filter when expected work is missing.
-3. Find the person's row. Read their utilisation, working days, time off and existing bookings
-   together. A blank calendar cell does not prove spare capacity.
-4. Open the person's avatar to inspect their read-only work list when you need the individual
-   view. Close the drawer to return to the shared grid.
+Before booking, read the person's row as a whole: utilisation, working days, time off and existing
+bookings. A blank cell does not prove spare capacity. Clear any filter when expected work is
+missing.
 
-The utilisation beside each person describes the dates currently visible. An overbooking warning
-for the next two weeks is a separate signal. Fully booked at 100% is not over capacity; work
-exceeds capacity only when the allocation is greater than the time available.
+The percentage beside each person covers only the dates on screen. It turns red when the person is
+over capacity in the next 14 days, whatever you are viewing. At 100% a person is fully booked; over
+capacity means allocated time is greater than available time.
 
-If **Overview** appears in your menu, use its **Has availability** filter and weekly figures to
-compare the team. It is restricted to Owners and Admins by default. An Admin can enable it for
-Editors. [Read the schedule](/using/read-the-schedule) and [Overview](/using/overview) explain the
-figures, filters and different planning windows.
+If **Overview** is in your menu, use **Has availability** to compare the team week by week. Only
+Owners and Admins see it by default; an Admin can open it to Editors.
+[Read the schedule](/using/read-the-schedule) and [Overview](/using/overview) explain the figures.
 
 ## Prepare what the booking needs
 
-Check **Resources** for the scheduled person and their working pattern. An invitation creates
-membership, not a schedulable row; if the person is absent, add the appropriate resource before
-booking them. When the company uses disciplines, open **Disciplines** to create or edit its groups.
+Check **Resources** for the person and their working pattern. An invitation creates a sign-in
+membership, not a schedule row, so add the resource first if the person is missing. When your
+company uses disciplines, **Disciplines** holds their groups.
 
-Check **Clients**, **Projects** and **Activities** for the work to book. A project activity belongs
-to its project; an internal activity does not need a client. Some activities can be reused across
-projects. Add the missing records through those pages, or use inline activity creation when your
-company has enabled it.
-
-These are shared company records. Use the existing names where they fit rather than making a
-second copy. [Resources](/using/resources), [Disciplines](/using/disciplines),
-[Clients and projects](/using/projects) and [Activities](/using/activities) show the forms and
-explain deletion, privacy and placeholder behavior.
+Check **Clients**, **Projects** and **Activities** for the work. A project activity belongs to its
+project; an internal activity needs no client; an All-projects activity can be booked against any
+project. Use existing records rather than making a second copy. If your company allows it, you can
+also add an activity from the booking form. [Resources](/using/resources),
+[Disciplines](/using/disciplines), [Clients and projects](/using/projects) and
+[Activities](/using/activities) explain the forms, privacy, placeholders and deletion.
 
 ## Make and check a booking
 
 ![Editor allocation form with dates, daily hours, status, note, working-day exception and capacity warning](../screenshots/flows/editor_allocation_form.jpg)
 
-1. In **Schedule**, use the **+** beside the person's name to open the allocation form. You can
-   also draw over available dates when the draw control is offered.
-2. Choose the person, activity and any project, then the start and end dates. Enter the amount
-   in the company's selected units: Hours, Days or Blocks.
-3. Set a tentative status or add a note only when it helps the plan. If repetition is available,
-   check the preview and end condition before saving.
-4. Save. Find the resulting bar on the correct row and dates, and check utilisation or conflicts.
+1. On **Schedule**, select **+** beside the person's name, or drag across the dates on their row.
+2. Choose the project and activity, then the dates. Enter the amount in your company's units:
+   Hours, Days or Blocks.
+3. Mark the booking tentative or add a note if that helps. If you use **Repeat**, check the preview
+   before saving.
+4. Select **Save**, then check the bar sits on the right row and dates, and look at utilisation.
 
-Ordinary bookings use the person's working weekdays and the company's working week. They also
-respect a person's start and end dates. Time off and closures reduce availability. **Ignore
-working days** changes how an allocation uses its span; it does not make every date a valid place
-to begin a new booking or bypass the person's active-date boundary.
+Bookings use only the person's working days and the company's working week, within the person's
+start and end dates. Time off and closures reduce availability. **Ignore working days** lets a
+booking span non-working days, but a new booking must still start on a working day inside the
+person's dates.
 
-Blocks express bookings without measuring capacity, so capacity figures are unavailable in that
-mode. An over-capacity warning needs a planning decision; it does not silently move work to another
-person. [Schedule and change work](/using/schedule-work) covers each field, repeated bookings and
-the available gestures.
+An over-capacity warning is for you to resolve; CapacityLens never moves work for you. Blocks
+show bookings without measuring capacity. [Schedule and change work](/using/schedule-work) covers
+every field, repeats and gesture.
 
 ## Keep the plan current
 
-Open a booking to edit its amount, dates, status, note or permitted assignment. Use duplicate when
-the new booking should start from an existing one. Dragging and keyboard adjustments provide
-faster date or assignment changes; the same working-day and resource rules still apply.
+Select a bar to edit its amount, dates, status, note or assignee, or to duplicate or delete it.
+Drag a bar to move or reassign it, or drag an edge to change its dates; the same working-day rules
+apply.
 
-Use **Undo** or **Redo** when the available history contains the change you need to reverse. Check
-the resulting schedule rather than assuming another person's later edit was also undone.
-Record absences and company closures on **Time off**, then check the affected period again.
-Time-off notes are reserved for Owners and Admins, even though Editors can manage the scheduling
-record. [Time off](/using/time-off) explains conflicts, repetition and the distinction between a
-person's absence and a company closure.
+**Undo** and **Redo** reverse changes still in your undo history. Check the schedule afterwards: a
+teammate's later edit is not undone.
+
+Record absences and closures on **Time off**, then check the affected weeks. Time-off notes are
+visible only to Owners and Admins, even though you can create the entry. [Time off](/using/time-off)
+covers repeats, conflicts and closures.
 
 ## Choose your display and protect your sign-in
 
-In **Settings → My display**, choose preferences for this browser without changing a teammate's
-view. **Company setup** and **Scheduling features** affect everyone; change them deliberately and
-check the existing plan afterwards. Week start and time zone are fixed when the company is
-created. [Settings](/using/settings) explains each setting's effect and access restriction.
+**Settings → My display** changes this browser only. **Company setup** and **Scheduling features**
+affect everyone, so check the plan after changing them. Week start and time zone are fixed when the
+company is created. [Settings](/using/settings) explains each setting.
 
-Open **Account** at the bottom of the menu for the identity used to sign in, available personal
-security controls and **Sign out**. [Account](/using/account) explains password and company-login
-differences. Your company role belongs to your membership; your sign-in identity can be used in
-more than one company. Administrative password resets and session revocation affect that identity
-across companies, so ask an Owner or Admin if your access needs recovery.
+**Account**, at the bottom of the menu, shows your sign-in, its security controls and **Sign out**.
+Your sign-in can belong to several companies, so a password reset or session revocation by an
+Admin applies to all of them. Ask an Owner or Admin if you are locked out.
+[Account](/using/account) has the details.
 
 ## When something interrupts the work
 
 ### A booking cannot start on the selected date
 
-Check the person's active dates, working pattern and the company's working days. Begin on an
-allowed working date. Read the form's error before changing the amount or enabling an exception;
-**Ignore working days** does not remove every date restriction.
+Check the person's start and end dates, their working pattern and the company's working days, then
+start on an allowed working day. Read the form's error first: **Ignore working days** does not
+remove every date restriction.
 
 ### A save failed or another person changed the same record
 
-Keep the failure visible and use the offered retry or recovery control. If CapacityLens replaces a
-stale edit with the current server record, review that record before editing again. A bar you can
-still see is not proof that its last change was saved. [Day-to-day FAQ](/using/faq) covers connection
-and recovery messages.
+Use the retry or recovery control offered. If CapacityLens replaces your edit with the current
+saved record, review it before editing again. A bar you can still see is not proof its last change
+was saved. [Day-to-day FAQ](/using/faq) covers connection messages.
 
 ### I can see a code name but not a client's real name
 
-That is the company's private-name protection. Only the Owner sees the confidential real names;
-being an Editor or Admin does not remove that protection. Use the code name shown in the plan.
+Only the Owner sees confidential real names, whatever your role. Use the code name.
 
 ### I am using an offline snapshot
 
-The snapshot is read-only, even for an Editor. Reconnect and return to the live company before
-changing work. Cached data is opt-in, expires after seven days and does not queue edits for later
-submission. See [Offline access](/using/settings#offline-access).
+The snapshot is read-only, even for an Editor, and expires after seven days. Edits are never queued
+for later. Reconnect before changing work. See [Offline access](/using/settings#offline-access).

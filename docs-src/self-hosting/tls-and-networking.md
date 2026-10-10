@@ -5,22 +5,18 @@ description: How to put a domain and TLS certificate in front of CapacityLens, a
 
 # TLS and networking
 
-CapacityLens expects to sit behind a TLS-terminating reverse proxy on the same origin
-the browser uses. This page covers that proxy, the internal TLS hop Docker sets up for
-you, and the header and port details that make sign-in cookies work correctly.
+CapacityLens sits behind a TLS-terminating reverse proxy on the same origin the browser uses.
+A release-archive install needs only that proxy: see [Native install](#native-install-release-archive).
+The Docker sections cover the extra nginx layer and internal TLS hop Compose adds.
 
 ## Two different nginx instances
 
-It's easy to confuse these, so here's the plain-language version before anything else:
-the Docker Compose stack already contains its own nginx — the `web` service, configured
-by the repo's root `nginx.conf`. It serves the built app and reverse-proxies `/api/` to
-the API over an internal TLS hop it sets up for you. That nginx listens on
-`127.0.0.1:8080` and is not reachable from the internet. A native install has no such
-layer; see [Native install](#native-install-release-archive).
+The Docker Compose stack contains its own nginx: the `web` service, configured by the repo's
+root `nginx.conf`. It serves the built app and proxies `/api/` to the API over an internal TLS
+hop. It listens on `127.0.0.1:8080` and is not reachable from the internet.
 
-The public reverse proxy is a **second, separate thing** — one you install and run on
-the host yourself, in front of that `127.0.0.1:8080`. It's the one that gets your domain
-name and a real certificate.
+The public reverse proxy is a **second, separate** one that you run on the host in front of
+`127.0.0.1:8080`. It gets your domain name and the real certificate.
 
 ```
 Browser (HTTPS, port 443)
@@ -35,15 +31,13 @@ Your public proxy (nginx or Caddy, run by you, on the host)
 the `api` service (Fastify)
 ```
 
-Do not edit the repository's `nginx.conf` to add public TLS — leave it alone. It already
-does its job (serving the app and proxying to the API); your public proxy is a separate
-config file, usually outside the repository entirely.
+Do not edit the repository's `nginx.conf` to add public TLS. Your public proxy is a separate
+config file, usually outside the repository.
 
 ## The public edge
 
-Put a reverse proxy or load balancer in front of CapacityLens and terminate public HTTPS
-there — nginx, Caddy, a platform load balancer, whatever you already run. Never expose
-the API container directly.
+Terminate public HTTPS at a reverse proxy or load balancer you already run: nginx, Caddy or a
+platform load balancer. Never expose the API container directly.
 
 - The Docker Compose `web` service binds port 8080 to `127.0.0.1` by default, so only a
   proxy on the same host can reach it. Set `WEB_BIND_IP` only if a private platform load
@@ -51,8 +45,8 @@ the API container directly.
   balancer may reach the bound address, and it must connect from a private address:
   anyone else on that network could pick their own rate-limit address, and a load balancer
   with a public source address makes every person share one sign-in allowance.
-- The public edge must overwrite `X-Forwarded-Proto` with the browser-visible scheme —
-  not append to it. CapacityLens trusts this single hop for CSRF's same-origin check.
+- The public edge must overwrite `X-Forwarded-Proto` with the browser-visible scheme, not
+  append to it. CapacityLens trusts this single hop for CSRF's same-origin check.
 - The public edge must set `X-Forwarded-For` to the browser's address. The packaged nginx
   accepts it only from a loopback or private-network peer and keys per-client rate limits
   on it. Without it, every person shares one sign-in allowance. The nginx and Caddy
@@ -65,8 +59,8 @@ the API container directly.
 
 ### nginx example
 
-A minimal, complete `server {}` block. It terminates HTTPS and reverse-proxies
-everything to the `web` service on `127.0.0.1:8080`:
+A complete `server {}` block that terminates HTTPS and proxies everything to the `web` service
+on `127.0.0.1:8080`:
 
 ```nginx
 server {
@@ -94,14 +88,13 @@ server {
 }
 ```
 
-Get the certificate with [certbot](https://certbot.eff.org): it can write the
-`ssl_certificate` lines above for you and handles renewal. Follow certbot's nginx
-instructions for your OS rather than hand-editing paths.
+Get the certificate with [certbot](https://certbot.eff.org), following its nginx instructions
+for your OS. It can write the `ssl_certificate` lines and handles renewal.
 
 ### Caddy example
 
-Caddy is the easier path if you're new to this: it requests and renews a Let's Encrypt
-certificate automatically, with no separate certbot step. A complete `Caddyfile`:
+Caddy requests and renews a Let's Encrypt certificate itself, with no certbot step. A complete
+`Caddyfile`:
 
 ```
 capacity.example.com {
@@ -109,61 +102,51 @@ capacity.example.com {
 }
 ```
 
-That's the whole config — Caddy fills in HTTPS, the redirect from port 80, and the
-forwarded headers CapacityLens needs.
+Caddy fills in HTTPS, the redirect from port 80 and the forwarded headers CapacityLens needs.
 
-Loopback API listeners (`127.0.0.1`, `localhost` or `::1`) — which is every packaged
-Compose and the recommended bare-metal setup — automatically trust their same-host
-proxy's forwarded headers. `CAPACITYLENS_TRUST_PROXY_HEADERS=1` opts a non-loopback
-listener into the same trust, and is safe only when clients can't reach the API
-directly. Docker Compose sets it because the API only listens on the private container
-network, reachable solely by the packaged nginx.
+Loopback API listeners (`127.0.0.1`, `localhost` or `::1`), as in the recommended bare-metal
+setup, trust their same-host proxy's forwarded headers automatically.
+`CAPACITYLENS_TRUST_PROXY_HEADERS=1` gives a non-loopback listener the same trust, and is safe
+only when clients can't reach the API directly. Docker Compose sets it because its API listens
+only on the private container network, reachable solely by the packaged nginx.
 
 ## Cookies and host requirements
 
-CapacityLens signs the browser in with a `__Host-`-prefixed cookie once
-`CAPACITYLENS_PUBLIC_URL` is HTTPS. That cookie prefix requires the browser to see
-a single, secure, root-path origin — which is exactly what the same-origin proxy
-topology above provides, and why the API is never exposed on its own origin or port.
+With an HTTPS `CAPACITYLENS_PUBLIC_URL`, the sign-in cookie is `__Host-`-prefixed. That prefix
+requires a single, secure, root-path origin, which is why the API is never exposed on its own
+origin or port.
 
-If the browser and API are intentionally on different origins — a separate origin for
-the SPA, for example — set `CAPACITYLENS_CORS_ORIGIN` to the comma-separated browser
-origins. Host case, default ports and a trailing slash are normalised automatically;
-credentials, paths, queries, fragments and `*` are all rejected at startup, because
-CapacityLens recognises a signed-in browser with cookies, not tokens. With the packaged
-same-origin nginx proxy, leave `CAPACITYLENS_CORS_ORIGIN` unset — the browser never
-makes a cross-origin API call.
+If the browser and API are deliberately on different origins, set `CAPACITYLENS_CORS_ORIGIN` to
+the comma-separated browser origins. Host case, default ports and a trailing slash are
+normalised; credentials, paths, queries, fragments and `*` are rejected at startup, because
+sign-in uses cookies, not tokens. With a same-origin proxy, leave it unset.
 
 ## The internal hop (Docker Compose)
 
-Inside the packaged Compose stack, nginx doesn't talk to the API in plaintext. Before
-either long-running service starts, a one-shot `internal-tls` service creates a private,
-per-install certificate authority and an API leaf certificate on a dedicated volume.
-nginx verifies the `api` service name and the certificate authority over TLS 1.2/1.3 for
-every request it proxies; the API listener has no plaintext fallback. The certificate
-authority's own key stays root-only, the API container can read only its own leaf key,
-and nginx can read only public certificates.
+In the Compose stack, nginx talks to the API over TLS 1.2/1.3, with no plaintext fallback. Before
+either long-running service starts, the one-shot `internal-tls` service creates a per-install
+certificate authority and an API leaf certificate on a dedicated volume, and reuses a valid set on
+restart. nginx verifies the `api` service name and the authority on every request. The
+authority's key stays root-only, the API container reads only its own leaf key, and nginx reads
+only public certificates.
 
-The initializer reuses a valid certificate set on restart rather than recreating it.
 Renew the leaf within 30 days of expiry:
 
 ```bash
 ./scripts/renew-internal-tls.sh
 ```
 
-This stops both TLS consumers, force-recreates them and verifies their live certificate
-generation through nginx before reporting success. Deep `/api/health` reports the cached
-leaf expiry and live certificate fingerprint, and its `internalTls.status` field changes
-from `ok` to `expiring` during that same 30-day window — alert on that field. See
+It stops and force-recreates both TLS consumers and verifies their live certificate through
+nginx before reporting success. Deep `/api/health` reports the leaf expiry and fingerprint, and
+`internalTls.status` changes from `ok` to `expiring` in that 30-day window: alert on it. See
 [Monitoring and health checks](/self-hosting/monitoring).
 
 ## Native install (release archive)
 
-A native install needs no web server of its own: the server serves the web app as well as the
-API, so one reverse-proxy line in front of it covers the whole site. Keep the server bound to
-loopback with `CAPACITYLENS_HOST=127.0.0.1`, its default, and use `127.0.0.1:8787`, the default
-port, as the upstream. The archive ships two proxy examples, both for the address
-`capacity.example.com`. Replace it with yours.
+The server serves the web app as well as the API, so one reverse-proxy line covers the whole
+site. Keep the server on loopback (`CAPACITYLENS_HOST=127.0.0.1`, the default) and use
+`127.0.0.1:8787`, the default port, as the upstream. Replace `capacity.example.com` in the
+archive's two proxy examples with your address.
 
 Caddy is the shorter route. Add the block from `Caddyfile.example` to `/etc/caddy/Caddyfile`:
 
@@ -174,8 +157,8 @@ capacity.example.com {
 }
 ```
 
-Caddy obtains and renews the certificate, and overwrites the forwarded headers the server trusts.
-It writes no access log unless you add a `log` directive. If you add one, exclude `/invite/*`,
+Caddy obtains and renews the certificate and overwrites the forwarded headers the server trusts.
+It writes no access log unless you add a `log` directive; if you do, exclude `/invite/*`,
 `/reset-password/*`, `/api/invites/*`, `/api/auth/callback/*` and `/api/auth/oauth2/callback/*`:
 those request lines carry single-use sign-in secrets. Reload it with:
 
@@ -183,12 +166,12 @@ those request lines carry single-use sign-in secrets. Reload it with:
 sudo systemctl reload caddy
 ```
 
-nginx is the alternative. `capacitylens.nginx.conf` is a complete site file: it terminates TLS,
-serves the web app from the release's `dist/` folder and proxies `/api/` to the server. It
-overwrites both `X-Forwarded-For` and `X-Forwarded-Proto`, keeps the invitation, sign-in and
-password-reset links out of the access log, and sends the same security headers as the packaged
-`nginx.conf`, except that its HSTS header is host-only. Get the certificate with your
-distribution's ACME client first, then follow the instructions at the top of the file:
+For nginx, `capacitylens.nginx.conf` is a complete site file. It terminates TLS, serves the web
+app from the release's `dist/` folder, proxies `/api/`, overwrites `X-Forwarded-For` and
+`X-Forwarded-Proto`, keeps invitation, sign-in and password-reset links out of the access log,
+and sends the packaged `nginx.conf` security headers with a host-only HSTS header. Get the
+certificate with your distribution's ACME client first, then follow the instructions at the top
+of the file:
 
 ```bash
 sudo cp /opt/capacitylens/current/capacitylens.nginx.conf /etc/nginx/sites-available/capacitylens
@@ -205,8 +188,7 @@ sudo nginx -t && sudo systemctl reload nginx
 ```
 
 With an `https` `CAPACITYLENS_PUBLIC_URL`, the server sends HSTS itself; set
-`CAPACITYLENS_HTTPS=0` if your proxy already does. Then verify both the loopback server and the
-public route:
+`CAPACITYLENS_HTTPS=0` if your proxy already does. Check the loopback server and the public route:
 
 ```bash
 curl -fsS http://127.0.0.1:8787/api/health
@@ -216,16 +198,13 @@ curl -fsS http://127.0.0.1:8787/api/health
 curl -fsS https://capacity.example.com/api/health
 ```
 
-Both responses should start with `{"ok":true,...}`. Also open a nested app route and
-refresh it, confirm the browser stays on HTTPS, and check that the certificate renewal
-job preserves the same hostname and callback origin.
+Both should start with `{"ok":true,...}`. Refresh a nested app route, confirm the browser stays
+on HTTPS, and check the certificate renewal job keeps the same hostname and callback origin.
 
-For defense in depth on the internal hop, create your own internal CA-signed service
-certificate, set both `CAPACITYLENS_INTERNAL_TLS_CERT` and
-`CAPACITYLENS_INTERNAL_TLS_KEY`, then switch nginx to
-`proxy_pass https://127.0.0.1:8787;` with `proxy_ssl_verify on`, your trusted CA and a
-matching `proxy_ssl_name`. Once you configure either variable, both are required — a
-partial, empty or unreadable pair refuses startup rather than silently falling back to
+To encrypt the loopback hop as well, create your own internal CA-signed service certificate, set
+both `CAPACITYLENS_INTERNAL_TLS_CERT` and `CAPACITYLENS_INTERNAL_TLS_KEY`, then switch nginx to
+`proxy_pass https://127.0.0.1:8787;` with `proxy_ssl_verify on`, your trusted CA and a matching
+`proxy_ssl_name`. A partial, empty or unreadable pair refuses startup rather than falling back to
 HTTP.
 
 ## Ports at a glance
@@ -235,9 +214,5 @@ HTTP.
 | 8080 | nginx (web app + `/api/` proxy) | Loopback by default; your reverse proxy                                     |
 | 8787 | The API (Fastify)               | Only nginx, over the internal TLS hop in Compose, or loopback on bare metal |
 
-## What's next
-
-- [Install CapacityLens](/self-hosting/install) if you're setting this up for the first
-  time.
-- [Monitoring and health checks](/self-hosting/monitoring) to watch certificate expiry
-  and proxy health once it's running.
+Next: [Monitoring and health checks](/self-hosting/monitoring) to watch certificate expiry and
+proxy health.

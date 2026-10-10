@@ -5,13 +5,12 @@ description: Add the production environment, supervised API process and same-ori
 
 # Configure the API and nginx
 
-This page belongs to the long-form route, which builds CapacityLens from a source checkout.
-To install from the release archive with nothing to build, follow the
-[five steps](/self-hosting/managed-vps/) instead.
+Long-form route: building from a source checkout. To install from the release archive with
+nothing to build, follow the [five steps](/self-hosting/managed-vps/) instead.
 
-This page starts the CapacityLens API as the isolated site user and connects it to the public web
-app through nginx. It also enables scheduled backups, structured logs and deep health checks.
-Allow about twenty minutes, including verification.
+Start the API as the isolated site user, connect it to the web app through nginx, and turn on
+scheduled backups, structured logs and deep health checks. Allow about twenty minutes, including
+verification.
 
 ## Prerequisites
 
@@ -29,19 +28,16 @@ node current/production/server/dist/index.mjs init --public-url https://your-cur
 ```
 
 Copy its `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` values into the environment in the
-next step, and leave out the other lines it prints: this route sets them differently.
+next step, and leave out the other lines: this route sets them differently.
 
-Store the setup token in a password manager before saving the environment. It is needed only to
+Store the setup token in a password manager before saving the environment; it is needed only to
 claim the first Owner account. Never commit either value or paste it into deployment logs, support
-messages or public issue reports.
-
-If you use a browser-based environment editor, save the token before copying any later
-configuration or process identifier. Copying text from another editor replaces the clipboard. If
-that happens, reveal the saved environment privately and copy only the setup-token value again.
+messages or public issue reports. In a browser-based editor, save the token before copying
+anything else, or reveal the saved environment privately and copy it again.
 
 ## 2. Set the production environment
 
-Open the platform's environment editor. Replace every placeholder below:
+In the platform's environment editor, replace every placeholder below:
 
 ```dotenv
 PORT=8788
@@ -69,14 +65,12 @@ CAPACITYLENS_PASSWORD_BREACH_CHECK=on
 VITE_CAPACITYLENS_API=
 ```
 
-Confirm the platform stores one environment file outside the versioned release directories and
-links or exposes it to every release as `.env`. A new release must not silently receive a fresh,
-empty environment.
+Confirm the platform stores one environment file outside the release directories and exposes it
+to every release as `.env`, so a new release never receives a fresh, empty environment. Keep the
+database, audit log and backup directory on storage encrypted at rest; CapacityLens does not
+encrypt the host or filesystem.
 
-Keep the database, audit log and backup directory on storage encrypted at rest. CapacityLens does
-not encrypt the host or filesystem itself.
-
-Leave these settings unset for this single-company, non-demo installation:
+Leave these unset for a single-company, non-demo installation:
 
 ```text
 VITE_CAPACITYLENS_DEMO
@@ -86,18 +80,18 @@ CAPACITYLENS_BOOTSTRAP_TOKEN
 CAPACITYLENS_ALLOW_OPEN_SIGNUP
 ```
 
-Unset is different from `0` for some environment parsers. Remove the lines unless the
-[Configuration](/self-hosting/configuration) page specifically says that an empty value has meaning.
+Some parsers treat unset differently from `0`, so remove the lines unless
+[Configuration](/self-hosting/configuration) says an empty value has meaning.
 
-If the platform already emits an HSTS header, set `CAPACITYLENS_HTTPS=0` to avoid duplicate
-headers; otherwise leave it unset and an `https` public URL makes the API emit host-only HSTS. The public origin must still use HTTPS.
+If the platform already emits an HSTS header, set `CAPACITYLENS_HTTPS=0` to avoid duplicates;
+otherwise leave it unset and an `https` public URL makes the API emit host-only HSTS. The public
+origin must use HTTPS either way.
 
-`CAPACITYLENS_HOST=127.0.0.1` does more than hide the API from the internet. A loopback listener
-automatically trusts the `X-Forwarded-For` and `X-Forwarded-Proto` headers that nginx sets on the
-next page, so rate limiting and audit records show the real visitor address rather than the proxy's.
-Keep the API on loopback. If you ever bind it to another address, you must also set
-`CAPACITYLENS_TRUST_PROXY_HEADERS=1`, and only when the API accepts connections from your proxy
-alone — see [Configuration](/self-hosting/configuration).
+Keep `CAPACITYLENS_HOST=127.0.0.1`. A loopback listener trusts the `X-Forwarded-For` and
+`X-Forwarded-Proto` headers nginx sets, so rate limiting and audit records show the real visitor
+address. If you ever bind another address, also set `CAPACITYLENS_TRUST_PROXY_HEADERS=1`, and only
+when the API accepts connections from your proxy alone; see
+[Configuration](/self-hosting/configuration).
 
 ## 3. Create the background process
 
@@ -118,32 +112,29 @@ Use this command:
 /bin/bash -lc 'set -a; source .env; set +a; exec env NODE_ENV=production node production/server/dist/index.mjs'
 ```
 
-The shell exports every value read from `.env`, then `exec env` starts the API with production mode
-set directly on its process. Keeping `NODE_ENV` out of `.env` prevents Vite from reading the server
-runtime setting during the browser build. `exec` replaces the shell so the process supervisor sends
-shutdown signals directly to the API. CapacityLens needs more than ten seconds before a forced kill
-so in-flight requests and backup work can drain.
+The shell exports every value in `.env`, then `exec env` starts the API with production mode set
+on its process. Keeping `NODE_ENV` out of `.env` stops Vite reading it during the browser build.
+`exec` replaces the shell so the supervisor's shutdown signals reach the API, which needs more than
+ten seconds to drain in-flight requests and backup work.
 
 ::: warning `.env` is read as shell, so quote awkward values
 `source` runs the file as a shell script. A value containing a space, `#`, `$`, backtick, quote or
-backslash will be cut short or mangled, and the API will start with the wrong secret rather than
-fail loudly. The secrets `init` generates are safe unquoted. Anything you paste from
-elsewhere — a company-login client secret, for example — must be wrapped in single quotes:
+backslash is cut short or mangled, and the API starts with the wrong secret instead of failing.
+The secrets `init` generates are safe unquoted. Wrap anything pasted from elsewhere, such as a
+company-login client secret, in single quotes:
 
 ```dotenv
 CAPACITYLENS_GOOGLE_CLIENT_SECRET='the value exactly as issued'
 ```
 
-A single quote inside the value itself cannot be escaped between single quotes. If one appears, ask
-the provider to reissue the secret rather than inventing an escape.
+A single quote inside the value cannot be escaped this way; ask the provider to reissue the
+secret.
 :::
 
-Do not use `pnpm start` for the production process. The prebuilt `index.mjs` has no runtime
-dependency on pnpm or the development packages.
+Don't use `pnpm start`: the prebuilt `index.mjs` needs neither pnpm nor the development packages.
 
-In Laravel Forge, save the background process and record the generated Supervisor group name. It
-looks like `daemon-1234567`. You will need that neutral platform identifier in the deployment
-script; do not guess it.
+In Forge, save the process and record the generated Supervisor group name, such as
+`daemon-1234567`. The deployment script needs that exact value.
 
 ## 4. Verify the API on loopback
 
@@ -165,25 +156,24 @@ With deep health enabled, an API that has just started can report the first back
 }
 ```
 
-It may already report `"status":"ok"` if the first backup has finished — a snapshot takes seconds,
-so re-check after about a minute. Treat `degraded` as a failure, and investigate `pending` that
-lasts longer than one configured backup interval (60 minutes with the configuration on this page).
+Re-check after about a minute; a snapshot takes seconds, so it should then read `"status":"ok"`.
+Treat `degraded` as a failure, and investigate `pending` that lasts longer than one backup
+interval (60 minutes here).
 [Monitoring and health checks](/self-hosting/monitoring#what-each-field-means-and-when-to-alert)
 defines the alert threshold.
 
-Stop here if the command fails. Read the background-process log and correct the first startup
-error before editing nginx.
-
-Some managed command runners display their own temporary output-file error after the command has
-finished. That message does not prove the API failed. Check the process log and run the same health
-request from another trusted shell. Continue only when you can read a successful JSON response.
+If the command fails, stop. Read the background-process log and fix the first startup error
+before editing nginx. Some command runners show their own temporary output-file error after the
+command finishes; that does not prove the API failed. Check the process log and repeat the
+request from another trusted shell. Continue only with a successful JSON response.
 
 ## 5. Add the nginx routes
 
-Open the platform's nginx configuration for this site. Preserve the platform's generated includes,
-TLS directives, logging, PHP exclusions and management comments.
+Open the site's nginx configuration. Keep the platform's generated includes, TLS directives,
+logging, PHP exclusions and management comments (Forge marks them with comments such as
+`# FORGE CONFIG`) so the platform can keep managing certificates and settings.
 
-Add an API location that points to this installation's loopback port:
+Add an API location pointing to this installation's loopback port:
 
 ```nginx
 location /api/ {
@@ -204,19 +194,14 @@ location / {
 }
 ```
 
-Replace a generated `try_files $uri $uri/ =404;` rule rather than adding a second competing
-`location /` block.
+Replace a generated `try_files $uri $uri/ =404;` rule; don't add a second `location /` block.
 
-Laravel Forge marks generated sections with comments such as `# FORGE CONFIG`. Keep those sections
-intact so Forge can continue managing certificates and other site settings.
-
-Test and reload nginx using the platform's save action. If the platform does not test first, run:
+Save through the platform, which tests and reloads nginx. If it does not test first, run this and
+reload only after it succeeds:
 
 ```bash
 sudo nginx -t
 ```
-
-Only reload nginx after that command succeeds.
 
 ## 6. Add the public health check
 
@@ -226,8 +211,8 @@ Set the platform's post-deployment or uptime health URL to:
 https://your-current-domain.example/api/health
 ```
 
-The check must use the public HTTPS route rather than the loopback port. That proves DNS, TLS,
-nginx, the API process and SQLite readiness together.
+Use the public HTTPS route, not the loopback port, so the check proves DNS, TLS, nginx, the API
+and SQLite together.
 
 ## Verify the result
 
@@ -237,7 +222,7 @@ Run:
 curl -fsS https://your-current-domain.example/api/health
 ```
 
-Then open the public origin and confirm:
+Open the public origin and confirm:
 
 - the sign-in or first-owner screen loads;
 - refreshing a nested browser route returns the app rather than nginx `404`;
@@ -248,7 +233,5 @@ Then open the public origin and confirm:
 Do not claim the Owner until the public origin is HTTPS and matches
 `CAPACITYLENS_PUBLIC_URL` exactly.
 
-## What's next
-
-Continue to [Deploy and upgrade safely](/self-hosting/managed-vps/deploy-and-upgrade-safely) before making this site's
-deployment script permanent.
+Next: [Deploy and upgrade safely](/self-hosting/managed-vps/deploy-and-upgrade-safely), before making
+the deployment script permanent.

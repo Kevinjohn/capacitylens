@@ -5,13 +5,12 @@ description: Configure the site, release directories, Node toolchain and product
 
 # Create and build the managed site
 
-This page belongs to the long-form route, which builds CapacityLens from a source checkout.
-To install from the release archive with nothing to build, follow the
-[five steps](/self-hosting/managed-vps/) instead.
+Long-form route: building from a source checkout. To install from the release archive with
+nothing to build, follow the [five steps](/self-hosting/managed-vps/) instead.
 
-This page creates the managed site and produces both CapacityLens build outputs without starting
-the API yet. It uses a release-local Corepack shim so every build uses the pnpm version pinned by
-CapacityLens. Allow about fifteen minutes for the first dependency install and build.
+Create the site and produce both build outputs, without starting the API yet. A release-local
+Corepack shim makes every build use CapacityLens's pinned pnpm. Allow about fifteen minutes for
+the first dependency install and build.
 
 ## Prerequisites
 
@@ -33,19 +32,15 @@ In Laravel Forge:
 5. Select the source-control provider, project and pinned production branch.
 6. Enable **Website isolation**.
 
-Website isolation gives the site its own operating-system user. Use it when several installations
+Website isolation gives the site its own operating-system user, for when several installations
 share a server. It does not replace separate servers when strong isolation is required.
 
 ## 2. Use a temporary domain when necessary
 
-If the final DNS record is not ready, use the platform's temporary HTTPS domain. It is safe to add
-the final domain later.
-
-Record the temporary origin exactly, including `https://`. You will use it as
-`CAPACITYLENS_PUBLIC_URL` until the domain cutover.
-
-Do not configure company login against the temporary origin unless you are prepared to replace
-its redirect URI later.
+If the final DNS record is not ready, use the platform's temporary HTTPS domain and add the final
+domain later. Record the temporary origin exactly, including `https://`: it is
+`CAPACITYLENS_PUBLIC_URL` until the domain cutover. Don't configure company login against it
+unless you are prepared to replace its redirect URI later.
 
 ## 3. Set the application directories
 
@@ -56,41 +51,36 @@ Root directory: /
 Web or public directory: /production/dist
 ```
 
-The repository root contains the workspace and the frontend build. `pnpm run build` first writes
-the static web app to the temporary build directory `dist/`. `pnpm run package:managed-release`
-then copies it into `production/dist/` and packages the API at
+`pnpm run build` writes the static web app to the temporary `dist/` directory.
+`pnpm run package:managed-release` then copies it into `production/dist/` and packages the API at
 `production/server/dist/index.mjs` with production dependencies only.
 
-Leave shared-path controls empty. The database, audit log and backups will use absolute paths
-outside the release tree instead.
+Leave shared-path controls empty. The database, audit log and backups use absolute paths outside
+the release tree.
 
 ## 4. Check Node and Corepack
 
-Run these commands through the platform's command runner or a shell as the isolated site user:
+Run these through the platform's command runner, or a shell as the isolated site user:
 
 ```bash
 node --version
 ```
 
-The version must be 24 or newer.
+It must be 24 or newer.
 
 ```bash
 corepack --version
 ```
 
-The command must print a version rather than `command not found`.
-
-Do not install an arbitrary global pnpm version. CapacityLens pins pnpm in `package.json` and
-checks it during dependency lifecycle scripts.
+It must print a version, not `command not found`. Don't install a global pnpm: CapacityLens pins
+pnpm in `package.json` and checks it during dependency lifecycle scripts.
 
 ## 5. Install with a release-local pnpm shim
 
-Managed platforms often provide their own global pnpm. Calling `corepack pnpm` for only the first
-command is not sufficient: nested lifecycle scripts may find the platform's global binary and fail
-the version check.
-
-Add this build section to the deployment script. It needs Bash, Forge's default deployment shell —
-`set -eo pipefail` is a syntax error under plain `sh`.
+Platforms often provide their own global pnpm, and nested lifecycle scripts can find it and fail
+the version check even if the first command uses `corepack pnpm`. Add this build section to the
+deployment script. It needs Bash, Forge's default deployment shell: `set -eo pipefail` is a syntax
+error under plain `sh`.
 
 ```bash
 set -eo pipefail
@@ -118,10 +108,8 @@ test -f production/server/dist/importWorker.mjs
 rm -rf .corepack node_modules shared/node_modules server/node_modules
 ```
 
-`$FORGE_RELEASE_DIRECTORY` is Laravel Forge's new release path. On another platform, replace it
-with that platform's new-release variable or run the same commands from the checkout directory.
-
-The final activated artifact is:
+`$FORGE_RELEASE_DIRECTORY` is Forge's new release path. On another platform, use its
+new-release variable or run the commands from the checkout directory. The activated artifact is:
 
 ```text
 production/dist/index.html
@@ -130,7 +118,7 @@ production/server/dist/importWorker.mjs
 production/server/node_modules/
 ```
 
-The pnpm version must match the `packageManager` value in `package.json`. Stop if it does not.
+Stop if the pnpm version does not match `packageManager` in `package.json`.
 
 ## 6. Create the persistent directories
 
@@ -142,19 +130,15 @@ install -d -m 700 "/home/$SITE_USER/data"
 install -d -m 700 "/home/$SITE_USER/backups"
 ```
 
-Run the deployment as that site user. Confirm the directories are owned by the same user that will
-run the API.
-
+Run the deployment as that site user, so the directories belong to the user that runs the API.
 Never put the database under the release directory, `current/`, `production/dist/` or
-`production/server/dist/`.
-Platforms routinely delete old releases.
+`production/server/dist/`: platforms routinely delete old releases.
 
 ## 7. Run the first build
 
-For the first deployment only, let the platform create and activate the release after the build.
-Do not add Supervisor stop/start commands yet because the background process does not exist.
-
-This order is required on a new site:
+For the first deployment only, let the platform activate the release after the build. Don't add
+Supervisor stop/start commands yet; the background process does not exist. On a new site, in
+this order:
 
 1. Save the temporary deployment script.
 2. Run the first deployment and confirm both build outputs exist.
@@ -162,17 +146,15 @@ This order is required on a new site:
 4. Record the process manager's generated service or group name.
 5. Replace the temporary script with the permanent stop, activate and start sequence.
 
-Do not invent a Supervisor group name before Forge creates the process. Forge assigns the name,
-and the permanent deployment script must use that exact value.
-
-In Laravel Forge, the temporary script can end with:
+Forge assigns the Supervisor group name when it creates the process; the permanent script must use
+that exact value. In Forge, the temporary script can end with:
 
 ```bash
 $ACTIVATE_RELEASE()
 ```
 
-Click **Deploy** and watch the complete output. Do not treat an activated release as a successful
-installation until both build outputs exist and the deployment exits successfully.
+Click **Deploy** and watch the complete output. It has succeeded only when both build outputs
+exist and the deployment exits successfully.
 
 ## Verify the result
 
@@ -194,8 +176,6 @@ Then confirm:
 - the active release used the pinned pnpm version; and
 - `data/` and `backups/` exist outside the release tree with mode `700`.
 
-The public site may still show an error because the API and proxy are configured on the next page.
+The public site may still show an error until the next page configures the API and proxy.
 
-## What's next
-
-Continue to [Configure the API and nginx](/self-hosting/managed-vps/configure-the-api-and-nginx).
+Next: [Configure the API and nginx](/self-hosting/managed-vps/configure-the-api-and-nginx).

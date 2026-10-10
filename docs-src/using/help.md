@@ -9,15 +9,16 @@ next: false
 
 ![Help page with Show tour and Browse the user guides, above Account in the sidebar](../screenshots/flows/help_viewer.png)
 
-Open **Help** near the bottom of the sidebar, just above Account. It is available to every role,
-even after Getting started is dismissed. You can also find Help in the command palette.
+Open **Help** near the bottom of the sidebar, just above Account, or from the command palette. It
+is available to every role, even after Getting started is dismissed.
 
-Select **Show tour** to open Schedule and follow the guidance for your role. Owners see company setup
+Select **Show tour** to open Schedule and follow a tour for your role. Owners see company setup
 and scheduling stops; Viewers see two stops about reading the schedule. See
-[Roles and permissions](/getting-started/roles-and-permissions#take-a-role-based-tour) for each role's tour.
+[Roles and permissions](/getting-started/roles-and-permissions#take-a-role-based-tour) for each
+role's tour.
 
-The button is disabled while the application checks your access, when it cannot confirm your access,
-or while a read-only offline snapshot is open. If the tour cannot start, the application shows an error so you
-can try again.
+**Show tour** is disabled while your access is being checked, if it can't be confirmed, or while a
+read-only offline snapshot is open. If the tour fails to start, an error appears so you can try
+again.
 
 Select **Browse the user guides** for the online [day-to-day guide](/using/).
