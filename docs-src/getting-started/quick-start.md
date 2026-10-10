@@ -50,7 +50,7 @@ for your own Linux server.
 
 2. ![Company form with Company name, Week starts on, Timezone, Language, Start with example data ticked and Create company](../screenshots/steps/owner_create_company_form.png)
 
-   **Create the company.** Name it and choose the day your week starts and your timezone. These
+   **Create the company.** Name it and choose the day your week starts and your time zone. These
    two **cannot be changed later**. Clear **Start with example data** if you'd rather start
    empty. Select **Create company**.
 
@@ -90,7 +90,9 @@ for your own Linux server.
 
 That's a working schedule.
 
-## The Getting started checklist
+<span id="the-getting-started-checklist"></span>
+
+## Follow the Getting started checklist
 
 <span id="make-your-first-schedule-useful"></span>
 

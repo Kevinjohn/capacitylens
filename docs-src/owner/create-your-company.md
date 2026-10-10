@@ -34,15 +34,15 @@ identity.
 ![First company setup with Company name, Week starts on, Timezone, Language and Start with example data selected](../screenshots/flows/owner_first_company_setup.jpg)
 
 1. Enter the **Company name**.
-2. Choose **Week starts on** and **Timezone**. The timezone list is searchable and starts with your
-   browser's timezone. These two apply to everyone and **cannot be changed later**, so agree them
+2. Choose **Week starts on** and **Timezone**. The list is searchable and starts with your browser's
+   time zone. These two apply to everyone and **cannot be changed later**, so agree them
    with your team first.
 3. Keep **Start with example data** to add fictional people, a client, a project and sample
    bookings, or clear it to start with an empty schedule. It is selected by default for your first
    company.
 4. Select **Create company**. CapacityLens opens Schedule.
 
-**Language** offers only English. Week start and timezone stay visible, read only, under
+**Language** offers only English. Week start and time zone stay visible, read only, under
 **Settings → Data and support → Company details**.
 
 ## If adding the example data fails

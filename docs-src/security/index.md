@@ -1,9 +1,9 @@
 ---
-title: Security overview
+title: Security and privacy
 description: The security defaults CapacityLens ships with, where the detailed evidence lives, and how to report a vulnerability.
 ---
 
-# Security overview
+# Security and privacy
 
 Check the security defaults CapacityLens ships with, find the detailed evidence, and report a
 vulnerability. The operator's configuration, network and backup policy also matter; the

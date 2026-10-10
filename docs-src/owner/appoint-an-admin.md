@@ -21,7 +21,7 @@ Invite one person as Admin to run the company day to day. You stay the Owner.
 4. Select **Create invite**. If email is set up, CapacityLens sends the invitation. If it isn't, or
    sending fails, select **Copy** and send the link privately.
 
-The link is shown only now. If it is lost, revoke the invite under **Outstanding invites** and
+The link is shown only now. If it is lost, revoke the invitation under **Outstanding invites** and
 create a new one.
 
 ## Hand over
@@ -29,7 +29,7 @@ create a new one.
 ![Team & access: accepted member showing Admin role](../screenshots/flows/owner_members_current.jpg)
 
 When their row in **Team & access** shows **Admin**, send them
-[Get the schedule ready](/admin/). If the invite is still pending, ask whether they received the
+[Get the schedule ready](/admin/). If the invitation is still pending, ask whether they received the
 email or link.
 
 Next: [Owner responsibilities](/owner/responsibilities) — the decisions that stay with you.

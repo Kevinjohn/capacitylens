@@ -54,27 +54,16 @@ schedule. Freelancers and contractors can be scheduled without ever getting a si
 
 ## Hand the company to someone else
 
-Ownership moves in three steps, and nothing changes until all three happen:
-
-1. The Owner opens **Team & access → Company ownership → Manage ownership** and nominates an active
-   Admin.
-2. The nominated Admin agrees. Nobody can agree on their behalf. They can decline, or withdraw
-   their agreement before the last step.
-3. The same Owner confirms. They swap: the nominee becomes Owner and the old Owner becomes Admin.
-
-Only those two people see the request. The Owner can cancel it or nominate someone else, which
-replaces it. A request expires seven days after it is made, and ends if the nominee stops being an
-active Admin or the Owner stops being the Owner. In every case the company keeps its current Owner.
-Both people need a recent sign-in confirmation for their step.
-
-[Transfer ownership](/owner/responsibilities#transfer-ownership) has the full procedure and
-recovery steps.
+Ownership moves in three steps: the Owner nominates an active Admin, the Admin agrees, and the
+Owner confirms. Nothing changes until all three happen.
+[Transfer ownership](/owner/responsibilities#transfer-ownership) has the procedure and recovery
+steps.
 
 ## Take a role-based tour
 
 ![Viewer tour highlighting the Schedule grid with progress 1 of 2](../screenshots/flows/tour_viewer.png)
 
-Anyone can start the tour for their role from **Help** in the sidebar, even after Getting started
+Anyone can start the tour for their role from **Help** in the left menu, even after Getting started
 is dismissed. Owners, Admins and Editors can also select **Show me around** on the Getting started
 card; Viewers don't see that card. The
 tour opens Schedule first and continues through the guidance for lower roles:
@@ -121,5 +110,4 @@ Protect the Owner's device accordingly.
 
 <span id="what-s-next"></span>
 
-Next: [Owner responsibilities](/owner/responsibilities) or
-[Invite teammates](/admin/invite-teammates) — act on what you've chosen.
+Next: [Invite teammates](/admin/invite-teammates) — give someone the role you chose.

@@ -44,7 +44,7 @@ fields they were never shown.
 
 ## What stays in the browser
 
-The public demo keeps scheduling data in memory only; it resets on refresh and is never sent
+The local demo keeps scheduling data in memory only; it resets on refresh and is never sent
 anywhere. Device preferences such as theme use the browser's localStorage and are not part of a
 company export.
 

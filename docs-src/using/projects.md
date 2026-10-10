@@ -47,4 +47,15 @@ Owner sees both. A code name also sets the item's alphabetical position. See
 
 ![The Add client form with the privacy explanation below the Code name input](../screenshots/flows/client_private_name.jpg)
 
+## Archive or delete a client or project
+
+Select the delete icon in the row and confirm **Archive client?** or **Archive project?** Archiving
+a client hides its projects and their bookings from Schedule. Archiving a project hides every
+booking made under it, including All-projects bookings that count towards it. Nothing is lost.
+
+Owners and Admins see **Archived clients** and **Archived projects** at the bottom of each page.
+Select **Restore** to bring the item and its bookings back, or **Delete** to remove it from those
+lists. A deleted item can't be restored, and its bookings stay hidden. Permanent deletion is not
+available in the app.
+
 Next: [Schedule and change work](/using/schedule-work) — book against a project.

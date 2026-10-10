@@ -1,9 +1,11 @@
 ---
-title: Verify and hand over the installation
+title: Verify and hand over
 description: Check the service, give the first Owner safe setup instructions, and name the ongoing operator.
 ---
 
-# Verify and hand over the installation
+# Verify and hand over
+
+Check the service survives a restart, then hand it to the Owner and name who runs it.
 
 ## 1. Check the running service
 
@@ -13,13 +15,13 @@ description: Check the service, give the first Owner safe setup instructions, an
   curl -fsS http://127.0.0.1:8080/api/health
   ```
 
-- Direct Node:
+- Linux host:
 
   ```bash
   curl -fsS http://127.0.0.1:8787/api/health
   ```
 
-- Managed VPS: open `https://capacity.example.com/api/health` in a browser, with your own
+- Managed host: open `https://capacity.example.com/api/health` in a browser, with your own
   address.
 
 - Every other route, through the proxy:
@@ -45,7 +47,7 @@ Note the database, audit and backup paths. Restart only the API, then repeat the
   docker compose restart api
   ```
 
-- Direct Node:
+- Linux host:
 
   ```bash
   sudo systemctl restart capacitylens
@@ -55,19 +57,19 @@ Note the database, audit and backup paths. Restart only the API, then repeat the
   sudo systemctl is-active capacitylens
   ```
 
-On a managed VPS, use the platform's restart control and confirm its Supervisor process returns
+On a managed host, use the platform's restart control and confirm its Supervisor process returns
 to running. The same database must still be there, and the backup directory must hold a verified
 dated snapshot.
 
 ## 3. Hand over
 
-1. Send the intended Owner the address, the sign-in route and the [Owner setup guide](/owner/).
-   In password-capable mode, send the one-time setup token privately; for company login,
-   pre-authorise the Owner's exact verified email. Don't send them installation documentation.
+1. If you are also the Owner, continue with [Set up your company](/owner/). Otherwise, send the
+   Owner the address and [Set up your company](/owner/). In password-capable mode, send the
+   one-time setup token separately and privately; for company login, pre-authorise the Owner's
+   exact verified email. Don't send them installation documentation.
 2. Once the Owner can sign in, remove `CAPACITYLENS_SETUP_TOKEN` from the runtime environment if
    it was used, restart the API and check health again.
 3. Name the ongoing operator, give them [Install and run CapacityLens](/self-hosting/), and
    confirm who owns backups, upgrades, monitoring and incidents.
 
-Next: the operations pages under [Run it](/self-hosting/#run-it) and the
-[Install and operations FAQ](/self-hosting/faq).
+Next: [Backups and restore](/self-hosting/backups-and-restore) — get the snapshots off the server.

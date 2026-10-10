@@ -5,8 +5,7 @@ description: What CapacityLens deliberately does not do, the rules it follows wh
 
 # Philosophy
 
-CapacityLens answers one question for small agencies: where are your people's hours going, and
-where is there room? This page explains what it leaves out and why. The full list of standing
+CapacityLens answers one question for small agencies: who is free next week? This page explains what it leaves out and why. The full list of standing
 decisions is in [DECISIONS.md](https://github.com/Kevinjohn/capacitylens/blob/main/DECISIONS.md).
 
 ## What it deliberately is not
@@ -43,5 +42,4 @@ settings, off by default. Early users treated activities as a task list: one com
 - **Offline is read-only.** Offline access is opt-in per device, keeps a snapshot for up to seven
   days and never queues edits.
 
-Next: [How CapacityLens compares](/getting-started/how-it-compares) — where another tool fits
-better — or [How CapacityLens is tested](/reference/how-it-is-tested).
+Next: [How it compares](/getting-started/how-it-compares) — where another tool fits better.

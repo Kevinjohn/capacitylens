@@ -8,8 +8,8 @@ next: false
 # Plan work as an Editor
 
 Keep the team's plan up to date: bookings, resources, time off, clients, projects, activities and
-ordinary company settings. Admins and Owners manage membership. Only the Owner controls joining
-policy, imports and company deletion.
+ordinary company settings. Admins and Owners manage membership. Only the Owner decides who can
+join, imports data, transfers ownership or deletes the company.
 
 ![Schedule showing existing bookings, time off, utilisation and the controls for adding work](../screenshots/flows/editor_schedule_current.jpg)
 
@@ -34,23 +34,24 @@ bookings. Clear any filter when expected work is missing.
 cell doesn't prove spare capacity.
 
 If **Overview** is in your menu, use **Has availability** to compare the team week by week. Only
-Owners and Admins see it by default; an Admin can open it to Editors. [Overview](/using/overview)
+Owners and Admins see it by default; an Owner or Admin can open it to Editors. [Overview](/using/overview)
 explains the figures.
 
 ## Prepare what the booking needs
 
-Check **Resources** for the person and their working pattern. An invitation creates a sign-in
-membership, not a schedule row, so add the resource first if the person is missing. When your
-company uses disciplines, **Disciplines** holds their groups.
+Check **Resources** for the person and their working pattern, and add them if they're missing; an
+invitation doesn't add them. When your company uses disciplines, **Disciplines** holds their groups.
 
 Check **Clients**, **Projects** and **Activities** for the work. A project activity belongs to its
-project; an internal activity needs no client; an All-projects activity can be booked against any
+project; an internal activity is booked under the **Internal** project; an All-projects activity can be booked against any
 project. Use existing records rather than making a second copy. If your company allows it, add an
 activity from the booking form.
 
 [Resources](/using/resources), [Disciplines](/using/disciplines),
 [Clients and projects](/using/projects) and [Activities](/using/activities) explain the forms,
-privacy, placeholders and deletion.
+privacy and placeholders.
+[Archive or delete a client or project](/using/projects#archive-or-delete-a-client-or-project)
+explains what happens to their bookings.
 
 ## Book work
 
@@ -90,29 +91,36 @@ affect everyone, so check the plan after changing them. Week start and time zone
 company is created. [Settings](/using/settings) explains each setting.
 
 **Account**, at the bottom of the menu, shows your sign-in, its security controls and **Sign out**.
-Your sign-in can belong to several companies, so a password reset or session revocation by an
-Admin applies to all of them. Ask an Owner or Admin if you are locked out.
-[Account](/using/account) has the details.
+Ask an Owner or Admin if you are locked out. [Account](/using/account) explains sign-in, sign-out
+and recovery.
 
 ## If something interrupts the work
 
-### A booking can't start on the selected date
+<span id="a-booking-cant-start-on-the-selected-date"></span>
+
+### Why can't a booking start on the selected date?
 
 Read the form's error first: **Ignore working days** doesn't remove every date restriction. Check
 the person's start and end dates, their working pattern and the company's working days, then start
 on an allowed working day.
 
-### A save failed or another person changed the same record
+<span id="a-save-failed-or-another-person-changed-the-same-record"></span>
+
+### What if a save failed or someone changed the same record?
 
 Use the retry or recovery control offered. If CapacityLens replaces your edit with the current
 saved record, review it before editing again. A bar you can still see is not proof its last change
 was saved. [Day-to-day FAQ](/using/faq) covers connection messages.
 
-### I can see a code name but not a client's real name
+<span id="i-can-see-a-code-name-but-not-a-clients-real-name"></span>
+
+### Why do I see a code name instead of a client's name?
 
 Only the Owner sees confidential real names, whatever your role. Use the code name.
 
-### I am using an offline snapshot
+<span id="i-am-using-an-offline-snapshot"></span>
+
+### Can I make changes from an offline snapshot?
 
 The snapshot is read-only, even for an Editor. Edits are never queued for later. Reconnect before
 changing work. [Offline access](/using/settings#offline-access) explains the seven-day limit.

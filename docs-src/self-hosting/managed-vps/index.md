@@ -149,9 +149,10 @@ newer release, use its version.
    and rate limits and audit records show the real visitor address. Keep it on loopback;
    [TLS and networking](/self-hosting/tls-and-networking) covers the alternatives.
 
-5. **Open the address** and create your company with the setup token from step 3. The
-   [Owner guide](/owner/) takes over from there. Create the company only once the address is
-   HTTPS and matches `CAPACITYLENS_PUBLIC_URL` exactly.
+5. **Open the address** and check the first-Owner screen loads. Use it only once the address is
+   HTTPS and matches `CAPACITYLENS_PUBLIC_URL` exactly. If you are also the Owner, continue with
+   [Set up your company](/owner/) and the setup token from step 3; otherwise,
+   [hand over](#hand-over-to-the-first-owner).
 
 ::: warning One process per database
 Exactly one CapacityLens process may use a database. Switch off any zero-downtime deploy that
@@ -186,9 +187,8 @@ the check proves DNS, TLS, nginx, the server and the database together.
 
 ## Hand over to the first Owner
 
-Send the intended Owner the address, the setup token and the [Owner guide](/owner/) through a
-private channel. The Owner creates their own sign-in and company; don't enter the token or create
-the Owner for them.
+If you are not the Owner, send them the address and [Set up your company](/owner/), and send the
+setup token separately and privately. The Owner then creates their own sign-in and company.
 
 Once the Owner can sign in, remove `CAPACITYLENS_SETUP_TOKEN` from the environment, restart the
 background process and check health. Destroy the transferred copy unless your recovery policy

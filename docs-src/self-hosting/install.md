@@ -5,9 +5,10 @@ description: Install CapacityLens from a release archive in five steps, on a man
 
 # Install CapacityLens
 
-Five steps, three values to fill in, one command per step. Only step 4 differs between hosts. On
-a host that already runs Node 24 and has a hostname pointing at it, it takes about ten minutes;
-an internet-facing instance takes longer, mostly because of DNS and certificates.
+Five steps, three values to fill in, one command per step. Each step notes where a managed host
+and a Linux host differ. On a host that already runs Node 24 and has a hostname pointing at it,
+it takes about ten minutes; an internet-facing instance takes longer, mostly because of DNS and
+certificates.
 
 ## You need
 
@@ -16,13 +17,14 @@ an internet-facing instance takes longer, mostly because of DNS and certificates
   on your own host, [Caddy](/self-hosting/install-without-docker#https) does it in four lines.
 - Linux. The archive is tested on Ubuntu x86-64; other Linux distributions and macOS are expected
   to work but are not tested.
-- Persistent storage for the database, the audit log and, if you turn them on, scheduled backups.
+- Persistent storage for the database, the audit log and the scheduled backups that production
+  writes by default.
 
 Node 26.9.0 or newer within 26.x is experimental, best-effort and not guaranteed to be fully
 functional. Use current patches within either line. See
 [the compatibility policy](/reference/development#check-node-26-compatibility).
 
-Just want to look around? [Try the demo](/getting-started/try-the-demo) instead.
+Want a look first? [Try the demo](/getting-started/try-the-demo) instead.
 
 ## 1. Download
 
@@ -93,8 +95,11 @@ site. [TLS and networking](/self-hosting/tls-and-networking) has the proxy requi
 
 ## 5. Open the address
 
-Open the address from step 3 and create your company. The page asks for the setup token: the
-`CAPACITYLENS_SETUP_TOKEN` line from step 3. The [Owner guide](/owner/) takes over from there.
+Open the address from step 3 and check the first-Owner screen loads. It asks for the setup token:
+the `CAPACITYLENS_SETUP_TOKEN` line from step 3.
+
+If you are also the Owner, continue with [Set up your company](/owner/). Otherwise, send the
+address to the Owner, and send the setup token separately and privately.
 
 ## Choose your host
 

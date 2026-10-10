@@ -17,8 +17,8 @@ who is busy, who has room and who is about to be buried, and move work before it
 
 ## Get started
 
-**Installing it?** Five steps, about ten minutes on a host that already runs Node 24:
-[install CapacityLens](docs-src/self-hosting/index.md).
+**Installing it?** Four steps; the install itself takes about ten minutes on a host that already
+runs Node 24: [install CapacityLens](docs-src/self-hosting/index.md).
 
 **Own the company?** Sign in with the setup token, create the company, invite an Admin:
 [set up your company](docs-src/owner/index.md).
@@ -42,15 +42,15 @@ pnpm install
 pnpm run dev:demo
 ```
 
-Then open the **Local** address it prints (usually <http://127.0.0.1:5173>), pick a demo account,
-and you're in.
+Then open the **Local** address it prints (usually <http://127.0.0.1:5173>) and choose the sample
+company on the **Choose an account** screen.
 
 ## What you get
 
 - **The weeks ahead at a glance:** 1 to 8 weeks, filtered by discipline, client, project or activity.
-- **Early warning:** over-capacity days in red, plus a 14-day warning for trouble just off screen.
+- **Early warning:** over-capacity days in red, plus a 14-day warning for trouble off screen.
 - **Work you haven't won yet:** tentative bookings, placeholders for roles you haven't filled, and
-  outside partners who don't count against your capacity.
+  external parties who don't count against your capacity.
 - **Time off in the same picture:** holidays and closures sit beside the work.
 - **How full everyone is:** utilisation per person and across the weeks on screen.
 - **Your own server:** your data in one SQLite file you control, under AGPL-3.0.
@@ -71,7 +71,7 @@ Every release from 0.73.0-alpha.1 carries a server archive. You need Node 24.19.
 2. **Pick a folder** for the database; its file is created there on first start.
 3. **Configure:** in the unpacked folder, run `node server/dist/index.mjs init --public-url <address> --db <file in step 2's folder>`. It prints the environment file with both secrets generated: paste it into your host's environment editor, or add `--out /etc/capacitylens.env` to write the file.
 4. **Start it** with `node --env-file=<your env file> server/dist/index.mjs`, or as a service.
-5. **Open the address** and create your company with the setup token from step 3.
+5. **Open the address** and check the first-Owner screen loads. If you are also the Owner, [set up your company](docs-src/owner/index.md) with the setup token from step 3; otherwise send the address, and the setup token separately and privately, to the Owner.
 
 [Install CapacityLens](docs-src/self-hosting/install.md) has the commands for a managed host or a
 Linux host; [Docker](docs-src/self-hosting/install-with-docker.md) is another route. Sign-in is by

@@ -10,9 +10,9 @@ next: false
 Start a short tour for your role, or open these guides. Every role can use it, even after Getting
 started is dismissed.
 
-![Help page with Show tour and Browse the user guides, above Account in the sidebar](../screenshots/flows/help_viewer.png)
+![Help page with Show tour and Browse the user guides, above Account in the left menu](../screenshots/flows/help_viewer.png)
 
-Open **Help** near the bottom of the sidebar, above **Account**, or from the command palette.
+Open **Help** near the bottom of the left menu, above **Account**, or from the command palette.
 
 ## Take the tour
 
@@ -27,4 +27,4 @@ again.
 
 ## Open the guides
 
-Select **Browse the user guides** for the online [day-to-day guide](/using/).
+Select **Browse the user guides** for the online [See your work](/using/) guide.

@@ -31,7 +31,7 @@ first. The Owner password reset is the exception: the release archive carries it
 
 ## Run recovery commands on Docker or a managed host
 
-The packaged `api` image and a managed-VPS release omit `pnpm`, `tsx` and development dependencies,
+The packaged `api` image and a managed-host release omit `pnpm`, `tsx` and development dependencies,
 so `docker compose exec api ...` fails.
 
 **Docker:**
@@ -62,7 +62,7 @@ so `docker compose exec api ...` fails.
    For `sqlite3`, run `apt-get update && apt-get install -y sqlite3` first.
 4. Once the fix is confirmed, exit the container and run `docker compose up -d`.
 
-**Managed VPS:** use the
+**Managed host:** use the
 [separate maintenance checkout procedure](/self-hosting/managed-vps/#keep-operator-tooling-in-a-separate-maintenance-checkout)
 at the exact active tag or commit, outside release directories. Stop the API first and target the
 persistent database and evidence paths explicitly. Don't install development dependencies into
@@ -89,7 +89,7 @@ minutes.
    the actual database and backup volumes and a separate protected destination; don't copy a host
    path or only the database file.
 2. For a company-login identity, disable it and revoke its sessions at the provider.
-3. In **Team & access**, revoke the person's local sessions in every affected installation.
+3. In **Team & access**, select **Revoke sessions** for the person in every affected installation.
 4. Only if every session must end at once, rotate the affected provider client secret and
    `CAPACITYLENS_SECRET`; this signs everyone out.
 5. Review identities, memberships, invitations, audit events and provider logs. Don't correlate or

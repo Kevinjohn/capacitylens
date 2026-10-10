@@ -9,7 +9,8 @@ Run a sample agency's schedule on your own machine in about two minutes. Nothing
 schedule changes reset when you refresh, and there is no real sign-in. Display preferences may stay
 in your browser. To keep real data, [install CapacityLens](/self-hosting/install) instead.
 
-You need [Node.js](https://nodejs.org) 24 or newer (check with `node --version`) and
+You need [Node.js](https://nodejs.org) 24 (24.19.0 or newer within 24.x; check with
+`node --version`) and
 [pnpm](https://pnpm.io), which `corepack` in Node provides.
 
 ## Run it
@@ -64,7 +65,7 @@ opens with people, clients, projects and bookings already in place.
    as dimmed rows.
 
 4. **Move some work.** Select **Clear Filters**, then drag a booking to another week and watch the
-   [Utilisation](/reference/glossary) percentage update.
+   [utilisation](/reference/glossary#utilisation) percentage update.
 
 5. **Zoom out.** Change **Weeks visible** from two weeks to four or six.
 

@@ -32,9 +32,11 @@ accepted. Select **Choose another person** or **Dismiss** on the member's row.
 Check **Your access** in **Team & access**. Most company settings need Editor or above; **Overview
 access** needs Admin or Owner.
 
-## Can I change the week start, timezone or language?
+<span id="can-i-change-the-week-start-timezone-or-language"></span>
 
-No. Week start and timezone are fixed when the company is created, and English is the only
+## Can I change the week start, time zone or language?
+
+No. Week start and time zone are fixed when the company is created, and English is the only
 language. **Date format** in Settings changes how dates appear.
 
 ## Why can't I change who can join?
@@ -44,5 +46,5 @@ Only the Owner can change the joining policy. Admins can see it and copy the joi
 
 ## Do I set up company login?
 
-No. The service operator configures the login provider; you invite members and check their access.
+No. The installer configures the login provider; you invite members and check their access.
 [How sign-in works](/company-login/)

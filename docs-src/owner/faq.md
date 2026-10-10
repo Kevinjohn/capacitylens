@@ -39,9 +39,11 @@ Only an active Admin can be nominated. Invite them as Admin first, then return o
 Nothing changes: you remain the Owner. **Manage ownership** shows whether it was declined,
 cancelled, replaced, expired after seven days, or ended because a participant's membership changed.
 
-## Can I change the week start, timezone or language?
+<span id="can-i-change-the-week-start-timezone-or-language"></span>
 
-No. Week start and timezone are fixed when the company is created, and English is the only
+## Can I change the week start, time zone or language?
+
+No. Week start and time zone are fixed when the company is created, and English is the only
 language.
 
 ## Who can change the joining policy?
@@ -53,7 +55,7 @@ Viewer; send an addressed invitation for any other role.
 ## Why can't I find Delete company?
 
 **Delete** is in the company chooser. **Switch company** opens it, and appears only when you can
-access two or more companies. If it is missing, ask the service operator.
+access two or more companies. If it is missing, ask the installer.
 
 ## Why am I asked to confirm my sign-in?
 

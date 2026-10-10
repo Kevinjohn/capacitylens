@@ -113,8 +113,7 @@ CapacityLens does not accept as an avatar, so do not expect it to appear. Missin
 block sign-in; the normal avatar fallback is used. An avatar set on the person takes precedence
 over a sign-in picture on Schedule and Overview.
 
-The Microsoft consent screens and photo behaviour describe the installed integration; they have
-not yet been confirmed in a live partner tenant.
+Microsoft's consent screens and photo behaviour have not yet been checked in a live tenant.
 
 ## Allow the first person and invite teammates
 
@@ -160,4 +159,4 @@ sign-ins do not send another proof.
 `CAPACITYLENS_MODE=sso-only` removes passwords; connect existing accounts and test first, as
 [Require company sign-in](/company-login/move-to-single-sign-on) describes.
 
-Google and Microsoft are the supported providers. Generic OIDC configuration is retired.
+Google and Microsoft are the supported providers.

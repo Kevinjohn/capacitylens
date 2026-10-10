@@ -10,7 +10,7 @@ next: false
 
 ### Do I need Docker?
 
-No. The release archive runs on Node 24 alone, on a managed VPS platform or a Linux host.
+No. The release archive runs on Node 24 alone, on a managed host or a Linux host.
 Docker Compose is an alternative; follow only the prerequisites of your route.
 
 ### Is the local demo an installation route?
@@ -64,7 +64,7 @@ migrations, health verification and rollback a plain restart misses.
 
 ### How do I move to a new host?
 
-Back up the old host, restore on the new one, and repoint DNS once sign-in and the account list
+Back up the old host, restore on the new one, and repoint DNS once sign-in and the company list
 work. [Backups and restore](/self-hosting/backups-and-restore) covers both, including the
 environment file the new host needs.
 
@@ -102,3 +102,9 @@ Adjust the `capacitylens_` prefix if `docker compose config` shows a different o
 [Upgrades](/self-hosting/upgrades#one-time-check-for-older-compose-installations)).
 CapacityLens writes nothing outside those volumes and the checkout directory, which you can then
 delete.
+
+The same backup check applies to the other routes. For a release-archive install on a Linux host,
+stop and disable the service, then delete `/etc/systemd/system/capacitylens.service`,
+`/opt/capacitylens`, the data folder `/var/lib/capacitylens` and `/etc/capacitylens.env`, and remove
+the site from Caddy or nginx. On a managed host, delete the background process, the site and its
+data folder, such as `/home/forge/capacitylens-data`.

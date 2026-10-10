@@ -62,12 +62,14 @@ Select the bar to open **Edit allocation**. Change the assignee, project, activi
 status, task or note, then select **Save**. Select **Duplicate** to copy the booking, or **Delete**
 to remove it. Repeat occurrences can't be duplicated.
 
-Select **Undo** in the toolbar, or press Ctrl/Cmd+Z, if you change or remove the wrong booking.
+Select **Undo** in the toolbar, or press **Ctrl+Z** (**⌘Z** on macOS), if you change or remove the wrong booking.
 
 ### If a project is archived or deleted
 
-Archiving a project hides its bookings until you restore it. Permanently deleting a project
-removes its project-specific bookings; shared All-projects bookings remain, unattributed.
+Archiving or deleting a project hides every booking made under it, including All-projects
+bookings that count towards it. Restoring an archived project brings them back.
+[Archive or delete a client or project](/using/projects#archive-or-delete-a-client-or-project)
+explains who can do each.
 
 ## Fill in the booking form
 
@@ -114,8 +116,8 @@ Status is **Confirmed**, **Tentative** or **Completed**. Notes are one line. Whe
 A booking is a date range plus how much of each day it takes. Your company's
 [allocation units](/using/settings#allocation-units) decide how you enter it:
 
-- **Hours**: start date, end date and hours per day. **Hours / day** offers **1 hour**, **Quarter
-  day (2h)**, **Half day (4h)** or **Full day (8h)**. An existing booking with another value keeps
+- **Hours**: start date, end date and hours per day. **Hours / day** offers **1 h**, **2 h - quarter
+  day**, **4 h - half day** or **8 h - full day**. An existing booking with another value keeps
   showing that exact value until you choose an option.
 - **Days**, the default for a new company: how many days of work, spread over how many days.
   CapacityLens works out the hours per day. **Days of work** can be a positive fraction; the
@@ -128,12 +130,13 @@ timesheet. [What is CapacityLens?](/getting-started/what-is-capacitylens) explai
 
 ### Book on non-working days
 
-Leave **Ignore working days** unticked to book only the days in both the
+Leave **Ignore working days** cleared to book only the days in both the
 [company-wide working days](/using/settings#company-wide-working-days) and the person's own
-pattern. Tick it to use every calendar day in the span, including non-working weekdays.
+pattern. Select it to use every calendar day in the span, including non-working weekdays.
 
-Either way, a new booking must start on a working day that isn't covered by the person's time off.
-To book across closed days, start on an open day with the box ticked, then drag or extend the bar.
+Either way, a new booking must start on a working day that isn't covered by the person's time off
+or a company closure. To book across non-working days, start on a working day with **Ignore working
+days** selected, then drag or extend the bar.
 
 A booking must also stay within the person's
 [availability dates](/using/resources#set-availability-dates), and **Ignore working days** doesn't
@@ -156,5 +159,4 @@ Saving creates the whole series, and one **Undo** removes it. After that, each o
 edited on its own. Deleting one lets you remove only that occurrence or it and every later one.
 With an All-projects activity, every occurrence keeps the chosen project.
 
-Next: [Time off](/using/time-off) — record absences. The booking form warns you when a booking
-overlaps one.
+Next: [Time off](/using/time-off) — record absences.

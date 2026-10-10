@@ -37,8 +37,8 @@ create a second identity to get one.
 
 ## Connect company login
 
-When the operator has set up Google or Microsoft, Account can show a **Connect** button for it.
-Your local email must already be verified; you don't need an invitation.
+When the installer has set up Google or Microsoft, **Security** on Account shows **Connect Google**
+or **Connect Microsoft** under **Company sign-in**. Your local email must already be verified; you don't need an invitation.
 
 1. Sign in with the identity you want to keep.
 2. Select **Connect Google** or **Connect Microsoft** and confirm your sign-in when asked.
@@ -47,11 +47,10 @@ Your local email must already be verified; you don't need an invitation.
 4. Back on Account, check for the provider's **Connected** badge. A failed or cancelled connection
    shows an error.
 
-If the message says your email is not verified, ask the operator to confirm you own the mailbox
-and an Owner or Admin to arrange the repair. The repair signs you out everywhere; sign in again
-before retrying. See
-[Connect existing accounts](/company-login/move-to-single-sign-on#connect-existing-accounts) and
-[Company login](/company-login/).
+If the message says your email is not verified, ask your installer. They confirm you own the
+mailbox, and an Owner or Admin then runs the repair in
+[Connect existing accounts](/company-login/move-to-single-sign-on#connect-existing-accounts). The
+repair signs you out everywhere, so sign in again before retrying.
 
 Installations that use only company login have no password controls here. Your provider handles
 any multi-factor checks; there is no authenticator setup on this page.
@@ -70,8 +69,7 @@ Forgotten a local password? Use the recovery option on the sign-in page, if your
 offers one. If it doesn't, or the email doesn't arrive, ask an Owner or Admin. For company login,
 use your provider's recovery process.
 
-An administrator's password reset or session revocation applies across every company you can
+A password reset or session revocation by an Owner or Admin applies across every company you can
 enter.
 
-Display preferences are in [Settings → My display](/using/settings#my-display). Roles are
-explained in [Team & access](/using/team-access).
+Next: [Team & access](/using/team-access) — check your role.

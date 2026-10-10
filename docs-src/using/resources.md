@@ -15,8 +15,8 @@ plus any placeholders and external parties. Only an Editor, Admin or Owner can c
 Open **Resources** to see each person with their role and discipline where supplied. To see
 someone's work, open their [work list on Schedule](/using/read-the-schedule#your-work-list).
 
-A person on Resources has no sign-in, and inviting a [member](/reference/glossary) doesn't put
-them on the schedule. Most people need both, joined by a [link](#link-a-person-to-a-member).
+A person on Resources has no sign-in, and inviting a [member](/reference/glossary#member) adds no
+row; a [link](#link-a-person-to-a-member) joins the two.
 
 ## Add a person
 
@@ -102,7 +102,7 @@ the same order. Placeholders can't be favourited.
 
 <span id="placeholders"></span>
 
-A [placeholder](/reference/glossary) holds work for a role you haven't filled or assigned yet,
+A [placeholder](/reference/glossary#placeholder) holds work for a role you haven't filled or assigned yet,
 such as "a Design Lead". Use one when someone on your own team will do the work, even if you
 haven't named them yet.
 
@@ -116,7 +116,7 @@ working pattern, so they follow the company's working days.
 
 ## Add an external party
 
-An [external party](/reference/glossary) is an outside company you hand work to, such as a print
+An [external party](/reference/glossary#external-party) is an outside company you hand work to, such as a print
 shop or an overflow studio. Use one when the work is leaving your team. External parties appear on
 Schedule so you can see the handoff, but carry no hours and never count towards capacity or
 utilisation. Their bookings use their literal start and end dates.

@@ -49,11 +49,14 @@ sign-in or members. Support is
 community help on a best-effort basis, with no guaranteed response time.
 [Get help](/open-source#get-help) explains where to ask.
 
-## Other ways to install
+## Follow the full steps for your host
 
 - [Deploy on a managed host](/self-hosting/managed-vps/) such as Forge, Ploi or
   RunCloud, working in the platform's own screens.
 - [Install without Docker](/self-hosting/install-without-docker) on a Linux host with systemd.
+
+## Other ways to install
+
 - [Install with Docker](/self-hosting/install-with-docker) if your host already runs Docker.
 - [Try the demo](/getting-started/try-the-demo) first if you only want to look around.
 

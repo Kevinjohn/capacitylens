@@ -49,7 +49,7 @@ volume itself.
 
 ## 3. Configure
 
-Generate the session secret and the first-owner setup token with `init`. This builds the API
+Generate the session secret and the first-Owner setup token with `init`. This builds the API
 image first:
 
 ```bash
@@ -107,10 +107,12 @@ TLS-terminating reverse proxy in front: see [TLS and networking](/self-hosting/t
 
 ## 5. Open the address
 
-Open the public HTTPS address and enter the setup token from step 3 to create the first Owner and
-company. Then remove `CAPACITYLENS_SETUP_TOKEN` from `.env` and run
+Open the public HTTPS address and check the first-Owner screen loads. If you are also the Owner,
+continue with [Set up your company](/owner/) and enter the setup token from step 3. Otherwise,
+send the address to the Owner, and send the setup token separately and privately.
+
+Once the Owner can sign in, remove `CAPACITYLENS_SETUP_TOKEN` from `.env` and run
 `docker compose up -d --force-recreate api` to discard it from the running container.
 [Configuration](/self-hosting/configuration#sign-in-mode) covers sign-in settings.
 
-Next: [Verify and hand over the installation](/self-hosting/verify-and-hand-over). To look around
-without a persistent installation, [try the demo](/getting-started/try-the-demo).
+Next: [Verify and hand over](/self-hosting/verify-and-hand-over) — check health and hand over.

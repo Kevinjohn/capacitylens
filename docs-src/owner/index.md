@@ -27,9 +27,9 @@ You need the CapacityLens address and the setup token from whoever installed it.
 
 2. ![Company form with Company name, Week starts on, Timezone, Language, Start with example data ticked and Create company](../screenshots/steps/owner_create_company_form.png)
 
-   **Create the company.** Enter its name, then choose the day the week starts and your timezone.
+   **Create the company.** Enter its name, then choose the day the week starts and your time zone.
    These two apply to everyone and **cannot be changed later**. Leave **Start with example data**
-   ticked to see a working schedule straight away, or clear it to start empty. Select **Create
+   selected to see a working schedule straight away, or clear it to start empty. Select **Create
    company**.
 
 3. ![Invite someone dialog with Role set to Admin, an email address, No Resource linked and Create invite](../screenshots/steps/owner_invite_admin_dialog.png)
@@ -50,11 +50,13 @@ Running the company yourself as well? Skip step 3 and go straight to
 
 ## What stays with you
 
-Appointing an Admin does not make them the Owner. Transferring ownership, importing data and
-deleting the company stay with you.
+Appointing an Admin does not make them the Owner. Deciding who can join, transferring ownership,
+importing data and deleting the company stay with you.
 [Owner responsibilities](/owner/responsibilities) covers each of them.
 
-## In more detail
+<span id="in-more-detail"></span>
+
+## Go further
 
 - [Create your company](/owner/create-your-company): company login, a rejected token, and the
   example data.

@@ -40,8 +40,8 @@ with an export.
   name on bars.
 - **Utilisation figures on this device:** choose total, per-discipline and personal figures.
 - **Appearance on this device:** **Light**, **Dark** or **Match system**. The moon or sun button
-  below **Settings** in the sidebar switches to the opposite of the scheme shown, even when the
-  sidebar is collapsed.
+  below **Settings** in the left menu switches to the opposite of the scheme shown, even when the
+  left menu is collapsed.
 
 ## Company setup
 
@@ -54,12 +54,12 @@ Days. [Enter the amount](/using/schedule-work#how-allocation-granularity-works) 
 
 ### Company-wide working days
 
-Tick the days your company works. New companies start with the first five days of the week. At
-least one day must stay ticked: the last one is disabled until you tick another.
+Select the days your company works. New companies start with the first five days of the week. At
+least one day must stay selected: the last one is disabled until you select another.
 
 ![Company-wide working days in Settings with Monday as the only selected day and an explanation that at least one working day must remain](../screenshots/flows/settings_working_days_guard.png)
 
-Each person works only the days ticked here **and** in their own working pattern. If the company
+Each person works only the days selected here **and** in their own working pattern. If the company
 works Monday to Friday and Bruce Wayne works Monday, Wednesday and Friday, his capacity uses
 Monday, Wednesday and Friday.
 
@@ -108,14 +108,14 @@ Internal projects and activities always show, in neutral grey, so they have no s
 
 ### Disciplines
 
-**Use disciplines** groups people by [discipline](/reference/glossary), such as Design or
+**Use disciplines** groups people by [discipline](/reference/glossary#discipline), such as Design or
 Development. Create disciplines and their colours on the [Disciplines](/using/disciplines) page.
 
 ### Placeholders and external resources
 
 Two independent switches. **Show placeholders** adds placeholders: unfilled roles or tentative
-people for planning future capacity. **Show external resources** adds outside parties, such as a
-partner agency or freelancer, for work leaving your team; they carry no capacity.
+people for planning future capacity. **Show external resources** adds outside companies, such as a
+print shop or a partner studio, for work leaving your team; they carry no capacity.
 [Resources](/using/resources#placeholders) explains both.
 
 ### Inline activity creation
@@ -146,7 +146,7 @@ and turned on per device.
 2. Open **Settings** and turn on **Make this device available offline** under **Offline access**.
 
 CapacityLens then keeps a copy of the last company you opened, on that device only. If a request
-can't reach the server at all, it shows that [snapshot](/reference/glossary) with a banner saying
+can't reach the server at all, it shows that [snapshot](/reference/glossary#snapshot-offline) with a banner saying
 the data is cached.
 
 - The snapshot is read-only. While it is shown, nobody can create, edit, delete, import or change
@@ -200,7 +200,7 @@ Owners and Admins can copy build details and a support report from
 <span id="your-personal-account"></span>
 
 Your sign-in, password, company login and **Sign out** are on the [Account](/using/account) page
-at the bottom of the sidebar, not in Settings.
+at the bottom of the left menu, not in Settings.
 
 ## If a company won't load
 

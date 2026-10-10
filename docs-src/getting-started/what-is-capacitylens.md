@@ -25,12 +25,12 @@ coming and move work around before it lands.
   activity.
 - **Early warning.** Days when someone has more work than time show in red, and a separate
   warning looks two weeks ahead for problems not yet on screen.
-- **How full everyone is.** A [Utilisation](/reference/glossary#utilisation) percentage beside
+- **How full everyone is.** A [utilisation](/reference/glossary#utilisation) percentage beside
   each name, for the weeks on screen.
 - **Time off in the same picture.** Holidays and company closures sit beside the work, so they
   stop being a surprise.
 - **Work you haven't won yet.** Tentative bookings, [placeholders](/reference/glossary#placeholder)
-  for roles you haven't filled, and outside partners who don't count against your team's capacity.
+  for roles you haven't filled, and external parties who don't count against your team's capacity.
 - **Your own server.** Your data stays in one file on a server you control.
 
 ## What it leaves out
@@ -49,5 +49,4 @@ it to see their own week.
 <span id="the-scaling-ladder"></span>
 <span id="get-started"></span>
 
-Next: [Choose your guide](/#which-one-are-you) — or [try the demo](/getting-started/try-the-demo),
-or see [how it compares](/getting-started/how-it-compares) with other tools.
+Next: [Choose your guide](/#which-one-are-you) — start with your role.

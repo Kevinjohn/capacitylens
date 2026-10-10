@@ -54,11 +54,11 @@ If you still can't find yourself, ask your Admin to check your access and schedu
 
 ![The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block](../screenshots/flows/schedule.jpg)
 
-Each row is a [person](/reference/glossary): a teammate, a freelancer or a
-[placeholder](/reference/glossary) for an unfilled role. A placeholder row says "Placeholder"
+Each row is a [person](/reference/glossary#person): a teammate, a freelancer or a
+[placeholder](/reference/glossary#placeholder) for an unfilled role. A placeholder row says "Placeholder"
 instead of a name and has a faint diagonal hatch on its header.
 
-When your company uses [disciplines](/reference/glossary), the default, rows are grouped under
+When your company uses [disciplines](/reference/glossary#discipline), the default, rows are grouped under
 them. Favourites come first in each group, alphabetically, then everyone else, then placeholders.
 Favourites are shared with the whole company, not a personal preference. Favourite external
 parties lead the External group.
@@ -78,8 +78,8 @@ average leaves out external people, so an all-external group shows none.
 
 ## Change the weeks on screen
 
-Columns are days. **Weeks visible** shows one, two, four, six or eight weeks. **Back one week** and
-**Forward one week** move a week at a time, and **Today** returns to the current week.
+Columns are days. **Weeks visible** shows one, two, four, six or eight weeks. **Prev** and **Next** move a
+week at a time, and **Today** returns to the current week.
 
 ![The Schedule toolbar with previous week, Today, next week, two-week zoom, Undo, Redo and Show filters controls](../screenshots/flows/schedule_filters_hidden.jpg)
 
@@ -94,8 +94,8 @@ bookings on those days stay visible so you can review them.
 
 ## Read a booking bar
 
-A [booking](/reference/glossary) is a bar across the days it covers, coloured by project or
-[activity](/reference/glossary):
+A [booking](/reference/glossary#booking) is a bar across the days it covers, coloured by project or
+[activity](/reference/glossary#activity):
 
 - **Confirmed**: a plain, solid bar. New bookings start confirmed.
 - **Tentative**: a dashed border and light diagonal hatch.
@@ -167,7 +167,7 @@ with no matching work. Their rows are dimmed: candidates to staff, not people al
 **Clear Filters** resets the search, every dropdown and **Show unallocated**, and turns
 **Tentative** back on.
 
-With edit access, undo and redo every change from the toolbar or with Ctrl/Cmd+Z. The grid
+With edit access, undo and redo every change from the toolbar or with **Ctrl+Z** (**⌘Z** on macOS). The grid
 updates live as you drag; there is nothing to refresh.
 
 ## Jump to a page with the command palette

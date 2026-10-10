@@ -76,7 +76,9 @@ Some repairs permanently remove identity or company data. Keep a backup, follow 
 exact target checks, and do not use it to work around a finding you do not understand.
 :::
 
-The command requires the mixed profile, password mode and a current supported schema. It refuses
+The command requires `CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed`,
+`CAPACITYLENS_MODE=password-and-sso`, a configured company provider and a current supported
+schema. It refuses
 unless the server is stopped and the exact `--confirm-server-stopped` flag is supplied, locks and
 checks the database, refuses ambiguous identities and unsafe targets, and records successful
 repairs in the audit outbox.

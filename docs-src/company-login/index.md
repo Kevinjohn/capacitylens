@@ -1,30 +1,30 @@
 ---
-title: How sign-in works
+title: Company login
 description: Sign in with a password, Google Workspace or Microsoft, connect an existing account, and manage access safely.
 ---
 
-# How sign-in works
+# Company login
 
-Sign in with a password, Google Workspace or Microsoft Entra ID, whichever the person running the
-server has turned on. The demo and trusted-local mode have no sign-in.
+Sign in with a password, Google Workspace or Microsoft Entra ID, whichever the installer has
+turned on. The demo, and an installation with `CAPACITYLENS_MODE=off`, have no sign-in.
 
 With company login, CapacityLens sends you to Google or Microsoft and never sees your provider
 password. A provider account alone does not grant access: the first person on an empty
-installation needs operator approval, and after that each company decides who may join.
+installation needs the installer's approval, and after that each company decides who may join.
 
 ## Passwords and company sign-in
 
 ![Sign-in screen with configured providers above the password form](../screenshots/company_sign_in_password.png)
 
-In password-and-sso mode, each configured provider appears once, stacked above the password form
+In mixed mode (`password-and-sso`), each configured provider appears once, stacked above the password form
 with an **or use your password** divider between them. GitHub is an experimental extra option in
 this mode only. Provider-only sign-in shows no password form; password-only sign-in shows no
 provider area.
 
-First-owner setup has its own field order. Microsoft setup, for example, asks for an email address
+First-Owner setup has its own field order. Microsoft setup, for example, asks for an email address
 before the provider step so it can run its mailbox proof.
 
-In company-sign-in-only mode, people must use Google or Microsoft. Passwords and GitHub, including
+When company login is required (`sso-only`), people must use Google or Microsoft. Passwords and GitHub, including
 older sessions, cannot satisfy it.
 
 [Set up Google or Microsoft sign-in](/company-login/set-up-company-login) covers registration and
@@ -33,7 +33,7 @@ everyone to a provider.
 
 ## Invitations and the first Owner
 
-On an empty installation, the operator can allow specific email addresses to create the first
+On an empty installation, the installer can allow specific email addresses to create the first
 Google or Microsoft identity. That person follows [Set up your company](/owner/) to become its
 Owner. The allowance closes once the first identity exists.
 
@@ -77,10 +77,10 @@ to do when the email does not arrive or the link expires.
 - **You cancel Confirm it's you.** No connection starts.
 - **Confirmation cannot refresh your session.** Sign out, sign in again and retry.
 - **Your local email is unverified.** There is no email-correction button in Account, and the
-  joining verification link does not verify your local email. Ask the operator: an authorised
-  Owner or Admin runs a guarded repair, which revokes your sessions, so sign in again afterwards.
-  [Connect existing accounts](/company-login/move-to-single-sign-on#connect-existing-accounts)
-  describes the repair.
+  joining verification link does not verify your local email. Ask your installer. They confirm you
+  own the mailbox, and an Owner or Admin then runs the repair in
+  [Connect existing accounts](/company-login/move-to-single-sign-on#connect-existing-accounts). The
+  repair signs you out everywhere, so sign in again before retrying.
 
 ## Sessions and sensitive actions
 
@@ -114,3 +114,12 @@ session behaviour before relying on it.
 
 In mixed mode, a verified GitHub sign-in is also bound by a **Disable Access** restriction on the
 selected address.
+
+## If someone returns with a new sign-in
+
+A **Disable Access** restriction follows a new sign-in with the same address only when both
+identities proved mailbox ownership, through verified company sign-in or a completed mailbox check.
+An invitation or an older "email verified" flag does not count. An established Microsoft sign-in
+keeps its stable identity, but a returning sign-in does not add mailbox proof to an older identity
+without it. An Owner or Admin can still manage the original restriction from **No longer active**
+in **Team & access**.

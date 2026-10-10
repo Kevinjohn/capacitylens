@@ -29,7 +29,7 @@ helper, are in the [development guide](/reference/development#development-enviro
 | `CAPACITYLENS_DEPLOYMENT_PROFILE` | An optional named policy: `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` or `hosted-sso-only`. Enforced at startup. |
 | `CAPACITYLENS_SECRET` | The session-signing secret. Required for every authenticated mode. The `init` command generates one; anything 32 characters or longer is fine. |
 | `CAPACITYLENS_PUBLIC_URL` | The exact browser-facing origin, for example `https://capacity.example.com`. Required for every authenticated mode. |
-| `CAPACITYLENS_SETUP_TOKEN` | The one-time secret the first owner enters on a fresh password-mode instance. For Google/Microsoft setup, use `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` for the first identity or a pre-authorised invitation after that. |
+| `CAPACITYLENS_SETUP_TOKEN` | The one-time secret the first Owner enters on a fresh password-mode instance. For Google/Microsoft setup, use `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` for the first identity or a pre-authorised invitation after that. |
 | `CAPACITYLENS_ALLOW_OPEN_SIGNUP` | Re-opens self-service sign-up. Closed by default: CapacityLens is invite-only. Leave it unset in production. |
 | `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` | Allows the `off` posture under production. Without it, a production instance with no sign-in refuses to start. |
 | `CAPACITYLENS_PASSWORD_BREACH_CHECK` | On by default: new passwords are checked against known breaches. Set `off` only for an isolated deployment that accepts the production warning. |
@@ -44,7 +44,7 @@ hosted deployments; a self-hosted installation that requires company sign-in use
 Send the setup token to the first Owner through a secure channel, never in chat, tickets,
 screenshots, command output or logs. It must be entered exactly, without surrounding quotes or
 whitespace. Once the first Owner and company exist, remove `CAPACITYLENS_SETUP_TOKEN` and restart.
-First-owner signup already closes when the first identity exists; removing the token takes the
+First-Owner signup already closes when the first identity exists; removing the token takes the
 secret away from operators and future processes.
 
 ## Company login
@@ -100,7 +100,7 @@ With email on:
 
 | Variable | What it does |
 | --- | --- |
-| `CAPACITYLENS_DB` | Path to the SQLite file. Default `./capacitylens.db`; `:memory:` is also accepted. Docker Compose pins this to `/data/capacitylens.db` inside a named volume; only change it for a bare-metal run. |
+| `CAPACITYLENS_DB` | Path to the SQLite file. Default `./capacitylens.db`; `:memory:` is also accepted. Docker Compose pins this to `/data/capacitylens.db` inside a named volume; only change it on a Linux host. |
 | `CAPACITYLENS_BACKUP_DIR` | Directory for scheduled snapshots. On by default in Docker (`/backups`), and in production with a file database (a `backups` folder beside the database file). Set it explicitly empty (`CAPACITYLENS_BACKUP_DIR=`) to turn scheduled backups off. Outside production, off unless set. |
 | `CAPACITYLENS_BACKUP_INTERVAL_MIN` | Minutes between snapshots. Whole minutes, default 60; startup clamps over-maximum values to 35,000 with a warning. |
 | `CAPACITYLENS_BACKUP_KEEP` | How many snapshots to retain. Default 48. Invalid and lower values use the safe default and positive fractions round down; over-maximum values clamp to 10,000 with a startup warning, so leave disk capacity for that many restore points. |
@@ -173,7 +173,7 @@ responsibility; CapacityLens has no setting for either.
 | --- | --- |
 | `VITE_CAPACITYLENS_API` | The API origin the built app talks to. Leave empty for the normal same-origin build (the app calls a relative `/api`, which nginx proxies). |
 | `VITE_CAPACITYLENS_DEMO` | Set `1` to build the in-memory demo instead of the real app. Wins over `VITE_CAPACITYLENS_API`. |
-| `VITE_CAPACITYLENS_BUILD_SHA` | Optional build identifier shown in Settings, typically the git commit. |
+| `VITE_CAPACITYLENS_BUILD_SHA` | Optional build identifier shown under **Build details** in Diagnostics, typically the git commit. |
 | `VITE_CAPACITYLENS_FEEDBACK_MAILTO` | Optional email address for the in-app feedback link. Leave empty to hide the link. |
 
 These apply only after a rebuild: `docker compose build web` for the packaged stack or

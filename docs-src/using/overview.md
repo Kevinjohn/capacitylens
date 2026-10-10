@@ -23,7 +23,7 @@ to Hours or Days in **Settings** to use it.
 
 ![Overview ledger with the Totals row on, showing each person's free days out of capacity for four weeks, a red overbooked figure and grey tentative hatches](../screenshots/flows/capacity_overview.png)
 
-People appear in the same order and groups as on Schedule. External resources and archived or
+People appear in the same order and groups as on Schedule. External parties and archived or
 deleted people are left out. Overview uses the same working patterns, time off and closures as
 Schedule.
 

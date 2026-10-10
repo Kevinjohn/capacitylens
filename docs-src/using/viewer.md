@@ -27,8 +27,7 @@ Signing in alone doesn't admit you to a company: you need the invitation or join
 
 **Help**, above **Account**, has a short Viewer tour.
 
-Your sign-in is separate from your row on the schedule. An Admin can link the two. Until then,
-find your row by name.
+Your sign-in is separate from your schedule row; until an Admin links them, find your row by name.
 
 ## Find your work
 
@@ -46,15 +45,15 @@ free time. [Spot overwork](/using/read-the-schedule#reading-overwork) explains t
 red 14-day warning.
 
 **Overview** compares free capacity week by week. Only Owners and Admins see it by default, so a
-missing menu link is expected until your company opens it to Viewers.
+missing menu link is expected unless an Owner or Admin opens it to **Everyone**.
 [Overview](/using/overview) explains the figures.
 
 ## Look up people, work and time off
 
 **Resources**, **Clients**, **Projects**, **Activities** and **Time off** are all readable without
 edit buttons. **Disciplines** appears when your company uses them. Time-off notes are visible only
-to Owners and Admins. Private client and project real names are visible only to the Owner;
-everyone else sees code names. A missing confidential field is an access rule, not a failed load.
+to Owners and Admins. Only the Owner sees the real name behind a code name; everyone
+else sees the code name. A missing confidential field is an access rule, not a failed load.
 
 ## Set your display and sign-in
 
@@ -80,7 +79,7 @@ plan.
 ### Why is a person or booking missing?
 
 Check the company, the dates on screen and any active filters. The record may be archived, or a
-feature such as placeholders or external resources may be turned off. Ask the person managing the
+feature such as placeholders or external parties may be turned off. Ask the person managing the
 plan if it is still missing.
 
 ### Why can't I open Overview or Diagnostics?

@@ -23,7 +23,7 @@ CapacityLens sits behind a TLS-terminating reverse proxy on the same origin the 
    unset: with an `https` `CAPACITYLENS_PUBLIC_URL`, CapacityLens adds a two-year host-only HSTS
    header itself.
 
-## Native install (release archive)
+## Linux host (release archive)
 
 The server serves the web app as well as the API, so one reverse-proxy line covers the whole
 site. Keep the server on loopback (`CAPACITYLENS_HOST=127.0.0.1`, the default) and proxy to
@@ -172,7 +172,7 @@ are rejected at startup, because sign-in uses cookies.
 | Port | What's listening                | Reachable from                                                              |
 | ---- | ------------------------------- | --------------------------------------------------------------------------- |
 | 8080 | nginx (web app + `/api/` proxy) | Loopback by default; your reverse proxy                                     |
-| 8787 | The API (Fastify)               | Only nginx, over the internal TLS hop in Compose, or loopback on bare metal |
+| 8787 | The API (Fastify)               | Only nginx, over the internal TLS hop in Compose, or loopback on a Linux host |
 
 Next: [Monitoring and health checks](/self-hosting/monitoring) to watch certificate expiry and
 proxy health.

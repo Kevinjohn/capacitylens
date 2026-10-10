@@ -66,13 +66,17 @@ Most of the team only need **Viewer**. Give **Editor** to whoever books work.
 **Are you an Editor?** You can do steps 1 to 4. Inviting people is for an Admin or the Owner.
 [Plan work as an Editor](/using/editor) is your day-to-day guide.
 
-## Two records, one person
+<span id="two-records-one-person"></span>
+
+## Give someone a sign-in and a schedule row
 
 Inviting someone lets them sign in. Adding them in **Resources** gives them a row on the
 schedule. Most people need both, and **Link to Resource** joins the two. Neither creates the
 other.
 
-## Already up and running?
+<span id="already-up-and-running"></span>
+
+## Go further
 
 - [Ongoing administration](/admin/ongoing-administration): change access, working patterns and
   closures.

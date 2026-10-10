@@ -126,9 +126,11 @@ curl -fsS https://capacity.example.com/api/health
 
 ## 5. Open the address
 
-Send the intended Owner the address and the `CAPACITYLENS_SETUP_TOKEN` value from
-`/etc/capacitylens.env` through a private channel. They open the address and enter it once, on
-the first-owner screen. Do not create the Owner for them.
+Open the address and check the first-Owner screen loads. It asks once for the
+`CAPACITYLENS_SETUP_TOKEN` value from `/etc/capacitylens.env`.
+
+If you are also the Owner, continue with [Set up your company](/owner/). Otherwise, send the
+address to the Owner, and send the setup token separately and privately.
 
 After the Owner has signed in, delete the `CAPACITYLENS_SETUP_TOKEN` line from
 `/etc/capacitylens.env` and restart the service:
@@ -137,9 +139,8 @@ After the Owner has signed in, delete the `CAPACITYLENS_SETUP_TOKEN` line from
 sudo systemctl restart capacitylens
 ```
 
-First-owner setup is open only while the database holds no users and a token is set. Erasing the
+First-Owner setup is open only while the database holds no users and a token is set. Erasing the
 sole identity reopens it, so set a new token only to create a new first Owner.
-[Verify and hand over](/self-hosting/verify-and-hand-over) finishes the job.
 
 ## Customise the service
 
@@ -159,5 +160,4 @@ the system path. To change them, edit the copy in `/etc/systemd/system/` and run
   TimeoutStopSec=30
   ```
 
-Next: [Backups and restore](/self-hosting/backups-and-restore) to protect the database, and
-[Upgrades](/self-hosting/upgrades) for newer releases.
+Next: [Verify and hand over](/self-hosting/verify-and-hand-over) — prove storage survives a restart.

@@ -117,7 +117,7 @@ const selfHostingSidebar = [
           { text: "Require company sign-in", link: "/company-login/move-to-single-sign-on" },
         ],
       },
-      { text: "Ownership-transfer recovery", link: "/self-hosting/ownership-transfer-recovery" },
+      { text: "Recover a blocked ownership transfer", link: "/self-hosting/ownership-transfer-recovery" },
       { text: "When something goes wrong", link: "/self-hosting/incidents" },
       { text: "Install and operations FAQ", link: "/self-hosting/faq" },
     ],

@@ -5,7 +5,7 @@ description: The health endpoint to poll, what its fields mean, where the logs l
 
 # Monitoring and health checks
 
-The minimum:
+Watch the service so you hear about a failure before the team does. At minimum:
 
 1. Poll `GET /api/health` through the public proxy your users reach. It needs no sign-in and is
    exempt from rate limiting. Never expose the API container directly.
@@ -34,7 +34,7 @@ sudo systemctl status capacitylens --no-pager
 sudo journalctl -u capacitylens --since "30 min ago" --no-pager
 ```
 
-On a managed VPS, use the provider's process status and application log view (see
+On a managed host, use the platform's process status and application log view (see
 [Keep it running](/self-hosting/managed-vps/#keep-it-running)).
 
 Deep health (`CAPACITYLENS_HEALTH_DEEP=1`, on by default in production) also runs a SQLite
@@ -109,11 +109,10 @@ retention policy.
 - Breached-password (HIBP) range lookups run at most eight at a time with thirty-two queued, each
   with a five-second timeout. Password hashing that overflows its queue aborts without producing
   a wrong-password verdict.
-  These scrypt/HIBP queues are process-wide availability safeguards, not per-company reservations.
-  Password authentication is identity-global and occurs before company selection, so every
-  company on a multi-company instance shares them. Use edge/global quotas or separate
-  CapacityLens instances, each with its own database, when adversarial isolation is
-  required; do not weaken the memory bounds.
+  These limits are process-wide safeguards, not per-company reservations. Password sign-in is
+  identity-global and happens before company selection, so every company on an instance shares
+  them. Use global quotas or separate CapacityLens instances, each with its own database, when one
+  company must not affect another. Do not weaken the memory bounds.
 
 ## Routine maintenance
 
@@ -123,8 +122,8 @@ retention policy.
 - **Every release**: follow [Upgrades](/self-hosting/upgrades): review the security workflow,
   SBOM and image scan results; read the changelog; back up; deploy; smoke test; keep a rollback
   image and, for schema-bearing releases, the migration rehearsal result.
-- **After any sign-in or cryptography change**, in a test environment: exercise enrolment,
-  recovery-code storage, session revocation, password-reset invalidation and the
+- **After any sign-in or cryptography change**, in a test environment: exercise session
+  revocation, password-reset invalidation and the
   breached-password-service outage path. For Google or Microsoft, verify the registered callback,
   admission, linking and returning sign-in.
 

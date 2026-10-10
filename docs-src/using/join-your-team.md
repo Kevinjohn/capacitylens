@@ -67,9 +67,8 @@ whether your access is disabled.
 
 ![Team & access showing the role and its restrictions after entering a company](../screenshots/flows/viewer_access_current.jpg)
 
-Your role is under **Team & access → Your access**. Joining doesn't give you a row on the
-schedule. If you don't see one for yourself, ask your Admin to create your person in Resources and
-link it to your membership.
+Your role is under **Team & access → Your access**. Joining doesn't put you on the schedule.
+If you can't find your row, ask your Admin to add you in **Resources** and link it to your sign-in.
 
 <span id="what-s-next"></span>
 

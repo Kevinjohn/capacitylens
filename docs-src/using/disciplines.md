@@ -24,16 +24,16 @@ alphabetical.
 
 ![Edit discipline with its existing name and colour](../screenshots/flows/discipline_edit_form.jpg)
 
-Select the pencil on a row to change its name or colour. A blank name keeps the form open until
+Select the edit icon on a row to change its name or colour. A blank name keeps the form open until
 you correct it.
 
 ## Remove a discipline
 
 ![Delete discipline confirmation explaining that resources are ungrouped rather than deleted](../screenshots/flows/discipline_delete_confirmation.jpg)
 
-Select the trash button on its row and confirm **Delete discipline?** Its people are ungrouped,
-not deleted, and keep their bookings. They appear under the schedule's unassigned or engagement
-group until you assign another discipline.
+Select the delete icon on its row and confirm **Delete discipline?** Its people are ungrouped,
+not deleted, and keep their bookings. They appear in the **Unassigned** group, or the Studio and
+Supplementary bands, until you assign another discipline.
 
 Removed the wrong one? Select **Undo** in the Schedule toolbar to restore it and its grouping.
 

@@ -7,15 +7,19 @@ next: false
 
 # Day-to-day FAQ
 
-## I can't find my name.
+<span id="i-cant-find-my-name"></span>
+
+## Why can't I find my name?
 
 On [Schedule](/using/read-the-schedule), select **Show filters**, then **Clear Filters**, and
 search for your name.
 
-Still missing? Ask your Admin to check your [scheduled resource](/using/resources). An invitation
-alone doesn't create one.
+Still missing? Ask your Admin to add you in [Resources](/using/resources); an invitation alone
+doesn't.
 
-## My work list looks empty or differs from the grid.
+<span id="my-work-list-looks-empty-or-differs-from-the-grid"></span>
+
+## Why does my work list look empty or differ from the grid?
 
 The list always shows this week and the next three weeks, whatever dates or filters the main
 Schedule uses. Use Schedule for work outside that range, and ask whoever books the work if a
@@ -61,7 +65,9 @@ An Admin or Owner normally sets them up. [Clients](/using/projects#clients) ·
 No. CapacityLens records planned work and absence. Ask your agency how it handles time reporting
 and leave approval.
 
-## My invitation doesn't work.
+<span id="my-invitation-doesnt-work"></span>
+
+## Why doesn't my invitation work?
 
 Check you are using the email address it was sent to. Ask the sender for a new one if it has
 expired or was already used. [Join your team](/using/join-your-team)

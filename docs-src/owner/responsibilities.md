@@ -1,5 +1,5 @@
 ---
-title: Understand Owner responsibilities
+title: Owner responsibilities
 description: The decisions only the Owner can make — who can join, ownership transfer, importing data and deleting the company — and how to make each one.
 prev: false
 next: false
@@ -12,8 +12,8 @@ next: false
 # Owner responsibilities
 
 Four decisions stay with you: who can join, transferring ownership, importing a replacement
-schedule and deleting the company. Your Admin runs everything else in the company. The service
-operator handles installation, backups, upgrades and company-login setup.
+schedule and deleting the company. Your Admin runs everything else in the company. The installer
+handles installation, backups, upgrades and company-login setup.
 
 ## Decide who can join
 
@@ -54,7 +54,7 @@ Nothing changes until all three steps are complete.
 
 2. ![Nominated Admin seeing Agree to become Owner and Decline](../screenshots/flows/admin_transfer_response.jpg)
 
-   **They agree.** The nominee opens the same modal and selects **Agree to become Owner** or
+   **They agree.** The nominee opens **Manage ownership** and selects **Agree to become Owner** or
    **Decline**. Only they can agree.
 
 3. **You confirm.** Return to **Manage ownership** and select **Confirm the transfer**. You become
@@ -89,9 +89,8 @@ Deleting the company permanently removes it and all its data for everyone. There
 3. Type the exact company name to enable **Delete**, then select it.
 
 Deleting needs a recent sign-in. **Switch company** appears only when you can access two or more
-companies; if it is missing, ask the service operator how to proceed.
+companies; if it is missing, ask the installer how to proceed.
 
 To take away one person's access instead, use [Stop access](/admin/invite-teammates#stop-access).
 
-Next: [Owner FAQ](/owner/faq) — or [Roles and permissions](/getting-started/roles-and-permissions)
-for what each role can do.
+Next: [Owner FAQ](/owner/faq) — common Owner questions.

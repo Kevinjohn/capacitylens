@@ -1,9 +1,9 @@
 ---
-title: How CapacityLens compares
+title: How it compares
 description: A factual comparison of CapacityLens with a spreadsheet, Float, Forecast and Resource Guru, including when each is the better choice.
 ---
 
-# How CapacityLens compares
+# How it compares
 
 Pick the tool that fits how your agency plans. CapacityLens answers one question: who is free
 next week?
@@ -14,7 +14,7 @@ next week?
 | Float | Hours or percentages | Scheduling, capacity, and time tracking on its higher plan | Hosted by the vendor | Per scheduled person, per month | You want hour-level scheduling or time tracking in the same tool. |
 | [Forecast (Harvest)](https://www.getharvest.com/forecast) | Days and hours on project timelines | Assignments, workload, and scheduled against actual time through Harvest | Hosted by the vendor | Paid subscription; see [Harvest Forecast pricing](https://www.getharvest.com/forecast/pricing) | You already track time and budgets in Harvest and want planning beside it. |
 | Resource Guru | Hours per booking | Bookings of people and other resources, including repeat and multi-resource bookings | Hosted by the vendor | Per person, per month | You book rooms, equipment or vehicles as well as people. |
-| CapacityLens | Weeks on screen; bookings are date ranges with a daily amount | Who is booked, free or over capacity; time off; placeholders for people you have not hired | You host it, or use the demo in your browser | Free software under AGPL-3.0; you pay for your own server | You want a week-by-week capacity view with no budgets, timesheets or task tracking, and your data on your own server. |
+| CapacityLens | Weeks on screen; bookings are date ranges with a daily amount | Who is booked, free or over capacity; time off; placeholders for people you have not hired | You host it; the demo runs on your own computer | Free software under AGPL-3.0; you pay for your own server | You want a week-by-week capacity view with no budgets, timesheets or task tracking, and your data on your own server. |
 
 Competitor facts checked 2026-10-01. Vendors change their plans, so check their own pages before
 you decide.

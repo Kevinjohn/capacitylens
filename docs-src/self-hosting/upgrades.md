@@ -5,12 +5,16 @@ description: How to upgrade a self-hosted CapacityLens instance safely, what hap
 
 # Upgrades
 
+Move to a newer release without losing data, and roll back if it fails.
+
 ::: warning
 Always take a fresh backup immediately before upgrading, even though the server also takes its own
 pre-migration snapshot. See [Backups and restore](/self-hosting/backups-and-restore).
 :::
 
-## Upgrade procedure
+<span id="upgrade-procedure"></span>
+
+## Upgrade to a newer release
 
 1. Confirm you have a recent, successful restore test on record.
 2. Read `CHANGELOG.md` for the target release and any
@@ -62,7 +66,7 @@ pre-migration snapshot. See [Backups and restore](/self-hosting/backups-and-rest
 5. On first start, a schema upgrade first creates and verifies a
    `capacitylens-pre-migration-vN-to-vM.db` snapshot. If that fails, startup stops: fix the storage
    or permissions problem; don't bypass the snapshot.
-6. Check API health, sign in, confirm account access, and make one safe write.
+6. Check API health, sign in, confirm the company opens, and make one safe write.
 7. Keep the old container image or previous release folder, and the recovery snapshot, until you're
    satisfied.
 
@@ -144,7 +148,9 @@ Deploy the application and the environment change together, then verify sign-in 
 method. When rolling back to the previous version, restore its old `password` or `sso` value at the
 same time.
 
-## Release-directory deployments
+<span id="release-directory-deployments"></span>
+
+## Upgrade a release-directory deployment
 
 If your platform builds into versioned release directories and switches a stable `current` symlink,
 build the new release while the existing process keeps serving. Stop the process immediately before
@@ -153,17 +159,3 @@ activating the new release and cleaning up the old one, then restart from the st
 
 Don't purge a release directory a running service still uses as its working directory. Keep the
 database, backups, environment file and operational logs outside the release tree.
-
-## Before a schema-bearing release (maintainers)
-
-Run the migration rehearsal against the committed auth fixture and a representative database:
-
-```bash
-pnpm run rehearse:migrations
-pnpm run rehearse:migrations -- --source /path/to/representative.db
-```
-
-The source database is copied, never migrated itself; the anonymised temporary copy is deleted
-unless `--keep` is passed. A pass covers the migration, rollback snapshot, ledger checksum,
-disk-exhaustion rollback, forced-termination recovery and idempotent reopen. It never prints tenant
-content. Record the source schema version, row/table counts and result in your release evidence.

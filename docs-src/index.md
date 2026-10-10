@@ -28,8 +28,8 @@ budgets or timesheets.
 <span id="day-to-day-usage"></span>
 <span id="self-hosting-operations"></span>
 
-**I'm installing it.** You put CapacityLens on a server and give the Owner its address. It takes
-five steps, about ten minutes on a host that already runs Node 24.
+**I'm installing it.** You put CapacityLens on a server and give the Owner its address. Four steps;
+the install itself takes about ten minutes on a host that already runs Node 24.
 [Start the installation](/self-hosting/)
 
 **I own the company.** You create the company and invite someone to run it day to day. Four

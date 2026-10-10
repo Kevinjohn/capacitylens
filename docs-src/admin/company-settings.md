@@ -23,7 +23,7 @@ bottom of the left menu. Editors can change most of these; only Owners and Admin
 | Allocation units          | Enter work in Hours, Days or Blocks. Days is the default.                        |
 | Company-wide working days | Set the shared working week. A person's own working pattern also applies.        |
 | Date format               | Change how planning dates appear for everyone.                                   |
-| Overview access           | Choose who can open the capacity summary. Owners and Admins only is the default. |
+| Overview access           | Choose who can open **Overview**. Owners and Admins only is the default. |
 
 Changing working days recalculates capacity for existing work; it does not move bookings.
 
@@ -43,16 +43,15 @@ Under **Company features**, **Use disciplines** starts on for a new company; the
 
 Turning a switch off hides existing information; it does not delete it.
 
-Internal work always appears in neutral grey. People are split into Studio and Supplementary groups
-only once someone is marked Supplementary.
+Internal work always appears in neutral grey. Resources and Schedule split people into Studio and
+Supplementary only once someone is marked Supplementary.
 
 ## Tell company settings from your own
 
 **My display** changes only the current browser. Each teammate chooses their own
 [display preferences](/using/settings).
 
-Week start and timezone are fixed when the company is created. They are shown under **Data and
+Week start and time zone are fixed when the company is created. They are shown under **Data and
 support → Company details**.
 
-Next: [Settings](/using/settings) — every setting, including
-[offline access](/using/settings#offline-access).
+Next: [Settings](/using/settings) — every setting in detail.

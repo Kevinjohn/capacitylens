@@ -47,5 +47,5 @@ Placeholders follow company working days. If **Add placeholder** is missing, tur
 placeholders** in [Company settings](/admin/company-settings). Turning the setting off hides
 placeholders without deleting them.
 
-Next: [Resources](/using/resources) — working patterns, placeholders and external resources in
+Next: [Resources](/using/resources) — working patterns, placeholders and external parties in
 detail.

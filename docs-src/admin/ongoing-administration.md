@@ -1,5 +1,5 @@
 ---
-title: Handle ongoing administration
+title: Ongoing administration
 description: Keep access, working patterns and company closures up to date as your team and work change.
 prev: false
 next: false
@@ -8,7 +8,7 @@ next: false
 <span id="regular-tasks"></span>
 <span id="what-s-next"></span>
 
-# Handle ongoing administration
+# Ongoing administration
 
 Keep access, working patterns and closures up to date as people and work change.
 
@@ -17,14 +17,12 @@ Keep access, working patterns and closures up to date as people and work change.
 ![Change member role dialog explaining Editor permissions before saving](../screenshots/flows/admin_change_member_role.jpg)
 
 Open **Team & access**. Review **Outstanding invites** and revoke any that are no longer needed.
-Use the pencil to change a member's role and the link icon to change their schedule row.
+Use the edit icon to change a member's role and the link icon to change their schedule row.
 
 ![Team & access: Member actions dialog](../screenshots/flows/admin_member_actions.jpg)
 
-**More actions** holds **Disable Access**, **Enable Access**, **Archive user**, **Restore
-membership** and **Remove**. Disable Access blocks entry to the company even after removal, until an
-Owner or Admin clears it. Archive keeps the record and can be restored. Removal ends the membership
-in this company only. [Stop access](/admin/invite-teammates#stop-access) covers each one.
+**More actions** holds the access controls. [Stop access](/admin/invite-teammates#stop-access)
+explains each.
 
 ## Change working patterns
 
@@ -33,7 +31,7 @@ in this company only. [Stop access](/admin/invite-teammates#stop-access) covers 
 3. Select **Save**.
 
 A person's working days, together with the company's, set their capacity. Changing them
-recalculates Utilisation and conflicts; it does not move bookings. Availability dates are inclusive.
+recalculates utilisation and conflicts; it does not move bookings. Availability dates are inclusive.
 Outside them capacity is zero, but existing bookings stay visible. Check
 [Set availability dates](/using/resources#set-availability-dates) before narrowing someone's
 availability.
@@ -55,13 +53,14 @@ conflict. Shortening or deleting the closure restores capacity without moving bo
 
 For one person's absence, [record time off](/using/time-off#record-time-off).
 
-## Ask the Owner or operator
+<span id="ask-the-owner-or-operator"></span>
+
+## Ask the Owner or installer
 
 <span id="owner-and-operator-handoffs"></span>
 
-Ask the Owner to transfer ownership, delete the company or import scheduling data. Ask the service
-operator about backups, upgrades and company-login setup. When something goes wrong, copy a report
+Ask the Owner to transfer ownership, delete the company or import scheduling data. Ask the installer
+about backups, upgrades and company-login setup. When something goes wrong, copy a report
 from [Diagnostics](/admin/diagnostics).
 
-Next: [Admin FAQ](/admin/faq) — or [Company settings](/admin/company-settings) to change the shared
-rules.
+Next: [Admin FAQ](/admin/faq) — common access problems.

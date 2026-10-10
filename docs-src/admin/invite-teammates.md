@@ -1,5 +1,5 @@
 ---
-title: Invite teammates and manage access
+title: Invite teammates
 description: Invite teammates with a one-time link, choose their role, link them to their schedule row, and change or stop their access later.
 prev: false
 next: false
@@ -32,18 +32,20 @@ Admin can do this. An Editor or Viewer who opens **Team & access** sees their ow
 ![Invite someone dialog with the optional Link to Resource selection](../screenshots/flows/invitation_created.png)
 
 The link is shown only in this dialog. CapacityLens keeps only a hash of it, so nobody can retrieve
-it later. If it is lost, revoke the invite under **Outstanding invites** and create a new one; the
-old link stops working at once. If you close the dialog before the invite finishes creating, a
+it later. If it is lost, revoke the invitation under **Outstanding invites** and create a new one; the
+old link stops working at once. If you close the dialog before the invitation is created, a
 notice says the link was not shown.
 
 ## If the linked person is no longer available
 
 The **Link to Resource** choice is a proposal: it does not reserve the person, and the recipient
-cannot see it. If that person is no longer available when the invite is accepted, the member still
+cannot see it. If that person is no longer available when the invitation is accepted, the member still
 joins and their row shows **Resource link needs attention**. Select **Choose another person** or
 **Dismiss**.
 
-## What the invitee sees
+<span id="what-the-invitee-sees"></span>
+
+## Check what the invitee sees
 
 ![Invitation preview showing company, proposed role, expiry and existing-account sign-in](../screenshots/flows/join_invitation_preview.jpg)
 
@@ -63,8 +65,9 @@ accept, they land on your schedule.
 <span id="outstanding-invites"></span>
 <span id="pending-invites"></span>
 
-Invites not yet accepted are listed under **Outstanding invites**, above your members. A proposed
-Resource stays marked pending until the invite is accepted. Select **Revoke** to cancel an invite.
+Invitations not yet accepted are listed under **Outstanding invites**, above your members. A proposed
+Resource stays marked pending until the invitation is accepted. Select **Revoke** to cancel an
+invitation.
 
 ## Change a member's role or schedule row
 
@@ -72,15 +75,15 @@ Resource stays marked pending until the invite is accepted. Select **Revoke** to
 
 ![Members table with role, email, Resource link and row actions](../screenshots/flows/team_access_members.png)
 
-Send new members the [day-to-day guide](/using/). Members are listed by role, Owner first. On each
+Send new members [See your work](/using/). Members are listed by role, Owner first. On each
 row:
 
-- The **pencil** changes their role. The dialog explains the consequences before you **Save role**.
+- The edit icon changes their role. The dialog explains the consequences before you **Save role**.
 - The **link icon** opens **Link to Resource**. Choosing a person saves immediately and does not
   change their access. **Remove link to resource** unlinks them immediately.
   [Link a person to a member](/using/resources#link-a-person-to-a-member)
-- **More actions** offers the rest: reset their password, sign them out everywhere, **Disable
-  Access**, archive or remove them.
+- **More actions** offers the rest: reset their password, **Revoke sessions**, **Disable Access**,
+  **Archive user** or **Remove**.
 
 ![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/admin_resource_link_remove.jpg)
 
@@ -99,13 +102,10 @@ Archiving or removing does not block a new invitation; a returning person gets t
 role. After **Enable Access**, an active member keeps their role, but an archived or removed person
 still needs restoring or a new invitation.
 
-### If they come back with a new sign-in
+<span id="if-they-come-back-with-a-new-sign-in"></span>
 
-The restriction follows a new sign-in with the same address only when both identities proved
-mailbox ownership, through verified company sign-in or a completed mailbox check. An invitation or
-an older "email verified" flag does not count. An established Microsoft sign-in keeps its stable
-identity, but a returning sign-in does not add mailbox proof to an older identity without it. You
-can still manage the original restriction from **No longer active**.
+If they return with a new sign-in, check **No longer active**: [How sign-in works](/company-login/#if-someone-returns-with-a-new-sign-in)
+explains when the restriction follows them.
 
 ## Review who can join
 
@@ -117,8 +117,7 @@ change it; ask them if a teammate cannot join or registration should be tighter.
 policy get Viewer, so send an addressed invitation for any other role.
 [Decide who can join](/owner/responsibilities#decide-who-can-join) explains each policy.
 
-A fresh install allows one company. An operator can allow more with `CAPACITYLENS_MULTI_ACCOUNT`
+A fresh install allows one company. The installer can allow more with `CAPACITYLENS_MULTI_ACCOUNT`
 ([Configuration](/self-hosting/configuration)).
 
-Next: [Admin FAQ](/admin/faq) — or
-[How company joining works](/company-login/#invitations-and-the-first-owner).
+Next: [Admin FAQ](/admin/faq) — fix a stuck invitation.

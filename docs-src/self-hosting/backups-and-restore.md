@@ -126,7 +126,7 @@ database first.
    [upgrade rollback](/self-hosting/upgrades).
 4. Remove any stale `-wal` and `-shm` sidecars next to the restored file.
 5. Start the API and check deep health.
-6. Verify sign-in, the account list, recent expected data and one safe write.
+6. Verify sign-in, the company list, recent expected data and one safe write.
 7. Record the snapshot time, the result and how long the recovery took.
 
 ### Docker Compose named-volume procedure
@@ -144,7 +144,7 @@ deployments use `capacitylens_`. An older deployment may carry a different prefi
 If an upgrade unexpectedly presents an empty instance, do not create a company or remove
 volumes. Stop the new stack, run `docker volume ls`, restore the previous project prefix
 in `.env`, confirm the rendered `*_capacitylens-db`, `*_capacitylens-backups` and
-`*_capacitylens-internal-tls` names, then start the stack and verify the expected account
+`*_capacitylens-internal-tls` names, then start the stack and verify the expected company
 list. Creating a company against the wrong volume set is not recoverable by restoring
 later.
 :::
@@ -210,7 +210,7 @@ later.
    curl -fsS https://capacity.example.com/api/health
    ```
 
-4. Complete the sign-in, account, recent-data and safe-write checks from the general
+4. Complete the sign-in, company, recent-data and safe-write checks from the general
    procedure before removing the preserved `manual-restore-*` directory from step 1.
 
 If `CAPACITYLENS_DB` or `CAPACITYLENS_BACKUP_DIR` was changed from the packaged paths, adapt

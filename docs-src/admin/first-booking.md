@@ -18,7 +18,7 @@ Book one piece of work to check everything is ready. You need a
 
 1. ![Schedule: person row with Add allocation plus button and drag area](../screenshots/flows/using_schedule_work_1.png)
 
-   **Start the booking.** Open **Schedule**. Select the plus button on the person's row, or drag
+   **Start the booking.** Open **Schedule**. Select **+** on the person's row, or drag
    across the dates.
 
 2. ![New allocation for Bruce Wayne: Project, Activity, dates, daily hours and Save](../screenshots/flows/using_schedule_work_2.png)
