@@ -1,7 +1,7 @@
 import { cleanText } from "../strings";
 import { isValidISODate, parseISOTimestamp } from "../integrity";
 import { normalizeCodeName, privateCodeNameFallback } from "../../domain/privateNames";
-import { defaultAccountWorkingDays } from "../accountWorkingDays";
+import { canonicalWeekdaySet, defaultAccountWorkingDays, isWeekday } from "../accountWorkingDays";
 import { clampHoursPerDay, clampWorkingHoursPerDay, FULL_DAY_HOURS } from "../../types/entities";
 import type { Weekday } from "../../types/entities";
 
@@ -39,9 +39,6 @@ export const clampAllocHours = (value: unknown, fallback: number): number =>
 /** The value when it is a safe integer, otherwise `fallback`. Pure. */
 export const safeInt = (value: unknown, fallback: number): number =>
   typeof value === "number" && Number.isSafeInteger(value) ? value : fallback;
-
-const isWeekday = (value: unknown): value is Weekday =>
-  typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 6;
 
 /** Repair a sloppily-formatted date to the canonical zero-padded "YYYY-MM-DD". The whole
  * app relies on dates being zero-padded so they sort chronologically as strings (see
@@ -86,11 +83,10 @@ export const repairResourceAvailability = (record: Record<string, unknown>): voi
  * 7-day worker. Collapse to the distinct sorted weekdays so length reflects real coverage.
  * Note this deliberately does not reuse normalizeAccountWorkingDays: that one rejects a whole
  * selection containing any junk, while a resource's week is repaired by filtering the junk out and
- * keeping whatever real weekdays remain. Only the default they fall back to is shared. */
+ * keeping whatever real weekdays remain. The weekday predicate, canonical set and fallback default are shared. */
 export const safeWorkingDays = (value: unknown): Weekday[] => {
   if (!Array.isArray(value)) return defaultAccountWorkingDays();
-  const days = value.filter(isWeekday);
-  const unique = [...new Set(days)].sort((a, b) => a - b);
+  const unique = canonicalWeekdaySet(value.filter(isWeekday));
   return unique.length ? unique : defaultAccountWorkingDays();
 };
 
@@ -98,7 +94,7 @@ export const safeWorkingDays = (value: unknown): Weekday[] => {
 export const safeHalfDays = (value: unknown, workingDays: Weekday[]): Weekday[] => {
   if (!Array.isArray(value)) return [];
   const working = new Set(workingDays);
-  return [...new Set(value.filter((day): day is Weekday => isWeekday(day) && working.has(day)))].sort((a, b) => a - b);
+  return canonicalWeekdaySet(value.filter((day): day is Weekday => isWeekday(day) && working.has(day)));
 };
 
 interface CleanFieldOptions {

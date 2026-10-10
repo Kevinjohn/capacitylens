@@ -24,6 +24,19 @@ describe("sanitizeImportedRecord", () => {
     expect(sanitizeImportedRecord("allocations", { task: "  Fix   launch\ncheck  " }).task).toBe("Fix launch check");
   });
 
+  it("repairs mixed weekday selections without changing the input arrays", () => {
+    const workingDays = Object.freeze([6, 1, 1, 0, "2", -1, 1.5]);
+    const halfDays = Object.freeze([6, 6, 0, 2, "1", 7]);
+    const input = { kind: "person", workingDays, halfDays };
+
+    const repaired = sanitizeImportedRecord("resources", input);
+
+    expect(repaired.workingDays).toEqual([0, 1, 6]);
+    expect(repaired.halfDays).toEqual([0, 6]);
+    expect(workingDays).toEqual([6, 1, 1, 0, "2", -1, 1.5]);
+    expect(halfDays).toEqual([6, 6, 0, 2, "1", 7]);
+  });
+
   registerImportedRecordBasics();
   registerImportedResourceTests();
   registerImportedAvailabilityTests();
