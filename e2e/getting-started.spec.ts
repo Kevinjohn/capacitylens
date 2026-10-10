@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import type { Locator } from "./fixtures";
+import type { Locator, Page } from "./fixtures";
 import { openNewCompany, selectShadOption } from "./browserTestSupport";
 import { TOUR_ANCHORS } from "../src/lib/tourAnchors";
 
@@ -11,6 +11,29 @@ async function finishTour(popover: Locator, stopCount: number, finalTitle: strin
   await expect(popover.getByText(finalTitle)).toBeVisible();
   await popover.getByRole("button", { name: "Done" }).click();
   await expect(popover).toHaveCount(0);
+}
+
+async function finishClientAndProjectMilestones(page: Page): Promise<void> {
+  await page.getByRole("link", { name: "Add a client", exact: true }).click();
+  await page.getByRole("button", { name: "Add client", exact: true }).click();
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Kord Industries");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByTestId("client-row").filter({ hasText: "Kord Industries" })).toBeVisible();
+  const progress = page.getByRole("progressbar", { name: "Getting started" });
+  await expect(progress).toHaveAttribute("aria-valuenow", "4");
+
+  await page.getByRole("link", { name: "Projects", exact: true }).click();
+  await page.getByRole("button", { name: "Add project", exact: true }).click();
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Blue Beetle launch");
+  await selectShadOption(page.getByRole("combobox", { name: "Client", exact: true }), { label: "Kord Industries" });
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByTestId("project-row").filter({ hasText: "Blue Beetle launch" })).toBeVisible();
+  await expect(progress).toHaveAttribute("aria-valuenow", "5");
+  await expect(page.getByTestId("getting-started-progress")).toBeVisible();
+  await expect(page.getByTestId("getting-started")).toHaveCount(0);
+  await page.getByTestId("getting-started-dismiss").click();
+  await expect(page.getByText("Do you really want to hide this forever?")).toHaveCount(0);
+  await expect(page.getByTestId("getting-started-progress")).toHaveCount(0);
 }
 
 function registerDismissalTest() {
@@ -68,6 +91,7 @@ test.describe("getting started", () => {
     await expect(card).toHaveCount(0);
     await page.getByRole("button", { name: "Show checklist" }).click();
     await expect(card.getByRole("link", { name: "Add a client" })).toBeVisible();
+    await finishClientAndProjectMilestones(page);
   });
 
   registerDismissalTest();

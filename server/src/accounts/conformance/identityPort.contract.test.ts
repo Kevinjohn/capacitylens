@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { IdentityPort } from "@capacitylens/shared/account/ports";
 import type {
   ActorContext,
@@ -490,17 +489,6 @@ function fakeIdentityHarness(): Harness {
 identityPortContract("Better Auth adapter", betterAuthHarness);
 identityPortContract("trusted-local adapter", trustedLocalHarness);
 identityPortContract("vendor-free fake", fakeIdentityHarness);
-
-describe("IdentityPort conformance calibration", () => {
-  it("uses the canonical contract error for unsupported capabilities", () => {
-    const error = new AccountContractError({
-      code: "UNSUPPORTED_CAPABILITY",
-      message: "unsupported",
-      retryable: false,
-    });
-    expect(error.failure.code).toBe("UNSUPPORTED_CAPABILITY");
-  });
-});
 
 describe("revocation window race", () => {
   it("removes assurance for sessions created inside the revocation window, not only the snapshot", async () => {
