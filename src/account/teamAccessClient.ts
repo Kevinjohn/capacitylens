@@ -43,6 +43,8 @@ function hasValidMemberAccess(
   return (
     typeof row.isSelf === "boolean" &&
     isOptionalNullableBoolean(row.signInConfirmed) &&
+    isOptionalBoolean(row.accessDisabled) &&
+    isOptionalBoolean(row.membershipPresent) &&
     isOptionalBoolean(row.mayResetPassword) &&
     isOptionalBoolean(row.mayRevokeSessions)
   );

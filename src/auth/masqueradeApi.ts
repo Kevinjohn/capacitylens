@@ -6,23 +6,28 @@ import type {
   StartMasqueradePayload,
 } from "@capacitylens/shared/domain/masquerade";
 import { isAccountRole } from "@capacitylens/shared/account/types";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
+import { isTimestamp } from "@/account/accessResult";
 import { accountClient } from "@/account/accountClient";
 import { extractApiErrorMessage } from "@/lib/readApiError";
 
 function parseMasqueradeState(value: unknown): MasqueradeState | null {
-  if (typeof value !== "object" || value === null) return null;
-  const state = value as Partial<Record<keyof MasqueradeState, unknown>>;
+  if (!isRecord(value)) return null;
+  const state = value;
   if (
     typeof state.accountId !== "string" ||
+    state.accountId.length === 0 ||
     typeof state.targetUserId !== "string" ||
+    state.targetUserId.length === 0 ||
     typeof state.targetName !== "string" ||
     !isAccountRole(state.effectiveRole) ||
-    typeof state.startedAt !== "string" ||
-    typeof state.token !== "string"
+    !isTimestamp(state.startedAt) ||
+    typeof state.token !== "string" ||
+    state.token.length === 0
   ) {
     return null;
   }
-  return state as MasqueradeState;
+  return state as unknown as MasqueradeState;
 }
 
 async function readMasqueradeBody(response: Response, fallback: string): Promise<unknown> {

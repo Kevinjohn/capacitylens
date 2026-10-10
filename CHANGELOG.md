@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Invalid account-access, checklist and masquerade responses now show the existing error feedback instead of accepting malformed fields (#1449).
+
 ### Changed
 
 - Removed local multi-factor enrolment, challenges and recovery codes. Google and Microsoft company providers now own any multi-factor policy; password sign-in and existing credentials remain available in modes that allow them.

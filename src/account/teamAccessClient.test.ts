@@ -104,6 +104,26 @@ describe("teamAccessClient directory validation", () => {
     });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("unsupported member-directory row"));
   });
+
+  it.each(["accessDisabled", "membershipPresent"] as const)(
+    "rejects a present non-boolean member %s flag",
+    async (field) => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const member = {
+        userId: "member-1",
+        role: "viewer",
+        status: "active",
+        createdAt: "2026-07-27T10:00:00.000Z",
+        name: "Bruce Wayne",
+        email: null,
+        isSelf: false,
+        [field]: "false",
+      };
+      vi.spyOn(accountClient, "listMembers").mockResolvedValue(json({ members: [member] }));
+
+      await expect(teamAccessClient.listMembers("account-1")).resolves.toMatchObject({ kind: "invalid" });
+    },
+  );
 });
 
 describe("teamAccessClient member resource links", () => {
