@@ -5,28 +5,27 @@ description: Configure Google or Microsoft company sign-in, connect existing acc
 
 # Require company sign-in
 
-![Company-sign-in-only screen with Google and Microsoft provider buttons and no password form](../screenshots/company_sign_in_only.png)
+Run Google or Microsoft alongside passwords, or require everyone to use one of them. This page is
+for the server operator.
 
-You can run Google or Microsoft alongside passwords, or require everyone to use one of them.
-GitHub is experimental, available in mixed mode only, and cannot satisfy a company-provider
-requirement.
+![Company-sign-in-only screen with Google and Microsoft provider buttons and no password form](../screenshots/company_sign_in_only.png)
 
 ## Configure and check a provider
 
-Register Google, Microsoft or both by following
-[Set up Google or Microsoft sign-in](/company-login/set-up-company-login). Microsoft also needs a
-tenant-specific Entra registration and working SMTP for first connections that need mailbox proof.
-
-Set `CAPACITYLENS_MODE=password-and-sso` while both password and company sign-in should remain
-available. Restart, check the provider buttons appear and complete one sign-in with an allowed
-account before asking teammates to connect.
+1. Register Google, Microsoft or both by following
+   [Set up Google or Microsoft sign-in](/company-login/set-up-company-login). Microsoft also needs a
+   tenant-specific Entra registration and working SMTP for first connections that need mailbox
+   proof.
+2. Set `CAPACITYLENS_MODE=password-and-sso` while both password and company sign-in should remain
+   available, and restart.
+3. Check the provider buttons appear and complete one sign-in with an allowed account before
+   asking teammates to connect.
 
 ## Connect existing accounts
 
-Each person connects their existing account from **Account → Security**, as described in
-[Connect an existing account](/company-login/#connect-an-existing-account). Connecting keeps their
-memberships, role and scheduled work. CapacityLens never combines accounts because their email
-addresses match, and provider sign-in alone does not admit anyone to a company.
+Each person connects their existing account from **Account → Security**, as
+[Connect an existing account](/company-login/#connect-an-existing-account) describes. Connecting
+keeps their memberships, role and scheduled work.
 
 If CapacityLens reports that the local account email is unverified, the server operator first
 confirms which mailbox the person controls. Then, in mixed mode, an authorised administrator
@@ -68,7 +67,7 @@ It does not switch modes itself.
 If a finding needs identity or membership repair, the guarded `cutover:repair` command can:
 
 - remove one exact provider link
-- deprovision a credential-only or providerless identity with no active company memberships
+- remove a credential-only or providerless identity with no active company memberships
 - make an existing active member Owner of an ownerless company
 - erase a company with no active members.
 
@@ -82,7 +81,7 @@ unless the server is stopped and the exact `--confirm-server-stopped` flag is su
 checks the database, refuses ambiguous identities and unsafe targets, and records successful
 repairs in the audit outbox.
 
-When preflight reports ready, set:
+When preflight reports ready, set these values and restart:
 
 ```dotenv
 CAPACITYLENS_MODE=sso-only
@@ -90,7 +89,8 @@ CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-sso-only
 ```
 
 Keep at least one company provider's credentials configured. After restart, sign-in and
-invitation acceptance need a company-provider session; passwords and GitHub cannot satisfy it.
+invitation acceptance need a company-provider session
+([Passwords and company sign-in](/company-login/#passwords-and-company-sign-in)).
 There is no in-app readiness panel, so verify provider access directly before switching.
 
 ## Restore password sign-in

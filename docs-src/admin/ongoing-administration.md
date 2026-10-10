@@ -6,12 +6,11 @@ next: false
 ---
 
 <span id="regular-tasks"></span>
-<span id="owner-and-operator-handoffs"></span>
 <span id="what-s-next"></span>
 
 # Handle ongoing administration
 
-You keep access, working patterns and closures up to date as people and work change.
+Keep access, working patterns and closures up to date as people and work change.
 
 ## Change access
 
@@ -29,8 +28,9 @@ in this company only. [Stop access](/admin/invite-teammates#stop-access) covers 
 
 ## Change working patterns
 
-Open **Resources**, edit the person, update **Working days** or **Start date** and **End date**, and
-select **Save**.
+1. Open **Resources** and edit the person.
+2. Update **Working days**, or **Start date** and **End date**.
+3. Select **Save**.
 
 A person's working days, together with the company's, set their capacity. Changing them
 recalculates Utilisation and conflicts; it does not move bookings. Availability dates are inclusive.
@@ -45,8 +45,9 @@ Resources.
 
 ![Time off: Company closures with Add closure form](../screenshots/flows/admin_ongoing_administration_2.png)
 
-Open **Time off**. Under **Company closures**, select **Add closure**, enter the name and the
-**Start** and **End** dates (inclusive), and select **Save**.
+1. Open **Time off**.
+2. Under **Company closures**, select **Add closure**.
+3. Enter the name and the **Start** and **End** dates (inclusive), and select **Save**.
 
 A closure sets capacity to zero for every person and placeholder on those dates, including people
 added later. It does not cover external parties or remove bookings; overlapping work shows as a
@@ -54,10 +55,13 @@ conflict. Shortening or deleting the closure restores capacity without moving bo
 
 For one person's absence, [record time off](/using/time-off#record-time-off).
 
-## Who to ask
+## Ask the Owner or operator
+
+<span id="owner-and-operator-handoffs"></span>
 
 Ask the Owner to transfer ownership, delete the company or import scheduling data. Ask the service
 operator about backups, upgrades and company-login setup. When something goes wrong, copy a report
 from [Diagnostics](/admin/diagnostics).
 
-[Company settings](/admin/company-settings) · [Admin FAQ](/admin/faq)
+Next: [Admin FAQ](/admin/faq) — or [Company settings](/admin/company-settings) to change the shared
+rules.

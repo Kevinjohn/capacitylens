@@ -83,8 +83,8 @@ to start while a required line is empty, and names the missing one.
 
 - **Managed host:** add a background process (daemon) that runs as the site's user and runs
   `node --env-file=../.env server/dist/index.mjs` in the site's `current` folder. In the site's
-  nginx file, replace the generated `location /` block with the locations on the managed host
-  page, which proxy to port 8787.
+  nginx file, replace the generated `location /` block with the locations on
+  [Deploy on a managed host](/self-hosting/managed-vps/#the-five-steps), which proxy to port 8787.
 - **Linux host:** install the `capacitylens.service` file from the archive as a systemd service,
   and put Caddy or nginx in front.
 
@@ -98,7 +98,7 @@ Open the address from step 3 and create your company. The page asks for the setu
 
 ## Choose your host
 
-- [Deploy on a managed VPS platform](/self-hosting/managed-vps/) such as Forge, Ploi or
+- [Deploy on a managed host](/self-hosting/managed-vps/) such as Forge, Ploi or
   RunCloud, in the platform's screens.
 - [Install without Docker](/self-hosting/install-without-docker) on a Linux host you manage,
   with Caddy for HTTPS.
@@ -111,6 +111,4 @@ Both end with [TLS and networking](/self-hosting/tls-and-networking) and
 
 - [Install with Docker](/self-hosting/install-with-docker) builds and runs the Compose stack from
   a checkout, if your host already runs Docker.
-- To build from source, for a release before the archive or your own changes, the
-  [long-form managed host pages](/self-hosting/managed-vps/choose-the-release-source) build from
-  a tagged checkout, and the [development guide](/reference/development) runs it from a clone.
+- To run your own changes, build from a clone with the [development guide](/reference/development).

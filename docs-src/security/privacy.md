@@ -5,14 +5,14 @@ description: What data CapacityLens stores, what stays in the browser, and what 
 
 # Privacy
 
-This page describes the open-source application as shipped. It is technical documentation, not
-legal advice. A hosted service needs its own privacy notice, retention terms, subprocessors and
+Use this page in a privacy assessment of the open-source application as shipped: what it stores,
+what stays in the browser and what it sends. It is technical documentation, not legal advice. A hosted service needs its own privacy notice, retention terms, subprocessors and
 data-processing agreements, and a professional privacy and security review before launch.
 
 ## Data the application stores
 
 The SQLite database can contain company names, member names and email addresses, resource names,
-projects, activities, allocations, time off and free-text notes. The authentication tables hold
+projects, activities, bookings, time off and free-text notes. The authentication tables hold
 identities, linked sign-in providers, sessions, invitations and password-reset state.
 
 **Microsoft mailbox proof.** While an attempt is open, CapacityLens stores the intended email, the
@@ -84,13 +84,13 @@ startup warning. Include this outbound check in your network and privacy assessm
 **Company login.** With [company login](/company-login/) on, your browser goes to Google or
 Microsoft to sign in, and the server exchanges the result for a session. That provider processes
 your identity data, so review its privacy terms. The Microsoft integration fetches the person's
-photo from Microsoft Graph on the server, even though it cannot be used as an avatar. See
-[Permissions, consent and profile pictures](/company-login/set-up-company-login#permissions-consent-and-profile-pictures).
+photo from Microsoft Graph on the server, even though it cannot be used as an avatar
+([Permissions, consent and profile pictures](/company-login/set-up-company-login#permissions-consent-and-profile-pictures)).
 
 ## Keeping and deleting data
 
-- Deleting a resource (a person, client or project) immediately replaces its name with an
-  anonymised label and clears notes from its allocations and time off.
+- Deleting a person, client or project immediately replaces its name with an anonymised label and
+  clears notes from its bookings and time off.
 - Permanently deleting a company removes its scheduling data and erases any identity that no
   longer belongs to another company, including that identity's sessions and linked providers.
 - An identity used by more than one company is kept while any of those memberships needs it.
@@ -102,4 +102,4 @@ photo from Microsoft Graph on the server, even though it cannot be used as an av
 For a self-hosted install, the operator decides the purpose, lawful basis, access, retention,
 backup policy and access control, which in most privacy frameworks makes them the data controller.
 Protect the SQLite database, audit log, backup snapshots, staff devices and identity-provider
-credentials accordingly. See [Self-hosting](/self-hosting/).
+credentials accordingly. The [Self-hosting](/self-hosting/) guide covers each.

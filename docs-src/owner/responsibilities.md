@@ -19,17 +19,18 @@ operator handles installation, backups, upgrades and company-login setup.
 
 ![Owner joining policy with approved-domain entry, Save joining policy and company joining link](../screenshots/flows/owner_joining_policy_current.jpg)
 
-Open **Team & access → Who can join** and choose a policy:
+1. Open **Team & access → Who can join**.
+2. Choose a policy:
+   - **Invitation only**: an addressed invitation is required.
+   - **Open registration**: anyone with a verified email can join through the company link.
+   - **Approved domains**: verified addresses from the domains you list can join through the link.
+   - **Approved domains or invitation**: those domains, plus addressed invitations for people
+     outside them.
+3. For a domain policy, enter each exact domain on its own line, up to 50 domains and 16 KiB of
+   text. An empty or invalid list cannot be saved.
+4. Select **Save joining policy**.
 
-- **Invitation only**: an addressed invitation is required.
-- **Open registration**: anyone with a verified email can join through the company link.
-- **Approved domains**: verified addresses from the domains you list can join through the link.
-- **Approved domains or invitation**: those domains, plus addressed invitations for people outside
-  them.
-
-For a domain policy, enter each exact domain on its own line, up to 50 domains and 16 KiB of text,
-and select **Save joining policy**. An empty or invalid list cannot be saved. Under **Approved
-domains**, even an invitation is accepted only from a listed domain.
+Under **Approved domains**, even an invitation is accepted only from a listed domain.
 
 People who join through the policy get **Viewer**. Send an addressed invitation when someone needs
 Editor or Admin. Owners and Admins can copy the **Joining link** here; Admins can see the policy but
@@ -66,28 +67,31 @@ withdraw their agreement. The request expires after seven days, and ends if eith
 membership changes. **Manage ownership** shows whether a request was declined, cancelled, replaced,
 expired or invalidated. If it cannot load, select **Try again**.
 
-Sensitive transfer actions ask you to confirm your sign-in; viewing the request does not. If your access cannot
-refresh after the transfer, follow the recovery message before continuing.
+Sensitive transfer actions ask you to confirm your sign-in; viewing the request does not. If your
+access cannot refresh after the transfer, follow the recovery message before continuing.
 
-## Import or delete company data
+## Replace the schedule with an import
 
 Import replaces the active company's planning records; it does not add to them. Check the
 destination and file before you confirm. It needs a recent sign-in.
-[Import and export](/using/settings#import-and-export)
+[Import and export](/using/settings#import-and-export) has the steps.
 
-To delete the company, select **Delete** on its row in the company chooser. **Switch company**
-appears only when you can access two or more companies; if it is missing, ask the service operator
-how to proceed.
-
-![Delete company confirmation offering Export first and exact-name confirmation](../screenshots/flows/owner_delete_company_confirmation.jpg)
-
-Select **Export first** if you need a copy, then type the exact company name to enable **Delete**.
+## Delete the company
 
 ::: warning
 Deleting the company permanently removes it and all its data for everyone. There is no undo.
 :::
 
-Deleting needs a recent sign-in. To take away one person's access instead, use
-[Stop access](/admin/invite-teammates#stop-access).
+![Delete company confirmation offering Export first and exact-name confirmation](../screenshots/flows/owner_delete_company_confirmation.jpg)
 
-[Roles and permissions](/getting-started/roles-and-permissions) · [Owner FAQ](/owner/faq)
+1. Open the company chooser with **Switch company** and select **Delete** on the company's row.
+2. Select **Export first** if you need a copy.
+3. Type the exact company name to enable **Delete**, then select it.
+
+Deleting needs a recent sign-in. **Switch company** appears only when you can access two or more
+companies; if it is missing, ask the service operator how to proceed.
+
+To take away one person's access instead, use [Stop access](/admin/invite-teammates#stop-access).
+
+Next: [Owner FAQ](/owner/faq) — or [Roles and permissions](/getting-started/roles-and-permissions)
+for what each role can do.

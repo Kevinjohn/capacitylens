@@ -24,19 +24,21 @@ coming and move work around before it lands.
 - **The weeks ahead at a glance.** Show 1, 2, 4, 6 or 8 weeks, filtered by client, project or
   activity.
 - **Early warning.** Days when someone has more work than time show in red, and a separate
-  warning looks two weeks ahead for problems just off screen.
-- **How full everyone is.** A utilisation percentage beside each name, for the weeks on screen.
+  warning looks two weeks ahead for problems not yet on screen.
+- **How full everyone is.** A [Utilisation](/reference/glossary#utilisation) percentage beside
+  each name, for the weeks on screen.
 - **Time off in the same picture.** Holidays and company closures sit beside the work, so they
   stop being a surprise.
-- **Work you haven't won yet.** Tentative bookings, placeholders for roles you haven't filled,
-  and outside partners who don't count against your team's capacity.
+- **Work you haven't won yet.** Tentative bookings, [placeholders](/reference/glossary#placeholder)
+  for roles you haven't filled, and outside partners who don't count against your team's capacity.
 - **Your own server.** Your data stays in one file on a server you control.
 
 ## What it leaves out
 
 CapacityLens does not track tasks, tickets, deadlines, budgets or timesheets, and it doesn't
-schedule anyone by the hour. If you need those, use a tool built for them. CapacityLens is the
-view you check before you open it. [Philosophy](/reference/philosophy) explains why.
+schedule anyone by the hour. If you need those, use a tool built for them;
+CapacityLens is the view you check first.
+[Philosophy](/reference/philosophy) explains why.
 
 ## Who it's for
 
@@ -45,8 +47,7 @@ take this on?" who need an honest answer the whole team can see. Everyone else o
 it to see their own week.
 
 <span id="the-scaling-ladder"></span>
+<span id="get-started"></span>
 
-## Get started
-
-[Choose your role](/#which-one-are-you), [try the demo](/getting-started/try-the-demo) on your
-own computer, or see [how it compares](/getting-started/how-it-compares) with other tools.
+Next: [Choose your guide](/#which-one-are-you) — or [try the demo](/getting-started/try-the-demo),
+or see [how it compares](/getting-started/how-it-compares) with other tools.

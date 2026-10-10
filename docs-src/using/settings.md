@@ -7,29 +7,25 @@ next: false
 
 # Settings
 
+Choose how the schedule looks in your browser, and set the planning rules your whole company
+shares.
+
 ![Settings showing My display and this-browser preferences](../screenshots/flows/using_settings_1.png)
 
-Open **Settings** near the bottom of the left menu. One scrollable page holds two kinds of choice:
-
-- **My display** changes only your view, in this browser. Everyone can use it.
-- **Company setup** and **Scheduling features** change the plan for everyone in the company.
-  Editors and above can change them; a Viewer sees them disabled.
-
-**Data and support** holds import and export, offline access and read-only company details.
-Each row's question-mark button, **About &lt;section&gt;**, opens a fuller explanation.
-
-[Company settings — for people managing the plan](/admin/company-settings)
-
-## The settings page
+Open **Settings** near the bottom of the left menu. One scrollable page holds four groups. Each
+row's question-mark button, **About &lt;section&gt;**, opens a fuller explanation.
 
 | Group               | Who it affects and who can change it                                                                                   |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| My display          | Only you, in this browser. Everyone can change it.                                                                     |
 | Company setup       | Everyone. Editors and above change units, working days and date format; only Owners and Admins change Overview access. |
-| Scheduling features | Everyone. Editors and above change the **Company features** switches.                                                  |
-| My display          | Only you, in this browser.                                                                                             |
+| Scheduling features | Everyone. Editors and above change the **Company features** switches. A Viewer sees them disabled.                     |
 | Data and support    | Example data, import and export, offline access and company details. Actions depend on your role.                      |
 
 ![Settings with the Company setup group, full-width choices and compact rows](../screenshots/flows/settings_overview.png)
+
+[Choose company settings](/admin/company-settings) walks through each company choice for the people
+managing the plan.
 
 ## My display
 
@@ -53,8 +49,8 @@ These settings affect everyone in the company.
 
 ### Allocation units
 
-Choose whether allocations are entered as **Hours**, **Days** or **Blocks**. New companies start
-with Days. See [Schedule and change work](/using/schedule-work).
+Choose whether bookings are entered as **Hours**, **Days** or **Blocks**. New companies start with
+Days. [Enter the amount](/using/schedule-work#how-allocation-granularity-works) explains each.
 
 ### Company-wide working days
 
@@ -67,18 +63,15 @@ Each person works only the days ticked here **and** in their own working pattern
 works Monday to Friday and Bruce Wayne works Monday, Wednesday and Friday, his capacity uses
 Monday, Wednesday and Friday.
 
-Other days hold no capacity. Allocations skip them and they don't count towards utilisation. You
+Other days hold no capacity. Bookings skip them and they don't count towards utilisation. You
 can't start new work on them: the hover **+** doesn't appear, and a typed start date, duplicate
 or reassignment is rejected. A booking drawn from a working day may still cross them.
+[Book on non-working days](/using/schedule-work#book-on-non-working-days) explains **Ignore
+working days**.
 
-The **Ignore working days** option on an allocation makes it use every calendar day in its span
-and lets you drag or extend it onto closed days. It never changes where new work may start, and
-time off still shows as a conflict. A person's **Start date** and **End date** are a separate limit
-it does not bypass; see [Set availability dates](/using/resources#set-availability-dates).
-
-Changing the selection recalculates capacity, utilisation and conflicts straight away. Allocation
+Changing the selection recalculates capacity, utilisation and conflicts straight away. Booking
 dates never move, but work on days that are no longer working days stops counting unless the
-allocation ignores working days.
+booking ignores working days.
 
 ### Date format
 
@@ -97,9 +90,9 @@ the offline banner's last-updated time, use your browser's language and time zon
 
 ### Overview access
 
-Overview is limited to Owners and Admins by default. An Owner or Admin can choose **Admins**,
-**Admins & Editors** or **Everyone**. This controls both the sidebar link and the page itself. See
-[Overview](/using/overview).
+Choose who can open Overview: **Admins**, **Admins & Editors** or **Everyone**. By default only
+Owners and Admins can open it. Only an Owner or Admin can change it.
+[Control who opens Overview](/using/overview#control-access) explains the effect.
 
 ## Scheduling features
 
@@ -116,27 +109,28 @@ Internal projects and activities always show, in neutral grey, so they have no s
 ### Disciplines
 
 **Use disciplines** groups people by [discipline](/reference/glossary), such as Design or
-Development. Create disciplines and their colours on the **Disciplines** page. See
-[Disciplines](/using/disciplines).
+Development. Create disciplines and their colours on the [Disciplines](/using/disciplines) page.
 
 ### Placeholders and external resources
 
 Two independent switches. **Show placeholders** adds placeholders: unfilled roles or tentative
 people for planning future capacity. **Show external resources** adds outside parties, such as a
-partner agency or freelancer, for work leaving your team; they carry no capacity. See
-[Resources](/using/resources#placeholders).
+partner agency or freelancer, for work leaving your team; they carry no capacity.
+[Resources](/using/resources#placeholders) explains both.
 
 ### Inline activity creation
 
 New activities normally start on the **Activities** page, so the team reuses consistent names.
-Turn on **Inline activity creation** to add **Add activity** controls to the allocation form for
-everyone who can edit allocations. Turning it off hides only those controls.
+Turn on **Inline activity creation** to add **Add activity** controls to the booking form for
+everyone who can edit bookings. Turning it off hides only those controls.
 
-### Allocation task field
+### Task field
 
-Turn on **Show task field in schedule** to add an optional one-line **Task** to the allocation
-editor. Task text appears above Notes in schedule details and the person's schedule drawer.
-Turning it off hides tasks without deleting them.
+<span id="allocation-task-field"></span>
+
+Turn on **Show task field in schedule** to add an optional one-line **Task** to the booking form.
+Task text appears above Notes in schedule details and the person's work list. Turning it off hides
+tasks without deleting them.
 
 ## Data and support
 
@@ -155,12 +149,12 @@ CapacityLens then keeps a copy of the last company you opened, on that device on
 can't reach the server at all, it shows that [snapshot](/reference/glossary) with a banner saying
 the data is cached.
 
-- **Read only.** While a snapshot is shown, nobody can create, edit, delete, import or change
+- The snapshot is read-only. While it is shown, nobody can create, edit, delete, import or change
   membership, whatever their role. Nothing is queued to apply later.
-- **Seven days.** After that the snapshot is gone and you need a connection. A company you
-  haven't opened within that time isn't available offline.
-- **Refreshes when you load the schedule online.** If the server answers with an error or is
-  too slow, you get a retry screen rather than old data.
+- It lasts seven days. After that it is gone and you need a connection. A company you haven't
+  opened within that time isn't available offline.
+- It refreshes when you load the schedule online. If the server answers with an error or is too
+  slow, you get a retry screen rather than old data.
 
 Turning the setting off, or signing out, clears the snapshot from that device.
 
@@ -172,7 +166,7 @@ but anyone using the browser while you're signed in can see it in the app.
 ### Example data
 
 Owners and Admins see **Example data** only while the company has no people, clients, projects or
-allocations. **Add example data** adds two people, a client, a project and a few bookings across
+bookings. **Add example data** adds two people, a client, a project and a few bookings across
 this week and next. They are ordinary records; delete them like any others. The request is refused
 if the company already holds any of these, including archived or deleted ones.
 
@@ -201,10 +195,14 @@ Owners and Admins can copy build details and a support report from
 
 ![Appearance preferences above Data and support, with Import and export closed](../screenshots/flows/settings_account_disclosures.png)
 
-## Your personal account
+## Change your sign-in or password
 
-Your sign-in, password, company login and **Sign out** are on the **Account** page at the bottom
-of the sidebar, not in Settings. See [Account](/using/account).
+<span id="your-personal-account"></span>
 
-If a selected company cannot be loaded, a recovery screen hides the previous company's data.
+Your sign-in, password, company login and **Sign out** are on the [Account](/using/account) page
+at the bottom of the sidebar, not in Settings.
+
+## If a company won't load
+
+If a selected company can't be loaded, a recovery screen hides the previous company's data.
 Select **Retry** to load it again, or choose another company.

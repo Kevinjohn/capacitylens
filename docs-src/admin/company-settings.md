@@ -10,7 +10,7 @@ next: false
 
 # Choose company settings
 
-You set the scheduling rules and features everyone in the company shares. Open **Settings** near the
+Set the scheduling rules and features everyone in the company shares. Open **Settings** near the
 bottom of the left menu. Editors can change most of these; only Owners and Admins can change
 **Overview access**.
 
@@ -41,15 +41,18 @@ Under **Company features**, **Use disciplines** starts on for a new company; the
 | Inline activity creation    | Add activities while making a booking.                                   |
 | Show task field in schedule | Add a short task description to bookings.                                |
 
-Turning a switch off hides existing information; it does not delete it. Internal work always appears in neutral grey. People are split into
-Studio and Supplementary groups only once someone is marked Supplementary.
+Turning a switch off hides existing information; it does not delete it.
 
-## Personal preferences and company details
+Internal work always appears in neutral grey. People are split into Studio and Supplementary groups
+only once someone is marked Supplementary.
+
+## Tell company settings from your own
 
 **My display** changes only the current browser. Each teammate chooses their own
 [display preferences](/using/settings).
 
-Week start and timezone are fixed when the company is created. You can see them under **Data and
+Week start and timezone are fixed when the company is created. They are shown under **Data and
 support → Company details**.
 
-[Full settings reference](/using/settings) · [Offline access](/using/settings#offline-access)
+Next: [Settings](/using/settings) — every setting, including
+[offline access](/using/settings#offline-access).

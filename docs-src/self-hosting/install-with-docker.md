@@ -1,6 +1,6 @@
 ---
 title: Install with Docker
-description: Install CapacityLens with Docker Compose, from cloning the repository to a running, health-checked instance.
+description: The five install steps with Docker Compose, from cloning the repository to a running, health-checked instance.
 prev:
   text: Install CapacityLens
   link: /self-hosting/install
@@ -11,106 +11,106 @@ next:
 
 # Install with Docker
 
-One Docker Compose stack runs the web app, the API and an automatic internal certificate, with
-SQLite on persistent volumes. About ten minutes on a host that already has Docker, most of it
-waiting for the first build.
+The [five install steps](/self-hosting/install) with Docker Compose: one stack runs the web app,
+the API and an internal certificate, with SQLite on persistent volumes. About ten minutes on a
+host that already has Docker, mostly the first build.
 
-## Prerequisites
+You need:
 
 - A host that can run Docker and Docker Compose. See
   [Docker's install instructions](https://docs.docker.com/engine/install/).
-- **Architecture:** the images build from multi-architecture base images (`node`, `alpine`,
-  `nginx-unprivileged`) that publish `linux/amd64` and `linux/arm64`. CapacityLens is tested on
-  x86-64; arm64 (including Apple Silicon and AWS Graviton) should work but isn't independently
-  tested. Open an issue if you hit something arm64-specific.
-- **Resources:** for a small production installation, start with 1 shared CPU core, at least
-  2 GB RAM and a few GB of disk (more if you keep many backup snapshots).
+- `linux/amd64` or `linux/arm64`. CapacityLens is tested on x86-64; arm64 (including Apple
+  Silicon and AWS Graviton) should work but isn't tested.
+- For a small production installation, at least 1 shared CPU core, 2 GB RAM and a few GB of disk
+  (more if you keep many backup snapshots).
 
-## Steps
+## 1. Download
 
-1. Clone the repository, check out the release you're deploying and copy the example
-   environment file:
+Clone the repository, check out the release you're deploying and copy the example environment
+file:
 
-   ```bash
-   git clone https://github.com/Kevinjohn/capacitylens.git
-   cd capacitylens
-   git checkout vX.Y.Z
-   cp .env.example .env
-   chmod 600 .env
-   ```
+```bash
+git clone https://github.com/Kevinjohn/capacitylens.git
+cd capacitylens
+git checkout vX.Y.Z
+cp .env.example .env
+chmod 600 .env
+```
 
-   Replace `vX.Y.Z` with the release tag; the newest is on the
-   [releases page](https://github.com/Kevinjohn/capacitylens/releases/latest). Don't deploy
-   `main`: it carries unreleased changes. `.env` will hold the signing secret and setup token,
-   so only your account may read it.
+Replace `vX.Y.Z` with the release tag from the
+[releases page](https://github.com/Kevinjohn/capacitylens/releases/latest). Don't deploy `main`:
+it carries unreleased changes. `chmod 600` keeps the secrets in `.env` readable only by you.
 
-2. Generate the session secret and the first-owner setup token with `init`. This builds the API
-   image first:
+## 2. Pick a folder for the data
 
-   ```bash
-   docker compose run --rm --no-deps api node dist/index.mjs init --public-url https://capacity.example.com --db /data/capacitylens.db
-   ```
+Nothing to do: Compose keeps the database, audit log and backups in named volumes. Keep them and
+the off-host backup destination on storage encrypted at rest; CapacityLens does not encrypt a
+volume itself.
 
-   Keep the `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` values it prints. Compose already
-   sets `NODE_ENV` and `CAPACITYLENS_DB`.
+## 3. Configure
 
-3. Open `.env` and set at least these values:
+Generate the session secret and the first-owner setup token with `init`. This builds the API
+image first:
 
-   ```dotenv
-   CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-password
-   CAPACITYLENS_MODE=password-only
-   CAPACITYLENS_SECRET=<generated CAPACITYLENS_SECRET>
-   CAPACITYLENS_PUBLIC_URL=https://capacity.example.com
-   CAPACITYLENS_SETUP_TOKEN=<generated CAPACITYLENS_SETUP_TOKEN>
-   CAPACITYLENS_HTTPS=1
-   CAPACITYLENS_RATE_LIMIT=300
-   ```
+```bash
+docker compose run --rm --no-deps api node dist/index.mjs init --public-url https://capacity.example.com --db /data/capacitylens.db
+```
 
-   `CAPACITYLENS_PUBLIC_URL` must be the exact browser-facing origin. Keep the Docker volumes and
-   the off-host backup destination on storage encrypted at rest; CapacityLens does not encrypt a
-   volume itself. [Configuration](/self-hosting/configuration) covers every other variable.
+Keep the `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` values it prints. Compose already
+sets `NODE_ENV` and `CAPACITYLENS_DB`. Open `.env` and set at least these values:
 
-4. Build and start the stack:
+```dotenv
+CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-password
+CAPACITYLENS_MODE=password-only
+CAPACITYLENS_SECRET=<generated CAPACITYLENS_SECRET>
+CAPACITYLENS_PUBLIC_URL=https://capacity.example.com
+CAPACITYLENS_SETUP_TOKEN=<generated CAPACITYLENS_SETUP_TOKEN>
+CAPACITYLENS_HTTPS=1
+CAPACITYLENS_RATE_LIMIT=300
+```
 
-   ```bash
-   docker compose up --build -d
-   ```
+`CAPACITYLENS_PUBLIC_URL` must be the exact browser-facing origin.
+[Configuration](/self-hosting/configuration) covers every other variable.
 
-   This also builds the one-off `internal-tls` service, which creates a private certificate
-   authority and API certificate before the API or web service starts.
+## 4. Start it
 
-5. Watch the API come up:
+Build and start the stack. This also builds the one-off `internal-tls` service, which creates a
+private certificate authority and API certificate before the API or web service starts:
 
-   ```bash
-   docker compose logs -f api
-   ```
+```bash
+docker compose up --build -d
+```
 
-   Wait for `capacitylens-server listening on ...`, then press `Ctrl-C`. The listening line alone
-   does not show that backups or the audit sink are healthy.
+Watch the API come up:
 
-6. Check the app and the API:
+```bash
+docker compose logs -f api
+```
 
-   ```bash
-   docker compose ps --all
-   ```
+Wait for `capacitylens-server listening on ...`, then press `Ctrl-C`. That line does not show
+that backups or the audit sink are healthy, so check the app and the API:
 
-   ```bash
-   curl -fsS http://127.0.0.1:8080/api/health
-   ```
+```bash
+docker compose ps --all
+```
 
-   Expect a JSON object starting `{"ok":true,...}`. Deep health is on by default, so you'll also
-   see `db`, `audit`, `auditPending`, `backup` and `internalTls`;
-   [Monitoring and health checks](/self-hosting/monitoring) explains each, and how to check the
-   internal certificate. `internal-tls` showing `Exited (0)` is expected: it is a one-shot job.
+```bash
+curl -fsS http://127.0.0.1:8080/api/health
+```
 
-7. Put a TLS-terminating reverse proxy in front of port 8080, then open the public HTTPS address.
-   Enter the setup token from step 3 to create the first Owner and company. Then remove
-   `CAPACITYLENS_SETUP_TOKEN` from `.env` and run `docker compose up -d --force-recreate api` to
-   discard it from the running container. See [TLS and networking](/self-hosting/tls-and-networking)
-   for the proxy and [Configuration](/self-hosting/configuration#sign-in-mode) for sign-in settings.
+Expect `{"ok":true,...}` with `db`, `audit`, `auditPending`, `backup` and `internalTls`;
+[Monitoring and health checks](/self-hosting/monitoring) explains each. `internal-tls` showing
+`Exited (0)` is expected: it is a one-shot job.
 
-Compose binds port 8080 to `127.0.0.1` by default, so nothing outside the host can reach it until
-you add the reverse proxy.
+Compose binds port 8080 to `127.0.0.1`, so nothing outside the host can reach it until you put a
+TLS-terminating reverse proxy in front: see [TLS and networking](/self-hosting/tls-and-networking).
+
+## 5. Open the address
+
+Open the public HTTPS address and enter the setup token from step 3 to create the first Owner and
+company. Then remove `CAPACITYLENS_SETUP_TOKEN` from `.env` and run
+`docker compose up -d --force-recreate api` to discard it from the running container.
+[Configuration](/self-hosting/configuration#sign-in-mode) covers sign-in settings.
 
 Next: [Verify and hand over the installation](/self-hosting/verify-and-hand-over). To look around
 without a persistent installation, [try the demo](/getting-started/try-the-demo).

@@ -5,7 +5,8 @@ description: Get support, report a problem, improve the documentation, or contri
 
 # Open source and contributing
 
-CapacityLens is open source under the GNU Affero General Public License v3.0. Read the
+Get help, report a problem or contribute a change. CapacityLens is open source under the GNU
+Affero General Public License v3.0. Read the
 [source code](https://github.com/Kevinjohn/capacitylens) and the full
 [licence](https://github.com/Kevinjohn/capacitylens/blob/main/LICENSE). You may run a modified
 version for your company under its terms, including those for providing the software over a
@@ -40,7 +41,7 @@ For documentation, edit the Markdown sources under `docs-src/`, follow the
 [documentation style guide](https://github.com/Kevinjohn/capacitylens/blob/main/docs-src/STYLE.md),
 and rebuild the committed site before opening a pull request.
 
-## Security reports
+## Report a vulnerability
 
 Never publish a vulnerability or credential in a public issue. Follow the private reporting
 instructions in the [security policy](https://github.com/Kevinjohn/capacitylens/security/policy).

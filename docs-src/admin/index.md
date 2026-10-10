@@ -17,31 +17,31 @@ the Owner or installation guides.
 
 <div class="steps">
 
-1. ![Settings: Company setup with Hours selected and Overview access set to Admins](../screenshots/flows/admin_company_settings_1.png)
+1. ![Company setup controls: Hours selected, Monday to Friday ticked as working days, date format and Overview access set to Admins](../screenshots/steps/admin_company_setup_controls.png)
 
    **Set the working week.** Open **Settings**. Under **Company setup**, choose whether work is
    entered in **Hours**, **Days** or **Blocks**, and which days your company works. Days is the
    default. [Every company setting](/admin/company-settings)
 
-2. ![Resources: Add resource and the person form with Working days](../screenshots/flows/admin_add_person_form.jpg)
+2. ![Add resource form: Working days with Full day for Monday to Friday, Not working at the weekend, and Save](../screenshots/steps/admin_add_resource_working_days.png)
 
    **Add the people you plan for.** Open **Resources** and select **Add resource**. Enter a name,
    set their working days and select **Save**. They now have a row on Schedule. They don't need a
    sign-in to be scheduled. [Add people to the schedule](/admin/add-people)
 
-3. ![Projects: Add project form with Client selected](../screenshots/flows/admin_prepare_work_2.png)
+3. ![Add project dialog with Name, Client set to LexCorp, Colour and Save](../screenshots/steps/admin_add_project_dialog.png)
 
    **Add a client, a project and an activity.** Use **Clients**, **Projects** and **Activities**
    in the left menu, in that order. An activity is the kind of work being booked, such as Design
    or Development. [Prepare clients and work](/admin/prepare-work)
 
-4. ![New allocation for Bruce Wayne: Project, Activity, dates, daily hours and Save](../screenshots/flows/using_schedule_work_2.png)
+4. ![New allocation for Bruce Wayne dialog with Project, Activity, dates, Hours / day, Status and Save](../screenshots/steps/admin_new_allocation_dialog.png)
 
    **Book the first work.** Open **Schedule** and drag across some days in a person's row. Choose
    the project and activity, then select **Save**. Drag the bar to move it; **Undo** puts it
    back. [Make the first booking](/admin/first-booking)
 
-5. ![Team & access: Invite someone](../screenshots/flows/admin_invite_editor_form.jpg)
+5. ![Invite someone dialog with Role set to Editor, an email address, Link to Resource and Create invite](../screenshots/steps/admin_invite_editor_dialog.png)
 
    **Invite the team.** Open **Team & access** and select **Invite someone**. Choose a role,
    enter their email and pick their row under **Link to Resource**, so their own work is waiting

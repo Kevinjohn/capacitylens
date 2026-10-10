@@ -5,9 +5,9 @@ description: The automated test suites that run on CapacityLens, what each one c
 
 # How CapacityLens is tested
 
-CapacityLens is alpha software with a single maintainer, so automated checks carry most of the
-safety net. The [development guide](/reference/development) has the commands, coverage floors and
-CI jobs.
+See what the automated checks cover before you rely on CapacityLens. It is alpha software with a
+single maintainer, so those checks carry most of the safety net. The
+[development guide](/reference/development) has the commands, coverage floors and CI jobs.
 
 Sizes were counted once on 2026-10-01 and are not enforced, so they will drift.
 
@@ -31,4 +31,4 @@ Sizes were counted once on 2026-10-01 and are not enforced, so they will drift.
 
 The repository README shows CI status, code coverage, CodeQL, OpenSSF Scorecard and OpenSSF
 Baseline badges. The [OpenSSF Baseline assessment](/security/OpenSSF-best-practices-dev) has the
-evidence behind the last.
+evidence behind the Baseline badge.

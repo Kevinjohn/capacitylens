@@ -9,9 +9,9 @@ next: false
 
 <span id="steps"></span>
 
-Your agency sends either an invitation addressed to you or a company joining link. An invitation
-names the company and your proposed role. A joining link names the company and applies its
-joining policy.
+Accept your agency's invitation or company joining link and open its schedule. An invitation names
+the company and your proposed role. A joining link names the company and applies its joining
+policy.
 
 ## Accept an invitation
 
@@ -20,10 +20,9 @@ joining policy.
 Open the link and check the company, role, expiry and any email hint. Opening it only previews the
 invitation. If it is tied to an email address, only that address can accept it.
 
-- **You have a password sign-in:** enter that email and password, then select **Accept invite**.
-- **Company login is offered:** choose the provider, complete its steps and return
-  to accept.
-- **You're already signed in:** check the identity shown is the invited address. If not, select
+- With a password sign-in, enter that email and password, then select **Accept invite**.
+- If company login is offered, choose the provider, complete its steps and return to accept.
+- If you're already signed in, check the identity shown is the invited address. If not, select
   **Use a different account** before accepting.
 
 ![Create account tab on an invitation with Name, Email, Password and Create account and accept](../screenshots/flows/join_invitation_create_account.jpg)
@@ -35,6 +34,8 @@ accepts the invitation.
 You land on the company's Schedule with the invited role. If you were already a member, you keep
 your existing role; ask an Owner or Admin to change it.
 
+## If the invitation doesn't work
+
 If the invitation is for the wrong email, has expired or was already used, ask an Owner or Admin
 for a new one.
 
@@ -42,13 +43,15 @@ for a new one.
 
 ![Reusable company joining page asking for an existing proven identity](../screenshots/flows/join_company_link_entry.jpg)
 
-Check the page names the company you expect. Enter your email, sign in with a provider or an
-existing password account, and select **Join company**. A joining link can't create a password
-account. Open registration and approved-domain policies need proof that you own your email.
-People who join this way get the **Viewer** role; an addressed invitation can give the role it
-names.
+1. Check the page names the company you expect.
+2. Enter your email, then sign in with a provider or an existing password account.
+3. Select **Join company**.
 
-If the page can't prove your email:
+A joining link can't create a password account. Open registration and approved-domain policies
+need proof that you own your email. People who join this way get the **Viewer** role; an addressed
+invitation can give the role it names.
+
+## If the page can't prove your email
 
 - Select **Email me a verification link**, if shown, and open the message while signed in. Select
   it again if nothing arrives.
@@ -60,7 +63,7 @@ If the page can't prove your email:
 If joining is refused, ask an Owner or Admin whether the company's policy allows your address or
 whether your access is disabled.
 
-## After you join
+## Check your access after joining
 
 ![Team & access showing the role and its restrictions after entering a company](../screenshots/flows/viewer_access_current.jpg)
 
@@ -70,4 +73,4 @@ link it to your membership.
 
 <span id="what-s-next"></span>
 
-[Find your work on Schedule](/using/read-the-schedule)
+Next: [Schedule](/using/read-the-schedule) — find your work.

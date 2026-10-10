@@ -5,9 +5,9 @@ description: See CapacityLens running with sample data in about two minutes, wit
 
 # Try the demo
 
-You run a sample agency's schedule on your own machine in about two minutes. Nothing is saved:
-schedule changes reset when you refresh, and there is no real sign-in. Display preferences may stay in your browser. To keep real data,
-[install CapacityLens](/self-hosting/install) instead.
+Run a sample agency's schedule on your own machine in about two minutes. Nothing is saved:
+schedule changes reset when you refresh, and there is no real sign-in. Display preferences may stay
+in your browser. To keep real data, [install CapacityLens](/self-hosting/install) instead.
 
 You need [Node.js](https://nodejs.org) 24 or newer (check with `node --version`) and
 [pnpm](https://pnpm.io), which `corepack` in Node provides.
@@ -38,14 +38,14 @@ You need [Node.js](https://nodejs.org) 24 or newer (check with `node --version`)
 
 No setup token, `.env` file or database is needed.
 
-## What you'll see
+## Open the sample company
 
-Choose the sample account on the **Choose an account** screen; there is no password. The schedule
+Choose the sample company on the **Choose an account** screen; there is no password. The schedule
 opens with people, clients, projects and bookings already in place.
 
 ![The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block](../screenshots/flows/schedule.jpg)
 
-## What to click first
+## Try these first
 
 <div class="steps">
 
@@ -72,4 +72,4 @@ opens with people, clients, projects and bookings already in place.
 
 <span id="what-s-next"></span>
 
-Next: [Install CapacityLens](/self-hosting/install) to keep real data with real sign-in.
+Next: [Install CapacityLens](/self-hosting/install) — keep real data with real sign-in.

@@ -150,5 +150,33 @@
   {
     "path": "docs-src/screenshots/flows/owner_first_company_setup.jpg",
     "sha256": "559ba544c60a87cb9a4a7ea79cd309125a94ce8ad0d30da7868868ce315dd93a"
+  },
+  {
+    "path": "docs-src/screenshots/steps/owner_setup_sign_in_form.png",
+    "sha256": "a566712ad6409e53efdf25603577431e5ea84e4debcbe2f02c07d8bb237cd870"
+  },
+  {
+    "path": "docs-src/screenshots/steps/owner_create_company_form.png",
+    "sha256": "a71ea069859bd7f1fe3aeabbc938afee3202da6f9252c22999ceaed9f17906f3"
+  },
+  {
+    "path": "docs-src/screenshots/steps/owner_invite_admin_dialog.png",
+    "sha256": "9d81f2cdd3ed019fb67b558e2c41778ef1156897654cafe86f8c3e1d791956f4"
+  },
+  {
+    "path": "docs-src/screenshots/steps/owner_members_admin_row.png",
+    "sha256": "dff94e38cf6426a70a105f210ce31b7d9f1a9d0aff3aefe5bd896c8d8581939d"
+  },
+  {
+    "path": "docs-src/screenshots/steps/admin_add_resource_working_days.png",
+    "sha256": "66c6f5362ccc29ff07e922c3f765136ea248132a3ef98067acebf898bb60e590"
+  },
+  {
+    "path": "docs-src/screenshots/steps/admin_invite_editor_dialog.png",
+    "sha256": "de37e5f8834372aef346b7b95ef45f770674ea64e6d51899938f27b861304d3d"
+  },
+  {
+    "path": "docs-src/screenshots/steps/using_invitation_preview.png",
+    "sha256": "790cc59c95ddda00858436ec0748dfca63d50f000459652e04ef1351cd9b2a82"
   }
 ]

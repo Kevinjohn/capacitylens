@@ -45,7 +45,7 @@ Doing all of it yourself? Small agencies often do.
 [The whole setup on one page](/getting-started/quick-start) takes you from download to your
 first booking.
 
-Just looking? [Try the demo](/getting-started/try-the-demo) on your own computer with sample
+Want a look first? [Try the demo](/getting-started/try-the-demo) on your own computer with sample
 data. It needs no server and no sign-in.
 
 ## How setup fits together

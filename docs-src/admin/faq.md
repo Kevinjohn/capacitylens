@@ -39,10 +39,10 @@ language. **Date format** in Settings changes how dates appear.
 
 ## Why can't I change who can join?
 
-Only the Owner can change the joining policy. You can see it and copy the joining link.
+Only the Owner can change the joining policy. Admins can see it and copy the joining link.
 [Review who can join](/admin/invite-teammates#review-who-can-join)
 
 ## Do I set up company login?
 
 No. The service operator configures the login provider; you invite members and check their access.
-[Company login](/company-login/)
+[How sign-in works](/company-login/)

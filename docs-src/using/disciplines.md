@@ -7,10 +7,12 @@ next: false
 
 # Disciplines
 
+Create the groups, such as Design or Development, that organise people on Schedule and give their
+rows a shared colour.
+
 ![Disciplines showing group names and colour swatches](../screenshots/flows/using_disciplines_1.png)
 
-Disciplines group people on Schedule and give their rows a shared colour. Create a discipline here,
-then assign it to people in [Resources](/using/resources#add-a-person).
+Create a discipline here, then assign it to people in [Resources](/using/resources#add-a-person).
 
 ## Add or change a discipline
 
@@ -31,11 +33,13 @@ you correct it.
 
 Select the trash button on its row and confirm **Delete discipline?** Its people are ungrouped,
 not deleted, and keep their bookings. They appear under the schedule's unassigned or engagement
-group until you assign another discipline. Removed the wrong one? Select **Undo** in the Schedule
-toolbar to restore it and its grouping.
+group until you assign another discipline.
+
+Removed the wrong one? Select **Undo** in the Schedule toolbar to restore it and its grouping.
 
 ## Turn disciplines off
 
 When the company turns **Use disciplines** off in [Settings](/using/settings#disciplines), the
 **Disciplines** page, its menu link and the Resources form's **Discipline** field are hidden;
-`/disciplines` sends you to Schedule. Nothing is deleted, and turning it back on restores the groups.
+`/disciplines` sends you to Schedule. Nothing is deleted, and turning it back on restores the
+groups.

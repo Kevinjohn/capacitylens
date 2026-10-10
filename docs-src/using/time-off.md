@@ -7,47 +7,42 @@ next: false
 
 # Time off
 
+Record holidays, sickness and company closures so the schedule shows who is really available.
+Everyone can see time off; only an Editor, Admin or Owner can add or change it.
+
 ![Time off showing company closures and personal time off entries](../screenshots/flows/using_time_off_1.png)
 
-[Time off](/reference/glossary) marks a [person](/reference/glossary) unavailable. A company
-closure marks every person and placeholder unavailable at once.
+Open **Time off** and find your name under **Personal time off**. Company closures are listed
+above it.
 
-Open **Time off** and find your name under **Personal time off**. Company closures are listed above
-it.
-
-## On Schedule
+## Find time off on Schedule
 
 ![Schedule showing the same personal absence beside planned work](../screenshots/flows/using_time_off_2.png)
 
 The same absence appears as a hatched block with no project colour, on the same row as your work.
-Time-off notes are visible only to Owners and Admins; everyone else sees only the dates.
+Time-off notes are visible only to Owners and Admins, including in the work list; everyone else
+sees only the dates.
 
-External parties have no capacity, so they cannot have personal time off and closures do not cover
+External parties have no capacity, so they can't have personal time off and closures don't cover
 them. [Resources](/using/resources) explains external parties and placeholders.
 
 ## Record time off
 
 ![Time off page with Personal time off, Add time off and an existing entry](../screenshots/flows/using_record_time_off_1.png)
 
-Editors, Admins and Owners can record personal time off. Viewers see the absence but cannot add or
-change it.
-
-Open **Time off** and select **Add time off**.
+1. Open **Time off** and select **Add time off**.
+2. Choose **Resource**, **Start**, **End** and **Type**: holiday, sick, unpaid or other.
+3. Leave **Repeat** as **Doesn’t repeat**, or choose a pattern and set **Repeat until**. The
+   preview lists every entry it creates.
+4. Add a one-line **Note** if useful, such as "Conference" or a return date.
+5. Select **Save**.
 
 ![Add time off form with Resource, Start, End, Type, Repeat, Note and Save](../screenshots/flows/using_record_time_off_2.png)
-
-1. Choose **Resource**, **Start**, **End** and **Type**: holiday, sick, unpaid or other.
-2. Leave **Repeat** as **Doesn’t repeat**, or choose a pattern and set **Repeat until**. The
-   preview lists every entry it will create.
-3. Add a one-line **Note** if useful, such as "Conference" or a return date. Only Admins and Owners
-   can read it, including in the work list. See
-   [Roles and permissions](/getting-started/roles-and-permissions).
-4. Select **Save**.
 
 The absence appears as a hatched block on the person's row, and those dates have no available
 capacity.
 
-### Use the schedule as an alternative
+### Draw time off on Schedule instead
 
 On **Schedule**, select **Show filters** and choose **Time off** beside **Work**. Select **+** on a
 person's row or drag across the dates. **Add time off** opens with the person and dates filled
@@ -79,9 +74,7 @@ controls appear only when adding.
 
 ![Seven weekly three-day entries listed separately for Diana Prince, each with its own Edit and Delete buttons](../screenshots/flows/timeoff_independent_entries.jpg)
 
-### Independent entries on one schedule
-
-All the entries still belong to one person and appear on their single row on the Schedule.
+All the entries still appear on the person's single row on Schedule.
 
 ![The eight-week schedule showing seven separate Holiday blocks together on Diana Prince's single row](../screenshots/flows/schedule_repeated_timeoff.jpg)
 
@@ -90,10 +83,9 @@ All the entries still belong to one person and appear on their single row on the
 The Time off page lists entries ending on or after the start of the current company week. Older
 entries are kept but not shown.
 
-**Company closures** and **Personal time off** each have their own add button. Personal entries are
-grouped by person, alphabetically, then by date. Entries for a person who no longer exists fall
-into a final "unknown" group. Placeholder time off follows the company's **Show placeholders**
-setting.
+Personal entries are grouped by person, alphabetically, then by date. Entries for a person who no
+longer exists fall into a final "unknown" group. Placeholder time off follows the company's
+**Show placeholders** setting.
 
 ![The Time off page with a Studio shutdown listed under Company closures above Bruce Wayne's personal time off](../screenshots/flows/timeoff_company_closures.jpg)
 
@@ -103,21 +95,22 @@ Under **Company closures**, select **Add closure**. Enter a name and the start a
 are inclusive and literal: a span through a weekend covers Saturday and Sunday.
 
 A closure applies to every person and placeholder, including people added later, with no personal
-exceptions. On the schedule it is one named band across their rows.
+exceptions. On Schedule it is one named band across their rows.
 
 Covered availability drops to zero, but bookings keep their dates and hours. Work already planned
 across the closure turns red instead of disappearing. Deleting or shortening the closure restores
 capacity.
 
-A closure is a dated, whole-day, one-off event. It differs from the company's non-working
-weekdays, set in [company-wide working days](/using/settings#company-wide-working-days), which
-bookings simply skip. Bookings still place their time on closure days, as they do on personal time
-off. **Ignore working days** never bypasses either, and a new booking cannot start on a closure
-date.
+A closure is a dated, whole-day, one-off event. The company's non-working weekdays, set in
+[company-wide working days](/using/settings#company-wide-working-days), are different: bookings
+skip them. Bookings still place their time on closure days, as they do on personal time off.
+**Ignore working days** never bypasses either, and a new booking can't start on a closure date.
 
-## Time off and allocations
+## Resolve time off that overlaps work
 
-Time off does not remove or block overlapping bookings. The booking form warns you about the
+<span id="time-off-and-allocations"></span>
+
+Time off doesn't remove or block overlapping bookings. The booking form warns you about the
 overlap, so you decide.
 
 Hours and Days bookings show the usual red over-capacity band. A Block carries no hours, so

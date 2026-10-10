@@ -17,8 +17,7 @@ next: false
 ## Can I stop after I appoint an Admin?
 
 Yes. Once their row in **Team & access** shows **Admin**, send them
-[Get the schedule ready](/admin/). If you will run the schedule yourself, follow that guide
-instead.
+[Get the schedule ready](/admin/). If you run the schedule yourself, follow that guide instead.
 
 ## Why is the Admin invitation still pending?
 
@@ -53,8 +52,8 @@ Viewer; send an addressed invitation for any other role.
 
 ## Why can't I find Delete company?
 
-**Delete** is in the company chooser, which appears only when you can access two or more
-companies. If it is missing, ask the service operator.
+**Delete** is in the company chooser. **Switch company** opens it, and appears only when you can
+access two or more companies. If it is missing, ask the service operator.
 
 ## Why am I asked to confirm my sign-in?
 

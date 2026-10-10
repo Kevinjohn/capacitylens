@@ -10,7 +10,7 @@ next: false
 
 # Prepare clients and work
 
-You create the clients, projects and activities that the booking form offers. Internal and All
+Create the clients, projects and activities that the booking form offers. Internal and All
 projects activities don't need a client or project first.
 
 <div class="steps">
@@ -37,5 +37,5 @@ projects activities don't need a client or project first.
 | All projects     | Work you reuse across projects               |
 | Internal         | Work with no project                         |
 
-Next: [Make the first booking](/admin/first-booking) ·
-[More activity and project options](/using/activities)
+Next: [Make the first booking](/admin/first-booking) — or [Activities](/using/activities) for more
+activity and project options.

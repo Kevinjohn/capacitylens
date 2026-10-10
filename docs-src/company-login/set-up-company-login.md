@@ -5,7 +5,9 @@ description: Register CapacityLens with Google Workspace or Microsoft Entra ID, 
 
 # Set up Google or Microsoft sign-in
 
-You need access to your provider's admin console and to the CapacityLens server settings.
+Register CapacityLens with Google Workspace or Microsoft Entra ID, then give the server the
+matching settings. You need access to your provider's admin console and to the CapacityLens server
+settings.
 
 ## Before you start
 
@@ -20,7 +22,7 @@ The provider sends people back to a callback address on it, which must be regist
 Keep the client secret in your secret manager or protected server environment. Never put it in
 browser code, a public issue or a committed configuration file.
 
-## Google Workspace
+## Register with Google Workspace
 
 1. Open the [Google Cloud Console](https://console.cloud.google.com/) and select or create a
    project for CapacityLens.
@@ -36,18 +38,17 @@ browser code, a public issue or a committed configuration file.
 
 5. Create the client and copy its **Client ID** and **Client secret**. Google shows the secret
    when it is created; store it securely.
+6. Set these server values:
+
+   ```dotenv
+   CAPACITYLENS_GOOGLE_CLIENT_ID=<Google client ID>
+   CAPACITYLENS_GOOGLE_CLIENT_SECRET=<Google client secret>
+   ```
 
 Google's guides: [OAuth for web server applications](https://developers.google.com/identity/protocols/oauth2/web-server)
 and [OAuth client setup](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid).
 
-Set these server values:
-
-```dotenv
-CAPACITYLENS_GOOGLE_CLIENT_ID=<Google client ID>
-CAPACITYLENS_GOOGLE_CLIENT_SECRET=<Google client secret>
-```
-
-## Microsoft 365 / Entra ID
+## Register with Microsoft 365 / Entra ID
 
 1. Sign in to the [Microsoft Entra admin center](https://entra.microsoft.com/) with an account
    that can register applications.
@@ -65,17 +66,16 @@ CAPACITYLENS_GOOGLE_CLIENT_SECRET=<Google client secret>
 5. Open **Certificates & secrets → Client secrets**, create a secret and copy its **Value**
    immediately. The **Secret ID** is not the secret. Record the expiry date and replace the secret
    before it expires.
+6. Set these server values:
+
+   ```dotenv
+   CAPACITYLENS_MICROSOFT_CLIENT_ID=<Application client ID>
+   CAPACITYLENS_MICROSOFT_CLIENT_SECRET=<client secret Value>
+   CAPACITYLENS_MICROSOFT_TENANT_ID=<Directory tenant GUID>
+   ```
 
 Microsoft's guides: [application registration](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)
 and [web app sign-in quickstart](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-web-app-sign-in).
-
-Set these server values:
-
-```dotenv
-CAPACITYLENS_MICROSOFT_CLIENT_ID=<Application client ID>
-CAPACITYLENS_MICROSOFT_CLIENT_SECRET=<client secret Value>
-CAPACITYLENS_MICROSOFT_TENANT_ID=<Directory tenant GUID>
-```
 
 Microsoft also needs outbound SMTP, so CapacityLens can send a mailbox proof when Entra does not
 return a verified matching email. Set all five mail values before enabling Microsoft:
@@ -101,8 +101,9 @@ Your Workspace administrator can still block the app under the organisation's
 Microsoft requests `openid`, `profile`, `email`, `User.Read` and `offline_access`: sign-in
 details, the person's profile and refresh-token access, with no mailbox contents or calendars.
 If Microsoft shows an approval request, the tenant administrator must review and consent to the
-app's permissions; a CapacityLens invitation cannot grant that. See Microsoft's
-[scopes and permissions reference](https://learn.microsoft.com/en-us/entra/identity-platform/scopes-oidc).
+app's permissions; a CapacityLens invitation cannot grant that. Microsoft's
+[scopes and permissions reference](https://learn.microsoft.com/en-us/entra/identity-platform/scopes-oidc)
+lists what each one allows.
 
 An email claim alone does not prove control of the address. CapacityLens still requires
 verified-email evidence or the [Microsoft mailbox proof](#microsoft-mailbox-proof).
@@ -119,8 +120,8 @@ not yet been confirmed in a live partner tenant.
 
 For the first Owner on a new installation, set `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` to the
 exact email address they will use at Google or Microsoft. It applies only while there are no
-users; the first sign-in closes it. That person then follows **Set up your company** to become
-Owner.
+users; the first sign-in closes it. That person then follows [Set up your company](/owner/) to
+become Owner.
 
 Everyone else joins through the company's
 [joining policy](/company-login/#invitations-and-the-first-owner) or an addressed invitation from
@@ -129,23 +130,23 @@ the copyable link stays available if sending fails. The verified address must ma
 invitation, and a different address cannot use it. Google supplies verified-email evidence;
 Microsoft may need the mailbox proof.
 
-Existing users connect a provider from **Account → Security**; see
-[Connect an existing account](/company-login/#connect-an-existing-account).
+Existing users connect a provider from **Account → Security**, as
+[Connect an existing account](/company-login/#connect-an-existing-account) describes.
 
 ## Microsoft mailbox proof
 
 When Microsoft does not provide a verified email that matches the intended CapacityLens address,
 CapacityLens sends a one-time link to that mailbox. Open it in the same browser session within
-15 minutes, then select **Confirm and continue**. Once the Microsoft identity is linked, later sign-ins do not send another
-proof.
+15 minutes, then select **Confirm and continue**. Once the Microsoft identity is linked, later
+sign-ins do not send another proof.
 
-If something goes wrong:
+### If the mailbox proof fails
 
 - **The email does not arrive.** Check spam, then ask the operator to check the SMTP host, port,
   username, password, sender address and delivery logs. After a delivery failure, the
   verification screen offers **Resend verification email**; retries are rate limited.
-- **The link has expired.** Start the provider connection again. You can also cancel the current
-  attempt from the verification screen and restart later.
+- **The link has expired.** Start the provider connection again, or cancel the current attempt
+  from the verification screen and restart later.
 - **You cancel Microsoft's sign-in page.** CapacityLens ends that attempt; start again.
 - **The invitation has expired or been cancelled.** An Owner or Admin must replace it.
 
@@ -157,6 +158,6 @@ If something goes wrong:
 
 `CAPACITYLENS_MODE=password-and-sso` keeps passwords alongside the providers.
 `CAPACITYLENS_MODE=sso-only` removes passwords; connect existing accounts and test first, as
-described in [Require company sign-in](/company-login/move-to-single-sign-on).
+[Require company sign-in](/company-login/move-to-single-sign-on) describes.
 
 Google and Microsoft are the supported providers. Generic OIDC configuration is retired.

@@ -7,20 +7,22 @@ next: false
 
 # Diagnostics
 
-When you report a problem, you copy a support report from here and paste it into your request.
+Copy a support report from here and paste it into your problem report.
 
-Owners and Admins open **Diagnostics** below Settings in the left menu, or search for it in the
-command palette. Editors and Viewers do not see it, and visiting `/diagnostics` returns them to the
-schedule. When sign-in is off, as in the demo, everyone can open it.
+Only Owners and Admins see **Diagnostics**, below Settings in the left menu, or can find it in the
+command palette. Editors and Viewers who visit `/diagnostics` return to the schedule. When sign-in
+is off, as in the demo, everyone can open it.
 
 ## Copy a support report
 
 ![Diagnostics: the Support report in the demo, with the report text above Copy diagnostics](../screenshots/flows/diagnostics.png)
 
-Select **Copy diagnostics**. The page shows exactly the text that is copied. A message confirms the
-copy, or says the browser blocked the clipboard.
+1. Open **Diagnostics**.
+2. Select **Copy diagnostics**. A message confirms the copy, or says the browser blocked the
+   clipboard.
+3. Paste the report into your request.
 
-The report lists:
+The page shows exactly the text that is copied:
 
 - the app version, build revision, deployment mode and export schema;
 - server connectivity, database schema, persistence and backup status, as observed when the page

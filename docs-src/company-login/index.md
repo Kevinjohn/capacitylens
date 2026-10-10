@@ -5,10 +5,10 @@ description: Sign in with a password, Google Workspace or Microsoft, connect an 
 
 # How sign-in works
 
-CapacityLens can use passwords, Google Workspace or Microsoft Entra ID. The person running the
-server chooses which appear. The demo and trusted-local mode have no sign-in.
+Sign in with a password, Google Workspace or Microsoft Entra ID, whichever the person running the
+server has turned on. The demo and trusted-local mode have no sign-in.
 
-With company sign-in, CapacityLens sends you to Google or Microsoft and never sees your provider
+With company login, CapacityLens sends you to Google or Microsoft and never sees your provider
 password. A provider account alone does not grant access: the first person on an empty
 installation needs operator approval, and after that each company decides who may join.
 
@@ -25,8 +25,7 @@ First-owner setup has its own field order. Microsoft setup, for example, asks fo
 before the provider step so it can run its mailbox proof.
 
 In company-sign-in-only mode, people must use Google or Microsoft. Passwords and GitHub, including
-older sessions, cannot satisfy it. Keep the chosen provider's credentials configured when changing
-modes.
+older sessions, cannot satisfy it.
 
 [Set up Google or Microsoft sign-in](/company-login/set-up-company-login) covers registration and
 server settings. [Require company sign-in](/company-login/move-to-single-sign-on) covers switching
@@ -35,8 +34,8 @@ everyone to a provider.
 ## Invitations and the first Owner
 
 On an empty installation, the operator can allow specific email addresses to create the first
-Google or Microsoft identity. That person follows **Set up your company** to become its Owner.
-The allowance closes once the first identity exists.
+Google or Microsoft identity. That person follows [Set up your company](/owner/) to become its
+Owner. The allowance closes once the first identity exists.
 
 After that, the Owner chooses **Who can join** in **Team & access**: **Invitation only** (the
 default), open registration, approved email domains, or approved domains plus invitations. An
@@ -58,28 +57,30 @@ A company can disable someone's access even when its joining policy allows them.
 
 ## Connect an existing account
 
-Sign in to your existing account, open **Account → Security** and, under **Company sign-in**,
-choose **Connect Google** or **Connect Microsoft**. Sign in at the provider with the same email
-address. Your local email must already be verified, and you may be asked to confirm it's you.
+1. Sign in to your existing account and open **Account → Security**.
+2. Under **Company sign-in**, choose **Connect Google** or **Connect Microsoft**. You may be asked
+   to confirm it's you.
+3. Sign in at the provider with the same email address. Your local email must already be verified.
 
 Connecting keeps your memberships and work. CapacityLens never merges accounts because their email
 addresses match, and a provider identity already connected to someone else cannot be connected
 again.
 
 Microsoft may send a one-time link to prove you control the mailbox. Open it in the same browser
-within 15 minutes, then select **Confirm and continue**. Returning Microsoft sign-in uses the saved identity and does not repeat the
-check. See [Microsoft mailbox proof](/company-login/set-up-company-login#microsoft-mailbox-proof).
+within 15 minutes, then select **Confirm and continue**. Returning Microsoft sign-in uses the saved
+identity and does not repeat the check.
+[Microsoft mailbox proof](/company-login/set-up-company-login#microsoft-mailbox-proof) covers what
+to do when the email does not arrive or the link expires.
 
-If something goes wrong:
+### If connecting fails
 
 - **You cancel Confirm it's you.** No connection starts.
 - **Confirmation cannot refresh your session.** Sign out, sign in again and retry.
-- **Your local email is unverified.** The operator confirms which mailbox you control, then an
-  authorised Owner or Admin runs the guarded repair in mixed mode. They need a recent confirmed
-  sign-in and authority over your identity across its companies. The repair revokes your
-  sessions; sign in again afterwards. There is no email-correction button in Account, and the
-  joining verification link does not verify your local email. See
-  [Connect existing accounts](/company-login/move-to-single-sign-on#connect-existing-accounts).
+- **Your local email is unverified.** There is no email-correction button in Account, and the
+  joining verification link does not verify your local email. Ask the operator: an authorised
+  Owner or Admin runs a guarded repair, which revokes your sessions, so sign in again afterwards.
+  [Connect existing accounts](/company-login/move-to-single-sign-on#connect-existing-accounts)
+  describes the repair.
 
 ## Sessions and sensitive actions
 
@@ -105,8 +106,11 @@ session behaviour before relying on it.
 
 ## When someone leaves
 
-Disable their work account at the provider, then remove their membership or select **Disable
-Access** in **Team & access**. Disabling them at the provider does not end existing CapacityLens
-sessions: use **Revoke sessions** to end them across all their companies, which needs the
-corresponding authority. In mixed mode, a verified GitHub sign-in is also bound by a **Disable
-Access** restriction on the selected address.
+1. Disable their work account at the provider.
+2. In **Team & access**, remove their membership or select **Disable Access**.
+3. Select **Revoke sessions** to end their existing CapacityLens sessions across all their
+   companies. This needs the corresponding authority. Disabling them at the provider does not end
+   those sessions.
+
+In mixed mode, a verified GitHub sign-in is also bound by a **Disable Access** restriction on the
+selected address.

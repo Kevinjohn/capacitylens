@@ -7,32 +7,38 @@ next: false
 
 # Clients and projects
 
-A client owns projects, and each booking is made against a project and an
-[activity](/using/activities).
+Set up the clients and projects your bookings are made against. A client owns projects, and each
+booking is made against a project and an [activity](/using/activities). Only an Editor, Admin or
+Owner can add or change them.
 
-## Clients
+## Browse clients
+
+<span id="clients"></span>
 
 ![Clients showing LexCorp and Queen Consolidated](../screenshots/flows/using_clients_1.png)
 
-Clients are listed alphabetically. Every company has a built-in **Internal** client for
+Open **Clients** to see them alphabetically. Every company has a built-in **Internal** client for
 non-billable work. It can't be renamed or deleted, and its projects and activities always show in
 neutral grey, so the project form hides the colour picker for it.
 
-## Projects
+## Browse projects
 
 ![Projects showing project names with their supporting client names](../screenshots/flows/using_projects_1.png)
 
-Projects are sorted by client, then by project, with the client in grey beside each name.
+Open **Projects** to see them sorted by client, then by project, with the client in grey beside
+each name.
 
 To see a client's or project's bookings, open **Schedule**, select **Show filters** and choose it.
-See [Schedule filters](/using/read-the-schedule#filtering-and-searching).
+See [Filter and search](/using/read-the-schedule#filtering-and-searching).
 
-## Add clients and projects
+## Add a client or project
 
-1. On **Clients**, select **Add client** and give it a name and colour.
-2. On **Projects**, select **Add project** and choose its client. Every project needs one.
+1. Open **Clients**, select **Add client** and give it a name and colour.
+2. Open **Projects**, select **Add project** and choose its client. Every project needs one.
 
 ![The Projects page ordered by client then project, with project names first, client names in grey and an Add project button](../screenshots/flows/projects_by_client.jpg)
+
+## Hide a client or project name
 
 To hide a name from most of the team, such as an unannounced prospect, turn on **Use code name**
 when you create or edit the client or project. Everyone below Owner sees the code name; only the
@@ -41,4 +47,4 @@ Owner sees both. A code name also sets the item's alphabetical position. See
 
 ![The Add client form with the privacy explanation below the Code name input](../screenshots/flows/client_private_name.jpg)
 
-Next: [schedule work](/using/schedule-work) against a project.
+Next: [Schedule and change work](/using/schedule-work) — book against a project.

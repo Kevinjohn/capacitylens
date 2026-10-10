@@ -16,24 +16,24 @@ who else is busy. You don't need to install or set up anything.
 
 <div class="steps">
 
-1. ![Invitation preview showing company, role, expiry and the intended email hint](../screenshots/flows/join_invitation_preview.jpg)
+1. ![Accept invite page showing the company, the Editor role, the intended email hint, the expiry, and Sign in or Create account](../screenshots/steps/using_invitation_preview.png)
 
    **Accept the invitation.** Open the link from your email. Sign in, or select **Create
    account** if you're new, using the address the invitation was sent to. Then select **Accept
    invite**. [Join your team](/using/join-your-team)
 
-2. ![Bruce Wayne's schedule drawer with bookings, time off and remaining capacity](../screenshots/flows/using_read_the_schedule_2.png)
+2. ![Bruce Wayne's schedule drawer listing his bookings with dates and hours per day, and a holiday](../screenshots/steps/using_schedule_drawer.png)
 
    **Find your week.** You land on **Schedule**. Find your name and select the avatar beside it.
    Your bookings, time off and remaining capacity open in one list.
 
-3. ![The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block](../screenshots/flows/schedule.jpg)
+3. ![Schedule rows grouped by discipline, with each person's utilisation percentage, booking bars and a red over-capacity day](../screenshots/steps/using_schedule_rows.png)
 
    **Read the schedule.** Each bar is a booking: its project, its dates and how much of each day
    it takes. **Red** means someone has more work than time that day. The percentage beside a
    name shows how full they are across the weeks on screen. [Read the schedule](/using/read-the-schedule)
 
-4. ![Schedule with Weeks visible, Today, Show filters and utilisation](../screenshots/flows/using_find_capacity_1.png)
+4. ![Schedule toolbar with Prev, Today, Next, 4 weeks and Hide filters above the filter row and week columns](../screenshots/steps/using_schedule_toolbar_filters.png)
 
    **Look further ahead.** Use **Weeks visible** to show up to eight weeks, and **Today**,
    **Prev** and **Next** to move. **Show filters** narrows the view to one client, project or

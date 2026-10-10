@@ -5,8 +5,8 @@ description: A factual comparison of CapacityLens with a spreadsheet, Float, For
 
 # How CapacityLens compares
 
-Use this table to pick the tool that fits how your agency plans. CapacityLens answers one
-question: who is free next week?
+Pick the tool that fits how your agency plans. CapacityLens answers one question: who is free
+next week?
 
 | Tool | Granularity | What it tracks | Hosting | Price model | Pick it when |
 | --- | --- | --- | --- | --- | --- |
@@ -22,10 +22,10 @@ you decide.
 ## What CapacityLens leaves out
 
 CapacityLens does not track budgets, timesheets or tasks, and it does not schedule by the
-hour. See [Philosophy](/reference/philosophy) for why. If you need any of those, one of the
-tools above is the better choice.
+hour. If you need any of those, one of the tools above is the better choice.
+[Philosophy](/reference/philosophy) explains why.
 
 <span id="what-s-next"></span>
 
-Next: try the [two-minute demo](/getting-started/try-the-demo), or read
-[What is CapacityLens?](/getting-started/what-is-capacitylens)
+Next: [Try the demo](/getting-started/try-the-demo) — see it running with sample data in about two
+minutes.

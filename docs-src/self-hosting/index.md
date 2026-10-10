@@ -32,7 +32,7 @@ runs Node 24 and has a hostname pointing at it, the install takes about ten minu
    and the environment file off the server.
    [Backups and restore](/self-hosting/backups-and-restore)
 
-4. ![First Owner sign-in setup with Name, Email, Create a password and Owner setup token fields](../screenshots/flows/owner_first_signin_setup.jpg)
+4. ![Owner sign-in setup form with name, email, Create a password and Owner setup token fields and Create my sign-in](../screenshots/steps/owner_setup_sign_in_form.png)
 
    **Hand over.** Check `https://your-address/api/health` returns `{"ok":true`. Send the Owner the
    address and [Set up your company](/owner/), and send the setup token separately and privately.
@@ -51,7 +51,7 @@ community help on a best-effort basis, with no guaranteed response time.
 
 ## Other ways to install
 
-- [Deploy on a managed VPS platform](/self-hosting/managed-vps/) such as Forge, Ploi or
+- [Deploy on a managed host](/self-hosting/managed-vps/) such as Forge, Ploi or
   RunCloud, working in the platform's own screens.
 - [Install without Docker](/self-hosting/install-without-docker) on a Linux host with systemd.
 - [Install with Docker](/self-hosting/install-with-docker) if your host already runs Docker.

@@ -5,15 +5,14 @@ description: What each of the four roles can see and do, and why a sign-in, a co
 
 # Roles and permissions
 
-Use this page to choose a role for someone, or to find out why a control is missing. Roles are
-nested: **Viewer < Editor < [Admin](/reference/glossary) < [Owner](/reference/glossary)**. The
+Choose a role for someone, or find out why a control is missing. Roles are nested: **Viewer < Editor < [Admin](/reference/glossary#admin) < [Owner](/reference/glossary#owner)**. The
 server enforces them; hiding a control in the interface is not the only protection.
 
 Some pages also depend on company settings. [Overview access](/using/overview#control-access), for
 example, defaults to Owners and Admins. People without access don't see the link and cannot open
 the page directly.
 
-## Roles in one table
+## Compare the roles
 
 | Capability                                            |  Viewer  |  Editor  | Admin | Owner |
 | ----------------------------------------------------- | :------: | :------: | :---: | :---: |
@@ -36,13 +35,13 @@ disable or archive the Owner or themselves.
 
 **Team & access** lists members by role, Owner first. Disabled, archived and removed people move to
 the collapsed **No longer active** table beneath.
-[Managing someone who already joined](/admin/invite-teammates#managing-someone-who-already-joined)
-covers each action. If a company has no Owner at all, see
+[Change a member's role or schedule row](/admin/invite-teammates#managing-someone-who-already-joined)
+covers each action. If a company has no Owner at all, follow
 [A company has no Owner](/self-hosting/incidents#a-company-has-no-owner).
 
-## The three kinds of "person"
+## Tell sign-ins, members and people apart
 
-Three separate things can look like a [person](/reference/glossary) in the interface:
+Three separate things can look like a [person](/reference/glossary#person) in the interface:
 
 - A **sign-in identity**: the email and password, or company login, someone uses to reach
   CapacityLens. One identity can belong to several companies.
@@ -51,7 +50,7 @@ Three separate things can look like a [person](/reference/glossary) in the inter
 - A **person** on the schedule: a row that can receive bookings and time off.
 
 Adding a person doesn't give them a sign-in, and inviting a member doesn't put them on the
-schedule. You can schedule freelancers and contractors without ever giving them a sign-in.
+schedule. Freelancers and contractors can be scheduled without ever getting a sign-in.
 
 ## Hand the company to someone else
 
@@ -75,8 +74,9 @@ recovery steps.
 
 ![Viewer tour highlighting the Schedule grid with progress 1 of 2](../screenshots/flows/tour_viewer.png)
 
-Anyone can start the tour for their role from **Help** in the sidebar, even after Getting started is dismissed. Owners, Admins and Editors
-can also select **Show me around** on the Getting started card; Viewers don't see that card. The
+Anyone can start the tour for their role from **Help** in the sidebar, even after Getting started
+is dismissed. Owners, Admins and Editors can also select **Show me around** on the Getting started
+card; Viewers don't see that card. The
 tour opens Schedule first and continues through the guidance for lower roles:
 
 | Role   | Stops                                                         |
@@ -90,7 +90,9 @@ Server-backed companies include an Admin stop about example data; the demo leave
 is unavailable while permissions are being checked or can't be confirmed, and while a read-only
 offline snapshot is open.
 
-## Masquerade (view as a member)
+## View the company as a member
+
+<span id="masquerade-view-as-a-member"></span>
 
 An Owner or Admin can see what another active member sees without changing their role. In **Team &
 access**, select the eye button on the member's row and confirm. A red **Masquerading as _name_**
@@ -103,7 +105,7 @@ Select **End now** to return to your own view. Switching company, signing out, a
 session, a disabled membership on either side, or a server restart also ends it. Starting and ending
 are recorded in the audit log.
 
-## Exports and offline snapshots
+## Check what exports and offline snapshots contain
 
 An export is redacted the same way as the screen:
 
@@ -119,5 +121,5 @@ Protect the Owner's device accordingly.
 
 <span id="what-s-next"></span>
 
-[Owner responsibilities](/owner/responsibilities) ·
-[Invite teammates and manage access](/admin/invite-teammates)
+Next: [Owner responsibilities](/owner/responsibilities) or
+[Invite teammates](/admin/invite-teammates) — act on what you've chosen.

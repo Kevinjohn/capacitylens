@@ -11,20 +11,25 @@ next: false
 
 # Make the first booking
 
-You book one piece of work to check everything is ready. You need a
+Book one piece of work to check everything is ready. You need a
 [person on the schedule](/admin/add-people) and an [activity](/admin/prepare-work).
 
-![Schedule: person row with Add allocation plus button and drag area](../screenshots/flows/using_schedule_work_1.png)
+<div class="steps">
 
-Open **Schedule**. Select the plus button on the person's row, or drag across the dates.
+1. ![Schedule: person row with Add allocation plus button and drag area](../screenshots/flows/using_schedule_work_1.png)
 
-![New allocation for Bruce Wayne: Project, Activity, dates, daily hours and Save](../screenshots/flows/using_schedule_work_2.png)
+   **Start the booking.** Open **Schedule**. Select the plus button on the person's row, or drag
+   across the dates.
 
-Choose **Project**, then **Activity**. For work without a project, choose **Internal** or **No
-specific project**. Check the assignee, dates, amount and status, then select **Save**.
+2. ![New allocation for Bruce Wayne: Project, Activity, dates, daily hours and Save](../screenshots/flows/using_schedule_work_2.png)
+
+   **Fill in the form.** Choose **Project**, then **Activity**. For work without a project, choose
+   **Internal** or **No specific project**. Check the assignee, dates, amount and status, then
+   select **Save**.
+
+</div>
 
 The booking appears on the person's row and in their
 [work list](/using/read-the-schedule#your-work-list).
 
-[Move or change a booking](/using/schedule-work#change-or-remove-scheduled-work) ·
-[Booking options and repeats](/using/schedule-work)
+Next: [Schedule and change work](/using/schedule-work) — move, change, repeat or remove a booking.

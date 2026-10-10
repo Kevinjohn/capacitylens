@@ -11,13 +11,9 @@ spreadsheet, or a group chat at 5pm on a Friday. So work gets promised to people
 full, the quiet capacity nobody noticed goes unsold, and the person who was going to be on holiday
 finds out about their new project the week before they leave.
 
-CapacityLens is a shared, week-by-week picture of where everyone's time is going — so you can see
-who is busy, who has room, and who is about to be buried, and move things around before it becomes
-a problem.
-
-One screen. People down the side, days across the top, the work in between. Red means someone is
-over capacity that day. The percentage next to each name is how full they are across the window
-you're looking at.
+CapacityLens puts the answer on one shared screen: people down the side, days across the top, the
+work and time off in between. Red means someone is booked for more than they can do that day. See
+who is busy, who has room and who is about to be buried, and move work before it becomes a problem.
 
 ## Get started
 
@@ -37,8 +33,8 @@ Doing all of it yourself? [The whole setup on one page](docs-src/getting-started
 
 ## Try it in two minutes
 
-The demo runs entirely in your browser with sample data. Drag things about, book time off, break
-something: changes reset when you reload.
+The demo runs on your computer with sample data and no sign-in. Drag things about, book time off,
+break something: changes reset when you reload.
 
 ```bash
 corepack enable
@@ -49,50 +45,27 @@ pnpm run dev:demo
 Then open the **Local** address it prints (usually <http://127.0.0.1:5173>), pick a demo account,
 and you're in.
 
-## What you can do with it
+## What you get
 
-- **See the week ahead** — 1, 2, 4, 6 or 8 weeks at a time, filtered by discipline, client, project
-  or activity.
-- **Spot trouble early** — daily over-capacity in red, plus a 14-day forward warning for problems
-  just off the edge of the screen.
-- **Plan work you haven't won yet** — placeholder people for roles you'd need to hire or borrow, and
-  external partners who don't count against your capacity.
-- **Plan around people's dates** — give Studio and Supplementary people optional inclusive start and
-  end availability dates while keeping existing bookings visible for history.
-- **Keep holidays in the picture** — time off sits in the same view as the work, so it stops being a
-  surprise.
-- **Know how full you really are** — utilisation per person and across the whole visible window.
-- **Run it yourself** — your data in your own SQLite file, on your own server, under AGPL-3.0.
+- **The weeks ahead at a glance:** 1 to 8 weeks, filtered by discipline, client, project or activity.
+- **Early warning:** over-capacity days in red, plus a 14-day warning for trouble just off screen.
+- **Work you haven't won yet:** tentative bookings, placeholders for roles you haven't filled, and
+  outside partners who don't count against your capacity.
+- **Time off in the same picture:** holidays and closures sit beside the work.
+- **How full everyone is:** utilisation per person and across the weeks on screen.
+- **Your own server:** your data in one SQLite file you control, under AGPL-3.0.
 
 ## What it deliberately isn't
 
-CapacityLens will not track tasks, tickets, deadlines, budgets or timesheets, and it won't schedule
-anyone by the hour. It answers a simpler question — where are your people's hours going, and where
-is there room? — and stops there.
+CapacityLens does not track tasks, tickets, deadlines, budgets or timesheets, and it doesn't
+schedule anyone by the hour. If you need Jira, use Jira. This is the view you check _before_ you
+open Jira.
 
-If you need Jira, use Jira. This is the thing you look at _before_ you open Jira.
+## Install it in five steps
 
-## Who it's for
-
-Agency owners, studio and operations leads, resource planners and project leads: the people who get
-asked "can we take this on?" and need a shared, honest answer.
-
-## Project status
-
-CapacityLens is alpha software with a single maintainer. Database upgrades are tested from thirteen
-released database snapshots, the oldest from 0.20.0-alpha.1, so a database created by that release
-or any later one is expected to upgrade in place. Beta will mean the upgrade path and the settings are stable.
-
-Details: [how it is tested](docs-src/reference/how-it-is-tested.md) ·
-[philosophy](docs-src/reference/philosophy.md)
-
-## Run it for real
-
-[Read the latest release notes](https://github.com/Kevinjohn/capacitylens/releases/latest) for the
-highlights and upgrade notes.
-
-Every release from 0.73.0-alpha.1 carries a server archive. Node 24.19.0 or newer within 24.x is the supported runtime.
-Node 26.9.0 or newer within 26.x has experimental, best-effort compatibility; see [the compatibility notes](docs-src/reference/development.md#check-node-26-compatibility).
+Every release from 0.73.0-alpha.1 carries a server archive. You need Node 24.19.0 or newer within
+24.x and a hostname with HTTPS. Node 26.9.0 or newer within 26.x is
+[experimental](docs-src/reference/development.md#check-node-26-compatibility).
 
 1. **Download** `capacitylens-X.Y.Z.tar.gz` from the [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
 2. **Pick a folder** for the database; its file is created there on first start.
@@ -100,67 +73,36 @@ Node 26.9.0 or newer within 26.x has experimental, best-effort compatibility; se
 4. **Start it** with `node --env-file=<your env file> server/dist/index.mjs`, or as a service.
 5. **Open the address** and create your company with the setup token from step 3.
 
-[Install CapacityLens](docs-src/self-hosting/install.md) has the commands for a managed host
-or a Linux host. Docker is [another way to install](docs-src/self-hosting/install-with-docker.md).
-
-## Sign-in, in short
-
-Password sign-in is the stable self-hosted default, with breached-password screening and
-user-controlled session revocation. Google Workspace and Microsoft Entra ID
-are the supported company sign-in providers; GitHub remains experimental in mixed mode. Optional offline access keeps a
-read-only snapshot for up to seven days — it never queues or syncs edits, and SQLite stays the
-source of truth.
-
-Details: [how sign-in works](docs-src/company-login/index.md) ·
-[offline access](docs-src/using/settings.md#offline-access)
+[Install CapacityLens](docs-src/self-hosting/install.md) has the commands for a managed host or a
+Linux host; [Docker](docs-src/self-hosting/install-with-docker.md) is another route. Sign-in is by
+password, with Google Workspace and Microsoft Entra ID as
+[company login](docs-src/company-login/index.md) options.
 
 ## Documentation
 
-Read the [CapacityLens documentation](https://kevinjohn.github.io/capacitylens/) online. The same
-docs ship with the repository: open [`docs/index.html`](docs/) straight from a checkout — no server,
-no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
+Read the [documentation](https://kevinjohn.github.io/capacitylens/) online, open
+[`docs/index.html`](docs/) straight from a checkout with no server or build, or read the Markdown
+sources in [`docs-src/`](docs-src/). [What is CapacityLens?](docs-src/getting-started/what-is-capacitylens.md)
+is the one-page introduction.
 
-- [What is CapacityLens?](docs-src/getting-started/what-is-capacitylens.md): why it exists and
-  what it leaves out.
-- The four role guides: [install](docs-src/self-hosting/index.md),
-  [set up your company](docs-src/owner/index.md), [get the schedule ready](docs-src/admin/index.md)
-  and [see your work](docs-src/using/index.md).
-- [Company login (SSO)](docs-src/company-login/index.md): Google or Microsoft sign-in.
-- [Security and privacy](docs-src/security/index.md) and the
-  [glossary](docs-src/reference/glossary.md).
+## Project status
 
-## Under the hood
-
-React, TypeScript, Vite and Tailwind in the browser; Zustand for UI state and undo/redo; a shared
-TypeScript domain in `shared/` for validation, migrations and the scheduling rules; Fastify and
-Better Auth over Node's built-in SQLite driver on the server. Vitest, Testing Library, Playwright
-and axe keep it honest. Deploy with Docker Compose, plain Node 24 or a managed VPS platform.
-
-The browser always talks to the API; only `VITE_CAPACITYLENS_DEMO=1` swaps in the throwaway
-in-memory demo adapter.
+CapacityLens has a single maintainer. Database upgrades are tested from thirteen released database
+snapshots, the oldest from 0.20.0-alpha.1, so a database created by that release or any later one
+is expected to upgrade in place. See [how it is tested](docs-src/reference/how-it-is-tested.md) and
+the [release notes](https://github.com/Kevinjohn/capacitylens/releases/latest).
 
 ## Contributing
 
-Node 24 and pnpm are required; the pinned version is in `.nvmrc`.
-
-```bash
-nvm use
-corepack enable
-pnpm install
-pnpm run dev          # web app on :5173 and SQLite API on :8787, with sample data loaded
-pnpm run gate:all     # app and server: formatting, typecheck, lint, tests, coverage and build budget
-pnpm run e2e          # Chromium demo, database and authentication flows
-```
-
-Start with [contributing](CONTRIBUTING.md) and the
-[development guide](docs-src/reference/development.md#checks) for the enforced coverage and build
-numbers, cross-browser checks and CI jobs. Also worth reading: the
-[server README](server/README.md), the [standing decisions](DECISIONS.md) behind the product and
-architecture, and the [changelog](CHANGELOG.md).
+React, TypeScript and Vite in the browser; Fastify and Better Auth over Node's built-in SQLite on
+the server; a shared TypeScript domain in `shared/` for the scheduling rules. Start with
+[CONTRIBUTING.md](CONTRIBUTING.md), then the [development guide](docs-src/reference/development.md#checks)
+and the [standing decisions](DECISIONS.md).
 
 [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Security policy](SECURITY.md) ·
 [Security review](docs-src/security/reviews/security-review-2026-08-18.md) ·
-[ASVS 5.0.0 ledger](docs-src/security/owasp-asvs-5.0.0.md) · [Trademarks](TRADEMARKS.md)
+[ASVS 5.0.0 ledger](docs-src/security/owasp-asvs-5.0.0.md) · [Changelog](CHANGELOG.md) ·
+[Trademarks](TRADEMARKS.md)
 
 ## Licence
 
