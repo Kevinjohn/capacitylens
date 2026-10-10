@@ -27,8 +27,10 @@ interface StatementCache {
   clearAllocationAttribution?: PreparedStatement;
 }
 
+/** Per-handle cache registry; initializeOpenDb clears it after migrations finalize the schema. */
 export const statementCaches = new WeakMap<Db, StatementCache>();
 
+/** Return or create the prepared-statement buckets scoped to one database handle. */
 export function createStatementCache(db: Db): StatementCache {
   let cache = statementCaches.get(db);
   if (!cache) {
@@ -52,7 +54,7 @@ interface CreateCachedTableStatementInput {
   sql: string;
 }
 
-/** Lazily prepare and cache one per-table Statement, keyed by table name within `cache`. */
+/** Lazily prepare one statement per table in the supplied cache, which initializeOpenDb invalidates after migrations. */
 export function createCachedTableStatement({
   cache,
   table,

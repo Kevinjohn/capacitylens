@@ -42,14 +42,10 @@
   max-width: 100%;
 }
 
-/* Click a screenshot to see it full size. The markup comes from
-   .vitepress/lightbox.mts; this is the whole mechanism, and it is deliberately
-   CSS-only — the shipped docs/ have every script stripped so the pages open
-   from disk, which no lightbox library can survive.
-
-   Both the inline screenshot and the overlay are labels for one hidden
-   checkbox, so opening and closing costs no history entries and needs no
-   script. There is no Escape key binding, because that would need JavaScript. */
+/* Click a screenshot to open its viewport-fitted overlay. The build-time markup
+   in .vitepress/lightbox.mts uses one checkbox, so opening and closing by click
+   or Space does not add history entries. The standalone build retains the small
+   keyboard handler that lets Escape or Tab close an open overlay. */
 
 /* Visually hidden but still focusable and still operable with Space — this is
    the control, so it must not be display:none or hidden. */
