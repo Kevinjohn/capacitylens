@@ -12,7 +12,7 @@ who is busy, who has room, and who is about to be buried, and move things around
 a problem.
 
 <a href="docs-src/screenshots/demo.mp4">
-  <img alt="A 25-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is dragged to a colleague with room, new work is booked by dragging across two days, the schedule zooms out to four weeks, and the Overview shows free days per person for the weeks ahead." src="docs-src/screenshots/demo.gif">
+  <img alt="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is dragged to a colleague with room, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." src="docs-src/screenshots/demo.gif">
 </a>
 
 One screen. People down the side, days across the top, the work in between. Red means someone is
