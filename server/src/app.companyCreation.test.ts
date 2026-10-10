@@ -119,6 +119,7 @@ function registerFreshCompanyResourceTest(): void {
       createdAt: TS,
       updatedAt: TS,
       kind: "person",
+      name: "Bruce Wayne",
       role: "",
       employmentType: "permanent",
       engagement: "studio",
@@ -309,19 +310,12 @@ function registerAuthOnRestrictionTests(): void {
     expect(res.statusCode).toBe(401);
   });
 
-  it("repairs the account row like the generic create: a non-hex colour falls back, id is server-minted", async () => {
-    const { app, db } = await appWithAuth(); // zero accounts -> the gate allows, so the create runs
-    const { cookie, userId } = await signUp(app, "repair@capacitylens.dev");
+  it("rejects a supplied non-preset colour without creating a company", async () => {
+    const { app, db } = await appWithAuth();
+    const { cookie } = await signUp(app, "repair@capacitylens.dev");
     const res = await createOrg(app, { name: "Repaired", color: "not-a-hex" }, { cookie });
-    expect(res.statusCode, res.body).toBe(201);
-    const id = readStringField(res, "id");
-    expect(typeof id).toBe("string");
-    expect(id.length).toBeGreaterThan(0); // server-minted when the body omits one
-    const acc = readState(db).accounts.find((a) => a.id === id);
-    expect(acc, "created account exists").toBeDefined();
-    if (acc === undefined) throw new Error("Created account was absent from persisted state.");
-    expect(acc.color).toMatch(/^#[0-9a-fA-F]{6}$/); // junk colour repaired to a valid hex
-    assertUsableOrg(db, id, userId);
+    expect(res.statusCode).toBe(400);
+    expect(readState(db).accounts).toEqual([]);
   });
 }
 

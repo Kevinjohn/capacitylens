@@ -754,7 +754,9 @@ function registerInviteSignupRefusalTests(): void {
     };
     for (const [payload, error] of [
       [{ ...base, email: "not-an-email" }, "A valid email address is required."],
-      [{ ...base, name: "   " }, "Name is required."],
+      [{ ...base, name: "   " }, "Name must be valid and at most 100 characters."],
+      [{ ...base, name: "New 💩 Person" }, "Name must be valid and at most 100 characters."],
+      [{ ...base, name: "N".repeat(101) }, "Name must be valid and at most 100 characters."],
       [{ ...base, password: "short" }, `Password must be ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters.`],
     ] as const) {
       const response = await call(app, {
@@ -794,6 +796,24 @@ function registerInviteSignupRefusalTests(): void {
     }
 
     expect(commandCount()).toEqual(before);
+  });
+}
+
+function registerInviteSignupNameTests(): void {
+  it("rejects malformed names before consuming an invitation or creating a principal", async () => {
+    const { app, db, token } = await createClosedSignupInviteContext();
+    const beforeUsers = (db.prepare("SELECT COUNT(*) AS count FROM user").get() as { count: number }).count;
+    for (const name of ["New 💩 Person", "N".repeat(101), 42]) {
+      const response = await call(app, {
+        method: "POST",
+        url: `/api/invites/${token}/signup`,
+        payload: { email: "new-person@capacitylens.dev", password: "password-123456", name },
+      });
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({ error: "Name must be valid and at most 100 characters." });
+      expect((db.prepare("SELECT COUNT(*) AS count FROM user").get() as { count: number }).count).toBe(beforeUsers);
+      expect(getInvite(db, token)?.usedAt).toBeNull();
+    }
   });
 }
 
@@ -855,6 +875,7 @@ function registerInviteSignupAcceptanceTest(): void {
 
 describe("POST /api/invites/:token/signup — password invite onboarding", () => {
   registerInviteSignupRefusalTests();
+  registerInviteSignupNameTests();
   registerInviteSignupAcceptanceTest();
 });
 
@@ -1082,7 +1103,7 @@ async function createSsoProviderInviteContext() {
     method: "POST",
     url: "/api/orgs",
     headers: { cookie: joiner.cookie },
-    payload: { id: "founded", name: "Founded", color: "#3b82f6" },
+    payload: { id: "founded", name: "Founded", color: "#2d75da" },
   });
   expect(socialProvision.statusCode).toBe(401);
   return { db, joiner, sessionHandle, ssoApp };
@@ -1109,7 +1130,7 @@ function registerSsoProviderInviteTest(): void {
       method: "POST",
       url: "/api/orgs",
       headers: { cookie: joiner.cookie },
-      payload: { id: "founded", name: "Founded", color: "#3b82f6" },
+      payload: { id: "founded", name: "Founded", color: "#2d75da" },
     });
     expect(strictProvision.statusCode).toBe(201);
     expect(getMemberRole(db, "founded", joiner.userId)).toBe("owner");

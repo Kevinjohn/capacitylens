@@ -9,6 +9,13 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Ordinary edits reject invalid supplied values instead of silently repairing them; imports retain
+  their separate repair policy. Availability boundaries require valid dates and preserve existing
+  limits when a write is rejected.
+- Text input uses the same Unicode and whitespace normalization in forms and server writes. Company
+  joining accepts the full email and password transport limits, with consistent email handling.
+- Import and request JSON parsing reject ambiguous or excessive structure, and approved-domain
+  lists and local search fields have explicit limits.
 - Removed local multi-factor enrolment, challenges and recovery codes. Google and Microsoft company providers now own any multi-factor policy; password sign-in and existing credentials remain available in modes that allow them.
 
 ### Documentation

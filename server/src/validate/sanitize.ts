@@ -15,6 +15,7 @@ import type { SanitizeWriteOptions } from "../fieldPolicy";
 import { TABLES } from "../tables";
 import { assertIdPresent, ValidationError } from "./errors";
 import { buildAcceptedWriteFields } from "./fields";
+import { assertStrictWriteFields } from "./strict";
 /** Account calendar/locale facts become immutable after their first valid stored value. */
 export const IMMUTABLE_ACCOUNT_FIELDS = ["language", "weekStartsOn", "timezone"] as const;
 
@@ -38,6 +39,7 @@ interface SanitizeWriteInput {
   row: Record<string, unknown>;
   existing?: Record<string, unknown> | undefined;
   options?: SanitizeWriteOptions | undefined;
+  requested?: Record<string, unknown> | undefined;
 }
 
 function resolveStoredWeekStart(existing: Record<string, unknown> | undefined): 0 | 1 | undefined {
@@ -64,17 +66,11 @@ function sanitizeAccountWrite(
   options: SanitizeWriteOptions,
 ): Record<string, unknown> {
   const workingDaysRequested = Object.hasOwn(copy, "workingDays");
-  // Policy: a non-preset colour snaps to its nearest palette preset (shared/lib/color's
-  // snapToPresetColor: the same mapper the client uses and the one-time
-  // snap-legacy-account-colors migration ran), not a fixed fallback purple. Before this, any
-  // stored colour outside the (then-current) preset set was replaced with one fixed hex on
-  // every write, so a legacy account's colour, or any hex a hand-crafted request supplied,
-  // would silently flip to that one colour the next time the row was touched. See DECISIONS.md.
+  // Keep historical stored colours on the preset palette; strict validation already rejected
+  // malformed colours supplied by an ordinary writer.
   copy.color = snapToPresetColor(copy.color);
   if (typeof copy.name === "string") copy.name = cleanText(copy.name);
-  // schedulingMode is an optional enum (absent = 'hourly'). Drop a junk value rather
-  // than persisting a mode the scheduler's hourly/days/blocks switch can't handle, the
-  // one enum a direct /api/accounts write would otherwise slip past every other guard.
+  // Legacy stored modes may need repair; ordinary supplied values were already validated.
   if (copy.schedulingMode !== undefined && !SCHEDULING_MODES.includes(copy.schedulingMode as never)) {
     delete copy.schedulingMode;
   }
@@ -88,14 +84,13 @@ function sanitizeAccountWrite(
     canChange: options.canChangeCapacityOverviewAccess,
   });
   // A full PUT from a pre-v31 client cannot express this field. Preserve the stored selection
-  // when it was omitted, while still repairing an explicitly malformed direct write above.
+  // when it was omitted; strict validation rejects a malformed supplied value before this pass.
   if (!workingDaysRequested && existing?.workingDays !== undefined) {
     copy.workingDays = existing.workingDays;
   }
   // Frozen account values are write-once, but old/API-created rows may legitimately have no
-  // value yet. Preserve an existing value when a PUT omits it or sanitisation drops malformed
-  // input; the route-level guard then rejects only a different valid value. This makes malformed
-  // input a no-op instead of either a misleading freeze violation or an accidental NULL write.
+  // value yet. Preserve an existing value when a PUT omits it; strict validation rejects a
+  // malformed supplied value before this pass, and the route guard rejects a changed valid value.
   if (existing) {
     for (const field of IMMUTABLE_ACCOUNT_FIELDS) {
       if (copy[field] === undefined && existing[field] !== undefined) {
@@ -125,6 +120,7 @@ interface SanitizeScopedWriteInput {
   options: SanitizeWriteOptions;
 }
 
+// eslint-disable-next-line complexity -- required fields vary by scoped entity and privacy authority.
 function assertScopedWriteFields(
   table: ScopedEntityKey,
   copy: Record<string, unknown>,
@@ -133,6 +129,9 @@ function assertScopedWriteFields(
   const missingRequired = (DIRECT_WRITE_REQUIRED_FIELDS[table] ?? []).filter((field) => !Object.hasOwn(copy, field));
   if (missingRequired.length > 0) {
     throw new ValidationError(`Missing required field(s): ${missingRequired.join(", ")}.`);
+  }
+  if (table === "resources" && copy.kind !== "placeholder" && !Object.hasOwn(copy, "name")) {
+    throw new ValidationError("A person or external company name is required.");
   }
   if (table === "closures" && (typeof copy.name !== "string" || cleanText(copy.name).trim().length === 0)) {
     throw new ValidationError("Closure name is required.");
@@ -149,7 +148,7 @@ function assertScopedWriteFields(
 }
 
 // This is the central preservation/normalisation boundary for every scoped table.
-// eslint-disable-next-line complexity
+// eslint-disable-next-line complexity, max-lines-per-function -- canonicalization and preservation share one scoped boundary.
 function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedWriteInput): Record<string, unknown> {
   if (table === "resources" && existing) {
     const validKinds: ReadonlySet<unknown> = new Set(["person", "placeholder", "external"]);
@@ -162,10 +161,8 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
       throw new ValidationError("A resource’s kind cannot change after creation.", { code: "resource_kind_immutable" });
     }
   }
-  // Availability boundaries use an explicit-null clear in full-row PUTs. Capture presence before
-  // the import sanitiser drops null/malformed values, otherwise the preservation pass below would
-  // mistake a deliberate clear for an omitted legacy field
-  // and restore the old person's dates.
+  // Availability boundaries use explicit-null clears in full-row PUTs. Capture presence before
+  // canonicalization so the preservation pass distinguishes a clear from an omitted legacy field.
   const availabilityRequested =
     table === "resources"
       ? {
@@ -187,19 +184,36 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
     copy.avatarUrl = parsed;
   }
   assertScopedWriteFields(table, copy, options);
+  if (isLifecycleEntityKey(table)) {
+    for (const field of ["archivedAt", "deletedAt"] as const) {
+      if (Object.hasOwn(copy, field) && copy[field] !== existing?.[field]) {
+        throw new ValidationError(`${field} is managed by its lifecycle action.`);
+      }
+    }
+  }
+  if (table === "allocations" && existing && Object.hasOwn(copy, "seriesId") && copy.seriesId !== existing.seriesId) {
+    throw new ValidationError("seriesId is fixed after creation.");
+  }
+  const opaqueAllocationIds =
+    table === "allocations" ? { projectId: copy.projectId, seriesId: copy.seriesId } : undefined;
   const cleaned = sanitizeImportedRecord(table, copy);
+  if (opaqueAllocationIds) {
+    // The import repair path cleans identifiers as text and mutates its input. Ordinary writes
+    // have already validated these opaque IDs, so retain their exact bytes for relationship checks.
+    for (const field of ["projectId", "seriesId"] as const) {
+      if (typeof opaqueAllocationIds[field] === "string") cleaned[field] = opaqueAllocationIds[field];
+    }
+  }
   // Lifecycle tombstones (archivedAt/deletedAt) are owned only by the dedicated
   // archive/unarchive/delete/purge routes, which build rows via the pure lifecycle transitions and
   // persist them through AccountStore.writeLifecycleRow without passing through sanitizeWrite. So
-  // Across every generic write (POST/PUT/PATCH/batch), they are immutable in both directions: pin them to what is already
-  // stored (`existing`), ignoring the body. A crafted body can't set a tombstone on an active row,
-  // and an unrelated edit can't clear one and silently resurrect a row. On CREATE both fields are
-  // stripped, so new rows start active. Imports remain untouched because they use
+  // Across generic writes, changed supplied values are rejected above; exact stored echoes and
+  // omissions retain `existing`. New rows start active. Imports remain untouched because they use
   // sanitizeImportedRecord directly and legitimately round-trip tombstones.
   pinLifecycleFields(table, cleaned, existing);
   // Repeat-series membership is assigned only when an allocation is created. Generic PUT/PATCH
-  // edits may omit the hidden field (legacy clients) or attempt to change it (crafted requests),
-  // but neither can unlink a member, link a one-off or move an occurrence between series.
+  // edits may omit the hidden field or echo its exact value; changed supplied values are rejected
+  // above, so a generic edit cannot move an occurrence between series.
   if (table === "allocations" && existing) {
     if (typeof existing.seriesId === "string") cleaned.seriesId = existing.seriesId;
     else delete cleaned.seriesId;
@@ -217,11 +231,9 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
 }
 
 /**
- * Repair the constrained value-level fields of a write body, returning a new object
- * (the input is not mutated). Scoped tables delegate to the shared
- * sanitizeImportedRecord; accounts (not a scoped table) get their colour repaired
- * here. A well-formed body from the real client is unchanged. This only bites
- * malformed direct API writes.
+ * Validate supplied fields before applying the shared canonicalization and
+ * compatibility rules to a copy of the write body. Import repair remains a
+ * separate path; ordinary writes cannot rely on it to fix malformed input.
  *
  * Also rejects any row whose id is not a non-empty string, the single funnel all
  * write paths flow through, so no path can slip past the NULL-id guard.
@@ -234,8 +246,19 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
  * `options` carries writer-context facts (see {@link SanitizeWriteOptions}); omit it entirely for
  * tables the options don't apply to.
  */
-export function sanitizeWrite({ table, row, existing, options = {} }: SanitizeWriteInput): Record<string, unknown> {
+// eslint-disable-next-line complexity -- all ordinary-write tables meet at this validation boundary.
+export function sanitizeWrite({
+  table,
+  row,
+  existing,
+  options = {},
+  requested = row,
+}: SanitizeWriteInput): Record<string, unknown> {
   assertIdPresent(row);
+  if (table === "resources" && existing && requested.kind !== undefined && requested.kind !== existing.kind) {
+    throw new ValidationError("A resource’s kind cannot change after creation.", { code: "resource_kind_immutable" });
+  }
+  assertStrictWriteFields({ table, requested, candidate: row, existing, options });
   if (table === "closures" && Object.hasOwn(row, "resourceId")) {
     throw new ValidationError("Company closures cannot reference a resource.");
   }
@@ -248,6 +271,9 @@ export function sanitizeWrite({ table, row, existing, options = {} }: SanitizeWr
     );
   }
   if (table === "accounts") {
+    if (typeof copy.name !== "string" || cleanText(copy.name).length === 0) {
+      throw new ValidationError("Company name is required.");
+    }
     return sanitizeAccountWrite(copy, existing, options);
   }
   if (isScopedEntityKey(table)) {

@@ -51,7 +51,7 @@ Drag the left or right edge of the bar to change its start or end date.
 
 ![Edit allocation dialog with dates, activity, Days of work, Status, Note and Delete](../screenshots/flows/using_change_work_2.png)
 
-Click the bar to open Edit allocation. Change the assignee, project, activity, dates, amount, status, task, or note, then select Save.
+Click the bar to open Edit allocation. Change the assignee, project, activity, dates, amount, status, task, or note, then select Save. In Days mode, **Days of work** can be a positive fraction; the half-day spinner steps are suggestions. The amount spread across **Days over** cannot exceed 24 hours per day.
 
 To remove the booking, open Edit allocation and select Delete.
 

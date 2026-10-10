@@ -27,7 +27,7 @@ const TS = "2026-01-01T00:00:00.000Z";
 const account = {
   id: "a1",
   name: "Studio",
-  color: "#3b82f6",
+  color: "#2d75da",
   createdAt: TS,
   updatedAt: TS,
 };
@@ -661,7 +661,7 @@ describe("CAPACITYLENS_MODE password", () => {
     db.prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`).run(
       "workspace-1",
       "Studio",
-      "#3b82f6",
+      "#2d75da",
       TS,
       TS,
     );

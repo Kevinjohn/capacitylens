@@ -5,7 +5,6 @@ import { hasPlaceholdersEnabled, resolveTimeZone } from "@/store/selectors";
 import { useActiveScopedData } from "@/store/useScopedData";
 import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
 import { todayISO } from "@capacitylens/shared/lib/dateMath";
-import { MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
 import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField } from "@/components/common/ui";
 import type { Option } from "@/components/common/ui";
@@ -237,7 +236,6 @@ function TimeOffFields({
           label={m.form_timeoff_note_label()}
           value={note}
           onChange={setNote}
-          maxLength={MAX_NOTE_INPUT_CODE_UNITS}
           invalid={errorField === "note"}
           describedById={errorId}
           layout="label-control"

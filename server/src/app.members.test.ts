@@ -676,7 +676,7 @@ function createMissingTimestampReadWriteTest(): void {
         id: "c-undated",
         accountId: "a1",
         name: "Ferris",
-        color: "#3b82f6",
+        color: "#2d75da",
         createdAt: TS,
         updatedAt: TS,
       },

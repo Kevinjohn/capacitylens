@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { authClient } from "./authClient";
 import { m } from "@/i18n";
+import { MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
 import { completeReauth } from "./reauthCoordinator";
 import type { ReauthAction } from "./reauthCoordinator";
@@ -54,6 +55,10 @@ function useReauthState(): ReauthState {
 async function confirmPassword(email: string, state: ReauthState) {
   if (state.busy) return;
   if (!email) {
+    state.setError(m.reauth_failed());
+    return;
+  }
+  if (state.password.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
     state.setError(m.reauth_failed());
     return;
   }

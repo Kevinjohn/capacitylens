@@ -5,11 +5,23 @@ import { toASCII } from "tr46";
 
 // Reject syntax that IDNA conversion would otherwise repair or reinterpret before canonicalizing.
 const FORBIDDEN_DOMAIN_CHARACTERS = /[%\\/:?#@[\]*\s\p{C}\u3002\uff0e\uff61]/u;
+/** Maximum raw domain entries, including duplicates, in a company admission list. */
+export const MAX_APPROVED_DOMAINS = 50;
+/** Maximum aggregate UTF-8 bytes before IDNA canonicalization. */
+export const MAX_APPROVED_DOMAINS_BYTES = 16 * 1024;
+const UTF8_ENCODER = new TextEncoder();
 const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 /** Parse one exact DNS domain for company admission, without trimming or repairing input. */
+// eslint-disable-next-line complexity -- syntax and IDNA checks are one bounded validation path.
 export function parseApprovedDomain(value: unknown): string | null {
-  if (typeof value !== "string" || value.length === 0 || FORBIDDEN_DOMAIN_CHARACTERS.test(value)) return null;
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > MAX_APPROVED_DOMAINS_BYTES ||
+    FORBIDDEN_DOMAIN_CHARACTERS.test(value)
+  )
+    return null;
   if (value.startsWith(".") || value.endsWith(".")) return null;
 
   // The same IDNA implementation runs in Node and browsers; platform URL parsers disagree on
@@ -33,7 +45,14 @@ export function parseApprovedDomain(value: unknown): string | null {
 
 /** Parse a configured domain list into canonical, unique, sorted exact-match keys. */
 export function parseApprovedDomains(value: unknown): string[] | null {
-  if (!Array.isArray(value)) return null;
+  if (!Array.isArray(value) || value.length > MAX_APPROVED_DOMAINS) return null;
+  // Bound raw entries, including duplicates, before running IDNA conversion.
+  let bytes = 0;
+  for (const candidate of value) {
+    if (typeof candidate !== "string") return null;
+    bytes += UTF8_ENCODER.encode(candidate).length;
+    if (bytes > MAX_APPROVED_DOMAINS_BYTES) return null;
+  }
   const domains: string[] = [];
   for (const candidate of value) {
     const domain = parseApprovedDomain(candidate);

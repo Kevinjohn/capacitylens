@@ -128,8 +128,13 @@ This is the short, present-tense record of decisions that constrain future work.
 - An unmatched URL is navigation state, not an application crash: it gets a branded not-found page
   with a schedule link, while valid reset/invitation bearer paths keep their exact one-token matcher
   and malformed signed-out entries remain behind the sign-in wall.
-- Forms reject invalid input. Import and server boundaries repair safe values, drop unsafe rows
-  and preserve referential integrity.
+- Forms and ordinary server writes reject malformed supplied values before any repair. They share
+  NFC and the existing whitespace policy for editable text; explicit availability null clears a
+  bound, while omission preserves it. Import alone repairs safe values and drops unsafe rows.
+  Both paths preserve referential integrity and account scope. Blind writers cannot echo hidden
+  names or notes, so server confidentiality pins preserve the stored values on unrelated edits.
+  JSON request/import parsing bounds depth and rejects duplicate decoded keys, non-finite numbers
+  and unsafe integers; authentication-provider protocol bodies retain their framework parser.
 - Optimistic-concurrency conflicts require both timestamps: a write is stale only when the stored
   and incoming `updatedAt` both parse and the incoming one is older. A missing or unparseable
   timestamp on either side is never a conflict, so partial PATCHes and legacy rows stay writable
@@ -153,8 +158,9 @@ This is the short, present-tense record of decisions that constrain future work.
   such as `#1z2z3z` do not take the shared mapper's fallback. That outcome is frozen for deterministic
   compatibility: changing v13 would invalidate its released checksum, and an already-snapped value
   no longer contains the original bytes needed for a later correction. Real v12 upgrade tests pin
-  both malformed outcomes. Current write-time snapping on server and client uses the exact shared
-  mapper, and any future frozen colour parser must first require `/^#[0-9a-f]{6}$/i` before parsing.
+  both malformed outcomes. Ordinary server writes reject non-preset supplied colours; imports and
+  the one-time migration retain snapping. Any future frozen colour parser must first require
+  `/^#[0-9a-f]{6}$/i` before parsing.
 - Server imports are atomic, not undoable and owner-only; a non-owner's redacted export is not a
   safe source for a whole-slice replacement of owner-confidential client/project identities.
 - Theme and per-device view preferences are device-global and outside account exports. The date

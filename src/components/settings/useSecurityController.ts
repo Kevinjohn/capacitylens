@@ -1,5 +1,10 @@
 import { useRef, useState } from "react";
-import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
+import {
+  MAX_PASSWORD_INPUT_CODE_UNITS,
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  passwordLengthFailure,
+} from "@capacitylens/shared/domain/password";
 import { authClient } from "@/auth/authClient";
 import { useFieldError } from "@/hooks/useFieldError";
 import { m } from "@/i18n";
@@ -31,8 +36,16 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
   const submit = async () => {
     clear();
     setMessage(null);
+    if (currentPassword.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
+      fail("current", m.login_password_input_too_long());
+      return;
+    }
     if (passwordLengthFailure(newPassword)) {
       fail("new", m.settings_security_err_password_length({ min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH }));
+      return;
+    }
+    if (passwordLengthFailure(confirmPassword) === "too-long") {
+      fail("confirm", m.settings_security_err_password_length({ min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH }));
       return;
     }
     if (newPassword !== confirmPassword) return fail("confirm", m.settings_security_err_password_mismatch());

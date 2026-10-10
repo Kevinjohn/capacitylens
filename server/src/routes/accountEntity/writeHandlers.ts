@@ -148,13 +148,21 @@ function enforcePutPreflight(
   const { dependencies, reply, body } = input;
   const refusal = sendPutRefusal(input, existing);
   if (refusal) return refusal;
-  return enforceAccountWriteGuards({
+  const ownershipRefusal = enforceAccountWriteGuards({
     reply,
     existing,
     ownsRow: dependencies.ownsRow,
     isStaleWrite: dependencies.isStaleWrite,
     redact: dependencies.redact,
     checkOwnsRow: { accountId: body.accountId },
+  });
+  if (ownershipRefusal) return ownershipRefusal;
+  return enforceAccountWriteGuards({
+    reply,
+    existing,
+    ownsRow: dependencies.ownsRow,
+    isStaleWrite: dependencies.isStaleWrite,
+    redact: dependencies.redact,
     checkFrozen: { candidate: sanitizeWrite({ table: "accounts", row: body, existing }) },
   });
 }
@@ -253,16 +261,30 @@ function applyPatch(input: AccountWriteInput): FastifyReply {
   if (!existing) return reply.code(404).send({ error: FROZEN_REPLY_MESSAGES.notFound });
   if (!authorize({ req, reply, accountId: id, action: "write" })) return reply;
   const visibility = fieldVisibility(req, "accounts", id);
-  const merged = sanitizeWrite({ table: "accounts", row: { ...existing, ...body, id }, existing, options: visibility });
-  // Accounts sanitization drops accountId, but ownsRow must see the caller's raw assertion so a
-  // foreign ownership claim is concealed as 404 instead of being silently ignored.
-  const refusal = enforceAccountWriteGuards({
+  // Preserve the account-scope concealment response before strict field validation sees the
+  // compatibility ownership assertion (which is not a stored account column).
+  const ownershipRefusal = enforceAccountWriteGuards({
     reply,
     existing,
     ownsRow: dependencies.ownsRow,
     isStaleWrite: dependencies.isStaleWrite,
     redact,
     checkOwnsRow: { accountId: body.accountId ?? existing.accountId },
+  });
+  if (ownershipRefusal) return ownershipRefusal;
+  const merged = sanitizeWrite({
+    table: "accounts",
+    row: { ...existing, ...body, id },
+    existing,
+    options: visibility,
+    requested: body,
+  });
+  const refusal = enforceAccountWriteGuards({
+    reply,
+    existing,
+    ownsRow: dependencies.ownsRow,
+    isStaleWrite: dependencies.isStaleWrite,
+    redact,
     checkFrozen: { candidate: merged },
     checkStale: { optimisticConcurrency, candidateRow: body, requirePrecondition: false, vis: visibility },
   });

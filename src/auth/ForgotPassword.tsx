@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import type { FormEvent } from "react";
 import { m } from "@/i18n";
-import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
+import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { API_BASE } from "@/data/apiConfig";
 import { createRequestSignal } from "@/data/requestTimeout";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,11 @@ export function ForgotPassword() {
   const errorId = useId();
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    const normalizedEmail = normalizeAccountEmail(email);
+    if (!isAccountEmail(normalizedEmail)) {
+      setError(m.login_failed());
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -25,7 +30,7 @@ export function ForgotPassword() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizeAccountEmail(email) }),
+        body: JSON.stringify({ email: normalizedEmail }),
         signal: createRequestSignal(),
       });
       if (response.ok) setPhase("sent");
@@ -55,7 +60,7 @@ export function ForgotPassword() {
       </Button>
     );
   return (
-    <form className="mt-3 flex flex-col gap-3" onSubmit={(event) => void submit(event)}>
+    <form className="mt-3 flex flex-col gap-3" onSubmit={(event) => void submit(event)} noValidate>
       <Field>
         <FieldLabel htmlFor={emailId}>{m.login_email()}</FieldLabel>
         <Input

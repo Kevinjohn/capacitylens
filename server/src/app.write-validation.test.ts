@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { insertRow } from "./db";
+import { NEUTRAL_COLOR } from "@capacitylens/shared/lib/color";
+import { externalCapacityDefaults } from "@capacitylens/shared/types/entities";
 import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import {
@@ -258,11 +260,15 @@ function createAllocationReferenceValidationTests(): void {
   });
 }
 
+function externalResource(id: string, accountId: string) {
+  return { ...person(id, accountId), kind: "external", ...externalCapacityDefaults(), color: NEUTRAL_COLOR };
+}
+
 function createExternalResourceWriteValidationTests(): void {
   it("rejects a non-zero allocation load on an external / 3rd-party resource (no capacity)", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    await post(app, "resources", { ...person("ext", "a1"), kind: "external" });
+    await post(app, "resources", externalResource("ext", "a1"));
     const res = await post(
       app,
       "allocations",
@@ -275,7 +281,7 @@ function createExternalResourceWriteValidationTests(): void {
   it("accepts a zero-load allocation on an external resource (the form forces 0)", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    await post(app, "resources", { ...person("ext", "a1"), kind: "external" });
+    await post(app, "resources", externalResource("ext", "a1"));
     const res = await post(
       app,
       "allocations",
@@ -287,7 +293,7 @@ function createExternalResourceWriteValidationTests(): void {
   it("rejects time off on an external / 3rd-party resource (no capacity)", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    await post(app, "resources", { ...person("ext", "a1"), kind: "external" });
+    await post(app, "resources", externalResource("ext", "a1"));
     const res = await post(app, "timeOff", {
       id: "to1",
       accountId: "a1",
@@ -365,8 +371,7 @@ function createExternalResourceConversionAcceptanceTests(): void {
     expect(
       (
         await post(app, "resources", {
-          ...person("ext", "a1"),
-          kind: "external",
+          ...externalResource("ext", "a1"),
         })
       ).statusCode,
     ).toBe(201);

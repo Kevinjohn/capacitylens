@@ -134,7 +134,7 @@ export const REPLY_ERRORS = {
   expiresAtInvalid: "expiresAt must be a valid ISO-8601 timestamp.",
   ssoInvitationRequiresEmail: "SSO-only onboarding requires an email-preauthorized invitation.",
   signupEmailInvalid: "A valid email address is required.",
-  signupNameRequired: "Name is required.",
+  signupNameInvalid: "Name must be valid and at most 100 characters.",
   ownershipTransferClosed: "This ownership transfer is no longer open.",
   ownershipTransferTargetRequired: "toUserId must be a non-empty string.",
   ownershipTransferReplacementInvalid:

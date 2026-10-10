@@ -117,8 +117,9 @@ Studio and Supplementary people can have optional date boundaries in the resourc
 **Start date** for the first day they can contribute and **End date** for the last day.
 The two fields share one row at normal modal widths and stack on narrow screens.
 Both dates are inclusive. Leave either field blank when that side has no boundary. A person who is
-available for one day can use the same date in both fields; a first date after a last date is rejected
-and the form stays open so you can correct it.
+available for one day can use the same date in both fields; a malformed date or a first date after
+its last date is rejected without changing either saved boundary. The form stays open so you can
+correct it.
 
 Availability dates change capacity, not history. Capacity is zero before **Start date** and after
 **End date**, while existing allocation bars and their allocated load remain visible. This

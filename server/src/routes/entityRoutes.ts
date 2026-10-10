@@ -38,11 +38,9 @@ export interface EntityRouteDependencies {
   commitProductAudit: (reply: FastifyReply, record: AuditRecord, mutation: () => void) => boolean;
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;
 }
-
 interface EntityCollectionRoute {
   Params: { entity: string };
 }
-
 interface EntityItemRoute {
   Params: { entity: string; id: string };
 }
@@ -290,6 +288,7 @@ function registerUpdateRoutes(app: FastifyInstance, dependencies: EntityRouteDep
   app.patch<EntityItemRoute>("/api/:entity/:id", (req, reply) => patchEntity(req, reply, dependencies));
 }
 
+// eslint-disable-next-line max-lines-per-function -- PATCH keeps the original field presence through validation and CAS.
 function patchEntity(
   req: FastifyRequest<EntityItemRoute>,
   reply: FastifyReply,
@@ -319,6 +318,7 @@ function patchEntity(
       row: { ...existing, ...(req.body as Record<string, unknown>), id },
       existing,
       options: visibility,
+      requested: req.body as Record<string, unknown>,
     });
     if (!ownsRow(existing, merged.accountId)) {
       return reply.code(404).send({ error: FROZEN_REPLY_MESSAGES.notFound });

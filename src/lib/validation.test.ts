@@ -9,6 +9,13 @@ describe("parseName", () => {
     expect(parseName("  Ferris  ", fail)).toBe("Ferris");
     expect(fail).not.toHaveBeenCalled();
   });
+  it("normalizes composed-equivalent names and internal spacing before the length check", () => {
+    const fail = vi.fn();
+    expect(parseName("e\u0301".repeat(60), fail)).toBe("é".repeat(60));
+    expect(parseName("  Bruce   Wayne  ", fail)).toBe("Bruce Wayne");
+    expect(parseName("\u1100\u1161\u11a8".repeat(100), fail)).toBe("각".repeat(100));
+    expect(fail).not.toHaveBeenCalled();
+  });
   it("fails an empty/whitespace name", () => {
     const fail = vi.fn();
     expect(parseName("   ", fail)).toBeNull();
@@ -28,6 +35,16 @@ describe("parseName", () => {
 });
 
 describe("parseText (optional fields)", () => {
+  it("allows ordinary spaces but rejects control-only optional input before empty normalization", () => {
+    const fail = vi.fn();
+    expect(parseText("   ", fail, { required: false })).toBe("");
+    expect(fail).not.toHaveBeenCalled();
+    expect(parseText("\v", fail, { required: false })).toBeNull();
+    expect(fail).toHaveBeenCalledWith("name", m.validation_text_invalid());
+    fail.mockClear();
+    expect(parseText("\t", fail, { required: false })).toBeNull();
+    expect(fail).toHaveBeenCalledWith("name", m.validation_text_invalid());
+  });
   it("allows an empty value when not required", () => {
     const fail = vi.fn();
     expect(parseText("", fail, { required: false })).toBe("");

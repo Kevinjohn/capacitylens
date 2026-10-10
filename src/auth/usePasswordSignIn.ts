@@ -1,4 +1,6 @@
 import { m } from "@/i18n";
+import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
+import { MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { authClient } from "./authClient";
@@ -16,11 +18,20 @@ export function usePasswordSignIn({
   const [password, setPassword] = useState("");
   const signInWithPassword = async (e: FormEvent) => {
     e.preventDefault();
+    const normalizedEmail = normalizeAccountEmail(email);
+    if (!isAccountEmail(normalizedEmail)) {
+      setError(m.identity_err_email());
+      return;
+    }
+    if (password.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
+      setError(m.login_password_input_too_long());
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const { error: failure } = await authClient.signIn.email({
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         password,
       });
       if (failure) {

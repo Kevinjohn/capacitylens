@@ -1,233 +1,211 @@
-import { describe, it, expect } from "vitest";
-import { meta, freshApp, account, person, allocation } from "./fixtures/appTestEntities";
-import { post, put, patch } from "./fixtures/appTestHttp";
-import { readFirstAllocation } from "./fixtures/appTestSnapshotSchedule";
-import { readFirstAccount, readAccount, readFirstResource } from "./fixtures/appTestSnapshotAccount";
+import { describe, expect, it } from "vitest";
+import { account, allocation, freshApp, person } from "./fixtures/appTestEntities";
+import { batch, patch, post, put } from "./fixtures/appTestHttp";
 import { readValidatedState } from "./fixtures/appTestSnapshotBatch";
-import { readStateAccount, scaffold } from "./fixtures/appTestScaffold";
+import { scaffold } from "./fixtures/appTestScaffold";
 
-function createDirectWriteColourAndResourceSanitizationTests(): void {
-  it("stores a validated account colour without surrounding whitespace", async () => {
+const current = async (app: ReturnType<typeof freshApp>["app"]) => readValidatedState(app);
+
+describe("strict ordinary writes", () => {
+  it("rejects non-preset colour instead of changing it, while preserving a valid preset", async () => {
     const { app } = freshApp();
-    expect((await post(app, "accounts", { ...account("a1"), color: "  #aAbBcC  " })).statusCode).toBe(201);
-    // #aabbcc is not itself a preset, sanitizeWrite snaps it to its nearest preset (shared
-    // snapToPresetColor), not a fixed fallback colour. See the "snaps a non-preset account
-    // colour to its nearest preset" test below for the policy this replaced.
-    expect((await readStateAccount(app)).color).toBe("#bed4f4");
+    expect((await post(app, "accounts", { ...account("a1"), color: "#7cd9e4" })).statusCode).toBe(400);
+    expect((await current(app)).accounts).toEqual([]);
+    expect((await post(app, "accounts", { id: "a1", color: "#5c34d4" })).statusCode).toBe(400);
+    expect((await post(app, "accounts", account("a1"))).statusCode).toBe(201);
+    expect((await current(app)).accounts[0]?.color).toBe("#5c34d4");
   });
 
-  it("snaps a non-preset account colour to its NEAREST preset, not a fixed fallback colour", async () => {
-    // Regression guard for the old blanket-fallback bug: a colour close to one specific preset
-    // must land on that preset, proving the guard is distance-based rather than always emitting
-    // one fixed hex regardless of the input.
-    // multiAccount: true, this test deliberately creates a second company on one instance (see
-    // the identical note at the other multiAccount call sites above).
-    const { app } = freshApp({ allowReset: true, extra: { multiAccount: true } });
-    await post(app, "accounts", { ...account("a1"), color: "#7cd9e4" });
-    expect((await readStateAccount(app)).color).toBe("#7adae3");
-    // A colour on the opposite side of the palette snaps to a different preset, proving the two
-    // don't collapse onto the same fixed fallback.
-    await post(app, "accounts", { ...account("a2"), color: "#f6c3bb" });
-    const accounts = (await readValidatedState(app)).accounts;
-    expect(readAccount(accounts, "a2").color).toBe("#f5bcbc");
-  });
-
-  it("uses the same nearest-preset mapping for direct scoped-entity writes", async () => {
+  it("rejects forged choices, wrong types, unknown fields and out-of-range numbers without creating a resource", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    const response = await post(app, "resources", {
-      ...person("r1", "a1"),
-      color: "#eb7273",
-    });
-
-    expect(response.statusCode).toBe(201);
-    expect(readFirstResource((await readValidatedState(app)).resources).color).toBe("#eb7272");
+    const valid = person("r1", "a1");
+    for (const change of [
+      { kind: "wizard" },
+      { employmentType: "overlord" },
+      { workingHoursPerDay: -5 },
+      { workingDays: "nope" },
+      { workingDays: [1, 1] },
+      { isFavourite: "yes" },
+      { name: 42 },
+      { name: "x".repeat(101) },
+      { unknownField: "value" },
+      { isFavourite: null },
+      { employmentType: null },
+    ]) {
+      expect((await post(app, "resources", { ...valid, ...change })).statusCode).toBe(400);
+      expect((await current(app)).resources).toEqual([]);
+    }
+    expect((await post(app, "resources", valid)).statusCode).toBe(201);
   });
+});
 
-  it("repairs junk fields and missing legacy halfDays/engagement values on POST", async () => {
-    const { app } = freshApp();
-    await post(app, "accounts", account("a1"));
-    // A hand-crafted request that bypasses the UI forms with every value-field wrong.
-    const res = await post(app, "resources", {
-      id: "r1",
-      accountId: "a1",
-      kind: "wizard", // invalid → 'person'
-      role: "Designer",
-      employmentType: "overlord", // invalid → 'permanent'
-      workingHoursPerDay: -5, // invalid → 8
-      workingDays: "nope", // invalid → [1..5]
-      color: "not-a-colour", // invalid → fallback hex
-      ...meta(),
-    });
-    expect(res.statusCode).toBe(201);
-    const r = readFirstResource((await readValidatedState(app)).resources);
-    expect(r.kind).toBe("person");
-    expect(r.employmentType).toBe("permanent");
-    expect(r.engagement).toBe("studio");
-    expect(r.workingHoursPerDay).toBe(8);
-    expect(r.workingDays).toEqual([1, 2, 3, 4, 5]);
-    expect(r.halfDays).toEqual([]);
-    expect(r.color).toBe("#5c34d4");
-  });
-}
-
-function createDirectWriteAllocationValueSanitizationTest(): void {
-  it("repairs a bad allocation status / hours on PUT", async () => {
+describe("strict ordinary updates", () => {
+  it("rejects invalid PUT and PATCH values without changing the allocation", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    const res = await put({
-      app,
-      entity: "allocations",
-      id: "al1",
-      payload: allocation({
-        id: "al1",
-        accountId: "a1",
-        resourceId: "r1",
-        activityId: "t1",
-        o: { status: "maybe", hoursPerDay: -3 },
-      }),
-    });
-    expect(res.statusCode).toBe(200);
-    const a = readFirstAllocation((await readValidatedState(app)).allocations);
-    expect(a.status).toBe("confirmed");
-    // A finite out-of-range value clamps to the [0,24] floor (0), matching the shared
-    // store clamp, import + store now use one clampHoursPerDay, so they can't diverge.
-    // (Only a missing / NaN value falls back to a full 8h day.)
-    expect(a.hoursPerDay).toBe(0);
-  });
-}
-
-function createDirectWriteAllocationSeriesSanitizationTest(): void {
-  it("sanitizes repeat-series identity on create and preserves membership on every edit shape", async () => {
-    const { app } = freshApp();
-    await scaffold(app);
+    const valid = allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t1" });
+    expect((await post(app, "allocations", valid)).statusCode).toBe(201);
+    const before = (await current(app)).allocations;
     expect(
-      (
-        await post(app, "allocations", {
-          ...allocation({ id: "al-series", accountId: "a1", resourceId: "r1", activityId: "t1" }),
-          seriesId: "  weekly-series  ",
-        })
-      ).statusCode,
-    ).toBe(201);
-    expect((await readValidatedState(app)).allocations.find((row) => row.id === "al-series")?.seriesId).toBe(
-      "weekly-series",
+      (await put({ app, entity: "allocations", id: "al1", payload: { ...valid, status: "maybe" } })).statusCode,
+    ).toBe(400);
+    expect((await patch({ app, entity: "allocations", id: "al1", payload: { hoursPerDay: -3 } })).statusCode).toBe(400);
+    expect((await current(app)).allocations).toEqual(before);
+  });
+
+  it("rejects a bad account choice or weekday set while preserving the stored settings", async () => {
+    const { app } = freshApp();
+    expect((await post(app, "accounts", account("a1"))).statusCode).toBe(201);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [1, 3, 5] } })).statusCode).toBe(
+      200,
     );
+    const before = (await current(app)).accounts;
+    for (const bad of [
+      { schedulingMode: "wizard" },
+      { workingDays: [1, 9] },
+      { workingDays: [] },
+      { externalEnabled: "false" },
+      { externalEnabled: null },
+      { schedulingMode: null },
+      { capacityOverviewAccess: "anyone" },
+    ]) {
+      expect((await patch({ app, entity: "accounts", id: "a1", payload: bad })).statusCode).toBe(400);
+      expect((await current(app)).accounts).toEqual(before);
+    }
+    expect((await put({ app, entity: "accounts", id: "a1", payload: account("a1") })).statusCode).toBe(200);
+    expect((await current(app)).accounts[0]?.workingDays).toEqual([1, 3, 5]);
+  });
+});
 
+describe("strict ordinary write integrity", () => {
+  it("rejects malformed or reversed availability without removing existing limits", async () => {
+    const { app } = freshApp();
+    await scaffold(app);
+    const original = person("r1", "a1");
     expect(
       (
-        await put({
+        await patch({
           app,
-          entity: "allocations",
-          id: "al-series",
+          entity: "resources",
+          id: "r1",
           payload: {
-            ...allocation({ id: "al-series", accountId: "a1", resourceId: "r1", activityId: "t1" }),
-            note: "Legacy full replacement",
+            firstAvailableDate: "2026-02-01",
+            lastAvailableDate: "2026-02-28",
           },
         })
       ).statusCode,
     ).toBe(200);
-    expect((await readValidatedState(app)).allocations.find((row) => row.id === "al-series")?.seriesId).toBe(
-      "weekly-series",
-    );
-
+    const before = (await current(app)).resources.find((row) => row.id === "r1");
+    for (const patchValue of [
+      { firstAvailableDate: "not-a-date" },
+      { firstAvailableDate: "2026-02-30" },
+      { lastAvailableDate: 42 },
+      { lastAvailableDate: "2026-01-01" },
+    ]) {
+      expect(
+        (await patch({ app, entity: "resources", id: "r1", payload: { ...patchValue, role: "Editor" } })).statusCode,
+      ).toBe(400);
+      expect((await current(app)).resources.find((row) => row.id === "r1")).toEqual(before);
+    }
     expect(
-      (await patch({ app, entity: "allocations", id: "al-series", payload: { seriesId: "another-series" } }))
-        .statusCode,
+      (
+        await put({
+          app,
+          entity: "resources",
+          id: "r1",
+          payload: {
+            ...original,
+            firstAvailableDate: "2026-02-01",
+            lastAvailableDate: "2026-01-01",
+          },
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect((await current(app)).resources.find((row) => row.id === "r1")).toEqual(before);
+    expect(
+      (await patch({ app, entity: "resources", id: "r1", payload: { firstAvailableDate: null } })).statusCode,
     ).toBe(200);
-    expect((await readValidatedState(app)).allocations.find((row) => row.id === "al-series")?.seriesId).toBe(
-      "weekly-series",
-    );
-
-    expect(
-      (
-        await post(app, "allocations", {
-          ...allocation({ id: "al-blank-series", accountId: "a1", resourceId: "r1", activityId: "t1" }),
-          seriesId: "   ",
-        })
-      ).statusCode,
-    ).toBe(201);
-    expect((await readValidatedState(app)).allocations.find((row) => row.id === "al-blank-series")).not.toHaveProperty(
-      "seriesId",
-    );
-  });
-}
-
-function createDirectWriteAccountSchedulingSanitizationTests(): void {
-  it("drops a junk account schedulingMode on a direct write but keeps a valid one", async () => {
-    const { app } = freshApp();
-    // A hand-crafted account write with a junk schedulingMode the scheduler can't handle.
-    expect(
-      (
-        await post(app, "accounts", {
-          ...account("a1"),
-          schedulingMode: "wizard",
-        })
-      ).statusCode,
-    ).toBe(201);
-    expect((await readStateAccount(app)).schedulingMode).toBeUndefined(); // junk dropped → 'hourly'
-    // A valid mode persists unchanged.
-    await patch({ app, entity: "accounts", id: "a1", payload: { schedulingMode: "blocks" } });
-    expect((await readStateAccount(app)).schedulingMode).toBe("blocks");
-  });
-
-  it("defaults, repairs and persists account working-day selections", async () => {
-    const { app } = freshApp();
-    expect((await post(app, "accounts", { ...account("a1"), weekStartsOn: 0 })).statusCode).toBe(201);
-    expect((await readStateAccount(app)).workingDays).toEqual([0, 1, 2, 3, 4]);
-
-    expect((await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [1, 3, 5] } })).statusCode).toBe(
+    const afterFirst = (await current(app)).resources.find((row) => row.id === "r1");
+    expect(afterFirst?.firstAvailableDate).toBeUndefined();
+    expect(afterFirst?.lastAvailableDate).toBe("2026-02-28");
+    expect((await patch({ app, entity: "resources", id: "r1", payload: { lastAvailableDate: null } })).statusCode).toBe(
       200,
     );
-    expect((await readStateAccount(app)).workingDays).toEqual([1, 3, 5]);
-
-    // A pre-v31 full-replacement client does not know this field. Omission preserves the
-    // configured selection instead of resetting it to the week-start default.
-    expect((await put({ app, entity: "accounts", id: "a1", payload: account("a1") })).statusCode).toBe(200);
-    expect((await readStateAccount(app)).workingDays).toEqual([1, 3, 5]);
-
-    expect((await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [1, 9] } })).statusCode).toBe(200);
-    expect((await readStateAccount(app)).workingDays).toEqual([0, 1, 2, 3, 4]);
-
-    expect((await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [] } })).statusCode).toBe(200);
-    expect((await readStateAccount(app)).workingDays).toEqual([0, 1, 2, 3, 4]);
+    expect((await current(app)).resources.find((row) => row.id === "r1")?.lastAvailableDate).toBeUndefined();
   });
-}
-
-describe("value-level sanitization on direct writes (server is the integrity boundary)", () => {
-  createDirectWriteColourAndResourceSanitizationTests();
-  createDirectWriteAllocationValueSanitizationTest();
-  createDirectWriteAllocationSeriesSanitizationTest();
-  createDirectWriteAccountSchedulingSanitizationTests();
 });
 
-describe("scheduling-mode fields round-trip through the DB", () => {
-  it("persists account schedulingMode and a block allocation (hoursPerDay 0 + ignoreWeekends)", async () => {
+describe("strict batch and text writes", () => {
+  it("rejects one invalid batch operation atomically", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    // Switch the company into blocks mode.
-    expect((await patch({ app, entity: "accounts", id: "a1", payload: { schedulingMode: "blocks" } })).statusCode).toBe(
-      200,
-    );
-    // A block booking persists hoursPerDay 0 (load ignored) + ignoreWeekends true. The
-    // 0 must not be sanitized up to a full day, and the boolean must round-trip.
-    const res = await post(
-      app,
-      "allocations",
-      allocation({
-        id: "al1",
-        accountId: "a1",
-        resourceId: "r1",
-        activityId: "t1",
-        o: {
-          hoursPerDay: 0,
-          ignoreWeekends: true,
-        },
-      }),
-    );
-    expect(res.statusCode).toBe(201);
-    const s = await readValidatedState(app);
-    expect(readFirstAccount(s.accounts).schedulingMode).toBe("blocks");
-    expect(readFirstAllocation(s.allocations).hoursPerDay).toBe(0);
-    expect(readFirstAllocation(s.allocations).ignoreWeekends).toBe(true);
+    const before = await current(app);
+    const valid = allocation({ id: "al-good", accountId: "a1", resourceId: "r1", activityId: "t1" });
+    const invalid = allocation({
+      id: "al-bad",
+      accountId: "a1",
+      resourceId: "r1",
+      activityId: "t1",
+      o: { status: "maybe" },
+    });
+    expect(
+      (
+        await batch(app, [
+          { method: "PUT", table: "allocations", id: "al-good", row: valid },
+          { method: "PUT", table: "allocations", id: "al-bad", row: invalid },
+        ])
+      ).statusCode,
+    ).toBe(400);
+    expect(await current(app)).toEqual(before);
+  });
+
+  it("normalizes accepted composed text and whitespace without stripping punctuation", async () => {
+    const { app } = freshApp();
+    await post(app, "accounts", account("a1"));
+    expect(
+      (
+        await post(app, "clients", {
+          id: "c1",
+          accountId: "a1",
+          name: `  ${"e\u0301".repeat(60)}   O'Brien  `,
+          color: "#5c34d4",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        })
+      ).statusCode,
+    ).toBe(201);
+    expect((await current(app)).clients.find((row) => row.id === "c1")?.name).toBe(`${"é".repeat(60)} O'Brien`);
+  });
+});
+
+describe("untrusted JSON request parsing", () => {
+  it("rejects duplicate keys, excess depth, unsafe numbers and malformed UTF-8 before a write", async () => {
+    const { app } = freshApp();
+    const requests: Array<string | Buffer> = [
+      '{"id":"a1","name":"Wayne Enterprises","name":"Stark Industries"}',
+      `${"[".repeat(65)}0${"]".repeat(65)}`,
+      '{"number":9007199254740992}',
+      Buffer.from([0x7b, 0x22, 0xff, 0x22, 0x3a, 0x31, 0x7d]),
+    ];
+    for (const payload of requests) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/accounts",
+        headers: { "content-type": "application/json" },
+        payload,
+      });
+      expect(response.statusCode).toBe(400);
+    }
+    for (const mediaType of ["application/csp-report", "application/reports+json"]) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/accounts",
+        headers: { "content-type": mediaType },
+        payload: '{"id":"a1","name":"Studio","name":"Changed"}',
+      });
+      expect(response.statusCode).toBe(415);
+    }
+    expect((await current(app)).accounts).toEqual([]);
   });
 });

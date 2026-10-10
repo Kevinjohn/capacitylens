@@ -7,7 +7,7 @@ const TS = "2026-01-01T00:00:00.000Z";
 const account = {
   id: "a1",
   name: "Wayne Enterprises",
-  color: "#3b82f6",
+  color: "#5c34d4",
   createdAt: TS,
   updatedAt: TS,
 };
@@ -22,7 +22,7 @@ const resource = {
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5] as Weekday[],
   halfDays: [] as Weekday[],
-  color: "#3b82f6",
+  color: "#5c34d4",
   firstAvailableDate: "2026-02-01",
   lastAvailableDate: "2026-02-28",
   createdAt: TS,
@@ -33,6 +33,16 @@ describe("resource availability write sanitisation", () => {
   registerClearTests();
   registerNonPersonTests();
   registerIntersectionTests();
+});
+
+describe("resource kind write contract", () => {
+  it("rejects omission before person-default import repair", () => {
+    const legacy: Record<string, unknown> = { ...resource };
+    delete legacy.kind;
+    for (const row of [legacy, { ...legacy, lastAvailableDate: "2026-01-01" }, { ...legacy, halfDays: [0] }]) {
+      expect(() => sanitizeWrite({ table: "resources", row })).toThrow(/missing required field.*kind/i);
+    }
+  });
 });
 
 describe("resource avatar URL write sanitisation", () => {
@@ -48,7 +58,7 @@ describe("resource avatar URL write sanitisation", () => {
         table: "resources",
         row: { ...resource, kind: "placeholder", avatarUrl: "https://images.example/b.png" },
       }),
-    ).toThrow(/only a person/i);
+    ).toThrow(/only used by people/i);
   });
 });
 

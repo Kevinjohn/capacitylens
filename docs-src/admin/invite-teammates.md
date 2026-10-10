@@ -146,7 +146,8 @@ teammate cannot join or if registration should be more restricted. A policy join
 grants Viewer access; send an addressed invitation when someone needs a different
 role. **Approved domains** accepts only the exact listed domains. Under **Approved
 domains or invitation**, an addressed invitation can also admit a freelancer from
-another domain. **Disable Access** still prevents that person from rejoining.
+another domain. An Owner can list up to 50 domains, with a total of 16 KiB of domain text.
+**Disable Access** still prevents that person from rejoining.
 
 Owner and Admin can copy the **Joining link** from this section and share it with people who
 need access. The link opens this company's joining page; the saved policy still decides who

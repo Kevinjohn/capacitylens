@@ -98,7 +98,7 @@ async function createCompany(fixture: Fixture, ownerCookie: string): Promise<voi
     method: "POST",
     url: "/api/orgs",
     headers: { cookie: ownerCookie },
-    payload: { id: "a-studio", name: "Wayne Enterprises", color: "#3b82f6" },
+    payload: { id: "a-studio", name: "Wayne Enterprises", color: "#2d75da" },
   });
   expect(created.statusCode, created.body).toBe(201);
 }

@@ -4,6 +4,7 @@ import {
   hasDisallowedChars,
   MAX_NAME_LENGTH,
   MAX_NOTE_LENGTH,
+  normalizeUserText,
   unicodeCharacterCount,
 } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
@@ -44,7 +45,12 @@ export function parseText(value: string, fail: Fail, options: TextOptions = {}):
     multiline = false,
     maxLength = multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH,
   } = options;
-  const trimmed = value.trim();
+  const canonical = value.normalize("NFC");
+  const trimmed = normalizeUserText(canonical, { multiline });
+  if (hasDisallowedChars(canonical, { multiline })) {
+    fail(field, m.validation_text_invalid());
+    return null;
+  }
   if (!trimmed) {
     if (required) {
       fail(field, requiredMessage);
@@ -52,16 +58,8 @@ export function parseText(value: string, fail: Fail, options: TextOptions = {}):
     }
     return "";
   }
-  // Length cap first, before the denylist scan: a unicode-property regex shouldn't run on an
-  // unbounded string. Defence-in-depth, the denylist isn't ReDoS-prone today, but bounding the
-  // input keeps it that way. Outcome-identical: an over-long string fails either way, and only a
-  // string that's both over-long and has junk changes message (now "too long", caps win first).
   if (unicodeCharacterCount(trimmed) > maxLength) {
     fail(field, m.validation_text_too_long());
-    return null;
-  }
-  if (hasDisallowedChars(trimmed, { multiline })) {
-    fail(field, m.validation_text_invalid());
     return null;
   }
   return trimmed;

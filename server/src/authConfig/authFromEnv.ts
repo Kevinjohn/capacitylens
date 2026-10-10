@@ -141,6 +141,9 @@ function requireSetupToken(
 ) {
   const configuredSetupToken = environment.CAPACITYLENS_SETUP_TOKEN;
   const setupToken = configuredSetupToken === "" ? undefined : configuredSetupToken;
+  if (setupToken && setupToken.length > 512) {
+    throw new AuthConfigError("CAPACITYLENS_SETUP_TOKEN must be no more than 512 UTF-16 code units.");
+  }
   if (allowsPasswordSignIn(mode) && setupToken && Buffer.byteLength(setupToken, "utf8") < 32) {
     throw new AuthConfigError("CAPACITYLENS_SETUP_TOKEN must be at least 32 bytes.");
   }

@@ -58,6 +58,11 @@ describe("data transfer wrapper validation", () => {
 });
 
 describe("data transfer limits and repair", () => {
+  it("rejects ambiguous imported JSON before repair", () => {
+    expect(() => parseData('{"schemaVersion":3,"data":{"clients":[]},"data":{"clients":[]}}')).toThrow();
+    expect(() => parseData(`{"schemaVersion":3,"data":${"[".repeat(65)}0${"]".repeat(65)}}`)).toThrow();
+    expect(() => parseData('{"schemaVersion":3,"data":{"clients":[{"id":9007199254740992}]}}')).toThrow();
+  });
   it.each([
     ["string", String(10)],
     ["null", null],
@@ -72,7 +77,9 @@ describe("data transfer limits and repair", () => {
         futureRecords: [{ id: "would-be-lost" }],
       },
     });
-    expect(() => parseData(json)).toThrow(/schema version must be a non-negative safe integer/i);
+    expect(() => parseData(json)).toThrow(
+      _label === "unsafe integer" ? /valid JSON/i : /schema version must be a non-negative safe integer/i,
+    );
   });
 
   it("refuses a file with an absurd record count (JSON-bomb guard)", () => {

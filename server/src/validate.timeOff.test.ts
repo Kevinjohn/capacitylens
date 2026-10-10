@@ -30,13 +30,11 @@ describe("time-off and closure validation", () => {
   it("rejects a closure carrying a resource reference", () => {
     expect(() =>
       sanitizeWrite({ table: "closures", row: { ...meta, name: "Christmas shutdown", resourceId: "r1" } }),
-    ).toThrow(/closure.*resource/i);
+    ).toThrow(/resourceId is not writable/i);
   });
 
   it("rejects a blank closure name", () => {
-    expect(() => sanitizeWrite({ table: "closures", row: { ...meta, name: "   " } })).toThrow(
-      /closure name is required/i,
-    );
+    expect(() => sanitizeWrite({ table: "closures", row: { ...meta, name: "   " } })).toThrow(/name is required/i);
   });
 
   it("rejects reversed closure dates", () => {

@@ -184,11 +184,15 @@ const registerFederatedSchemaTests = () => {
     const auth = assertPresent(configured.auth, "password auth");
     const before = assertPresent(auth.options.databaseHooks?.user?.create?.before, "admission hook");
     const context = { path: "/callback/:id", params: { id: "google" }, bootstrapClaimToken: "held" } as never;
-    await expect(before({ email: "bruce@example.com", emailVerified: false } as never, context)).rejects.toMatchObject({
+    await expect(
+      before({ email: "bruce@example.com", name: "Bruce Wayne", emailVerified: false } as never, context),
+    ).rejects.toMatchObject({
       body: { code: "EXTERNAL_IDENTITY_NOT_INVITED" },
     });
-    await expect(before({ email: "bruce@example.com", emailVerified: true } as never, context)).resolves.toMatchObject({
-      data: { email: "bruce@example.com", emailVerified: true },
+    await expect(
+      before({ email: "bruce@example.com", name: "Bruce Wayne", emailVerified: true } as never, context),
+    ).resolves.toMatchObject({
+      data: { email: "bruce@example.com", name: "Bruce Wayne", emailVerified: true },
     });
   });
 };
@@ -858,7 +862,10 @@ const registerExternalOpenSignupTest = () => {
     expect(before).toBeTypeOf("function");
 
     await expect(
-      before({ email: "stranger@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
+      before(
+        { email: "stranger@example.com", name: "Stranger", emailVerified: true } as never,
+        { path: "/callback/google" } as never,
+      ),
     ).rejects.toThrow(/not invited/);
   });
 };

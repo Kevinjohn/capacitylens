@@ -174,7 +174,8 @@ function usePendingImport(
       return;
     }
     try {
-      const parsed = parseData(await file.text());
+      const content = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
+      const parsed = parseData(content);
       if (selection !== selectionRef.current || useStore.getState().activeAccountId !== activeAccountId) return;
       setPending({ accountId: activeAccountId, data: parsed, name: file.name });
     } catch (error) {

@@ -1,4 +1,4 @@
-import { useMemo, useState, useLayoutEffect } from "react";
+import { useId, useMemo, useState, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@/store/useStore";
 import {
@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { buildPaletteItems } from "./buildPaletteItems";
 import type { PaletteItem } from "./buildPaletteItems";
 import { useDiagnosticsAccessDecision } from "./diagnostics/useDiagnosticsAccessDecision";
+import { FieldError } from "@/components/ui/field";
+import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from "@/lib/localQueryInput";
 
 function groupPaletteItems(items: PaletteItem[]) {
   const sections: { title: string; items: PaletteItem[] }[] = [];
@@ -152,6 +154,8 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // Internal activities deliberately remain below: they open the complete management list instead.
 
   const [query, setQuery] = useState("");
+  const [queryTooLong, setQueryTooLong] = useState(false);
+  const queryErrorId = useId();
   // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
   // know which row is active so we can drive the input's `aria-activedescendant` (see below); cmdk
   // routes its own pointer/keyboard moves through onValueChange back into this state.
@@ -214,15 +218,27 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
               <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
-            <CommandInput
-              ref={setInputElement}
-              autoFocus
-              aria-label={m.palette_search_aria()}
-              placeholder={m.palette_search_placeholder()}
-              value={query}
-              onValueChange={setQuery}
-              data-testid="command-palette-input"
-            />
+            <div className="flex min-w-0 flex-1 flex-col">
+              <CommandInput
+                maxLength={MAX_LOCAL_QUERY_CODE_UNITS}
+                ref={setInputElement}
+                autoFocus
+                aria-label={m.palette_search_aria()}
+                placeholder={m.palette_search_placeholder()}
+                value={query}
+                onValueChange={(value) => {
+                  setQuery(value);
+                  if (value.length <= MAX_LOCAL_QUERY_CODE_UNITS) setQueryTooLong(false);
+                }}
+                onPaste={(event) => {
+                  setQueryTooLong(rejectOverlongQueryPaste(event));
+                }}
+                aria-invalid={queryTooLong || undefined}
+                aria-describedby={queryTooLong ? queryErrorId : undefined}
+                data-testid="command-palette-input"
+              />
+              {queryTooLong && <FieldError id={queryErrorId}>{m.validation_text_too_long()}</FieldError>}
+            </div>
             <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">{m.palette_esc()}</kbd>
           </div>
 

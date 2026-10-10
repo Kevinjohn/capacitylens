@@ -3,7 +3,6 @@ import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
 import type { TeamInvitation } from "@/account/teamAccessClient";
 import type { InvitationPersonOption } from "./useMemberInvites";
 import { formatInviteExpiryDate } from "@/components/invites/inviteExpiry";
@@ -266,7 +265,6 @@ function InviteEmailField(props: InviteEmailFieldProps) {
       ariaLabel={m.settings_invite_preauth_aria()}
       type="email"
       value={invitationPreauthorizedEmail}
-      maxLength={MAX_EMAIL_LENGTH}
       onChange={(next) => {
         setInvitationPreauthorizedEmail(next);
         if (errorField === "invite") clear();

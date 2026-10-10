@@ -1,8 +1,8 @@
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { m } from "@/i18n";
 import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
-import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import { LoginField } from "./LoginField";
@@ -89,7 +89,6 @@ function MicrosoftBootstrapEmail({
       type="email"
       autoComplete="email"
       value={passwordSignIn.email}
-      maxLength={MAX_EMAIL_LENGTH}
       onChange={(event) => passwordSignIn.setEmail(event.target.value)}
       disabled={busy}
       aria-invalid={Boolean(error)}
@@ -102,11 +101,27 @@ function MicrosoftBootstrapEmail({
 type OwnerSetupFormProps = Pick<LoginFormProps, "busy" | "error" | "ids" | "ownerSetup" | "passwordSignIn">;
 
 function OwnerSetupForm({ busy, error, ids, ownerSetup, passwordSignIn }: OwnerSetupFormProps) {
+  const setupTokenTooLong = ownerSetup.setupToken.length > 512;
   return (
-    <form onSubmit={(event) => void ownerSetup.createOwner(event)} noValidate>
+    <form
+      onSubmit={(event) => {
+        if (setupTokenTooLong) {
+          event.preventDefault();
+          return;
+        }
+        void ownerSetup.createOwner(event);
+      }}
+      noValidate
+    >
       <FieldGroup className="gap-3">
-        <OwnerSetupFields error={error} ids={ids} ownerSetup={ownerSetup} passwordSignIn={passwordSignIn} />
-        <FieldError id={ids.error}>{error}</FieldError>
+        <OwnerSetupFields
+          error={error}
+          ids={ids}
+          ownerSetup={ownerSetup}
+          passwordSignIn={passwordSignIn}
+          setupTokenTooLong={setupTokenTooLong}
+        />
+        <FieldError id={ids.error}>{setupTokenTooLong ? m.login_setup_token_invalid() : error}</FieldError>
         <div className="flex justify-end">
           <Button size="sm" type="submit" data-testid="owner-setup-submit" disabled={busy}>
             {m.login_create_owner()}
@@ -117,10 +132,12 @@ function OwnerSetupForm({ busy, error, ids, ownerSetup, passwordSignIn }: OwnerS
   );
 }
 
-type OwnerSetupFieldsProps = Pick<LoginFormProps, "error" | "ids" | "ownerSetup" | "passwordSignIn">;
+type OwnerSetupFieldsProps = Pick<LoginFormProps, "error" | "ids" | "ownerSetup" | "passwordSignIn"> & {
+  setupTokenTooLong: boolean;
+};
 
-function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetupFieldsProps) {
-  const describedBy = error ? ids.error : undefined;
+function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn, setupTokenTooLong }: OwnerSetupFieldsProps) {
+  const describedBy = error || setupTokenTooLong ? ids.error : undefined;
   return (
     <>
       <LoginField
@@ -130,7 +147,6 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
         type="text"
         autoComplete="name"
         value={ownerSetup.name}
-        maxLength={MAX_NAME_INPUT_CODE_UNITS}
         onChange={(event) => ownerSetup.setName(event.target.value)}
         aria-describedby={describedBy}
         autoFocus
@@ -142,7 +158,6 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
         type="email"
         autoComplete="email"
         value={passwordSignIn.email}
-        maxLength={MAX_EMAIL_LENGTH}
         onChange={(event) => passwordSignIn.setEmail(event.target.value)}
         aria-describedby={describedBy}
       />
@@ -154,7 +169,6 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
         autoComplete="new-password"
         value={passwordSignIn.password}
         minLength={MIN_PASSWORD_LENGTH}
-        maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
         onChange={(event) => passwordSignIn.setPassword(event.target.value)}
         aria-describedby={describedBy}
       />
@@ -167,6 +181,7 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
         value={ownerSetup.setupToken}
         onChange={(event) => ownerSetup.setSetupToken(event.target.value)}
         placeholder={m.login_setup_token_placeholder()}
+        aria-invalid={setupTokenTooLong || undefined}
         aria-describedby={[ids.setupTokenHelp, describedBy].filter(Boolean).join(" ")}
       />
       <p id={ids.setupTokenHelp} className="text-xs text-muted-foreground">
@@ -181,9 +196,21 @@ type PasswordFormProps = Pick<LoginFormProps, "busy" | "error" | "ids" | "passwo
 };
 
 function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordFormProps) {
+  const [passwordTooLong, setPasswordTooLong] = useState(false);
   const describedBy = error ? ids.error : undefined;
   return (
-    <form onSubmit={(event) => void passwordSignIn.signInWithPassword(event)} noValidate>
+    <form
+      onSubmit={(event) => {
+        if (passwordSignIn.password.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
+          event.preventDefault();
+          setPasswordTooLong(true);
+          return;
+        }
+        setPasswordTooLong(false);
+        void passwordSignIn.signInWithPassword(event);
+      }}
+      noValidate
+    >
       <FieldGroup className="gap-3">
         <LoginField
           id={ids.email}
@@ -191,7 +218,6 @@ function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordF
           type="email"
           autoComplete="email"
           value={passwordSignIn.email}
-          maxLength={MAX_EMAIL_LENGTH}
           onChange={(event) => passwordSignIn.setEmail(event.target.value)}
           aria-describedby={describedBy}
           autoFocus={autoFocus}
@@ -202,11 +228,11 @@ function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordF
           type="password"
           autoComplete="current-password"
           value={passwordSignIn.password}
-          maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
           onChange={(event) => passwordSignIn.setPassword(event.target.value)}
-          aria-describedby={describedBy}
+          aria-invalid={passwordTooLong || undefined}
+          aria-describedby={passwordTooLong || error ? ids.error : undefined}
         />
-        <FieldError id={ids.error}>{error}</FieldError>
+        <FieldError id={ids.error}>{passwordTooLong ? m.login_password_input_too_long() : error}</FieldError>
         <div className="flex justify-end">
           <Button size="sm" type="submit" disabled={busy}>
             {m.login_sign_in()}

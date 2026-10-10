@@ -1,6 +1,6 @@
 import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
-import { cleanText } from "@capacitylens/shared/lib/strings";
+import { parseUserName } from "@capacitylens/shared/lib/strings";
 import type { BoundApplication } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import { recordSessionAssurance, removeSessionAssurance } from "../accounts/state";
@@ -40,9 +40,15 @@ type SessionDeleteAfter = Exclude<
 type Assurance = "federated" | "password";
 type PresentHookContext = NonNullable<Parameters<UserBefore>[1]>;
 
-const sanitizeUser = (user: Parameters<UserBefore>[0]) => {
-  const cleanedName = cleanText(typeof user.name === "string" ? user.name : "");
-  return { ...user, name: cleanedName || "User" };
+const parseUserForCreate = (user: Parameters<UserBefore>[0]) => {
+  const name = parseUserName(user.name);
+  if (name === null) {
+    throw APIError.from("BAD_REQUEST", {
+      message: "Name must be valid and at most 100 characters.",
+      code: "INVALID_NAME",
+    });
+  }
+  return { ...user, name };
 };
 
 async function admitExternalIdentity(
@@ -89,19 +95,19 @@ function enforceBootstrapClaim({ options, context, emailSignup }: EnforceBootstr
 
 function buildUserBefore(options: HookOptions): UserBefore {
   return async (user, context) => {
-    const sanitizedUser = sanitizeUser(user);
+    const parsedUser = parseUserForCreate(user);
     // Internal credential creation has no web request context and is reachable only through the
     // invite/bootstrap services.
-    if (!context?.path) return { data: sanitizedUser };
+    if (!context?.path) return { data: parsedUser };
     const emailSignup = context.path === "/sign-up/email";
     const externalSignup = options.externalIdentityPath(context.path);
-    if (!emailSignup && !externalSignup) return { data: sanitizedUser };
+    if (!emailSignup && !externalSignup) return { data: parsedUser };
     // Open email registration never opens external identity creation as a side effect. External
     // identities remain verified-email plus invitation/allow-list gated in every posture.
-    if (externalSignup) await admitExternalIdentity(options, sanitizedUser, context);
-    if (options.allowOpenSignup && emailSignup) return { data: sanitizedUser };
+    if (externalSignup) await admitExternalIdentity(options, parsedUser, context);
+    if (options.allowOpenSignup && emailSignup) return { data: parsedUser };
     enforceBootstrapClaim({ options: options, context: context, emailSignup: emailSignup });
-    return { data: sanitizedUser };
+    return { data: parsedUser };
   };
 }
 
