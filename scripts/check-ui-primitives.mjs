@@ -22,10 +22,10 @@ const sourceOwnedPrimitives = {
   "src/components/ui/popover.tsx": "eb92e773ddef29fe93191440c10d3197f0deebc40dbb3753f2e6716016c02b90",
   "src/components/ui/select.tsx": "e24ba0bf3a3bb18407167cd9356924e8992e4f3125e395aaeb9deee284a728dd",
   "src/components/ui/sheet.tsx": "f7c065e7d624885909019360a6acfe4ccb9fabfb1383f52b5c41a2e92354c7c1",
-  "src/components/ui/sidebar.tsx": "3063685ab120977db3ef1fd1d09cb54b30a25aa726e331886c3a5ddd4f5bd95d",
+  "src/components/ui/sidebar.tsx": "b2332c1c67fb919ebd8a58fa6abc9a92b534e2f1aabef1723f434d20295d3697",
   "src/components/ui/toggle.tsx": "b69ccd53ce2f6877ba7ded647ce4eeaa1e6a13d3826e6b0c81cc94aefe950f3b",
   "src/components/ui/toggle-group.tsx": "6c68693b821ac32b07ccc0bc929378e1c99ca87a2d42505b34957e0597277677",
-  "src/components/ui/tooltip.tsx": "0d6c390975f39666a5c4eaff607d1dd0b83997fc683bb5290feab92d270ba9c9",
+  "src/components/ui/tooltip.tsx": "081459726b49b3bcb461d2b926280b6b89e6b25c156fa9cf765ee4fd6303a4e9",
 };
 
 const changed = [];

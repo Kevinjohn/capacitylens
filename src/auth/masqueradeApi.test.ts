@@ -69,4 +69,41 @@ describe("masqueradeApi", () => {
     await expect(masqueradeApi.start("a-studio", "u-viewer")).rejects.toThrow("Start state unavailable.");
     await expect(masqueradeApi.status()).rejects.toThrow("Status state unavailable.");
   });
+
+  it.each([
+    ["an empty account id", { accountId: "" }],
+    ["an empty target user id", { targetUserId: "" }],
+    ["an empty token", { token: "" }],
+    ["an invalid timestamp", { startedAt: "2026-02-30T10:00:00.000Z" }],
+  ])("rejects active state with %s", async (_description, change) => {
+    mocks.status.mockResolvedValue(json({ active: true, ...state, ...change }));
+
+    await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
+  });
+
+  it.each([
+    ["missing state fields", {}],
+    ["a non-string account id", { ...state, accountId: 1 }],
+    ["an unsupported role", { ...state, effectiveRole: "auditor" }],
+  ])("rejects active state with %s", async (_description, malformedState) => {
+    mocks.status.mockResolvedValue(json({ active: true, ...malformedState }));
+
+    await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
+  });
+
+  it("rejects array response bodies for status and start", async () => {
+    mocks.status.mockResolvedValue(json([]));
+    mocks.start.mockResolvedValue(json([]));
+
+    await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
+    await expect(masqueradeApi.start("a-studio", "u-viewer")).rejects.toThrow(
+      "The server returned an invalid masquerade state.",
+    );
+  });
+
+  it("preserves an empty target name", async () => {
+    mocks.status.mockResolvedValue(json({ active: true, ...state, targetName: "" }));
+
+    await expect(masqueradeApi.status()).resolves.toEqual({ active: true, ...state, targetName: "" });
+  });
 });

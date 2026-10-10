@@ -121,17 +121,17 @@ to make it look substantial.
   capture. Sensitive screenshots listed in `screenshots/publication-review.json` are SHA-256
   pinned; after changing one, inspect it at full size for usable credentials before updating its
   reviewed digest.
-- **Screenshots are click-to-enlarge, so capture them large.** A plain `![alt](path)` is
-  automatically wrapped in a lightbox and shown at its natural size when clicked, so
-  capture at least ~1400px wide and don't downscale before committing — the text column
-  is only ~690px, and the enlarged view is the whole point. Nothing to write in the
-  Markdown, and nothing to opt into. The one image that does not get it is one you have
-  made a link yourself (`[![alt](path)](target)`), since the click has to mean one thing
-  or the other. The mechanism is CSS by necessity
-  (`docs-src/.vitepress/lightbox.mts` explains why): the published docs keep an inline
-  Escape-key handler. The standalone 404 link points to the hosted base so nested fallback URLs
-  work; its retained script makes the link relative when opened from disk. Never reach for a
-  lightbox library.
+- **Screenshots open in a viewport-fitted lightbox, so capture them large.** A plain
+  `![alt](path)` is automatically wrapped in a lightbox: the image keeps its natural size
+  when it fits and shrinks to fit the padded viewport when it does not. Capture at least
+  ~1400px wide and don't downscale before committing — the text column is only ~690px.
+  Nothing to write in the Markdown, and nothing to opt into. The one image that does not
+  get it is one you have made a link yourself (`[![alt](path)](target)`), since the click
+  has to mean one thing or the other. The checkbox and labels provide click and Space
+  behavior without changing history; the published and standalone docs retain a small
+  handler so Escape or Tab closes the lightbox. The standalone 404 link points to the
+  hosted base so nested fallback URLs work; its retained script makes the link relative
+  when opened from disk. Never reach for a lightbox library.
 - **Commands are copy-pasteable.** One command per block, no `$` prompts, and the
   expected output (or the relevant part of it) shown after.
 - **No cards.** Prose, lists, tables and steps only. Tables are for genuinely tabular

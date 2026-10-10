@@ -185,7 +185,7 @@ test("uses the avatar as the sole trigger with resting, hover, and focus cues", 
   expect(identityBox.width).toBe(256);
 });
 
-test("renders the drawer and wrap-safe entries in the dark theme", async ({ page }) => {
+test("renders three drawer entries with dark-theme colors", async ({ page }) => {
   await setTheme(page, "dark");
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);

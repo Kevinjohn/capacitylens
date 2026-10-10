@@ -1,21 +1,20 @@
 import { m } from "@/i18n";
 import { resolveTimeZoneOptionLabel } from "@/lib/timezones";
 import { SettingsSection } from "./SettingsSection";
-import type { useSettingsViewController } from "./useSettingsViewController";
+import type { Account } from "@capacitylens/shared/types/entities";
 
-type Controller = ReturnType<typeof useSettingsViewController>;
+type SettingsAccountOptionsProps = {
+  companyName: Account["name"];
+  weekStartsOn: NonNullable<Account["weekStartsOn"]>;
+  timezone: NonNullable<Account["timezone"]>;
+};
 
-export function SettingsAccountOptions({
-  activeAccount,
-  scheduling,
-}: Pick<Controller, "activeAccount" | "scheduling">) {
-  if (!activeAccount) return null;
-  const weekStartLabel =
-    scheduling.weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday();
+export function SettingsAccountOptions({ companyName, weekStartsOn, timezone }: SettingsAccountOptionsProps) {
+  const weekStartLabel = weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday();
   const rows = [
-    [m.settings_company_name_label(), activeAccount.name],
+    [m.settings_company_name_label(), companyName],
     [m.settings_week_start_label(), weekStartLabel],
-    [m.settings_timezone_label(), resolveTimeZoneOptionLabel(scheduling.timezone)],
+    [m.settings_timezone_label(), resolveTimeZoneOptionLabel(timezone)],
   ];
   return (
     <SettingsSection

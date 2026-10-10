@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Invalid account-access, checklist and masquerade responses now show the existing error feedback instead of accepting malformed fields (#1449).
+
 ### Changed
 
 - Ordinary edits reject invalid supplied values instead of silently repairing them; imports retain

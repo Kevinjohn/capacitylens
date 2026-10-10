@@ -45,10 +45,10 @@ export class AuthConfigError extends Error {}
 // Constant-time secret compare shared by the first-run setup token and bootstrap
 // token. Returns false unless the configured token is a non-empty string and the presented
 // value is a non-empty string of the same byte length whose bytes match, so an unset/empty
-// token (the default) never allows the token path, and the length-equality short-circuit
-// doesn't reveal the secret's length by timing (timingSafeEqual itself requires equal-length
-// buffers). Headers arrive as string | string[] | undefined from Fastify, or string | null
-// from a Better Auth ctx; `unknown` covers both, only a single string can match.
+// token (the default) never allows the token path. Headers arrive as string | string[] |
+// undefined from Fastify, or string | null from a Better Auth ctx; `unknown` covers both,
+// only a single string can match.
+/** Compare non-empty token bytes with `timingSafeEqual`; unset, malformed, or mismatched values return false. */
 export function isMatchingSecretToken(configured: string | undefined, presented: unknown): boolean {
   if (!configured || typeof presented !== "string" || presented.length === 0) return false;
   const a = Buffer.from(configured, "utf8");
@@ -136,6 +136,8 @@ export function listUserIdsByEmail(db: Db, email: string, limit: number): string
   return rows.map((row) => row.id);
 }
 
+/** Parse a supported sign-in mode.
+ * Unset or empty input defaults to `off`; unsupported values throw `AuthConfigError`. */
 export function parseAuthMode(raw: string | undefined): AccountMode {
   const mode = raw === undefined || raw === "" ? "off" : raw;
   if (mode === "off" || mode === "password-only" || mode === "sso-only" || mode === "password-and-sso") return mode;
@@ -172,6 +174,7 @@ function readProviderIdFromExternalContext(context: {
   return context.path?.split("/").filter(Boolean).at(-1);
 }
 
+/** Return the decoded provider id for an external callback path, or `null` for a non-callback, placeholder, or malformed value. */
 export function parseProviderIdFromExternalContext(
   context:
     | {
@@ -197,14 +200,12 @@ export function parseProviderIdFromExternalContext(
   }
 }
 
-/** Verify and maintain CapacityLens's versioned first-owner claim control after application
- * migrations have succeeded. Schema changes belong exclusively to the application migration ledger. */
-export function ensureAuthControlTables(db: Db, environment: Env): void {
+/** Verify the bootstrap-claim control table and remove expired or invalid claims.
+ * Call after application migrations; a stale schema throws. Schema changes belong to the application migration ledger.
+ */
+export function ensureAuthControlTables(db: Db): void {
   // Open registration applies only to email credentials. A first external identity still needs
   // the single-winner bootstrap claim, so this table is required in both registration postures.
-  // Keep `env` in the signature because auth setup deliberately shares the same contract as the
-  // other auth controls, even though this control is unconditional in auth-on.
-  void environment;
   assertBootstrapClaimCurrent(db);
   // A crash before user creation must not permanently strand first-run setup.
   const now = Date.now();
