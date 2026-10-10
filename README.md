@@ -46,7 +46,8 @@ pnpm install
 pnpm run dev:demo
 ```
 
-Then open <http://127.0.0.1:5173>, pick a demo account, and you're in.
+Then open the **Local** address it prints (usually <http://127.0.0.1:5173>), pick a demo account,
+and you're in.
 
 ## What you can do with it
 

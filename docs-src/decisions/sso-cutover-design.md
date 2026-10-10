@@ -924,7 +924,7 @@ decision recorded in §11.9; that option was later superseded. Current self-host
 configured social providers for existing people, while new identities and invitation acceptance
 still require the company provider. Operators who need company login as the only door remove the
 social-provider configuration as described in the
-[current cutover FAQ](../company-login/move-to-single-sign-on.md#what-about-the-continue-with-google-microsoft-github-style-buttons).
+[current cutover guide](../company-login/move-to-single-sign-on.md#require-a-company-provider).
 
 Finally, check `SMALLSASS_ACCOUNT_REQUIRE_MFA`. Under genuine `sso` mode the pre-handler gate at
 `app.ts` does not fire, which is correct — but set `CAPACITYLENS_SSO_MFA_ENFORCED=1` or

@@ -33,7 +33,8 @@ You need [Node.js](https://nodejs.org) 24 or newer (check with `node --version`)
    pnpm run dev:demo
    ```
 
-3. Open [http://127.0.0.1:5173](http://127.0.0.1:5173) in your browser.
+3. Open the **Local** address the command prints, usually
+   [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
 No setup token, `.env` file or database is needed.
 

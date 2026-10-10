@@ -60,8 +60,6 @@ for your own Linux server.
 
 ## Make the schedule yours
 
-<span id="make-your-first-schedule-useful"></span>
-
 <div class="steps">
 
 1. ![Add resource form for Bruce Wayne](../screenshots/flows/quick_start_resource.png)
@@ -90,9 +88,20 @@ for your own Linux server.
 
 </div>
 
-That's a working schedule. While setup is incomplete, the **Getting started** checklist on
-Schedule ticks off these steps as you go, in any order, and **Show me around** starts a short
-tour. An Owner or Admin can dismiss the checklist for everyone; if steps remain, they're asked to confirm. Editors can open and close it, and Viewers don't see it. Steps complete from the company's records, including imported ones, and internal work doesn't count towards the client or project steps.
+That's a working schedule.
+
+## The Getting started checklist
+
+<span id="make-your-first-schedule-useful"></span>
+
+![Getting started progress at 0/5 with the five setup milestones on Schedule](../screenshots/flows/getting_started_five_steps.png)
+
+While setup is incomplete, **Getting started** on Schedule ticks off these five steps as you go,
+in any order. **Show me around** starts a short tour.
+
+Steps complete from the company's records, including imported ones. Internal work doesn't count
+towards the client or project steps. Editors can open and close the checklist; Viewers don't see
+it. An Owner or Admin can dismiss it for everyone, and is asked to confirm if steps remain.
 
 ## Bring in the team
 
