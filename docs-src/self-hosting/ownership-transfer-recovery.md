@@ -82,7 +82,8 @@ You also need:
    enqueues the audit event together; the JSON result includes the audit id. Then replace the
    rehearsal database from the standalone backup.
 
-6. Repeat steps 4 and 5 on the stopped production database, inspecting it immediately before
+6. Start only after the rehearsal in step 5 succeeded; otherwise stop and escalate. Repeat steps 4
+   and 5 on the stopped production database, inspecting it immediately before
    cancelling. Any refusal means something changed: preserve the new evidence and investigate.
 
 7. Record the request id, company id, audit id, before-and-after checksums, the Owner's approval and

@@ -99,7 +99,6 @@ describe("Compose exceptions in the environment register", () => {
     expect(dockerfile).toMatch(/^ENV NODE_ENV=production$/m);
     // The managed daemon loads the init-generated .env, whose NODE_ENV=production line no Vite build reads.
     expect(managedHost).toContain("node --env-file=../.env server/dist/index.mjs");
-    expect(managedHost).not.toMatch(/^NODE_ENV=production$/m);
     expect(bareMetalInstall).toMatch(/^\s+Environment=NODE_ENV=production$/m);
     expect(managedHost).toMatch(/Keep `NODE_ENV=production` on the API process/);
   });

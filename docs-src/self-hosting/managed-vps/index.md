@@ -214,7 +214,7 @@ Skip this if the site already uses its final domain.
 Add company login only once the final address is stable. Before changing sign-in settings, stop
 the background process and keep a complete recovery bundle off the server: the database with its
 `-wal` and `-shm` files, and the current and rotated audit logs. A database file copied by itself
-is not a complete recovery point.
+is not a complete recovery point. Start the background process again and check `/api/health`.
 
 Then follow [Set up Google or Microsoft sign-in](/company-login/set-up-company-login). The
 callback origin must match `CAPACITYLENS_PUBLIC_URL` character for character. Sign-in is

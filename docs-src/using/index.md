@@ -25,7 +25,7 @@ who else is busy. You don't need to install or set up anything.
 2. ![Bruce Wayne's schedule drawer listing his bookings with dates and hours per day, and a holiday](../screenshots/steps/using_schedule_drawer.png)
 
    **Find your week.** You land on **Schedule**. Find your name and select the avatar beside it.
-   Your bookings, time off and remaining capacity open in one list.
+   Your bookings and time off open in one list.
 
 3. ![Schedule rows grouped by discipline, with each person's utilisation percentage, booking bars and a red over-capacity day](../screenshots/steps/using_schedule_rows.png)
 

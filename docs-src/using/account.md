@@ -41,7 +41,7 @@ When the operator has set up Google or Microsoft, Account can show a **Connect**
 Your local email must already be verified; you don't need an invitation.
 
 1. Sign in with the identity you want to keep.
-2. Select **Connect** and confirm your sign-in when asked.
+2. Select **Connect Google** or **Connect Microsoft** and confirm your sign-in when asked.
 3. Complete the provider's steps with the matching email address. If Microsoft asks for mailbox
    proof, open its message in the same browser.
 4. Back on Account, check for the provider's **Connected** badge. A failed or cancelled connection

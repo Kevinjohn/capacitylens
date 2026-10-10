@@ -87,7 +87,8 @@ is the one-page introduction.
 
 ## Project status
 
-CapacityLens has a single maintainer. Database upgrades are tested from thirteen released database
+CapacityLens is alpha software with a single maintainer. Beta will mean the upgrade path and the
+settings are stable. Database upgrades are tested from thirteen released database
 snapshots, the oldest from 0.20.0-alpha.1, so a database created by that release or any later one
 is expected to upgrade in place. See [how it is tested](docs-src/reference/how-it-is-tested.md) and
 the [release notes](https://github.com/Kevinjohn/capacitylens/releases/latest).

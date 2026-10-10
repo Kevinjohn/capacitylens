@@ -38,7 +38,7 @@ You need the CapacityLens address and the setup token from whoever installed it.
    **Admin**, enter their email and select **Create invite**. CapacityLens emails the invitation
    if email is set up. If it isn't, select **Copy** and send them the link yourself.
 
-4. ![Members table listing each person's name, role and email, with Alfred Pennyworth as Admin](../screenshots/steps/owner_members_admin_row.png)
+4. ![Members table listing each person's name, role and email, with an accepted member showing the Admin role](../screenshots/steps/owner_members_admin_row.png)
 
    **Hand over.** When their row in **Team & access** shows **Admin**, send them
    [Get the schedule ready](/admin/). They take it from here.
