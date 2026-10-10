@@ -214,7 +214,7 @@ try {
   }
   initializeOpenDb(db, dbPath);
   if (auth) {
-    ensureAuthControlTables(db, accountEnv);
+    ensureAuthControlTables(db);
     auth.ensureProviderBindings();
   }
   stopStartupIfRequested({ startupSignals, openDb: db });
