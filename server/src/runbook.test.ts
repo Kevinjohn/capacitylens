@@ -2,9 +2,19 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-// Whitespace-normalized so markdown line wrapping cannot break an exact-phrase pin.
+// Normalize wrapping before checking operational clauses; editorial words are not part of the contract.
 const page = (path: string) =>
   readFileSync(fileURLToPath(new URL(`../../docs-src/${path}`, import.meta.url)), "utf8").replace(/\s+/g, " ");
+
+// Match positive operational relationships, including the negated per-company alternative.
+const SITE_USER_GUIDANCE =
+  /\bbackground (?:process(?: \(daemon\))?|daemon) (?:that )?(?:runs?|executes?) (?:as|under) (?:the )?site['’]s user\b/u;
+const PROCESS_WIDE_GUIDANCE =
+  /\b(?:queues|limits|safeguards) (?:are|remain) process-wide\b[^.]{0,120}\b(?:not|rather than) per-company reservations\b/u;
+const IDENTITY_GLOBAL_GUIDANCE =
+  /\b(?:authentication|sign-in) is identity-global\b[^.]{0,120}\b(?:before|prior to) company selection\b/u;
+const ISOLATION_GUIDANCE =
+  /(?:^|[.!?]\s)(?:Use|Apply) (?:edge\/global|global|edge) quotas or separate CapacityLens instances\b/u;
 
 describe("operator documentation", () => {
   it("keeps all three supported installation routes in the self-hosting overview", () => {
@@ -16,8 +26,8 @@ describe("operator documentation", () => {
   });
 
   it("runs the managed-host background process as the isolated site user", () => {
-    expect(page("self-hosting/managed-vps/index.md")).toContain("background process that runs as the site's user");
-    expect(page("self-hosting/install.md")).toContain("background process (daemon) that runs as the site's user");
+    expect(page("self-hosting/managed-vps/index.md")).toMatch(SITE_USER_GUIDANCE);
+    expect(page("self-hosting/install.md")).toMatch(SITE_USER_GUIDANCE);
   });
 
   it("distinguishes password and SSO first-owner bootstrap settings", () => {
@@ -40,9 +50,9 @@ describe("operator documentation", () => {
 
   it("documents the process-wide authentication work limits and isolation boundary", () => {
     const monitoring = page("self-hosting/monitoring.md");
-    expect(monitoring).toContain("process-wide availability safeguards, not per-company reservations");
-    expect(monitoring).toContain("Password authentication is identity-global and occurs before company selection");
-    expect(monitoring).toContain("edge/global quotas or separate CapacityLens instances");
+    expect(monitoring).toMatch(PROCESS_WIDE_GUIDANCE);
+    expect(monitoring).toMatch(IDENTITY_GLOBAL_GUIDANCE);
+    expect(monitoring).toMatch(ISOLATION_GUIDANCE);
   });
 
   it("documents preserve-first malformed audit outbox recovery", () => {
@@ -78,5 +88,26 @@ describe("operator log commands", () => {
   // systemd rejects a bare relative time such as `--since=30m`; it needs "ago" or a leading minus.
   it("gives journalctl a relative time it can parse", () => {
     expect(page("self-hosting/monitoring.md")).toContain('journalctl -u capacitylens --since "30 min ago"');
+  });
+});
+
+describe("operational guidance wording", () => {
+  it.each([
+    [SITE_USER_GUIDANCE, "The background daemon executes under the site's user.", true],
+    [SITE_USER_GUIDANCE, "The background process must not run as the site's user.", false],
+    [SITE_USER_GUIDANCE, "The background process runs as root.", false],
+    [SITE_USER_GUIDANCE, "The background process no longer runs as the site's user.", false],
+    [SITE_USER_GUIDANCE, "The background process doesn't run as the site's user.", false],
+    [PROCESS_WIDE_GUIDANCE, "The queues remain process-wide safeguards rather than per-company reservations.", true],
+    [PROCESS_WIDE_GUIDANCE, "The queues are per-company reservations, not process-wide safeguards.", false],
+    [PROCESS_WIDE_GUIDANCE, "The queues are process-wide safeguards.", false],
+    [IDENTITY_GLOBAL_GUIDANCE, "Password sign-in is identity-global and happens prior to company selection.", true],
+    [IDENTITY_GLOBAL_GUIDANCE, "Password authentication is identity-global after company selection.", false],
+    [IDENTITY_GLOBAL_GUIDANCE, "Password authentication is company-scoped before company selection.", false],
+    [ISOLATION_GUIDANCE, "Apply global quotas or separate CapacityLens instances for isolation.", true],
+    [ISOLATION_GUIDANCE, "Do not Use global quotas or separate CapacityLens instances.", false],
+    [ISOLATION_GUIDANCE, "Every company receives its own reservation.", false],
+  ])("checks the operational meaning of %s against %s", (requirement, text, accepted) => {
+    expect((requirement as RegExp).test(text as string)).toBe(accepted);
   });
 });
