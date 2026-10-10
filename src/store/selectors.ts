@@ -11,7 +11,7 @@ import {
 import { DATE_STYLES, DEFAULT_DATE_STYLE } from "@capacitylens/shared/types/entities";
 import type { DateStyle } from "@capacitylens/shared/types/entities";
 import type { Account, AppData, Discipline, ID, Resource, Weekday } from "@capacitylens/shared/types/entities";
-import type { SchedulerUI } from "./useStore";
+import type { SchedulerUI } from "./types";
 import { DEFAULT_TIME_ZONE } from "@/lib/timezones";
 
 /** The calendar-facing name for the app default, single-sourced in lib/timezones.ts alongside the

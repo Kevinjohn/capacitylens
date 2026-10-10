@@ -199,12 +199,9 @@ export function parseProviderIdFromExternalContext(
 
 /** Verify and maintain CapacityLens's versioned first-owner claim control after application
  * migrations have succeeded. Schema changes belong exclusively to the application migration ledger. */
-export function ensureAuthControlTables(db: Db, environment: Env): void {
+export function ensureAuthControlTables(db: Db): void {
   // Open registration applies only to email credentials. A first external identity still needs
   // the single-winner bootstrap claim, so this table is required in both registration postures.
-  // Keep `env` in the signature because auth setup deliberately shares the same contract as the
-  // other auth controls, even though this control is unconditional in auth-on.
-  void environment;
   assertBootstrapClaimCurrent(db);
   // A crash before user creation must not permanently strand first-run setup.
   const now = Date.now();

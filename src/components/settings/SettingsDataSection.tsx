@@ -18,12 +18,12 @@ import type { useLocalDataActions } from "./useLocalDataActions";
 function OfflineDataSection({
   offlineEnabled,
   offlineBusy,
-  offlineState,
+  cacheWriteFailed,
   toggleOffline,
 }: {
   offlineEnabled: boolean;
   offlineBusy: boolean;
-  offlineState: ReturnType<typeof useOfflineState>;
+  cacheWriteFailed: boolean;
   toggleOffline: ReturnType<typeof useLocalDataActions>["toggleOffline"];
 }) {
   return (
@@ -39,7 +39,7 @@ function OfflineDataSection({
         onChange={() => toggleOffline()}
         disabled={offlineBusy}
       />
-      {offlineEnabled && offlineState.cacheWriteFailed && (
+      {offlineEnabled && cacheWriteFailed && (
         <p role="status" className="text-sm text-danger">
           {m.settings_offline_write_failed()}
         </p>
@@ -134,7 +134,7 @@ export function SettingsDataSection({
         <OfflineDataSection
           offlineEnabled={offlineEnabled}
           offlineBusy={offlineBusy}
-          offlineState={offlineState}
+          cacheWriteFailed={offlineState.cacheWriteFailed}
           toggleOffline={toggleOffline}
         />
       )}

@@ -78,32 +78,34 @@ export interface AdminPortContext {
   db: Db;
   trustedLocal: boolean;
   invitationSecretReplay: WriteOnceSecretReplay<CreatedInvitation>;
-  runMutation: <Execute extends () => unknown>(options: {
-    operation: string;
-    actorPrincipalId: string | null;
-    targetPrincipalId?: string | null;
-    workspaceId?: string | null;
-    command: CommandIdentity;
-    payload: unknown;
-    lockKeys: readonly string[];
-    execute: SynchronousCallback<Execute>;
-    persistResult?: (result: ReturnType<Execute>) => unknown;
-    replayResult?: (stored: unknown, commandId: string) => ReturnType<Execute>;
-    replayGuard?: () => void;
-    /** In-memory secret/cache maintenance that must happen after commit but before lock release. */
-    afterCommit?: (result: ReturnType<Execute>) => void;
-    /** Release any in-memory reservation after the database transaction rolls back. */
-    afterRollback?: () => void;
-    audit?: {
+  runMutation: <Execute extends () => unknown>(options: MutationOptions<Execute>) => Promise<ReturnType<Execute>>;
+}
+
+export interface MutationOptions<Execute extends () => unknown> {
+  operation: string;
+  actorPrincipalId: string | null;
+  targetPrincipalId?: string | null;
+  workspaceId?: string | null;
+  command: CommandIdentity;
+  payload: unknown;
+  lockKeys: readonly string[];
+  execute: SynchronousCallback<Execute>;
+  persistResult?: (result: ReturnType<Execute>) => unknown;
+  replayResult?: (stored: unknown, commandId: string) => ReturnType<Execute>;
+  replayGuard?: () => void;
+  /** In-memory secret/cache maintenance that must happen after commit but before lock release. */
+  afterCommit?: (result: ReturnType<Execute>) => void;
+  /** Release any in-memory reservation after the database transaction rolls back. */
+  afterRollback?: () => void;
+  audit?: {
+    action: StandardAccountAuditAction;
+    changedFields: readonly string[];
+    /** Derive the event for a committed result. Failure and denial keep the static action, and
+     * `changedFields` above covers every outcome, a committed result names which event it was,
+     * not which columns moved. */
+    successAction?: (result: ReturnType<Execute>) => {
       action: StandardAccountAuditAction;
-      changedFields: readonly string[];
-      /** Derive the event for a committed result. Failure and denial keep the static action, and
-       * `changedFields` above covers every outcome, a committed result names which event it was,
-       * not which columns moved. */
-      successAction?: (result: ReturnType<Execute>) => {
-        action: StandardAccountAuditAction;
-        eventKey?: string;
-      };
+      eventKey?: string;
     };
-  }) => Promise<ReturnType<Execute>>;
+  };
 }
