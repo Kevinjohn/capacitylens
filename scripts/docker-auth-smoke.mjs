@@ -130,7 +130,7 @@ if (phase === "setup") {
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
-        color: "#3b82f6",
+        color: "#76a5e7",
       },
     ],
     ["activities", "docker-activity", { ...scope, name: "Project work", kind: "internal" }],
