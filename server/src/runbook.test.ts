@@ -8,7 +8,7 @@ const page = (path: string) =>
 
 // Match positive operational relationships, including the negated per-company alternative.
 const SITE_USER_GUIDANCE =
-  /\bbackground (?:process|daemon)\b(?:(?!\b(?:not|never)\b)[^.]){0,120}\b(?:runs?|executes?) (?:as|under) (?:the )?site['’]s user\b/u;
+  /\bbackground (?:process(?: \(daemon\))?|daemon) (?:that )?(?:runs?|executes?) (?:as|under) (?:the )?site['’]s user\b/u;
 const PROCESS_WIDE_GUIDANCE =
   /\b(?:queues|limits|safeguards) (?:are|remain) process-wide\b[^.]{0,120}\b(?:not|rather than) per-company reservations\b/u;
 const IDENTITY_GLOBAL_GUIDANCE =
@@ -96,6 +96,8 @@ describe("operational guidance wording", () => {
     [SITE_USER_GUIDANCE, "The background daemon executes under the site's user.", true],
     [SITE_USER_GUIDANCE, "The background process must not run as the site's user.", false],
     [SITE_USER_GUIDANCE, "The background process runs as root.", false],
+    [SITE_USER_GUIDANCE, "The background process no longer runs as the site's user.", false],
+    [SITE_USER_GUIDANCE, "The background process doesn't run as the site's user.", false],
     [PROCESS_WIDE_GUIDANCE, "The queues remain process-wide safeguards rather than per-company reservations.", true],
     [PROCESS_WIDE_GUIDANCE, "The queues are per-company reservations, not process-wide safeguards.", false],
     [PROCESS_WIDE_GUIDANCE, "The queues are process-wide safeguards.", false],
