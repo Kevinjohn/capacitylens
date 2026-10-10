@@ -8,6 +8,8 @@ description: Choose the CapacityLens guide that matches your role and the job yo
 CapacityLens helps a small agency plan who is working on what, week by week, and see who
 has room for more work. Choose the guide for your role.
 
+<video controls muted playsinline preload="metadata" src="./screenshots/demo.mp4" aria-label="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is dragged to a colleague with room, new work is booked by dragging across two days, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." style="width: 100%; border-radius: 8px;"></video>
+
 ## Choose your guide
 
 <span id="quick-start"></span>

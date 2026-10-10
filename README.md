@@ -2,6 +2,10 @@
 
 **Who's free next week?**
 
+<a href="docs-src/screenshots/demo.mp4">
+  <img alt="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is dragged to a colleague with room, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." src="docs-src/screenshots/demo.gif">
+</a>
+
 Every small agency answers that question badly. It lives in someone's head, a colour-coded
 spreadsheet, or a group chat at 5pm on a Friday. So work gets promised to people who are already
 full, the quiet capacity nobody noticed goes unsold, and the person who was going to be on holiday
@@ -10,10 +14,6 @@ finds out about their new project the week before they leave.
 CapacityLens is a shared, week-by-week picture of where everyone's time is going — so you can see
 who is busy, who has room, and who is about to be buried, and move things around before it becomes
 a problem.
-
-<picture>
-  <img alt="The CapacityLens schedule: people grouped by discipline, coloured allocation bars across a two-week window, per-person utilisation, an over-capacity day highlighted in red, and a booked holiday." src="docs-src/screenshots/schedule_light.jpg">
-</picture>
 
 One screen. People down the side, days across the top, the work in between. Red means someone is
 over capacity that day. The percentage next to each name is how full they are across the window
