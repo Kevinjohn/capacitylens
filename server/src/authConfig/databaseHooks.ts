@@ -1,6 +1,6 @@
 import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
-import { parseUserName } from "@capacitylens/shared/lib/strings";
+import { cleanText, parseUserName } from "@capacitylens/shared/lib/strings";
 import type { BoundApplication } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import { recordSessionAssurance, removeSessionAssurance } from "../accounts/state";
@@ -51,6 +51,13 @@ const parseUserForCreate = (user: Parameters<UserBefore>[0]) => {
   return { ...user, name };
 };
 
+// A provider profile name is not something the person can correct in a CapacityLens form, so
+// first external sign-in repairs it as import does instead of refusing the invited identity.
+const repairProviderUser = (user: Parameters<UserBefore>[0]) => {
+  const name = cleanText(typeof user.name === "string" ? user.name : "");
+  return { ...user, name: name || "User" };
+};
+
 async function admitExternalIdentity(
   options: HookOptions,
   user: Parameters<UserBefore>[0],
@@ -95,12 +102,12 @@ function enforceBootstrapClaim({ options, context, emailSignup }: EnforceBootstr
 
 function buildUserBefore(options: HookOptions): UserBefore {
   return async (user, context) => {
-    const parsedUser = parseUserForCreate(user);
     // Internal credential creation has no web request context and is reachable only through the
     // invite/bootstrap services.
-    if (!context?.path) return { data: parsedUser };
+    if (!context?.path) return { data: parseUserForCreate(user) };
     const emailSignup = context.path === "/sign-up/email";
     const externalSignup = options.externalIdentityPath(context.path);
+    const parsedUser = externalSignup ? repairProviderUser(user) : parseUserForCreate(user);
     if (!emailSignup && !externalSignup) return { data: parsedUser };
     // Open email registration never opens external identity creation as a side effect. External
     // identities remain verified-email plus invitation/allow-list gated in every posture.
