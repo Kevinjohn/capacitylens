@@ -16,8 +16,9 @@ export interface ExampleCompanyInput {
   accountId: ID;
   /** Any date in the week the schedule should open on, in the company's own time zone. */
   referenceDate: ISODate;
-  /** The company's first weekday; the example Monday-to-Friday bookings sit inside that week. */
+  /** The company's first weekday; defaults to Monday. The example bookings sit inside that week. */
   weekStartsOn?: 0 | 1;
+  /** Timestamp for generated rows; defaults to the current time. */
   now?: ISOTimestamp;
 }
 
@@ -77,7 +78,7 @@ interface BookingSpec {
   status: "confirmed" | "tentative";
 }
 
-/** Build the example set for one company. Pure apart from the fresh ids. */
+/** Build one company's example rows with fresh ids and a shared timestamp; omitted `now` is anchored to the current process time. */
 export function buildExampleCompany({
   accountId,
   referenceDate,

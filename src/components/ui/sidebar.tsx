@@ -45,6 +45,7 @@ type SidebarContextProps = {
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
 
+/** Read sidebar state; throws when rendered outside a `SidebarProvider`. */
 function useSidebar() {
   const context = React.useContext(SidebarContext);
   if (!context) {
@@ -54,6 +55,7 @@ function useSidebar() {
   return context;
 }
 
+/** Provide the shared state and tooltip context required by sidebar children. */
 function SidebarProvider({
   defaultOpen = true,
   // Local aliases describe controlled state; the public open/onOpenChange keys stay unchanged.
@@ -184,6 +186,7 @@ function SidebarProviderShell({
   );
 }
 
+/** Render a sidebar within the `SidebarProvider` that owns its state. */
 function Sidebar({
   side = "left",
   variant = "sidebar",

@@ -33,9 +33,8 @@ function Tooltip({
   );
 }
 
-// Provider-less Root, for collections that hoist a single shared TooltipProvider above many
-// tooltips (e.g. the scheduler grid over its virtualised bars) rather than paying the provider's
-// per-instance machinery on every one. Callers using this must render under a <TooltipProvider>.
+/** Render a root for collections that share one provider above many tooltips.
+ * Must be rendered inside a `TooltipProvider`. */
 function TooltipRoot({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
