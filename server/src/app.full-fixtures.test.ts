@@ -32,15 +32,14 @@ import { readStateAccount } from "./fixtures/appTestScaffold";
 
 async function seedFixtureDeps(app: FastifyInstance) {
   expect((await post(app, "accounts", FIXTURE_ACCOUNT)).statusCode).toBe(201);
-  expect((await post(app, "clients", FIXTURE_CLIENT)).statusCode).toBe(201);
+  expect((await post(app, "clients", stripTombstones(FIXTURE_CLIENT))).statusCode).toBe(201);
   expect((await post(app, "disciplines", FIXTURE_DISCIPLINE)).statusCode).toBe(201);
-  expect((await post(app, "projects", FIXTURE_PROJECT)).statusCode).toBe(201);
+  expect((await post(app, "projects", stripTombstones(FIXTURE_PROJECT))).statusCode).toBe(201);
   expect((await post(app, "phases", FIXTURE_PHASE)).statusCode).toBe(201);
 }
 
-// Generic writes (POST/PUT/PATCH/batch) strip lifecycle tombstones (the write guard in
-// sanitizeWrite): only the dedicated archive/delete routes may set archivedAt/deletedAt. So a fixture
-// round-tripped through POST comes back minus its tombstones. Those columns' persistence is covered
+// Generic writes reject supplied lifecycle tombstones: only the dedicated archive/delete routes
+// may set archivedAt/deletedAt. Send these complete fixtures without tombstones through POST. Those columns' persistence is covered
 // by app.lifecycle.test.ts (archive/delete → includeInactive read). Stripping them here keeps this
 // column-spec-gap check honest for every other field on clients/projects/resources.
 function stripTombstones<T extends { archivedAt?: string; deletedAt?: string }>(fixture: T): T {
@@ -64,10 +63,10 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     expectFixture(await readStateAccount(app), FIXTURE_ACCOUNT);
   });
 
-  it("client: every field round-trips (lifecycle archivedAt/deletedAt stripped by generic writes)", async () => {
+  it("client: every field round-trips (lifecycle timestamps omitted from generic creates)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", FIXTURE_ACCOUNT);
-    expect((await post(app, "clients", FIXTURE_CLIENT)).statusCode).toBe(201);
+    expect((await post(app, "clients", stripTombstones(FIXTURE_CLIENT))).statusCode).toBe(201);
     expectFixture(readFirstClient((await readValidatedState(app)).clients), stripTombstones(FIXTURE_CLIENT));
   });
 
@@ -80,19 +79,19 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
 });
 
 describe("full-fixture round-trip (every optional field set; catches column-spec gaps)", () => {
-  it("project: every field round-trips (lifecycle archivedAt/deletedAt stripped by generic writes)", async () => {
+  it("project: every field round-trips (lifecycle timestamps omitted from generic creates)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", FIXTURE_ACCOUNT);
-    await post(app, "clients", FIXTURE_CLIENT);
-    expect((await post(app, "projects", FIXTURE_PROJECT)).statusCode).toBe(201);
+    await post(app, "clients", stripTombstones(FIXTURE_CLIENT));
+    expect((await post(app, "projects", stripTombstones(FIXTURE_PROJECT))).statusCode).toBe(201);
     expectFixture(readFirstProject((await readValidatedState(app)).projects), stripTombstones(FIXTURE_PROJECT));
   });
 
   it("phase: every field round-trips", async () => {
     const { app } = freshApp();
     await post(app, "accounts", FIXTURE_ACCOUNT);
-    await post(app, "clients", FIXTURE_CLIENT);
-    await post(app, "projects", FIXTURE_PROJECT);
+    await post(app, "clients", stripTombstones(FIXTURE_CLIENT));
+    await post(app, "projects", stripTombstones(FIXTURE_PROJECT));
     expect((await post(app, "phases", FIXTURE_PHASE)).statusCode).toBe(201);
     expectFixture(readFirstPhase((await readValidatedState(app)).phases), FIXTURE_PHASE);
   });
@@ -100,7 +99,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
   it("resource: every field round-trips (including optional name/disciplineId/projectId + json workingDays + lifecycle archivedAt/deletedAt)", async () => {
     const { app } = freshApp();
     await seedFixtureDeps(app);
-    expect((await post(app, "resources", FIXTURE_RESOURCE)).statusCode).toBe(201);
+    expect((await post(app, "resources", stripTombstones(FIXTURE_RESOURCE))).statusCode).toBe(201);
     expectFixture(readFirstResource((await readValidatedState(app)).resources), stripTombstones(FIXTURE_RESOURCE));
   });
 
@@ -124,7 +123,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
   it("person resource: availability boundaries round-trip with all optional fields populated", async () => {
     const { app } = freshApp();
     await seedFixtureDeps(app);
-    expect((await post(app, "resources", FIXTURE_RESOURCE_PERSON)).statusCode).toBe(201);
+    expect((await post(app, "resources", stripTombstones(FIXTURE_RESOURCE_PERSON))).statusCode).toBe(201);
     expectFixture(
       readFirstResource((await readValidatedState(app)).resources),
       stripTombstones(FIXTURE_RESOURCE_PERSON),
@@ -167,7 +166,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
   it("allocation: every field round-trips (including optional project attribution)", async () => {
     const { app } = freshApp();
     await seedFixtureDeps(app);
-    await post(app, "resources", FIXTURE_RESOURCE);
+    await post(app, "resources", stripTombstones(FIXTURE_RESOURCE));
     await post(app, "activities", FIXTURE_ACTIVITY);
     await post(app, "activities", FIXTURE_ACTIVITY_REPEATABLE);
     expect((await post(app, "allocations", FIXTURE_ALLOCATION)).statusCode).toBe(201);
@@ -187,7 +186,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
   it("timeOff: every field round-trips (including optional note)", async () => {
     const { app } = freshApp();
     await seedFixtureDeps(app);
-    await post(app, "resources", FIXTURE_RESOURCE);
+    await post(app, "resources", stripTombstones(FIXTURE_RESOURCE));
     expect((await post(app, "timeOff", FIXTURE_TIMEOFF)).statusCode).toBe(201);
     expectFixture(readOnlyTimeOff((await readValidatedState(app)).timeOff), FIXTURE_TIMEOFF);
   });

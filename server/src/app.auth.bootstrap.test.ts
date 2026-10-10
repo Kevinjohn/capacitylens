@@ -97,6 +97,21 @@ function registerClosedSignupLifecycleTests(): void {
     expect(cookiesOf(second)).not.toContain("capacitylens.session_token");
   });
 
+  it("rejects malformed first-owner names before creating a principal", async () => {
+    const { app, db } = await appWithAuth({ env: CLOSED_SIGNUP_ENV });
+    for (const name of ["Owner 💩", "O".repeat(101), 42]) {
+      const response = await call(app, {
+        method: "POST",
+        url: "/api/auth/sign-up/email",
+        headers: { "x-capacitylens-setup-token": SETUP_TOKEN },
+        payload: { email: "owner@capacitylens.dev", password: "password-123456", name },
+      });
+      expect(response.statusCode).toBe(400);
+      expect(countUsers(db)).toBe(0);
+    }
+    expect((await signUpWithSetupToken(app, "owner@capacitylens.dev")).statusCode).toBe(200);
+  });
+
   it("serializes concurrent first-owner sign-ups so exactly one identity is created", async () => {
     const { app } = await appWithAuth({ env: CLOSED_SIGNUP_ENV });
     const results = await Promise.all([
@@ -171,6 +186,26 @@ function registerClosedSignupRejectionTests(): void {
   });
 }
 
+function registerSetupTokenTransportTests(): void {
+  it("rejects a setup-token header over 512 UTF-16 code units", async () => {
+    const { app } = await appWithAuth({ env: CLOSED_SIGNUP_ENV });
+    const rejected = await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      headers: { "x-capacitylens-setup-token": "x".repeat(513) },
+      payload: {
+        email: "oversized-token@capacitylens.dev",
+        password: "password-123456",
+        name: "Bruce Wayne",
+      },
+    });
+
+    expect(rejected.statusCode).toBe(400);
+    expect(rejected.body).not.toContain("x".repeat(513));
+    expect(cookiesOf(rejected)).not.toContain("capacitylens.session_token");
+  });
+}
+
 function registerOpenSignupEscapeTests(): void {
   it("allows sign-up with users already present only when CAPACITYLENS_ALLOW_OPEN_SIGNUP=1", async () => {
     const { app } = await appWithAuth({
@@ -209,6 +244,24 @@ function registerOpenSignupEscapeTests(): void {
 }
 
 function registerClosedSignupStatusTests(): void {
+  it("preserves configured setup tokens through 512 UTF-16 code units and rejects longer ones", () => {
+    const acceptedToken = "x".repeat(512);
+    expect(() =>
+      createAuthFromEnvironment(openDb(":memory:"), {
+        ...CLOSED_SIGNUP_ENV,
+        CAPACITYLENS_SETUP_TOKEN: acceptedToken,
+      }),
+    ).not.toThrow();
+
+    const oversizedToken = "x".repeat(513);
+    expect(() =>
+      createAuthFromEnvironment(openDb(":memory:"), {
+        ...CLOSED_SIGNUP_ENV,
+        CAPACITYLENS_SETUP_TOKEN: oversizedToken,
+      }),
+    ).toThrow("CAPACITYLENS_SETUP_TOKEN must be no more than 512 UTF-16 code units.");
+  });
+
   it("keeps the library flag OFF — the live hook owns the gate (disableSignUp stays false)", () => {
     // Better Auth 1.6.23 enforces disableSignUp even for server-side auth.api.signUpEmail
     // (sign-up.mjs:143), so the static flag must stay false in both postures, the closed
@@ -247,6 +300,7 @@ function registerClosedSignupStatusTests(): void {
 describe("closed self-registration (P1.7) + first-run bootstrap", () => {
   registerClosedSignupLifecycleTests();
   registerClosedSignupRejectionTests();
+  registerSetupTokenTransportTests();
   registerOpenSignupEscapeTests();
   registerClosedSignupStatusTests();
 });

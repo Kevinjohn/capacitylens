@@ -250,7 +250,7 @@ describe("AllocationModal edit", () => {
 
     const note = screen.getByLabelText("Note");
     expect(note.tagName).toBe("INPUT");
-    expect(note).toHaveAttribute("maxlength", "2000");
+    expect(note).not.toHaveAttribute("maxlength");
     await chooseOption(user, "Hours / day", "4 h - half day");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)?.note).toBe(

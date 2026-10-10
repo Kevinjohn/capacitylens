@@ -22,7 +22,7 @@ async function createAccount(app: FastifyInstance, id: string): Promise<void> {
   const res = await call(app, {
     method: "POST",
     url: "/api/accounts",
-    payload: { id, name: `Studio ${id}`, color: "#3b82f6", createdAt: TS, updatedAt: TS } as NonNullable<
+    payload: { id, name: `Studio ${id}`, color: "#5c34d4", createdAt: TS, updatedAt: TS } as NonNullable<
       InjectOptions["payload"]
     >,
   });
@@ -102,7 +102,7 @@ describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
       payload: {
         id: "a1",
         name: "Studio",
-        color: "#3b82f6",
+        color: "#5c34d4",
         weekStartsOn: 1,
         timezone: "Etc/GMT",
         language: "en",

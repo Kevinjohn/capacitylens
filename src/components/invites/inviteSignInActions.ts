@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { InviteAcceptState } from "./InviteAcceptView";
 import { m } from "@/i18n";
+import { MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
 import type { AuthProviderInfo } from "@/auth/authContext";
 import { startMicrosoftConnection } from "@/auth/microsoftConnectionClient";
 import { authClient } from "@/auth/authClient";
@@ -52,6 +53,7 @@ function startProviderSignIn(provider: AuthProviderInfo, token: string | undefin
 
 export function createInviteSignInActions({ token, email, password, refreshAuth, setState, setBusy }: Dependencies) {
   const signInAndReload = async (): Promise<void> => {
+    if (password.length > MAX_PASSWORD_INPUT_CODE_UNITS) throw new Error(m.login_password_input_too_long());
     const { error } = await authClient.signIn.email({ email, password });
     if (error) throw new Error(error.message ?? m.login_failed());
     reloadPage();

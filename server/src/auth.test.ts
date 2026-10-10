@@ -184,11 +184,15 @@ const registerFederatedSchemaTests = () => {
     const auth = assertPresent(configured.auth, "password auth");
     const before = assertPresent(auth.options.databaseHooks?.user?.create?.before, "admission hook");
     const context = { path: "/callback/:id", params: { id: "google" }, bootstrapClaimToken: "held" } as never;
-    await expect(before({ email: "bruce@example.com", emailVerified: false } as never, context)).rejects.toMatchObject({
+    await expect(
+      before({ email: "bruce@example.com", name: "Bruce Wayne", emailVerified: false } as never, context),
+    ).rejects.toMatchObject({
       body: { code: "EXTERNAL_IDENTITY_NOT_INVITED" },
     });
-    await expect(before({ email: "bruce@example.com", emailVerified: true } as never, context)).resolves.toMatchObject({
-      data: { email: "bruce@example.com", emailVerified: true },
+    await expect(
+      before({ email: "bruce@example.com", name: "Bruce Wayne", emailVerified: true } as never, context),
+    ).resolves.toMatchObject({
+      data: { email: "bruce@example.com", name: "Bruce Wayne", emailVerified: true },
     });
   });
 };
@@ -858,7 +862,10 @@ const registerExternalOpenSignupTest = () => {
     expect(before).toBeTypeOf("function");
 
     await expect(
-      before({ email: "stranger@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
+      before(
+        { email: "stranger@example.com", name: "Stranger", emailVerified: true } as never,
+        { path: "/callback/google" } as never,
+      ),
     ).rejects.toThrow(/not invited/);
   });
 };
@@ -897,6 +904,35 @@ const registerExternalSsoProviderTest = () => {
     });
     await expect(before(candidate as never, { path: "/callback/github" } as never)).rejects.toMatchObject({
       body: { code: "STRICT_PROVIDER_REQUIRED" },
+    });
+  });
+};
+
+const registerProviderNameRepairTest = () => {
+  it("repairs a provider profile name the person cannot edit instead of refusing first sign-in", async () => {
+    const db = openDb(":memory:");
+    const { auth } = createAuthFromEnvironment(
+      db,
+      {
+        ...PASSWORD_ENV,
+        CAPACITYLENS_MODE: "sso-only",
+        CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+        CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+      },
+      { externalIdentityAdmission: async () => true },
+    );
+    const before = assertPresent(
+      assertPresent(auth, "SSO auth").options.databaseHooks?.user?.create?.before,
+      "external-identity admission hook",
+    );
+    const context = { path: "/callback/google", bootstrapClaimToken: "request-held-claim" } as never;
+    const profile = { email: "new-social@example.com", emailVerified: true };
+
+    await expect(before({ ...profile, name: "Bruce Wayne™ 🦇" } as never, context)).resolves.toEqual({
+      data: { ...profile, name: "Bruce Wayne" },
+    });
+    await expect(before({ ...profile, name: "" } as never, context)).resolves.toEqual({
+      data: { ...profile, name: "User" },
     });
   });
 };
@@ -1146,6 +1182,7 @@ describe("external identity creation gate", () => {
   registerExternalProviderConfigurationTests();
   registerExternalOpenSignupTest();
   registerExternalSsoProviderTest();
+  registerProviderNameRepairTest();
   registerExternalSessionAssuranceTest();
   registerExternalBootstrapAdmissionTests();
   registerExternalLiveInvitationTest();

@@ -70,7 +70,7 @@ async function seedClosureAccount(request: APIRequestContext) {
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
-    color: "#3b82f6",
+    color: "#76a5e7",
   });
   await putEntity(request, owner.cookie, "resources", IDS.external, {
     ...scoped,
@@ -79,10 +79,10 @@ async function seedClosureAccount(request: APIRequestContext) {
     role: "Partner studio",
     employmentType: "permanent",
     engagement: "studio",
-    workingHoursPerDay: 0,
+    workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
-    color: "#64748b",
+    color: "#9ca3af",
   });
 
   seedFixtureMember(accountId, editor.email, "editor");

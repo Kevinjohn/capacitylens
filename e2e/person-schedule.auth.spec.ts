@@ -41,7 +41,7 @@ async function seedPrivateScheduleEntities(
   await putEntity(request, cookie, "clients", CLIENT_ID, {
     ...scoped,
     name: REAL_CLIENT,
-    color: "#3b82f6",
+    color: "#76a5e7",
     isPrivate: true,
     codeName: "Nightwing",
   });
@@ -49,7 +49,7 @@ async function seedPrivateScheduleEntities(
     ...scoped,
     clientId: CLIENT_ID,
     name: REAL_PROJECT,
-    color: "#ec4899",
+    color: "#e776b8",
     isPrivate: true,
     codeName: "Aurora",
   });
@@ -87,7 +87,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
-    color: "#3b82f6",
+    color: "#76a5e7",
   });
   await putEntity(request, owner.cookie, "timeOff", TIME_OFF_ID, {
     ...scoped,

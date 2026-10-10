@@ -36,10 +36,10 @@ function createFrozenFieldPatchTests(): void {
     expect((await readStateAccount(app)).timezone).toBe("Etc/GMT");
   });
 
-  it("PATCH with an unsupported language is sanitised to an unchanged no-op", async () => {
+  it("PATCH with an unsupported language is rejected without changing the row", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    expect((await patch({ app, entity: "accounts", id: "a1", payload: { language: "fr" } })).statusCode).toBe(200);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { language: "fr" } })).statusCode).toBe(400);
     expect((await readStateAccount(app)).language).toBe("en");
   });
 }
@@ -127,7 +127,7 @@ function createFrozenFieldInitializationTest(): void {
 }
 
 function createFrozenFieldSanitizationTest(): void {
-  it("treats sanitiser-dropped frozen values as no-ops across PUT, PATCH and batch", async () => {
+  it("rejects malformed frozen values across PUT, PATCH and batch", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
 
@@ -144,7 +144,7 @@ function createFrozenFieldSanitizationTest(): void {
           },
         })
       ).statusCode,
-    ).toBe(200);
+    ).toBe(400);
     expect(
       (
         await put({
@@ -160,7 +160,7 @@ function createFrozenFieldSanitizationTest(): void {
           },
         })
       ).statusCode,
-    ).toBe(200);
+    ).toBe(400);
     expect(
       (
         await batch(app, [
@@ -178,14 +178,14 @@ function createFrozenFieldSanitizationTest(): void {
           },
         ])
       ).statusCode,
-    ).toBe(200);
+    ).toBe(400);
 
     expect(await readStateAccount(app)).toMatchObject(FROZEN);
   });
 }
 
 function createFrozenFieldPreferenceAndBatchTests(): void {
-  it("PATCH mutable account preferences and drops a retired preference on write", async () => {
+  it("PATCH mutable account preferences and rejects a retired preference", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
     expect((await patch({ app, entity: "accounts", id: "a1", payload: { name: "New Name" } })).statusCode).toBe(200);
@@ -201,7 +201,10 @@ function createFrozenFieldPreferenceAndBatchTests(): void {
           payload: { schedulingMode: "blocks", groupResourcesByEngagement: false },
         })
       ).statusCode,
-    ).toBe(200);
+    ).toBe(400);
+    expect((await patch({ app, entity: "accounts", id: "a1", payload: { schedulingMode: "blocks" } })).statusCode).toBe(
+      200,
+    );
     const account = await readStateAccount(app);
     expect(account).toMatchObject({ name: "New Name", disciplinesEnabled: true, schedulingMode: "blocks" });
     expect(account).not.toHaveProperty("groupResourcesByEngagement");

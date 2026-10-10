@@ -150,6 +150,21 @@ describe("ReauthDialog password rejection", () => {
   });
 });
 
+describe("ReauthDialog current-password size", () => {
+  it("rejects oversized passwords without changing or submitting the credential", async () => {
+    render(<Harness user={user} />);
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+    const password = "x".repeat(257);
+    fireEvent.change(screen.getByTestId("reauth-password"), { target: { value: password } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(screen.getByTestId("reauth-password")).toHaveValue(password);
+    expect(screen.getByRole("alert")).toHaveTextContent(m.reauth_failed());
+    expect(signInEmail).not.toHaveBeenCalled();
+  });
+});
+
 describe("ReauthDialog password failures", () => {
   it("fails locally when password re-auth has no user email", async () => {
     render(<Harness user={null} />);

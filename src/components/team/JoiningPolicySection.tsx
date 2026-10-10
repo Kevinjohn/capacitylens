@@ -2,7 +2,7 @@ import { useId, useState } from "react";
 import type { FormEvent } from "react";
 import { m } from "@/i18n";
 import type { JoiningPolicy, JoiningPolicySettings } from "@capacitylens/shared/account/types";
-import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";
+import { MAX_APPROVED_DOMAINS_BYTES, parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError } from "@/components/ui/field";
@@ -101,6 +101,7 @@ function JoiningPolicyEditor({ settings, onSave }: Extract<JoiningPolicySectionP
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
+    if (new TextEncoder().encode(domainsText).length > MAX_APPROVED_DOMAINS_BYTES) return setError("domain-invalid");
     const domains = parseApprovedDomains(
       domainsText
         .split(/\r?\n/)

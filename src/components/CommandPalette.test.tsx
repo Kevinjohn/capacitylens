@@ -119,6 +119,24 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Team & access")).toBeInTheDocument();
   });
 
+  it("rejects an overlong paste, keeps the 256-unit query, and clears feedback after correction", async () => {
+    const user = userEvent.setup();
+    renderPalette();
+    const input = screen.getByTestId("command-palette-input");
+    const query = "x".repeat(256);
+
+    await user.paste(query);
+    expect(input).toHaveValue(query);
+
+    await user.paste("y");
+    expect(input).toHaveValue(query);
+    expect(screen.getByRole("alert")).toHaveTextContent(m.validation_text_too_long());
+
+    await user.keyboard("{Backspace}");
+    expect(input).toHaveValue(query.slice(0, -1));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it.each(["editor", "viewer"] as const)("hides Diagnostics from a resolved %s", (role) => {
     renderPaletteWithPermission(role, "resolved");
 

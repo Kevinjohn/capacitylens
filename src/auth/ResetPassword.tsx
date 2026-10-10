@@ -52,6 +52,7 @@ function resolvePasswordValidationError(token: string | undefined, password: str
   const lengthFailure = passwordLengthFailure(password);
   if (lengthFailure === "too-short") return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
   if (lengthFailure === "too-long") return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
+  if (passwordLengthFailure(confirm) === "too-long") return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
   if (password !== confirm) return m.reset_err_mismatch();
   return null;
 }

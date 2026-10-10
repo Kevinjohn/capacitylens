@@ -357,13 +357,13 @@ it("keeps edit and delete controls hidden for viewers", () => {
   expect(screen.queryByRole("button", { name: /^Delete / })).not.toBeInTheDocument();
 });
 
-it("uses one single-line Note input with the existing note length limit", () => {
+it("keeps the complete single-line Note input for canonical length validation", () => {
   render(<TimeOffForm onClose={() => {}} />);
 
   const note = screen.getByRole("textbox", { name: "Note" });
   expect(note.tagName).toBe("INPUT");
   expect(note).toHaveAttribute("type", "text");
-  expect(note).toHaveAttribute("maxlength", "2000");
+  expect(note).not.toHaveAttribute("maxlength");
 });
 
 it("keeps invalid Enter submission in the form instead of creating a note newline", async () => {

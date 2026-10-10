@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { isAccountEmail } from "@capacitylens/shared/account/validation";
+import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
+import { MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
 import { parseApprovedDomain } from "@capacitylens/shared/account/approvedDomains";
 import { companyJoinClient } from "@/account/companyJoinClient";
 import { authClient } from "@/auth/authClient";
@@ -220,7 +221,16 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     if (busy || invitationToken) return;
     await runAction(m.joining_failed(), async () => {
       if (!user) {
-        const signIn = await authClient.signIn.email({ email, password: existingPassword });
+        const normalizedEmail = normalizeAccountEmail(email);
+        if (!isAccountEmail(normalizedEmail)) {
+          setError(m.identity_err_email());
+          return;
+        }
+        if (existingPassword.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
+          setError(m.login_password_input_too_long());
+          return;
+        }
+        const signIn = await authClient.signIn.email({ email: normalizedEmail, password: existingPassword });
         if (signIn.error) throw new Error(signIn.error.message ?? m.login_failed());
       }
       await completeExisting();

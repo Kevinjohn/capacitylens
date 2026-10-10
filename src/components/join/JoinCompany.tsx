@@ -55,6 +55,7 @@ function Entry({ flow, invitationToken }: { flow: Flow; invitationToken: string 
               <TextField
                 label={m.login_password()}
                 type="password"
+                maxLength={null}
                 autoComplete="current-password"
                 value={flow.existingPassword}
                 onChange={flow.setExistingPassword}

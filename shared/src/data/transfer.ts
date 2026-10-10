@@ -2,6 +2,7 @@
 // next to the migrate they gate, so the "is this even CapacityLens" check and the transform it
 // protects can't drift (mirrors schedule/diary). Imported back here for the parse path.
 import { importCandidate, RECOGNISED_KEYS, migrate, looksLikeCapacityLens, hasNonArrayKnownTable } from "./migrate";
+import { assertUnambiguousJson } from "./strictJson";
 import { EXPORT_SCHEMA_VERSION } from "../types/entities";
 import type { AppData, PersistedState } from "../types/entities";
 
@@ -51,6 +52,7 @@ export const MAX_IMPORT_RECORDS = 200_000;
 export const MAX_BATCH_OPS = 5000;
 
 function parseJson(json: string): unknown {
+  assertUnambiguousJson(json);
   return JSON.parse(json) as unknown;
 }
 

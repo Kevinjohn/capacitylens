@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isApprovedEmailDomain, parseApprovedDomain, parseApprovedDomains } from "./approvedDomains";
+import {
+  MAX_APPROVED_DOMAINS,
+  MAX_APPROVED_DOMAINS_BYTES,
+  isApprovedEmailDomain,
+  parseApprovedDomain,
+  parseApprovedDomains,
+} from "./approvedDomains";
 
 describe("parseApprovedDomain", () => {
   it.each([
@@ -69,6 +75,29 @@ describe("parseApprovedDomains", () => {
     expect(parseApprovedDomains(["example.com", "example。com"])).toBeNull();
     expect(parseApprovedDomains(["example.com", 5])).toBeNull();
     expect(parseApprovedDomains("example.com")).toBeNull();
+  });
+
+  it("caps raw entries before deduplication and malformed nested values", () => {
+    const exactlyFifty = Array.from({ length: MAX_APPROVED_DOMAINS }, (_, index) => `team${index}.example.com`);
+    expect(parseApprovedDomains(exactlyFifty)).toHaveLength(MAX_APPROVED_DOMAINS);
+    expect(parseApprovedDomains([...exactlyFifty, exactlyFifty[0]])).toBeNull();
+    expect(parseApprovedDomains([["example.com"]])).toBeNull();
+  });
+
+  it("caps aggregate UTF-8 bytes before IDNA conversion", () => {
+    const label = "ａ".repeat(63);
+    const longDomain = [label, label, label, "ａ".repeat(61)].join(".");
+    const finalAtLimit = [label, label, label, "a"].join(".");
+    const atLimit = [...Array.from({ length: 21 }, () => longDomain), finalAtLimit];
+    expect(parseApprovedDomain(longDomain)).not.toBeNull();
+    expect(parseApprovedDomain(finalAtLimit)).not.toBeNull();
+    expect(atLimit.reduce((bytes, domain) => bytes + new TextEncoder().encode(domain).length, 0)).toBe(
+      MAX_APPROVED_DOMAINS_BYTES,
+    );
+    expect(parseApprovedDomains(atLimit)).not.toBeNull();
+    const oneByteOver = [...atLimit.slice(0, -1), `${finalAtLimit}a`];
+    expect(parseApprovedDomain(oneByteOver.at(-1))).not.toBeNull();
+    expect(parseApprovedDomains(oneByteOver)).toBeNull();
   });
 
   it("leaves the empty-list policy decision to the caller", () => {

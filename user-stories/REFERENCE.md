@@ -1737,7 +1737,9 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
 - **An allocation can't exceed 24h/day, and the form says so instead of silently trimming it.** In
   **days mode**, a _Days of work_ spread over too few _Days over_ (e.g. 5 days of work in a 1-day span =
   40h/day) is **rejected** ("That's more than 24h a day. Increase Days over or reduce Days of work.")
-  rather than saved as a quietly-clamped 24h. In **hourly mode**, _Hours / day_ is a four-option
+  rather than saved as a quietly-clamped 24h. Positive fractional _Days of work_ are allowed
+  when the derived daily hours remain at most 24; the field's half-day spinner increment is a
+  convenience, not a precision restriction. In **hourly mode**, _Hours / day_ is a four-option
   select: **1 h**, **2 h - quarter day**, **4 h - half day** and **8 h - full day**, in that order.
   Existing values outside that authored set remain visible on the closed select and survive unrelated
   edits unchanged; they are not added as another option, and choosing one of the four replaces them.

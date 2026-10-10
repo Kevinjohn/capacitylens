@@ -80,6 +80,38 @@ it("changes a password through the dialog and revokes other sessions", async () 
   expect(await screen.findByRole("status")).toHaveTextContent(m.settings_security_password_changed());
 });
 
+it.each(["p".repeat(257), "𠀀".repeat(129)])(
+  "rejects an oversized current password without altering or sending it",
+  async (value) => {
+    renderSecurity({ passwordOpen: true });
+    const current = screen.getByLabelText(m.settings_security_current_password());
+    fireEvent.change(current, { target: { value } });
+    expect(current).toHaveValue(value);
+    fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+      target: { value: "a-strong-new-password" },
+    });
+    fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+      target: { value: "a-strong-new-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_password_input_too_long());
+    expect(changePassword).not.toHaveBeenCalled();
+  },
+);
+
+it("accepts an exact 128-code-point astral new password without changing its bytes", async () => {
+  changePassword.mockResolvedValue({ data: { status: true }, error: null });
+  renderSecurity({ passwordOpen: true });
+  const next = "𠀀".repeat(128);
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: "current-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), { target: { value: next } });
+  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), { target: { value: next } });
+  fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+  await waitFor(() => expect(changePassword).toHaveBeenCalledWith(expect.objectContaining({ newPassword: next })));
+});
+
 it("keeps password mismatch validation in the dialog", async () => {
   renderSecurity({ overrides: {}, passwordOpen: true });
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {

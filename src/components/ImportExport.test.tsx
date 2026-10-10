@@ -138,12 +138,12 @@ describe("ImportExport – Import", () => {
     const first = {
       name: "first.json",
       size: 1,
-      text: () => firstRead,
+      arrayBuffer: () => firstRead.then((text) => new TextEncoder().encode(text).buffer),
     } as File;
     const second = {
       name: "second.json",
       size: 1,
-      text: () => secondRead,
+      arrayBuffer: () => secondRead.then((text) => new TextEncoder().encode(text).buffer),
     } as File;
     const input = screen.getByTestId("import-input");
 

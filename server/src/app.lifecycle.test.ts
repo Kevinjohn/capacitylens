@@ -33,14 +33,14 @@ const meta = () => ({ createdAt: TS, updatedAt: TS });
 const account = (id: string) => ({
   id,
   name: `Studio ${id}`,
-  color: "#3b82f6",
+  color: "#5c34d4",
   ...meta(),
 });
 const client = (id: string, accountId: string, extra: Record<string, unknown> = {}) => ({
   id,
   accountId,
   name: "Ferris",
-  color: "#3b82f6",
+  color: "#5c34d4",
   ...meta(),
   ...extra,
 });
@@ -57,7 +57,7 @@ const project = ({ id, accountId, clientId, extra = {} }: ProjectInput) => ({
   accountId,
   name: "Web",
   clientId,
-  color: "#3b82f6",
+  color: "#5c34d4",
   ...meta(),
   ...extra,
 });
@@ -72,7 +72,7 @@ const person = (id: string, accountId: string, extra: Record<string, unknown> = 
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [],
-  color: "#3b82f6",
+  color: "#5c34d4",
   ...meta(),
   ...extra,
 });
@@ -1529,7 +1529,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
   // Internal client back to a regular one. Off mode is used (authorize is a no-op there), so these prove
   // the sanitize/validate layer itself, independent of the auth gate.
 
-  it("PATCH cannot set deletedAt/archivedAt on a resource (stripped; row stays active)", async () => {
+  it("PATCH rejects forged deletedAt/archivedAt on a resource; row stays active", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
       resources: [person("r1", "a1")],
@@ -1542,7 +1542,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
         archivedAt: "2020-01-01T00:00:00.000Z",
       },
     });
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(400);
     const r1 = await rowById({ app, entity: "resources", accountId: "a1", id: "r1" });
     expect(r1?.deletedAt).toBeUndefined();
     expect(r1?.archivedAt).toBeUndefined();
@@ -1556,7 +1556,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
 });
 
 describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
-  it("PUT cannot set deletedAt on a client (stripped)", async () => {
+  it("PUT rejects forged deletedAt on a client", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
       clients: [client("c1", "a1")],
@@ -1566,7 +1566,7 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       url: "/api/clients/c1",
       payload: client("c1", "a1", { deletedAt: "2020-01-01T00:00:00.000Z" }),
     });
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(400);
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: "c1" }))?.deletedAt).toBeUndefined();
   });
 });

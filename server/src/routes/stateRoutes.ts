@@ -313,6 +313,7 @@ async function createOrganisation(
     const id = resolveWorkspaceId(req.body, command.commandId);
     const accountRow = sanitizeWrite({
       table: "accounts",
+      requested: req.body,
       row: {
         ...req.body,
         schedulingMode: req.body.schedulingMode ?? "days",

@@ -1,5 +1,4 @@
 import { useId } from "react";
-import { MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { Input } from "@/components/ui/input";
 import { Field, FieldContent, FieldDescription } from "@/components/ui/field";
 import { RequiredFieldLabel } from "./fieldLayout";
@@ -19,7 +18,8 @@ type TextFieldProps = {
   externalDescriptionId?: string;
   describedById?: string;
   disabled?: boolean;
-  maxLength?: number;
+  /** Explicit native cap for fields whose raw length is their semantic limit, such as local search. */
+  maxLength?: number | null;
   type?: "text" | "email" | "password" | "date";
   autoComplete?: string;
   minLength?: number;
@@ -49,7 +49,7 @@ function TextFieldControl({
   externalDescriptionId,
   describedById,
   disabled,
-  maxLength = MAX_NAME_INPUT_CODE_UNITS,
+  maxLength,
   type = "text",
   autoComplete,
   minLength,
@@ -74,7 +74,7 @@ function TextFieldControl({
       // Mark the intended autofocus target so Modal's focus trap honours it instead of
       // grabbing the first focusable (often a leading button).
       data-autofocus={autoFocus ? "" : undefined}
-      maxLength={maxLength}
+      maxLength={maxLength ?? undefined}
       minLength={minLength}
       autoComplete={autoComplete}
       disabled={disabled}

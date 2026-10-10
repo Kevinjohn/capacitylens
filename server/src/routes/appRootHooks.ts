@@ -1,3 +1,4 @@
+import { assertUnambiguousJson } from "@capacitylens/shared/data/strictJson";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { authTransactionGateFor } from "../authTransactionGate";
 import type { GateSlot } from "../authTransactionGate";
@@ -105,13 +106,47 @@ function installResponseHooks(input: InstallResponseHooksInput): void {
   });
 }
 
+function installBoundedJsonParser(app: FastifyInstance): void {
+  const defaultParser = app.getDefaultJsonParser("error", "error");
+  app.removeContentTypeParser("application/json");
+  app.addContentTypeParser("application/json", { parseAs: "buffer" }, (req, body, done) => {
+    try {
+      const source = new TextDecoder("utf-8", { fatal: true }).decode(body as Buffer);
+      if (!req.url.startsWith("/api/auth/")) assertUnambiguousJson(source);
+      void defaultParser(req, source, done);
+    } catch (cause) {
+      const error = new Error(cause instanceof Error ? cause.message : "Invalid JSON input.") as Error & {
+        code: string;
+        statusCode: number;
+      };
+      error.code = "CAPACITYLENS_INVALID_JSON_BOUNDARY";
+      error.statusCode = 400;
+      done(error, undefined);
+    }
+  });
+}
+
+function installBodyParsers(app: FastifyInstance): void {
+  installBoundedJsonParser(app);
+  installCspReportParser(app);
+}
+
 function installCspReportParser(app: FastifyInstance): void {
   app.addContentTypeParser(
     ["application/csp-report", "application/reports+json"],
-    { parseAs: "string", bodyLimit: CSP_REPORT_BODY_LIMIT },
-    (_req, body, done) => {
+    { parseAs: "buffer", bodyLimit: CSP_REPORT_BODY_LIMIT },
+    (req, body, done) => {
+      if (req.url.split("?", 1)[0] !== "/api/security/csp-report") {
+        const error = new Error(REPLY_ERRORS.unsupportedMediaType) as Error & { code: string; statusCode: number };
+        error.code = "FST_ERR_CTP_INVALID_MEDIA_TYPE";
+        error.statusCode = 415;
+        done(error, undefined);
+        return;
+      }
       try {
-        done(null, JSON.parse(typeof body === "string" ? body : body.toString("utf8")));
+        const source = new TextDecoder("utf-8", { fatal: true }).decode(body as Buffer);
+        assertUnambiguousJson(source);
+        done(null, JSON.parse(source));
       } catch {
         const error = new Error(REPLY_ERRORS.malformedCspReport) as Error & { code: string; statusCode: number };
         error.code = "CAPACITYLENS_MALFORMED_CSP_REPORT";
@@ -252,7 +287,7 @@ export function installRootHooks({ app, db, runtime, config, options }: InstallR
 
   // Browsers use non-JSON media types for CSP reports. Parse them as bounded JSON so malformed or
   // oversized telemetry is rejected before the handler and can never become a logging DoS path.
-  installCspReportParser(app);
+  installBodyParsers(app);
 
   installSecurityPlugins(app, options, rateLimitMax);
 

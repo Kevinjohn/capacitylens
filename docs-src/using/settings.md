@@ -272,6 +272,9 @@ projects.
 
 **Export JSON** downloads scheduling records for the current company. **Import JSON** replaces
 those records after confirmation; in signed-in server deployments, only an Owner can import.
+Files must be valid UTF-8 JSON and at most 5 MiB. Invalid or ambiguous JSON is refused before
+replacement; recognized legacy record values may be repaired or skipped, with the skipped count
+shown after import.
 The destination company's settings, including date format, stay unchanged. Browser preferences
 are not part of this file.
 

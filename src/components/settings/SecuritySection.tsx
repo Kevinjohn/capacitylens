@@ -1,5 +1,5 @@
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
-import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
+import { MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { useAuth } from "@/auth/authContext";
 import type { AuthProviderInfo } from "@/auth/authContext";
 import { m } from "@/i18n";
@@ -45,11 +45,11 @@ function PasswordForm({ controller }: { controller: Controller }) {
       <TextField
         label={m.settings_security_current_password()}
         type="password"
+        maxLength={null}
         autoComplete="current-password"
         autoFocus
         required
         layout="label-control"
-        maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
         value={password.currentPassword}
         onChange={password.setCurrentPassword}
         invalid={fieldError.errorField === "current"}
@@ -58,11 +58,11 @@ function PasswordForm({ controller }: { controller: Controller }) {
       <TextField
         label={m.settings_security_new_password()}
         type="password"
+        maxLength={null}
         autoComplete="new-password"
         required
         layout="label-control"
         minLength={MIN_PASSWORD_LENGTH}
-        maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
         value={password.newPassword}
         onChange={password.setNewPassword}
         invalid={fieldError.errorField === "new"}
@@ -71,10 +71,10 @@ function PasswordForm({ controller }: { controller: Controller }) {
       <TextField
         label={m.settings_security_confirm_password()}
         type="password"
+        maxLength={null}
         autoComplete="new-password"
         required
         layout="label-control"
-        maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
         value={password.confirmPassword}
         onChange={password.setConfirmPassword}
         invalid={fieldError.errorField === "confirm"}

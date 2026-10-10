@@ -43,7 +43,7 @@ describe("company provider configuration", () => {
       if (!before) throw new Error("Expected external admission hook");
       await expect(
         before(
-          { email: "bruce@example.com", emailVerified: true } as never,
+          { email: "bruce@example.com", name: "Bruce Wayne", emailVerified: true } as never,
           { path: "/callback/:id", params: { id: "google" }, bootstrapClaimToken: "held" } as never,
         ),
       ).rejects.toMatchObject({ body: { code: "EXTERNAL_IDENTITY_NOT_INVITED" } });

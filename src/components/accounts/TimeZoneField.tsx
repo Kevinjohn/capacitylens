@@ -2,12 +2,13 @@ import { ChevronDown } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
+import { Field, FieldError } from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RequiredFieldLabel } from "@/components/common/fields/fieldLayout";
 import type { Option } from "@/components/common/ui";
 import { m } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from "@/lib/localQueryInput";
 
 interface TimeZoneFieldProps {
   label: string;
@@ -26,6 +27,10 @@ function TimeZoneMenu({
   popupId: string;
   onSelect: (value: string) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [queryTooLong, setQueryTooLong] = useState(false);
+  const queryErrorId = useId();
+
   return (
     <PopoverContent
       id={popupId}
@@ -36,13 +41,25 @@ function TimeZoneMenu({
       className="max-h-[calc(100dvh-1rem)] w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] overflow-hidden p-0"
     >
       <Command label={m.picker_timezone_search()} className="min-h-0 max-h-full">
-        <div className="flex min-w-0 shrink-0 items-center gap-2 border-b px-3 py-1">
+        <div className="flex min-w-0 shrink-0 flex-col border-b px-3 py-1">
           <CommandInput
+            maxLength={MAX_LOCAL_QUERY_CODE_UNITS}
             className="h-10"
             autoFocus
             placeholder={m.picker_timezone_search()}
             aria-label={m.picker_timezone_search()}
+            value={query}
+            onValueChange={(value) => {
+              setQuery(value);
+              if (value.length <= MAX_LOCAL_QUERY_CODE_UNITS) setQueryTooLong(false);
+            }}
+            onPaste={(event) => {
+              setQueryTooLong(rejectOverlongQueryPaste(event));
+            }}
+            aria-invalid={queryTooLong || undefined}
+            aria-describedby={queryTooLong ? queryErrorId : undefined}
           />
+          {queryTooLong && <FieldError id={queryErrorId}>{m.validation_text_too_long()}</FieldError>}
         </div>
         <CommandList
           aria-label={label}

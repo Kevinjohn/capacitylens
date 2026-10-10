@@ -31,6 +31,9 @@ Import is a full replace, not a merge — restoring a backup or loading a shared
 
 ## Acceptance criteria
 
+- ✅ Malformed JSON, invalid UTF-8, repeated object keys, unsafe numbers, more than 64 nesting
+  levels or a file over 5 MiB is refused before confirmation; existing company data stays intact.
+  Recognized legacy record values may still be repaired or skipped during an accepted import.
 - ✅ Choosing a valid CapacityLens file opens a dialog titled **Import data?** with a **Replace data** confirm button and a **Cancel** button.
 - ✅ The dialog names the chosen file and includes the phrase **"replaces this company's data"**, the count summary (entities present in the file, in the form "N resources, N disciplines, …"; types with zero items are omitted), and the undo note "You can undo this with ⌘Z."
 - ✅ Clicking **Cancel** leaves the current dataset completely unchanged (nothing is imported).

@@ -11,7 +11,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
     await resetServer({ request: request, withSeed: true }); // wipe + re-seed so a known account exists
   });
 
-  test("direct PATCHes of changeable frozen fields are rejected and unsupported language is a no-op", async ({
+  test("direct PATCHes of changeable frozen fields are rejected and unsupported language is rejected", async ({
     request,
   }) => {
     const before = await serverState(request);
@@ -36,12 +36,12 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
       expect(res.status(), `${field} must remain frozen`).toBe(409);
     }
 
-    // English is currently the only supported language. An unsupported value is sanitised away,
-    // so it cannot express a valid frozen-field change and must remain an unchanged no-op.
+    // English is currently the only supported language. A malformed choice is rejected
+    // before frozen-field handling and cannot change stored account settings.
     const language = await request.patch(`${API}/api/accounts/${account.id}`, {
       data: { language: "fr" },
     });
-    expect(language.status()).toBe(200);
+    expect(language.status()).toBe(400);
 
     // All stored values must remain untouched after every refused request.
     const after = await serverState(request);
@@ -90,7 +90,7 @@ test.describe("single-company-per-instance policy (client-side affordance + serv
       data: {
         id: `e2e-cap-check-${Date.now()}`,
         name: "Should Not Exist",
-        color: "#3b82f6",
+        color: "#76a5e7",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },

@@ -95,6 +95,7 @@ export const person = (id: string, accountId: string) => ({
   id,
   accountId,
   kind: "person",
+  name: "Bruce Wayne",
   role: "Designer",
   employmentType: "permanent",
   engagement: "studio" as const,

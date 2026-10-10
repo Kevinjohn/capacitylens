@@ -22,12 +22,12 @@ import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
 
-const account = (id: string) => ({ id, name: `Studio ${id}`, color: "#3b82f6", ...meta() });
+const account = (id: string) => ({ id, name: `Studio ${id}`, color: "#5c34d4", ...meta() });
 const client = (id: string, accountId: string) => ({
   id,
   accountId,
   name: accountId === "a2" ? "Oscorp" : "Ferris",
-  color: "#3b82f6",
+  color: "#5c34d4",
   ...meta(),
 });
 const project = (id: string, accountId: string, clientId: string) => ({
@@ -35,20 +35,21 @@ const project = (id: string, accountId: string, clientId: string) => ({
   accountId,
   name: "Web",
   clientId,
-  color: "#3b82f6",
+  color: "#5c34d4",
   ...meta(),
 });
 const person = (id: string, accountId: string) => ({
   id,
   accountId,
   kind: "person",
+  name: accountId === "a2" ? "Norman Osborn" : "Bruce Wayne",
   role: "Designer",
   employmentType: "permanent",
   engagement: "studio" as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [],
-  color: "#3b82f6",
+  color: "#5c34d4",
   ...meta(),
 });
 
@@ -65,7 +66,7 @@ const timeOff = ({ id, accountId, resourceId, note }: TimeOffInput) => ({
   resourceId,
   startDate: "2026-02-01",
   endDate: "2026-02-03",
-  type: "vacation",
+  type: "holiday",
   ...(note !== undefined ? { note } : {}),
   ...meta(),
 });
@@ -1140,7 +1141,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     const patched = await call(app, {
       method: "PATCH",
       url: "/api/timeOff/to1",
-      payload: { type: "sick", note: "smuggled edit of a note I cannot see" },
+      payload: { type: "sick", note: "x".repeat(2001) },
       headers: { cookie },
     });
     expect(patched.statusCode).toBe(200);
@@ -1530,7 +1531,7 @@ describe("private client/project names — owner-only server projection", () => 
     const patched = await call(app, {
       method: "PATCH",
       url: "/api/clients/c1",
-      payload: { name: "Attempted overwrite", isPrivate: false, codeName: "Attempted code" },
+      payload: { name: "x".repeat(101), isPrivate: null, codeName: 42 },
       headers: { cookie },
     });
     expect(patched.statusCode).toBe(200);

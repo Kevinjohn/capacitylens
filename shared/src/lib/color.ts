@@ -93,9 +93,9 @@ export const FALLBACK_PRESET_COLOR = "#5c34d4";
  *  - an unparseable value (wrong shape, non-string, `null`/`undefined`) returns
  *    {@link FALLBACK_PRESET_COLOR}.
  *
- * This is the single mapping used by server writes, import repair, the one-time
- * `snap-legacy-account-colors` DB migration and the client store, so a given stored colour is
- * always classified identically on every persistence path.
+ * This is the mapping used by import repair and the one-time
+ * `snap-legacy-account-colors` DB migration and the client store. Ordinary server writes
+ * validate supplied colours against the preset set before this mapper runs.
  * See DECISIONS.md for the policy this implements.
  */
 export function snapToPresetColor(value: unknown): string {

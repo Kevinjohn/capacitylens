@@ -293,7 +293,7 @@ function createNullPatchConcurrencyTests(): void {
     const res = await patch({ app, entity: "clients", id: "c1", payload: { name: null } });
 
     expect(res.statusCode).toBe(400);
-    expect(readErrorResponse(res).error).toMatch(/required field.*cannot be null/i);
+    expect(readErrorResponse(res).error).toMatch(/name cannot be null/i);
     expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Ferris");
   });
 }

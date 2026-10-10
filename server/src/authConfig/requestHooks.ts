@@ -46,8 +46,12 @@ function isBootstrapSetupRequest(
   context: RequestHookContext,
   { db, setupToken, countUsers, secretTokenMatches }: RequestHookOptions,
 ) {
+  const presentedToken = context.headers?.get("x-capacitylens-setup-token") ?? null;
   return (
-    countUsers(db) === 0 && secretTokenMatches(setupToken, context.headers?.get("x-capacitylens-setup-token") ?? null)
+    countUsers(db) === 0 &&
+    presentedToken !== null &&
+    presentedToken.length <= 512 &&
+    secretTokenMatches(setupToken, presentedToken)
   );
 }
 

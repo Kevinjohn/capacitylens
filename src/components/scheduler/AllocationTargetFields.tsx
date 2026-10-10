@@ -1,5 +1,4 @@
 import { Plus } from "lucide-react";
-import { MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
 import { SelectField } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
@@ -32,7 +31,6 @@ function InlineActivityField({
       <Field orientation="horizontal">
         <Input
           value={newActivityName}
-          maxLength={MAX_NAME_INPUT_CODE_UNITS}
           placeholder={newActivityPlaceholder(activityScope.kind)}
           aria-label={m.form_allocation_new_activity_aria()}
           aria-invalid={errorField === "newactivity" || undefined}

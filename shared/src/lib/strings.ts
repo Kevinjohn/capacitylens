@@ -1,7 +1,8 @@
 // Text hygiene for user-entered free text (names, roles, notes). Two surfaces use it:
 //   - the forms reject disallowed input via hasDisallowedChars (so the user fixes it);
-//   - the import + server write paths can't show a form error, so they strip it via
-//     cleanText (consistent with the rest of sanitizeImport's repair-don't-reject rule).
+//   - import strips disallowed characters via cleanText;
+//   - ordinary server writes reject disallowed supplied characters before canonicalization
+//     for the same NFC and whitespace normalization as the forms.
 // One source definition is imported by client + server, so the policy cannot drift in code.
 // Unicode property escapes use the executing engine's Unicode tables, however; supported browser
 // and server runtimes must stay within the documented baseline and can briefly classify newly
@@ -9,14 +10,10 @@
 
 /** Max Unicode code points for a single-line name / role / label. */
 export const MAX_NAME_LENGTH = 100;
-/** HTML maxlength is UTF-16 based; allow the worst-case transport size for the code-point policy. */
-export const MAX_NAME_INPUT_CODE_UNITS = MAX_NAME_LENGTH * 2;
 /** Practical UTF-8 byte maximum for an email accepted by identity/invite forms and server writes. */
 export const MAX_EMAIL_LENGTH = 254;
 /** Max Unicode code points for a multi-line note. */
 export const MAX_NOTE_LENGTH = 1000;
-/** HTML maxlength for a note, sized like {@link MAX_NAME_INPUT_CODE_UNITS}. */
-export const MAX_NOTE_INPUT_CODE_UNITS = MAX_NOTE_LENGTH * 2;
 
 /** Length in Unicode code points, the unit every `MAX_*_LENGTH` text limit uses. */
 export function unicodeCharacterCount(value: string): number {
@@ -69,16 +66,33 @@ function stripDisallowedCharacters(value: string): string {
   return cleaned;
 }
 
+/** Canonicalize user-authored plain text before applying the shared character and length policy.
+ * This preserves punctuation and letters; it never strips disallowed characters or truncates. */
+export function normalizeUserText(value: string, options: { multiline?: boolean } = {}): string {
+  const normalized = value.normalize("NFC");
+  return (
+    options.multiline
+      ? normalized.replace(/[^\S\n]+/g, " ").replace(/\n{3,}/g, "\n\n")
+      : normalized.replace(/\s+/g, " ")
+  ).trim();
+}
+
+/** Return a valid canonical single-line name without dropping or truncating supplied characters. */
+export function parseUserName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const canonical = value.normalize("NFC");
+  const normalized = normalizeUserText(canonical);
+  if (!normalized || hasDisallowedChars(canonical) || unicodeCharacterCount(normalized) > MAX_NAME_LENGTH) return null;
+  return normalized;
+}
+
 /** Strip disallowed characters, collapse whitespace runs, trim, and cap length. Used on
- * the import + server write paths where rejecting isn't an option. Iterates by code
+ * import repair paths after ordinary writes have been validated. Iterates by code
  * point so surrogate pairs / emoji are dropped as whole characters. */
 export function cleanText(value: string, options: { multiline?: boolean; maxLength?: number } = {}): string {
   const multiline = options.multiline ?? false;
   let out = stripDisallowedCharacters(value);
-  // Normalise whitespace: collapse horizontal runs to a single space. In multiline keep
-  // newlines (but cap blank-line runs); single-line collapses everything to one space.
-  out = multiline ? out.replace(/[^\S\n]+/g, " ").replace(/\n{3,}/g, "\n\n") : out.replace(/\s+/g, " ");
-  out = out.trim();
+  out = normalizeUserText(out, { multiline });
   const max = options.maxLength ?? (multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH);
   if (unicodeCharacterCount(out) <= max) return out;
   // Keep the existing code-point budget, but never spend only part of a grapheme cluster. This

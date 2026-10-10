@@ -22,7 +22,7 @@ import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
-const account = (id: string, name = `Studio ${id}`) => ({ id, name, color: "#3b82f6", ...meta() });
+const account = (id: string, name = `Studio ${id}`) => ({ id, name, color: "#2d75da", ...meta() });
 
 const CAP_MESSAGE = "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
 

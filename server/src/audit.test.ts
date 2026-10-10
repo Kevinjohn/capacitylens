@@ -40,6 +40,7 @@ const person = (id: string, accountId: string) => ({
   id,
   accountId,
   kind: "person",
+  name: "Bruce Wayne",
   role: "Designer",
   employmentType: "permanent",
   engagement: "studio" as const,
@@ -319,7 +320,7 @@ describe("generic-write changedFields = requested fields the funnel applied (3)"
     expect(rec.changedFields).toEqual(["role"]);
   });
 
-  it("omits pinned lifecycle fields and unchanged values from PATCH audit effects", async () => {
+  it("rejects changed lifecycle fields without writing a PATCH audit effect", async () => {
     const { app, lines } = fileApp();
     await scaffold(app);
     const before = lines().length;
@@ -330,13 +331,11 @@ describe("generic-write changedFields = requested fields the funnel applied (3)"
       payload: body({ role: "Designer", archivedAt: TS, deletedAt: TS }),
     });
 
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).not.toHaveProperty("archivedAt");
-    expect(res.json()).not.toHaveProperty("deletedAt");
-    expect(requiredAt(lines(), before).changedFields).toEqual([]);
+    expect(res.statusCode).toBe(400);
+    expect(lines()).toHaveLength(before);
   });
 
-  it("uses the sanitized applied set for PUT rather than rejected request keys", async () => {
+  it("uses the applied set for a valid PUT", async () => {
     const { app, lines } = fileApp();
     await scaffold(app);
     const before = lines().length;
@@ -344,7 +343,7 @@ describe("generic-write changedFields = requested fields the funnel applied (3)"
     const res = await call(app, {
       method: "PUT",
       url: "/api/resources/r1",
-      payload: body({ ...person("r1", "a1"), role: "Lead Designer", archivedAt: TS }),
+      payload: body({ ...person("r1", "a1"), role: "Lead Designer" }),
     });
 
     expect(res.statusCode).toBe(200);
@@ -538,7 +537,7 @@ async function assertBatchRecordsAppliedFields() {
           method: "PUT",
           table: "resources",
           id: "r1",
-          row: { ...person("r1", "a1"), role: "Lead Designer", archivedAt: TS },
+          row: { ...person("r1", "a1"), role: "Lead Designer" },
         },
       ],
     }),

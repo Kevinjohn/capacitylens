@@ -1,3 +1,4 @@
+import { useId, useState } from "react";
 import { ListFilter, Redo2, Trash2, Undo2 } from "lucide-react";
 import { m } from "@/i18n";
 import type { StoreState } from "@/store/useStore";
@@ -6,7 +7,7 @@ import { buildRedoShortcut, buildUndoShortcut } from "@/lib/keyboardShortcuts";
 import { SegmentedControl, TogglePill } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { FilterSelect } from "./FilterSelect";
@@ -14,6 +15,7 @@ import type { SchedulerDensity } from "./layout";
 import type { buildFilterOptions } from "./toolbarFilterOptions";
 import { ToolbarActivityFilter } from "./ToolbarActivityFilter";
 import { ToolbarDateNavigation } from "./ToolbarDateNavigation";
+import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from "@/lib/localQueryInput";
 
 type Options = ReturnType<typeof buildFilterOptions>;
 interface ChromeProps {
@@ -191,19 +193,33 @@ function ViewFilters(props: FiltersProps) {
 }
 
 export function SchedulerToolbarFilters(props: FiltersProps) {
+  const [searchTooLong, setSearchTooLong] = useState(false);
+  const searchErrorId = useId();
   return (
     <div
       id="scheduler-filters"
       data-chrome-band="filterbar"
       className="flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-chrome-filterbar-border bg-chrome-filterbar px-4 py-3 text-sm text-chrome-filterbar-ink"
     >
-      <Input
-        value={props.searchInput}
-        onChange={(event) => props.onSearchChange(event.target.value)}
-        placeholder={m.scheduler_search_people_placeholder()}
-        aria-label={m.scheduler_search_people_aria()}
-        className="h-8 w-44 @max-[680px]:w-full"
-      />
+      <div className="flex w-44 flex-col @max-[680px]:w-full">
+        <Input
+          maxLength={MAX_LOCAL_QUERY_CODE_UNITS}
+          value={props.searchInput}
+          onChange={(event) => {
+            props.onSearchChange(event.target.value);
+            if (event.target.value.length <= MAX_LOCAL_QUERY_CODE_UNITS) setSearchTooLong(false);
+          }}
+          onPaste={(event) => {
+            setSearchTooLong(rejectOverlongQueryPaste(event));
+          }}
+          placeholder={m.scheduler_search_people_placeholder()}
+          aria-label={m.scheduler_search_people_aria()}
+          aria-invalid={searchTooLong || undefined}
+          aria-describedby={searchTooLong ? searchErrorId : undefined}
+          className="h-8 w-full"
+        />
+        {searchTooLong && <FieldError id={searchErrorId}>{m.validation_text_too_long()}</FieldError>}
+      </div>
       <div data-testid="scheduler-filter-controls" className="ml-auto flex flex-wrap items-center justify-end gap-2">
         <EntityFilters {...props} />
         <ViewFilters {...props} />

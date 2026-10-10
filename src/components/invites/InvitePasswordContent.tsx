@@ -1,8 +1,7 @@
 import { useId, useState } from "react";
 import type { FormEvent } from "react";
 import type { AuthProviderInfo } from "@/auth/authContext";
-import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
-import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
+import { MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { m } from "@/i18n";
 import { TextField } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
@@ -159,7 +158,6 @@ function SignupForm(props: InvitePasswordContentProps) {
         label={m.invite_name()}
         autoComplete="name"
         value={props.name}
-        maxLength={MAX_NAME_INPUT_CODE_UNITS}
         onChange={props.onNameChange}
         invalid={props.errorField === "name"}
         describedById={props.errorId}
@@ -189,7 +187,6 @@ function EmailPasswordFields({
         type="email"
         autoComplete="email"
         value={email}
-        maxLength={MAX_EMAIL_LENGTH}
         onChange={onEmailChange}
         invalid={errorField === "email"}
         describedById={errorId}
@@ -197,10 +194,10 @@ function EmailPasswordFields({
       <TextField
         label={m.login_password()}
         type="password"
+        maxLength={null}
         autoComplete={passwordAutoComplete}
         value={password}
         minLength={MIN_PASSWORD_LENGTH}
-        maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
         onChange={onPasswordChange}
         invalid={errorField === "password"}
         describedById={errorId}

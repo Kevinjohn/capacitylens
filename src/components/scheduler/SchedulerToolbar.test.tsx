@@ -8,6 +8,7 @@ import { SchedulerToolbar } from "./SchedulerToolbar";
 import { buildEmptyFilters, useStore } from "@/store/useStore";
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
 import { chooseOption } from "./__tests__/schedulerTestKit";
+import { m } from "@/i18n";
 
 function showFilters() {
   fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
@@ -83,6 +84,28 @@ describe("SchedulerToolbar search filter", () => {
 
     // The search is debounced into the store, so the update lands shortly after typing.
     await waitFor(() => expect(useStore.getState().ui.filters.search).toBe("Alice"));
+  });
+
+  it("rejects an overlong paste without shortening the query and clears feedback after correction", async () => {
+    const user = userEvent.setup();
+    render(<SchedulerToolbar />);
+    showFilters();
+    const input = screen.getByLabelText("Search people");
+    const query = "x".repeat(256);
+
+    await user.click(input);
+    await user.paste(query);
+    expect(input).toHaveValue(query);
+    await waitFor(() => expect(useStore.getState().ui.filters.search).toBe(query));
+
+    await user.paste("y");
+    expect(input).toHaveValue(query);
+    expect(screen.getByRole("alert")).toHaveTextContent(m.validation_text_too_long());
+
+    await user.keyboard("{Backspace}");
+    expect(input).toHaveValue(query.slice(0, -1));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await waitFor(() => expect(useStore.getState().ui.filters.search).toBe(query.slice(0, -1)));
   });
 });
 
@@ -174,9 +197,14 @@ describe("SchedulerToolbar filter ordering", () => {
       screen.getByRole("button", { name: "Clear Filters" }),
     ];
     const rightGroupControls = controls.slice(1);
+    const searchControl = controls[0];
+    if (!searchControl) throw new Error("Expected the scheduler search control.");
+    const searchField = searchControl.parentElement;
+    if (!searchField) throw new Error("Expected the scheduler search field wrapper.");
 
     expect(filterbar.children).toHaveLength(2);
-    expect(filterbar.children[0]).toBe(controls[0]);
+    expect(filterbar.children[0]).toBe(searchField);
+    expect(searchField).toContainElement(searchControl);
     expect(filterbar.children[1]).toBe(rightGroup);
     expect(filterbar).toHaveClass("flex-wrap");
     expect(rightGroup).toHaveClass("ml-auto", "flex-wrap", "justify-end");

@@ -191,6 +191,58 @@ it("signs in an existing password identity and joins only through the policy end
   expect(screen.queryByRole("button", { name: "Send verification email" })).not.toBeInTheDocument();
 });
 
+it("accepts the shared long email and password limits and normalizes a pasted email", async () => {
+  stubJoin({
+    extra: (url) => {
+      if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
+        return Response.json({ accountId: "a-studio", role: "viewer" });
+      throw new Error(`Unexpected request: ${url}`);
+    },
+  });
+  const user = userEvent.setup();
+  renderJoin();
+  const email = await screen.findByLabelText("Email");
+  const password = screen.getByLabelText("Password");
+  expect(email).not.toHaveAttribute("maxlength");
+  expect(password).not.toHaveAttribute("maxlength");
+  const longEmail = `${"a".repeat(189)}@example.test`;
+  const longPassword = "𠀀".repeat(101);
+  await user.type(email, `${" ".repeat(30)}${longEmail.toUpperCase()}${" ".repeat(30)}`);
+  await user.type(password, longPassword);
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  await vi.waitFor(() =>
+    expect(authClientMock.signInEmail).toHaveBeenCalledWith({ email: longEmail, password: longPassword }),
+  );
+});
+
+it.each(["p".repeat(257), "𠀀".repeat(129)])(
+  "keeps an oversized pasted password visible and rejects it before sign-in",
+  async (value) => {
+    stubJoin({});
+    const user = userEvent.setup();
+    renderJoin();
+    await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
+    const password = screen.getByLabelText("Password");
+    await user.click(password);
+    await user.paste(value);
+    expect(password).toHaveValue(value);
+    await user.click(screen.getByRole("button", { name: "Join company" }));
+    expect(await screen.findByText(/password.*too long/i)).toBeInTheDocument();
+    expect(authClientMock.signInEmail).not.toHaveBeenCalled();
+  },
+);
+
+it("shows a field error for malformed join email before trying credentials", async () => {
+  stubJoin({});
+  const user = userEvent.setup();
+  renderJoin();
+  await user.type(await screen.findByLabelText("Email"), "bad-address");
+  await user.type(screen.getByLabelText("Password"), "password");
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  expect(await screen.findByText(/valid email/i)).toBeInTheDocument();
+  expect(authClientMock.signInEmail).not.toHaveBeenCalled();
+});
+
 it("explains missing trusted proof and offers the addressed password invitation", async () => {
   stubJoin({
     extra: (url) => {

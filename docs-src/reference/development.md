@@ -410,6 +410,32 @@ whole section. For work not mapped here, use targeted source, caller and import 
 schema changes continue to follow [Database migrations](#database-migrations), while standing
 invariants remain in their existing authoritative documents.
 
+### Input boundaries
+
+Ordinary POST, PUT, PATCH and batch writes validate supplied fields before the import repair
+functions run. `server/src/validate/strict.ts` rejects unknown fields, wrong types, invalid choices,
+non-preset colours, malformed dates, invalid weekdays and out-of-range numbers. It checks the
+merged resource availability pair. Omitted legacy availability fields, confidential pins and
+server-owned lifecycle/series fields preserve their stored values; other optional fields follow
+their individual PUT/PATCH contracts. Explicit `null` clears an availability date or avatar URL. A blind writer's hidden note or
+private name remains pinned to the stored value; archive/delete state and repeat-series membership
+belong to their dedicated actions. Existing revision conflict behavior still requires parseable
+stored and supplied timestamps. PATCH uses the URL row ID even when a legacy caller echoes a
+different valid body ID; the body ID does not move or rename the row. `shared/src/lib/strings.ts` and `src/lib/validation.ts` apply NFC and
+whitespace folding before text length checks; passwords remain exact.
+
+Import is the separate repair path. First external sign-in also repairs a provider-supplied profile
+name, which the person cannot correct in a CapacityLens form. `shared/src/data/strictJson.ts` scans untrusted JSON for more
+than 64 nesting levels, duplicate decoded object keys, non-finite numeric values, unsafe
+integers and nonzero numbers that underflow to zero before `JSON.parse` handles syntax. Browser file reading rejects invalid UTF-8. The
+server applies the scan to application JSON requests and then uses Fastify's default hardened JSON
+parser; `/api/auth/` retains provider/framework-owned parsing. The existing request and import
+caps are 5 MiB, import records are capped at 200,000, and batches at 5,000 operations. Approved
+domains have 50 raw entries and 16 KiB aggregate UTF-8 text, checked before IDNA conversion.
+Local search fields accept up to 256 UTF-16 units. Setup secrets accept at most 512 UTF-16 units
+at configuration and request boundaries. These are resource and input limits, not authorization;
+server role, scope and field checks remain independent.
+
 A few rules the codebase enforces structurally, worth knowing before you touch the
 relevant area:
 

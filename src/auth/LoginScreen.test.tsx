@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // Mock the Better Auth client so the forms can submit without a real server. signIn.email /
 // signUp.email return the library's failure shape ({ error }) so each form sets its inline error
@@ -124,6 +125,18 @@ describe("LoginScreen — password sign-in", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => expect(onSignedIn).toHaveBeenCalledOnce());
     expect(screen.queryByLabelText("Authentication code")).not.toBeInTheDocument();
+  });
+
+  it("keeps an oversized current password intact and refuses to send it", () => {
+    render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
+    const password = "x".repeat(257);
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: password } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(screen.getByLabelText("Password")).toHaveValue(password);
+    expect(screen.getByRole("alert")).toHaveTextContent(m.login_password_input_too_long());
+    expect(signInEmail).not.toHaveBeenCalled();
   });
 });
 
@@ -303,9 +316,37 @@ function registerOwnerSetupSubmissionTests() {
     expect(await screen.findByRole("alert")).toHaveTextContent(m.identity_err_password({ min: 15, max: 128 }));
     expect(signUpEmail).not.toHaveBeenCalled();
   });
+
+  it("rejects an overlong Unicode owner password without truncating the pasted credential", async () => {
+    const password = "🙂".repeat(129);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={vi.fn()} />);
+    fillOwnerSetup({ password });
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
+
+    expect(screen.getByLabelText("Create a password")).toHaveValue(password);
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.identity_err_password({ min: 15, max: 128 }));
+    expect(signUpEmail).not.toHaveBeenCalled();
+  });
 }
 
 function registerOwnerSetupTokenTests() {
+  it("rejects an oversized pasted setup token visibly without changing its value", async () => {
+    const token = "x".repeat(513);
+    const user = userEvent.setup();
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={vi.fn()} />);
+    fillOwnerSetup();
+    const input = screen.getByLabelText("Owner setup token");
+    await user.click(input);
+    await user.paste(token);
+
+    expect(input).toHaveValue(token);
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent(m.login_setup_token_invalid());
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
+
+    expect(signUpEmail).not.toHaveBeenCalled();
+  });
+
   it("trims setup-token edge whitespace before constructing the request", async () => {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
     render(<LoginScreen authMode="password-only" needsSetup onSignedIn={vi.fn()} />);

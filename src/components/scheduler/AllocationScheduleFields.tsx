@@ -1,4 +1,3 @@
-import { MAX_NAME_INPUT_CODE_UNITS, MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
 import {
   CheckboxField,
@@ -44,7 +43,6 @@ function TaskField(props: TaskProps) {
       label={m.form_allocation_task_label()}
       value={props.task}
       onChange={props.setTask}
-      maxLength={MAX_NAME_INPUT_CODE_UNITS}
       invalid={props.errorField === "task"}
       describedById={props.errorId}
       layout="label-control"
@@ -255,7 +253,6 @@ function DetailFields(props: DetailProps) {
         label={m.form_allocation_note_label()}
         value={props.note}
         onChange={setNote}
-        maxLength={MAX_NOTE_INPUT_CODE_UNITS}
         invalid={props.errorField === "note"}
         describedById={props.errorId}
         layout="label-control"

@@ -22,6 +22,7 @@ const SAFE_CLIENT_ERRORS = new Map<string, { status: number; message: string }>(
   ["FST_ERR_CTP_INVALID_CONTENT_LENGTH", { status: 400, message: REPLY_ERRORS.contentLengthMismatch }],
   ["FST_ERR_CTP_EMPTY_JSON_BODY", { status: 400, message: REPLY_ERRORS.emptyJsonBody }],
   ["FST_ERR_CTP_INVALID_JSON_BODY", { status: 400, message: REPLY_ERRORS.invalidJsonBody }],
+  ["CAPACITYLENS_INVALID_JSON_BOUNDARY", { status: 400, message: REPLY_ERRORS.invalidJsonBody }],
   ["CAPACITYLENS_MALFORMED_CSP_REPORT", { status: 400, message: REPLY_ERRORS.malformedCspReport }],
   ["CAPACITYLENS_RATE_LIMITED", { status: 429, message: REPLY_ERRORS.rateLimited }],
 ]);

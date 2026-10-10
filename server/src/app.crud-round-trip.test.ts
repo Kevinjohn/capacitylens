@@ -43,7 +43,7 @@ function createCrudCreationTests(): void {
     expect(withoutRevision(readFirstResource(s.resources))).toEqual(
       withoutRevision({
         ...person("r1", "a1"),
-        name: "Unnamed person",
+        name: "Bruce Wayne",
       }),
     );
     expect(withoutRevision(readFirstAllocation(s.allocations))).toEqual(
@@ -63,20 +63,23 @@ function createCrudCreationTests(): void {
     });
   });
 
-  it("normalizes placeholder working patterns on create and partial update", async () => {
+  it("rejects non-default placeholder working patterns without changing the row", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    const created = await post(app, "resources", {
+    const invalid = await post(app, "resources", {
       ...placeholder("ph", "a1", "p1"),
       workingDays: [0, 6],
       halfDays: [6],
     });
-
+    expect(invalid.statusCode).toBe(400);
+    const created = await post(app, "resources", placeholder("ph", "a1", "p1"));
     expect(created.statusCode).toBe(201);
-    expect(created.json()).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
     const updated = await patch({ app, entity: "resources", id: "ph", payload: { workingDays: [2], halfDays: [2] } });
-    expect(updated.statusCode).toBe(200);
-    expect(updated.json()).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
+    expect(updated.statusCode).toBe(400);
+    expect((await readValidatedState(app)).resources.find((row) => row.id === "ph")).toMatchObject({
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+    });
   });
 }
 
@@ -132,6 +135,10 @@ function createCrudResourceMutationTests(): void {
     expect(readFirstResource((await readValidatedState(app)).resources).avatarUrl).toBe(
       "https://images.example/bruce.png",
     );
+    expect(getRow(db, "resources", "r1")?.avatarUrl).toBe("https://images.example/bruce.png");
+
+    const blank = await patch({ app, entity: "resources", id: "r1", payload: { avatarUrl: "" } });
+    expect(blank.statusCode).toBe(400);
     expect(getRow(db, "resources", "r1")?.avatarUrl).toBe("https://images.example/bruce.png");
 
     const cleared = await patch({ app, entity: "resources", id: "r1", payload: { avatarUrl: null } });

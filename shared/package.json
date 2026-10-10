@@ -26,6 +26,7 @@
     "./data/fixtures": "./src/data/fixtures.ts",
     "./data/internalClient": "./src/data/internalClient.ts",
     "./data/migrate": "./src/data/migrate.ts",
+    "./data/strictJson": "./src/data/strictJson.ts",
     "./data/seed": "./src/data/seed.ts",
     "./data/transfer": "./src/data/transfer.ts",
     "./domain/access": "./src/domain/access.ts",
