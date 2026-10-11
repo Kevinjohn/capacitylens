@@ -423,7 +423,6 @@ function registerInviteAuthorizationTests(): void {
   it("a non-member (cross-tenant stranger) is DENIED -> 403", async () => {
     const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
-    // No membership of a1.
     const { cookie } = await signUp(app, "stranger@capacitylens.dev");
 
     const res = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie });
@@ -586,7 +585,6 @@ function registerInviteConsumptionTests(): void {
 
     // User B (no prior membership) accepts.
     const b = await signUp(app, "joiner@capacitylens.dev");
-    // Not yet a member.
     expect(getMemberRole(db, "a1", b.userId)).toBeNull();
     const res = await acceptReq(app, token, { cookie: b.cookie });
     expect(res.statusCode).toBe(200);

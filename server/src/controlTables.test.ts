@@ -327,7 +327,6 @@ const registerSingleOwnerMigrationAdminPromotionTest = () => {
     const db = freshDb();
     upsertMember(db, member({ userId: "old-viewer", role: "viewer", createdAt: "2026-01-01T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "new-admin", role: "admin", createdAt: "2026-01-03T00:00:00.000Z" }));
-    // Installs the single-owner index the final assertion requires.
     migrateSingleOwnerControlPlaneV10(db);
 
     // Snapshot the recorded lines before mockRestore (which clears mock.calls) so the assertions
@@ -364,14 +363,12 @@ const registerSingleOwnerMigrationEditorPromotionTest = () => {
     upsertMember(db, member({ userId: "a-viewer", role: "viewer", createdAt: "2026-01-01T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "b-editor", role: "editor", createdAt: "2026-01-02T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "c-viewer", role: "viewer", createdAt: "2026-01-03T00:00:00.000Z" }));
-    // Installs the single-owner index the final assertion requires.
     migrateSingleOwnerControlPlaneV10(db);
 
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const errorLines = (() => {
       try {
         reportOwnerlessPromotionsV11(migrateOwnerlessControlPlaneV11(db));
-        // Snapshot before mockRestore clears it.
         return errorSpy.mock.calls.map((c) => String(c[0]));
       } finally {
         errorSpy.mockRestore();
@@ -397,14 +394,12 @@ const registerSingleOwnerMigrationViewerFallbackTest = () => {
     const db = freshDb();
     upsertMember(db, member({ userId: "v-late", role: "viewer", createdAt: "2026-01-02T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "v-early", role: "viewer", createdAt: "2026-01-01T00:00:00.000Z" }));
-    // Installs the single-owner index the final assertion requires.
     migrateSingleOwnerControlPlaneV10(db);
 
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const errorLines = (() => {
       try {
         reportOwnerlessPromotionsV11(migrateOwnerlessControlPlaneV11(db));
-        // Snapshot before mockRestore clears it.
         return errorSpy.mock.calls.map((c) => String(c[0]));
       } finally {
         errorSpy.mockRestore();
@@ -429,7 +424,6 @@ const registerSingleOwnerMigrationTieBreakTest = () => {
     upsertMember(db, member({ userId: "admin-a", role: "admin", createdAt: "2026-01-01T00:00:00.000Z" }));
     // Same createdAt as admin-a, the userId ascending tie-break decides ('admin-a' < 'admin-c').
     upsertMember(db, member({ userId: "admin-c", role: "admin", createdAt: "2026-01-01T00:00:00.000Z" }));
-    // Installs the single-owner index the final assertion requires.
     migrateSingleOwnerControlPlaneV10(db);
 
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -542,7 +536,6 @@ describe("removeMember", () => {
     upsertMember(db, member({ accountId: "acc-1", userId: "u-1", role: "editor" }));
     removeMember(db, "acc-1", "u-1");
     expect(getMemberRole(db, "acc-1", "u-1")).toBeNull();
-    // Idempotent.
     expect(() => removeMember(db, "acc-1", "u-1")).not.toThrow();
   });
 
@@ -606,11 +599,9 @@ describe("listInvitesForAccount", () => {
     const db = freshDb();
     createInvite(db, invite({ token: "tok-1", id: "inv-1", createdAt: "2026-01-01T00:00:00.000Z" }));
     createInvite(db, invite({ token: "tok-2", id: "inv-2", createdAt: "2026-01-02T00:00:00.000Z" }));
-    // Other account.
     createInvite(db, invite({ token: "tok-3", id: "inv-3", accountId: "acc-2" }));
 
     const list = listInvitesForAccount(db, "acc-1");
-    // Newest first.
     expect(list.map((i) => i.id)).toEqual(["inv-2", "inv-1"]);
     // No token field on any row (it's a write-once secret, never on a read path).
     expect(list.every((i) => !("token" in i))).toBe(true);
@@ -654,7 +645,6 @@ describe("listInvitesForAccount", () => {
   it('lists USED invites too — the members UI shows a consumed invite with a "used" badge', () => {
     const db = freshDb();
     createInvite(db, invite({ token: "tok-used", id: "inv-used", usedAt: TS }));
-    // Still unused.
     createInvite(db, invite({ token: "tok-open", id: "inv-open" }));
     const list = listInvitesForAccount(db, "acc-1");
     expect(list.map((i) => i.id).sort()).toEqual(["inv-open", "inv-used"]);
