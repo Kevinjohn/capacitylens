@@ -52,6 +52,9 @@ export function resolveDirectorySortName(entry: MemberDirectoryEntry): string {
   return entry.membership.principalId;
 }
 
+/**
+ * Maps session identity and assurance details to the actor context used by account commands.
+ */
 export function buildActorContextFromSession(
   input: {
     id: string;

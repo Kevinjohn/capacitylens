@@ -1,13 +1,13 @@
-// `pnpm run e2e:browsers` — the core in-memory demo specs on ALL THREE engines: Chromium +
-// WebKit/Safari first, then Firefox/Gecko second. Pure cross-browser rendering coverage — it does
-// NOT run the db-backed/auth-backed specs (those are Chromium-only server round-trips), so every
+// `pnpm run e2e:browsers` runs the core in-memory demo specs on all three engines: Chromium +
+// WebKit/Safari first, then Firefox/Gecko second. Pure cross-browser rendering coverage. It does
+// not run the db-backed/auth-backed specs (those are Chromium-only server round-trips), so every
 // invocation is CAPACITYLENS_VITE_ONLY: it boots Vite alone and needs neither the SQLite/auth servers
 // nor Node 24. (`e2e:all` is the superset that also runs those server specs.)
 //
-// Same two-invocation shape and rationale as scripts/e2e-all.mjs: Firefox runs SECOND and
-// UNCONDITIONALLY — even if the Chromium+WebKit pass went red — rather than via a Playwright
-// project `dependency` (which SKIPS the dependent when its dependency fails, hiding a Firefox-only
-// regression). Exit code is non-zero if EITHER invocation failed, but both always run first.
+// Same two-invocation shape and rationale as scripts/e2e-all.mjs: Firefox runs second and
+// unconditionally, even if the Chromium+WebKit pass fails, rather than via a Playwright
+// project `dependency` (which skips the dependent when its dependency fails, hiding a Firefox-only
+// regression). Exit code is non-zero if either invocation failed, but both always run first.
 //
 //   node scripts/e2e-browsers.mjs   # = pnpm run e2e:browsers
 
@@ -29,7 +29,7 @@ function run(label, env, extraArgs = []) {
 // 1) Chromium + WebKit/Safari core specs in one Vite-only run. CAPACITYLENS_WEBKIT makes the webkit
 //    project exist; CAPACITYLENS_VITE_ONLY trims the webServer list to Vite (no SQLite/auth server);
 //    the --project filters pick the two engines (so the db/auth projects don't run even though
-//    they're defined). CAPACITYLENS_FIREFOX stays unset, so Firefox is NOT in this invocation.
+//    they're defined). CAPACITYLENS_FIREFOX stays unset, so Firefox is not in this invocation.
 const chromeWebkit = run(
   "Chromium + WebKit/Safari",
   {
@@ -39,7 +39,7 @@ const chromeWebkit = run(
   E2E_RUN_PRESETS.chromiumWebkit.projects.flatMap((project) => ["--project", project]),
 );
 
-// 2) Firefox/Gecko core specs on its own, AFTER the above — runs even when it failed.
+// 2) Firefox/Gecko core specs on its own after the above, even when the previous run fails even when it failed.
 const firefox = run(
   "Firefox/Gecko",
   {

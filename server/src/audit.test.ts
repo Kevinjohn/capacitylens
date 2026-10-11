@@ -158,7 +158,7 @@ describe("AuditRecord shape (1)", () => {
     expect(rec.entity).toBe("accounts");
     expect(rec.id).toBe("a1");
     expect(rec.accountId).toBe("a1");
-    expect(rec.userId).toBe("demo"); // DEMO_USER in off mode
+    expect(rec.userId).toBe("demo");
     expect(typeof rec.ts).toBe("string");
     expect(Date.parse(rec.ts)).not.toBeNaN();
     // changedFields = the row's field names (sanitized row keys), not values.
@@ -238,7 +238,8 @@ describe("NO PII (2) — the #1 invariant", () => {
   it("a timeOff note logs the field NAME but never the value", async () => {
     const { app, file, lines } = fileApp();
     await scaffold(app);
-    const createIdx = lines().length; // the timeOff create line lands here (after the scaffold lines)
+    // The timeOff create line lands here (after the scaffold lines).
+    const createIdx = lines().length;
     const SECRET = "SECRET_NOTE_TEXT";
     // create with a secret note
     expect(
@@ -278,8 +279,8 @@ describe("NO resource PII in the audit log (2b) — P2.3 acceptance", () => {
     const { app, file, lines } = fileApp();
     // A name unique enough to grep for unambiguously across the whole raw file.
     const SENTINEL = "ZZSENTINELPERSON_DELETE_ME";
-    await post(app, "accounts", account("a1")); // FK parent for the resource
-    const createIdx = lines().length; // the resource create line lands here
+    await post(app, "accounts", account("a1"));
+    const createIdx = lines().length;
     // Create an audited resource carrying the sentinel as its name (the only resource PII today).
     expect((await post(app, "resources", { ...person("r1", "a1"), name: SENTINEL })).statusCode).toBe(201);
     // A second audited mutation (a non-PII PATCH) so there's more than one line to scan.
@@ -386,7 +387,7 @@ describe("parseAuditConfig + default deploy (4)", () => {
   });
 
   it("factory with NO opts.audit (noop) writes no file and sets no warning header", async () => {
-    const app = createApp(openDb(":memory:"), { allowReset: true }); // no audit → noopAuditSink()
+    const app = createApp(openDb(":memory:"), { allowReset: true });
     const res = await post(app, "accounts", account("a1"));
     expect(res.statusCode).toBe(201);
     expect(res.headers["x-capacitylens-audit-warning"]).toBeUndefined();
@@ -411,11 +412,11 @@ async function assertBrokenSinkKeepsMutationAvailable() {
   const sink = brokenSink();
   const app = createApp(openDb(":memory:"), { allowReset: true, healthDeep: true, audit: sink });
   const res = await post(app, "accounts", account("a1"));
-  expect(res.statusCode).toBe(201); // the mutation committed; audit failure never blocks it
+  expect(res.statusCode).toBe(201);
   expect(res.headers["x-capacitylens-audit-warning"]).toBe("true");
 
   const health = await call(app, { method: "GET", url: "/api/health" });
-  expect(health.statusCode).toBe(200); // ok:true: audit-degraded is a soft signal
+  expect(health.statusCode).toBe(200);
   expect(health.json()).toEqual({ ok: true, db: true, audit: "degraded", auditPending: 2 });
 }
 
@@ -423,7 +424,7 @@ async function assertAppendFailureIsRedacted() {
   const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-fail-"));
   // A directory path used as a file → appendFileSync throws → the sink catches it.
   const log = vi.fn();
-  const sink = createFileAuditSink(dir, log); // dir is a directory, not a file
+  const sink = createFileAuditSink(dir, log);
   expect(() =>
     sink.append({
       ts: TS,
@@ -447,10 +448,10 @@ async function assertAppendFailureIsRedacted() {
     }),
   ).toBe(false);
   expect(sink.degraded).toBe(true);
-  expect(log).toHaveBeenCalledTimes(1); // loggedOnce guard, no spam
+  expect(log).toHaveBeenCalledTimes(1);
   const msg = requiredAt(requiredAt(log.mock.calls, 0), 0) as string;
   expect(msg).toContain("audit write FAILED");
-  expect(msg).not.toContain("note"); // message-only: never the record
+  expect(msg).not.toContain("note");
   expect(msg).not.toContain("a1");
   expect(msg).not.toContain("a2");
 }
@@ -815,10 +816,10 @@ function assertRotationKeepsFreshGeneration() {
   const lineBytes = Buffer.byteLength(JSON.stringify(rotationRecord("r1")) + "\n", "utf8");
   const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
 
-  expect(sink.append(rotationRecord("r1"))).toBe(true); // file didn't exist (size 0 < cap), no rotation
+  expect(sink.append(rotationRecord("r1"))).toBe(true);
   expect(existsSync(`${file}.1`)).toBe(false);
 
-  expect(sink.append(rotationRecord("r2"))).toBe(true); // size(file) === cap → rotate before writing
+  expect(sink.append(rotationRecord("r2"))).toBe(true);
   expect(readFileSync(`${file}.1`, "utf8")).toBe(JSON.stringify(rotationRecord("r1")) + "\n");
   expect(readFileSync(file, "utf8")).toBe(JSON.stringify(rotationRecord("r2")) + "\n");
 
@@ -926,7 +927,7 @@ function assertPriorRotationIsReplaced() {
   const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
 
   sink.append(rotationRecord("r1"));
-  sink.append(rotationRecord("r2")); // triggers the rotation
+  sink.append(rotationRecord("r2"));
   const rotated = readFileSync(`${file}.1`, "utf8");
   expect(rotated).not.toContain("STALE_UNRELATED_CONTENT_FROM_A_PRIOR_GENERATION");
   expect(rotated).toBe(JSON.stringify(rotationRecord("r1")) + "\n");
@@ -935,7 +936,7 @@ function assertPriorRotationIsReplaced() {
 function assertDefaultRotationLimitDoesNotRotate() {
   const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-"));
   const file = join(dir, "audit.jsonl");
-  const sink = createFileAuditSink(file, vi.fn()); // no opts, default applies
+  const sink = createFileAuditSink(file, vi.fn());
   for (let i = 0; i < 50; i++) sink.append(rotationRecord(`r${i}`));
   expect(existsSync(`${file}.1`)).toBe(false);
 }
@@ -946,7 +947,7 @@ function assertRotationRenameFailureDegrades() {
   const log = vi.fn();
   const lineBytes = Buffer.byteLength(JSON.stringify(rotationRecord("r1")) + "\n", "utf8");
   const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
-  expect(sink.append(rotationRecord("r1"))).toBe(true); // creates the file, under cap
+  expect(sink.append(rotationRecord("r1"))).toBe(true);
 
   // Pre-create a directory at the rotation destination, so renameSync(file, `${file}.1`) fails
   // with EISDIR (you cannot rename a file onto an existing directory), a real fs failure, the
@@ -956,7 +957,7 @@ function assertRotationRenameFailureDegrades() {
   expect(() => sink.append(rotationRecord("r2"))).not.toThrow();
   expect(sink.append(rotationRecord("r2"))).toBe(false);
   expect(sink.degraded).toBe(true);
-  expect(log).toHaveBeenCalledTimes(1); // loggedOnce guard, no spam across repeated failures
+  expect(log).toHaveBeenCalledTimes(1);
   const msg = requiredAt(requiredAt(log.mock.calls, 0), 0) as string;
   expect(msg).toContain("audit write FAILED");
 }

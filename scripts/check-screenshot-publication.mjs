@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const reviewPath = resolve(repositoryRoot, "docs-src/screenshots/publication-review.json");
 
+/**
+ * Checks screenshot publication entries against the reviewed repository files.
+ */
 export function verifyReviewedScreenshots(root, entries) {
   const failures = [];
   for (const entry of entries) {

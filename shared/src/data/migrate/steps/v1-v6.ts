@@ -34,7 +34,8 @@ export function migrateV3toV4(data: Record<string, unknown>): Record<string, unk
   const applyKindBackfill = (rows: unknown[]): unknown[] =>
     rows.map((activity) => {
       if (!isRecord(activity)) return activity;
-      if (activity.kind !== undefined) return activity; // already v4 (or hand-set), leave it
+      // Preserve an existing discriminator from v4 data or a manually set value.
+      if (activity.kind !== undefined) return activity;
       return {
         ...activity,
         kind: activity.projectId !== undefined && activity.projectId !== null ? "project" : "repeatable",

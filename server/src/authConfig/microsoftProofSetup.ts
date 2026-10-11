@@ -17,6 +17,9 @@ type Input = {
   getAuth: () => Auth | null;
 };
 
+/**
+ * Creates the configured proof callbacks and adds the Microsoft email-verification gate.
+ */
 export function createConfiguredMicrosoftProof(input: Input) {
   if (!input.environment.CAPACITYLENS_MICROSOFT_CLIENT_ID || !input.environment.CAPACITYLENS_MICROSOFT_CLIENT_SECRET)
     return null;

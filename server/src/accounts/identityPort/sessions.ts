@@ -33,6 +33,9 @@ type ProviderSessionRow = {
   expiresAt: string | number | null;
 };
 
+/**
+ * Creates identity session operations for the configured database and lifecycle hooks.
+ */
 export function createSessions(context: SessionsContext): SessionsPort {
   return {
     verifyApplicationSession: (request) => verifyApplicationSession(context, request),

@@ -1,5 +1,8 @@
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 
+/**
+ * Describes a provider identity before verified-email and invitation admission checks.
+ */
 export interface ExternalIdentityCandidate {
   email?: string;
   emailVerified?: boolean;

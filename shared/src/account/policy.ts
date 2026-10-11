@@ -169,6 +169,10 @@ function evaluateIdentityAdminAction({
   return canAdministerIdentityAcrossWorkspaces(actorRolesByWorkspace, targetRolesByWorkspace, isSelf);
 }
 
+/**
+ * Keeps identity administration decisions consistent with actor, target, and self-service
+ * restrictions.
+ */
 const canPerformIdentityAdminAction = function canPerformIdentityAdminAction(
   ...[action, actorRolesByWorkspace, targetRolesByWorkspace, isSelf]: [
     action: IdentityAdminAction,

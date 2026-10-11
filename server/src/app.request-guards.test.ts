@@ -20,7 +20,8 @@ describe("batch op-count cap (MAX_BATCH_OPS)", () => {
     const res = await batch(app, ops);
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toContain(String(MAX_BATCH_OPS));
-    expect((await readValidatedState(app)).accounts).toHaveLength(0); // nothing written
+    // Nothing written.
+    expect((await readValidatedState(app)).accounts).toHaveLength(0);
   });
 
   it(`allows a batch of exactly ${MAX_BATCH_OPS} ops (boundary, inclusive)`, async () => {

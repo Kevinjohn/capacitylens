@@ -8,6 +8,9 @@ import {
   writeVerifiedSnapshot,
 } from "./publish";
 import type { DurableSnapshotPublisher } from "./publish";
+/**
+ * Provides the database and destination required to save a pre-migration snapshot.
+ */
 export interface PreMigrationBackupOptions {
   dbPath: string;
   fromVersion: number;

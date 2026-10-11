@@ -56,7 +56,8 @@ export function captureVerifiedFederatedEmailProof(db: Db, input: ProviderFact):
     WHERE linked.providerId = ? AND linked.accountId = ? LIMIT 1`,
     )
     .get(input.providerId, subject) as { userId: string; email: string } | undefined;
-  if (!existing) return; // The account INSERT trigger records proof with the resolved principal.
+  // The account INSERT trigger records proof with the resolved principal.
+  if (!existing) return;
   // Stable provider subjects remain the same identity across profile email drift. Only the
   // current local address can gain proof; the callback never changes the principal's email.
   if (normalizeAccountEmail(existing.email) !== email) return;

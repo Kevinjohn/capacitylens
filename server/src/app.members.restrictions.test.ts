@@ -64,7 +64,8 @@ function createRestoreMemberTest(): void {
       status: "disabled",
       headers: { cookie: owner.cookie },
     });
-    expect(getMemberRole(db, "a1", ed.userId)).toBe("editor"); // role survives the suspension
+    // Role survives the suspension.
+    expect(getMemberRole(db, "a1", ed.userId)).toBe("editor");
 
     expect(
       (

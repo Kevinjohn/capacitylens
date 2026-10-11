@@ -27,6 +27,7 @@ import {
   shapeActivityWriteEcho,
   writeActivityRow,
 } from "./routeShared";
+/** Dependencies required by the generic entity routes. */
 export interface EntityRouteDependencies {
   db: Db;
   store: AccountStore;
@@ -393,6 +394,7 @@ function registerDeleteRoute(app: FastifyInstance, dependencies: EntityRouteDepe
   });
 }
 
+/** Registers routes for tables served through the generic entity API. */
 export function registerEntityRoutes(app: FastifyInstance, dependencies: EntityRouteDependencies): void {
   registerCreateRoute(app, dependencies);
   registerUpdateRoutes(app, dependencies);

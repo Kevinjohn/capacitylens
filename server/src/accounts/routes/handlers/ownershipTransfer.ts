@@ -69,6 +69,9 @@ function sendMasqueradeRefusal(
   return reply.code(403).send({ error: REPLY_ERRORS.masqueradeReadOnly, code: MASQUERADE_ERROR_CODES.readOnly });
 }
 
+/**
+ * Returns the ownership-transfer request visible to the authenticated participant.
+ */
 export async function readOwnershipTransfer(
   req: FastifyRequest<AccountRoute>,
   reply: FastifyReply,
@@ -141,6 +144,9 @@ type InitiateOwnershipTransferContext = Pick<
   "administration" | "auditUnlessReplayed" | "authorizeMemberMutation" | "command" | "fail"
 >;
 
+/**
+ * Starts an ownership transfer after validating the owner and nominated administrator.
+ */
 export async function initiateOwnershipTransfer(
   req: FastifyRequest<AccountRoute>,
   reply: FastifyReply,
@@ -256,6 +262,9 @@ async function runRowCommand({ req, reply, context, action }: RowCommandInput) {
   }
 }
 
+/**
+ * Accepts the pending ownership transfer as its nominated administrator.
+ */
 export const acceptOwnershipTransfer = (
   req: FastifyRequest<OwnershipTransferRequestRoute>,
   reply: FastifyReply,
@@ -265,6 +274,9 @@ export const acceptOwnershipTransfer = (
   >,
 ) => runRowCommand({ req, reply, context, action: "accept" });
 
+/**
+ * Withdraws the pending ownership transfer as its initiating owner.
+ */
 export const withdrawOwnershipTransfer = (
   req: FastifyRequest<OwnershipTransferRequestRoute>,
   reply: FastifyReply,
@@ -274,6 +286,9 @@ export const withdrawOwnershipTransfer = (
   >,
 ) => runRowCommand({ req, reply, context, action: "withdraw" });
 
+/**
+ * Declines the pending ownership transfer as its nominated administrator.
+ */
 export const declineOwnershipTransfer = (
   req: FastifyRequest<OwnershipTransferRequestRoute>,
   reply: FastifyReply,
@@ -283,6 +298,9 @@ export const declineOwnershipTransfer = (
   >,
 ) => runRowCommand({ req, reply, context, action: "decline" });
 
+/**
+ * Cancels the pending ownership transfer when the caller is authorized to do so.
+ */
 export const cancelOwnershipTransfer = (
   req: FastifyRequest<OwnershipTransferRequestRoute>,
   reply: FastifyReply,
@@ -292,6 +310,9 @@ export const cancelOwnershipTransfer = (
   >,
 ) => runRowCommand({ req, reply, context, action: "cancel" });
 
+/**
+ * Completes the transfer after both participants have supplied the required consent.
+ */
 export const completeOwnershipTransfer = (
   req: FastifyRequest<OwnershipTransferRequestRoute>,
   reply: FastifyReply,

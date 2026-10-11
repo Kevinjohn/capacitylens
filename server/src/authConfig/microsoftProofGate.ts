@@ -16,6 +16,7 @@ export function ensureMicrosoftProofGate(db: Db, applicationId: string): void {
     try {
       parsed = JSON.parse(domains);
     } catch {
+      // Invalid domain configuration cannot approve an address.
       return 0;
     }
     return Array.isArray(parsed) &&

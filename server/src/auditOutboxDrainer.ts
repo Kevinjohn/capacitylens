@@ -3,6 +3,7 @@ import { drainAuditOutbox, readPendingAuditCount } from "./auditOutbox";
 import type { Db } from "./db";
 import { authTransactionGateFor } from "./authTransactionGate";
 
+/** Controls bounded background delivery of committed audit records. */
 export interface AuditOutboxDrainer {
   /** Deliver at most one bounded page and schedule later pages between event-loop turns. */
   drainOnce(): boolean;
@@ -10,7 +11,7 @@ export interface AuditOutboxDrainer {
   stop(): void;
 }
 
-/** Own progressive audit recovery without keeping the process alive or outliving Fastify. */
+/** Owns progressive audit delivery without keeping the process alive or outliving Fastify. */
 export function createAuditOutboxDrainer(
   db: Db,
   sink: AuditSink,

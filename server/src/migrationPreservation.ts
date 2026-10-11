@@ -190,9 +190,7 @@ function assertColumnsPreserved(
   const { tableName, beforeRow, afterRow, key, fromVersion, foldedInternalClients } = input;
   for (const [column, beforeValue] of Object.entries(beforeRow)) {
     if (!(column in afterRow)) {
-      // The migration dropped this column. A populated value silently disappearing is exactly
-      // the data loss this oracle exists to catch (review finding DBR-0003): refuse it unless
-      // the value carried nothing or the removal is explicitly classified below.
+      // A populated dropped column would lose data, so require explicit approval for its removal.
       const hadValue = beforeValue !== null && String(beforeValue) !== "";
       if (!hadValue || approvedColumnRemoval()) continue;
       throw new Error(

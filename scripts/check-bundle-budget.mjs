@@ -3,9 +3,9 @@ import { gzipSync } from "node:zlib";
 import { resolve } from "node:path";
 import { assertEntryBundleWithinBudget } from "./bundleBudget.mjs";
 
-// This is a BLOWUP DETECTOR, not a creep ratchet. It exists to catch the single careless commit —
+// This is a large-change detector, not a creep ratchet. It exists to catch the single careless commit:
 // a barrel import that pulls all of an icon set instead of five glyphs, a date library that doesn't
-// tree-shake — which adds hundreds of KB while looking innocent in review. It is NOT here to police
+// tree-shake, which adds hundreds of KB while looking innocent in review. It is not here to police
 // a few KB per feature.
 //
 // Earlier limits sat ~0.2% above the measured size, which meant essentially every feature tripped
@@ -16,7 +16,7 @@ import { assertEntryBundleWithinBudget } from "./bundleBudget.mjs";
 // gzip is a generous ceiling that still catches a genuine mistake immediately. The raw limit is
 // proportionate to that ceiling at the bundle's observed compression ratio.
 //
-// Only the ENTRY chunk is measured — lazily-loaded routes cost nothing until visited. The actual
+// Only the entry chunk is measured. Lazily loaded routes cost nothing until visited. The actual
 // sizes are logged on every build below, so real drift stays visible without failing anyone's build.
 // If these ever trip, do not reflexively raise them: look at what was just imported.
 const index = await readFile(resolve("dist/index.html"), "utf8");

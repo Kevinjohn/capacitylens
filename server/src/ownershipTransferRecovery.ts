@@ -17,12 +17,18 @@ import { tx } from "./txn";
 type RevisionStatus = "advanceable" | "exhausted" | "corrupt";
 type LiveState = "awaiting_target" | "awaiting_owner";
 
+/**
+ * Identifies an existing database, account, and transfer request to inspect for recovery.
+ */
 export interface InspectOwnershipTransferRecoveryInput {
   databasePath: string;
   accountId: string;
   requestId: string;
 }
 
+/**
+ * Returns the participants, state, and revision an operator must verify before recovery.
+ */
 export interface OwnershipTransferRecoveryInspection {
   status: Exclude<RevisionStatus, "advanceable">;
   accountId: string;
@@ -33,6 +39,9 @@ export interface OwnershipTransferRecoveryInspection {
   targetUserId: string;
 }
 
+/**
+ * Requires the inspected request state, participants, revision, and stopped-server confirmation before cancellation.
+ */
 export interface CancelOwnershipTransferRecoveryInput extends InspectOwnershipTransferRecoveryInput {
   expectedState: LiveState;
   expectedInitiatorUserId: string;
@@ -43,6 +52,9 @@ export interface CancelOwnershipTransferRecoveryInput extends InspectOwnershipTr
   auditId?: () => string;
 }
 
+/**
+ * Returns the cancelled request and audit entry produced by recovery.
+ */
 export interface OwnershipTransferRecoveryResult {
   status: "cancelled";
   accountId: string;

@@ -92,12 +92,10 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       offlineShellManifest(),
       staticSpaRouteDocuments(),
-      // Paraglide (inlang) i18n (P1.5.1) — compile-time, type-safe messages. The plugin re-runs the
-      // message compiler into ./src/paraglide on dev/build (the package scripts also precompile so a
-      // bare `tsc -b`/`vitest` finds the output). strategy = ['globalVariable','baseLocale']: locale is
-      // account-scoped + client-only (set from Account.language via src/i18n), so it lives in a global
-      // variable with NO page reload — NOT a cookie (which would imply a server round-trip / reload).
-      // baseLocale is the fallback. English-only today; the seam is in place for later locales (P1.5.2+).
+      // Paraglide generates messages from committed sources during dev and builds. Package scripts
+      // precompile them so direct type-check and Vitest commands can resolve the output. The
+      // account-scoped locale stays client-only in a global variable; baseLocale keeps English as
+      // the fallback without a page reload or server round-trip.
       paraglideVitePlugin({
         project: "./project.inlang",
         outdir: "./src/paraglide",
@@ -115,8 +113,7 @@ export default defineConfig(({ mode }) => {
     // reaching `127.0.0.1` gets connection-refused (blank page, no console error).
     // Pinning 127.0.0.1 keeps it loopback-only while staying reachable as `localhost`.
     // (Use `host: true` instead if you need to reach the dev server from another device.)
-    // strictPort: if the port is already taken (for example by a stale development server), FAIL LOUDLY
-    // instead of silently starting on the next one while the browser stares at the wrong port's white page.
+    // strictPort reports an occupied port instead of silently serving the app on another port.
     server: {
       host: "127.0.0.1",
       port: servicePort,
@@ -160,7 +157,7 @@ export default defineConfig(({ mode }) => {
           "src/main.tsx",
           "src/router.tsx",
           "src/vite-env.d.ts",
-          // Paraglide-generated message/runtime code (P1.5.1) — not hand-written, not under test.
+          // Paraglide generates this message runtime from committed sources, so coverage excludes it.
           "src/paraglide/**",
         ],
         // Ratcheted 2026-08-18 against a measured 94.15% statements / 89.34% branches /

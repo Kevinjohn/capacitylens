@@ -3,6 +3,9 @@ import { isMainThread, parentPort } from "node:worker_threads";
 import { remapAndValidateImport } from "@capacitylens/shared/domain/mutations";
 import type { AppData, ID, ISOTimestamp } from "@capacitylens/shared/types/entities";
 
+/**
+ * Contains the serialized data and account context sent to one import worker.
+ */
 export interface ImportWorkerRequest {
   current: AppData;
   accountId: ID;
@@ -10,6 +13,9 @@ export interface ImportWorkerRequest {
   now: ISOTimestamp;
 }
 
+/**
+ * Matches the validated and remapped result returned by an import worker.
+ */
 export type ImportWorkerResult = ReturnType<typeof remapAndValidateImport>;
 
 assertSupportedNodeVersion();

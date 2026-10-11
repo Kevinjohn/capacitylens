@@ -19,6 +19,7 @@ interface ScrubDanglingReferencesInput {
   references: Reference[];
   label: string;
 }
+/** Applies an anonymisation update only when its optional table and column exist. */
 export function updateIfPresent({ db, table, column, expression }: UpdateIfPresentInput): void {
   if (!hasTable(db, table) || !readColumnNames(db, table).has(column)) return;
   db.exec(`UPDATE ${quoteIdentifier(table)} SET ${quoteIdentifier(column)} = ${expression}`);
@@ -373,6 +374,7 @@ function scrubIdentityCoordinates(db: DatabaseSync): void {
   });
 }
 
+/** Scrubs identity coordinates without making stale provider evidence valid again. */
 export function remapIdentityCoordinates({ db, hasProviderCoordinates }: RemapIdentityCoordinatesInput): void {
   // Preserve the original admission proof before remapping any identity coordinates.
   // A stale subject, principal or provider must never become a valid proof after scrubbing.

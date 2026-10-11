@@ -12,12 +12,14 @@ export const ACCOUNT_ENTITY_INDEXES_V21 = [
   { table: "timeOff", index: "idx_timeOff_accountId" },
 ] as const;
 
+/** Creates the database-v21 tenant indexes declared by the immutable manifest. */
 export const ACCOUNT_ENTITY_INDEXES_V21_SQL = ACCOUNT_ENTITY_INDEXES_V21.map(
   ({ table, index }) => `CREATE INDEX IF NOT EXISTS ${index} ON ${table}(accountId);`,
 ).join("\n");
 
 /** Tenant index introduced with the first-class closure table in v34. */
 export const ACCOUNT_ENTITY_INDEXES_V34 = [{ table: "closures", index: "idx_closures_accountId" }] as const;
+/** Creates the closure-table tenant index introduced in database v34. */
 export const ACCOUNT_ENTITY_INDEXES_V34_SQL = ACCOUNT_ENTITY_INDEXES_V34.map(
   ({ table, index }) => `CREATE INDEX IF NOT EXISTS ${index} ON ${table}(accountId);`,
 ).join("\n");
@@ -36,6 +38,7 @@ export const FOREIGN_KEY_CHILD_INDEXES_V23 = [
   { table: "timeOff", column: "resourceId", index: "idx_timeOff_resourceId" },
 ] as const;
 
+/** Creates the database-v23 child-side foreign-key indexes in SQLite. */
 export const FOREIGN_KEY_CHILD_INDEXES_V23_SQL = FOREIGN_KEY_CHILD_INDEXES_V23.map(
   ({ table, column, index }) => `CREATE INDEX IF NOT EXISTS ${index} ON ${table}(${column});`,
 ).join("\n");
@@ -46,8 +49,10 @@ export const ALLOCATION_PROJECT_INDEX_V35 = {
   column: "projectId",
   index: "idx_allocations_projectId",
 } as const;
+/** Creates the allocation project index introduced in database v35. */
 export const ALLOCATION_PROJECT_INDEX_V35_SQL = `CREATE INDEX IF NOT EXISTS ${ALLOCATION_PROJECT_INDEX_V35.index} ON ${ALLOCATION_PROJECT_INDEX_V35.table}(${ALLOCATION_PROJECT_INDEX_V35.column});`;
 
+/** Quotes a SQLite identifier so embedded quotes cannot change the SQL structure. */
 export const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
 /** Shared shape check behind assertAccountIndexesV21 and assertAccountEntityIndexesCurrent's

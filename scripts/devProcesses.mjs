@@ -53,6 +53,7 @@ function signalProcessTree(
       kill(-child.pid, signal);
     }
   } catch (error) {
+    // The process may exit after the liveness check and before it receives the signal.
     if (error.code !== "ESRCH") throw error;
   }
 }

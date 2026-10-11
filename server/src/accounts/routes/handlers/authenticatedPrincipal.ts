@@ -18,11 +18,17 @@ export function createAuthenticationRequiredError() {
   });
 }
 
+/**
+ * Returns the account actor attached to the request, or rejects a request without one.
+ */
 export function requireAccountActor(req: FastifyRequest) {
   if (!req.accountActor) throw createAuthenticationRequiredError();
   return req.accountActor;
 }
 
+/**
+ * Returns the authenticated principal attached to the request, or rejects an unauthenticated request.
+ */
 export function requireAuthenticatedUser(req: FastifyRequest) {
   if (!req.user) throw createAuthenticationRequiredError();
   return req.user;

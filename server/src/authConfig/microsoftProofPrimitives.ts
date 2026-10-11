@@ -11,8 +11,17 @@ import {
 import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
 
+/**
+ * Identifies why an email proof was started: bootstrap, invitation, account linking, or company joining.
+ */
 export type MicrosoftProofPurpose = "bootstrap" | "invite" | "link" | "join";
+/**
+ * Names the persisted states in a Microsoft email-proof ceremony.
+ */
 export type MicrosoftProofState = "started" | "mail-sent" | "approved" | "completed" | "cancelled";
+/**
+ * Stores the nonce, purpose, target, and lifecycle data needed to complete a Microsoft proof.
+ */
 export type MicrosoftProofIntent = {
   id: string;
   nonceHash: string;
@@ -38,11 +47,17 @@ export type MicrosoftProofIntent = {
   errorCallbackUrl: string;
 };
 
+/**
+ * Carries the current session and account context used to authorize a Microsoft proof.
+ */
 export type MicrosoftProofSession = {
   user: { id: string; email: string; emailVerified: boolean };
   session?: { id: string; createdAt: string; expiresAt: string | null };
 } | null;
 
+/**
+ * Signals a typed failure in a Microsoft email-proof ceremony.
+ */
 export class MicrosoftProofError extends Error {
   constructor(
     readonly code: string,
@@ -53,24 +68,39 @@ export class MicrosoftProofError extends Error {
   }
 }
 
+/**
+ * Hashes a proof value before it is stored or compared.
+ */
 export function hashProofValue(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/**
+ * Compares proof digests without a content-dependent timing check.
+ */
 export function equalProofHashes(left: string, right: string): boolean {
   const a = Buffer.from(left);
   const b = Buffer.from(right);
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+/**
+ * Generates the secret included in a one-time email proof link.
+ */
 export function newProofSecret(): string {
   return randomBytes(32).toString("base64url");
 }
 
+/**
+ * Generates the identifier for a new Microsoft proof ceremony.
+ */
 export function newProofId(): string {
   return randomUUID();
 }
 
+/**
+ * Returns the named cookie value from request headers, or `null` if absent.
+ */
 export function readProofCookie(headers: Headers, name: string): string | null {
   const prefix = `${name}=`;
   for (const part of (headers.get("cookie") ?? "").split(";")) {
@@ -80,11 +110,17 @@ export function readProofCookie(headers: Headers, name: string): string | null {
   return null;
 }
 
+/**
+ * Masks the local part of an email address for the proof flow.
+ */
 export function hintProofEmail(email: string): string {
   const at = email.indexOf("@");
   return `${email.slice(0, 1)}***${email.slice(at)}`;
 }
 
+/**
+ * Reports whether Microsoft has verified an email matching the requested address.
+ */
 export function hasVerifiedMicrosoftEmail(profile: Record<string, unknown>, target: string): boolean {
   const address = typeof profile.email === "string" ? normalizeAccountEmail(profile.email) : "";
   const verified = (value: unknown) =>
@@ -97,6 +133,9 @@ export function hasVerifiedMicrosoftEmail(profile: Record<string, unknown>, targ
   );
 }
 
+/**
+ * Loads the proof intent matching the nonce digest, if one exists.
+ */
 export function readMicrosoftProofIntent(db: Db, nonceHash: string): MicrosoftProofIntent | null {
   return (
     (db.prepare("SELECT * FROM microsoft_identity_proofs WHERE nonceHash = ?").get(nonceHash) as
@@ -104,6 +143,9 @@ export function readMicrosoftProofIntent(db: Db, nonceHash: string): MicrosoftPr
   );
 }
 
+/**
+ * Rejects return URLs whose origin is not in the configured allowlist.
+ */
 export function assertMicrosoftReturnUrl(value: string, origins: ReadonlySet<string>): string {
   let parsed: URL;
   try {
@@ -140,6 +182,9 @@ export function createMicrosoftReturnUrlCipher(secret: string) {
   };
 }
 
+/**
+ * Creates the proof-delivery adapter with its configured sender and rate budget.
+ */
 export function createMicrosoftProofMailer(mail: MailSender, publicUrl: URL) {
   return async (targetEmail: string, token: string) => {
     const target = new URL("/verify-microsoft", publicUrl);

@@ -64,6 +64,11 @@
       "reason": "test-size ratchet baseline; split when touched"
     },
     {
+      "path": "server/src/routes/entityRoutes.ts",
+      "baseline": 402,
+      "reason": "temporary allowance for required exported-symbol TSDoc; remove when the route module is split"
+    },
+    {
       "path": "shared/src/domain/lifecycle.test.ts",
       "baseline": 1028,
       "reason": "test-size ratchet baseline; split when touched"

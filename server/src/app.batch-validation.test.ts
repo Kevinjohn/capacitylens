@@ -92,7 +92,8 @@ function createLifecycleDeletePreScanTest() {
     await post(app, "accounts", account("a1"));
     await post(app, "clients", client("c1", "a1"));
     await post(app, "clients", client("c2", "a1"));
-    await post(app, "projects", project("p1", "a1", "c1")); // p1 under c1
+    // The first project belongs to c1, so the request can attempt reparenting before the forbidden delete.
+    await post(app, "projects", project("p1", "a1", "c1"));
     await post(app, "activities", activity({ id: "t1", accountId: "a1", projectId: "p1" }));
     // The forbidden lifecycle DELETE rejects the whole request before the preceding reparent runs.
     const res = await batch(app, [
@@ -132,7 +133,8 @@ function createAtomicRollbackTest() {
     ]);
     expect(res.statusCode).toBe(400);
     const s = await readValidatedState(app);
-    expect(s.clients).toHaveLength(0); // c3 rolled back with the bad op, nothing persisted
+    // The invalid operation rolls back c3, so no client persists.
+    expect(s.clients).toHaveLength(0);
     expect(s.projects).toHaveLength(0);
   });
 }
@@ -194,11 +196,13 @@ function createPlaceholderRebindRollbackTest() {
 function createCrossAccountDeleteRollbackTest() {
   it("refuses a cross-account delete inside a batch and rolls back", async () => {
     const { app } = freshApp();
-    await scaffold(app); // c1 in a1
+    // The scaffold creates c1 in a1, then the test attempts to delete it through a2.
+    await scaffold(app);
     await post(app, "accounts", account("a2"));
     const res = await batch(app, [{ method: "DELETE", table: "clients", id: "c1", accountId: "a2" }]);
     expect(res.statusCode).toBe(400);
-    expect((await readValidatedState(app)).clients).toHaveLength(1); // c1 untouched
+    // The failed batch must leave c1 unchanged.
+    expect((await readValidatedState(app)).clients).toHaveLength(1);
   });
 }
 

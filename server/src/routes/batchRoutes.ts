@@ -18,6 +18,7 @@ import { parseBatchRequest } from "./batch/validateRequest";
 import { REPLY_ERRORS } from "./replyErrors";
 export { MAX_BATCH_OPS } from "./batch/types";
 
+/** Dependencies required by the batch HTTP route. */
 export interface BatchRouteDependencies {
   db: Db;
   store: AccountStore;
@@ -217,6 +218,7 @@ function createBatchHandler(dependencies: BatchRouteDependencies) {
   };
 }
 
+/** Registers the atomic batch endpoint. */
 export function registerBatchRoutes(app: FastifyInstance, dependencies: BatchRouteDependencies): void {
   app.post("/api/batch", createBatchHandler(dependencies));
 }

@@ -5,6 +5,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const TEST_FILE_PATTERN = /\.(test|spec)\./;
 
+/**
+ * Counts lines in source text without counting a final newline.
+ */
 export function countLines(content) {
   if (content === "") return 0;
   return content.split(/\r?\n/).length - (content.endsWith("\n") ? 1 : 0);
@@ -23,6 +26,10 @@ function ceilingForPath(path, config) {
 }
 
 // files contains repository-relative paths and source contents; no disk access here.
+/**
+ * Checks source file line counts against the supplied size policy.
+ * @throws When a test file is checked without a finite test ceiling.
+ */
 export function evaluateFileSizes(files, config) {
   if (files.some(({ path }) => isTestFile(path)) && !Number.isFinite(config.testCeiling)) {
     throw new Error("testCeiling must be a finite number when test files are checked.");
@@ -57,6 +64,9 @@ export function evaluateFileSizes(files, config) {
   return { valid: errors.length === 0, errors };
 }
 
+/**
+ * Lists tracked application, server, and shared source files with their contents.
+ */
 export function collectSourceFiles(root) {
   const result = spawnSync("git", ["ls-files", "-z", "--", "src", "server/src", "shared/src"], {
     cwd: root,

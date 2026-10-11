@@ -1,4 +1,7 @@
 declare module "tr46" {
+  /**
+   * Defines the IDNA checks used when converting a domain name to ASCII.
+   */
   export interface ToASCIIOptions {
     checkBidi?: boolean;
     checkJoiners?: boolean;
@@ -8,5 +11,8 @@ declare module "tr46" {
     verifyDNSLength?: boolean;
   }
 
+  /**
+   * Converts a domain name for comparison and storage using the shared IDNA implementation.
+   */
   export function toASCII(domainName: string, options?: ToASCIIOptions): string | null;
 }

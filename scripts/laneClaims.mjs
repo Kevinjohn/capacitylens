@@ -6,7 +6,7 @@
 //   1. Two runs never hold the same lane. Scanning for a free lane and writing the claim happen
 //      under a directory mutex, so two starters cannot both decide the same stale lane is theirs.
 //   2. A release never deletes someone else's claim. Release re-reads the file and unlinks only
-//      when the recorded token is still ours — otherwise a slow releaser would delete the lock a
+//      when the recorded token is still ours; otherwise a slow releaser would delete the lock a
 //      successor had just created.
 import { execFileSync } from "node:child_process";
 import {
@@ -76,8 +76,8 @@ function readClaim(path) {
 }
 
 /**
- * Hold the directory mutex for the duration of `body`. Kept to the scan-and-write window only —
- * milliseconds — a dead holder can be reaped, while a live holder is never reaped based on age.
+ * Hold the directory mutex for the duration of `body`. Kept to the scan-and-write window only.
+ * It lasts milliseconds. A dead holder can be reaped, while a live holder is never reaped based on age.
  * MUTEX_STALE_MS only limits how long a contender waits for a live holder.
  */
 function withMutex(directory, body) {
@@ -350,7 +350,7 @@ export function releaseLane(directory, lane, token) {
 
 /**
  * The lane a launch runs in. A lane is inherited only when an outer launcher supplied both its lane
- * and claim marker; that claim is never released here. Otherwise this launch claims its own lane —
+ * and claim marker; that claim is never released here. Otherwise this launch claims its own lane,
  * the one selected by hand when the lane variable is set, else the lowest free one.
  */
 export function resolveLaunchClaim({ worktree, environment = process.env, claim = claimLane } = {}) {

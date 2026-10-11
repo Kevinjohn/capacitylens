@@ -182,6 +182,9 @@ type SetLinkInput = {
   now: string;
 };
 type CurrentLink = { revision: string; resourceId: string; createdAt: string; updatedAt: string };
+/**
+ * Describes the result of changing a member’s resource link.
+ */
 export interface AccountMemberResourceMutation {
   link: AccountMemberResourceLink;
   changed: boolean;
@@ -241,6 +244,9 @@ function persistLink(input: SetLinkInput, revision: string): void {
   }
 }
 
+/**
+ * Updates a member’s resource link and returns its revision details inside the caller’s transaction.
+ */
 export function setAccountMemberResourceLinkInTransaction(input: SetLinkInput): AccountMemberResourceMutation {
   const current = input.db
     .prepare(

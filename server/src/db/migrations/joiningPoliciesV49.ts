@@ -1,5 +1,8 @@
 import { defineMigration } from "../migrationLedger";
 
+/**
+ * Creates account joining-policy and company-joining-intent tables with their lookup indexes.
+ */
 export const JOINING_POLICIES_V49_SQL = `
 CREATE TABLE account_joining_policies (
   accountId TEXT PRIMARY KEY,
@@ -36,6 +39,9 @@ CREATE INDEX idx_company_join_intents_ip ON company_join_intents(sourceIpHash, l
 CREATE INDEX idx_company_join_intents_expiry ON company_join_intents(expiresAt, state);
 `;
 
+/**
+ * Adds the version 49 migration for company-joining policies and intents.
+ */
 export const JOINING_POLICIES_V49_MIGRATION = defineMigration(
   49,
   "add-company-joining-policies",

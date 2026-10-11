@@ -6,6 +6,9 @@ import type { CommandScope } from "../commands";
 import type { KeyedOperationLock } from "../KeyedOperationLock";
 import type { WriteOnceSecretReplay } from "../WriteOnceSecretReplay";
 
+/**
+ * Carries the command scope and denial details needed to reject an identity administration command.
+ */
 export interface DenyIdentityAdminCommandInput {
   scope: Pick<CommandScope, "applicationId" | "operation">;
   command: CommandIdentity;

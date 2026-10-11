@@ -2,6 +2,9 @@ import { defineMigration } from "../migrationLedger";
 
 // SQLite cannot alter a CHECK constraint in place. Rebuild only the proof table; retain all
 // outstanding ceremonies and their native OAuth state, then let auth setup reinstall its gates.
+/**
+ * Rebuilds the Microsoft proof table to store ceremony purpose while retaining outstanding proof rows.
+ */
 export const MICROSOFT_JOIN_V50_SQL = `
 DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_before;
 DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_after;
@@ -44,6 +47,9 @@ CREATE UNIQUE INDEX idx_microsoft_identity_proofs_approved_identity
   ON microsoft_identity_proofs(tenantId, oid) WHERE state = 'approved';
 `;
 
+/**
+ * Adds the version 50 migration for Microsoft company-joining proof purpose.
+ */
 export const MICROSOFT_JOIN_V50_MIGRATION = defineMigration(
   50,
   "add-microsoft-company-joining-purpose",

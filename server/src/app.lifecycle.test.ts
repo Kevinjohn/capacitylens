@@ -612,7 +612,8 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it("non-member (signed in, no membership): every lifecycle route + read-inactive → 403", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
-    const { cookie } = await signUp(app, "stranger-lc@capacitylens.dev"); // No membership
+    // No membership.
+    const { cookie } = await signUp(app, "stranger-lc@capacitylens.dev");
 
     expect(
       (await lifecycleAction({ app, entity: "clients", id: "c1", action: "archive", accountId: "a1", cookie }))
@@ -1308,13 +1309,17 @@ describe("P2.5a lifecycle — targeted writes preserve unrelated siblings", () =
 
   it("archiving one active row leaves an unrelated archived row, a tombstone, and a time-off note intact", async () => {
     const db = openDb(":memory:");
-    const app = createApp(db); // Off mode: allow-all, and the read returns the time-off note (includeTimeOffNote)
+    // Off mode: allow-all, and the read returns the time-off note (includeTimeOffNote).
+    const app = createApp(db);
     const d = emptyAppData() as unknown as Record<string, unknown[]>;
     d.accounts = [account("a1")];
     d.resources = [
-      person("rActive", "a1"), // the mutation target (active → archived)
-      person("rArc", "a1", justArchived), // Unrelated already-archived sibling (archivedAt must survive)
-      person("rDel", "a1", archivedTombstone), // Unrelated soft-delete tombstone (deletedAt must survive)
+      // The mutation target (active so archived).
+      person("rActive", "a1"),
+      // Unrelated already-archived sibling (archivedAt must survive).
+      person("rArc", "a1", justArchived),
+      // Unrelated soft-delete tombstone (deletedAt must survive).
+      person("rDel", "a1", archivedTombstone),
     ];
     // A time-off row on the mutation target carries a note the lifecycle write must not touch.
     d.timeOff = [
@@ -1383,7 +1388,8 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     expect(rec.entity).toBe("resources");
     expect(rec.id).toBe("rA");
     expect(rec.accountId).toBe("a1");
-    expect(rec.userId).toBe("demo"); // DEMO_USER in off mode
+    // DEMO_USER in off mode.
+    expect(rec.userId).toBe("demo");
     expect(rec.changedFields).toEqual(["archivedAt"]);
     // No value leak: the sentinel name never reaches the audit line.
     expect(readFileSync(file, "utf8")).not.toContain(SENTINEL);
@@ -1445,7 +1451,8 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     expect(rec.entity).toBe("resources");
     expect(rec.id).toBe("rDelAudit");
     expect(rec.accountId).toBe("a1");
-    expect(rec.userId).toBe("demo"); // DEMO_USER in off mode
+    // DEMO_USER in off mode.
+    expect(rec.userId).toBe("demo");
     // The audit carries the obfuscated field's name ('name'), never the scrubbed value.
     expect(rec.changedFields).toEqual(["deletedAt", "name", "allocations.note", "timeOff.note"]);
     // No value leak: the original (PII) name never reaches the audit line.
@@ -1511,7 +1518,8 @@ interface RowByIdInput {
 }
 
 const rowById = async ({ app, entity, accountId, id }: RowByIdInput) => {
-  const res = await readInactive(app, accountId); // includeInactive so a (wrongly) tombstoned row still shows
+  // IncludeInactive so a (wrongly) tombstoned row still shows.
+  const res = await readInactive(app, accountId);
   expect(res.statusCode).toBe(200);
   const body = readResponseBodyRecord(res);
   const rows = body[entity];
@@ -1617,8 +1625,10 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
     expect(res.statusCode).toBe(200);
     const r1 = await rowById({ app, entity: "resources", accountId: "a1", id: "r1" });
-    expect(typeof r1?.archivedAt).toBe("string"); // tombstone survived the edit
-    expect(r1?.role).toBe("Senior Designer"); // the legit field did change
+    // Tombstone survived the edit.
+    expect(typeof r1?.archivedAt).toBe("string");
+    // The legit field did change.
+    expect(r1?.role).toBe("Senior Designer");
     // Still archived: absent from the default (active-only) read. It was not resurrected.
     const active = await call(app, {
       method: "GET",
@@ -1642,7 +1652,8 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       (await lifecycleAction({ app, entity: "clients", id: "c1", action: "delete", accountId: "a1" })).statusCode,
     ).toBe(200);
     const before = await rowById({ app, entity: "clients", accountId: "a1", id: "c1" });
-    expect(typeof before?.deletedAt).toBe("string"); // really soft-deleted
+    // Really soft-deleted.
+    expect(typeof before?.deletedAt).toBe("string");
 
     const res = await call(app, {
       method: "PATCH",
@@ -1651,8 +1662,10 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
     expect(res.statusCode).toBe(400);
     const after = await rowById({ app, entity: "clients", accountId: "a1", id: "c1" });
-    expect(after?.deletedAt).toBe(before?.deletedAt); // soft-delete tombstone intact
-    expect(after?.archivedAt).toBe(before?.archivedAt); // archive tombstone intact
+    // Soft-delete tombstone intact.
+    expect(after?.deletedAt).toBe(before?.deletedAt);
+    // Archive tombstone intact.
+    expect(after?.archivedAt).toBe(before?.archivedAt);
     expect(after?.color).toBe(before?.color);
     // Still deleted: absent from the default (active-only) read, not resurrected.
     const active = await call(app, {

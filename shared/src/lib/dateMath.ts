@@ -281,10 +281,12 @@ export function endDateForWorkingDays(start: ISODate, count: number, workingDays
   if (count <= 0 || working.size === 0 || working.size >= 7) {
     return addDaysISO(start, Math.max(0, count - 1));
   }
-  const workingDayCount = working.size; // distinct working weekdays, 1..6 in this branch
+  // This branch runs only with between one and six distinct weekdays.
+  const workingDayCount = working.size;
   const startWd = weekdayOf(start);
   const fullWeeks = Math.floor((count - 1) / workingDayCount);
-  const remaining = count - fullWeeks * workingDayCount; // 1..workingDayCount: always found within the week below
+  // The remainder is at most one working week and is found by the loop below.
+  const remaining = count - fullWeeks * workingDayCount;
   let seen = 0;
   let offsetInWeek = 0;
   for (let j = 0; j < 7; j++) {

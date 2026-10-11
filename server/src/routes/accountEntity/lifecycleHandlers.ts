@@ -166,6 +166,7 @@ function createDeleteHandler(dependencies: AccountLifecycleDependencies) {
   };
 }
 
+/** Builds handlers for account creation and erasure. */
 export function createAccountLifecycleHandlers(dependencies: AccountLifecycleDependencies) {
   return { post: createPostHandler(dependencies), delete: createDeleteHandler(dependencies) };
 }

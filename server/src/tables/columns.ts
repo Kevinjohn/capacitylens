@@ -195,6 +195,9 @@ const closuresColumns = [
   ...META,
 ] as const satisfies ColumnSpec[];
 
+/**
+ * Keeps table definitions as the shared source for schema and persistence table definitions.
+ */
 export const TABLE_DEFINITIONS = {
   accounts: {
     key: "accounts",

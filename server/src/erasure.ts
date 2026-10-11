@@ -31,6 +31,9 @@ export const CROSS_TENANT_ERASURE_EDGE_SQL =
    WHERE parent.accountId = ?1 AND child.accountId <> ?1`,
   ).join("\n  UNION ALL") + "\n  LIMIT 1";
 
+/**
+ * Signals that workspace erasure would cross an account boundary through a foreign-key edge.
+ */
 export class TenantErasureIntegrityError extends Error {
   constructor(
     readonly workspaceId: string,

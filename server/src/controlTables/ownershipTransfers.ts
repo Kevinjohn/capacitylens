@@ -64,6 +64,9 @@ const liveRequestStatement = cachedStatement(
   `SELECT ${SELECTED_COLUMNS} FROM account_ownership_transfers WHERE accountId = ? AND ${LIVE_STATES_PREDICATE}`,
 );
 
+/**
+ * Reads live request from its authoritative source so decisions use persisted state.
+ */
 export function readLiveRequest(db: Db, accountId: string): OwnershipTransferRequest | null {
   const row = liveRequestStatement(db).get(accountId) as OwnershipTransferRow | undefined;
   return row ? toOwnershipTransferRequest(row, "readLiveRequest") : null;
@@ -81,6 +84,9 @@ const requestByIdStatement = cachedStatement(
   `SELECT ${SELECTED_COLUMNS} FROM account_ownership_transfers WHERE id = ? AND accountId = ?`,
 );
 
+/**
+ * Reads request by id from its authoritative source so decisions use persisted state.
+ */
 export function readRequestById(db: Db, accountId: string, id: string): OwnershipTransferRequest | null {
   const row = requestByIdStatement(db).get(id, accountId) as OwnershipTransferRow | undefined;
   return row ? toOwnershipTransferRequest(row, "readRequestById") : null;
@@ -129,6 +135,10 @@ const insertRequestStatement = cachedStatement(
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 );
 
+/**
+ * Updates request within the owning transaction so account control data state remains
+ * consistent.
+ */
 export function insertRequest(db: Db, request: OwnershipTransferRequest): void {
   insertRequestStatement(db).run(
     request.id,

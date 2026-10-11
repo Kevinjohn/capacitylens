@@ -9,6 +9,10 @@ import { createServerRevision } from "../revision";
 // Insert one row without touching the init marker, the primitive the bulk paths
 // (insertAll / replaceAccountSlice) loop over so they can mark once at the end instead of
 // re-running an `INSERT OR IGNORE INTO _meta` per row.
+/**
+ * Updates row raw within the owning transaction so SQLite schema and data state remains
+ * consistent.
+ */
 export function insertRowRaw(db: Db, table: string, row: Row): void {
   const spec = resolveTable(table);
   const columns = spec.columns.map((c) => c.name);
@@ -21,6 +25,9 @@ export function insertRowRaw(db: Db, table: string, row: Row): void {
   statement.run(...toRow(spec, row));
 }
 
+/**
+ * Updates row within the owning transaction so SQLite schema and data state remains consistent.
+ */
 export function insertRow(db: Db, table: string, row: Row): void {
   // The row and persistent first-write marker are one logical write. Without this transaction,
   // SQLite autocommits the row before a later marker failure and the caller observes a rejection
@@ -31,6 +38,9 @@ export function insertRow(db: Db, table: string, row: Row): void {
   });
 }
 
+/**
+ * Contains the allocation ID and revisions returned when a write rewrites allocation data.
+ */
 export interface RewrittenAllocationRevision {
   id: string;
   createdAt: string;
@@ -103,6 +113,9 @@ export function deleteRow(db: Db, table: string, id: string): void {
   statement.run(id);
 }
 
+/**
+ * Reads row from its authoritative source so decisions use persisted state.
+ */
 export function getRow(db: Db, table: string, id: string): Row | null {
   const spec = resolveTable(table);
   const statement = createCachedTableStatement({

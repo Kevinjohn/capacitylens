@@ -215,7 +215,8 @@ function createCrudResourceMutationTests(): void {
 function createCrudScopingTests(): void {
   it("refuses to re-home an existing row to another account (accountId is immutable)", async () => {
     const { app } = freshApp();
-    await scaffold(app); // c1 in a1
+    // C1 in a1.
+    await scaffold(app);
     await post(app, "accounts", account("a2"));
     // PATCH and PUT that try to move c1 into a2 are indistinguishable from an absent row.
     expect((await patch({ app, entity: "clients", id: "c1", payload: { accountId: "a2" } })).statusCode).toBe(404);
@@ -226,7 +227,8 @@ function createCrudScopingTests(): void {
 
   it("scopes a non-lifecycle delete to its owning account", async () => {
     const { app } = freshApp();
-    await scaffold(app); // c1 belongs to a1
+    // C1 belongs to a1.
+    await scaffold(app);
     await post(app, "accounts", account("a2"));
     await post(app, "disciplines", {
       id: "d1",
@@ -275,15 +277,18 @@ function createCrudPersistenceTests(): void {
       },
     });
     const after = readFirstClient(await readStateClients(app));
-    expect(after.name).toBe("Renamed"); // everything else updates
-    expect(after.createdAt).toBe(original); // …but createdAt is preserved
+    // Everything else updates.
+    expect(after.name).toBe("Renamed");
+    // But createdAt is preserved.
+    expect(after.createdAt).toBe(original);
   });
 
   it("reports hasData:true after the user deletes all their data (no demo re-seed)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
     expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: true });
-    await del({ app, entity: "accounts", id: "a1" }); // user empties everything
+    // User empties everything.
+    await del({ app, entity: "accounts", id: "a1" });
     expect((await readValidatedState(app)).accounts).toHaveLength(0);
     // Still "initialised", a reload must not mistake an emptied dataset for a fresh one.
     expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: true });
@@ -401,7 +406,8 @@ describe("generic delete accountId query", () => {
     const response = await call(app, { method: "DELETE", url: "/api/disciplines/d1" });
     expect(response.statusCode).toBe(400);
     expect(response.json()).toEqual({ error: REPLY_ERRORS.accountIdRequiredForScopedDelete });
-    expect((await readValidatedState(app)).disciplines).toHaveLength(1); // not deleted
+    // Not deleted.
+    expect((await readValidatedState(app)).disciplines).toHaveLength(1);
   });
 
   it("refuses a scoped delete whose accountId query repeats (an array cannot name one owner → 400)", async () => {
@@ -419,6 +425,7 @@ describe("generic delete accountId query", () => {
     const response = await call(app, { method: "DELETE", url: "/api/disciplines/d1?accountId=a1&accountId=a2" });
     expect(response.statusCode).toBe(400);
     expect(response.json()).toEqual({ error: REPLY_ERRORS.accountIdRequiredForScopedDelete });
-    expect((await readValidatedState(app)).disciplines).toHaveLength(1); // not deleted
+    // Not deleted.
+    expect((await readValidatedState(app)).disciplines).toHaveLength(1);
   });
 });

@@ -8,6 +8,9 @@ import { createAccountFailure } from "./failures";
 
 type JoiningPolicyContext = Pick<AdminPortContext, "db" | "trustedLocal" | "runMutation">;
 
+/**
+ * Provides the invitation-policy reads and owner-only updates backed by the configured database and mutation runner.
+ */
 export function createJoiningPolicyAdministration(
   context: JoiningPolicyContext,
 ): Pick<AccountAdminPort, "readJoiningPolicy" | "setJoiningPolicy"> {

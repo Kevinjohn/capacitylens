@@ -109,6 +109,10 @@ const ACCOUNT_COLUMN_INTRODUCED_AT: Record<string, number> = {
   dateStyle: 40,
 };
 
+/**
+ * Reconstructs the account table at a released schema version so migration checks preserve
+ * compatibility.
+ */
 export function buildAccountsTableAtVersion(targetVersion: number): TableSpec {
   const accounts = releasedAccountsTableSpec();
   return {
@@ -123,9 +127,21 @@ export function buildAccountsTableAtVersion(targetVersion: number): TableSpec {
   };
 }
 
+/**
+ * Captures the historical SQLite table shape at version 8 so migration checks compare the
+ * released schema.
+ */
 export const V8_TABLES = tableSpecsFromHistoricalSql(SCHEMA_V8_SQL);
+/**
+ * Captures the historical SQLite table shape at version 9 so migration checks compare the
+ * released schema.
+ */
 export const V9_TABLES = tableSpecsFromHistoricalSql(`${SCHEMA_V8_SQL}
 ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;`);
+/**
+ * Captures the historical SQLite table shape at version 16 so migration checks compare the
+ * released schema.
+ */
 export const V16_TABLES = tableSpecsFromHistoricalSql(`${SCHEMA_V8_SQL}
 ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;
 ALTER TABLE accounts ADD COLUMN showInternalProjects TEXT;
@@ -175,6 +191,10 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
 // v37 includes the account/task fields. It is only the v38 resource boundaries
 // that are absent from this historical contract; keep the v37 fields present so the v38
 // precondition proves the exact released shape before adding its two columns.
+/**
+ * Captures the historical SQLite table shape at version 37 so migration checks compare the
+ * released schema.
+ */
 export const V37_TABLES: Record<string, TableSpec> = {
   ...PRE_V42_TABLES,
   accounts: buildAccountsTableAtVersion(37),
@@ -210,6 +230,10 @@ const PRE_V34_TABLES = Object.fromEntries(
 ) as Record<string, TableSpec>;
 PRE_V34_TABLES.allocations = PRE_V35_ALLOCATIONS;
 PRE_V34_TABLES.activities = PRE_V36_ACTIVITIES;
+/**
+ * Captures the historical SQLite table shape at version 27 so migration checks compare the
+ * released schema.
+ */
 export const V27_TABLES: Record<string, TableSpec> = {
   ...PRE_V34_TABLES,
   accounts: V29_ACCOUNTS,
@@ -227,6 +251,10 @@ export const V27_TABLES: Record<string, TableSpec> = {
     ),
   },
 };
+/**
+ * Captures the historical SQLite table shape at version 28 so migration checks compare the
+ * released schema.
+ */
 export const V28_TABLES: Record<string, TableSpec> = {
   ...PRE_V34_TABLES,
   accounts: V29_ACCOUNTS,
@@ -243,27 +271,47 @@ export const V28_TABLES: Record<string, TableSpec> = {
     ),
   },
 };
+/**
+ * Captures the historical SQLite table shape at version 29 so migration checks compare the
+ * released schema.
+ */
 export const V29_TABLES: Record<string, TableSpec> = {
   ...PRE_V34_TABLES,
   accounts: V29_ACCOUNTS,
   allocations: V31_ALLOCATIONS,
   timeOff: V32_TIME_OFF,
 };
+/**
+ * Captures the historical SQLite table shape at version 30 so migration checks compare the
+ * released schema.
+ */
 export const V30_TABLES: Record<string, TableSpec> = {
   ...PRE_V34_TABLES,
   accounts: V30_ACCOUNTS,
   allocations: V31_ALLOCATIONS,
   timeOff: V32_TIME_OFF,
 };
+/**
+ * Captures the historical SQLite table shape at version 31 so migration checks compare the
+ * released schema.
+ */
 export const V31_TABLES: Record<string, TableSpec> = {
   ...PRE_V34_TABLES,
   allocations: V31_ALLOCATIONS,
   timeOff: V32_TIME_OFF,
 };
+/**
+ * Captures the historical SQLite table shape at version 32 so migration checks compare the
+ * released schema.
+ */
 export const V32_TABLES: Record<string, TableSpec> = {
   ...PRE_V34_TABLES,
   timeOff: V32_TIME_OFF,
 };
+/**
+ * Captures the historical SQLite table shape at version 33 so migration checks compare the
+ * released schema.
+ */
 export const V33_TABLES: Record<string, TableSpec> = {
   ...PRE_V34_TABLES,
   timeOff: {
@@ -273,6 +321,10 @@ export const V33_TABLES: Record<string, TableSpec> = {
     ),
   },
 };
+/**
+ * Captures the historical SQLite table shape at version 34 so migration checks compare the
+ * released schema.
+ */
 export const V34_TABLES: Record<string, TableSpec> = {
   ...PRE_V37_TABLES,
   activities: PRE_V36_ACTIVITIES,

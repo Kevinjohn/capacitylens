@@ -9,8 +9,8 @@
 // 1. A cancelled run is not automatically a problem. The security workflow sets
 //    `cancel-in-progress: true`, so pushing twice in quick succession cancels the first run by
 //    design. That is healthy and must stay silent. But a run cancelled while it is still the tip
-//    of its branch was cancelled by something else — a runner outage, a queue timeout, someone
-//    hitting the button — and that is the failure mode most likely to go unnoticed, because it
+//    of its branch was cancelled by something else: a runner outage, a queue timeout, someone
+//    hitting the button. That is the failure mode most likely to go unnoticed, because it
 //    produces no logs to read. The discriminator is therefore whether the commit is still the
 //    branch tip, not the cancellation itself.
 //
@@ -22,7 +22,7 @@
 //    duplicate, so the history of a recurring problem stays in one place.
 //
 // Scope: this decides and reports. It cannot prove the workflow reaches it during a hard
-// cancellation — GitHub gives remaining jobs only a short grace window once a run is cancelled,
+// cancellation. GitHub gives remaining jobs only a short grace window once a run is cancelled,
 // and that is a property of the platform, not of this file.
 
 import { execFileSync } from "node:child_process";
@@ -37,7 +37,7 @@ export function decide({ results, headSha, branchTip, existingIssue }) {
   const failed = results.filter((entry) => entry.result === "failure");
   const cancelled = results.filter((entry) => entry.result === "cancelled");
 
-  // "skipped" is not a problem — most jobs here are conditional on the event.
+  // "skipped" is not a problem. Most jobs here are conditional on the event.
   if (failed.length === 0 && cancelled.length === 0) {
     return existingIssue
       ? { action: "close", jobs: [], reason: "the workflow is healthy again" }

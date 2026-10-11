@@ -35,17 +35,20 @@ export function createStreamAuditSink(write: (line: string) => void): AuditSink 
     try {
       let ok = true;
       for (const record of records) {
-        if (record.auditId !== undefined && recentlyEmitted.has(record.auditId)) continue; // already delivered
+        // Recovered records can include an ID already written by this sink.
+        if (record.auditId !== undefined && recentlyEmitted.has(record.auditId)) continue;
         try {
           write(JSON.stringify({ type: "capacitylens.audit", ...record }));
           remember(record.auditId);
         } catch {
+          // Keep processing records, but report sink degradation so the outbox can retry.
           degraded = true;
           ok = false;
         }
       }
       return ok;
     } catch {
+      // The batch could not be delivered, so report degradation and let the outbox retry.
       degraded = true;
       return false;
     }

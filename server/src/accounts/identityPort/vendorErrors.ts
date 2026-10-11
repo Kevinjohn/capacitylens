@@ -1,5 +1,8 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 
+/**
+ * Creates the account error used when the identity provider operation fails.
+ */
 export function createProviderFailure(message: string, cause: unknown): AccountContractError {
   return new AccountContractError(
     {
@@ -11,6 +14,9 @@ export function createProviderFailure(message: string, cause: unknown): AccountC
   );
 }
 
+/**
+ * Creates the account error used when a provider returns an invalid session.
+ */
 export function createInvalidProviderSessionError(message: string): AccountContractError {
   return new AccountContractError({
     code: "DEPENDENCY_INVALID_RESPONSE",
@@ -19,6 +25,9 @@ export function createInvalidProviderSessionError(message: string): AccountContr
   });
 }
 
+/**
+ * Extracts a provider error code only when the supplied value contains a recognized string code.
+ */
 export function parseProviderErrorCode(error: unknown): string | null {
   if (!error || typeof error !== "object") return null;
   const body = (error as { body?: unknown }).body;
@@ -27,6 +36,9 @@ export function parseProviderErrorCode(error: unknown): string | null {
   return typeof code === "string" ? code : null;
 }
 
+/**
+ * Recognizes the provider error that reports an already-used credential email.
+ */
 export function isDuplicateCredentialEmailError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const sqlite = error as { errcode?: unknown; message?: unknown };

@@ -88,6 +88,9 @@ export const V13_DEFINITION = [
  * verbatim, so the repair's row scan and the post-repair assertion can never drift apart. */
 export const V22_INACTIVE_BUILTIN_CLIENT_WHERE_SQL = `builtin = 'true' AND (archivedAt IS NOT NULL OR deletedAt IS NOT NULL)`;
 
+/**
+ * Pins the version 22 repair scope and row-selection SQL in the migration checksum.
+ */
 export const V22_DEFINITION = [
   "repair:reactivate-built-in-internal-clients:v1",
   "scope:clients WHERE builtin = 'true' AND (archivedAt IS NOT NULL OR deletedAt IS NOT NULL)",
@@ -160,6 +163,9 @@ const TIME_OFF_REBUILD_V33_SQL = `
     ALTER TABLE timeOff_v33 RENAME TO timeOff;
   `;
 
+/**
+ * Pins the version 33 table rebuild steps that make `timeOff.resourceId` nullable.
+ */
 export const TIME_OFF_RESOURCE_NULLABLE_V33_DEFINITION = [
   "guard:PRAGMA table_info(timeOff):resourceId-nullable",
   "capture:sqlite_master:indexes-and-triggers-on-timeOff:v1",
@@ -167,6 +173,9 @@ export const TIME_OFF_RESOURCE_NULLABLE_V33_DEFINITION = [
   "recreate:captured-indexes-and-triggers:v1",
 ].join("\n");
 
+/**
+ * Rebuilds `timeOff` with a nullable resource reference while preserving its indexes and triggers.
+ */
 export function migrateTimeOffResourceNullableV33(db: Db): void {
   const resourceId = (
     db.prepare(`PRAGMA table_info("timeOff")`).all() as Array<{ name: string; notnull: number }>
@@ -220,6 +229,9 @@ const CLOSURES_V34_SQL = `
     );
   `;
 
+/**
+ * Pins the version 34 table rebuild and account-integrity steps for company closures.
+ */
 export const COMPANY_CLOSURES_V34_DEFINITION = [
   "capture:sqlite_master:indexes-and-triggers-on-timeOff:v1",
   TIME_OFF_REBUILD_V34_SQL,
@@ -229,6 +241,9 @@ export const COMPANY_CLOSURES_V34_DEFINITION = [
   CLOSURE_ACCOUNT_INTEGRITY_V34_SQL,
 ].join("\n");
 
+/**
+ * Rebuilds `timeOff` to add company closures while preserving captured indexes and triggers.
+ */
 export function migrateCompanyClosuresV34(db: Db): void {
   const schemaObjects = db
     .prepare(

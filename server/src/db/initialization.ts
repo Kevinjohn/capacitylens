@@ -10,6 +10,9 @@ export function markInitialized(db: Db): void {
   cache.markInitialized.run();
 }
 
+/**
+ * Identifies whether initialized holds so callers can apply the correct policy.
+ */
 export function isInitialized(db: Db): boolean {
   const row = db.prepare(`SELECT value FROM _meta WHERE key = 'initialized'`).get() as { value?: string } | undefined;
   return row?.value === "1";

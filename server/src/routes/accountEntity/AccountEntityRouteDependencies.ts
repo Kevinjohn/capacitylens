@@ -9,6 +9,7 @@ import type { Db } from "../../db";
 import type { SanitizeWriteOptions } from "../../fieldPolicy";
 import type { AccountStore } from "../../accountStore";
 
+/** Dependencies shared by the account entity route handlers. */
 export interface AccountEntityRouteDependencies {
   db: Db;
   store: AccountStore;

@@ -4,6 +4,9 @@
 // e2e (where NODE_ENV is never 'production') are untouched. Deliberately not behind a flag:
 // defaulting a guard to off defeats it.
 
+/**
+ * Identifies whether reset forbidden holds so callers can apply the correct policy.
+ */
 export function isResetForbidden(environment: { CAPACITYLENS_ALLOW_RESET?: string; NODE_ENV?: string }): boolean {
   return environment.CAPACITYLENS_ALLOW_RESET === "1" && environment.NODE_ENV === "production";
 }

@@ -424,7 +424,8 @@ describe("CAPACITYLENS_MODE password", () => {
     expect((await call(app, { method: "GET", url: "/api/health" })).statusCode).toBe(200);
     const me = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(me.statusCode).toBe(401);
-    expect(parseResponseAuthMode(me)).toBe("password-only"); // the login screen needs the mode
+    // The login screen needs the mode.
+    expect(parseResponseAuthMode(me)).toBe("password-only");
   });
 });
 

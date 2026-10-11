@@ -264,8 +264,10 @@ function registerImportedColorTests(): void {
   });
 
   it("falls back a malformed / overlong colour to the safe default", () => {
-    expect(sanitizeImportedRecord("clients", { color: "#aabbccdd" }).color).toBe(FALLBACK_PRESET_COLOR); // 8 digits
-    expect(sanitizeImportedRecord("projects", { color: "#abc" }).color).toBe(FALLBACK_PRESET_COLOR); // 3 digits
+    // 8 digits.
+    expect(sanitizeImportedRecord("clients", { color: "#aabbccdd" }).color).toBe(FALLBACK_PRESET_COLOR);
+    // 3 digits.
+    expect(sanitizeImportedRecord("projects", { color: "#abc" }).color).toBe(FALLBACK_PRESET_COLOR);
   });
 }
 

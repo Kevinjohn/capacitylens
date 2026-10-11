@@ -107,9 +107,12 @@ describe("P3.3 restore drill", () => {
     const temporary = livePath + ".restore";
     copyFileSync(snapshot, temporary);
     chmodSync(temporary, 0o600);
-    expect(statSync(temporary).mode & 0o777).toBe(0o600); // runbook: verify pinned mode
-    expect(statSync(temporary).uid).toBe(process.getuid?.() ?? statSync(livePath).uid); // owner is us
-    renameSync(temporary, livePath); // atomic replacement, no partially-written live file window
+    // Runbook: verify pinned mode.
+    expect(statSync(temporary).mode & 0o777).toBe(0o600);
+    // Owner is us.
+    expect(statSync(temporary).uid).toBe(process.getuid?.() ?? statSync(livePath).uid);
+    // Atomic replacement, no partially-written live file window.
+    renameSync(temporary, livePath);
     rmSync(livePath + "-wal", { force: true });
     rmSync(livePath + "-shm", { force: true });
 
@@ -120,7 +123,8 @@ describe("P3.3 restore drill", () => {
     const names = readState(restored).accounts.map((a) => a.name);
     const quickCheck = restored.prepare("PRAGMA quick_check").all();
     const foreignKeyViolations = restored.prepare("PRAGMA foreign_key_check").all();
-    restored.close(); // on-disk handle, close it to be tidy (unlike the :memory: handles in backup.test.ts)
+    // On-disk handle, close it to be tidy (unlike the :memory: handles in backup.test.ts).
+    restored.close();
     expect(names).toContain("Wayne Enterprises");
     expect(names).not.toContain("POST-SNAPSHOT-EDIT");
     expect(quickCheck).toEqual([{ quick_check: "ok" }]);

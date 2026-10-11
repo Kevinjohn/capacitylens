@@ -39,6 +39,9 @@ export interface SanitizeWriteOptions {
   canChangeCapacityOverviewAccess?: boolean;
 }
 
+/**
+ * Defines which account fields a role may see in a projected read.
+ */
 export interface ReadSliceFieldVisibility {
   includeTimeOffNote: boolean;
   includePrivateNames: boolean;
@@ -65,6 +68,9 @@ export interface GatedFieldPolicy {
   readonly pin: (cleaned: Record<string, unknown>, existing: Record<string, unknown> | undefined) => void;
 }
 
+/**
+ * Maps fields to read, write-preservation, and export visibility rules.
+ */
 export const GATED_FIELD_POLICIES: readonly GatedFieldPolicy[] = [
   {
     id: "timeOffNote",

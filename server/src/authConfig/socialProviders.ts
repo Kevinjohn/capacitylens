@@ -20,6 +20,9 @@ function hasLiveMicrosoftExpiry(expiresAt: unknown): boolean {
   return typeof expiresAt === "number" && Number.isFinite(expiresAt) && expiresAt > Math.floor(Date.now() / 1000);
 }
 
+/**
+ * Accepts only a specific work-or-school tenant GUID and returns its normalized form.
+ */
 export function resolveMicrosoftTenantId(value: string | undefined, ErrorType: AuthConfigErrorConstructor): string {
   const tenant = value?.trim().toLowerCase();
   if (
@@ -32,6 +35,9 @@ export function resolveMicrosoftTenantId(value: string | undefined, ErrorType: A
   return tenant;
 }
 
+/**
+ * Validates the Microsoft issuer, audience, tenant, expiry, and stable object ID before returning identity claims.
+ */
 export function readVerifiedMicrosoftProfile(
   value: unknown,
   tenant: string,

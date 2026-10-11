@@ -334,6 +334,9 @@ export function exchangeOwnershipInTx({
   );
 }
 
+/**
+ * Creates member removal and role-change operations with account authority and mutation checks.
+ */
 export function createMembership(context: MembershipContext): MembershipPort {
   return {
     ...createMembershipReads(context),
