@@ -67,8 +67,9 @@ withdraw their agreement. The request expires after seven days, and ends if eith
 membership changes. **Manage ownership** shows whether a request was declined, cancelled, replaced,
 expired or invalidated. If it cannot load, select **Try again**.
 
-Sensitive transfer actions ask you to confirm your sign-in; viewing the request does not. If your
-access cannot refresh after the transfer, follow the recovery message before continuing.
+Both people need a recent sign-in confirmation for their step; viewing the request does not. Only
+the two people involved see the request. If your access cannot refresh after the transfer, follow
+the recovery message before continuing.
 
 ## Replace the schedule with an import
 
@@ -84,9 +85,11 @@ Deleting the company permanently removes it and all its data for everyone. There
 
 ![Delete company confirmation offering Export first and exact-name confirmation](../screenshots/flows/owner_delete_company_confirmation.jpg)
 
-1. Open the company chooser with **Switch company** and select **Delete** on the company's row.
+1. Open the company chooser with **Switch company** and select the delete icon on the company's
+   row.
 2. Select **Export first** if you need a copy.
-3. Type the exact company name to enable **Delete**, then select it.
+3. Type the exact company name to enable **Delete**, then select it. Cancel the dialog if you are
+   unsure or need to verify the export.
 
 Deleting needs a recent sign-in. **Switch company** appears only when you can access two or more
 companies; if it is missing, ask the installer how to proceed.

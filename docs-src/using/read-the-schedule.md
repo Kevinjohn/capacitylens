@@ -101,8 +101,10 @@ A [booking](/reference/glossary#booking) is a bar across the days it covers, col
 - **Tentative**: a dashed border and light diagonal hatch.
 - **Completed**: a checkmark before the label.
 
-Your display preferences can add the client, project and hours per day to the label. Companies
-that plan in Blocks book no hours; see [Schedule and change work](/using/schedule-work).
+The label also shows the client and project name unless you turn off **Show client name** or
+**Show project name** under **Settings → Allocation labels on this device**. It shows hours per
+day, except on external parties' rows and in companies that plan in Blocks, which book no hours;
+see [Schedule and change work](/using/schedule-work).
 
 Bookings created with **Repeat** show a small repeat cue at the start of each linked bar. Hover or
 focus the bar to see the last date in the series. Each occurrence can still be edited on its own.
@@ -154,7 +156,8 @@ the **Tentative** pill and the **Work** / **Time off** draw mode.
 
 The project menu lists **All projects** first, then projects by client, sorted by code name where
 one is set. Selecting a client limits the project menu to that client. If the selected project
-belongs to another client, it resets to **All projects**. An active filter turns **Clear Filters**
+belongs to another client, it resets to **All projects**. Clearing the client filter resets the
+project filter to **All projects**. An active filter turns **Clear Filters**
 red, so a filtered view is never mistaken for the whole schedule.
 
 ![The Schedule filtered to a project, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.png)

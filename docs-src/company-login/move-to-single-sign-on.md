@@ -16,8 +16,14 @@ for the server operator.
    [Set up Google or Microsoft sign-in](/company-login/set-up-company-login). Microsoft also needs a
    tenant-specific Entra registration and working SMTP for first connections that need mailbox
    proof.
-2. Set `CAPACITYLENS_MODE=password-and-sso` while both password and company sign-in should remain
-   available, and restart.
+2. Set both values below while password and company sign-in should both remain available, and
+   restart:
+
+   ```dotenv
+   CAPACITYLENS_MODE=password-and-sso
+   CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed
+   ```
+
 3. Check the provider buttons appear and complete one sign-in with an allowed account before
    asking teammates to connect.
 
@@ -47,8 +53,15 @@ verification link does not satisfy this check.
 
 ## Require a company provider
 
-Keep `CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed` while preparing. With Google, Microsoft or
-both configured, run the read-only all-company check against the current database:
+Keep `CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed` while preparing. The check and repair
+commands run from a maintenance checkout of the running release, as
+[Run recovery commands](/self-hosting/incidents#run-recovery-commands-on-docker-or-a-managed-host)
+describes. They read the profile, mode and provider settings from their own environment, so load
+the instance's environment file into the shell first; in a POSIX shell,
+`set -a; . /path/to/capacitylens.env; set +a` does this.
+
+With Google, Microsoft or both configured, run the read-only all-company check against the current
+database:
 
 ```bash
 pnpm --filter capacitylens-server cutover:preflight -- /path/to/capacitylens.db

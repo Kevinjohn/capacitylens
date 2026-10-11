@@ -39,8 +39,9 @@ queue holds the same metadata in SQLite until it is durably written to disk, als
 **Code names.** Clients and projects can have a private code name alongside the real name. This is
 access control, not encryption: the real name stays in SQLite, in operator backups and in an
 Owner's export. Only the Owner can read and manage real names and the code-name setting through
-the API; Admins, Editors and Viewers see only the code name. A non-Owner's edits preserve the real
-fields they were never shown.
+the API; Admins, Editors and Viewers see only the code name. An Admin who views the company as the
+Owner sees what the Owner sees, including real names. A non-Owner's edits preserve the real fields
+they were never shown.
 
 ## What stays in the browser
 
@@ -70,8 +71,8 @@ that image host.
 password-reset links through the operator's SMTP service. Messages contain the recipient's address
 and a bearer link. Reset links are single-use and expire after 24 hours. Unknown addresses and
 accounts using only company sign-in get no reset email, and Admin-issued reset copy-links send no
-email. If Microsoft sign-in is configured, the same service sends the mailbox proof to the
-intended CapacityLens address, with a link that expires after 15 minutes. The operator is
+email. If Microsoft sign-in is configured and Microsoft does not return a verified matching email, the
+same service sends the mailbox proof to the intended CapacityLens address, with a link that expires after 15 minutes. The operator is
 responsible for the SMTP provider's processing and retention.
 
 **Breached-password check.** When a password is created, changed or reset, the server checks it

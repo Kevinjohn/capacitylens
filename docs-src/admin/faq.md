@@ -47,4 +47,4 @@ Only the Owner can change the joining policy. Admins can see it and copy the joi
 ## Do I set up company login?
 
 No. The installer configures the login provider; you invite members and check their access.
-[How sign-in works](/company-login/)
+[Company login](/company-login/)

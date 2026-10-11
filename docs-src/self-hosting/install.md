@@ -5,8 +5,8 @@ description: Install CapacityLens from a release archive in five steps, on a man
 
 # Install CapacityLens
 
-Five steps, three values to fill in, one command per step. Each step notes where a managed host
-and a Linux host differ. On a host that already runs Node 24 and has a hostname pointing at it,
+Five steps, three values to fill in. Each step notes where a managed host and a Linux host
+differ; the host guides under [Choose your host](#choose-your-host) have every command in full. On a host that already runs Node 24 and has a hostname pointing at it,
 it takes about ten minutes; an internet-facing instance takes longer, mostly because of DNS and
 certificates.
 
@@ -41,7 +41,11 @@ https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capa
 
 - **Managed host:** put the data-folder, download, unpack and link commands in the site's deploy
   script. Its first line creates the data folder from step 2, so no terminal is needed.
-- **Linux host:** unpack it into `/opt/capacitylens` and link `current` to the release folder.
+- **Linux host:** unpack it into `/opt/capacitylens` and link `current` to the release folder:
+
+  ```bash
+  sudo mkdir -p /opt/capacitylens && sudo tar -xzf capacitylens-0.73.0-alpha.1.tar.gz -C /opt/capacitylens && sudo ln -sfn /opt/capacitylens/capacitylens-0.73.0-alpha.1 /opt/capacitylens/current
+  ```
 
 ## 2. Pick a folder for the data
 
@@ -51,7 +55,15 @@ upgrade never touches it.
 - **Managed host:** `/home/forge/capacitylens-data`, next to the site folder. The deploy script
   creates it. `forge` is the site's user; a site with website isolation uses its own user, so
   use that name in this path and in `CAPACITYLENS_DB`.
-- **Linux host:** `/var/lib/capacitylens`, owned by a `capacitylens` user.
+- **Linux host:** `/var/lib/capacitylens`, owned by a `capacitylens` user. Create both:
+
+  ```bash
+  sudo useradd --system --home /var/lib/capacitylens --shell /usr/sbin/nologin capacitylens
+  ```
+
+  ```bash
+  sudo install -d -o capacitylens -g capacitylens -m 0700 /var/lib/capacitylens
+  ```
 
 ## 3. Configure
 
@@ -76,8 +88,10 @@ CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db
 It then prints the setup token again; it is entered once, to create the Owner. The server refuses
 to start while a required line is empty, and names the missing one.
 
-- **Managed host:** run it with `--db /home/forge/capacitylens-data/capacitylens.db` (or your site
-  user's folder) and paste the output into the site's environment editor.
+- **Managed host:** run it in the site's command runner (Forge: the site's Commands panel, which
+  starts in the site's folder) as `node current/server/dist/index.mjs init`, with
+  `--db /home/forge/capacitylens-data/capacitylens.db` (or your site user's folder). Paste the
+  output into the site's environment editor.
 - **Linux host:** add `--out /etc/capacitylens.env` and run it with `sudo`. It writes the file
   readable only by root, and refuses to overwrite an existing one.
 
@@ -88,7 +102,11 @@ to start while a required line is empty, and names the missing one.
   nginx file, replace the generated `location /` block with the locations on
   [Deploy on a managed host](/self-hosting/managed-vps/#the-five-steps), which proxy to port 8787.
 - **Linux host:** install the `capacitylens.service` file from the archive as a systemd service,
-  and put Caddy or nginx in front.
+  and put Caddy or nginx in front:
+
+  ```bash
+  sudo cp /opt/capacitylens/current/capacitylens.service /etc/systemd/system/ && sudo systemctl enable --now capacitylens
+  ```
 
 The server serves the web app as well as the API, so one reverse-proxy line covers the whole
 site. [TLS and networking](/self-hosting/tls-and-networking) has the proxy requirements.
@@ -100,6 +118,8 @@ the `CAPACITYLENS_SETUP_TOKEN` line from step 3.
 
 If you are also the Owner, continue with [Set up your company](/owner/). Otherwise, send the
 address to the Owner, and send the setup token separately and privately.
+
+After the Owner has signed in, remove `CAPACITYLENS_SETUP_TOKEN` and restart.
 
 ## Choose your host
 

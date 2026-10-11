@@ -20,7 +20,7 @@ different labels for the same things.
   If the final DNS record is not ready, use the platform's temporary HTTPS domain and
   [move to the final domain](#move-to-the-final-domain) later. Don't configure company login
   against a temporary domain.
-- Node 24 on the server, as shown in the platform's server settings.
+- Node 24.19.0 or newer within 24.x on the server, as shown in the platform's server settings.
 
 `/home/forge/capacity.example.com` stands for your site's folder. `forge` is the site's user; a
 site with website isolation uses its own user, so use that name in every `/home/forge` path and
@@ -192,7 +192,8 @@ setup token separately and privately. The Owner then creates their own sign-in a
 
 Once the Owner can sign in, remove `CAPACITYLENS_SETUP_TOKEN` from the environment, restart the
 background process and check health. Destroy the transferred copy unless your recovery policy
-needs a protected record; it cannot create a second first Owner.
+needs a protected record. First-Owner setup is open only while the database holds no users and a
+token is set, so erasing the sole identity reopens it while the token remains.
 [Verify and hand over](/self-hosting/verify-and-hand-over) has the full checklist.
 
 ## Move to the final domain
@@ -230,8 +231,9 @@ configured per installation; enabling it on one does not change another on the s
    Confirm health is `"ok"` and a recent restore test exists.
 2. Take a fresh snapshot. There is no "snapshot now" button: the server writes a verified
    snapshot when it starts, and every `CAPACITYLENS_BACKUP_INTERVAL_MIN` minutes after that.
-   Restart the background process, or use the latest scheduled snapshot if it is only minutes
-   old and nothing important has been written since. List the backup folder newest first:
+   Restart the background process, wait for the attempt to finish, then confirm the backup
+   folder contains the new verified file. Or use the latest scheduled snapshot if it is only
+   minutes old and nothing important has been written since. List the backup folder newest first:
 
    ```bash
    ls -lt /home/forge/capacitylens-data/backups | head -3
@@ -263,19 +265,41 @@ server first. [Backups and restore](/self-hosting/backups-and-restore) covers bo
 
 ## Roll back
 
-Without a schema change, stop the background process, point `current` back at the previous
-release in the command runner, then start it and check health. Replace `X.Y.Z` with the previous
-version:
+With a schema change, switching code alone is not a rollback: never start the old release against
+a database the new one has migrated. Put back the `capacitylens-pre-migration-vN-to-vM.db`
+snapshot the new release wrote in the backup folder. Everything written since the upgrade is lost.
+Without a schema change there is no such snapshot; skip steps 2 to 4.
 
-```bash
-ln -sfn capacitylens-X.Y.Z current
-```
+1. Stop the background process in the platform's daemon screen.
+2. In the command runner, preserve the upgraded database:
 
-With a schema change, switching code alone is not a rollback, and the old release must never
-start against a database the new one has migrated. Follow the
-[rollback procedure](/self-hosting/upgrades#roll-back): stop the background process, restore the
-matching pre-migration snapshot without stale `-wal` or `-shm` files, switch `current` back,
-then start and check it.
+   ```bash
+   mkdir -m 700 /home/forge/capacitylens-data/rolled-back && cp -p /home/forge/capacitylens-data/capacitylens.db* /home/forge/capacitylens-data/rolled-back/
+   ```
+
+3. List the pre-migration snapshots:
+
+   ```bash
+   ls -l /home/forge/capacitylens-data/backups/capacitylens-pre-migration-*.db
+   ```
+
+4. Copy the one this upgrade wrote over the database, and remove the upgraded database's `-wal`
+   and `-shm` files:
+
+   ```bash
+   cp /home/forge/capacitylens-data/backups/capacitylens-pre-migration-vN-to-vM.db /home/forge/capacitylens-data/capacitylens.db && rm -f /home/forge/capacitylens-data/capacitylens.db-wal /home/forge/capacitylens-data/capacitylens.db-shm
+   ```
+
+5. Point `current` back at the previous release. Replace `X.Y.Z` with the previous version:
+
+   ```bash
+   ln -sfn capacitylens-X.Y.Z current
+   ```
+
+6. Change the version in the deploy script's `curl` and `tar` lines back to `X.Y.Z`, so the next
+   deploy does not reinstate the new release. Undo any environment change the new release needed.
+7. Start the background process and check `/api/health`, then sign in and confirm the company
+   opens.
 
 <span id="keep-operator-tooling-in-a-separate-maintenance-checkout"></span>
 
@@ -285,8 +309,9 @@ The release holds no pnpm, `tsx` or development packages. Recovery commands writ
 `pnpm --filter capacitylens-server ...` run from a separate maintenance checkout, never from
 `current/`:
 
-1. Check out the release serving production, or for a migration rehearsal the target release, in
-   a protected folder outside every release folder. Run `pnpm install --frozen-lockfile` there.
+1. Check out the release serving production, or for a
+   [migration rehearsal](/reference/development#rehearse-migrations) the target release, in a
+   protected folder outside every release folder. Run `pnpm install --frozen-lockfile` there.
 2. Stop the background process before any command that writes to the database. Pass the
    database, backup and evidence paths as absolute paths; don't copy them into the checkout.
 3. Run the command, complete its verification, then start the background process and check it.

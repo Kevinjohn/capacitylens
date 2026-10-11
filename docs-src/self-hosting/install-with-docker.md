@@ -69,7 +69,9 @@ CAPACITYLENS_HTTPS=1
 CAPACITYLENS_RATE_LIMIT=300
 ```
 
-`CAPACITYLENS_PUBLIC_URL` must be the exact browser-facing origin.
+`CAPACITYLENS_PUBLIC_URL` must be the exact browser-facing origin. The `self-hosted-password`
+profile refuses to start with company login or account email settings: remove that line, or change
+it as [Configuration](/self-hosting/configuration#company-login) describes, before you add either.
 [Configuration](/self-hosting/configuration) covers every other variable.
 
 ## 4. Start it

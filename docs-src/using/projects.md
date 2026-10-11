@@ -42,7 +42,7 @@ See [Filter and search](/using/read-the-schedule#filtering-and-searching).
 
 To hide a name from most of the team, such as an unannounced prospect, turn on **Use code name**
 when you create or edit the client or project. Everyone below Owner sees the code name; only the
-Owner sees both. A code name also sets the item's alphabetical position. See
+Owner, or an Admin viewing the company as the Owner, sees both. A code name also sets the item's alphabetical position. See
 [Roles and permissions](/getting-started/roles-and-permissions).
 
 ![The Add client form with the privacy explanation below the Code name input](../screenshots/flows/client_private_name.jpg)
@@ -55,7 +55,6 @@ booking made under it, including All-projects bookings that count towards it. No
 
 Owners and Admins see **Archived clients** and **Archived projects** at the bottom of each page.
 Select **Restore** to bring the item and its bookings back, or **Delete** to remove it from those
-lists. A deleted item can't be restored, and its bookings stay hidden. Permanent deletion is not
-available in the app.
+lists. **Delete** anonymises any personal data and can't be undone; the item's bookings stay hidden.
 
 Next: [Schedule and change work](/using/schedule-work) — book against a project.

@@ -64,7 +64,7 @@ HTTPS origin. These paths must match exactly. Restart after changing these setti
 
 - A partial credential pair refuses startup when provider sign-in is enabled.
 - `password-only` ignores retained provider credentials. The `self-hosted-password` profile
-  rejects them at startup, so remove them before selecting it.
+  rejects them, and the account email settings, at startup: remove them before selecting it.
 - `password-and-sso` enables password and configured provider sign-in; `sso-only` accepts only
   configured company providers. GitHub cannot provide company-only access.
 - Microsoft also needs all five [account email](#account-email) settings.
@@ -79,6 +79,9 @@ HTTPS origin. These paths must match exactly. Restart after changing these setti
 | `CAPACITYLENS_MAIL_USER` | SMTP authentication username. |
 | `CAPACITYLENS_MAIL_PASSWORD` | SMTP password or service credential. Keep it in the server's secret configuration. |
 | `CAPACITYLENS_MAIL_FROM` | A valid sender address authorised by the SMTP service, without a display name. |
+
+The `self-hosted-password` deployment profile refuses to start with these settings. Remove the
+profile line, or change it to `self-hosted-mixed` when you also add company login.
 
 With email on:
 

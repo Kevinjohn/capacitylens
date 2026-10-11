@@ -78,7 +78,8 @@ compromised upstream identity) must be cut off now.
 
 **Cause**: disabling an identity at the provider blocks new sign-ins, not existing CapacityLens
 sessions. An active session lasts up to its fixed twelve hours; an inactive one expires after thirty
-minutes.
+minutes. Signing out of CapacityLens ends only its own session, not the session at the
+company-login provider.
 
 **Fix**:
 
@@ -272,8 +273,9 @@ one), logging a security event.
      assign-workspace-owner <company-id> <member-email> --confirm-server-stopped
    ```
 
-   It checks the company has no active Owner and the email matches exactly one active member, then
-   records the change in the audit outbox and ends any pending ownership transfer.
+   It refuses to run unless the server is stopped, and takes an exclusive database lock. It checks
+   the company has no active Owner and the email matches exactly one active member, then records
+   the change in the audit outbox and ends any pending ownership transfer.
 
 3. If those checks don't match the incident, preserve the evidence and restore a compatible backup
    or escalate; don't edit the database by hand.

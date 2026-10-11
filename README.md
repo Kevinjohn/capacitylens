@@ -18,23 +18,24 @@ who is busy, who has room and who is about to be buried, and move work before it
 ## Get started
 
 **Installing it?** Four steps; the install itself takes about ten minutes on a host that already
-runs Node 24: [install CapacityLens](docs-src/self-hosting/index.md).
+runs Node 24: [install CapacityLens](https://kevinjohn.github.io/capacitylens/self-hosting/index.html).
 
 **Own the company?** Sign in with the setup token, create the company, invite an Admin:
-[set up your company](docs-src/owner/index.md).
+[set up your company](https://kevinjohn.github.io/capacitylens/owner/index.html).
 
 **Set the work?** Add your people, clients and projects, then book the first work:
-[get the schedule ready](docs-src/admin/index.md).
+[get the schedule ready](https://kevinjohn.github.io/capacitylens/admin/index.html).
 
 **Just want to see your work?** Accept your invitation and your week is on the first screen:
-[see your work](docs-src/using/index.md).
+[see your work](https://kevinjohn.github.io/capacitylens/using/index.html).
 
-Doing all of it yourself? [The whole setup on one page](docs-src/getting-started/quick-start.md).
+Doing all of it yourself? [The whole setup on one page](https://kevinjohn.github.io/capacitylens/getting-started/quick-start.html).
 
 ## Try it in two minutes
 
-The demo runs on your computer with sample data and no sign-in. Drag things about, book time off,
-break something: changes reset when you reload.
+The demo runs on your computer with sample data and no sign-in; it needs Node 24 and git. Drag
+things about, book time off, break something: changes reset when you reload. No terminal? Watch
+the walkthrough above instead.
 
 ```bash
 corepack enable
@@ -42,8 +43,8 @@ pnpm install
 pnpm run dev:demo
 ```
 
-Then open the **Local** address it prints (usually <http://127.0.0.1:5173>) and choose the sample
-company on the **Choose an account** screen.
+Then open the **Local** address it prints (usually <http://127.0.0.1:5173>), select the sample
+sign-in on **Choose an account**, then pick a company on **Choose a company**.
 
 ## What you get
 
@@ -51,8 +52,10 @@ company on the **Choose an account** screen.
 - **Early warning:** over-capacity days in red, plus a 14-day warning for trouble off screen.
 - **Work you haven't won yet:** tentative bookings, placeholders for roles you haven't filled, and
   external parties who don't count against your capacity.
-- **Time off in the same picture:** holidays and closures sit beside the work.
+- **Time off in the same picture:** holidays, closures and each person's start and end dates sit
+  beside the work.
 - **How full everyone is:** utilisation per person and across the weeks on screen.
+- **Offline, read-only:** an optional snapshot of the schedule on your device, kept for seven days.
 - **Your own server:** your data in one SQLite file you control, under AGPL-3.0.
 
 ## What it deliberately isn't
@@ -65,24 +68,24 @@ open Jira.
 
 Every release from 0.73.0-alpha.1 carries a server archive. You need Node 24.19.0 or newer within
 24.x and a hostname with HTTPS. Node 26.9.0 or newer within 26.x is
-[experimental](docs-src/reference/development.md#check-node-26-compatibility).
+[experimental](https://kevinjohn.github.io/capacitylens/reference/development.html#check-node-26-compatibility).
 
 1. **Download** `capacitylens-X.Y.Z.tar.gz` from the [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
 2. **Pick a folder** for the database; its file is created there on first start.
 3. **Configure:** in the unpacked folder, run `node server/dist/index.mjs init --public-url <address> --db <file in step 2's folder>`. It prints the environment file with both secrets generated: paste it into your host's environment editor, or add `--out /etc/capacitylens.env` to write the file.
 4. **Start it** with `node --env-file=<your env file> server/dist/index.mjs`, or as a service.
-5. **Open the address** and check the first-Owner screen loads. If you are also the Owner, [set up your company](docs-src/owner/index.md) with the setup token from step 3; otherwise send the address, and the setup token separately and privately, to the Owner.
+5. **Open the address** and check the first-Owner screen loads. If you are also the Owner, [set up your company](https://kevinjohn.github.io/capacitylens/owner/index.html) with the setup token from step 3; otherwise send the address, and the setup token separately and privately, to the Owner.
 
-[Install CapacityLens](docs-src/self-hosting/install.md) has the commands for a managed host or a
-Linux host; [Docker](docs-src/self-hosting/install-with-docker.md) is another route. Sign-in is by
+[Install CapacityLens](https://kevinjohn.github.io/capacitylens/self-hosting/install.html) has the commands for a managed host or a
+Linux host; [Docker](https://kevinjohn.github.io/capacitylens/self-hosting/install-with-docker.html) is another route. Sign-in is by
 password, with Google Workspace and Microsoft Entra ID as
-[company login](docs-src/company-login/index.md) options.
+[company login](https://kevinjohn.github.io/capacitylens/company-login/index.html) options.
 
 ## Documentation
 
 Read the [documentation](https://kevinjohn.github.io/capacitylens/) online, open
 [`docs/index.html`](docs/) straight from a checkout with no server or build, or read the Markdown
-sources in [`docs-src/`](docs-src/). [What is CapacityLens?](docs-src/getting-started/what-is-capacitylens.md)
+sources in [`docs-src/`](docs-src/). [What is CapacityLens?](https://kevinjohn.github.io/capacitylens/getting-started/what-is-capacitylens.html)
 is the one-page introduction.
 
 ## Project status

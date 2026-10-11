@@ -47,8 +47,8 @@ or **Connect Microsoft** under **Company sign-in**. Your local email must alread
 4. Back on Account, check for the provider's **Connected** badge. A failed or cancelled connection
    shows an error.
 
-If the message says your email is not verified, ask your installer. They confirm you own the
-mailbox, and an Owner or Admin then runs the repair in
+If the message says your email is not verified, ask your installer; there is no button for this in
+**Account**. They confirm you own the mailbox, and an Owner or Admin then runs the repair in
 [Connect existing accounts](/company-login/move-to-single-sign-on#connect-existing-accounts). The
 repair signs you out everywhere, so sign in again before retrying.
 

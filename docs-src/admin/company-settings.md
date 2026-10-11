@@ -18,12 +18,12 @@ bottom of the left menu. Editors can change most of these; only Owners and Admin
 
 ![Settings: Company setup with Hours selected and Overview access set to Admins](../screenshots/flows/admin_company_settings_1.png)
 
-| Setting                   | What it changes                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------- |
-| Allocation units          | Enter work in Hours, Days or Blocks. Days is the default.                        |
-| Company-wide working days | Set the shared working week. A person's own working pattern also applies.        |
-| Date format               | Change how planning dates appear for everyone.                                   |
-| Overview access           | Choose who can open **Overview**. Owners and Admins only is the default. |
+| Setting                   | What it changes                                                                                     |
+| ------------------------- | --------------------------------------------------------------------------------------------------- |
+| Allocation units          | Enter work in Hours, Days or Blocks. Days is the default.                                           |
+| Company-wide working days | Set the shared working week. A person's own working pattern also applies.                           |
+| Date format               | Change how planning dates appear for everyone.                                                      |
+| Overview access           | Choose who can open **Overview**. **Admins** is the default (Owners and Admins always have access). |
 
 Changing working days recalculates capacity for existing work; it does not move bookings.
 

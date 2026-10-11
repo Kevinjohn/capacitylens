@@ -64,27 +64,127 @@ pre-migration snapshot. See [Backups and restore](/self-hosting/backups-and-rest
    [Deploy on a managed host](/self-hosting/managed-vps/).
 
 5. On first start, a schema upgrade first creates and verifies a
-   `capacitylens-pre-migration-vN-to-vM.db` snapshot. If that fails, startup stops: fix the storage
-   or permissions problem; don't bypass the snapshot.
+   `capacitylens-pre-migration-vN-to-vM.db` snapshot in the backups folder. If that fails, startup
+   stops: fix the storage or permissions problem; don't bypass the snapshot.
 6. Check API health, sign in, confirm the company opens, and make one safe write.
 7. Keep the old container image or previous release folder, and the recovery snapshot, until you're
    satisfied.
 
 ## Roll back
 
-There are no down migrations, and an old version refuses to start against an upgraded database.
-Always restore the matching snapshot with the old version:
+There are no down migrations. If the release changed the schema, switching code alone is not a
+rollback: never start the old release against a database the new one has migrated. Put back the
+`capacitylens-pre-migration-vN-to-vM.db` snapshot the new release wrote, then start the old
+release.
 
-1. Stop the API.
-2. Restore the pre-migration snapshot this release created (or, if there wasn't one, the explicit
-   snapshot from step 3), with no stale `-wal`/`-shm` files.
-3. Start the old version. On a native install, point `current` back at the previous release folder
-   with `sudo ln -sfn` before starting the service.
+::: warning
+Rolling back loses everything written since the upgrade started. Stop the server before you touch
+the database, and remove any `-wal` or `-shm` file beside the restored database: they belong to
+the upgraded one.
+:::
 
-For Docker Compose's named volumes, use the
-[restore procedure in Backups and restore](/self-hosting/backups-and-restore#docker-compose-named-volume-procedure)
-with the exact `capacitylens-pre-migration-vN-to-vM.db` filename rather than copying host paths.
-Don't remove new columns or edit the migration ledger by hand.
+The snapshot is in the backups folder, or beside the database when scheduled backups are off. If
+the release had no schema change, there is no snapshot: stop, switch back and start. Don't remove
+new columns or edit the migration ledger by hand.
+
+### Docker Compose
+
+1. Stop the API and preserve the upgraded database: run
+   [step 1 of the Compose restore procedure](/self-hosting/backups-and-restore#preserve-compose-files).
+2. List the pre-migration snapshots:
+
+   ```bash
+   docker compose run --rm --no-deps --entrypoint sh api -eu -c 'ls -l /backups/capacitylens-pre-migration-*.db'
+   ```
+
+3. Set the exact filename, then copy it over the database and remove the sidecars:
+
+   ```bash
+   export ROLLBACK_SNAPSHOT=capacitylens-pre-migration-vN-to-vM.db
+   docker compose run --rm --no-deps -e ROLLBACK_SNAPSHOT --entrypoint sh api -eu -c '
+     case "$ROLLBACK_SNAPSHOT" in
+       */*) echo "ROLLBACK_SNAPSHOT must not contain a path" >&2; exit 1 ;;
+       capacitylens-pre-migration-v[0-9]*-to-v[0-9]*.db) ;;
+       *) echo "ROLLBACK_SNAPSHOT must be a capacitylens-pre-migration-vN-to-vM.db basename" >&2; exit 1 ;;
+     esac
+     source="/backups/$ROLLBACK_SNAPSHOT"
+     target=/data/capacitylens.db
+     temporary="$target.restore"
+     test -f "$source"
+     umask 077
+     cp "$source" "$temporary"
+     chmod 600 "$temporary"
+     mv "$temporary" "$target"
+     rm -f "$target-wal" "$target-shm"
+   '
+   unset ROLLBACK_SNAPSHOT
+   ```
+
+4. Check out the previous release and rebuild it. Undo any `.env` change the new release needed
+   first:
+
+   ```bash
+   git checkout vX.Y.Z
+   docker compose up --build --force-recreate -d
+   ```
+
+5. Check `https://capacity.example.com/api/health`, sign in and confirm the company opens.
+
+### Release archive on a Linux host
+
+1. Stop the service and preserve the upgraded database:
+
+   ```bash
+   sudo systemctl stop capacitylens
+   rollback_dir="/var/lib/capacitylens/rolled-back-$(date -u +%Y%m%d-%H%M%S)"
+   sudo install -d -o capacitylens -g capacitylens -m 0700 "$rollback_dir"
+   sudo sh -c 'cp -p /var/lib/capacitylens/capacitylens* "$1"' sh "$rollback_dir"
+   ```
+
+2. List the pre-migration snapshots:
+
+   ```bash
+   sudo ls -l /var/lib/capacitylens/backups/
+   ```
+
+3. Copy the one this upgrade wrote over the database, with the service's owner and mode:
+
+   ```bash
+   sudo install -o capacitylens -g capacitylens -m 0600 /var/lib/capacitylens/backups/capacitylens-pre-migration-vN-to-vM.db /var/lib/capacitylens/capacitylens.db
+   ```
+
+4. Remove the upgraded database's sidecars:
+
+   ```bash
+   sudo rm -f /var/lib/capacitylens/capacitylens.db-wal /var/lib/capacitylens/capacitylens.db-shm
+   ```
+
+5. Point `current` back at the previous release. Undo any `/etc/capacitylens.env` or
+   `capacitylens.service` change the new release needed first:
+
+   ```bash
+   sudo ln -sfn /opt/capacitylens/capacitylens-X.Y.Z /opt/capacitylens/current
+   ```
+
+6. Start the service and check health:
+
+   ```bash
+   sudo systemctl start capacitylens
+   ```
+
+   ```bash
+   curl -fsS http://127.0.0.1:8787/api/health
+   ```
+
+To roll back to the explicit snapshot from [step 3 of the upgrade](#upgrade-to-a-newer-release)
+instead, copy all of its files back into `/var/lib/capacitylens` in place of steps 3 and 4: its
+`-wal` and `-shm` files belong to it.
+
+### Managed host
+
+Follow [Roll back](/self-hosting/managed-vps/#roll-back) on Deploy on a managed host. It also
+returns the deploy script to the previous version, so the next deploy does not reinstate the new
+release.
 
 ## One-time check for older Compose installations
 
@@ -123,7 +223,10 @@ the following:
   they use **Team & access → Invite someone** for each person's exact address. Existing members keep
   their access and role.
 - **Schema v29–v32, v47, v48, v50**: no action. Roll back only with the automatic pre-migration
-  snapshot.
+  snapshot. The v48 upgrade does not infer mailbox proof from older verified flags or invitations,
+  and does not backfill proof for existing GitHub links. Joining a company now needs a proven
+  address plus a company joining link or an addressed invitation; v50 adds this journey for
+  Microsoft sign-in.
 - <span id="stored-credential-effects"></span>**OAuth token encryption at rest**: no action. Tokens
   stored in plaintext keep working and are re-encrypted on their next refresh.
 

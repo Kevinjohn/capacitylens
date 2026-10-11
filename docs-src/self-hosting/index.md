@@ -36,7 +36,8 @@ runs Node 24 and has a hostname pointing at it, the install takes about ten minu
 
    **Hand over.** Check `https://your-address/api/health` returns `{"ok":true`. Send the Owner the
    address and [Set up your company](/owner/), and send the setup token separately and privately.
-   This is the screen they will see. [Verify and hand over](/self-hosting/verify-and-hand-over)
+   This is the screen they will see. After the Owner has signed in, remove
+   `CAPACITYLENS_SETUP_TOKEN` and restart. [Verify and hand over](/self-hosting/verify-and-hand-over)
 
 </div>
 

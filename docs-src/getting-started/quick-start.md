@@ -64,8 +64,10 @@ for your own Linux server.
 
 1. ![Add resource form: Working days with Full day for Monday to Friday, Not working at the weekend, and Save](../screenshots/steps/quick_start_add_resource_working_days.png)
 
-   **Add a person.** Open **Resources**, select **Add resource**, enter their name and working
-   days, and select **Save**.
+   **Add a person.** First set how work is entered and which days your company works under
+   **Settings → Company setup** ([Choose company settings](/admin/company-settings)). Then open
+   **Resources**, select **Add resource**, enter their name and working days, and select
+   **Save**.
 
 2. ![Add project dialog with Project Watchtower, Client set to Queen Consolidated, and Save](../screenshots/steps/quick_start_add_project_dialog.png)
 
@@ -98,8 +100,8 @@ That's a working schedule.
 
 ![Getting started progress at 0/5 with the five setup milestones on Schedule](../screenshots/flows/getting_started_five_steps.png)
 
-While setup is incomplete, **Getting started** on Schedule ticks off these five steps as you go,
-in any order. **Show me around** starts a short tour.
+**Getting started** on Schedule ticks off these five steps as you go, in any order, and stays
+until an Owner or Admin dismisses it. **Show me around** starts a short tour.
 
 Steps complete from the company's records, including imported ones. Internal work doesn't count
 towards the client or project steps. Editors can open and close the checklist; Viewers don't see

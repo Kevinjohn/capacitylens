@@ -106,8 +106,8 @@ A [placeholder](/reference/glossary#placeholder) holds work for a role you haven
 such as "a Design Lead". Use one when someone on your own team will do the work, even if you
 haven't named them yet.
 
-Placeholders are off by default; an Editor, Admin or Owner turns them on in
-[Settings → Placeholders and external resources](/using/settings#placeholders-and-external-resources).
+Placeholders are off by default; an Editor, Admin or Owner turns on **Show placeholders** under
+**Company features** in [Settings](/using/settings#placeholders-and-external-resources).
 Then select **Add placeholder** in the **Placeholders** section.
 
 The name is optional (it shows by its role instead), but a placeholder must be bound to a project.
@@ -121,7 +121,8 @@ shop or an overflow studio. Use one when the work is leaving your team. External
 Schedule so you can see the handoff, but carry no hours and never count towards capacity or
 utilisation. Their bookings use their literal start and end dates.
 
-External parties are off by default; turn them on in the same Settings section. Then, under
+External parties are off by default; turn on **Show external resources** in the same Settings
+section. Then, under
 **External**, select **Add external party**, enter the **Company** and an optional **Descriptor**
 such as "Print", and save.
 
@@ -136,8 +137,8 @@ Select the delete icon in the person's row and confirm **Archive resource?** Arc
 from Schedule and the assignee picker but keeps their past bookings.
 
 Owners and Admins see archived resources at the bottom of Resources, grouped as **Archived
-Studio**, **Archived Supplementary**, **Archived External** and **Archived placeholders**. Restore
-someone there, or delete the archived record to remove it from those lists. Permanent deletion is
-not available in the app.
+Studio**, **Archived Supplementary**, **Archived External** and **Archived placeholders**. Select
+**Restore** to bring someone back, or **Delete** to remove the record from those lists. **Delete**
+anonymises any personal data and can't be undone.
 
 Next: [Schedule and change work](/using/schedule-work) — book the person.

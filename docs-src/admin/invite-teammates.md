@@ -50,15 +50,17 @@ joins and their row shows **Resource link needs attention**. Select **Choose ano
 ![Invitation preview showing company, proposed role, expiry and existing-account sign-in](../screenshots/flows/join_invitation_preview.jpg)
 
 The link opens a preview of your company name, the proposed role, what it allows and when the link
-expires. Opening it does not change [membership](/reference/glossary#member). They then:
+expires, in the invitee's local time. Opening it does not change
+[membership](/reference/glossary#member). They then:
 
-- sign in with their existing password and select **Accept invite**;
-- choose **Create account**, which creates the sign-in and accepts in one step; or
+- sign in on the **Sign in** tab with their existing password, then select **Accept invite**;
+- choose **Create account**, then **Create account and accept**, which creates the sign-in and
+  accepts in one step; or
 - choose a company login provider, return to the invitation and select **Accept invite**.
 
 The preview shows only the start of the invited address, such as `selina.kyle@…`. They must enter
 the full address. Entering a different one cannot change who the invitation is for. When they
-accept, they land on your schedule.
+accept, they land on your schedule. If the link has expired, they ask the sender for a new one.
 
 ## Revoke an invitation
 
@@ -96,7 +98,8 @@ All three are in **More actions**. None affects the person's other company membe
   selects **Enable Access**, which is also available for people under **No longer active**.
 - **Archive user** stops their access but keeps an inactive record. **Restore membership**
   reactivates it, but does not clear Disable Access.
-- **Remove** ends the membership. They may return later if the joining policy allows it.
+- **Remove** ends that membership; it doesn't disable the person's sign-in. They may return later
+  if the joining policy allows it.
 
 Archiving or removing does not block a new invitation; a returning person gets the invitation's
 role. After **Enable Access**, an active member keeps their role, but an archived or removed person
@@ -104,7 +107,7 @@ still needs restoring or a new invitation.
 
 <span id="if-they-come-back-with-a-new-sign-in"></span>
 
-If they return with a new sign-in, check **No longer active**: [How sign-in works](/company-login/#if-someone-returns-with-a-new-sign-in)
+If they return with a new sign-in, check **No longer active**: [Company login](/company-login/#if-someone-returns-with-a-new-sign-in)
 explains when the restriction follows them.
 
 ## Review who can join

@@ -59,7 +59,7 @@ check before the API accepts traffic.
 | Signal               | Alert when                                                                                                                                                                                                                                              |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `audit`              | `degraded`: the audit sink has failed and events are queued. `recovering` with a nonzero `auditPending` is expected briefly after a restart; alert if it doesn't drain.                                                                                 |
-| `backup.status`      | `degraded` after any failed snapshot attempt, or `pending` for longer than one configured backup interval. Alert on `unavailable` when scheduled backups are expected; check whether backups were deliberately disabled before treating it as a failure. |
+| `backup.status`      | `degraded` after any failed snapshot attempt, or `pending` for longer than one configured backup interval. With scheduled backups off, the `backup` field is absent: alert on a missing field when backups are expected. |
 | `internalTls.status` | `expiring` or `expired`. `expiring` starts at the same 30-day boundary the renewal script uses; renew before it reaches zero. See [TLS and networking](/self-hosting/tls-and-networking).                                                              |
 | HTTP `5xx`           | Any occurrence. Investigate immediately.                                                                                                                                                                                                                |
 | HTTP `401`/`403`     | Repeated occurrences. Review them as access events.                                                                                                                                                                                                     |
@@ -121,7 +121,8 @@ retention policy.
   staging.
 - **Every release**: follow [Upgrades](/self-hosting/upgrades): review the security workflow,
   SBOM and image scan results; read the changelog; back up; deploy; smoke test; keep a rollback
-  image and, for schema-bearing releases, the migration rehearsal result.
+  image and, for schema-bearing releases, the
+  [migration rehearsal](/reference/development#rehearse-migrations) result.
 - **After any sign-in or cryptography change**, in a test environment: exercise session
   revocation, password-reset invalidation and the
   breached-password-service outage path. For Google or Microsoft, verify the registered callback,

@@ -151,7 +151,10 @@ sign-ins do not send another proof.
 
 ## Finish setup
 
-1. Add the provider's settings to the server's protected environment and restart CapacityLens.
+1. Add the provider's settings to the server's protected environment, set
+   `CAPACITYLENS_MODE=password-and-sso`, and restart CapacityLens. Production defaults to
+   `password-only`, which ignores provider settings. If `CAPACITYLENS_DEPLOYMENT_PROFILE` is set,
+   change it to `self-hosted-mixed`.
 2. Open the sign-in page and check the provider button appears.
 3. Complete one sign-in with an allowed account or an invitation before asking the team to use it.
 

@@ -14,17 +14,17 @@ the page directly.
 
 ## Compare the roles
 
-| Capability                                            |  Viewer  |  Editor  | Admin | Owner |
-| ----------------------------------------------------- | :------: | :------: | :---: | :---: |
-| See the schedule                                      |   Yes    |   Yes    |  Yes  |  Yes  |
-| Create and edit scheduling data                       |    —     |   Yes    |  Yes  |  Yes  |
-| Change ordinary company settings                      |    —     |   Yes    |  Yes  |  Yes  |
-| See time-off notes                                    |    —     |    —     |  Yes  |  Yes  |
-| See private client/project real names                 |    —     |    —     |   —   |  Yes  |
-| List members and manage invites                       |    —     |    —     |  Yes  |  Yes  |
-| Disable or Enable Access; archive or restore a member |    —     |    —     |  Yes  |  Yes  |
-| Export the schedule                                   | Redacted | Redacted | Full  | Full  |
-| Import, delete the company, transfer ownership        |    —     |    —     |   —   |  Yes  |
+| Capability                                            |  Viewer  |  Editor  |   Admin    | Owner |
+| ----------------------------------------------------- | :------: | :------: | :--------: | :---: |
+| See the schedule                                      |   Yes    |   Yes    |    Yes     |  Yes  |
+| Create and edit scheduling data                       |    —     |   Yes    |    Yes     |  Yes  |
+| Change ordinary company settings                      |    —     |   Yes    |    Yes     |  Yes  |
+| See time-off notes                                    |    —     |    —     |    Yes     |  Yes  |
+| See private client/project real names                 |    —     |    —     |     —      |  Yes  |
+| List members and manage invites                       |    —     |    —     |    Yes     |  Yes  |
+| Disable or Enable Access; archive or restore a member |    —     |    —     |    Yes     |  Yes  |
+| Export the schedule                                   | Redacted | Redacted | Code names |  Full |
+| Import, delete the company, transfer ownership        |    —     |    —     |     —      |  Yes  |
 
 Each company has exactly one Owner. Nobody becomes Owner through an invitation or a role change, only
 through [an ownership transfer](#hand-the-company-to-someone-else). An Admin can invite, remove,
@@ -88,7 +88,8 @@ access**, select the eye button on the member's row and confirm. A red **Masquer
 bar stays visible throughout.
 
 You see the company with that member's role and redactions, but you cannot change anything; the
-server blocks every change. It never applies to another company.
+server blocks every change. It never applies to another company. An Admin who views the company as
+the Owner sees what the Owner sees, including real names.
 
 Select **End now** to return to your own view. Switching company, signing out, a revoked or expired
 session, a disabled membership on either side, or a server restart also ends it. Starting and ending

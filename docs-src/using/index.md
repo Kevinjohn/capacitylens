@@ -16,28 +16,30 @@ who else is busy. You don't need to install or set up anything.
 
 <div class="steps">
 
-1. ![Accept invite page showing the company, the Editor role, the intended email hint, the expiry, and Sign in or Create account](../screenshots/steps/using_invitation_preview.png)
+1. ![Accept invite page showing the company, the Viewer role, the intended email hint, the expiry, and Sign in or Create account](../screenshots/steps/using_invitation_preview.png)
 
-   **Accept the invitation.** Open the link from your email. Sign in, or select **Create
-   account** if you're new, using the address the invitation was sent to. Then select **Accept
-   invite**. [Join your team](/using/join-your-team)
+   **Accept the invitation.** Open the link from your email and use the address it was sent to.
+   Sign in, then select **Accept invite**. New here? Select **Create account**, then **Create
+   account and accept**. [Join your team](/using/join-your-team)
 
 2. ![Bruce Wayne's schedule drawer listing his bookings with dates and hours per day, and a holiday](../screenshots/steps/using_schedule_drawer.png)
 
    **Find your week.** You land on **Schedule**. Find your name and select the avatar beside it.
-   Your bookings and time off open in one list.
+   Your bookings and time off open in one list. Not on the list? Ask whoever invited you to add you.
 
 3. ![Schedule rows grouped by discipline, with each person's utilisation percentage, booking bars and a red over-capacity day](../screenshots/steps/using_schedule_rows.png)
 
-   **Read the schedule.** Each bar is a booking: its project, its dates and how much of each day
-   it takes. **Red** means someone has more work than time that day. The percentage beside a
-   name shows how full they are across the weeks on screen. [Read the schedule](/using/read-the-schedule)
+   **Read the schedule.** Each bar is a [booking](/reference/glossary#booking) (the app calls it
+   an allocation): its project, its dates and how much of each day it takes. **Red** means someone
+   has more work than time that day. The percentage beside a name, its
+   [utilisation](/reference/glossary#utilisation), shows how full they are across the weeks on
+   screen. [Read the schedule](/using/read-the-schedule)
 
 4. ![Schedule toolbar with Prev, Today, Next, 4 weeks and Hide filters above the filter row and week columns](../screenshots/steps/using_schedule_toolbar_filters.png)
 
-   **Look further ahead.** Use **Weeks visible** to show up to eight weeks, and **Today**,
-   **Prev** and **Next** to move. **Show filters** narrows the view to one client, project or
-   activity.
+   **Look further ahead.** Use the weeks menu to show up to eight weeks, and **Today** and the
+   arrows beside it to move. **Show filters** narrows the view to one client,
+   project or activity.
 
 </div>
 
@@ -58,7 +60,8 @@ drag a bar to move it, and select **Undo** if you change your mind.
 - [Schedule](/using/read-the-schedule): the day-by-day grid of bookings, utilisation and time off.
 - [Overview](/using/overview): each person's free days, week by week. Owners and Admins only,
   unless your company opens it to Editors or everyone.
-- [Resources](/using/resources): the people, placeholders and external parties you can schedule.
+- [Resources](/using/resources): the people, [placeholders](/reference/glossary#placeholder) and
+  external parties you can schedule.
 - [Disciplines](/using/disciplines): the coloured groups for people and schedule rows.
 - [Clients and projects](/using/projects): the organisations and projects behind each booking.
 - [Activities](/using/activities): the kinds of work you book.

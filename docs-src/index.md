@@ -13,7 +13,7 @@ CapacityLens puts that answer on one shared screen. People run down the side, da
 the top, and their work and time off sit in between. Red means someone is booked for more than
 they can do that day.
 
-<video controls muted playsinline preload="metadata" src="./screenshots/demo.mp4" aria-label="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is dragged to a colleague with room, new work is booked by dragging across two days, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." style="width: 100%; border-radius: 8px;"></video>
+<video controls muted playsinline preload="metadata" src="./screenshots/demo.mp4" aria-label="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is dragged to a colleague with room, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." style="width: 100%; border-radius: 8px;"></video>
 
 You book work by the day and read the plan by the week. CapacityLens does not track tasks,
 budgets or timesheets.
@@ -45,8 +45,8 @@ Doing all of it yourself? Small agencies often do.
 [The whole setup on one page](/getting-started/quick-start) takes you from download to your
 first booking.
 
-Want a look first? [Try the demo](/getting-started/try-the-demo) on your own computer with sample
-data. It needs no server and no sign-in.
+Want a look first? Watch the walkthrough above, or [try the demo](/getting-started/try-the-demo)
+on your own computer with sample data. It needs Node and git, but no server and no sign-in.
 
 ## How setup fits together
 

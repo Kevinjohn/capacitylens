@@ -15,7 +15,8 @@ next: false
 You own the company in CapacityLens. Your job is short: create the company and give someone
 the day-to-day running of it. Four steps, then you can stop.
 
-You need the CapacityLens address and the setup token from whoever installed it.
+You need the CapacityLens address and the [setup token](/reference/glossary#setup-token) from
+whoever installed it.
 
 <div class="steps">
 
@@ -28,9 +29,10 @@ You need the CapacityLens address and the setup token from whoever installed it.
 2. ![Company form with Company name, Week starts on, Timezone, Language, Start with example data ticked and Create company](../screenshots/steps/owner_create_company_form.png)
 
    **Create the company.** Enter its name, then choose the day the week starts and your time zone.
-   These two apply to everyone and **cannot be changed later**. Leave **Start with example data**
-   selected to see a working schedule straight away, or clear it to start empty. Select **Create
-   company**.
+   These two apply to everyone and **cannot be changed later**. **Start with example data** is
+   ticked by default for your first company; for a real company, clear it so your Admin doesn't
+   inherit fictional people. The [demo](/getting-started/try-the-demo) is for exploring. Select
+   **Create company**.
 
 3. ![Invite someone dialog with Role set to Admin, an email address, No Resource linked and Create invite](../screenshots/steps/owner_invite_admin_dialog.png)
 
@@ -40,8 +42,9 @@ You need the CapacityLens address and the setup token from whoever installed it.
 
 4. ![Members table listing each person's name, role and email, with an accepted member showing the Admin role](../screenshots/steps/owner_members_admin_row.png)
 
-   **Hand over.** When their row in **Team & access** shows **Admin**, send them
-   [Get the schedule ready](/admin/). They take it from here.
+   **Hand over.** Until they accept, the invitation waits under **Outstanding invites**. When
+   their row in **Team & access** shows **Admin**, send them [Get the schedule ready](/admin/).
+   They take it from here.
 
 </div>
 
