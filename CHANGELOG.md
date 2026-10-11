@@ -26,6 +26,7 @@ new features and **patch** versions carry fixes.
 
 ### Documentation
 
+- Rewrote the documentation front door and README around four roles, each with a short step-by-step quick start with thumbnail screenshots, plus a one-page quick start for the person doing the whole setup. Every user guide was edited for length and one consistent voice, and the managed-host guide is now a single page. Statements that contradicted the app or each other were corrected, and upgrades now include a working rollback for Docker Compose, Linux and managed hosts.
 - Added complete Editor and Viewer starting routes, expanded Owner, Admin, joining, Account and discipline journeys, and added current screenshots for role-specific controls. Corrected operator guidance for MFA, provider linking, backups and monitoring.
 
 ### Added

@@ -5,29 +5,40 @@ description: Symptom-led guidance for account compromise, corrupted records, a l
 
 # When something goes wrong
 
-This page is organised by what you're seeing, not by subsystem. Find the symptom closest
-to your situation, and follow its fix. Most of these procedures need the server stopped
-— stopping it early costs you a few minutes of downtime and prevents a repair from racing
-live traffic. Resetting a lost Owner password is the exception to the checkout requirement
-below: the release archive carries its own tool for it.
+Find your symptom and follow its fix. Most fixes need the server stopped; stop it first so a repair
+cannot race live traffic.
 
-::: warning Running these commands under Docker
-The recovery commands below (`pnpm --filter capacitylens-server ...`) are written for a
-git checkout with the full workspace installed. The packaged `api` runtime image does
-**not** contain them: its production build strips `pnpm`, `npm` and every dev-only
-dependency (including `tsx`, which these scripts need), leaving only the compiled
-server. Running them with `docker compose exec api ...` or `docker compose run api ...`
-fails because the tools aren't there.
+- Unexpected sign-ins, a leaked credential, or someone to cut off now:
+  [Suspected compromise or a leaver](#suspected-compromise-or-a-leaver)
+- The only Owner can't sign in:
+  [The sole Owner has lost their password](#the-sole-owner-has-lost-their-password)
+- Membership changes fail:
+  [`nextOwnershipTransferRevision`](#membership-changes-fail-with-nextownershiptransferrevision)
+- Startup stops on the audit outbox:
+  [Malformed or corrupted audit outbox record](#malformed-or-corrupted-audit-outbox-record)
+- `CorruptAccountCommandStateError` or `reconciliation_required`:
+  [Account command needs reconciliation](#corruptaccountcommandstateerror-or-command-status-stuck-at-reconciliation-required)
+- Deleting a company fails:
+  [`TenantErasureIntegrityError`](#erasure-refuses-with-tenanterasureintegrityerror)
+- A company shows no Owner: [A company has no Owner](#a-company-has-no-owner)
+- `SQLITE_FULL` or `backup FAILED`:
+  [Disk-full or a failed snapshot](#disk-full-or-a-failed-snapshot)
 
-The supported path for a Docker installation is to run these commands from a git
-checkout on the host, mounting the same named data and backup volumes, with the stack stopped:
+Recovery commands (`pnpm --filter capacitylens-server ...`) need a git checkout with the full
+workspace installed. On Docker or a managed host, read
+[Run recovery commands on Docker or a managed host](#run-recovery-commands-on-docker-or-a-managed-host)
+first. The Owner password reset is the exception: the release archive carries its own tool.
 
-1. Stop the stack so nothing else writes to the database while you work:
-   `docker compose stop`.
-2. From a checkout of the release currently running (matching tag or commit — these
-   scripts assume the schema that release produces), start a throwaway container that
-   has Node and pnpm — not the stripped-down `api` image — with the checkout and both
-   named volumes mounted:
+## Run recovery commands on Docker or a managed host
+
+The packaged `api` image and a managed-host release omit `pnpm`, `tsx` and development dependencies,
+so `docker compose exec api ...` fails.
+
+**Docker:**
+
+1. Stop the stack: `docker compose stop`.
+2. From a checkout of the release currently running (matching tag or commit), start a throwaway Node
+   container with the checkout and both named volumes mounted:
 
    ```bash
    docker run --rm -it \
@@ -37,326 +48,265 @@ checkout on the host, mounting the same named data and backup volumes, with the 
      node:24-bookworm-slim bash
    ```
 
-   (Adjust the volume name for your install's Compose project prefix — see
-   [Upgrades](/self-hosting/upgrades#one-time-check-for-older-compose-installations) if
-   you're not sure it's `capacitylens_capacitylens-db`.)
+   Adjust the volume names to your Compose project prefix
+   ([Upgrades](/self-hosting/upgrades#one-time-check-for-older-compose-installations) shows how to
+   find it).
 
-3. Inside that container, install dependencies once (`corepack enable && pnpm install
-   --frozen-lockfile`) and run the documented command against `/data/capacitylens.db`,
-   for example `pnpm --filter capacitylens-server recover:audit-outbox -- inspect
-   /data/capacitylens.db`. Preserve `/data/capacitylens.db-wal`,
-   `/data/capacitylens.db-shm`, `/data/capacitylens-audit.jsonl` and its `.1` rotation
-   alongside the database before investigating. Scheduled snapshots live under
-   `/backups`; use the [named-volume restore procedure](/self-hosting/backups-and-restore#docker-compose-named-volume-procedure)
-   when a verified snapshot is needed. A procedure that uses the `sqlite3` command-line
-   tool directly needs it installed in the same container first: `apt-get update &&
-   apt-get install -y sqlite3`.
-4. Exit the container and restart the stack with `docker compose up -d` once you've
-   confirmed the fix.
-   :::
+3. Before investigating, preserve `/data/capacitylens.db-wal`, `/data/capacitylens.db-shm`,
+   `/data/capacitylens-audit.jsonl` and its `.1` rotation alongside the database. Install
+   dependencies once with `corepack enable && pnpm install --frozen-lockfile`, then run the
+   documented command against `/data/capacitylens.db`, for example
+   `pnpm --filter capacitylens-server recover:audit-outbox -- inspect /data/capacitylens.db`.
+   Snapshots are under `/backups`
+   ([named-volume restore procedure](/self-hosting/backups-and-restore#docker-compose-named-volume-procedure)).
+   For `sqlite3`, run `apt-get update && apt-get install -y sqlite3` first.
+4. Once the fix is confirmed, exit the container and run `docker compose up -d`.
 
-::: warning Running these commands on a managed VPS
-The activated managed-VPS release also omits pnpm, `tsx` and development dependencies. Use the
-[separate maintenance checkout procedure](/self-hosting/managed-vps/deploy-and-upgrade-safely#keep-operator-tooling-in-a-separate-maintenance-checkout)
-at the exact active tag or commit. Keep that checkout outside release directories, stop the API
-before a repair, and target the persistent database and evidence paths explicitly. Do not reinstall
-development dependencies into `current/` or start another API from the maintenance checkout.
-:::
+**Managed host:** use the
+[separate maintenance checkout procedure](/self-hosting/managed-vps/#keep-operator-tooling-in-a-separate-maintenance-checkout)
+at the exact active tag or commit, outside release directories. Stop the API first and target the
+persistent database and evidence paths explicitly. Don't install development dependencies into
+`current/` or start another API from that checkout.
 
-## Suspected account or session compromise
+## Suspected compromise or a leaver
 
-**Symptom**: unexpected sign-ins, a leaked credential, or any reason to believe an
-account or session is no longer trustworthy.
+<span id="suspected-account-or-session-compromise"></span>
+<span id="a-leaver-or-compromised-company-login-identity"></span>
 
-**Fix**:
+**Symptom**: unexpected sign-ins, a leaked credential, or a company-login user (a leaver, a
+compromised upstream identity) must be cut off now.
 
-1. Restrict public access at the proxy.
-2. Preserve the database with its `-wal`/`-shm` sidecars, the `0600`-mode current and
-   rotated audit files, forwarded security events and relevant proxy logs, without
-   altering the originals. For Docker Compose, use the [stopped-volume preservation
-   step](/self-hosting/backups-and-restore#preserve-compose-files), mount the
-   installation's actual database and backup volumes, and write the evidence to a
-   separate protected destination; do not copy a host path or only the database file.
-3. Use the member/session revocation control in Team & access for a contained identity
-   incident. Rotate provider credentials and `CAPACITYLENS_SECRET` only when every
-   local session must be invalidated at once — that rotation signs everyone out.
-4. Review memberships, invitations, session-revocation and audit events.
-5. Keep access restricted until the integrity review is complete. Record the recovery
-   decision against the preserved evidence before re-enabling access.
-6. Follow your organisation's notification and disclosure obligations.
-
-## A leaver or compromised company-login identity
-
-**Symptom**: someone who signed in through company login needs to be cut off
-immediately — an offboarded employee, or a compromised upstream identity.
-
-**Cause**: disabling the identity at your company login provider stops a _new_ sign-in, but it
-doesn't revoke a local session CapacityLens already issued. Without local revocation, an
-actively used session stays valid up to its fixed twelve-hour lifetime; an inactive one
-expires after thirty minutes. Signing out of CapacityLens also only ends the local
-session — it doesn't promise to end the browser's session at the company login provider.
+**Cause**: disabling an identity at the provider blocks new sign-ins, not existing CapacityLens
+sessions. An active session lasts up to its fixed twelve hours; an inactive one expires after thirty
+minutes. Signing out of CapacityLens ends only its own session, not the session at the
+company-login provider.
 
 **Fix**:
 
-1. Disable the identity and revoke provider sessions at your company login provider.
-2. In Team & access, revoke that person's local sessions. Do this in every affected
-   CapacityLens installation — one installation's revocation doesn't propagate to others.
-3. Review provider identities, memberships, outstanding invitations, the account audit
-   log and provider logs. Don't correlate or merge identities by email address alone.
-4. For a broader compromise, restrict the proxy, rotate the affected provider client secret and the
-   local `CAPACITYLENS_SECRET`, then require everyone to sign in fresh. Coordinate
-   the rotation — changing the local secret signs out every session at once.
-5. Record the actual containment time against the twelve-hour/thirty-minute maximum
-   above; near-immediate cross-session logout isn't implemented yet, so don't describe
-   this posture as instant global revocation.
+1. For a suspected compromise, restrict public access at the proxy. Preserve, without altering, the
+   database with its `-wal`/`-shm` sidecars, the `0600`-mode current and rotated audit files,
+   forwarded security events and relevant proxy logs. On Docker Compose, use the
+   [stopped-volume preservation step](/self-hosting/backups-and-restore#preserve-compose-files) with
+   the actual database and backup volumes and a separate protected destination; don't copy a host
+   path or only the database file.
+2. For a company-login identity, disable it and revoke its sessions at the provider.
+3. In **Team & access**, select **Revoke sessions** for the person in every affected installation.
+4. Only if every session must end at once, rotate the affected provider client secret and
+   `CAPACITYLENS_SECRET`; this signs everyone out.
+5. Review identities, memberships, invitations, audit events and provider logs. Don't correlate or
+   merge identities by email address alone.
+6. Keep access restricted until the integrity review is complete, and record the recovery decision
+   against the evidence before re-enabling it.
+7. Follow your organisation's notification and disclosure obligations.
+
+**Check**: record the actual containment time against the twelve-hour/thirty-minute maximum;
+revocation isn't instant across sessions.
 
 ## The sole Owner has lost their password
 
-**Symptom**: a password-mode instance's only active Owner can't sign in, and there's no
-second Owner to help.
+**Symptom**: the only active Owner of a password-mode instance can't sign in.
 
-**Cause**: this is by design, not a bug — admins can never administer an Owner's
-credential, the exactly-one-active-Owner rule means no second Owner exists to help, and
-there's deliberately no public password-reset endpoint. Restoring from backup doesn't
-help either, since the backup holds the same credential the Owner can't produce. The
-supported path is an operator-run CLI that drives the same reset ceremony a self-service
-reset would use — same token store, 24-hour expiry, single use, same password policy and
-session revocation — and never writes a credential directly.
+**Cause**: Admins can't reset an Owner's credential and there's no public reset endpoint; a backup
+holds the same credential. An operator tool issues a normal single-use, 24-hour reset link instead.
 
 **Fix**:
 
-1. Preserve the database file with its `-wal`/`-shm` companions and record checksums,
-   exactly as for the audit-outbox recovery below.
-2. Stop the application process. The tool also takes SQLite's exclusive lock and refuses
-   to run if any other process still holds the database — the `--confirm-server-stopped`
-   flag records your intent, the lock enforces it.
-3. Using the release that most recently started the database, with the instance's
-   environment present, run the tool bundled in the release archive. On a native install,
-   stop the service, then run it as the service user with the service's environment file. The
-   `--pipe` option prints the link to your terminal and keeps it out of the journal:
+1. Preserve the database file with its `-wal`/`-shm` companions and record checksums.
+2. Stop the application. The tool refuses to run while another process holds the database.
+3. Using the release that most recently started the database, with the instance's environment
+   present, run the tool from the release archive. Native install (`--pipe` keeps the link out of
+   the journal):
 
    ```bash
    sudo systemctl stop capacitylens
    sudo systemd-run --pipe --wait --quiet --uid=capacitylens -p EnvironmentFile=/etc/capacitylens.env /usr/bin/env node /opt/capacitylens/current/server/dist/reset-owner-password.mjs /var/lib/capacitylens/capacitylens.db owner@example.com --confirm-server-stopped; echo "exit status $?"
    ```
 
-   An exit status other than 0 means no link was issued; the message above it says why. On a
-   managed host, run this from the site's `current` folder, in the platform's command box or
-   a shell, after stopping the background process. The command box starts in the site's root
-   folder, so the line begins with `cd current`:
+   A non-zero exit status means no link was issued; the message above it says why. Managed host,
+   after stopping the background process, from the command box or a shell in the site's root folder:
 
    ```bash
    cd current && node --env-file=../.env server/dist/reset-owner-password.mjs /home/forge/capacitylens-data/capacitylens.db owner@example.com --confirm-server-stopped
    ```
 
-   From a source checkout, or a Docker install using the throwaway container above, the
-   equivalent is
+   Source checkout or the Docker throwaway container:
    `pnpm --filter capacitylens-server reset:owner-password -- /absolute/path/to/capacitylens.db owner@example.com --confirm-server-stopped`
-   with `CAPACITYLENS_MODE=password-only`, `CAPACITYLENS_SECRET` and
-   `CAPACITYLENS_PUBLIC_URL` set.
+   with `CAPACITYLENS_MODE=password-only`, `CAPACITYLENS_SECRET` and `CAPACITYLENS_PUBLIC_URL` set.
 
-4. The tool refuses to run for: a missing or ambiguous identity at that address; a target
-   who isn't the sole active Owner of at least one company (anyone else has a normal
-   in-product reset path); an older database schema, rather than migrating outside the
-   normal backup ceremony; or any non-password account mode.
-5. The single line of JSON output contains the reset link itself — that link _is_ the
-   secret. Deliver it to the Owner over a channel you trust, and never store it in
-   tickets or logs. The audit trail records `identity.owner_recovery_issued` with a
-   ceremony digest, never the token.
-6. Restart the application and confirm the audit event reaches its configured
-   destination. The Owner opens the link, sets a new password (this revokes every
+4. The JSON output contains the reset link, and that link _is_ the secret. Deliver it over a channel
+   you trust; never store it in tickets or logs.
+5. Restart the application. The Owner opens the link, sets a new password (this revokes every
    existing session) and signs in.
+
+The tool refuses a missing or ambiguous identity, anyone who isn't the sole active Owner of at least
+one company (they have an in-product reset), an older schema and non-password modes.
+
+**Check**: the audit event `identity.owner_recovery_issued` (a digest, never the token) reaches its
+destination.
 
 ## Membership changes fail with `nextOwnershipTransferRevision`
 
-**Symptom**: changing a role or status, removing a member, or acting on an ownership
-transfer fails. The server log says that `nextOwnershipTransferRevision` cannot advance safely — only
-when the stored revision is exactly `9007199254740991` — or, for every other unusable
-value, that the stored revision is not a non-negative integer.
+**Symptom**: role, status, removal or ownership-transfer changes fail; the log says
+`nextOwnershipTransferRevision` cannot advance safely, or the stored revision is not a non-negative
+integer.
 
-**Cause**: a live ownership-transfer row has an unusable revision. A decimal string
-whose numeric value is from `0` through `9007199254740990` can advance normally and is
-not this incident. A value of `9007199254740991` is valid but exhausted. An empty value,
-non-decimal characters, a negative value, or a larger number is corruption. CapacityLens
-stops the whole membership transaction instead of guessing a successor and weakening
-stale-request protection.
+**Cause**: a live ownership-transfer row has an exhausted (`9007199254740991`) or corrupt revision.
 
-**Fix**: prefer restoring a verified snapshot when it contains the correct row and the
-later writes you would lose are understood. There is no in-app transition for an
-exhausted or corrupt live row. If restoring is not appropriate, follow [Recover a blocked
-ownership transfer](/self-hosting/ownership-transfer-recovery) to rehearse and run the
-guarded stopped-server command. It cancels only the exact request approved by the Owner;
-it does not change any membership or invent a replacement revision.
+**Fix**:
 
-If the company also has zero active Owners, this incident can be the cause: startup's
-automatic owner repair can fail when it encounters that unusable revision. See [A company
-has no Owner](#a-company-has-no-owner). Resolve the revision only through the ownership-
-transfer recovery procedure first. If startup still leaves the company without an Owner,
-follow the guarded owner-assignment procedure in [A company has no Owner](#a-company-has-no-owner).
+1. Restore a verified snapshot if it has the correct row and you accept losing later writes.
+2. Otherwise follow
+   [Recover a blocked ownership transfer](/self-hosting/ownership-transfer-recovery). It cancels
+   only the request the Owner approves.
+3. If the company also has no active Owner, resolve the revision first, then follow
+   [A company has no Owner](#a-company-has-no-owner) if still needed.
+
+**Check**: the originally intended membership change succeeds.
 
 ## Malformed or corrupted audit outbox record
 
-**Symptom**: startup won't reach the listener, or logs point at a problem in the audit
-outbox.
+**Symptom**: startup stops before listening, or logs point at the audit outbox.
 
-**Cause**: a corrupt or manually altered oldest outbox payload fails closed rather than
-being skipped.
+**Cause**: the oldest outbox payload is corrupt or was altered, and fails closed.
 
 **Fix**: never delete or update an outbox row with ad hoc SQL.
 
-1. Stop the API, preserve the database together with its `-wal`/`-shm` files and both
-   audit JSONL generations, and take checksums before you diagnose anything. Work only on
-   a verified copy or snapshot of the stopped original.
-2. Inspect the oldest row without printing its raw payload:
+1. Stop the API. Preserve the database with its `-wal`/`-shm` files and both audit JSONL
+   generations, and take checksums. Work only on a verified copy of the stopped original.
+2. Inspect the oldest row; its raw payload isn't printed:
 
    ```sh
    pnpm --filter capacitylens-server recover:audit-outbox -- inspect /absolute/path/to/capacitylens.db
    ```
 
-3. If it reports `valid`, don't quarantine it — investigate the audit sink instead. An
-   `invalid-json` or `invalid-payload` result includes the exact row ID, byte count and
-   SHA-256 digest. Escalate under your incident and audit-retention policy before
-   disposing of that evidence.
+3. `valid`: don't quarantine; investigate the audit sink. `invalid-json` or `invalid-payload`: note
+   the row ID, byte count and SHA-256 digest, and escalate under your incident and audit-retention
+   policy.
 4. With explicit approval, quarantine only that still-current malformed head:
 
    ```sh
    pnpm --filter capacitylens-server recover:audit-outbox -- quarantine /absolute/path/to/capacitylens.db expected-head-id /absolute/path/to/evidence.json
    ```
 
-   This refuses a valid or already-changed head, and refuses to overwrite an existing
-   evidence file. It creates a mode-`0600`, fsynced envelope containing the exact raw row
-   and digest, then deletes that one row transactionally. Store the evidence bundle under
-   your audit retention policy.
+   It refuses a valid or already-changed head, and refuses to overwrite an existing evidence file.
+   It saves the raw row and digest to a mode-`0600` evidence file, then deletes that one row. Retain
+   the evidence under your audit policy.
 
-5. Restart the API and watch `audit`, `auditPending` and the JSONL destination until the
-   backlog drains. Repeat inspection only if another, independently malformed head shows
-   up.
+5. Restart the API.
+
+**Check**: `audit`, `auditPending` and the JSONL destination show the backlog draining. Inspect
+again only if another malformed head appears.
 
 ## `CorruptAccountCommandStateError`, or command-status stuck at `reconciliation_required`
 
-**Symptom**: an account command (one that crosses the local database and an identity
-provider) returns a generic 500, with the server log naming
-`CorruptAccountCommandStateError` and a command id — or its status stays at
+**Symptom**: an account command (one involving an identity provider) returns a generic 500 with
+`CorruptAccountCommandStateError` and a command id in the log, or its status stays
 `reconciliation_required`.
 
-**Cause**: the provider outcome, or a compensating action, couldn't be proven. This is an
-integrity incident, not a routine "operator review" case: the server leaves the raw row
-untouched and won't fabricate missing coordinates.
+**Cause**: the provider outcome, or a compensating action, couldn't be proven. Treat it as an
+integrity incident.
 
 **Fix**:
 
 1. Stop retrying the command with a new idempotency key.
-2. Inspect the account audit event and the `account_commands` repair coordinates, then
-   verify the actual membership, session, reset-ceremony or provisional-identity state.
-3. Complete or undo the intended effect using the normal administrative control. Record
-   an incident/change reference — no credentials, tokens or personal data in it.
-4. Stop the application process so the repair can't race a live command. Using the
-   release that most recently started the database, close the repaired record with:
+2. Inspect the account audit event and the `account_commands` repair coordinates, then verify the
+   actual membership, session, reset-ceremony or provisional-identity state.
+3. Complete or undo the intended effect with the normal administrative control. Record an incident
+   reference with no credentials, tokens or personal data.
+4. Stop the application. Using the release that most recently started the database, close the
+   repaired record:
 
    ```sh
    pnpm --filter capacitylens-server exec tsx scripts/reconcile-account-command.ts /absolute/path/to/capacitylens.db application-id command-id operator-reference
    ```
 
-   This stores only a SHA-256 digest of your operator reference, refuses records that
-   aren't awaiting reconciliation, and refuses to run against an older schema rather than
-   migrating outside the normal pre-migration backup ceremony.
+   It stores only a digest of your reference, and refuses records not awaiting reconciliation and an
+   older schema.
 
-5. Confirm the status is now `compensated`, keep the audit evidence, and retry only with
-   a new command identity if the business operation is still needed.
+**Check**: the status is `compensated`. Keep the audit evidence; if the operation is still needed,
+retry with a new command identity.
 
-Don't close a malformed-metadata row with the reconciliation CLI until its metadata has
-been recovered from a known-good copy or every external effect has been established from
-authoritative provider and audit evidence — except a legacy row whose `resultJson` is
-genuinely SQL `NULL`, which is the explicit generic-review case.
+Don't close a malformed-metadata row until its metadata is recovered from a known-good copy or every
+external effect is established from provider and audit evidence. A legacy row whose `resultJson` is
+SQL `NULL` is the exception.
 
 ## Erasure refuses with `TenantErasureIntegrityError`
 
 **Symptom**: deleting a company fails with a generic API error, and the server log shows
 `TenantErasureIntegrityError`.
 
-**Cause**: a corrupt id-only product relationship would otherwise cascade into, or unbind
-a row belonging to, another company.
-
-**Fix**: treat this as an integrity incident. Stop the application, preserve a copy of
-the database with its `-wal`/`-shm` sidecars and both audit-log generations, and write it
-to a separate protected destination if the host is under pressure. Identify the reported
-parent/child edge and send a private incident report containing only redacted metadata
-(ids, table/relationship names, timestamps and checksums) through your approved incident
-tracker or restricted operator evidence store. Repair the account labels or relationship
-only against an authoritative source. Don't disable foreign-key enforcement, edit the
-database with ad hoc SQL or delete the reported child row just to make erasure pass. If
-a verified snapshot contains the correct edge and the later writes you would lose are
-understood, use the [restore procedure](/self-hosting/backups-and-restore) instead of
-guessing at a repair.
-
-## A company has no Owner
-
-**Symptom**: a company shows no Owner in Team & access, or startup logs a structured
-security event about an ownership repair.
-
-**Cause**: CapacityLens enforces one active Owner per company. A database index blocks a
-second active Owner, and startup checks the membership invariant. During upgrade, an
-ownerless company with active members may be repaired automatically by promoting the
-highest-tier active member (breaking ties by membership age); if every active member is a
-Viewer, a Viewer can be promoted. Each automatic promotion emits a structured security
-event. For an ownerless company that still needs repair, a guarded stopped-server command
-can assign an existing active member as Owner.
+**Cause**: a corrupt relationship would cascade into another company's data.
 
 **Fix**:
 
-1. If this appeared right after an upgrade, check the audit/security log for the
-   automatic promotion event first. Confirm the promoted person is appropriate. If the
-   company has an Owner but you need to change who holds that role, use the in-app
+1. Stop the application. Preserve the database with its `-wal`/`-shm` sidecars and both audit-log
+   generations, to a separate protected destination if space is short.
+2. Identify the reported parent/child edge. Report it through your approved incident tracker with
+   redacted metadata only (ids, table names, timestamps, checksums).
+3. Restore a verified snapshot with the correct edge
+   ([restore procedure](/self-hosting/backups-and-restore)) if you accept losing later writes.
+   Otherwise repair the relationship only against an authoritative source. Don't disable foreign
+   keys, run ad hoc SQL or delete the child row to make erasure pass.
+
+**Check**: deleting the company succeeds.
+
+## A company has no Owner
+
+**Symptom**: **Team & access** shows no Owner, or startup logs a security event about an ownership
+repair.
+
+**Cause**: the company lost its only active Owner. An upgrade may repair this by promoting the
+highest-tier active member (oldest membership wins ties; a Viewer only if every active member is
+one), logging a security event.
+
+**Fix**:
+
+1. After an upgrade, find the promotion event and confirm the promoted person is appropriate. To
+   change who holds the role, use the in-app
    [ownership transfer](/getting-started/roles-and-permissions#hand-the-company-to-someone-else).
-2. If the company remains ownerless, preserve the database and audit logs and stop the
-   server. While the deployment remains in `self-hosted-mixed` with
-   `CAPACITYLENS_MODE=password-and-sso` and a company provider configured, assign an existing
-   active member using the guarded repair command:
+2. If the company remains ownerless, preserve the database and audit logs and stop the server. While
+   the deployment remains in `self-hosted-mixed` with `CAPACITYLENS_MODE=password-and-sso` and a
+   company provider configured, assign an existing active member:
 
    ```bash
    pnpm --filter capacitylens-server cutover:repair -- /path/to/capacitylens.db \
      assign-workspace-owner <company-id> <member-email> --confirm-server-stopped
    ```
 
-   The command refuses to run without the explicit stopped-server flag, takes an exclusive
-   database lock, and verifies that the exact company has no active Owner and that the
-   selected email resolves unambiguously to one of its active members. It records the
-   change in the audit outbox and ends any pending ownership transfer for that company.
-   If those checks do not match the incident, preserve the evidence and restore a compatible
-   backup or escalate; do not edit the database by hand.
-   The separate [Owner password recovery procedure](#the-sole-owner-has-lost-their-password)
-   applies only when an existing sole Owner still exists but cannot sign in.
-   [Ownership-transfer recovery](/self-hosting/ownership-transfer-recovery) only handles
-   a pending transfer.
+   It refuses to run without `--confirm-server-stopped`, and takes an exclusive database lock. It checks
+   the company has no active Owner and the email matches exactly one active member, then records
+   the change in the audit outbox and ends any pending ownership transfer.
+
+3. If those checks don't match the incident, preserve the evidence and restore a compatible backup
+   or escalate; don't edit the database by hand.
+
+**Check**: **Team & access** shows one Owner.
+
+[Owner password recovery](#the-sole-owner-has-lost-their-password) is for an Owner who exists but
+can't sign in; [ownership-transfer recovery](/self-hosting/ownership-transfer-recovery) only handles
+a pending transfer.
 
 ## Disk-full or a failed snapshot
 
-**Symptom**: the API reports `SQLITE_FULL`, a snapshot is logged as `backup FAILED`,
-deep health stays `degraded` or `pending`, or the host reports no free blocks or inodes.
+**Symptom**: `SQLITE_FULL`, `backup FAILED` in the log, deep health stuck at `degraded` or
+`pending`, or no free blocks or inodes.
+
+**Cause**: the host has run out of space or inodes, or a database, audit or backup path isn't
+writable.
 
 **Fix**:
 
-1. Stop write traffic before attempting any cleanup. For Compose, stop the API before
-   touching its named volumes; for a direct install, stop the systemd service.
-2. Preserve the database with its `-wal`/`-shm` sidecars, the current and rotated audit
-   logs, and the latest known-good snapshot to separate protected or off-host storage.
-   If the host is already full, do not try to create another local copy. Record `df -h`
-   and `df -i` output and the exact health/log messages. Never delete the only known-good
-   snapshot or truncate an audit log to make room.
-3. Free space only from disposable material that is already retained elsewhere, such as
-   an old release directory or a verified off-host copy of an older snapshot. Keep the
-   configured retention policy; encrypted storage is not a substitute for preserving
-   evidence.
-4. Confirm the database, audit and backup paths are writable, then restart the service and
-   recheck deep health. Wait for one complete scheduled snapshot. If the next snapshot
-   fails, the database reports an integrity error, or SQLite cannot reopen the database,
-   stop the service and escalate as a data-integrity incident. Do not keep retrying writes
-   or run ad hoc SQLite repairs; follow [Backups and restore](/self-hosting/backups-and-restore)
-   and use a verified snapshot only after the data loss boundary is understood.
+1. Stop write traffic before any cleanup: stop the Compose API or the systemd service.
+2. Preserve the database with its `-wal`/`-shm` sidecars, the current and rotated audit logs and the
+   latest known-good snapshot to separate protected or off-host storage, never another copy on the
+   full host. Record `df -h`, `df -i` and the exact health/log messages. Never delete the only
+   known-good snapshot or truncate an audit log to make room.
+3. Free space only from material already retained elsewhere, such as an old release directory or an
+   older snapshot with a verified off-host copy. Keep the configured retention policy.
+4. Confirm the database, audit and backup paths are writable, then restart the service.
 
-## What's next
-
-- [Monitoring and health checks](/self-hosting/monitoring) for the signals that catch
-  most of these before they become incidents.
-- [Backups and restore](/self-hosting/backups-and-restore) for the restore drill several
-  of these fixes rely on.
+**Check**: deep health recovers and one complete scheduled snapshot succeeds. If the next snapshot
+fails, the database reports an integrity error, or SQLite cannot reopen the database, stop the
+service and escalate as a data-integrity incident. Don't retry writes or run ad hoc SQLite repairs;
+follow [Backups and restore](/self-hosting/backups-and-restore) once you know what data a verified
+snapshot would lose.

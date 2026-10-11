@@ -7,70 +7,35 @@ next: false
 
 # Activities
 
+Set up the kinds of work people are booked to do, such as Wireframes, Build or Admin, and choose
+where each can be used. Only an Editor, Admin or Owner can add or change them.
+
 ![Activities grouped into Internal, All projects and Project-specific sections](../screenshots/flows/using_activities_1.png)
 
-Activities are grouped by where they can be used:
+Open **Activities**. It groups activities by where they can be used: **Internal activities**,
+**All-projects activities** and **Project-specific activities**, the last listed under their client
+and project. Internal and All-projects activities are alphabetical; project-specific ones are
+ordered by client, project and activity.
 
-- Internal: internal bookings.
-- All projects: reusable across projects.
-- Project-specific: listed under their client and project.
-
-Your own assignments are in the [Schedule work list](/using/read-the-schedule#your-work-list).
-
-[Set up activities](/admin/prepare-work)
+Your own assignments are in your [work list on Schedule](/using/read-the-schedule#your-work-list).
 
 ## Choose where an activity can be used
 
-On **Activities**, each empty category explains where its activities can be used. Select
-**Add activity** beside the page heading to create one.
-
-Before you create an allocation, decide whether its activity is for internal work,
-reusable across projects or unique to one project:
-
-| Activity kind | Use it for | Where it is available |
-| --- | --- | --- |
-| **Internal** | Non-billable work such as administration or an internal meeting | Only when the allocation's Project is **Internal** |
-| **All projects** | Work your team does in the same way for many projects, such as account management, design or workshops | Under every real project, or under **No specific project** when the work is not attributed to one project |
-| **Project-specific** | Work created for one project, such as that project's discovery, wireframes or launch | Only under the project it belongs to |
-
-The activity kind controls where an activity is available. The allocation records the
-actual booking. This means one **All projects** activity can be reused many times: one
-allocation can count towards Project Watchtower, another can count towards Metropolis
-Rebrand and a third can remain under **No specific project**.
-
-When you create an allocation, choose its context from **Project** first:
-
-- Choose **Internal** for an Internal activity.
-- Choose **No specific project** for an unattributed All-projects activity.
-- Choose a real project to use either a shared **All projects** activity or one of that
-  project's **Project-specific** activities.
-
-![The allocation Project picker with Internal and No specific project before the available client projects](../screenshots/flows/allocation_project_scopes.png)
-
-After you choose a real project, the **Activity** picker separates reusable **All projects**
-activities from the activities in that project's **Project-specific** group.
-
-![The allocation Activity picker with separate All projects and Project-specific groups](../screenshots/flows/allocation_activity_scopes.png)
-
-## Add and order activities
-
-Under **Activities**, an activity is the specific thing a person is booked to do, and
-it comes in three kinds:
-
-- **Internal** — non-billable work that isn't tied to a project.
-- **[All projects](/reference/glossary#all-projects)** — shared work that can be booked
-  against any project, like general account management.
-- **Project-specific** — belongs to one project.
+Select **Add activity** beside the page heading and choose its kind.
 
 ![The Add activity form with Internal, All projects and Project-specific choices](../screenshots/flows/activity_form.png)
 
-Internal and All-projects activities are alphabetical. Project-specific activities are
-grouped in client, project and then activity order, with each client and project name
-shown once as a heading rather than repeated on every row.
+| Activity kind                                        | Use it for                                                           | Available                                                                    |
+| ---------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Internal**                                         | Non-billable work such as administration or an internal meeting      | Only when the booking's Project is **Internal**                              |
+| **[All projects](/reference/glossary#all-projects)** | Work done the same way for many projects, such as account management | Under every real project, or under **No specific project** when unattributed |
+| **Project-specific**                                 | Work for one project, such as its discovery or launch                | Only under its own project                                                   |
 
-![The Activities page with alphabetical Internal and All-projects sections followed by project-specific activities grouped under client and project headings](../screenshots/flows/activities_grouped.jpg)
+The kind controls where an activity is offered; each booking records where the time actually went.
+One **All projects** activity can count towards Project Watchtower in one booking, Metropolis
+Rebrand in another and **No specific project** in a third.
 
-## What's next
+[Prepare clients and work](/admin/prepare-work) is the Admin's route through setting these up.
 
-[Schedule work](/using/schedule-work) against an activity, or [prepare clients and work](/admin/prepare-work)
-as an Admin.
+Next: [Choose the project and activity](/using/schedule-work#choose-the-project-and-activity) —
+book against an activity.

@@ -100,17 +100,7 @@ const selfHostingSidebar = [
     items: [
       { text: "Start here", link: "/self-hosting/" },
       { text: "Install CapacityLens", link: "/self-hosting/install" },
-      {
-        text: "Deploy on a managed VPS",
-        link: "/self-hosting/managed-vps/",
-        items: [
-          { text: "Choose the release source", link: "/self-hosting/managed-vps/choose-the-release-source" },
-          { text: "Create and build the site", link: "/self-hosting/managed-vps/create-and-build-the-site" },
-          { text: "Configure the API and nginx", link: "/self-hosting/managed-vps/configure-the-api-and-nginx" },
-          { text: "Deploy and upgrade safely", link: "/self-hosting/managed-vps/deploy-and-upgrade-safely" },
-          { text: "Finish and hand over", link: "/self-hosting/managed-vps/finish-and-operate-the-installation" },
-        ],
-      },
+      { text: "Deploy on a managed host", link: "/self-hosting/managed-vps/" },
       { text: "Install without Docker", link: "/self-hosting/install-without-docker" },
       { text: "Install with Docker", link: "/self-hosting/install-with-docker" },
       { text: "Configuration", link: "/self-hosting/configuration" },
@@ -127,7 +117,7 @@ const selfHostingSidebar = [
           { text: "Require company sign-in", link: "/company-login/move-to-single-sign-on" },
         ],
       },
-      { text: "Ownership-transfer recovery", link: "/self-hosting/ownership-transfer-recovery" },
+      { text: "Recover a blocked ownership transfer", link: "/self-hosting/ownership-transfer-recovery" },
       { text: "When something goes wrong", link: "/self-hosting/incidents" },
       { text: "Install and operations FAQ", link: "/self-hosting/faq" },
     ],
@@ -233,7 +223,7 @@ export default defineConfig({
     nav: [
       { text: "What is CapacityLens?", link: "/getting-started/what-is-capacitylens" },
       { text: "Quick start", link: "/getting-started/quick-start" },
-      { text: "Choose your guide", link: "/#choose-your-guide" },
+      { text: "Which one are you?", link: "/#which-one-are-you" },
       { text: "GitHub", link: "https://github.com/Kevinjohn/capacitylens" },
     ],
 

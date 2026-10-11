@@ -1,6 +1,6 @@
 ---
 title: Admin FAQ
-description: Recover from common invitation, access, resource, settings and maintenance interruptions.
+description: Recover from common problems with invitations, access, schedule rows and settings.
 prev: false
 next: false
 ---
@@ -11,40 +11,40 @@ next: false
 
 ## Why did inviting someone not put them on the schedule?
 
-Invitations give access. [Add the person in Resources](/admin/add-people) to schedule their work.
+An invitation gives sign-in access only. [Add them in Resources](/admin/add-people) to book their
+work, then use **Link to Resource** in **Team & access** to connect the two.
 
-Use Link to Resource in Team & access if their sign-in and scheduled person should be connected.
+## Can someone be on the schedule without a sign-in?
 
-## Can a scheduled person exist without a sign-in?
+Yes. Add them in Resources and don't invite them.
 
-Yes. Add them in Resources without sending an invitation.
+## Can I get an invitation link back?
 
-## Which role should I choose?
-
-Viewer can read; Editor can plan; Admin can also manage members and company settings.
-
-[Invite teammates](/admin/invite-teammates) includes the role choices.
-
-## Can I retrieve an invitation link later?
-
-No. In Team & access → Outstanding invites, revoke the lost invitation and create a replacement.
+No. Revoke it under **Outstanding invites** in **Team & access** and create a new one.
 
 ## Why does a Resource link need attention?
 
-The chosen person may already be linked elsewhere or no longer be available. Use Choose another person or Dismiss in the member's controls.
+The person proposed in the invitation was linked elsewhere or no longer available when it was
+accepted. Select **Choose another person** or **Dismiss** on the member's row.
 
 ## Why is a Settings control disabled?
 
-Check Your access in Team & access. Most company controls require Editor or above; Overview access requires Admin or Owner.
+Check **Your access** in **Team & access**. Most company settings need Editor or above; **Overview
+access** needs Admin or Owner.
 
-## Can I change the week start, timezone, or language?
+<span id="can-i-change-the-week-start-timezone-or-language"></span>
 
-No. Week start and time zone are fixed at creation; English is currently the available language.
+## Can I change the week start, time zone or language?
 
-Date format in Settings changes how planning dates appear.
+No. Week start and time zone are fixed when the company is created, and English is the only
+language. **Date format** in Settings changes how dates appear.
 
-## Do I configure company login?
+## Why can't I change who can join?
 
-You prepare member invitations and check access. The service operator configures the login provider.
+Only the Owner can change the joining policy. Admins can see it and copy the joining link.
+[Review who can join](/admin/invite-teammates#review-who-can-join)
 
-[Operator sign-in guidance](/company-login/)
+## Do I set up company login?
+
+No. The installer configures the login provider; you invite members and check their access.
+[Company login](/company-login/)

@@ -1,6 +1,6 @@
 ---
 title: Choose company settings
-description: Set the shared scheduling rules and optional features, then keep personal display choices on this device.
+description: Set the shared scheduling rules and optional features that apply to everyone, and tell them apart from personal display choices.
 prev: false
 next: false
 ---
@@ -10,29 +10,28 @@ next: false
 
 # Choose company settings
 
-![Settings: Company setup with Hours selected and Overview access set to Admins](../screenshots/flows/admin_company_settings_1.png)
-
-Open Settings near the bottom of the left menu. Company setup and Scheduling features affect everyone.
+Set the scheduling rules and features everyone in the company shares. Open **Settings** near the
+bottom of the left menu. Editors can change most of these; only Owners and Admins can change
+**Overview access**.
 
 ## Company setup
 
-| Setting                   | What it changes                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------- |
-| Allocation units          | Enter work in Hours, Days or Blocks. Days is the default.                        |
-| Company-wide working days | Set the shared working week. A person's own working pattern also applies.        |
-| Date format               | Change how planning dates appear for everyone.                                   |
-| Overview access           | Choose who can open the capacity summary. Owners and Admins only is the default. |
+![Settings: Company setup with Hours selected and Overview access set to Admins](../screenshots/flows/admin_company_settings_1.png)
 
-Changing working days recalculates capacity for existing work; it does not move booking dates.
+| Setting                   | What it changes                                                                                     |
+| ------------------------- | --------------------------------------------------------------------------------------------------- |
+| Allocation units          | Enter work in Hours, Days or Blocks. Days is the default.                                           |
+| Company-wide working days | Set the shared working week. A person's own working pattern also applies.                           |
+| Date format               | Change how planning dates appear for everyone.                                                      |
+| Overview access           | Choose who can open **Overview**. **Admins** is the default (Owners and Admins always have access). |
 
-Editors can change most company settings. Only Owners and Admins can change Overview access.
+Changing working days recalculates capacity for existing work; it does not move bookings.
 
 ## Scheduling features
 
 ![Settings: Scheduling features with the Company features switches visible](../screenshots/flows/admin_company_settings_2.png)
 
-The **Company features** section holds every company-wide switch. **Use disciplines** starts on for a
-new company; the other four start off.
+Under **Company features**, **Use disciplines** starts on for a new company; the others start off.
 
 | Setting                     | What it changes                                                          |
 | --------------------------- | ------------------------------------------------------------------------ |
@@ -42,16 +41,17 @@ new company; the other four start off.
 | Inline activity creation    | Add activities while making a booking.                                   |
 | Show task field in schedule | Add a short task description to bookings.                                |
 
-Turning a switch off hides existing information; it does not delete it. Internal work always
-appears in neutral grey, and people are grouped into Studio and Supplementary only once someone is
-marked Supplementary.
+Turning a switch off hides existing information; it does not delete it.
 
-## Personal preferences and company details
+Internal work always appears in neutral grey. Resources and Schedule split people into Studio and
+Supplementary only once someone is marked Supplementary.
 
-My display changes only the current browser. Let teammates choose their own [display preferences](/using/settings).
+## Tell company settings from your own
 
-Week start and time zone are fixed after company creation. Check them under Data and support → Company details.
+**My display** changes only the current browser. Each teammate chooses their own
+[display preferences](/using/settings).
 
-[Full settings reference](/using/settings)
+Week start and time zone are fixed when the company is created. They are shown under **Data and
+support → Company details**.
 
-[Offline access](/using/settings#offline-access)
+Next: [Settings](/using/settings) — every setting in detail.

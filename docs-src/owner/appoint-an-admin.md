@@ -1,6 +1,6 @@
 ---
 title: Appoint an Admin
-description: Invite the person who will manage members, settings and everyday company setup.
+description: Invite the person who will run members, settings and day-to-day setup, and hand the company over to them.
 prev: false
 next: false
 ---
@@ -10,30 +10,26 @@ next: false
 
 # Appoint an Admin
 
+Invite one person as Admin to run the company day to day. You stay the Owner.
+
 ![Team & access showing Invite someone with Admin, email, No Resource linked and Create invite](../screenshots/flows/invite_admin_role_form.jpg)
 
-After creating the company, open **Team & access** in the left menu and select **Invite someone**.
+1. Open **Team & access** and select **Invite someone**.
+2. Set **Role** to **Admin** and enter their email.
+3. Leave **No Resource linked** unless they already have a row on the schedule. An invitation gives
+   sign-in access; it does not put anyone on the schedule.
+4. Select **Create invite**. If email is set up, CapacityLens sends the invitation. If it isn't, or
+   sending fails, select **Copy** and send the link privately.
 
-Set **Role** to **Admin** and enter the person's email. Leave **No Resource linked** selected
-unless their scheduled person already exists. An invitation gives sign-in access; it does not add
-someone to the schedule. You can link an existing scheduled person without changing the new Admin's
-role.
-
-Select **Create invite**. When SMTP is configured and email sending is available, CapacityLens
-emails the addressed invitation. If email is unavailable or sending fails, select **Copy** and send
-the link privately. The link remains available either way.
+The link is shown only now. If it is lost, revoke the invitation under **Outstanding invites** and
+create a new one.
 
 ## Hand over
 
 ![Team & access: accepted member showing Admin role](../screenshots/flows/owner_members_current.jpg)
 
-After they accept, check **Team & access** and confirm their row shows **Admin**. If the invite is
-still pending, ask whether they received the email or copied link. If delivery is unavailable, copy
-the link from the invitation result. A lost link cannot be recovered: revoke that invite and create
-a replacement.
+When their row in **Team & access** shows **Admin**, send them
+[Get the schedule ready](/admin/). If the invitation is still pending, ask whether they received the
+email or link.
 
-Send them the [Admin and settings guide](/admin/). They can complete the setup from here.
-
-You remain the Owner. Appointing an Admin does not transfer ownership.
-
-[Owner responsibilities](/owner/responsibilities)
+Next: [Owner responsibilities](/owner/responsibilities) — the decisions that stay with you.

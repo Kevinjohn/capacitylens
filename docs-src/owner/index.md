@@ -1,39 +1,70 @@
 ---
-title: Set up your company as the Owner
-description: Create the company, appoint an Admin, and hand everyday setup to them.
+title: Set up your company
+description: Your first steps as the Owner. Sign in with the setup token, create the company, invite an Admin and hand over.
 prev: false
 next: false
 ---
 
 <span id="your-route"></span>
+<span id="set-up"></span>
 <span id="when-you-are-done"></span>
 <span id="what-s-next"></span>
 
-# Set up your company as the Owner
+# Set up your company
 
-![First company setup with shared calendar choices and Start with example data selected](../screenshots/flows/owner_first_company_setup.jpg)
+You own the company in CapacityLens. Your job is short: create the company and give someone
+the day-to-day running of it. Four steps, then you can stop.
 
-This guide is for the company's single Owner. The technical installer has given you the
-CapacityLens address and your first-Owner sign-in route; you need to know who will handle
-everyday company administration. Your shortest route is to create the company, appoint an Admin,
-and confirm that they have joined. You can then stop: the Admin prepares the schedule without
-needing you to add sample people or work first.
+You need the CapacityLens address and the [setup token](/reference/glossary#setup-token) from
+whoever installed it.
 
-The Admin creates scheduled people and can associate them with members. A member can sign in; a
-scheduled person has capacity to plan. Creating one never silently creates the other. If you will
-administer the company yourself, follow the [Admin and settings guide](/admin/) after creating it.
+<div class="steps">
 
-## Set up
+1. ![Owner sign-in setup form with name, email, Create a password and Owner setup token fields and Create my sign-in](../screenshots/steps/owner_setup_sign_in_form.png)
 
-1. [Create your company](/owner/create-your-company) and choose the shared calendar rules.
-2. [Appoint an Admin](/owner/appoint-an-admin) with a one-time invitation.
-3. Check Team & access after the invitation is accepted, then send the
-   [Admin and settings guide](/admin/).
+   **Sign in for the first time.** Open the address. Enter your name, email and a password, and
+   paste the setup token into **Owner setup token**. Select **Create my sign-in**. The token works
+   once. If your installer set up Google or Microsoft sign-in, choose that instead.
 
-## Later
+2. ![Company form with Company name, Week starts on, Timezone, Language, Start with example data ticked and Create company](../screenshots/steps/owner_create_company_form.png)
 
-- [Owner responsibilities](/owner/responsibilities): ownership transfer, import and company
-  deletion stay with you.
+   **Create the company.** Enter its name, then choose the day the week starts and your time zone.
+   These two apply to everyone and **cannot be changed later**. **Start with example data** is
+   ticked by default for your first company; for a real company, clear it so your Admin doesn't
+   inherit fictional people. The [demo](/getting-started/try-the-demo) is for exploring. Select
+   **Create company**.
+
+3. ![Invite someone dialog with Role set to Admin, an email address, No Resource linked and Create invite](../screenshots/steps/owner_invite_admin_dialog.png)
+
+   **Invite an Admin.** Open **Team & access** and select **Invite someone**. Set **Role** to
+   **Admin**, enter their email and select **Create invite**. CapacityLens emails the invitation
+   if email is set up. If it isn't, select **Copy** and send them the link yourself.
+
+4. ![Members table listing each person's name, role and email, with an accepted member showing the Admin role](../screenshots/steps/owner_members_admin_row.png)
+
+   **Hand over.** Until they accept, the invitation waits under **Outstanding invites**. When
+   their row in **Team & access** shows **Admin**, send them [Get the schedule ready](/admin/).
+   They take it from here.
+
+</div>
+
+Running the company yourself as well? Skip step 3 and go straight to
+[Get the schedule ready](/admin/).
+
+## What stays with you
+
+Appointing an Admin does not make them the Owner. Deciding who can join, transferring ownership,
+importing data and deleting the company stay with you.
+[Owner responsibilities](/owner/responsibilities) covers each of them.
+
+<span id="in-more-detail"></span>
+
+## Go further
+
+- [Create your company](/owner/create-your-company): company login, a rejected token, and the
+  example data.
+- [Appoint an Admin](/owner/appoint-an-admin): lost links, pending invitations and linking a
+  scheduled person.
 - [Roles and permissions](/getting-started/roles-and-permissions) for what each role can see and
   do.
 - [Owner FAQ](/owner/faq)

@@ -1,6 +1,6 @@
 ---
 title: Install and run CapacityLens
-description: The technical guide to installing, configuring, operating and recovering a self-hosted CapacityLens service.
+description: Your first steps as the installer. Install from the release archive, put HTTPS in front, check backups and hand the address to the Owner.
 prev: false
 next: false
 ---
@@ -12,42 +12,65 @@ next: false
 
 # Install and run CapacityLens
 
-This guide is for the technical person who puts CapacityLens on a server and keeps it healthy.
-CapacityLens runs as a small web app and API behind TLS, storing everything in a single SQLite
-file. Installation ends when the service works, storage survives a restart and the first Owner
-has everything needed to create their company.
+You put CapacityLens on a server and hand it to the company's Owner. It is one Node process and
+one SQLite file. There is no database server to run and nothing to build. On a host that already
+runs Node 24 and has a hostname pointing at it, the install takes about ten minutes.
 
-After handover, the same person, or a named operator, owns backups, upgrades, monitoring,
-configuration changes and the recovery procedures that deliberately have no in-product override.
-The routine minimum is tested backups, monitored health and disk space, supported upgrades, and
-configuration changes through a reviewed restart, coordinated with an Owner or Admin when they
-affect sign-in or members. Open the page that matches the task in front of you.
+<div class="steps">
 
-## Install
+1. **Install it** in [five short steps](/self-hosting/install): download the release archive,
+   pick a folder for the data, generate the settings with one command, start the server, and open
+   the address. They are the same on a managed host such as Forge as on your own Linux server.
+   Check the [server size](/self-hosting/install#server-size) first.
 
-- [Install CapacityLens](/self-hosting/install): five steps from the release archive, on a
-  managed host or a Linux host.
-- [Deploy on a managed VPS platform](/self-hosting/managed-vps/) such as Forge, Ploi or RunCloud.
-- [Install without Docker](/self-hosting/install-without-docker) on a Linux host with Node 24 and
-  systemd.
-- [Install with Docker](/self-hosting/install-with-docker) when your host already runs Docker and
-  Docker Compose.
-- [Configuration](/self-hosting/configuration): every environment variable, including sign-in and
-  storage.
-- [TLS and networking](/self-hosting/tls-and-networking): the certificate, proxy and network
-  boundary to complete before anyone enters a password.
-- [Verify and hand over](/self-hosting/verify-and-hand-over) to the first Owner and operator.
-- [Try the demo](/getting-started/try-the-demo) if you need to inspect the product first. It does
-  not install a persistent service.
+2. **Put HTTPS in front.** A managed host issues the certificate for you. On your own server,
+   [Caddy does it in four lines](/self-hosting/install-without-docker#https). Finish this before
+   anyone enters a password. [TLS and networking](/self-hosting/tls-and-networking)
 
-## Operate
+3. **Check backups.** In production, CapacityLens snapshots the database as it starts and every
+   hour after that, into a `backups` folder beside it. Set `CAPACITYLENS_BACKUP_DIR` to change
+   where. [Copy the snapshots](/self-hosting/backups-and-restore#copy-snapshots-off-the-server)
+   and the environment file off the server.
 
-- [Backups and restore](/self-hosting/backups-and-restore): start here if operational ownership
-  has just been handed to you.
-- [Upgrades](/self-hosting/upgrades) to another release.
+4. ![Owner sign-in setup form with name, email, Create a password and Owner setup token fields and Create my sign-in](../screenshots/steps/owner_setup_sign_in_form.png)
+
+   **Hand over.** Decide on [account email](/self-hosting/configuration#account-email) first:
+   without it, invitations are links someone copies and sends, and there are no password-reset
+   emails. Check `https://your-address/api/health` shows `"ok":true`. If you are also the
+   Owner, continue with [Set up your company](/owner/). Otherwise send the Owner the address and
+   that guide, and send the setup token separately and privately. This is the screen they will
+   see. After the Owner has signed in, remove `CAPACITYLENS_SETUP_TOKEN` and restart.
+   [Verify and hand over](/self-hosting/verify-and-hand-over)
+
+</div>
+
+## What you're taking on
+
+Self-hosting means you, or someone you name, own the service after handover. That means keeping
+backups tested, watching health and disk space, installing new releases, and making configuration
+changes through a reviewed restart, agreed with an Owner or Admin when they affect sign-in or
+members. To hear about new releases, watch the
+[GitHub repository](https://github.com/Kevinjohn/capacitylens) for releases (**Watch** →
+**Custom** → **Releases**). Support is community help on a best-effort basis, with no guaranteed response time. [Get
+help](/open-source#get-help) explains where to ask.
+
+## Follow the full steps for your host
+
+- [Deploy on a managed host](/self-hosting/managed-vps/) such as Forge, Ploi or
+  RunCloud, working in the platform's own screens.
+- [Install without Docker](/self-hosting/install-without-docker) on a Linux host with systemd.
+
+## Other ways to install
+
+- [Install with Docker](/self-hosting/install-with-docker) if your host already runs Docker.
+- [Try the demo](/getting-started/try-the-demo) first if you only want to look around.
+
+## Run it
+
+- [Configuration](/self-hosting/configuration): every setting, including sign-in and storage.
+- [Company login](/company-login/): Google or Microsoft sign-in, and moving a team onto it.
+- [Upgrades](/self-hosting/upgrades) to a newer release.
 - [Monitoring and health checks](/self-hosting/monitoring) for health, storage and certificates.
-- [Company login](/company-login/): set up Google or Microsoft sign-in, or move an existing team
-  to it.
-- [Recover a blocked ownership transfer](/self-hosting/ownership-transfer-recovery).
 - [When something goes wrong](/self-hosting/incidents) for diagnosis and recovery.
+- [Recover a blocked ownership transfer](/self-hosting/ownership-transfer-recovery).
 - [Install and operations FAQ](/self-hosting/faq).

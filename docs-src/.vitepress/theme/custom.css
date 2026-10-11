@@ -153,6 +153,79 @@ html:has(.cl-toggle:checked) {
   }
 }
 
+/* Quick-start steps: wrap an ordered list in <div class="steps"> and start each
+   item that has a screenshot with it. The screenshot becomes a thumbnail beside
+   the step, so the whole route stays scannable; the lightbox still opens it full
+   size. Numbers are drawn as badges because a grid item loses its list marker.
+   On a narrow screen the thumbnail sits above the step text instead. */
+.vp-doc .steps > ol {
+  list-style: none;
+  padding-left: 0;
+  counter-reset: step;
+}
+
+.vp-doc .steps > ol > li {
+  counter-increment: step;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16rem;
+  column-gap: 1.5rem;
+  align-items: start;
+  margin: 0 0 1.75rem;
+  padding-left: 2.75rem;
+}
+
+.vp-doc .steps > ol > li::before {
+  content: counter(step);
+  position: absolute;
+  top: 0.1rem;
+  left: 0;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--vp-c-brand-1);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.9rem;
+  text-align: center;
+}
+
+.vp-doc .steps > ol > li > * {
+  grid-column: 1 / -1;
+}
+
+.vp-doc .steps > ol > li > p:first-child:has(> label.cl-zoom) {
+  grid-column: 2;
+  grid-row: 1 / span 9;
+  margin: 0.2rem 0 0;
+}
+
+.vp-doc .steps > ol > li:has(> p:first-child > label.cl-zoom) > :not(:first-child) {
+  grid-column: 1;
+}
+
+.vp-doc .steps > ol > li > p:first-child:not(:has(> label.cl-zoom)),
+.vp-doc .steps > ol > li:has(> p:first-child > label.cl-zoom) > p:nth-child(2) {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .vp-doc .steps > ol > li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vp-doc .steps > ol > li > p:first-child:has(> label.cl-zoom),
+  .vp-doc .steps > ol > li:has(> p:first-child > label.cl-zoom) > :not(:first-child) {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .vp-doc .steps > ol > li > p:first-child:has(> label.cl-zoom) {
+    margin-bottom: 0.75rem;
+  }
+}
+
 /* Tables fill the text column instead of shrinking to their content.
    (VitePress defaults tables to display:block for horizontal scrolling, which
    also makes them shrink-to-fit; our tables are narrow enough not to need it.) */

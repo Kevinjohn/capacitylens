@@ -8,7 +8,7 @@ description: An index of CapacityLens's security reviews, threat model, control 
 CapacityLens keeps a set of dated, evidence-based security documents alongside the code, instead
 of a one-off claim of "secure by design". They are written for security reviewers, auditors and
 technical evaluators, not for a first read of the product — start at the
-[Security overview](/security/) if that is what you need. Each artifact below is reproduced as-is
+[Security and privacy](/security/) if that is what you need. Each artifact below is reproduced as-is
 on its own page; this page just explains what each one is and when to reach for it.
 
 ## [OWASP ASVS 5.0.0 ledger](/security/owasp-asvs-5.0.0)
@@ -74,4 +74,4 @@ together for the current state of that evidence and what it does not claim to co
 ## What's next
 
 Report a vulnerability through the process in the [security policy](https://github.com/Kevinjohn/capacitylens/blob/main/SECURITY.md),
-or go back to the [Security overview](/security/) for the plain-language summary.
+or go back to the [Security and privacy](/security/) for the plain-language summary.

@@ -42,6 +42,31 @@ Number steps when order matters. Show the relevant screen before asking the read
 Explain important results and link to related help where useful. Do not force every page
 into an opening paragraph, steps and "What's next" template.
 
+When three or more steps each have their own screenshot, wrap the ordered list in
+`<div class="steps">` and make the screenshot the first paragraph of each item. Each step is
+numbered, with its screenshot as a thumbnail beside it, and the screenshot still opens in the
+lightbox. A full-window capture is unreadable at thumbnail size, so step images are crops of a
+real capture showing just the dialog or panel the step is about, saved under
+`docs-src/screenshots/steps/` (crop only, never resample; pin a crop of a publication-reviewed
+image too). Each role guide's start page uses this pattern for its quick start:
+
+```md
+<div class="steps">
+
+1. ![Alt text describing the screen](../screenshots/flows/example.png)
+
+   **Short step title.** What to do, naming the page and control.
+
+</div>
+```
+
+### Every sentence earns its place
+
+Read each sentence and ask whether the reader needs it to act, decide or recover. Cut
+narration, restated introductions, hedging and descriptions of what a screenshot already
+shows. Keep access restrictions, defaults, limits, irreversible consequences and recovery
+steps. Say each rule once, in the page where the reader meets it, and link to it elsewhere.
+
 ## Applying this to each guide
 
 Most readers were sent here by their agency. They need enough information to use the

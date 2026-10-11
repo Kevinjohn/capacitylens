@@ -7,17 +7,24 @@ next: false
 
 # Help
 
-![Help page with Show tour and Browse the user guides, above Account in the sidebar](../screenshots/flows/help_viewer.png)
+Start a short tour for your role, or open these guides. Every role can use it, even after Getting
+started is dismissed.
 
-Open **Help** near the bottom of the sidebar, just above Account. It is available to every role,
-even after Getting started is dismissed. You can also find Help in the command palette.
+![Help page with Show tour and Browse the user guides, above Account in the left menu](../screenshots/flows/help_viewer.png)
 
-Select **Show tour** to open Schedule and follow the guidance for your role. Owners see company setup
-and scheduling stops; Viewers see two stops about reading the schedule. See
-[Roles and permissions](/getting-started/roles-and-permissions#take-a-role-based-tour) for each role's tour.
+Open **Help** near the bottom of the left menu, above **Account**, or from the command palette.
 
-The button is disabled while the application checks your access, when it cannot confirm your access,
-or while a read-only offline snapshot is open. If the tour cannot start, the application shows an error so you
-can try again.
+## Take the tour
 
-Select **Browse the user guides** for the online [day-to-day guide](/using/).
+Select **Show tour** to open Schedule and follow a tour for your role. Owners see company setup
+and scheduling stops; Viewers see two stops about reading the schedule.
+[Take a role-based tour](/getting-started/roles-and-permissions#take-a-role-based-tour) lists each
+role's tour.
+
+**Show tour** is disabled while your access is being checked, if it can't be confirmed, or while a
+read-only offline snapshot is open. If the tour fails to start, an error appears so you can try
+again.
+
+## Open the guides
+
+Select **Browse the user guides** for the online [See your work](/using/) guide.

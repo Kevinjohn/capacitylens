@@ -1078,6 +1078,15 @@ Releases before 0.41.0-alpha.3 are kept in `CHANGELOG-ARCHIVE.md`.
    `node --env-file=<file> dist/reset-owner-password.mjs <database> nobody@example.com --confirm-server-stopped`
    failing with `No identity matches that address.`
 
+<span id="before-a-schema-bearing-release-maintainers"></span>
+
+### Before a schema-bearing release
+
+Before you tag a release that changes the database schema, run the
+[migration rehearsal](#rehearse-migrations) against the committed fixture and against a
+representative database. It never prints tenant content. Record the source schema version, the
+row and table counts and the result in the release evidence.
+
 ## Database migrations
 
 The portable AppData/export format uses `EXPORT_SCHEMA_VERSION` in `shared/`. The physical
@@ -1128,6 +1137,8 @@ For every persisted change:
    transaction rollback/retry, `quick_check`, `foreign_key_check`, future-version refusal
    and auth convergence.
 8. Add operator-facing migration/rollback notes to `CHANGELOG.md` and the operator docs.
+
+<span id="rehearse-migrations"></span>
 
 Before releasing any schema-bearing build, run the automated rehearsal. With no argument it
 uses the committed password-auth v7 fixture:

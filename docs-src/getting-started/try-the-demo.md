@@ -5,16 +5,13 @@ description: See CapacityLens running with sample data in about two minutes, wit
 
 # Try the demo
 
-This page gets you looking at a working schedule in about two minutes, using a sample
-agency's data. Schedule changes stay in memory and reset when you refresh. The cosmetic
-signed-in state and device display preferences can stay in browser storage, but there are
-no credentials or real sign-in. If you're ready to install CapacityLens for real instead,
-skip to [Install CapacityLens](/self-hosting/install).
+Run a sample agency's schedule on your own machine in about two minutes. Nothing is saved:
+schedule changes reset when you refresh, and there is no real sign-in. Display preferences may stay
+in your browser. To keep real data, [install CapacityLens](/self-hosting/install) instead.
 
-You'll need [Node.js](https://nodejs.org) 24 or newer and [pnpm](https://pnpm.io) (by
-way of `corepack`, which ships with Node) on your machine. Check your version with
-`node --version` — if it's older than 24, install a newer one from
-[nodejs.org](https://nodejs.org).
+You need [Node.js](https://nodejs.org) 24 (24.19.0 or newer within 24.x; check with
+`node --version`) and
+[pnpm](https://pnpm.io), which `corepack` in Node provides.
 
 ## Run it
 
@@ -28,8 +25,8 @@ way of `corepack`, which ships with Node) on your machine. Check your version wi
    ```
 
    Replace `vX.Y.Z` with the newest tag on the
-   [releases page](https://github.com/Kevinjohn/capacitylens/releases/latest). Without this
-   step you run `main`, which carries changes that haven't been released yet.
+   [releases page](https://github.com/Kevinjohn/capacitylens/releases/latest). Otherwise you run
+   unreleased changes on `main`.
 
 2. Start the demo:
 
@@ -37,54 +34,44 @@ way of `corepack`, which ships with Node) on your machine. Check your version wi
    pnpm run dev:demo
    ```
 
-3. Open [http://127.0.0.1:5173](http://127.0.0.1:5173) in your browser.
+3. Open the **Local** address the command prints, usually
+   [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
-That's it — no setup token, no `.env` file, no database.
+No setup token, `.env` file or database is needed.
 
-## What you'll see
+## Open the sample company
 
-The demo starts with a cosmetic **Choose an account** screen, then loads an in-memory
-sample agency with people, clients, projects and allocations already on the schedule.
-Choose the sample account; no password or pop-up is involved.
+Select the sample sign-in on the **Choose an account** screen; there is no password. Then pick a
+company on **Choose a company**. The schedule opens with people, clients, projects and bookings
+already in place.
 
 ![The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block](../screenshots/flows/schedule.jpg)
 
-## What to click first
+## Try these first
 
-Try the things you'd do in a real resourcing meeting:
+<div class="steps">
 
-1. Select **Show filters** at the far right of the Schedule toolbar. Person search appears
-   on the left; the filter dropdowns, **Work** / **Time off** control and Clear Filters group on the
-   right.
+1. ![The open schedule filter row with person search on the left and the remaining controls grouped on the right](../screenshots/flows/schedule_filters_open.png)
 
-   ![The open schedule filter row with person search on the left and the remaining controls grouped on the right](../screenshots/flows/schedule_filters_open.png)
+   **Open the filters.** Select **Show filters** at the far right of the Schedule toolbar.
 
-2. Open **All projects** and choose a project. The
-   schedule keeps matching work, and **Clear Filters** turns red to show that the view is
-   narrowed.
+2. ![The Schedule filtered to a project, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.png)
 
-   ![The Schedule filtered to a project, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.png)
+   **Filter to a project.** Open **All projects** and choose one. **Clear Filters** turns red
+   while the view is narrowed.
 
-3. Select **Show unallocated**. People without work on that project return as dimmed
-   rows so you can see who may be available to staff it.
+3. ![A project filter with Show unallocated selected and Diana Prince shown dimmed](../screenshots/flows/schedule_filter_unallocated.png)
 
-   ![A project filter with Show unallocated selected and Diana Prince shown dimmed](../screenshots/flows/schedule_filter_unallocated.png)
+   **See who is free.** Select **Show unallocated**. People without work on that project return
+   as dimmed rows.
 
-4. Select **Clear Filters**, then drag an allocation bar to a different week and watch
-   the [utilisation](/reference/glossary) percentage update.
-5. Change **Weeks visible** from two weeks to four or six weeks to see how the same plan
-   reads at a wider range.
+4. **Move some work.** Select **Clear Filters**, then drag a booking to another week and watch the
+   [utilisation](/reference/glossary#utilisation) percentage update.
 
-Everything is editable, so there's no wrong button to press.
+5. **Zoom out.** Change **Weeks visible** from two weeks to four or six.
 
-::: tip
-Schedule data is throwaway. Refreshing the page resets it, while the cosmetic signed-in
-state and device display preferences may remain on that browser. When you're ready to
-keep real data, move on to
-[Install CapacityLens](/self-hosting/install).
-:::
+</div>
 
-## What's next
+<span id="what-s-next"></span>
 
-[Install CapacityLens](/self-hosting/install) for a persistent install
-with real sign-in.
+Next: [Install CapacityLens](/self-hosting/install) — keep real data with real sign-in.
