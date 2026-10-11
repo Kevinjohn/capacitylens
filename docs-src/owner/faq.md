@@ -55,8 +55,45 @@ Viewer; send an addressed invitation for any other role.
 ## Why can't I find Delete company?
 
 **Delete** is in the company chooser. **Switch company** opens it, and appears only when you can
-access two or more companies. If it is missing, ask the installer.
+access two or more companies. A standard installation holds one company: export a copy, then ask
+the installer to retire the installation and its data.
+[Delete the company](/owner/responsibilities#delete-the-company)
 
 ## Why am I asked to confirm my sign-in?
 
 Transferring ownership, importing and deleting the company need a recent sign-in.
+
+## What does it cost?
+
+Nothing. CapacityLens is free and open source (AGPL-3.0), with no paid tier and no hosted version.
+The only cost is the server it runs on ([server size](/self-hosting/install#server-size)).
+
+## Is our client information private?
+
+Your data stays on your own server. Your installer, who runs that server, can reach it. To hide a
+sensitive client or project name from everyone except you, give it a
+[code name](/using/projects#hide-a-client-or-project-name). [Privacy](/security/privacy) covers
+what is stored and where.
+
+## How do I see who's overloaded?
+
+On **Schedule**, a day shows red when someone is booked for more than they can do.
+[Overview](/using/overview) shows each person's free capacity week by week.
+
+## How do we get our data out?
+
+Open **Settings → Data and support → Import and export** and select **Export JSON**. The file holds
+the company's scheduling records, such as people, clients, projects, bookings and time off, and can
+be imported into another CapacityLens installation. It does not include members or settings. There
+is no CSV or spreadsheet export.
+
+## My Admin is leaving. What do I do?
+
+Invite the new Admin first. Then, in **Team & access**, open the departing Admin's **More actions**
+and select **Disable Access**: they can no longer open the company, and their record stays. Their
+row on the schedule and their bookings are not affected.
+[Stop access](/admin/invite-teammates#stop-access) explains the other options.
+
+## What if I leave?
+
+Hand the company to an Admin with a [transfer of ownership](/owner/responsibilities#transfer-ownership).

@@ -5,7 +5,9 @@ description: How to upgrade a self-hosted CapacityLens instance safely, what hap
 
 # Upgrades
 
-Move to a newer release without losing data, and roll back if it fails.
+Move to a newer release without losing data, and roll back if it fails. To hear about new
+releases, watch the [GitHub repository](https://github.com/Kevinjohn/capacitylens) for releases
+(**Watch** → **Custom** → **Releases**). `CHANGELOG.md` lists each release's changes.
 
 ::: warning
 Always take a fresh backup immediately before upgrading, even though the server also takes its own
@@ -211,7 +213,7 @@ the following:
 
 - **0.71.0-alpha.1**: replace `CAPACITYLENS_MODE`, as described
   [below](#upgrading-to-0-71-0-alpha-1).
-- **Better Auth 1.7.5**: register `/api/auth/callback/google` or `/api/auth/callback/microsoft` as
+- **Better Auth 1.7.5** (0.70.1-alpha.1): register `/api/auth/callback/google` or `/api/auth/callback/microsoft` as
   in [Set up Google or Microsoft sign-in](/company-login/set-up-company-login). Delete older generic
   OIDC settings and the `hosted-oidc-only` profile; don't map them to a replacement. Only if the
   installation actually ran Better Auth 1.7.0–1.7.2, follow the
@@ -219,16 +221,16 @@ the following:
 - **Better Auth 1.7.7**: a provider sign-in or account-linking flow underway during the upgrade,
   including a Microsoft mailbox proof, won't complete. Start it again once the new server is
   running.
-- **Schema v49**: outstanding invitations without an intended email address are removed and their
+- **Schema v49** (0.71.0-alpha.1): outstanding invitations without an intended email address are removed and their
   links stop working. Before upgrading, an Owner or Admin notes who still needs access; afterwards
   they use **Team & access → Invite someone** for each person's exact address. Existing members keep
   their access and role.
-- **Schema v29–v32, v47, v48, v50**: no action. Roll back only with the automatic pre-migration
+- **Schema v29–v32** (0.40.0-alpha.1) **and v47, v48, v50** (0.71.0-alpha.1): no action. Roll back only with the automatic pre-migration
   snapshot. The v48 upgrade does not infer mailbox proof from older verified flags or invitations,
   and does not backfill proof for existing GitHub links. Joining a company now needs a proven
   address plus a company joining link or an addressed invitation; v50 adds this journey for
   Microsoft sign-in.
-- <span id="stored-credential-effects"></span>**OAuth token encryption at rest**: no action. Tokens
+- <span id="stored-credential-effects"></span>**OAuth token encryption at rest** (0.35.4-alpha.1): no action. Tokens
   stored in plaintext keep working and are re-encrypted on their next refresh.
 
 ### Upgrading to 0.71.0-alpha.1

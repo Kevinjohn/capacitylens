@@ -130,6 +130,10 @@ The red 14-day warning doesn't move when you zoom. Blocks don't measure capacity
 
 An empty day is not proof of free time: working patterns, closures and time off also count.
 
+A red day means over capacity that day; a red percentage means over capacity within 14 days. A red
+**Clear Filters** only means filters are on. The glossary entry [red](/reference/glossary#red)
+lists every meaning, including Overview's.
+
 ## See time off and closures
 
 [Time off](/using/time-off) is a hatched block with no project colour, on the same row as work.

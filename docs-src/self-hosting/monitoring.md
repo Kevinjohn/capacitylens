@@ -117,15 +117,21 @@ retention policy.
 ## Routine maintenance
 
 - **Weekly**: check health, disk space, backup freshness and security advisories.
-- **Monthly**: apply OS, container and dependency updates; test sign-in and a restore in
-  staging.
-- **Every release**: follow [Upgrades](/self-hosting/upgrades): review the security workflow,
-  SBOM and image scan results; read the changelog; back up; deploy; smoke test; keep a rollback
-  image and, for schema-bearing releases, the
+- **Monthly**: apply operating-system updates (and container updates on Docker), and
+  [rehearse a restore](/self-hosting/backups-and-restore#schedule-a-restore-drill).
+- **Every release**: follow [Upgrades](/self-hosting/upgrades): read the changelog, back up,
+  deploy, smoke test, and keep the previous release until you're satisfied.
+
+### Larger deployments
+
+Optional, for installations with a staging environment or a formal change process:
+
+- Run the monthly sign-in and restore tests in staging.
+- For every release, review the security workflow, SBOM and image scan results, and keep a
+  rollback image. For a release with a schema change, keep the
   [migration rehearsal](/reference/development#rehearse-migrations) result.
-- **After any sign-in or cryptography change**, in a test environment: exercise session
-  revocation, password-reset invalidation and the
-  breached-password-service outage path. For Google or Microsoft, verify the registered callback,
-  admission, linking and returning sign-in.
+- After any sign-in or cryptography change, in a test environment, exercise session
+  revocation, password-reset invalidation and the breached-password-service outage path. For
+  Google or Microsoft, verify the registered callback, admission, linking and returning sign-in.
 
 When an alert fires, see [When something goes wrong](/self-hosting/incidents).

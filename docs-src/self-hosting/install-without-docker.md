@@ -79,8 +79,9 @@ curl -fsS http://127.0.0.1:8787/api/health
 ```
 
 Expect `"ok":true`, `"db":true`, `"audit":"ok"` and a `backup` whose `status` is `"ok"`. It reads
-`"pending"` for a minute after the first start. Fix a `503`, a degraded field or a restart loop
-before you hand over: follow the log with `journalctl -u capacitylens -f`.
+`"pending"` until the snapshot the server takes as it starts has finished. Fix a `503`, a
+degraded field or a restart loop before you hand over: follow the log with
+`journalctl -u capacitylens -f`.
 [Monitoring and health checks](/self-hosting/monitoring) explains each field.
 
 ### HTTPS

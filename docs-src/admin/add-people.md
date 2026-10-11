@@ -22,6 +22,20 @@ sign-in. Editors, Admins and the Owner can add and edit people; Viewers cannot.
    available for a set period.
 4. Select **Save**.
 
+## Decide who goes where
+
+- An employee: **Add resource**, with **Engagement** set to **Studio**.
+- A part-timer: **Add resource**, with **Half day** or **Not working** on the days they don't
+  work a full day.
+- A freelancer who works as part of your team: **Add resource** with **Supplementary**. It only
+  changes the section they appear in; their working days count towards utilisation as usual.
+- An outside company you hand work to: an
+  [external party](/using/resources#add-an-external-party). It carries no hours and never counts
+  towards capacity or utilisation.
+- A role you haven't hired yet: a [placeholder](#plan-an-unfilled-role), bound to one project.
+- Holidays and absences: [time off](/using/time-off#record-time-off) on the person's row.
+- Office closures: a [company closure](/admin/ongoing-administration#add-a-company-closure).
+
 ## Connect their sign-in
 
 ![Team & access: Link to Resource dialog for a member without a linked person](../screenshots/flows/admin_link_resource_choice.jpg)

@@ -33,6 +33,9 @@ coming and move work around before it lands.
   for roles you haven't filled, and external parties who don't count against your team's capacity.
 - **Your own server.** Your data stays in one file on a server you control.
 
+It is free and open source (AGPL-3.0). There is no paid tier and no hosted version: you run it on
+your own server, and the only cost is that server ([server size](/self-hosting/install#server-size)).
+
 ## What it leaves out
 
 CapacityLens does not track tasks, tickets, deadlines, budgets or timesheets, and it doesn't
@@ -40,11 +43,26 @@ schedule anyone by the hour. If you need those, use a tool built for them;
 CapacityLens is the view you check first.
 [Philosophy](/reference/philosophy) explains why.
 
+There is no importer from spreadsheets or other tools. You enter your people, clients and projects
+in the app; the JSON import only moves data between CapacityLens installations.
+[Moving from a spreadsheet](/admin/#moving-from-a-spreadsheet) suggests an order.
+
 ## Who it's for
 
 Agency owners, studio and operations leads, and project managers: the people asked "can we
 take this on?" who need an honest answer the whole team can see. Everyone else on the team uses
 it to see their own week.
+
+## Before you adopt
+
+- **Status.** CapacityLens is alpha software with a single maintainer. Beta will mean the upgrade
+  path and the settings are stable.
+- **Leaving.** Your data is one SQLite database file on your server, and **Export JSON** in
+  Settings downloads the company's scheduling records. The AGPL lets anyone continue the code.
+- **Outside services.** None is needed to run it. Email, sign-in through Google, Microsoft or
+  GitHub, and the breached-password check (on by default) are the only ones it can use.
+- **Support.** Community help on a best-effort basis, with no guaranteed response time.
+  [Get help](/open-source#get-help) explains where to ask.
 
 <span id="the-scaling-ladder"></span>
 <span id="get-started"></span>

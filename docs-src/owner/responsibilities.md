@@ -26,8 +26,8 @@ handles installation, backups, upgrades and company-login setup.
    - **Approved domains**: verified addresses from the domains you list can join through the link.
    - **Approved domains or invitation**: those domains, plus addressed invitations for people
      outside them.
-3. For a domain policy, enter each exact domain on its own line, up to 50 domains and 16 KiB of
-   text. An empty or invalid list cannot be saved.
+3. For a domain policy, enter each exact domain on its own line, up to 50 domains. An empty or
+   invalid list cannot be saved.
 4. Select **Save joining policy**.
 
 Under **Approved domains**, even an invitation is accepted only from a listed domain.
@@ -92,7 +92,8 @@ Deleting the company permanently removes it and all its data for everyone. There
    unsure or need to verify the export.
 
 Deleting needs a recent sign-in. **Switch company** appears only when you can access two or more
-companies; if it is missing, ask the installer how to proceed.
+companies. A standard installation holds one company, so there is no **Delete** in the app: export
+a copy, then ask the installer to retire the installation and its data.
 
 To take away one person's access instead, use [Stop access](/admin/invite-teammates#stop-access).
 

@@ -1,11 +1,12 @@
 ---
 title: Verify and hand over
-description: Check the service, give the first Owner safe setup instructions, and name the ongoing operator.
+description: Check the service, decide on account email, give the first Owner safe setup instructions, and name the ongoing operator.
 ---
 
 # Verify and hand over
 
-Check the service survives a restart, then hand it to the Owner and name who runs it.
+Check the service survives a restart, decide on email, then hand it to the Owner and name who
+runs it.
 
 ## 1. Check the running service
 
@@ -61,15 +62,36 @@ On a managed host, use the platform's restart control and confirm its Supervisor
 to running. The same database must still be there, and the backup directory must hold a verified
 dated snapshot.
 
-## 3. Hand over
+## 3. Decide on account email
+
+Decide before handover whether the server sends email.
+[Account email](/self-hosting/configuration#account-email) has the five settings. Without it:
+
+- Invitations are links the Owner or an Admin copies and sends themselves.
+- **Forgot password?** is not offered. An Owner or Admin creates a reset link for a member with
+  **Reset password** instead, and a sole Owner who loses their password needs
+  [you](/self-hosting/incidents#the-sole-owner-has-lost-their-password).
+- Microsoft company login cannot be set up; it needs account email.
+
+## 4. Hand over
 
 1. If you are also the Owner, continue with [Set up your company](/owner/). Otherwise, send the
-   Owner the address and [Set up your company](/owner/). In password-capable mode, send the
-   one-time setup token separately and privately; for company login, pre-authorise the Owner's
-   exact verified email. Don't send them installation documentation.
+   Owner the address, [Set up your company](/owner/) and how to reach you. If people sign in with
+   a password, which is the default, send the one-time setup token separately and privately; for
+   company login, pre-authorise the Owner's exact verified email. The Owner needs none of the
+   installation pages.
 2. Once the Owner can sign in, remove `CAPACITYLENS_SETUP_TOKEN` from the runtime environment if
    it was used, restart the API and check health again.
 3. Name the ongoing operator, give them [Install and run CapacityLens](/self-hosting/), and
-   confirm who owns backups, upgrades, monitoring and incidents.
+   confirm who owns backups, upgrades, monitoring and incidents. Health and backup alerts go to
+   the operator, not the Owner.
+
+## What the Owner can do without you
+
+In the app, the Owner can set up the company, invite people and change roles, appoint Admins,
+reset another member's password, export the company's data and transfer ownership.
+
+Tell them to ask you for anything on the server: backups and restores, upgrades, sign-in and
+email settings, an outage, and a lost password for the only Owner.
 
 Next: [Backups and restore](/self-hosting/backups-and-restore) — get the snapshots off the server.

@@ -39,7 +39,10 @@ newer release, use its version.
    tar -xzf capacitylens-0.73.0-alpha.1.tar.gz && ln -sfn capacitylens-0.73.0-alpha.1 current
    ```
 
-   Run the deploy once. To upgrade later, follow [Upgrade](#upgrade).
+   Run the deploy once. If the platform offers no deploy script for a site without a
+   repository, run the same lines once in the site's command runner instead. These lines do not
+   start or restart the server: step 4 starts it, and after every later deploy you restart the
+   background process yourself. To upgrade later, follow [Upgrade](#upgrade).
 
 2. **Data folder:** `/home/forge/capacitylens-data`, outside the release so upgrades keep it.
    The deploy script's first line creates it. The database, the audit log and the scheduled
@@ -163,8 +166,8 @@ script instead.
 ## After the first start
 
 Open `https://capacity.example.com/api/health`, with your own address. Expect `"ok":true`,
-`"db":true`, `"audit":"ok"` and a `backup` whose `status` is `"ok"`; it reads `"pending"` for a
-moment after the first start. Treat `degraded`, or `pending` that lasts longer than one backup
+`"db":true`, `"audit":"ok"` and a `backup` whose `status` is `"ok"`; it reads `"pending"` until
+the snapshot the server takes as it starts has finished. Treat `degraded`, or `pending` that lasts longer than one backup
 interval (60 minutes by default), as a failure;
 [Monitoring and health checks](/self-hosting/monitoring#what-each-field-means-and-when-to-alert)
 defines the alerts.

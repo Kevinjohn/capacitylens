@@ -52,8 +52,9 @@ missing menu link is expected unless an Owner or Admin opens it to **Everyone**.
 
 **Resources**, **Clients**, **Projects**, **Activities** and **Time off** are all readable without
 edit buttons. **Disciplines** appears when your company uses them. Time-off notes are visible only
-to Owners and Admins. Only the Owner sees the real name behind a code name; everyone
-else sees the code name. A missing confidential field is an access rule, not a failed load.
+to Owners and Admins. A client or project name in quotation marks, such as "Nightwing", is a
+code name for confidential work: only the Owner sees the real name. A missing confidential field
+is an access rule, not a failed load.
 
 ## Set your display and sign-in
 

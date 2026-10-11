@@ -8,7 +8,8 @@ next: false
 # Time off
 
 Record holidays, sickness and company closures so the schedule shows who is really available.
-Everyone can see time off; only an Editor, Admin or Owner can add or change it.
+Everyone can see time off; only an Editor, Admin or Owner can add or change it. There is no role
+for entering only your own holiday, so a Viewer asks whoever books work to add it.
 
 ![Time off showing company closures and personal time off entries](../screenshots/flows/using_time_off_1.png)
 

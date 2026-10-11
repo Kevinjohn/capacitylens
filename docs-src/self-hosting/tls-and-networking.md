@@ -26,9 +26,11 @@ CapacityLens sits behind a TLS-terminating reverse proxy on the same origin the 
 ## Linux host (release archive)
 
 The server serves the web app as well as the API, so one reverse-proxy line covers the whole
-site. Keep the server on loopback (`CAPACITYLENS_HOST=127.0.0.1`, the default) and proxy to
-`127.0.0.1:8787`. [Install without Docker](/self-hosting/install-without-docker#https) sets up
-the archive's Caddy or nginx example.
+site, as in the Caddy example. The archive's nginx file takes the other route: nginx serves the
+web app's files itself and proxies only `/api/`. Either works. Keep the server on loopback
+(`CAPACITYLENS_HOST=127.0.0.1`, the default) and proxy to `127.0.0.1:8787`.
+[Install without Docker](/self-hosting/install-without-docker#https) sets up the archive's Caddy
+or nginx example.
 
 - Caddy obtains and renews the certificate and overwrites the forwarded headers. It writes no
   access log unless you add a `log` directive; if you do, exclude `/invite/*`,

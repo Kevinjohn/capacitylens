@@ -5,6 +5,12 @@ description: What data CapacityLens stores, what stays in the browser, and what 
 
 # Privacy
 
+**In short, for Owners.** Everyone in the company can see the schedule. Time-off notes are
+limited to Owners and Admins, and the real names behind
+[code names](/using/projects#hide-a-client-or-project-name) to the Owner. The data lives on your own server, so your installer or hosting provider can reach
+it. Whoever runs that server is responsible for the data as its operator; the rest of this page
+has the detail.
+
 Use this page in a privacy assessment of the open-source application as shipped: what it stores,
 what stays in the browser and what it sends. It is technical documentation, not legal advice. A hosted service needs its own privacy notice, retention terms, subprocessors and
 data-processing agreements, and a professional privacy and security review before launch.

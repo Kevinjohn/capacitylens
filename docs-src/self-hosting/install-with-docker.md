@@ -21,8 +21,8 @@ You need:
   [Docker's install instructions](https://docs.docker.com/engine/install/).
 - `linux/amd64` or `linux/arm64`. CapacityLens is tested on x86-64; arm64 (including Apple
   Silicon and AWS Graviton) should work but isn't tested.
-- For a small production installation, at least 1 shared CPU core, 2 GB RAM and a few GB of disk
-  (more if you keep many backup snapshots).
+- A server of the [size in Install CapacityLens](/self-hosting/install#server-size), but with at
+  least 2 GB of memory to build the image, and extra disk for the Docker images.
 
 ## 1. Download
 

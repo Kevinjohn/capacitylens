@@ -18,6 +18,9 @@ they can do that day.
 You book work by the day and read the plan by the week. CapacityLens does not track tasks,
 budgets or timesheets.
 
+It is free and open source (AGPL-3.0), with no paid tier and no hosted version. You run it on your
+own server, and the only cost is that server ([server size](/self-hosting/install#server-size)).
+
 ## Which one are you?
 
 <span id="choose-your-guide"></span>
@@ -28,9 +31,9 @@ budgets or timesheets.
 <span id="day-to-day-usage"></span>
 <span id="self-hosting-operations"></span>
 
-**I'm installing it.** You put CapacityLens on a server and give the Owner its address. Four steps;
-the install itself takes about ten minutes on a host that already runs Node 24.
-[Start the installation](/self-hosting/)
+**I'm installing it.** You put CapacityLens on a server and give the Owner its address: install it
+(five short steps, about ten minutes on a host that already runs Node 24), add HTTPS, check
+backups and hand over. [Start the installation](/self-hosting/)
 
 **I own the company.** You create the company and invite someone to run it day to day. Four
 steps, and then you can stop. [Set up your company](/owner/)
@@ -45,8 +48,9 @@ Doing all of it yourself? Small agencies often do.
 [The whole setup on one page](/getting-started/quick-start) takes you from download to your
 first booking.
 
-Want a look first? Watch the walkthrough above, or [try the demo](/getting-started/try-the-demo)
-on your own computer with sample data. It needs Node and git, but no server and no sign-in.
+Want a look first? Watch the walkthrough above. If you are comfortable with a terminal,
+[try the demo](/getting-started/try-the-demo) on your own computer with sample data: it needs the
+developer tools Node and git, but no server and no sign-in.
 
 ## How setup fits together
 
@@ -69,6 +73,8 @@ another role's guide first.
 
 - [What is CapacityLens?](/getting-started/what-is-capacitylens): what it does, what it leaves
   out and why.
+- [Before you adopt](/getting-started/what-is-capacitylens#before-you-adopt): project status,
+  getting your data out and where to get help.
 - [How it compares](/getting-started/how-it-compares) with spreadsheets, Float, Forecast and
   Resource Guru.
 - [Roles and permissions](/getting-started/roles-and-permissions): what each role can see and do.

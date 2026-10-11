@@ -18,23 +18,25 @@ runs Node 24 and has a hostname pointing at it, the install takes about ten minu
 
 <div class="steps">
 
-1. **Install it.** Download the release archive, pick a folder for the data, generate the
-   settings with one command, start the server, and open the address. Those are the
-   [five install steps](/self-hosting/install), the same on a managed host such as Forge as on
-   your own Linux server.
+1. **Install it** in [five short steps](/self-hosting/install): download the release archive,
+   pick a folder for the data, generate the settings with one command, start the server, and open
+   the address. They are the same on a managed host such as Forge as on your own Linux server.
+   Check the [server size](/self-hosting/install#server-size) first.
 
 2. **Put HTTPS in front.** A managed host issues the certificate for you. On your own server,
    [Caddy does it in four lines](/self-hosting/install-without-docker#https). Finish this before
    anyone enters a password. [TLS and networking](/self-hosting/tls-and-networking)
 
-3. **Check backups.** In production, CapacityLens snapshots the database every hour into a
-   `backups` folder beside it. Set `CAPACITYLENS_BACKUP_DIR` to change where. Copy the snapshots
+3. **Check backups.** In production, CapacityLens snapshots the database as it starts and every
+   hour after that, into a `backups` folder beside it. Set `CAPACITYLENS_BACKUP_DIR` to change
+   where. [Copy the snapshots](/self-hosting/backups-and-restore#copy-snapshots-off-the-server)
    and the environment file off the server.
-   [Backups and restore](/self-hosting/backups-and-restore)
 
 4. ![Owner sign-in setup form with name, email, Create a password and Owner setup token fields and Create my sign-in](../screenshots/steps/owner_setup_sign_in_form.png)
 
-   **Hand over.** Check `https://your-address/api/health` shows `"ok":true`. If you are also the
+   **Hand over.** Decide on [account email](/self-hosting/configuration#account-email) first:
+   without it, invitations are links someone copies and sends, and there are no password-reset
+   emails. Check `https://your-address/api/health` shows `"ok":true`. If you are also the
    Owner, continue with [Set up your company](/owner/). Otherwise send the Owner the address and
    that guide, and send the setup token separately and privately. This is the screen they will
    see. After the Owner has signed in, remove `CAPACITYLENS_SETUP_TOKEN` and restart.
@@ -47,7 +49,9 @@ runs Node 24 and has a hostname pointing at it, the install takes about ten minu
 Self-hosting means you, or someone you name, own the service after handover. That means keeping
 backups tested, watching health and disk space, installing new releases, and making configuration
 changes through a reviewed restart, agreed with an Owner or Admin when they affect sign-in or
-members. Support is community help on a best-effort basis, with no guaranteed response time. [Get
+members. To hear about new releases, watch the
+[GitHub repository](https://github.com/Kevinjohn/capacitylens) for releases (**Watch** →
+**Custom** → **Releases**). Support is community help on a best-effort basis, with no guaranteed response time. [Get
 help](/open-source#get-help) explains where to ask.
 
 ## Follow the full steps for your host

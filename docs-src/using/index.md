@@ -14,6 +14,14 @@ next: false
 Someone at your agency has invited you. CapacityLens shows what you're booked on, when, and
 who else is busy. You don't need to install or set up anything.
 
+Before you start:
+
+- The invitation page offers the ways your company signs in: a password, Google or Microsoft.
+- If the link has expired, ask whoever sent it for a new one.
+- CapacityLens is built for a computer screen. It opens on a phone, but isn't designed for
+  scheduling there.
+- With the **Viewer** role you can look but not change.
+
 <div class="steps">
 
 1. ![Accept invite page showing the company, the Viewer role, the intended email hint, the expiry, and Sign in or Create account](../screenshots/steps/using_invitation_preview.png)
@@ -25,26 +33,33 @@ who else is busy. You don't need to install or set up anything.
 2. ![Bruce Wayne's schedule drawer listing his bookings with dates and hours per day, and a holiday](../screenshots/steps/using_schedule_drawer.png)
 
    **Find your week.** You land on **Schedule**. Find your name and select the avatar beside it.
-   Your bookings and time off open in one list. Not on the list? Ask whoever invited you to add you or link you to your row.
+   Your bookings and time off open in one list. Not on the list? Ask whoever invited you to add
+   you or link you to your row. Your holidays and other time off show on your row too; ask whoever
+   books work to add them.
 
 3. ![Schedule rows grouped by discipline, with each person's utilisation percentage, booking bars and a red over-capacity day](../screenshots/steps/using_schedule_rows.png)
 
-   **Read the schedule.** Each bar is a [booking](/reference/glossary#booking) (the app calls it
-   an allocation): its project, its dates and how much of each day it takes. **Red** means someone
-   has more work than time that day. The percentage beside a name, its
-   [utilisation](/reference/glossary#utilisation), shows how full they are across the weeks on
-   screen. [Read the schedule](/using/read-the-schedule)
+   **Read the schedule.** Each bar is a [booking](/reference/glossary#booking): its project, its
+   dates and how much of each day it takes.
+
+   - A red day means someone has more work than time that day.
+   - The percentage beside a name, its [utilisation](/reference/glossary#utilisation), shows how
+     full they are across the weeks on screen. It turns red when they are over capacity in the
+     next 14 days.
+   - A striped bar with a dashed border is [tentative](/reference/glossary#tentative): work not
+     yet confirmed.
+
+   [Read the schedule](/using/read-the-schedule)
 
 4. ![Schedule toolbar with Prev, Today, Next, 4 weeks and Hide filters above the filter row and week columns](../screenshots/steps/using_schedule_toolbar_filters.png)
 
    **Look further ahead.** Use the weeks menu to show up to eight weeks, and **Today** and the
-   arrows beside it to move. **Show filters** (**Hide filters** once open) narrows the view to one client, project or
-   activity.
+   arrows beside it to move. **Show filters** (**Hide filters** once open) narrows the view to one
+   client, project or activity.
 
 </div>
 
-That's all most people need. If something looks wrong, tell whoever books the work: with the
-**Viewer** role you can look but not change.
+That's all most people need. If something looks wrong, tell whoever books the work.
 
 ## If you book the work
 

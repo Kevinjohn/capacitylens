@@ -12,6 +12,8 @@ internet-facing instance takes longer, mostly because of DNS and certificates.
 
 ## You need
 
+- <span id="server-size"></span>A server with 1 vCPU, 1 GB of memory and 10 GB of disk. The data
+  is small, a few MB a year; the hourly backups, 48 full copies, take most of the disk.
 - Node 24.19.0 or newer within 24.x on the host's system path. Check with `node --version`.
 - A hostname that points at the host, with HTTPS in front. A managed host issues the certificate;
   on your own host, [Caddy](/self-hosting/install-without-docker#https) does it in four lines.
@@ -114,7 +116,8 @@ to start while a required line is empty, and names the missing one.
   ```
 
 The server serves the web app as well as the API, so one reverse-proxy line covers the whole
-site. [TLS and networking](/self-hosting/tls-and-networking) has the proxy requirements.
+site. The archive's optional nginx file serves the web app itself instead;
+[TLS and networking](/self-hosting/tls-and-networking) has both and the proxy requirements.
 
 ## 5. Open the address
 

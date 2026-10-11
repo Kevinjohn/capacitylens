@@ -109,6 +109,18 @@ Status is **Confirmed**, **Tentative** or **Completed**. Notes are one line. Whe
 [task field](/using/settings#allocation-task-field) is on, the form also has an optional one-line
 **Task**.
 
+### Book work you might not win
+
+Set **Status** to **Tentative** for work you haven't won yet. Its bar gets a dashed border and a
+light diagonal hatch. Turning off the **Tentative** pill in the filter row hides it from the grid.
+
+Tentative work counts towards utilisation, red over-capacity days and the red 14-day warning on
+Schedule, even while the pill hides it. On [Overview](/using/overview#filter-the-table), turn off
+**Tentative** to count confirmed bookings only.
+
+When the work is won, open the booking and change **Status** to **Confirmed**. If it is lost,
+delete the booking.
+
 ### Enter the amount
 
 <span id="how-allocation-granularity-works"></span>

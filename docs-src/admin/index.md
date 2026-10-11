@@ -77,11 +77,19 @@ Inviting someone lets them sign in. Adding them in **Resources** gives them a ro
 schedule. Most people need both, and **Link to Resource** joins the two. Neither creates the
 other.
 
+<span id="moving-from-a-spreadsheet"></span>
+
+## Move from a spreadsheet
+
+There is no importer for spreadsheets or other tools. Add your people first, then clients and
+projects, then book only the coming weeks. **Import JSON** (Owner only) moves data between
+CapacityLens installations, not from other formats.
+
 <span id="already-up-and-running"></span>
 
 ## Go further
 
-- [Ongoing administration](/admin/ongoing-administration): change access, working patterns and
-  closures.
+- [Ongoing administration](/admin/ongoing-administration): a weekly check, and changes to access,
+  working patterns and closures.
 - [Diagnostics](/admin/diagnostics): what to copy when you report a problem.
 - [Admin FAQ](/admin/faq)

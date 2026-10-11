@@ -11,8 +11,8 @@ In production, CapacityLens snapshots its database at start-up and every hour in
 folder beside the database file (Docker Compose: the `capacitylens-backups` volume), and keeps the
 latest 48. Those snapshots sit on the same host. Your part:
 
-1. Copy the snapshots off-host, to a separate account, region or provider (with restic, rclone
-   or rsync, for example), and encrypt that destination.
+1. [Copy the snapshots off-host](#copy-snapshots-off-the-server), to a separate account, region
+   or provider, and encrypt that destination.
 2. Keep a copy of the environment file in a password manager or off-host store, not beside the
    snapshots.
 3. [Rehearse a restore](#schedule-a-restore-drill) before launch.
@@ -21,6 +21,31 @@ latest 48. Those snapshots sit on the same host. Your part:
 
 Keep the database, audit log and backup storage on volumes encrypted at rest; CapacityLens does
 not encrypt them itself.
+
+## Copy snapshots off the server
+
+Schedule the copy on the server, as a user that can read the backup folder. Each example runs
+hourly and copies only finished snapshots: a snapshot being written has a temporary name that
+does not end in `.db`.
+
+On a Linux host, with rsync and root's SSH key authorised on a separate backup machine
+(`backup.example.com` stands for yours), add this line to root's crontab with `sudo crontab -e`:
+
+```text
+15 * * * * rsync -a --include='capacitylens-*.db' --exclude='*' /var/lib/capacitylens/backups/ backup@backup.example.com:capacitylens/
+```
+
+On a managed host, install rclone, set up a remote for the site user with `rclone config`
+(`offsite` stands for yours), and add an hourly scheduled job that runs as the site user (Forge:
+the server's scheduler):
+
+```text
+rclone copy /home/forge/capacitylens-data/backups offsite:capacitylens --include 'capacitylens-*.db'
+```
+
+Both copy without deleting at the destination, so the copies outlive local retention; prune
+them by your own policy. Check the destination after the first run, and copy the environment
+file separately, by hand, to a password manager.
 
 ## What to back up
 
@@ -72,17 +97,13 @@ environment and copy the snapshot into it:
 drill_dir="$(mktemp -d /var/tmp/capacitylens-restore-drill.XXXXXX)" && install -d -m 700 "$drill_dir/backups" && cp /path/to/capacitylens-utc-YYYYMMDD-HHMMSS-sss.db "$drill_dir/capacitylens.db"
 ```
 
-Start the API with an empty inherited environment, production's sign-in mode and deployment
-profile, separate storage paths and a new signing secret (never the production one). The example
-is for password mode:
+Start the API with an empty inherited environment, separate storage paths and a new signing
+secret (never the production one):
 
 ```bash
 env -i PATH="$PATH" NODE_ENV=production \
-  CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-password \
-  CAPACITYLENS_MODE=password-only \
   CAPACITYLENS_SECRET='<drill-only secret of at least 32 characters>' \
   CAPACITYLENS_PUBLIC_URL=http://127.0.0.1:8877 \
-  CAPACITYLENS_RATE_LIMIT=300 \
   CAPACITYLENS_HEALTH_DEEP=1 \
   CAPACITYLENS_DB="$drill_dir/capacitylens.db" \
   CAPACITYLENS_AUDIT_FILE="$drill_dir/capacitylens-audit.jsonl" \
@@ -90,6 +111,10 @@ env -i PATH="$PATH" NODE_ENV=production \
   CAPACITYLENS_HOST=127.0.0.1 PORT=8877 \
   node server/dist/index.mjs
 ```
+
+This matches an environment file from `init`, which sets no sign-in mode or deployment profile.
+If the instance's own environment file sets `CAPACITYLENS_MODE` or
+`CAPACITYLENS_DEPLOYMENT_PROFILE`, add those lines with the same values.
 
 Do not expose the port or change the provider's registered callback. In a second shell, check
 the isolated API:

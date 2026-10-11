@@ -25,7 +25,8 @@ Book one piece of work to check everything is ready. You need a
 
    **Fill in the form.** Choose **Project**, then **Activity**. For work without a project, choose
    **Internal** or **No specific project**. Check the assignee, dates, amount and status, then
-   select **Save**.
+   select **Save**. The amount is **Days of work** in a company that plans in Days, the default,
+   or **Hours / day** in one that plans in Hours.
 
 </div>
 

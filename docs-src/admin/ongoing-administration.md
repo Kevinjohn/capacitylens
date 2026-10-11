@@ -12,6 +12,15 @@ next: false
 
 Keep access, working patterns and closures up to date as people and work change.
 
+## Do a weekly check
+
+- On **Schedule**, look for red utilisation percentages: those people are over capacity within
+  the next 14 days. [Spot overwork](/using/read-the-schedule#reading-overwork)
+- Set tentative bookings to **Confirmed** once the work is won, or delete them if it is lost.
+  Until then they count towards utilisation and over capacity.
+  [Book work you might not win](/using/schedule-work#book-work-you-might-not-win)
+- On **Time off**, check upcoming time off and company closures, and add any that are missing.
+
 ## Change access
 
 ![Change member role dialog explaining Editor permissions before saving](../screenshots/flows/admin_change_member_role.jpg)

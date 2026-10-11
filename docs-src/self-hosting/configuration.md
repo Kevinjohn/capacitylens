@@ -88,10 +88,10 @@ With email on:
 - Addressed invitations are emailed automatically. **Invitation emailed to {address}** confirms
   delivery to the SMTP service; the link can still be copied, so if delivery fails, send it
   yourself.
-- In password-capable modes, **Forgot password?** on the sign-in screen sends a single-use reset
-  link through **Email reset link**, valid for 24 hours. The confirmation is the same for every
-  address; unknown addresses and accounts using only company sign-in receive no email.
-  Admin-issued copy-links send no email. With SMTP disabled, the sign-in form has no
+- In `password-only` and `password-and-sso` modes, **Forgot password?** on the sign-in screen
+  sends a single-use reset link through **Email reset link**, valid for 24 hours. The
+  confirmation is the same for every address; unknown addresses and accounts using only company
+  sign-in receive no email. Admin-issued copy-links send no email. With SMTP disabled, the sign-in form has no
   recovery-email control.
 - A first Microsoft connection may need a one-time email verification, so all five settings are
   required whenever Microsoft is configured. The link expires after 15 minutes and must be

@@ -31,10 +31,10 @@ Admin can do this. An Editor or Viewer who opens **Team & access** sees their ow
 
 ![Invite someone dialog with the optional Link to Resource selection](../screenshots/flows/invitation_created.png)
 
-The link is shown only in this dialog. CapacityLens keeps only a hash of it, so nobody can retrieve
-it later. If it is lost, revoke the invitation under **Outstanding invites** and create a new one; the
-old link stops working at once. If you close the dialog before the invitation is created, a
-notice says the link was not shown.
+The link is shown only in this dialog; nobody can retrieve it later, not even you. If it is lost,
+revoke the invitation under **Outstanding invites** and create a new one; the old link stops
+working at once. If you close the dialog before the invitation is created, a notice says the link
+was not shown.
 
 ## If the linked person is no longer available
 
@@ -93,13 +93,13 @@ row:
 
 All three are in **More actions**. None affects the person's other company memberships.
 
-- **Disable Access** stops them opening the company immediately, including through an existing
-  session or a later invitation. It stays in force even after removal, until an Owner or Admin
-  selects **Enable Access**, which is also available for people under **No longer active**.
-- **Archive user** stops their access but keeps an inactive record. **Restore membership**
-  reactivates it, but does not clear Disable Access.
-- **Remove** ends that membership; it doesn't disable the person's sign-in. They may return later
-  if the joining policy allows it.
+- Use **Disable Access** when they must not get back in. It works at once, including on an
+  existing session or a later invitation, and stays in force even after removal until an Owner or
+  Admin selects **Enable Access** (also offered under **No longer active**).
+- Use **Archive user** when they leave but you want to keep their membership on record. It stops
+  their access; **Restore membership** reactivates it but doesn't clear Disable Access.
+- Use **Remove** when they no longer belong to the company. It ends that membership but not their
+  sign-in, so they may return later if the joining policy allows it.
 
 Archiving or removing does not block a new invitation; a returning person gets the invitation's
 role. After **Enable Access**, an active member keeps their role, but an archived or removed person
@@ -120,7 +120,7 @@ change it; ask them if a teammate cannot join or registration should be tighter.
 policy get Viewer, so send an addressed invitation for any other role.
 [Decide who can join](/owner/responsibilities#decide-who-can-join) explains each policy.
 
-A fresh install allows one company. The installer can allow more with `CAPACITYLENS_MULTI_ACCOUNT`
-([Configuration](/self-hosting/configuration)).
+A new installation allows one company. Ask your installer if you need more;
+[Configuration](/self-hosting/configuration) has the setting.
 
 Next: [Admin FAQ](/admin/faq) — fix a stuck invitation.

@@ -15,10 +15,15 @@ CapacityLens puts the answer on one shared screen: people down the side, days ac
 work and time off in between. Red means someone is booked for more than they can do that day. See
 who is busy, who has room and who is about to be buried, and move work before it becomes a problem.
 
+It is free and open source (AGPL-3.0), with no paid tier and no hosted version. You run it on your
+own server, and the only cost is that server
+([server size](https://kevinjohn.github.io/capacitylens/self-hosting/install.html#server-size)).
+
 ## Get started
 
-**Installing it?** Four steps; the install itself takes about ten minutes on a host that already
-runs Node 24: [install CapacityLens](https://kevinjohn.github.io/capacitylens/self-hosting/index.html).
+**Installing it?** Install it (five short steps, about ten minutes on a host that already runs
+Node 24), add HTTPS, check backups and hand over:
+[install CapacityLens](https://kevinjohn.github.io/capacitylens/self-hosting/index.html).
 
 **Own the company?** Sign in with the setup token, create the company, invite an Admin:
 [set up your company](https://kevinjohn.github.io/capacitylens/owner/index.html).
@@ -33,9 +38,9 @@ Doing all of it yourself? [The whole setup on one page](https://kevinjohn.github
 
 ## Try it in two minutes
 
-The demo runs on your computer with sample data and no sign-in; it needs Node 24 and git. Drag
-things about, book time off, break something: changes reset when you reload. No terminal? Watch
-the walkthrough above instead.
+For people comfortable with a terminal: the demo runs on your computer with sample data and no
+sign-in, and needs the developer tools Node 24 and git. Drag things about, book time off, break
+something: changes reset when you reload. Everyone else: watch the walkthrough above instead.
 
 ```bash
 corepack enable
@@ -63,6 +68,9 @@ sign-in on **Choose an account**, then pick a company on **Choose a company**.
 CapacityLens does not track tasks, tickets, deadlines, budgets or timesheets, and it doesn't
 schedule anyone by the hour. If you need Jira, use Jira. This is the view you check _before_ you
 open Jira.
+
+There is no importer from spreadsheets or other tools: you enter your people, clients and projects
+in the app, and the JSON import only moves data between CapacityLens installations.
 
 ## Install it in five steps
 
@@ -93,8 +101,11 @@ is the one-page introduction.
 CapacityLens is alpha software with a single maintainer. Beta will mean the upgrade path and the
 settings are stable. Database upgrades are tested from thirteen released database
 snapshots, the oldest from 0.20.0-alpha.1, so a database created by that release or any later one
-is expected to upgrade in place. See [how it is tested](docs-src/reference/how-it-is-tested.md) and
-the [release notes](https://github.com/Kevinjohn/capacitylens/releases/latest).
+is expected to upgrade in place.
+[Before you adopt](https://kevinjohn.github.io/capacitylens/getting-started/what-is-capacitylens.html#before-you-adopt)
+covers status, getting your data out and support. See
+[how it is tested](docs-src/reference/how-it-is-tested.md) and the
+[release notes](https://github.com/Kevinjohn/capacitylens/releases/latest).
 
 ## Contributing
 
