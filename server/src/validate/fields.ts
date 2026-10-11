@@ -18,6 +18,9 @@ export function buildAcceptedWriteFields(table: string, row: Record<string, unkn
   return Object.fromEntries(Object.entries(row).filter(([key]) => accepted.has(key)));
 }
 
+/**
+ * Returns the names of fields accepted by the table write specification.
+ */
 export function listAcceptedFieldNames(table: string, row: unknown): string[] {
   return row && typeof row === "object"
     ? Object.keys(buildAcceptedWriteFields(table, row as Record<string, unknown>))

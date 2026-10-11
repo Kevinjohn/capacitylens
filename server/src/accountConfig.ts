@@ -3,6 +3,7 @@ import type { AccountDeploymentProfile } from "@capacitylens/shared/account/conf
 
 export type { AccountDeploymentProfile } from "@capacitylens/shared/account/conformance";
 
+/** Marks a deployment setting that cannot be accepted safely. */
 export class AccountConfigError extends Error {
   constructor(message: string) {
     super(message);
@@ -62,6 +63,7 @@ function parseConfiguredValue(key: string, value: string | undefined): string | 
   return value;
 }
 
+/** Holds normalized settings and the resolved deployment profile used at boot. */
 export interface ResolvedAccountEnvironment {
   env: Record<string, string | undefined>;
   profile: AccountDeploymentProfile | null;

@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS capacitylens_audit_outbox (
 ) STRICT;
 `;
 
+/** Rejects an outbox table whose columns do not match the durable-delivery contract. */
 export function assertAuditOutboxCurrent(db: Db): void {
   assertTableColumns({
     db,
@@ -225,6 +226,7 @@ function hasValidAccountActionDetails(row: Record<string, unknown>): boolean {
   return row.expiresAt === undefined && row.reason === undefined;
 }
 
+/** Checks whether an unknown payload has the supported audit-entry shape. */
 export function isAuditEntry(value: unknown): value is AuditEntry {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
@@ -280,6 +282,7 @@ export function drainAuditOutbox(db: Db, sink: AuditSink): boolean {
   return true;
 }
 
+/** Returns the number of audit records awaiting sink delivery. */
 export function readPendingAuditCount(db: Db): number {
   return Number((pendingAuditCountStatement(db).get() as { count: number }).count);
 }

@@ -126,7 +126,8 @@ export interface ScopedEntity extends Entity {
 export interface Discipline extends ScopedEntity {
   name: string;
   color?: string;
-  sortOrder: number; // controls grouping order in the scheduler
+  // The scheduler uses this value to group disciplines consistently.
+  sortOrder: number;
 }
 
 /** A schedulable resource: a person, a placeholder or an external supplier. */
@@ -202,7 +203,8 @@ export interface Client extends ScopedEntity {
 /** A client project. */
 export interface Project extends ScopedEntity {
   name: string;
-  clientId: ID; // Required: a project must belong to a client
+  // Every project must belong to a client.
+  clientId: ID;
   color: string;
   /** When true, only account owners receive `name`; every other role receives the quoted
    * `codeName` in its place. Absent = public (the default). */
@@ -255,8 +257,9 @@ export interface Allocation extends ScopedEntity {
   projectId?: ID;
   /** System-owned identity shared by allocations created in one repeat batch. Absent = one-off or legacy repeat. */
   seriesId?: ID;
-  startDate: ISODate; // inclusive
-  endDate: ISODate; // inclusive
+  // Both date bounds include the named day.
+  startDate: ISODate;
+  endDate: ISODate;
   hoursPerDay: number;
   status: AllocationStatus;
   note?: string;
@@ -266,15 +269,15 @@ export interface Allocation extends ScopedEntity {
    * working days (drag/move does not auto-extend across them). Absent =
    * weekend-aware (the default). */
   ignoreWeekends?: boolean;
-  // future-additive (not built in v1): startTime?/endTime? for "9am–1pm" allocations
 }
 
 /** One person's time off over a date range; company-wide closures are {@link Closure} records. */
 export interface TimeOff extends ScopedEntity {
   /** The resource taking personal time off. */
   resourceId: ID;
-  startDate: ISODate; // inclusive
-  endDate: ISODate; // inclusive
+  // Both date bounds include the named day.
+  startDate: ISODate;
+  endDate: ISODate;
   type: TimeOffType;
   note?: string;
 }

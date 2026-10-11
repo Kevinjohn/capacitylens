@@ -42,6 +42,7 @@ function resolveWorkspaceId(body: unknown, commandId: string): string {
   return buildWorkspaceId(commandId);
 }
 
+/** Dependencies shared by the state read and organization routes. */
 export interface StateRouteDependencies {
   section: "read" | "org";
   db: Db;
@@ -339,6 +340,7 @@ async function createOrganisation(
   }
 }
 
+/** Registers state and organization routes for the configured section. */
 export function registerStateRoutes(app: FastifyInstance, dependencies: StateRouteDependencies): void {
   if (dependencies.section === "read") {
     registerReadRoutes(app, dependencies);

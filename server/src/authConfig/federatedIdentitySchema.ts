@@ -65,6 +65,9 @@ function normalizeSchemaSql(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Checks `sqlite_master` for the named table without creating or migrating it.
+ */
 export function sqliteTableExists(db: Db, table: string): boolean {
   return db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) !== undefined;
 }

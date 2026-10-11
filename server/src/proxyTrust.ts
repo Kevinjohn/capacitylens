@@ -1,3 +1,6 @@
+/**
+ * Contains the configuration used to decide whether forwarded client addresses may be trusted.
+ */
 export interface ProxyTrustEnvironment {
   CAPACITYLENS_TRUST_PROXY_HEADERS?: string;
 }

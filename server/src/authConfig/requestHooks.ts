@@ -164,6 +164,9 @@ function createAfterRequestHook({ db, allowOpenSignup, externalIdentityPath }: R
   });
 }
 
+/**
+ * Builds request and API-error hooks for account admission and request cleanup.
+ */
 export function buildRequestHooks(options: RequestHookOptions): Pick<BetterAuthOptions, "hooks" | "onAPIError"> {
   const { browserAuthErrorUrl, authHandlerErrorCapture } = options;
   return {

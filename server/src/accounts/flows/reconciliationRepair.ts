@@ -63,6 +63,9 @@ function assertValidCoordinates(stored: Record<string, unknown>, commandId: stri
   }
 }
 
+/**
+ * Identifies ledger rows that are internally inconsistent and require reconciliation instead of replay.
+ */
 export class CorruptAccountCommandStateError extends Error {
   readonly code = "ACCOUNT_COMMAND_STATE_CORRUPT";
   readonly commandId: string;
@@ -77,6 +80,9 @@ export class CorruptAccountCommandStateError extends Error {
   }
 }
 
+/**
+ * Parses the stored repair command and rejects rows with an invalid repair payload.
+ */
 export function parseStoredReconciliationRepair(
   row: NonNullable<ReturnType<typeof readAccountCommandAndFlagStalePending>>,
   operation: Parameters<AccountFlows["reconcileCommand"]>[0]["operation"],

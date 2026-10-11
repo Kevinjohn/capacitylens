@@ -35,6 +35,9 @@ import {
   readProjectSnapshots,
 } from "./appTestSnapshotSchedule";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
+/**
+ * Validates each client row against the API response fields, including optional archive and privacy metadata.
+ */
 export function readAllClientSnapshots(rows: unknown[]): ClientSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every client row to be an object.");
@@ -77,30 +80,48 @@ export function readAllClientSnapshots(rows: unknown[]): ClientSnapshot[] {
   });
 }
 
+/**
+ * Returns the validated client rows after excluding built-in entries.
+ */
 export function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
   return readAllClientSnapshots(rows).filter((clientRow) => clientRow.builtin !== true);
 }
 
+/**
+ * Extracts and validates the clients array from a state response.
+ */
 export function readAllStateClients(response: LightMyRequestResponse): ClientSnapshot[] {
   const value: unknown = response.json();
   if (!isRecord(value)) throw new Error("Expected the state response to be an object.");
   return readAllClientSnapshots(readStateArray(value, "clients"));
 }
 
+/**
+ * Returns the first client or throws when the state contains none.
+ */
 export function readFirstClient(clients: ClientSnapshot[]): ClientSnapshot {
   const clientRow = clients[0];
   if (!clientRow) throw new Error("Expected the state response to contain a client.");
   return clientRow;
 }
 
+/**
+ * Returns the name of the first validated client.
+ */
 export function readFirstClientName(clients: ClientSnapshot[]): string {
   return readFirstClient(clients).name;
 }
 
+/**
+ * Projects client IDs from the supplied snapshots in response order.
+ */
 export function readClientIds(clients: ClientSnapshot[]): string[] {
   return clients.map(({ id }) => id);
 }
 
+/**
+ * Validates the required fields of a client write response.
+ */
 export function readClientResponseValue(value: unknown): ClientResponse {
   if (!isRecord(value)) throw new Error("Expected the client response to be an object.");
   return {
@@ -113,15 +134,24 @@ export function readClientResponseValue(value: unknown): ClientResponse {
   };
 }
 
+/**
+ * Parses the response body and validates it as a client write result.
+ */
 export function readClientResponse(response: LightMyRequestResponse): ClientResponse {
   return readClientResponseValue(response.json());
 }
 
+/**
+ * Represents a client conflict response containing the current row and server message.
+ */
 export interface ConflictResponse {
   error: string;
   current: ClientResponse;
 }
 
+/**
+ * Requires a conflict message and validates the current client row returned by the API.
+ */
 export function readConflictResponse(response: LightMyRequestResponse): ConflictResponse {
   const value: unknown = response.json();
   if (!isRecord(value) || typeof value.error !== "string" || !("current" in value)) {
@@ -130,6 +160,9 @@ export function readConflictResponse(response: LightMyRequestResponse): Conflict
   return { error: value.error, current: readClientResponseValue(value.current) };
 }
 
+/**
+ * Reads the optional superseded flag and rejects a present non-boolean value.
+ */
 export function readBatchSuperseded(response: LightMyRequestResponse): boolean | undefined {
   const value: unknown = response.json();
   if (!isRecord(value)) throw new Error("Expected the batch response to be an object.");
@@ -140,6 +173,9 @@ export function readBatchSuperseded(response: LightMyRequestResponse): boolean |
   return value.superseded;
 }
 
+/**
+ * Validates batch counts, archive records, revision records, and the optional superseded flag.
+ */
 export function readBatchReceipt(response: LightMyRequestResponse): BatchReceipt {
   const value: unknown = response.json();
   if (!isRecord(value)) throw new Error("Expected the batch response to be an object.");
@@ -186,6 +222,9 @@ export function readBatchReceipt(response: LightMyRequestResponse): BatchReceipt
   return receipt;
 }
 
+/**
+ * Validates an activity write result, including its project links and rewritten allocation revisions.
+ */
 export function readActivityWriteResponse(response: LightMyRequestResponse): ActivityWriteResponse {
   const value: unknown = response.json();
   if (!isRecord(value)) throw new Error("Expected the activity response to be an object.");
@@ -218,18 +257,27 @@ export function readActivityWriteResponse(response: LightMyRequestResponse): Act
   return { ...activity, rewrittenAllocations };
 }
 
+/**
+ * Finds a project binding by ID and returns undefined when the project is absent.
+ */
 export function readProjectId(rows: ProjectBinding[], id: string): string | undefined {
   const row = rows.find((candidate) => candidate.id === id);
   if (!row) throw new Error(`Expected the state response to contain row ${id}.`);
   return row.projectId;
 }
 
+/**
+ * Returns the first project ID when a project binding exists.
+ */
 export function readFirstProjectId(rows: ProjectBinding[]): string | undefined {
   const row = rows[0];
   if (!row) throw new Error("Expected the state response to contain a project-bound row.");
   return row.projectId;
 }
 
+/**
+ * Validates the modeled entities and fields in an untrusted state payload.
+ */
 export function readValidatedStateValue(value: unknown): ValidatedStateResponse {
   if (!isRecord(value)) {
     throw new Error("Expected the state response to be an object.");
@@ -257,6 +305,9 @@ export const state = async (app: FastifyInstance) => {
   return readValidatedStateValue((await call(app, { method: "GET", url: "/api/state" })).json());
 };
 
+/**
+ * Requires a successful state response and validates its projected fields.
+ */
 export function readSuccessfulStateResponse(response: LightMyRequestResponse): {
   state: ValidatedStateResponse;
   value: unknown;
@@ -266,10 +317,16 @@ export function readSuccessfulStateResponse(response: LightMyRequestResponse): {
   return { state: readValidatedStateValue(value), value };
 }
 
+/**
+ * Validates the API state response envelope and its modeled entity arrays.
+ */
 export function readStateResponse(response: LightMyRequestResponse): ValidatedStateResponse {
   return readValidatedStateValue(response.json());
 }
 
+/**
+ * Extracts and validates the summary returned after an import.
+ */
 export function readImportSummary(response: LightMyRequestResponse): ImportSummary {
   const value: unknown = response.json();
   if (!isRecord(value)) throw new Error("Expected the import response to be an object.");
@@ -284,10 +341,16 @@ export function readImportSummary(response: LightMyRequestResponse): ImportSumma
   };
 }
 
+/**
+ * Fetches the state endpoint and validates its response before returning the snapshot.
+ */
 export async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateResponse> {
   return readValidatedStateValue((await call(app, { method: "GET", url: "/api/state" })).json());
 }
 
+/**
+ * Reads client snapshots from a validated state value.
+ */
 export async function readStateClients(app: FastifyInstance): Promise<ClientSnapshot[]> {
   return (await readValidatedState(app)).clients;
 }

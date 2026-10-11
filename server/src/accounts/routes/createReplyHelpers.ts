@@ -42,6 +42,9 @@ export interface AccountReplyHelpers {
   ): ReturnType<AccountRouteDependencies["administration"]["getMembership"]>;
 }
 
+/**
+ * Creates reply helpers that translate account errors into HTTP responses.
+ */
 export function createReplyHelpers(dependencies: AccountRouteDependencies): AccountReplyHelpers {
   const { authMode, administration: accountAdminPort, authorize, audit, fail: accountFail } = dependencies;
 
@@ -123,4 +126,7 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies): Acco
   };
 }
 
+/**
+ * Combines account route dependencies with the reply helpers available to account handlers.
+ */
 export type AccountRouteContext = AccountRouteDependencies & AccountReplyHelpers;

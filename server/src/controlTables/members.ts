@@ -270,6 +270,9 @@ export function countActiveOwners(db: Db, accountId: string): number {
   return Number(row.owners);
 }
 
+/**
+ * Reads members for account from its authoritative source so decisions use persisted state.
+ */
 export function listMembersForAccount(db: Db, accountId: string): AccountMember[] {
   const rows = db
     .prepare(

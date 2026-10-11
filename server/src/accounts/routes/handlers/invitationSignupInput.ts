@@ -7,6 +7,9 @@ import type { ParseResult } from "../../../routes/routeShared";
 
 type SignupInput = { email: string; name: string; password: string };
 
+/**
+ * Parses the invitation token and credentials submitted during signup.
+ */
 export function parseSignupInvitationInput(req: FastifyRequest): ParseResult<SignupInput, string> {
   const body = (req.body ?? {}) as { email?: unknown; name?: unknown; password?: unknown };
   const email = typeof body.email === "string" ? normalizeAccountEmail(body.email) : "";

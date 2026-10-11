@@ -16,6 +16,9 @@ function normalizedEmail(email) {
 const DEPENDABOT_AUTHOR_EMAIL = "49699333+dependabot[bot]@users.noreply.github.com";
 const GITHUB_COMMITTER_EMAIL = "noreply@github.com";
 
+/**
+ * Returns whether the commit uses the Dependabot DCO exemption.
+ */
 export function isDcoExemptCommit({ authorEmail, committerEmail }) {
   return (
     normalizedEmail(authorEmail) === DEPENDABOT_AUTHOR_EMAIL &&
@@ -23,10 +26,16 @@ export function isDcoExemptCommit({ authorEmail, committerEmail }) {
   );
 }
 
+/**
+ * Returns whether the commit has more than one parent.
+ */
 export function isMergeCommit(parents) {
   return parents.trim().split(/\s+/).filter(Boolean).length > 1;
 }
 
+/**
+ * Checks whether a commit message is signed off by its author or committer.
+ */
 export function evaluateDcoCommit({ authorEmail, committerEmail, message }) {
   const permittedEmails = new Set([authorEmail, committerEmail].map(normalizedEmail));
   const signatories = [...message.matchAll(SIGN_OFF_PATTERN)]
@@ -42,6 +51,10 @@ export function evaluateDcoCommit({ authorEmail, committerEmail, message }) {
   };
 }
 
+/**
+ * Validates the DCO ratification map keyed by full commit SHA.
+ * @throws When the input or any ratification entry is malformed.
+ */
 export function parseDcoRatifications(ratifications) {
   if (!ratifications || typeof ratifications !== "object" || Array.isArray(ratifications)) {
     throw new TypeError("DCO ratifications must be an object keyed by full commit SHA");
@@ -65,6 +78,9 @@ export function parseDcoRatifications(ratifications) {
   return ratifications;
 }
 
+/**
+ * Checks whether a ratification is supported by its attestation commit.
+ */
 export function evaluateDcoRatification(target, ratification, attestation) {
   const ratifierEmail = normalizedEmail(ratification.ratifierEmail);
   const targetEmails = [target.authorEmail, target.committerEmail].map(normalizedEmail);
@@ -91,6 +107,7 @@ function isAncestor(commit, head) {
     execFileSync("git", ["merge-base", "--is-ancestor", commit, head], { stdio: "ignore" });
     return true;
   } catch {
+    // Unproven attestation reachability must not authorize a DCO ratification.
     return false;
   }
 }
@@ -114,6 +131,10 @@ function isDcoRatifiedCommit(target, ratifications, head) {
   return evaluateDcoRatification(target, ratification, { authorEmail, committerEmail, message, patch });
 }
 
+/**
+ * Checks DCO sign-offs for the commits between two Git revisions.
+ * @throws When Git or the ratification data cannot be read.
+ */
 export function verifyDcoRange(base, head) {
   const commits = git(["rev-list", `${base}..${head}`])
     .trim()

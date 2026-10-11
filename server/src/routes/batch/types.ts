@@ -46,11 +46,13 @@ export interface BatchArchiveOp extends BatchOperationBase {
  */
 export type BatchOp = BatchPutOp | BatchDeleteOp | BatchArchiveOp;
 
+/** Parsed operations and optional sync ordering for one batch request. */
 export interface ParsedBatchRequest {
   ops: BatchOp[];
   syncOrder: SyncOrder | null;
 }
 
+/** Server revision metadata returned for an operation in a batch. */
 export interface BatchRevision {
   table: string;
   id: string;
@@ -59,6 +61,7 @@ export interface BatchRevision {
   rewrite?: true;
 }
 
+/** Inputs required to apply one validated batch operation. */
 export interface ApplyBatchOperationParameters {
   opIndex: number;
   op: BatchOp;

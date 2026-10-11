@@ -2,7 +2,7 @@
 // port is `base + lane`, so ten concurrent worktrees do not overlap. Lane 0 preserves the ports
 // used by CI, documentation, and a single checkout.
 //
-// This module is PURE: it maps a lane to ports and reads already-resolved environment values.
+// This module is pure: it maps a lane to ports and reads already-resolved environment values.
 // Claiming a lane (and the CPU reservation that rides with it) lives in scripts/laneClaims.mjs,
 // and scripts/with-lane.mjs is the launcher that owns both for the lifetime of a command.
 // Configuration files must only ever READ: see the note on LANE_ENVIRONMENT_KEY below.
@@ -28,8 +28,8 @@ const BASES = Object.freeze({
   dbApi: 8787, // SQLite API, dev full-stack and db-backed E2E
   authApi: 8887, // password-mode API for the auth-backed E2E flavour
   preview: 4173, // `vite preview` and scripts/serve-dist.mjs
-  docsDev: 5900, // VitePress dev — pinned OFF 5173, which it would otherwise default to
-  docsPreview: 5910, // VitePress preview — pinned OFF 4173, which it would otherwise default to
+  docsDev: 5900, // VitePress dev, pinned to avoid its default port 5173
+  docsPreview: 5910, // VitePress preview, pinned to avoid its default port 4173
 });
 
 // The local access lab keeps a fixed, exclusive pair of ports outside the lane system.
@@ -54,7 +54,7 @@ export function portsForLane(lane) {
 }
 
 /**
- * The lane this process is running in. Reads the environment only — a process that has not been
+ * The lane this process is running in. Reads the environment only. A process that has not been
  * launched through scripts/with-lane.mjs is lane 0, which is exactly the historical behaviour.
  * Invalid non-empty values throw `RangeError`.
  */
@@ -78,7 +78,7 @@ export function ports(environment = process.env) {
 /**
  * A run's own CPU reservation: how many test workers it may start. scripts/laneClaims.mjs reserves
  * this from a machine-wide pool and exports it. A suite run by hand, outside a lane, gets the same
- * ceiling a solo claim would — half the available cores (see reservationCeiling).
+ * ceiling a solo claim would receive, half the available cores (see reservationCeiling).
  * An invalid configured value throws `RangeError`.
  */
 export function testShare(environment = process.env) {
@@ -97,14 +97,11 @@ export function soloShare(cores = availableParallelism()) {
 }
 
 /**
- * The most any single run may reserve. Admission never blocks, so the pool is a BOUND rather than a
- * hard cap: a run that arrives to an empty pool still gets one worker. Capping a single run at half
- * the cores keeps the worst case — one early large holder plus nine latecomers at the floor — near
- * the core count instead of nearly twice it.
+ * Caps one run at half the machine's parallelism, rounded up and never below one worker.
  *
- * Half the cores is also where this suite is reliable. Measured on a 10-core machine: the app suite
- * Half the available cores leaves capacity for the application processes each worker drives.
- * Oversubscription causes scheduling timeouts that make a healthy suite unreliable.
+ * Admission does not wait for capacity: when the pool is exhausted, a new run still receives one
+ * worker. Limiting larger claims leaves CPU capacity for the application processes each worker
+ * drives and reduces scheduling timeouts from oversubscription.
  */
 export function reservationCeiling(cores = availableParallelism()) {
   return Math.max(1, Math.ceil(cores / 2));

@@ -46,7 +46,8 @@ export function createShutdownHandler({
   return async (exitCode = 0, reason = "requested") => {
     if (draining) {
       console.error(`capacitylens-server: shutdown re-entered during drain (reason=${reason}); forcing exit`);
-      exit(1); // forced: the drain was cut short, so don't report a clean stop
+      // The drain was interrupted, so report failure instead of a clean stop.
+      exit(1);
       return;
     }
     draining = true;

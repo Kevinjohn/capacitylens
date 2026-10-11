@@ -63,10 +63,14 @@ export type Action =
  * with no rule is a build error rather than a silent fail-open.
  */
 const MIN_TIER = {
-  read: "viewer", // any member
-  write: "editor", // editor and up
-  manageInternalClient: "admin", // admin and up
-  purge: "admin", // admin and up
+  // Any member can read.
+  read: "viewer",
+  // Members at editor tier or higher can write.
+  write: "editor",
+  // Admins and owners can manage the internal client.
+  manageInternalClient: "admin",
+  // Admins and owners can purge.
+  purge: "admin",
 } as const satisfies Record<ProductDataAction, Role>;
 
 /** CapacityLens names mapped to the account boundary's canonical administrative operations.

@@ -1,5 +1,8 @@
 import type { Db } from "../db";
 
+/**
+ * Describes the synchronous SQLite statement operations used by control-table helpers.
+ */
 export type PreparedStatement = ReturnType<Db["prepare"]>;
 
 /**

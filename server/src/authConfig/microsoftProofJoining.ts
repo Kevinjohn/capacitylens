@@ -78,6 +78,7 @@ export function createMicrosoftProofJoining(input: {
       });
       return true;
     } catch {
+      // Do not admit a join when proof-based admission fails.
       return false;
     }
   }

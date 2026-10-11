@@ -195,23 +195,35 @@ export interface ValidatedStateResponse {
   timeOff: TimeOffSnapshot[];
 }
 
+/**
+ * Requires the named field to be a string and includes its context in any error.
+ */
 export function readRequiredString(value: Record<string, unknown>, key: string, context: string): string {
   const field = value[key];
   if (typeof field !== "string") throw new Error(`Expected ${context} ${key} to be a string.`);
   return field;
 }
 
+/**
+ * Requires the named field to be a number and includes its context in any error.
+ */
 export function readRequiredNumber(value: Record<string, unknown>, key: string, context: string): number {
   const field = value[key];
   if (typeof field !== "number") throw new Error(`Expected ${context} ${key} to be a number.`);
   return field;
 }
 
+/**
+ * Returns `undefined` when absent and rejects a present non-string field.
+ */
 export function readOptionalString(value: Record<string, unknown>, key: string, context: string): string | undefined {
   if (!(key in value)) return undefined;
   return readRequiredString(value, key, context);
 }
 
+/**
+ * Returns `undefined` when absent and rejects a present non-boolean field.
+ */
 export function readOptionalBoolean(value: Record<string, unknown>, key: string, context: string): boolean | undefined {
   if (!(key in value)) return undefined;
   const field = value[key];
@@ -219,17 +231,26 @@ export function readOptionalBoolean(value: Record<string, unknown>, key: string,
   return field;
 }
 
+/**
+ * Requires the named field to be a boolean and includes its context in any error.
+ */
 export function readRequiredBoolean(value: Record<string, unknown>, key: string, context: string): boolean {
   const field = value[key];
   if (typeof field !== "boolean") throw new Error(`Expected ${context} ${key} to be boolean.`);
   return field;
 }
 
+/**
+ * Returns `undefined` when absent and rejects a present non-number field.
+ */
 export function readOptionalNumber(value: Record<string, unknown>, key: string, context: string): number | undefined {
   if (!(key in value)) return undefined;
   return readRequiredNumber(value, key, context);
 }
 
+/**
+ * Requires the named field to be an array containing only numbers.
+ */
 export function readNumberArray(value: Record<string, unknown>, key: string, context: string): number[] {
   const field = value[key];
   if (!Array.isArray(field) || !field.every((item): item is number => typeof item === "number")) {
@@ -238,6 +259,9 @@ export function readNumberArray(value: Record<string, unknown>, key: string, con
   return field;
 }
 
+/**
+ * Returns `undefined` when absent and rejects an array containing non-number values.
+ */
 export function readOptionalNumberArray(
   value: Record<string, unknown>,
   key: string,
@@ -247,11 +271,17 @@ export function readOptionalNumberArray(
   return readNumberArray(value, key, context);
 }
 
+/**
+ * Rejects response objects containing fields not declared by the expected snapshot model.
+ */
 export function assertModeledKeys(value: Record<string, unknown>, keys: readonly string[], context: string): void {
   const unexpectedKey = Object.keys(value).find((key) => !keys.includes(key));
   if (unexpectedKey) throw new Error(`Expected ${context} to omit unexpected key ${unexpectedKey}.`);
 }
 
+/**
+ * Requires the named response field to be an array.
+ */
 export function readStateArray(value: Record<string, unknown>, key: string): unknown[] {
   if (!(key in value) || !Array.isArray(value[key])) {
     throw new Error(`Expected the state response to contain a ${key} array.`);

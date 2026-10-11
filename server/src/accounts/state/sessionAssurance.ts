@@ -3,8 +3,14 @@ import type { PrincipalId } from "@capacitylens/shared/account/types";
 import type { Db } from "../../db";
 import { createCachedStatement, HOUSEKEEPING_INTERVAL_MS, lastAssuranceSweep, readStableNowIso } from "./runtime";
 
+/**
+ * Names the authentication methods recorded for a session.
+ */
 export type RecordedSessionAssurance = "password" | "mfa" | "federated";
 
+/**
+ * Contains the authentication method and provider associated with a session.
+ */
 export interface RecordedSessionAuthentication {
   assurance: RecordedSessionAssurance;
   providerId: string | null;
@@ -19,6 +25,9 @@ interface RecordSessionAssuranceInput {
   now?: string | undefined;
 }
 
+/**
+ * Records session assurance and periodically removes records older than the absolute session lifetime.
+ */
 export function recordSessionAssurance({
   db,
   sessionId,
@@ -60,16 +69,25 @@ const sessionAuthenticationStatement = createCachedStatement(
   `SELECT assurance, providerId FROM account_session_assurance WHERE sessionId = ?`,
 );
 
+/**
+ * Returns the recorded method and provider for the session, if available.
+ */
 export function getSessionAuthentication(db: Db, sessionId: string): RecordedSessionAuthentication | null {
   const row = sessionAuthenticationStatement(db).get(sessionId) as
     { assurance?: RecordedSessionAssurance; providerId?: string | null } | undefined;
   return row?.assurance ? { assurance: row.assurance, providerId: row.providerId ?? null } : null;
 }
 
+/**
+ * Deletes the assurance record for one session.
+ */
 export function removeSessionAssurance(db: Db, sessionId: string): void {
   db.prepare(`DELETE FROM account_session_assurance WHERE sessionId = ?`).run(sessionId);
 }
 
+/**
+ * Deletes every assurance record belonging to the principal.
+ */
 export function removePrincipalSessionAssurance(db: Db, principalId: PrincipalId): void {
   db.prepare(`DELETE FROM account_session_assurance WHERE principalId = ?`).run(principalId);
 }

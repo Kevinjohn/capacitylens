@@ -38,7 +38,8 @@ import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 
 const PASSWORD_ENV = {
   CAPACITYLENS_MODE: "password-only",
-  CAPACITYLENS_SECRET: "unit-test-secret-0123456789abcdef-0123", // 32+ chars (MIN_BETTER_AUTH_SECRET_LENGTH)
+  // 32+ chars (MIN_BETTER_AUTH_SECRET_LENGTH).
+  CAPACITYLENS_SECRET: "unit-test-secret-0123456789abcdef-0123",
   CAPACITYLENS_PUBLIC_URL: "http://localhost:8787",
 };
 
@@ -1011,7 +1012,8 @@ const registerExternalBootstrapAdmissionTests = () => {
 
   it("allows only a verified, explicitly allow-listed first identity", () => {
     const db = openDb(":memory:");
-    createAuthFromEnvironment(db, PASSWORD_ENV); // initializes Better Auth's user table
+    // Initializes Better Auth's user table.
+    createAuthFromEnvironment(db, PASSWORD_ENV);
     const env = { CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS: " owner@example.com, second@example.com " };
     expect(
       canAdmitLocalExternalIdentity({

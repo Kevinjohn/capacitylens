@@ -1,6 +1,9 @@
 import type { Role } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 
+/**
+ * Stores an account-specific restriction keyed by principal, with the email and role observed when access was disabled.
+ */
 export interface AccessRestriction {
   accountId: string;
   principalId: string;
@@ -20,6 +23,9 @@ function tableAvailable(
   return version >= introduced;
 }
 
+/**
+ * Returns the proven email only when it still matches the principal’s current address.
+ */
 export function provenEmail(db: Db, principalId: string): string | null {
   if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user'").get()) return null;
   if (!tableAvailable(db, "identity_email_proofs", 48)) return null;
@@ -33,6 +39,9 @@ export function provenEmail(db: Db, principalId: string): string | null {
   return row?.email ?? null;
 }
 
+/**
+ * Lists the account’s restrictions in stable creation and principal order.
+ */
 export function listAccessRestrictions(db: Db, accountId: string): AccessRestriction[] {
   if (!tableAvailable(db, "account_access_restrictions", 47)) return [];
   return db
@@ -43,6 +52,9 @@ export function listAccessRestrictions(db: Db, accountId: string): AccessRestric
     .all(accountId) as unknown as AccessRestriction[];
 }
 
+/**
+ * Returns the restriction for one account and principal, if present.
+ */
 export function getAccessRestriction(db: Db, accountId: string, principalId: string): AccessRestriction | null {
   if (!tableAvailable(db, "account_access_restrictions", 47)) return null;
   return (
@@ -55,6 +67,9 @@ export function getAccessRestriction(db: Db, accountId: string, principalId: str
   );
 }
 
+/**
+ * Finds restrictions for the principal or its currently proven email.
+ */
 export function matchingAccessRestrictions(db: Db, accountId: string, principalId: string): AccessRestriction[] {
   if (!tableAvailable(db, "account_access_restrictions", 47)) return [];
   const email = provenEmail(db, principalId);
@@ -66,6 +81,9 @@ export function matchingAccessRestrictions(db: Db, accountId: string, principalI
     .all(accountId, principalId, email) as unknown as AccessRestriction[];
 }
 
+/**
+ * Reports whether the principal or its proven email is restricted in the account.
+ */
 export function isAccessRestricted(db: Db, accountId: string, principalId: string): boolean {
   return matchingAccessRestrictions(db, accountId, principalId).length > 0;
 }
@@ -90,6 +108,9 @@ export function captureRestrictionEmail(db: Db, accountId: string, principalId: 
   ).run(email, accountId, principalId);
 }
 
+/**
+ * Deletes the principal’s restriction and reports whether a row was removed.
+ */
 export function enableAccess(db: Db, accountId: string, principalId: string): boolean {
   return (
     db
@@ -98,6 +119,9 @@ export function enableAccess(db: Db, accountId: string, principalId: string): bo
   );
 }
 
+/**
+ * Deletes every access restriction belonging to the account.
+ */
 export function removeAccessRestrictionsForAccount(db: Db, accountId: string): void {
   db.prepare(`DELETE FROM account_access_restrictions WHERE accountId = ?`).run(accountId);
 }

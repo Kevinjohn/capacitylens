@@ -300,6 +300,9 @@ function runRowCommand(
   });
 }
 
+/**
+ * Creates owner-transfer reads and commands with the configured actor checks and mutation runner.
+ */
 export function createOwnershipTransferOperations(context: TransferContext): TransferPort {
   return {
     async readOwnershipTransfer({ actor, workspaceId }) {

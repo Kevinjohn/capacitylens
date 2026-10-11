@@ -1,14 +1,26 @@
 // The optional `-mmm` millisecond group keeps pre-v0.15 second-precision snapshots inside the
 // retention window (they'd otherwise pile up forever); mixed-format names still sort
 // chronologically except within a single second, which retention doesn't care about.
+/**
+ * Recognizes accepted snapshot re values before file operations use the name.
+ */
 export const SNAPSHOT_RE = /^capacitylens-(?:utc-)?\d{8}-\d{6}(-\d{3})?\.db$/;
+/**
+ * Recognizes accepted utc snapshot re values before file operations use the name.
+ */
 export const UTC_SNAPSHOT_RE = /^capacitylens-utc-\d{8}-\d{6}(-\d{3})?\.db$/;
 
 // In-progress writes go to `<snapshot>.tmp` and are renamed on success, so a crash mid-write
 // can never leave a torn file behind a valid snapshot name. Deliberately does not match
 // SNAPSHOT_RE (no `.db$`), so prune() and the stamp seeding both ignore temp files.
+/**
+ * Recognizes accepted tmp re values before file operations use the name.
+ */
 export const TMP_RE =
   /^(?:capacitylens-(?:utc-)?\d{8}-\d{6}(?:-\d{3})?\.db|capacitylens-pre-migration-v\d+-to-v\d+\.db)\.tmp$/;
+/**
+ * Builds the UTC-stamped filename used to publish a database snapshot.
+ */
 export function buildSnapshotName(now: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
   const date = `${now.getUTCFullYear()}${p(now.getUTCMonth() + 1)}${p(now.getUTCDate())}`;

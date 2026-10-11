@@ -223,7 +223,8 @@ function registerAdminOwnershipTransferRejectionTest(): void {
     expect((await nominate({ app, accountId: "a1", toUserId: member.userId, cookie: admin.cookie })).statusCode).toBe(
       403,
     );
-    expect(getMemberRole(db, "a1", admin.userId)).toBe("admin"); // unchanged
+    // Unchanged.
+    expect(getMemberRole(db, "a1", admin.userId)).toBe("admin");
     expect(getMemberRole(db, "a1", member.userId)).toBe("admin");
   });
 }
@@ -248,7 +249,8 @@ function registerInvalidOwnershipTransferTargetTest(): void {
     const selfTransfer = await nominate({ app, accountId: "a1", toUserId: owner.userId, cookie: owner.cookie });
     expect(selfTransfer.statusCode).toBe(400);
     expect(parseErrorCode(selfTransfer.json())).toBe("VALIDATION_FAILED");
-    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner"); // still the owner
+    // Still the owner.
+    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
   });
 }
 
@@ -284,7 +286,8 @@ function registerOwnershipTransferShapeTest(): void {
         })
       ).statusCode,
     ).toBe(400);
-    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner"); // still the owner; nothing changed
+    // Still the owner; nothing changed.
+    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
   });
 }
 
@@ -300,7 +303,8 @@ function registerCrossTenantOwnershipTransferTest(): void {
     expect(
       (await nominate({ app, accountId: "a2", toUserId: a2member.userId, cookie: a1owner.cookie })).statusCode,
     ).toBe(403);
-    expect(getMemberRole(db, "a2", a2member.userId)).toBe("admin"); // unchanged
+    // Unchanged.
+    expect(getMemberRole(db, "a2", a2member.userId)).toBe("admin");
   });
 }
 

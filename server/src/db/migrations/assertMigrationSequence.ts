@@ -1,5 +1,8 @@
 import type { DatabaseMigration } from "../migrationLedger";
 
+/**
+ * Checks that migrations are contiguous and end at the expected schema version.
+ */
 export function assertMigrationSequence(migrations: readonly DatabaseMigration[], expectedVersion: number): void {
   if (migrations.at(-1)?.version !== expectedVersion)
     throw new Error("DB_SCHEMA_VERSION must equal the newest explicit database migration.");

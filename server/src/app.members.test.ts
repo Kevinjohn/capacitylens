@@ -371,9 +371,12 @@ function registerMemberGateResetCapabilityTest(): void {
       if (!member) throw new Error(`Expected member row for ${id}.`);
       return member;
     };
-    expect(by(ed.userId).mayResetPassword).toBe(true); // same-account editor → resettable
-    expect(by(owner.userId).mayResetPassword).toBe(true); // caller's own row (self-reset exemption)
-    expect(by(crossOwner.userId).mayResetPassword).toBe(false); // outranks caller in a2 → refused
+    // Same-account editor so resettable.
+    expect(by(ed.userId).mayResetPassword).toBe(true);
+    // Caller's own row (self-reset exemption).
+    expect(by(owner.userId).mayResetPassword).toBe(true);
+    // Outranks caller in a2 so refused.
+    expect(by(crossOwner.userId).mayResetPassword).toBe(false);
     expect(by(ed.userId).mayRevokeSessions).toBe(true);
     expect(by(owner.userId).mayRevokeSessions).toBe(true);
     expect(by(crossOwner.userId).mayRevokeSessions).toBe(false);
@@ -756,7 +759,8 @@ function registerOwnerRoleGrantRejectionTest(): void {
       },
     });
     expect(res.statusCode).toBe(400);
-    expect(getMemberRole(db, "a1", target.userId)).toBe("editor"); // unchanged
+    // Unchanged.
+    expect(getMemberRole(db, "a1", target.userId)).toBe("editor");
   });
 }
 
@@ -1146,8 +1150,10 @@ describe("DELETE /api/accounts/:id/invites/:inviteId — revoke", () => {
           headers: { cookie: otherOwner.cookie },
         })
       ).statusCode,
-    ).toBe(204); // 204 but the row is not deleted (wrong accountId predicate)
-    expect(getInvite(db, token)).not.toBeNull(); // still live
+      // 204 but the row is not deleted (wrong accountId predicate).
+    ).toBe(204);
+    // Still live.
+    expect(getInvite(db, token)).not.toBeNull();
 
     // The real owner revokes it (204) and it's gone; a second revoke is still 204 (idempotent).
     expect(

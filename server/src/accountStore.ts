@@ -18,8 +18,10 @@ import type { Row } from "./rowCodec";
 import { resolveTable } from "./db/introspection";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 
+/** A stored row whose lifecycle affects the visibility of dependent entities. */
 export type LifecycleRow = Resource | Client | Project | Activity;
 
+/** Reports which private notes were cleared during resource deletion. */
 export interface ResourceNoteScrubResult {
   allocationNotes: boolean;
   timeOffNotes: boolean;
@@ -49,6 +51,7 @@ function restampRows({ db, table, rows, clearedColumn }: RestampRowsInput): void
   for (const row of rows) update.run(createServerRevision(row.updatedAt), row.id);
 }
 
+/** Counts scoped rows removed by a lifecycle purge. */
 export interface PurgeLifecycleResult {
   removedCounts: Partial<Record<ScopedEntityKey, number>>;
 }

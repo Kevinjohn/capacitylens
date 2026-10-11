@@ -5,15 +5,39 @@ import { readCurrentRequestAbortSignal, reportCurrentRequestQueueSaturation } fr
 // OWASP Password Storage Cheat Sheet minimum scrypt profile: N=2^17, r=8, p=1.
 // The format is versioned so parameters can be raised and legacy Better Auth hashes can be
 // verified during a rolling upgrade without silently weakening newly-created credentials.
+/**
+ * Scrypt work factor used for new password hashes; stored hashes above this bound are rejected during verification.
+ */
 export const SCRYPT_N = 2 ** 17;
+/**
+ * Scrypt block size used for new password hashes and as the verification resource ceiling.
+ */
 export const SCRYPT_R = 8;
+/**
+ * Scrypt parallelization used for new password hashes and as the verification resource ceiling.
+ */
 export const SCRYPT_P = 1;
 const KEY_BYTES = 64;
 const SALT_BYTES = 16;
+/**
+ * Caps the breach-check response body before parsing it.
+ */
 export const MAX_HIBP_RESPONSE_BYTES = 2 * 1024 * 1024;
+/**
+ * Limits simultaneous breach-password lookups to eight.
+ */
 export const MAX_CONCURRENT_HIBP = 8;
+/**
+ * Limits waiting breach-password lookups to thirty-two.
+ */
 export const MAX_QUEUED_HIBP = 32;
+/**
+ * Limits simultaneous CPU and memory intensive password derivations to two.
+ */
 export const MAX_CONCURRENT_SCRYPT = 2;
+/**
+ * Limits password derivations waiting for a scrypt slot to sixteen.
+ */
 export const MAX_QUEUED_SCRYPT = 16;
 const MAX_PASSWORD_QUEUE_WAIT_MS = 5_000;
 const hibpQueue = new BoundedWorkQueue({
@@ -35,6 +59,9 @@ const scryptQueue = new BoundedWorkQueue({
   },
 });
 
+/**
+ * Provides asynchronous password hashing and verification for account credentials.
+ */
 export interface PasswordHasher {
   hash(password: string): Promise<string>;
   verify(input: { hash: string; password: string }): Promise<boolean>;
@@ -160,6 +187,9 @@ export function createScryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
   };
 }
 
+/**
+ * Lists context terms used to reject passwords tied to the installation identity.
+ */
 export const PASSWORD_CONTEXT_WORDS = [
   "capacitylens",
   "capacity-lens",
@@ -168,6 +198,9 @@ export const PASSWORD_CONTEXT_WORDS = [
   "adminadmin",
 ] as const;
 
+/**
+ * Signals that a password fails the installation’s credential policy.
+ */
 export class PasswordPolicyError extends Error {
   constructor(
     message: string,
@@ -213,6 +246,9 @@ async function readBoundedResponseText(response: Response): Promise<string> {
   return text + decoder.decode();
 }
 
+/**
+ * Rejects passwords containing installation-specific identity terms that are easy to guess.
+ */
 export function assertNoContextSpecificPassword(
   password: string,
   contextWords: readonly string[] = PASSWORD_CONTEXT_WORDS,

@@ -257,6 +257,7 @@ async function runAuthenticatedRequest(
 }
 
 // Owns provider callback HTTP behavior; persistence and identity state stay with the adapter.
+/** Wraps the auth handler with provider callback proof and recovery behavior. */
 export function createAuthRequestHandler(options: CreateAuthRequestHandlerOptions): Auth["handler"] {
   return async (request) => {
     // Enforce inactivity even when a caller goes directly to an authenticated Better Auth route

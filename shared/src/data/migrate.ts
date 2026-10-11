@@ -54,23 +54,37 @@ const PRE_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
 
 const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
   { version: 6, apply: migrateV5toV6 },
-  { version: 7, apply: migrateV6toV7 }, // no-op: isPrivate / codeName are structural metadata only
-  { version: 8, apply: migrateV7toV8 }, // no-op: Account.internalColourMode
-  { version: 9, apply: migrateV8toV9 }, // no-op: per-account schedule view prefs
-  { version: 10, apply: migrateV9toV10 }, // no-op: Resource.isFavourite
+  // Private-client metadata needs no transform because sanitization preserves its shape.
+  { version: 7, apply: migrateV6toV7 },
+  // Account internal colour mode remains structural metadata.
+  { version: 8, apply: migrateV7toV8 },
+  // Schedule view preferences remain account metadata and need no data transform.
+  { version: 9, apply: migrateV8toV9 },
+  // Favourite state remains a direct resource field.
+  { version: 10, apply: migrateV9toV10 },
   { version: 11, apply: migrateV10toV11 },
   { version: 12, apply: migrateV11toV12 },
-  { version: 13, apply: migrateV12toV13 }, // no-op: Account.groupResourcesByEngagement
+  // Resource grouping preference remains structural account metadata.
+  { version: 13, apply: migrateV12toV13 },
   { version: 14, apply: migrateV13toV14 },
-  { version: 15, apply: migrateV14toV15 }, // no-op: repeat-series identity is forward-only
-  { version: 16, apply: migrateV15toV16 }, // no-op: TimeOff.resourceId is widened to nullable
-  { version: 17, apply: (data) => data }, // structural split: import repair drops invalid legacy rows
-  { version: 18, apply: (data) => data }, // optional allocation attribution; import repair owns semantics
-  { version: 19, apply: (data) => data }, // optional Activity lifecycle tombstones; import repair owns semantics
-  { version: 20, apply: (data) => data }, // optional allocation task text and account visibility preference
-  { version: 21, apply: (data) => data }, // optional resource availability dates and account capacityOverviewAccess
-  { version: 22, apply: (data) => data }, // optional account dateStyle; sanitisation owns the value
-  { version: 23, apply: (data) => data }, // optional person avatarUrl; sanitisation owns the value
+  // Repeat-series identity is forward-only and requires no legacy transform.
+  { version: 15, apply: migrateV14toV15 },
+  // Nullable time-off resource IDs are preserved by the current shape.
+  { version: 16, apply: migrateV15toV16 },
+  // Invalid legacy rows are removed by import repair, not this version step.
+  { version: 17, apply: (data) => data },
+  // Optional allocation attribution is interpreted by import repair.
+  { version: 18, apply: (data) => data },
+  // Optional activity lifecycle state is interpreted by import repair.
+  { version: 19, apply: (data) => data },
+  // Optional task text and account visibility preferences need no shape transform.
+  { version: 20, apply: (data) => data },
+  // Optional resource availability and capacity access are repaired during import.
+  { version: 21, apply: (data) => data },
+  // Date style remains optional and sanitization owns its value.
+  { version: 22, apply: (data) => data },
+  // Avatar URLs remain optional and sanitization owns their value.
+  { version: 23, apply: (data) => data },
 ];
 
 // Guards against a migration step being added without bumping EXPORT_SCHEMA_VERSION to match (or

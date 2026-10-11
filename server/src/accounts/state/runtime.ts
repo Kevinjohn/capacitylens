@@ -1,5 +1,8 @@
 import type { Db } from "../../db";
 
+/**
+ * Describes the synchronous SQLite statement methods used by account state helpers.
+ */
 export type PreparedStatement = ReturnType<Db["prepare"]>;
 
 /** Create an accessor that reuses one prepared statement per database handle.

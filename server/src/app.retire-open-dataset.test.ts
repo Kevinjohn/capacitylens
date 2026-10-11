@@ -181,6 +181,7 @@ describe("P1.17 — OFF stays the trusted-local self-hoster default (auth-off-by
     // No cookie, no session, yet off serves these (the open shared dataset is the default deploy).
     expect((await readResponse(app, { method: "GET", url: "/api/accounts" })).statusCode).not.toBe(401);
     expect((await readResponse(app, { method: "GET", url: "/api/state?accountId=a1" })).statusCode).not.toBe(401);
-    expect((await readResponse(app, { method: "GET", url: "/api/state" })).statusCode).toBe(200); // no-arg whole read retained in off
+    // No-arg whole read retained in off.
+    expect((await readResponse(app, { method: "GET", url: "/api/state" })).statusCode).toBe(200);
   });
 });

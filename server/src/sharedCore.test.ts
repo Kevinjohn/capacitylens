@@ -29,6 +29,7 @@ describe("shared domain-core runs under Node", () => {
     if (!importedClient) throw new Error("Expected one imported client.");
     expect(importedClient.id).not.toBe("c");
     expect(importedClient.accountId).toBe("a1");
-    expect(importedClient.createdAt).toBe("2026-01-01T00:00:00.000Z"); // store/server owns the clock
+    // Store/server owns the clock.
+    expect(importedClient.createdAt).toBe("2026-01-01T00:00:00.000Z");
   });
 });

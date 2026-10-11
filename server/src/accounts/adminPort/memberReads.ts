@@ -13,6 +13,9 @@ import {
 } from "../../controlTables";
 
 // The three administrative reads share one authorization and projection boundary.
+/**
+ * Creates account member listing and access-restriction queries for the supplied database.
+ */
 // eslint-disable-next-line max-lines-per-function
 export function createMembershipReads({
   db,

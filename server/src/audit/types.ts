@@ -69,6 +69,7 @@ export interface AuditDeliveryMetadata {
   auditId?: string;
 }
 
+/** An audit record accepted by the sink, optionally tagged for outbox deduplication. */
 export type AuditEntry = (AuditRecord | AccountAuditEvent) & AuditDeliveryMetadata;
 
 /**
@@ -101,10 +102,14 @@ export interface FileAuditSinkOptions {
   recoveryScanBytes?: number;
 }
 
-export const DEFAULT_MAX_BYTES = 64 * 1024 * 1024; // 64 MiB
-export const MAX_AUDIT_BYTES = 1024 * 1024 * 1024 * 1024; // 1 TiB operator-safety ceiling
+/** Default maximum JSONL generation size before rotation at 64 MiB. */
+export const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
+/** Upper bound of 1 TiB accepted for an operator-configured audit generation size. */
+export const MAX_AUDIT_BYTES = 1024 * 1024 * 1024 * 1024;
 // One outbox page contains 500 compact metadata-only records. A 16 MiB tail therefore leaves
 // substantial headroom while bounding restart allocation and parsing independently of the
 // operator's generation-size setting (which may be as high as 1 TiB).
+/** Maximum JSONL tail scanned to recover recently delivered outbox IDs. */
 export const AUDIT_RECOVERY_SCAN_BYTES = 16 * 1024 * 1024;
+/** Maximum delivery IDs retained while scanning the bounded recovery tail. */
 export const MAX_RECOVERY_DELIVERY_IDS = 10_000;

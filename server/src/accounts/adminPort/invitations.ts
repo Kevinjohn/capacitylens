@@ -329,6 +329,9 @@ async function revokeInvitation(context: InvitationsContext, input: InvitationIn
   });
 }
 
+/**
+ * Creates invitation management operations for the supplied store and mutation wrapper.
+ */
 export function createInvitations(
   context: InvitationsContext,
 ): Pick<

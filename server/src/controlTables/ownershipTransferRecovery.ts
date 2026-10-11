@@ -1,5 +1,8 @@
 import type { Db } from "../db";
 
+/**
+ * Carries the persisted participants, state, and revision needed to recover a transfer safely.
+ */
 export interface OwnershipTransferRecoveryRow {
   id: string;
   accountId: string;
@@ -9,6 +12,9 @@ export interface OwnershipTransferRecoveryRow {
   revision: string;
 }
 
+/**
+ * Loads a transfer request only when both its ID and account match.
+ */
 export function readOwnershipTransferRecoveryRow(
   db: Db,
   accountId: string,
@@ -35,6 +41,9 @@ interface CancelRecoveryRowInput {
   terminalAt: string;
 }
 
+/**
+ * Cancels the request only if its participants, state, and revision still match the inspected row.
+ */
 export function cancelOwnershipTransferRecoveryRow(db: Db, input: CancelRecoveryRowInput): boolean {
   const result = db
     .prepare(

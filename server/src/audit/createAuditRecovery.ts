@@ -102,9 +102,7 @@ function collectDeliveryIds(path: string, input: DeliveryIdCollectorInput) {
       // if any, replays) but it is not corruption; records may legitimately omit the delivery
       // metadata, so it is skipped silently, as before.
     } catch {
-      // A complete malformed historical line is file corruption: silent acceptance hid it from
-      // deep health entirely (review finding DBR-0007). Latch degraded; the affected outbox rows
-      // replay, which stays the safe direction.
+      // A complete malformed line indicates corruption. Mark health degraded so affected outbox rows replay.
       state.degraded = true;
       log(
         "capacitylens-server: audit recovery found a complete malformed JSONL line — latching degraded health; affected outbox rows will replay",

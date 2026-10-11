@@ -259,14 +259,10 @@ export function assertScopedRefs(
 }
 
 /**
- * An allocation must reference a real resource + activity in the active account, a
- * repeatable attribution may only reference a live project when changed, a placeholder may only
- * take allocations effective under its bound project, and an external /
- * 3rd-party resource (which has no capacity) may only carry a zero load. `hoursPerDay`
- * is required. Every allocation write knows its load, and making the parameter
- * mandatory forces the compiler to surface it so the capacity-free rule below can never
- * be silently skipped by a future caller (the old optional arg made that invariant
- * opt-in per call site).
+ * An allocation must reference a real resource and activity in the active account. Changed
+ * repeatable attribution may reference only a live project, and placeholder allocations must
+ * remain effective under their bound project. External resources have no capacity and may carry
+ * only zero load. Requiring `hoursPerDay` makes every allocation write check that rule.
  */
 type AllocationRefsArgs = [
   data: AppData,

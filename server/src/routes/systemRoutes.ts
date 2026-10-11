@@ -18,6 +18,7 @@ const parseCspOrigin = (value: unknown): string | undefined => {
     const url = new URL(value);
     return url.protocol === "http:" || url.protocol === "https:" ? url.origin : `scheme:${url.protocol}`;
   } catch {
+    // Omit invalid URLs from the public content security policy.
     return undefined;
   }
 };
@@ -89,6 +90,7 @@ function readBackupHealth(dependencies: PublicRouteDependencies) {
   try {
     return buildBackupHealth(dependencies.backupHealth());
   } catch {
+    // A failed check cannot establish backup health, so report it as unavailable.
     return { status: "unavailable" as const, lastSuccessAt: null };
   }
 }

@@ -16,6 +16,9 @@ import type {
   ResourceSnapshot,
 } from "./appTestSnapshotCore";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
+/**
+ * Extracts each row ID and optional project ID, rejecting malformed bindings.
+ */
 export function readProjectBindings(rows: unknown[], table: string): ProjectBinding[] {
   return rows.map((row) => {
     if (typeof row !== "object" || row === null || !("id" in row) || typeof row.id !== "string") {
@@ -31,6 +34,9 @@ export function readProjectBindings(rows: unknown[], table: string): ProjectBind
   });
 }
 
+/**
+ * Parses activity rows and their optional phase and project bindings.
+ */
 export function readActivitySnapshots(rows: unknown[]): ActivitySnapshot[] {
   return readProjectBindings(rows, "activity").map((binding, index) => {
     const source = rows[index];
@@ -54,6 +60,9 @@ export function readActivitySnapshots(rows: unknown[]): ActivitySnapshot[] {
   });
 }
 
+/**
+ * Parses discipline rows and checks their optional color and numeric sort order.
+ */
 export function readDisciplineSnapshots(rows: unknown[]): DisciplineSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every discipline row to be an object.");
@@ -76,12 +85,18 @@ export function readDisciplineSnapshots(rows: unknown[]): DisciplineSnapshot[] {
   });
 }
 
+/**
+ * Requires the parsed state to contain at least one discipline.
+ */
 export function readFirstDiscipline(disciplines: DisciplineSnapshot[]): DisciplineSnapshot {
   const disciplineRow = disciplines[0];
   if (!disciplineRow) throw new Error("Expected the state response to contain a discipline.");
   return disciplineRow;
 }
 
+/**
+ * Parses phase rows and requires each row to name its project.
+ */
 export function readPhaseSnapshots(rows: unknown[]): PhaseSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every phase row to be an object.");
@@ -97,24 +112,36 @@ export function readPhaseSnapshots(rows: unknown[]): PhaseSnapshot[] {
   });
 }
 
+/**
+ * Requires the parsed state to contain at least one phase.
+ */
 export function readFirstPhase(phases: PhaseSnapshot[]): PhaseSnapshot {
   const phaseRow = phases[0];
   if (!phaseRow) throw new Error("Expected the state response to contain a phase.");
   return phaseRow;
 }
 
+/**
+ * Requires the parsed state to contain at least one activity.
+ */
 export function readFirstActivity(activities: ActivitySnapshot[]): ActivitySnapshot {
   const activityRow = activities[0];
   if (!activityRow) throw new Error("Expected the state response to contain an activity.");
   return activityRow;
 }
 
+/**
+ * Finds the activity with the requested ID in the parsed state.
+ */
 export function readActivity(activities: ActivitySnapshot[], id: string): ActivitySnapshot {
   const activityRow = activities.find((candidate) => candidate.id === id);
   if (!activityRow) throw new Error(`Expected the state response to contain activity ${id}.`);
   return activityRow;
 }
 
+/**
+ * Parses a resource row and attaches its previously checked project binding.
+ */
 export function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectBinding): ResourceSnapshot {
   assertModeledKeys(
     source,
@@ -171,6 +198,9 @@ export function readResourceSnapshot(source: Record<string, unknown>, binding: P
   return snapshot;
 }
 
+/**
+ * Parses allocation rows and checks all optional fields and modeled keys.
+ */
 export function readAllocationSnapshots(rows: unknown[]): AllocationSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every allocation row to be an object.");
@@ -221,18 +251,27 @@ export function readAllocationSnapshots(rows: unknown[]): AllocationSnapshot[] {
   });
 }
 
+/**
+ * Requires the parsed state to contain at least one allocation.
+ */
 export function readFirstAllocation(allocations: AllocationSnapshot[]): AllocationSnapshot {
   const allocationRow = allocations[0];
   if (!allocationRow) throw new Error("Expected the state response to contain an allocation.");
   return allocationRow;
 }
 
+/**
+ * Finds the allocation with the requested ID in the parsed state.
+ */
 export function readAllocation(allocations: AllocationSnapshot[], id: string): AllocationSnapshot {
   const allocationRow = allocations.find((candidate) => candidate.id === id);
   if (!allocationRow) throw new Error(`Expected the state response to contain allocation ${id}.`);
   return allocationRow;
 }
 
+/**
+ * Parses project rows, including lifecycle and privacy fields.
+ */
 export function readProjectSnapshots(rows: unknown[]): ProjectSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every project row to be an object.");
@@ -274,6 +313,9 @@ export function readProjectSnapshots(rows: unknown[]): ProjectSnapshot[] {
   });
 }
 
+/**
+ * Requires the parsed state to contain at least one project.
+ */
 export function readFirstProject(projects: ProjectSnapshot[]): ProjectSnapshot {
   const projectRow = projects[0];
   if (!projectRow) throw new Error("Expected the state response to contain a project.");

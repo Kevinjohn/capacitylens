@@ -9,6 +9,9 @@ export const INVITATION_PERSON_PROPOSALS_V44_MIGRATION = defineMigration(
   (db) => db.exec(INVITATION_PERSON_PROPOSALS_SQL),
 );
 
+/**
+ * Pins the migration checksum for invitation person-proposal storage.
+ */
 export const INVITATION_PERSON_PROPOSALS_V44_PIN = {
   version: INVITATION_PERSON_PROPOSALS_V44_MIGRATION.version,
   name: INVITATION_PERSON_PROPOSALS_V44_MIGRATION.name,

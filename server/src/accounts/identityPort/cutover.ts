@@ -237,6 +237,9 @@ function applyCutoverInTransaction({
   );
 }
 
+/**
+ * Creates identity migration operations for the supplied database and identity providers.
+ */
 export function createCutover(
   context: CutoverContext,
   clock: () => number = Date.now,

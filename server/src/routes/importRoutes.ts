@@ -55,6 +55,7 @@ function buildImportSnapshotFingerprint(slice: AppData): string {
   return createHash("sha256").update(buildCanonicalJson(scoped)).digest("base64url");
 }
 
+/** Dependencies required by the account import route. */
 export interface ImportRouteDependencies {
   db: Db;
   store: AccountStore;
@@ -224,6 +225,7 @@ function resetState(req: FastifyRequest, reply: FastifyReply, dependencies: Impo
   return reply.code(200).send({ ok: true });
 }
 
+/** Registers the account import endpoint. */
 export function registerImportRoutes(app: FastifyInstance, dependencies: ImportRouteDependencies): void {
   // Bulk import into one account, reusing the same remap+validate+sanitize the store
   // runs (shared/domain/mutations.remapAndValidateImport). Body: { accountId, data }.

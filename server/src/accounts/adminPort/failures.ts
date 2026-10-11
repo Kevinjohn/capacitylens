@@ -2,6 +2,9 @@ import { AccountContractError, assertRetryAfterSeconds } from "@capacitylens/sha
 import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
 import type { InvitationRole, Role } from "@capacitylens/shared/account/types";
 
+/**
+ * Creates an account error with its public code, details, and optional command context.
+ */
 export function createAccountFailure(
   code: AccountErrorCode,
   message: string,
@@ -15,6 +18,9 @@ export function createAccountFailure(
   });
 }
 
+/**
+ * Creates the retryable error returned when the idempotency replay reservation is full.
+ */
 export function createReplayCapacityFailure(commandId: string, retryAfterMs: number): AccountContractError {
   return new AccountContractError({
     code: "RATE_LIMITED",
@@ -25,6 +31,9 @@ export function createReplayCapacityFailure(commandId: string, retryAfterMs: num
   });
 }
 
+/**
+ * Rejects the Owner role because invitations cannot grant account ownership.
+ */
 export function assertInvitationRole(role: Role, commandId?: string): asserts role is InvitationRole {
   if (role === "owner") {
     throw createAccountFailure(
@@ -35,6 +44,9 @@ export function assertInvitationRole(role: Role, commandId?: string): asserts ro
   }
 }
 
+/**
+ * Rejects roles that cannot be redeemed from an invitation.
+ */
 export function assertRedeemableInvitationRole(role: Role, commandId?: string): asserts role is InvitationRole {
   if (role === "owner") {
     throw createAccountFailure(

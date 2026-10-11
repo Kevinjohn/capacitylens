@@ -1,3 +1,6 @@
+/**
+ * Signals that a work queue has reached its capacity.
+ */
 export class WorkQueueFullError extends Error {
   constructor(
     message: string,
@@ -17,6 +20,9 @@ type WaitingWork = {
   waitTimer?: ReturnType<typeof setTimeout>;
 };
 
+/**
+ * Configures the capacity and cancellation behavior of a work queue.
+ */
 export interface WorkQueueOptions {
   /** Maximum time work may remain queued before it is shed. Omit for no queue deadline. */
   maxWaitMs?: number;
@@ -24,6 +30,9 @@ export interface WorkQueueOptions {
   onSaturated?: (reason: WorkQueueFullError["reason"]) => void;
 }
 
+/**
+ * Returns the reason attached to an aborted signal, if one is available.
+ */
 export function readAbortReason(signal: AbortSignal): unknown {
   return signal.reason ?? new DOMException("The queued work was cancelled.", "AbortError");
 }

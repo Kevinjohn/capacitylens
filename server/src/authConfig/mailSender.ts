@@ -11,6 +11,9 @@ const HOUR_MS = 60 * 60 * 1000;
 const RECIPIENT_SENDS_PER_HOUR = 5;
 const COMPANY_SENDS_PER_HOUR = 50;
 
+/**
+ * Signals that the configured mail-send budget was exhausted before a message was sent.
+ */
 export class MailBudgetExceededError extends Error {
   constructor() {
     super("Email send budget exceeded.");

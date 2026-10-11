@@ -287,8 +287,10 @@ function registerRepairBoundaryTests(): void {
       clients: [buildInternalClient("a1", TS)],
     };
     const repaired = applyInternalClientRepairs(data, NOW);
-    expect(internalClientFor(repaired.clients, "a2")).toBeDefined(); // the function did run
-    expect(requiredInternalClient(repaired.clients, "a1").updatedAt).toBe(TS); // canonical row not restamped
+    // The function did run.
+    expect(internalClientFor(repaired.clients, "a2")).toBeDefined();
+    // Canonical row not restamped.
+    expect(requiredInternalClient(repaired.clients, "a1").updatedAt).toBe(TS);
   });
 }
 

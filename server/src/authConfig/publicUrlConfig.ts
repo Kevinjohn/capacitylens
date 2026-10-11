@@ -19,6 +19,9 @@ function assertProductionTls(
   }
 }
 
+/**
+ * Parses the configured public origin and rejects unsafe or malformed URLs.
+ */
 export function parsePublicUrl(
   baseURL: string,
   runtimeEnvironment: string | undefined,

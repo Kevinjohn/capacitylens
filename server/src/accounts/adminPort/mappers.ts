@@ -4,6 +4,9 @@ import type { Db } from "../../db";
 import { readSecurityRevision } from "../state";
 import { ACCOUNT_POLICY_VERSION } from "./contracts";
 
+/**
+ * Maps a stored member row to the policy fields used for account membership.
+ */
 export function readMembership(db: Db, row: AccountMember): Membership {
   return {
     workspaceId: row.accountId,
@@ -36,6 +39,9 @@ export function readSecurityRevisionsByPrincipalId(db: Db, principalIds: readonl
   return revisions;
 }
 
+/**
+ * Combines the actor and target security revisions into the command’s authority token.
+ */
 export function buildAuthorityRevision(actorRevision: number, targetRevision: number): string {
   return `actor:${actorRevision};target:${targetRevision}`;
 }

@@ -1,5 +1,8 @@
 import type { Db } from "./db";
 
+/**
+ * Exposes the startup cancellation state used to prevent new work during shutdown.
+ */
 export interface StartupSignalController {
   requested(): NodeJS.Signals | null;
   dispose(): void;
@@ -43,6 +46,9 @@ interface StopStartupIfRequestedInput {
   openDb?: Pick<Db, "close"> | undefined;
 }
 
+/**
+ * Stops startup and closes the opened database when a termination signal arrived during initialization.
+ */
 export function stopStartupIfRequested({ startupSignals, openDb }: StopStartupIfRequestedInput): void {
   const signal = startupSignals.requested();
   if (!signal) return;

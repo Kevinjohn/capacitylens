@@ -46,7 +46,7 @@ const files = walk(siteDir);
 // of any HTML parsing.
 // The flyout is the nav bar's overflow menu, which opens on hover/focus handled
 // in script; the sidebar caret toggles a group open, which nothing can do here.
-// (Groups themselves are configured expanded — see config.mts — so hiding the
+// (Groups themselves are configured expanded, see config.mts, so hiding the
 // caret hides a control, not any links.)
 const DEAD_CHROME_CSS =
   "<style>.VPNavBarSearch,.VPNavBarHamburger,.VPLocalNav,.VPBackdrop,.VPFlyout," +
@@ -156,7 +156,7 @@ rmSync(join(siteDir, "assets", "chunks"), { recursive: true, force: true });
 
 // Nothing should still point at the deploy base; a leftover means a URL shape
 // this script does not know about, which would 404 under file://. Match only
-// attribute values and CSS url() — code blocks legitimately mention paths and
+// attribute values and CSS url(). Code blocks legitimately mention paths and
 // external URLs that contain the word.
 const leftoverPattern = new RegExp(`(href|src)="${BASE}|url\\(${BASE.replaceAll("/", "\\/")}`);
 const hosted404HomeHref = `${BASE}index.html`;
@@ -177,7 +177,7 @@ if (leftovers.length > 0) {
 // Every local link and asset reference must resolve to a file that exists, the
 // way a browser opening the page from disk would resolve it. The absolute-URL
 // check above only catches URLs still carrying the deploy base; this catches the
-// other ways a shipped page can point at nothing — an extensionless href that
+// other ways a shipped page can point at nothing, such as an extensionless href that
 // needs a server to rewrite it, or a file the build never copied.
 const localTargets = (html) => {
   const found = [];
@@ -192,8 +192,8 @@ const localTargets = (html) => {
 const broken = [];
 for (const file of walk(siteDir).filter((f) => f.endsWith(".html") || f.endsWith(".css"))) {
   for (const target of localTargets(readFileSync(file, "utf8"))) {
-    // A root-relative URL has no meaning under file:// — it points at the
-    // filesystem root — except the 404 home link, which its file script rewrites.
+    // A root-relative URL has no meaning under file://. It points at the
+    // filesystem root, except the 404 home link, which its file script rewrites.
     const hosted404Home = relative(siteDir, file) === "404.html" && target === hosted404HomeHref;
     const resolved = target.startsWith("/") ? null : resolve(dirname(file), target);
     if (!hosted404Home && (!resolved || !existsSync(resolved))) {

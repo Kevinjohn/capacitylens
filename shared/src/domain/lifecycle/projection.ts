@@ -67,9 +67,7 @@ export function activeOnly(data: AppData): AppData {
     inspectAncestry({ table, row: row as LifecycleAncestryRow, lookup, memo }).kind === "visible";
   const resources = data.resources.filter(isActive);
   const clients = data.clients.filter(isActive);
-  // Parent lifecycle is inherited by the read projection. An active child beneath an archived or
-  // deleted parent is retained in storage/export, but cannot remain independently visible in the
-  // normal app (which previously left orphan-labelled projects and allocation bars on screen).
+  // An active child of an archived or deleted parent stays stored but is hidden from the app.
   const projects = data.projects.filter((project) => isActive(project) && hasVisibleAncestry("projects", project));
   const phases = data.phases.filter((phase) => hasVisibleAncestry("phases", phase));
   const activities = data.activities.filter(

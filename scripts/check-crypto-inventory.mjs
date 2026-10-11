@@ -19,7 +19,7 @@ const untrackedFiles = gitFiles(["--others", "--exclude-standard"]);
 
 // `docs/` is the committed VitePress build of `docs-src/`. Its files are copies of sources that are
 // scanned in their own right, so reviewing them again would inventory the same implementation twice
-// — and `scripts/docs-standalone.mjs` deliberately publishes the inventory itself as an asset there.
+// The standalone docs build publishes the inventory as an asset.
 const excluded =
   /(?:^|\/)(?:node_modules|reports|coverage|dist|src\/paraglide)(?:\/|$)|^docs\/|(?:\.test|\.spec)\.[cm]?[jt]sx?$|^scripts\/check-crypto-inventory\.mjs$|^docs-src\/security\/crypto-inventory\.json$/;
 const eligible = /(?:\.[cm]?[jt]sx?|\.sh|\.conf|\.ya?ml|\.json|\.sql|\.py)$/;

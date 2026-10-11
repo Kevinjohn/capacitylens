@@ -514,8 +514,10 @@ describe("revocation window race", () => {
       recordSessionAssurance({ db, sessionId: handle, principalId: created.id, assurance: "password" });
       return handle;
     };
-    seedSession("before"); // visible before revocation
-    seedSession("window"); // simulates a sign-in landing inside the provider-revocation window
+    // Visible before revocation.
+    seedSession("before");
+    // Simulates a sign-in landing inside the provider-revocation window.
+    seedSession("window");
 
     const port = createBetterAuthIdentityPort({
       applicationId: APPLICATION_ID,
@@ -534,7 +536,8 @@ describe("revocation window race", () => {
     if (typeof remaining !== "object" || !("n" in remaining) || typeof remaining.n !== "number") {
       throw new Error("expected numeric assurance count");
     }
-    expect(remaining.n).toBe(0); // no orphaned assurance, including the in-window session
+    // No orphaned assurance, including the in-window session.
+    expect(remaining.n).toBe(0);
     db.close();
   });
 });

@@ -73,7 +73,8 @@ function migrateSchemaVersion(
   // to the current shape (nullable projectId, kind backfilled from projectId presence).
   const activitiesHadKind = hasColumn(db, "activities", "kind");
   const needsActivitiesRebuild = isNotNull(db, "activities", "projectId") || !activitiesHadKind;
-  if (additions.length === 0 && !needsActivitiesRebuild) return; // already current, nothing to do
+  // Skip the transaction when the schema already matches the current shape.
+  if (additions.length === 0 && !needsActivitiesRebuild) return;
 
   tx(db, () => {
     // Optional columns are nullable TEXT (json columns are TEXT too), so a plain ADD

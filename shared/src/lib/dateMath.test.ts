@@ -85,17 +85,24 @@ describe("dateMath range predicates", () => {
   });
 
   it("weekdayOf returns 0=Sun … 6=Sat", () => {
-    expect(weekdayOf("2026-05-31")).toBe(0); // Sunday
-    expect(weekdayOf("2026-06-01")).toBe(1); // Monday
-    expect(weekdayOf("2026-05-29")).toBe(5); // Friday
+    // This date falls on Sunday.
+    expect(weekdayOf("2026-05-31")).toBe(0);
+    // This date falls on Monday.
+    expect(weekdayOf("2026-06-01")).toBe(1);
+    // This date falls on Friday.
+    expect(weekdayOf("2026-05-29")).toBe(5);
   });
 
   it("startOfWeekISO snaps back to the week start Monday (default)", () => {
     // Week of 2026-06-01 (Mon) … 2026-06-07 (Sun).
-    expect(startOfWeekISO("2026-06-01")).toBe("2026-06-01"); // Monday → itself
-    expect(startOfWeekISO("2026-06-03")).toBe("2026-06-01"); // Wednesday → Monday
-    expect(startOfWeekISO("2026-06-07")).toBe("2026-06-01"); // Sunday → previous Monday
-    expect(startOfWeekISO("2026-05-31")).toBe("2026-05-25"); // Sunday → its Monday (crosses month)
+    // Monday maps to itself.
+    expect(startOfWeekISO("2026-06-01")).toBe("2026-06-01");
+    // Wednesday maps back to Monday.
+    expect(startOfWeekISO("2026-06-03")).toBe("2026-06-01");
+    // Sunday maps back to the previous Monday.
+    expect(startOfWeekISO("2026-06-07")).toBe("2026-06-01");
+    // Sunday maps back to the prior Monday across the month boundary.
+    expect(startOfWeekISO("2026-05-31")).toBe("2026-05-25");
   });
 
   it("startOfWeekISO respects weekStartsOn=0 (Sunday)", () => {
@@ -391,7 +398,8 @@ describe("countWorkingDays", () => {
       [0, 1, 2, 3, 4, 5, 6],
     ];
     for (let startOffset = 0; startOffset < 7; startOffset++) {
-      const start = addDaysISO("2024-02-25", startOffset); // leap day + every start weekday
+      // The loop covers leap day and every possible start weekday.
+      const start = addDaysISO("2024-02-25", startOffset);
       for (const span of [1, 2, 7, 31, 366]) {
         const end = addDaysISO(start, span - 1);
         for (const pattern of patterns) {
@@ -432,9 +440,12 @@ describe("endDateForWorkingDays", () => {
 
   it("lands on the count-th working day at/after start", () => {
     // 2026-06-01 is a Monday; Mon–Fri working week.
-    expect(endDateForWorkingDays("2026-06-01", 1, [1, 2, 3, 4, 5])).toBe("2026-06-01"); // start itself
-    expect(endDateForWorkingDays("2026-06-01", 5, [1, 2, 3, 4, 5])).toBe("2026-06-05"); // Fri
-    expect(endDateForWorkingDays("2026-06-01", 6, [1, 2, 3, 4, 5])).toBe("2026-06-08"); // next Mon
+    // A one-day allocation ends on its start date.
+    expect(endDateForWorkingDays("2026-06-01", 1, [1, 2, 3, 4, 5])).toBe("2026-06-01");
+    // Five working days end on Friday.
+    expect(endDateForWorkingDays("2026-06-01", 5, [1, 2, 3, 4, 5])).toBe("2026-06-05");
+    // Six working days end on the following Monday.
+    expect(endDateForWorkingDays("2026-06-01", 6, [1, 2, 3, 4, 5])).toBe("2026-06-08");
   });
 });
 
@@ -472,15 +483,22 @@ describe("endDateForWorkingDays edge cases", () => {
       return addDaysISO(start, maxScan - 1);
     };
     const patterns: Weekday[][] = [
-      [1, 2, 3, 4, 5], // Mon–Fri
-      [0, 6], // weekend only
-      [1, 3, 5], // Mon/Wed/Fri
-      [2], // Tuesdays only
-      [1, 1, 1], // degenerate: length 3 but only Mondays
-      [0, 1, 2, 3, 4, 5], // six-day week
+      // This pattern uses the standard Monday-to-Friday workweek.
+      [1, 2, 3, 4, 5],
+      // This pattern includes only Saturday and Sunday.
+      [0, 6],
+      // This pattern includes Monday, Wednesday, and Friday.
+      [1, 3, 5],
+      // This pattern includes Tuesday only.
+      [2],
+      // This pattern repeats Monday to check duplicate weekdays.
+      [1, 1, 1],
+      // This pattern includes every day except Sunday.
+      [0, 1, 2, 3, 4, 5],
     ];
     for (let s = 0; s < 7; s++) {
-      const start = addDaysISO("2026-06-01", s); // covers every start weekday
+      // The loop checks the range from every start weekday.
+      const start = addDaysISO("2026-06-01", s);
       for (const pattern of patterns) {
         for (let count = 1; count <= 40; count++) {
           expect(endDateForWorkingDays(start, count, pattern)).toBe(reference(start, count, pattern));

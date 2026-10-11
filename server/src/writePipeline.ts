@@ -123,6 +123,9 @@ export function resolveBuiltinWriteRejection({
   return null;
 }
 
+/**
+ * Carries a validated write and the statement needed to apply it.
+ */
 export interface PreparedWrite {
   /** The sanitized + revision-stamped row ready to persist. */
   row: Record<string, unknown>;
@@ -196,6 +199,9 @@ export function stampServerRevision(
 // State parameter, not `db`: a pure existence check against the caller's already-loaded AppData
 // projection (the funnel's scoped read / the batch's incrementally-maintained projection), so it
 // never triggers a fresh read itself.
+/**
+ * Supplies a replacement value for a built-in field omitted from the request.
+ */
 export function resolveGeneratedBuiltinReplacement(
   state: AppData,
   table: string,

@@ -133,6 +133,9 @@ const EXPECTED_INDEXES = new Map<string, { table: string; column: string }>([
   ["idx_account_session_assurance_principalId", { table: "account_session_assurance", column: "principalId" }],
 ]);
 
+/**
+ * Creates the account boundary state required before identity operations use it.
+ */
 export function ensureAccountBoundaryState(db: Db): void {
   db.exec(CURRENT_ACCOUNT_BOUNDARY_STATE_SQL);
 }
@@ -218,6 +221,9 @@ function appendIndexProblems(db: Db, problems: string[]): void {
   }
 }
 
+/**
+ * Rejects incomplete account boundary tables before identity operations depend on them.
+ */
 export function assertAccountBoundaryStateCurrent(db: Db): void {
   const problems: string[] = [];
   appendTableProblems(db, problems);

@@ -7,11 +7,17 @@ import { addDaysISO, startOfWeekISO } from "../lib/dateMath";
 // glance. Rows are ordinary rows with fresh ids; nothing marks them as sample data, so deleting them
 // leaves no trace. Names follow the comic-book rule for invented people (DC universe).
 
+/**
+ * Contains the account rows created for a new company’s example schedule.
+ */
 export type ExampleCompanyData = Pick<
   AppData,
   "disciplines" | "resources" | "clients" | "projects" | "phases" | "activities" | "allocations" | "timeOff"
 >;
 
+/**
+ * Supplies the account and calendar details used to create the example schedule.
+ */
 export interface ExampleCompanyInput {
   accountId: ID;
   /** Any date in the week the schedule should open on, in the company's own time zone. */

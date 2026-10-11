@@ -8,14 +8,23 @@ import { parsePublicUrl } from "../authConfig/publicUrlConfig";
 // secret by hand. It runs before the server reads any other setting or opens the database: it only
 // writes text, so it must work on a host that has nothing configured yet.
 
+/**
+ * Shows the supported `capacitylens init` arguments and examples.
+ */
 export const INIT_USAGE = "Usage: node server/dist/index.mjs init --public-url <url> --db <path> [--out <file>]";
 
+/**
+ * Contains the output paths and bootstrap settings accepted by the init command.
+ */
 export interface InitOptions {
   publicUrl: string;
   db: string;
   out: string | undefined;
 }
 
+/**
+ * Reports the files created by initialization and whether an admin claim was written.
+ */
 export interface InitResult {
   exitCode: number;
   stdout: string;
@@ -26,6 +35,9 @@ class InitUsageError extends Error {}
 
 const UNSAFE_ENV_VALUE = /[\s#$"'`\\]/;
 
+/**
+ * Parses the supported flags and rejects missing values, unsafe dotenv characters, and non-production URLs.
+ */
 export function parseInitArguments(args: readonly string[]): InitOptions {
   let values: { "public-url"?: string; db?: string; out?: string };
   try {
@@ -66,6 +78,9 @@ function createSecret(): string {
   return randomBytes(48).toString("base64");
 }
 
+/**
+ * Serializes the selected initialization options as dotenv entries.
+ */
 export function buildEnvironmentFile(options: Pick<InitOptions, "publicUrl" | "db">): {
   contents: string;
   setupToken: string;
@@ -86,6 +101,9 @@ function describeSetupToken(setupToken: string): string {
   return `Setup token: ${setupToken}\nYou enter this once, to create the Owner.\n`;
 }
 
+/**
+ * Parses the init arguments, writes the requested configuration files, and returns their paths.
+ */
 export function runInitCommand(args: readonly string[]): InitResult {
   let options: InitOptions;
   try {
@@ -119,6 +137,9 @@ function writeAll(stream: NodeJS.WriteStream, text: string): Promise<void> {
   return new Promise((resolve, reject) => stream.write(text, (error) => (error ? reject(error) : resolve())));
 }
 
+/**
+ * Runs initialization, prints its result or error, and returns the matching CLI status code.
+ */
 export async function runInitCli(args: readonly string[]): Promise<number> {
   const result = runInitCommand(args);
   await writeAll(process.stdout, result.stdout);

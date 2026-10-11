@@ -144,6 +144,9 @@ function createLockedSessionRevocation(
     );
 }
 
+/**
+ * Creates session-revocation commands with the supplied execution and lock operations.
+ */
 export function createSessionRevocationFlows(
   context: SessionRevocationExecutionDependencies & SessionRevocationLockDependencies,
 ): Pick<LocalAccountFlows, "revokeMemberSessions"> {

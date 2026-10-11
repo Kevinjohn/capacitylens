@@ -2,28 +2,46 @@ import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from
 
 const SECRET_RE = /^[A-Za-z0-9_-]{43}$/;
 
+/**
+ * Creates a fresh joining secret for the current account administration operation.
+ */
 export function newJoiningSecret(): string {
   return randomBytes(32).toString("base64url");
 }
 
+/**
+ * Creates a fresh joining intent id for the current account administration operation.
+ */
 export function newJoiningIntentId(): string {
   return randomUUID();
 }
 
+/**
+ * Hashes a joining request IP with the secret used for that intent.
+ */
 export function hashJoiningSourceIp(secret: string, sourceIp: string): string {
   return createHmac("sha256", secret).update("company-join-ip\0").update(sourceIp).digest("hex");
 }
 
+/**
+ * Hashes a joining value with its kind so distinct input classes have separate digests.
+ */
 export function hashJoiningValue(kind: string, value: string): string {
   return createHash("sha256").update(`company-join-${kind}\0`).update(value).digest("hex");
 }
 
 type JoiningCookieNamesOptions = { applicationId: string; secure: boolean };
+/**
+ * Builds the cookie names used by the company-joining flow.
+ */
 export function joiningCookieNames({ applicationId, secure }: JoiningCookieNamesOptions) {
   const prefix = `${secure ? "__Host-" : ""}${applicationId}-join`;
   return { browser: `${prefix}-browser`, intent: `${prefix}-intent` };
 }
 
+/**
+ * Returns the named cookie value from the request headers, or `null` when it is absent.
+ */
 export function readJoiningCookie(headers: Headers, name: string): string | null {
   const prefix = `${name}=`;
   for (const entry of (headers.get("cookie") ?? "").split(";")) {
@@ -36,11 +54,17 @@ export function readJoiningCookie(headers: Headers, name: string): string | null
   return null;
 }
 
+/**
+ * Serializes the company-joining cookie with its security and lifetime attributes.
+ */
 export function joiningCookie(input: { name: string; value: string; secure: boolean; maxAge: number }): string {
   const { name, value, secure, maxAge } = input;
   return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
 }
 
+/**
+ * Masks the local part of an email address for a joining-flow hint.
+ */
 export function joiningEmailHint(email: string): string {
   return `${email.slice(0, 1)}***${email.slice(email.indexOf("@"))}`;
 }

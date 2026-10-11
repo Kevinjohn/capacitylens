@@ -1,4 +1,5 @@
-import "@capacitylens/shared/account/errors"; // Pinned coordinator-to-contract runtime boundary.
+// Keep the runtime contract pinned without importing its coordinator implementation.
+import "@capacitylens/shared/account/errors";
 import type {
   AccountAdminPort,
   AccountAuditPort,

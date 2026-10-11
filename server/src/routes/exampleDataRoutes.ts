@@ -23,6 +23,7 @@ class CompanyNotEmptyError extends Error {
   }
 }
 
+/** Dependencies required by the example data route. */
 export interface ExampleDataRouteDependencies {
   db: Db;
   store: AccountStore;
@@ -50,6 +51,7 @@ function stillMayAdd(userId: string, accountId: string, dependencies: ExampleDat
   return role !== null && can(role, "manageMembers");
 }
 
+/** Registers the endpoint that adds example data to an empty account. */
 export function registerExampleDataRoutes(app: FastifyInstance, dependencies: ExampleDataRouteDependencies): void {
   const { db, store, accountLock, authorize, commitProductAudit, fail } = dependencies;
 

@@ -18,6 +18,9 @@ export function claimBackupTemp(nextFile: () => string): {
   }
 }
 
+/**
+ * Reads SQLite `user_version`, the persisted database schema version.
+ */
 export function readDatabaseVersion(db: Db): number {
   return Number((db.prepare("PRAGMA user_version").get() as { user_version?: number }).user_version ?? 0);
 }
@@ -79,6 +82,9 @@ function syncPath(path: string): void {
   }
 }
 
+/**
+ * Provides the filesystem publisher that fsyncs a completed snapshot before it becomes visible at its final path.
+ */
 export const durableSnapshotPublisher: DurableSnapshotPublisher = {
   chmod: chmodSync,
   syncFile: syncPath,
@@ -86,6 +92,9 @@ export const durableSnapshotPublisher: DurableSnapshotPublisher = {
   syncDirectory: syncPath,
 };
 
+/**
+ * Creates the configured directory if needed and tightens its permissions to owner-only access.
+ */
 export function ensurePrivateBackupDirectory(path: string): void {
   mkdirSync(path, { recursive: true, mode: 0o700 });
   // mkdir's mode applies only when it creates the directory. Tighten a reused host/volume path too;
