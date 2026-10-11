@@ -3,25 +3,21 @@ import type { APIRequestContext } from "@playwright/test";
 import { ports } from "../scripts/ports.mjs";
 import { serverTestApiOrigin } from "../scripts/playwrightRunMode.mjs";
 
-// Helpers for the DB-backed E2E project. State lives on the SQLite server (not
-// browser memory), so isolation comes from resetting the server over its API between
-// tests. The app itself is driven through the same real UI flows the demo specs use
-// (see ./browserTestSupport openApp), so these tests exercise the FULL stack:
-// UI → store → ServerSyncAdapter → REST → SQLite, and rehydration via GET /api/state.
+// Database-backed specs reset server state between tests, then exercise the app through
+// real UI flows. This keeps each assertion tied to the SQLite API and its rehydrated state.
 
-// Ordinary tests own a lane API; rehearsal explicitly selects its disposable same-origin stack.
+/** Resolves the server API origin for lane tests or the rehearsal same-origin stack. */
 export const API = serverTestApiOrigin(ports().dbApi);
 
-/** Wipe the server DB and re-seed the demo data so each test starts identically. */
+/** Selects the request context and whether resetServer restores demo seed data. */
 type ResetServerOptions = { request: APIRequestContext; withSeed?: boolean };
+/** Wipes the server database and optionally restores demo seed data. */
 export async function resetServer({ request, withSeed = true }: ResetServerOptions): Promise<void> {
   const res = await request.post(`${API}/api/test/reset`, { data: { seed: withSeed } });
   expect(res.ok()).toBeTruthy();
 }
 
-/** The whole server state, for assertions that bypass the UI. Rows expose the lifecycle tombstone
- *  fields (archivedAt/deletedAt) too, so a test can prove an archive RETAINED the row rather than
- *  hard-deleting it (P2.5b). */
+/** Returns the server tables used by database-backed assertions. */
 export async function serverState(request: APIRequestContext): Promise<
   Record<
     string,
@@ -43,6 +39,7 @@ export async function serverState(request: APIRequestContext): Promise<
   return res.json();
 }
 
+/** Returns a table's rows or throws when the server response omits that table. */
 export function requireStateRows<T extends Awaited<ReturnType<typeof serverState>>>(
   state: T,
   table: keyof T,

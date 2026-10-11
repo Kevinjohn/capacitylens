@@ -2,22 +2,24 @@ import { test, expect } from "./fixtures";
 import { openApp, selectShadOption } from "./browserTestSupport";
 import { resetServer, serverState, requireStateRows } from "./serverTestState";
 
-// DB-backed E2E: this project's app is built with VITE_CAPACITYLENS_API, so persistence
+// DB-backed E2E: this project's app is built with vite_capacitylens_api, so persistence
 // runs through the entity-level ServerSyncAdapter against the real SQLite server.
-// Everything is driven through the same UI flows as the in-memory demo specs — the
+// Everything is driven through the same UI flows as the in-memory demo specs, the
 // difference that matters is that a reload re-hydrates purely from GET /api/state
 // (there is no localStorage fallback), so a surviving record proves a real server
 // round-trip: UI → store → adapter → PUT/DELETE → SQLite → GET on reload.
 
 function registerBeforeEachHooks() {
   test.beforeEach(async ({ request }) => {
-    await resetServer({ request: request, withSeed: true }); // wipe + re-seed before each test
+    // wipe + re-seed before each test
+    await resetServer({ request: request, withSeed: true });
   });
 }
 
 function registerHydratesSeededDatasetServerLoadTest() {
   test("hydrates the seeded dataset from the server on load", async ({ page }) => {
-    await openApp(page); // picks "Wayne Enterprises" from the server-seeded accounts
+    // picks "Wayne Enterprises" from the server-seeded accounts
+    await openApp(page);
     // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/state → UI.
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
@@ -101,8 +103,8 @@ function registerEditReloadRenameRoundTripsTest() {
     await expect(row).toBeVisible();
 
     await row.getByRole("button", { name: /^Edit / }).click();
-    // Scope the field to the Edit dialog: the row's "Archive Rename Me Co" button (P2.5b) also matches
-    // a bare getByLabel('Name') — "Re*name* Me Co" contains "Name" — so an unscoped lookup is ambiguous.
+    // Scope the field to the Edit dialog because the row's archive control shares the same name.
+    // a bare getByLabel('Name'), "Re*name* Me Co" contains "Name", so an unscoped lookup is ambiguous.
     await page.getByRole("dialog").getByRole("textbox", { name: "Name", exact: true }).fill("Renamed Co");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("client-row").filter({ hasText: "Renamed Co" })).toBeVisible();
@@ -155,10 +157,10 @@ function registerEditFreshHydrationEngagementHalfTest() {
   });
 }
 
-// P2.5b: the per-row destructive action ARCHIVES (server-authoritative — the UI POSTs the dedicated
-// /api/clients/:id/archive route, then reloads the active slice). An archived client is RETAINED in
-// the DB (the archive route sets archivedAt; it is NOT a hard delete), but it is HIDDEN from the
-// active views (useActiveScopedData) and STAYS hidden across a reload — the real server round-trip
+// the per-row destructive action archives (server-authoritative, the UI POSTs the dedicated
+// /api/clients/:id/archive route, then reloads the active slice). An archived client is retained in
+// the DB (the archive route sets archivedAt; it is not a hard delete), but it is hidden from the
+// active views (useActiveScopedData) and stays hidden across a reload, the real server round-trip
 // this proves: UI archive → POST .../archive → reload → still absent from the active list.
 function registerArchiveReloadArchivedClientRetainedTests() {
   test("archive + reload: an archived client is retained in the DB but hidden from the active view", async ({
@@ -186,7 +188,7 @@ function registerArchiveReloadArchivedClientRetainedTests() {
     // Gone from the active UI list (the archive route ran + the post-archive reload re-hydrated).
     await expect(page.getByTestId("client-row").filter({ hasText: "Doomed Co" })).toHaveCount(0);
 
-    // It is RETAINED in the DB but now carries archivedAt (the archive route, not a hard delete).
+    // It is retained in the DB but now carries archivedAt (the archive route, not a hard delete).
     await expect
       .poll(
         async () =>
@@ -198,7 +200,7 @@ function registerArchiveReloadArchivedClientRetainedTests() {
       )
       .toBeTruthy();
 
-    // A reload re-hydrates from the DB's ACTIVE slice, so the archived client stays out of the list.
+    // A reload re-hydrates from the DB's active slice, so the archived client stays out of the list.
     await openApp(page);
     await page.getByRole("link", { name: "Clients" }).click();
     await expect(page.getByTestId("client-row").filter({ hasText: "Doomed Co" })).toHaveCount(0);

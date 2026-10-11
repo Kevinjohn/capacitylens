@@ -11,15 +11,15 @@ import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// P1.12 — Viewer read-only mode, against the auth-backed project's server (CAPACITYLENS_MODE=password
-// on :8887 — see playwright.config.ts). Owner A bootstraps an org and the disposable fixture seeds
-// VIEWER V + EDITOR E. Signed in as V (viewer) we assert the read-only UI: no "Add client",
+// Viewer read-only mode, against the auth-backed project's server (CAPACITYLENS_MODE=password
+// on :8887, see playwright.config.ts). Owner A bootstraps an org and the disposable fixture seeds
+// viewer V + editor E. Signed in as V (viewer) we assert the read-only UI: no "Add client",
 // no row Edit/Delete, an allocation bar with no resize grips, a draw gesture creates nothing, and the
-// "View only" badge is shown. As E (editor) we assert the contrast — the affordances are present. At
+// "View only" badge is shown. As E (editor) we assert the contrast, the affordances are present. At
 // the API layer a direct write as the viewer is 403 (the server is the authoritative backstop).
-// Browser-agnostic (no UA branching); unique emails per run.
+// Browser-agnostic (no ua branching); unique emails per run.
 
-// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp) comes from ./authTestSupport.
+// Shared plumbing (API/password/bootstrap_token/signUp) comes from ./authTestSupport.
 const STAMP = Date.now();
 const OWNER = `v-owner-${STAMP}@capacitylens.dev`;
 const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`;
@@ -34,8 +34,8 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("button", { name: org, exact: true }).click();
-  // The intro is once-per-device; on the second sign-in it won't reappear. Wait for EITHER the intro
-  // OR the app (Schedule heading) to settle the race, then dismiss the intro if present.
+  // The intro is once-per-device; on the second sign-in it won't reappear. Wait for either the intro
+  // or the app (Schedule heading) to settle the race, then dismiss the intro if present.
   await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
 }
@@ -123,7 +123,6 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
     }),
   );
 
-  // ── Browser as VIEWER: the read-only UI. ───────────────────────────────────────────────────────
   await signInAndOpen(page, VIEWER, `Viewer Studio ${STAMP}`);
 
   // Team & access remains available so a Viewer can understand the role without being shown the
@@ -132,7 +131,7 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await page.getByRole("link", { name: "Team & access" }).click();
   const currentAccess = page.getByTestId("current-access");
   await expect(currentAccess).toContainText("Viewer");
-  // #175: the tick list is collapsed by default — a Viewer opens it to read what the role allows.
+  // The capability list starts collapsed and can be expanded to read the Viewer permissions.
   await expect(currentAccess.getByText("View the schedule")).toHaveCount(0);
   await currentAccess.getByTestId("capabilities-toggle").click();
   await expect(currentAccess.getByText("View the schedule")).toBeVisible();
@@ -164,7 +163,7 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(page.getByTestId("undo-button")).toHaveCount(0);
   await expect(page.getByTestId("redo-button")).toHaveCount(0);
 
-  // A draw gesture on a REAL lane creates nothing (the lane bails — no onDraw).
+  // A draw gesture on a real lane creates nothing (the lane bails, no onDraw).
   await expect(page.getByTestId("allocation-bar")).toHaveCount(0);
   const lane = page.locator(`[data-testid="resource-lane"][data-resource-id="${resourceId}"]`);
   await expect(lane).toBeVisible();
@@ -179,7 +178,6 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(page.getByRole("dialog", { name: "Add allocation" })).toHaveCount(0);
   await expect(page.getByTestId("allocation-bar")).toHaveCount(0);
 
-  // ── Browser as EDITOR (contrast): the same surfaces SHOW the affordances. ────────────────────────
   await context.clearCookies();
   await signInAndOpen(page, EDITOR, `Viewer Studio ${STAMP}`);
 

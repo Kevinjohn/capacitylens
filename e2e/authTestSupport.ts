@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 import { ports } from "../scripts/ports.mjs";
 
 // Shared plumbing for the auth-backed Playwright specs (*.auth.spec.ts), which all run against the
-// auth-e2e server (CAPACITYLENS_MODE=password on the lane auth API — see playwright.config.ts). Extracted here so
-// the bootstrap token, sign-up payload shape, and Set-Cookie collapse live in ONE place rather than a
+// auth-e2e server (CAPACITYLENS_MODE=password on the lane auth API, see playwright.config.ts). Extracted here so
+// the bootstrap token, sign-up payload shape, and Set-Cookie collapse live in one place rather than a
 // copy per spec (they were duplicated across members/invite/viewer/login/reset-password).
 
 /** The auth-e2e API origin (the password-auth server the *.auth specs drive). */
@@ -18,22 +18,22 @@ export const AUTH_API = `http://localhost:${ports().authApi}`;
 export const AUTH_PASSWORD = "demo-password-123456";
 
 /** The well-known first-run bootstrap credential the auth-e2e server creates at boot
- *  (CAPACITYLENS_CREATE_ADMIN_ADMIN=1 in server's start:auth-e2e). Serving double duty: the specs
- *  can sign in with it to prove the escape hatch end-to-end, AND its existence means the user
- *  table is never empty when a spec first loads the page — so the login wall shows the ordinary
- *  Sign in form, never the first-run owner-setup form (which needs a zero-user server and is
- *  covered by unit tests instead).
+ * (CAPACITYLENS_CREATE_ADMIN_ADMIN=1 in server's start:auth-e2e). Serving double duty: the specs
+ * can sign in with it to prove the escape hatch end-to-end, and its existence means the user
+ * table is never empty when a spec first loads the page, so the login wall shows the ordinary
+ * Sign in form, never the first-run owner-setup form (which needs a zero-user server and is
+ * covered by unit tests instead).
  *
- *  Kept as a LITERAL rather than importing server/src/auth.ts (that module pulls in better-auth at
- *  top level, which must not enter the Playwright process). The email is auth.ts's fixed
- *  BOOTSTRAP_ADMIN_EMAIL; the password is the one start:auth-e2e pins via
- *  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD=auth-e2e-password-2026 (production defaults to a generated secret instead, so
- *  this is a test-only known credential). A drift surfaces loudly as the bootstrap sign-in spec failing. */
+ * Kept as a literal rather than importing server/src/auth.ts (that module pulls in better-auth at
+ * top level, which must not enter the Playwright process). The email is auth.ts's fixed
+ * BOOTSTRAP_ADMIN_EMAIL; the password is the one start:auth-e2e pins via
+ * CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD=auth-e2e-password-2026 (production defaults to a generated secret instead, so
+ * this is a test-only known credential). A drift surfaces loudly as the bootstrap sign-in spec failing. */
 export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e-password-2026" };
 
-/** The operator bootstrap token (set in server's start:auth-e2e script). The auth-e2e DB is SEEDED,
- *  so a fresh sign-up is not a first-run bootstrap and holds no membership — this is the documented
- *  operator path to provision an org (`POST /api/orgs`) on an already-populated instance. */
+/** The operator bootstrap token (set in server's start:auth-e2e script). The auth-e2e DB is seeded,
+ * so a fresh sign-up is not a first-run bootstrap and holds no membership, this is the documented
+ * operator path to provision an org (`POST /api/orgs`) on an already-populated instance. */
 export const BOOTSTRAP_TOKEN = "auth-e2e-bootstrap-token-0123456789abcdef";
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
@@ -45,8 +45,8 @@ function cookiesOf(setCookie: string): string {
     .join("; ");
 }
 
-/** Shared sign-up POST, factored out so the cookie-only and id-resolving variants below don't
- *  duplicate the request shape. Returns the collapsed session cookie. */
+/** Shared sign-up POST, factored out so the cookie-only and ID-resolving variants below don't
+ * duplicate the request shape. Returns the collapsed session cookie. */
 async function postSignUp(ctx: APIRequestContext, email: string, name = email.split("@")[0]): Promise<string> {
   const res = await ctx.post(`${AUTH_API}/api/auth/sign-up/email`, {
     data: { email, password: AUTH_PASSWORD, name },
@@ -55,7 +55,7 @@ async function postSignUp(ctx: APIRequestContext, email: string, name = email.sp
   return cookiesOf(res.headers()["set-cookie"] ?? "");
 }
 
-/** Seed only disposable auth-E2E role/access fixtures. Real invitation tests use the addressed invite path. */
+/** Seed only disposable auth-e2e role/access fixtures. Real invitation tests use the addressed invite path. */
 export function seedFixtureMember(accountId: string, email: string, role: "admin" | "editor" | "viewer"): void {
   const path = fileURLToPath(new URL("../server/.auth-e2e.db", import.meta.url));
   const db = new DatabaseSync(path);
@@ -74,15 +74,15 @@ export function seedFixtureMember(accountId: string, email: string, role: "admin
 }
 
 /**
- * Sign up ONE user in an ISOLATED request context and return its email + auto-signed-in session
- * cookie — ONE HTTP request. This is the cheap default: use it whenever the test only needs the
- * cookie to drive further API calls or a browser sign-in. If the test needs the user's id (e.g. to
+ * Sign up one user in an isolated request context and return its email + auto-signed-in session
+ * cookie, one HTTP request. This is the cheap default: use it whenever the test only needs the
+ * cookie to drive further API calls or a browser sign-in. If the test needs the user's ID (e.g. to
  * target them in a PATCH/DELETE `.../members/<userId>` or a `toUserId` transfer), use
- * `signUpUserWithId` instead — it costs a second round trip (`GET /api/auth/me`) to resolve it.
+ * `signUpUserWithId` instead, it costs a second round trip (`GET /api/auth/me`) to resolve it.
  *
  * Each user gets its own context on purpose: a shared APIRequestContext keeps a cookie jar, and
- * Better Auth refuses a sign-up that arrives already-authenticated — so signing up B over A's jar
- * would fail. Better Auth auto-signs-in on sign-up, so the Set-Cookie IS the session (mirrors the
+ * Better Auth refuses a sign-up that arrives already-authenticated, so signing up B over A's jar
+ * would fail. Better Auth auto-signs-in on sign-up, so the Set-Cookie is the session (mirrors the
  * server unit fixtures, which never call sign-in/email). Emails are unique per run (callers stamp
  * them), so a reused server never collides on a duplicate.
  */
@@ -98,8 +98,8 @@ export async function signUpUser(email: string, name?: string): Promise<{ email:
 
 /**
  * Provision a fresh org via the operator bootstrap path (`POST /api/orgs` with BOOTSTRAP_TOKEN),
- * making `cookie`'s owner the org's Owner, and return the created account id. Factored out because
- * every auth spec that needs its own org duplicated this same request shape + 201 assertion + id
+ * making `cookie`'s owner the org's Owner, and return the created account ID. Factored out because
+ * every auth spec that needs its own org duplicated this same request shape + 201 assertion + ID
  * extraction.
  */
 export async function bootstrapOrg(request: APIRequestContext, cookie: string, name: string): Promise<string> {
@@ -112,8 +112,8 @@ export async function bootstrapOrg(request: APIRequestContext, cookie: string, n
 }
 
 /**
- * Sign up ONE user and ALSO resolve its user id (a second request, `GET /api/auth/me`, on top of
- * the sign-up). Use this only when the test actually needs the id — everyone else should use the
+ * Sign up one user and also resolve its user ID (a second request, `GET /api/auth/me`, on top of
+ * the sign-up). Use this only when the test actually needs the ID, everyone else should use the
  * cheaper `signUpUser` above. See its TSDoc for the isolated-context rationale.
  */
 export async function signUpUserWithId(email: string): Promise<{ email: string; cookie: string; userId: string }> {
@@ -128,7 +128,7 @@ export async function signUpUserWithId(email: string): Promise<{ email: string; 
   }
 }
 
-/** Seed a pre-existing trusted address only in the disposable auth-E2E database. This prepares
+/** Seed a pre-existing trusted address only in the disposable auth-e2e database. This prepares
  * the policy-joining prerequisite; the browser test still performs real sign-in and membership
  * admission. It does not test provider or mailbox proof issuance. */
 export function seedFixtureEmailProof(email: string): void {

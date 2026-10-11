@@ -10,12 +10,12 @@ import {
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// P1.18 — admin-issued password-reset links, against the auth-backed project's server
-// (CAPACITYLENS_MODE=password on :8887 — see playwright.config.ts). Owner A signs up, bootstraps an
-// org, seeds member B (editor) in the disposable fixture, then mints B a reset link from Team & access in the BROWSER
-// (the write-once reset-link block). B — signed OUT, which is the whole point of a reset — opens the
+// Admin-issued password-reset links use the auth-backed project's server
+// (CAPACITYLENS_MODE=password on :8887, see playwright.config.ts). Owner A signs up, bootstraps an
+// org, seeds member B (editor) in the disposable fixture, then mints B a reset link from Team & access in the browser
+// (the write-once reset-link block). B, signed out, which is the whole point of a reset, opens the
 // link, sets a new password, and signs in with it; the old password is asserted dead at the API
-// layer. Browser-agnostic (no UA branching). Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp)
+// layer. Browser-agnostic (no ua branching). Shared plumbing (API/password/bootstrap_token/signUp)
 // comes from ./authTestSupport.
 
 const NEW_PASSWORD = "fresh-password-456";
@@ -38,7 +38,7 @@ test("admin mints a reset link in Team & access; the locked-out member sets a ne
 }) => {
   await setupResetScenario(request);
 
-  // ---- Browser, as the OWNER: mint the reset link from Team & access. ----
+  // The owner creates a reset link from Team & access.
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
   await page.getByLabel("Email").fill(OWNER);
@@ -53,7 +53,6 @@ test("admin mints a reset link in Team & access; the locked-out member sets a ne
   await expect(page.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
   const memberRow = page.getByTestId("member-row").filter({ hasText: MEMBER });
   await expect(memberRow).toBeVisible();
-  // #175 moved the per-member actions behind the row's gear menu.
   await memberRow.getByTestId("member-menu").click();
   await page.getByTestId("member-reset-password").click();
   await page
@@ -66,8 +65,7 @@ test("admin mints a reset link in Team & access; the locked-out member sets a ne
   await expect(linkEl).toContainText("/reset-password/");
   const resetLink = (await linkEl.textContent())?.trim() ?? "";
 
-  // ---- Browser, signed OUT (fresh context state via a plain goto after clearing cookies):
-  // the member opens the link WITHOUT a session — the page must render, not the login wall. ----
+  // A reset link must open without an authenticated session.
   await page.context().clearCookies();
   await page.goto(resetLink);
   await expect(page.getByRole("heading", { name: "Reset password" })).toBeVisible();
@@ -76,16 +74,15 @@ test("admin mints a reset link in Team & access; the locked-out member sets a ne
   await page.getByTestId("reset-submit").click();
   await expect(page.getByTestId("reset-success")).toBeVisible();
 
-  // "Go to sign in" is a full page load that lands on the login wall; the NEW password works.
+  // "Go to sign in" is a full page load that lands on the login wall; the new password works.
   await page.getByRole("link", { name: "Go to sign in" }).click();
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
   await page.getByLabel("Email").fill(MEMBER);
   await page.getByLabel("Password").fill(NEW_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  // Signed in with the NEW password: the member lands on their company picker, not the wall.
+  // Signed in with the new password: the member lands on their company picker, not the wall.
   await expect(page.getByRole("button", { name: `Reset Studio ${STAMP}`, exact: true })).toBeVisible();
 
-  // ---- API-layer teeth: the OLD password is dead, and the token was single-use. ----
   const oldSignIn = await request.post(`${API}/api/auth/sign-in/email`, {
     data: { email: MEMBER, password: PASSWORD },
   });

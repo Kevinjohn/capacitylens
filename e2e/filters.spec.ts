@@ -94,7 +94,7 @@ function registerHidesTentativeBarsWhileCapacityTest() {
     await expect(tentative).toHaveAttribute("aria-pressed", "true");
     await tentative.click();
     await expect(tentative).toHaveAttribute("aria-pressed", "false");
-    await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1); // Bruce's tentative bar
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
     // Capacity is still truthful: Bruce's 3-4 June over-marker remains.
     await expect(page.getByTestId("over-marker").first()).toBeVisible();
   });
@@ -151,7 +151,7 @@ function registerActivityLensMutuallyExclusiveClientTests() {
   test("the activity lens is mutually exclusive with the client / project lens", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    // Activate a project lens, then switch to the activity lens — the project dropdown resets.
+    // Activate a project lens, then switch to the activity lens, the project dropdown resets.
     await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
     await expect(page.getByLabel("Filter by project")).toHaveText("LexCorp / Metropolis Rebrand");
     await selectShadOption(page.getByLabel("Filter by activity"), "kind:repeatable");

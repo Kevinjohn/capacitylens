@@ -4,9 +4,9 @@ import { freezeBrowserDate } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// US-NAV-11: a COSMETIC demo "fake sign-in" gate shown before the company picker in the
+// US-NAV-11: a cosmetic demo "fake sign-in" gate shown before the company picker in the
 // default (auth-off) deploy, to preview the intended "log in first, then pick a company"
-// flow. There is NO real authentication and no popup — clicking just advances. The auth-ON
+// flow. There is no real authentication and no popup, clicking just advances. The auth-on
 // deploy (the real login wall) is covered by login.auth.spec.ts, where this demo gate stays
 // dormant (AppShell only mounts it when authMode === 'off').
 
@@ -15,7 +15,7 @@ test.describe("fake sign-in (cosmetic demo gate)", () => {
     await freezeBrowserDate(page);
     await page.goto("/");
 
-    // The demo sign-in is the first screen — the picker is walled off behind it.
+    // The demo sign-in is the first screen, the picker is walled off behind it.
     await expect(page.getByRole("heading", { name: "Choose an account" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
 

@@ -133,7 +133,7 @@ test("editing a zero-load block onto time off shows the visible and non-colour c
   await expect(dianaLane.getByTestId("over-marker")).toHaveCount(0);
 
   // Move a five-working-day block over Bruce's three-day holiday. Its date span also crosses his
-  // personal weekend; only the three time-off dates are conflicts (#257 remains out of scope).
+  // personal weekend; only the three time-off dates are conflicts.
   await bruceLane.getByTestId("allocation-bar").filter({ hasText: "Visual Design" }).click();
   const editor = page.getByRole("dialog", { name: "Edit allocation" });
   await editor.getByLabel("Start Date").fill("2026-06-10");

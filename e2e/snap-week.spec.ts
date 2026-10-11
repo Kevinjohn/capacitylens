@@ -13,12 +13,12 @@ import {
 test.use({ contextOptions: { reducedMotion: "reduce" }, viewport: { width: 1440, height: 800 } });
 
 // Covers US-SET-09. The week snap (always on, no Settings control) floors the schedule's left edge
-// back to the current week's first day after a FREE scroll settles, so a stray nudge can't park the
+// back to the current week's first day after a free scroll settles, so a stray nudge can't park the
 // view on a Tue/Wed. With the test-only override off, the nudge sticks. Independent of Feature 1's
 // always-on navigation snap (zoom / Prev-Next / date-picker), which is not under test here.
 test.describe("Week snap", () => {
   test("a stray scroll nudge snaps back to the week start", async ({ page }) => {
-    await openApp(page); // snap is always on
+    await openApp(page);
     await setZoom(page, 1);
 
     // Pre-condition: the left edge opens flush on the week start (Monday, default weekStartsOn).
@@ -37,44 +37,47 @@ test.describe("Week snap", () => {
   });
 
   test("the snap FLOORS to the current week (not NEAREST), even past the half-week", async ({ page }) => {
-    await openApp(page); // snap is always on
+    await openApp(page);
     await setZoom(page, 1);
 
     // Pre-condition: the left edge opens flush on this week's Monday. Frozen clock 2026-06-03 (Wed),
-    // week origin Monday 2026-06-01 → the leading day NUMBER here is "1". Read it only once the zoom-
-    // click scroll has come to rest (settledLeftDate), so we capture the real Monday — not a transient
-    // mid-scroll cell — and can prove the snap returns to the SAME Monday, not a different one.
-    const mondayDate = await settledLeftDate(page); // "1Mon"
+    // week origin Monday 2026-06-01 → the leading day number here is "1". Read it only once the zoom-
+    // click scroll has come to rest (settledLeftDate), so we capture the real Monday, not a transient
+    // mid-scroll cell, and can prove the snap returns to the same Monday, not a different one.
+    // "1Mon"
+    const mondayDate = await settledLeftDate(page);
     expect(mondayDate).toMatch(/Mon$/);
 
-    // Nudge 4.5 weekday columns forward → the left edge lands on a Fri (Jun 5), which is PAST the
-    // half-week. A NEAREST implementation would round FORWARD to next Monday (Jun 8 → "8Mon"); a
-    // correct FLOOR pulls BACK to this week's Monday (Jun 1 → "1Mon"). This is the distinguishing
+    // Nudge 4.5 weekday columns forward → the left edge lands on a Fri (Jun 5), which is past the
+    // half-week. A nearest implementation would round forward to next Monday (Jun 8 → "8Mon"); a
+    // correct floor pulls back to this week's Monday (Jun 1 → "1Mon"). This is the distinguishing
     // case the old ~2.5-column (Wed) test couldn't make, since there floor == nearest.
     await nudge(page, 4.5);
     await waitForWeekSnap(page);
 
-    // The decisive assertion: SAME Monday date (floored back), NOT next Monday (rounded forward).
-    // Poll the settled left edge onto the captured Monday — the floor-not-nearest oracle (it would
+    // The decisive assertion: same Monday date (floored back), not next Monday (rounded forward).
+    // Poll the settled left edge onto the captured Monday, the floor-not-nearest oracle (it would
     // never settle to "1Mon" if the snap rounded forward to "8Mon"), so polling does not weaken it.
     await expect.poll(async () => settledLeftDate(page), { timeout: 15_000 }).toBe(mondayDate);
   });
 
   test("with a Sunday week-start, the free-scroll snap floors to Sunday (not a hardcoded Monday)", async ({ page }) => {
-    // weekStartsOn is FROZEN after creation (P1.14), so it can no longer be flipped in Settings;
-    // capture Sunday at company creation via the onboarding form instead. With the snap ON, a free
-    // nudge must then floor onto a SUNDAY — guarding against a hardcoded-Monday floor. (The snap is
+    // weekStartsOn is frozen after creation, so it can no longer be flipped in Settings;
+    // capture Sunday at company creation via the onboarding form instead. With the snap on, a free
+    // nudge must then floor onto a sunday, guarding against a hardcoded-Monday floor. (The snap is
     // always on, so it needs no setup here.)
-    await openApp(page, "Wayne Enterprises", "/settings"); // land in the app first
+    // land in the app first
+    await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("button", { name: "Switch company" }).click();
     await page.getByRole("button", { name: "New company" }).click();
     await page.getByLabel("Company name").fill("Sunday Co");
-    await page.getByRole("radio", { name: "Sunday" }).click(); // capture the Sunday week-start
+    // capture the Sunday week-start
+    await page.getByRole("radio", { name: "Sunday" }).click();
     await page.getByRole("button", { name: "Create company" }).click();
     // A post-create intro may precede the app; click through if it's up.
     await waitForAppLanding(page, page.locator("#main"));
 
-    // Turn "Minimise weekends" OFF (device pref): with it on, a week-start Sunday is a (collapsed)
+    // Turn "Minimise weekends" off (device pref): with it on, a week-start Sunday is a (collapsed)
     // weekend labelled "S", indistinguishable from a Saturday, making the column-width probe
     // unreliable. Off → the Sunday reads a full "Sun" and every column is the same width.
     await page.getByRole("link", { name: "Settings", exact: true }).click();
@@ -103,12 +106,12 @@ test.describe("Week snap", () => {
     // Firefox can still be settling on a single read).
     await expect.poll(async () => (await probe(page)).leftWeekday).toBe("Mon");
 
-    // Same nudge as the snapping test — with the override off it must STICK on the mid-week day. This
+    // Same nudge as the snapping test, with the override off it must stick on the mid-week day. This
     // doubles as the proof that the nudge actually leaves Monday (otherwise the snapping test is vacuous).
     await nudge(page, 2.5);
     await waitForWeekSnap(page);
 
-    // A single post-settle read, NOT expect.poll: poll on a `not.toBe` would short-circuit on the
+    // A single post-settle read, not expect.poll: poll on a `not.toBe` would short-circuit on the
     // first transient non-Monday frame before any (wrong) snap could fire, passing vacuously.
     expect((await probe(page)).leftWeekday).not.toBe("Mon");
   });

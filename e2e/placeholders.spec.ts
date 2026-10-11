@@ -1,15 +1,15 @@
 import { test, expect } from "./fixtures";
 import { openApp } from "./browserTestSupport";
 
-// Covers US-SET-06. Placeholders are a PER-ACCOUNT view pref (`placeholdersEnabled` on the active
-// Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is
+// Covers US-SET-06. Placeholders are a per-account view pref (`placeholdersEnabled` on the active
+// Account, absent = false), default off, hidden everywhere out of the box, but their data is
 // untouched and returns when the switch goes on. The seed has one placeholder (r-ph-designer,
 // role "Senior Designer", bound to Project Watchtower) so the toggle is demonstrable.
 test.describe("Placeholders (per-account pref, default off)", () => {
   test("hidden by default: the seeded placeholder is absent from the schedule and Resources list", async ({ page }) => {
     await openApp(page);
-    // No placeholder lane on the schedule (real people only — both Placeholders AND External are
-    // per-account prefs that default OFF, so neither band shows out of the box).
+    // No placeholder lane on the schedule (real people only, both Placeholders and External are
+    // per-account prefs that default off, so neither band shows out of the box).
     await expect(page.locator('[data-resource-id="r-ph-designer"]')).toHaveCount(0);
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Placeholder" })).toHaveCount(0);
 
@@ -24,7 +24,8 @@ test.describe("Placeholders (per-account pref, default off)", () => {
   }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Show placeholders" });
-    await expect(toggle).toHaveAttribute("aria-checked", "false"); // default off
+    // default off
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-checked", "true");
 
@@ -39,8 +40,8 @@ test.describe("Placeholders (per-account pref, default off)", () => {
     await expect(page.getByRole("group", { name: "Working days" })).toHaveCount(0);
     await page.getByRole("button", { name: "Cancel" }).click();
 
-    // Schedule now shows the placeholder lane. The name + "?" avatar live in the row HEADER (the
-    // left sticky column), a sibling of the [data-resource-id] gridcell — so scope to the whole
+    // Schedule now shows the placeholder lane. The name + "?" avatar live in the row header (the
+    // left sticky column), a sibling of the [data-resource-id] gridcell, so scope to the whole
     // scheduler-row that contains this placeholder's lane, then assert the header content.
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.locator('[data-resource-id="r-ph-designer"]')).toBeVisible();
@@ -48,13 +49,16 @@ test.describe("Placeholders (per-account pref, default off)", () => {
       .getByTestId("scheduler-row")
       .filter({ has: page.locator('[data-resource-id="r-ph-designer"]') });
     const header = phScheduleRow.getByRole("rowheader");
-    await expect(header.getByText("Placeholder", { exact: true })).toBeVisible(); // literal name
-    await expect(header.getByText("?", { exact: true })).toBeVisible(); // question-mark avatar
+    // literal name
+    await expect(header.getByText("Placeholder", { exact: true })).toBeVisible();
+    // question-mark avatar
+    await expect(header.getByText("?", { exact: true })).toBeVisible();
   });
 
   test("the choice survives navigation in the current demo session", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
-    await page.getByRole("switch", { name: "Show placeholders" }).click(); // → on
+    // → on
+    await page.getByRole("switch", { name: "Show placeholders" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("switch", { name: "Show placeholders" })).toHaveAttribute("aria-checked", "true");

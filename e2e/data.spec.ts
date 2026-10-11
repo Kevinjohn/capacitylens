@@ -94,7 +94,7 @@ const NONEMPTY_CAPACITYLENS = JSON.stringify({
 type Page = import("@playwright/test").Page;
 
 /**
- * Import/export moved out of the sidebar into a Settings card (issue #169), so every import now
+ * Import and export live in a Settings card, so every import now
  * starts by opening Settings. Clicking the link while already on `/settings` is a harmless no-op,
  * which keeps this callable from any starting page.
  */
@@ -115,7 +115,7 @@ const importFile = async (page: Page, name: string, body: string) => {
 const openSchedule = (page: Page) => page.getByRole("link", { name: "Schedule", exact: true }).click();
 
 // Covers US-DAT-02..04 and the canonical demo seed. Export round-trip and reset-on-reload
-// are covered in e2e/crud.spec.ts; server persistence lives in persistence.db.spec.ts.
+// are covered in E2E/crud.spec.ts; server persistence lives in persistence.db.spec.ts.
 function registerSeedsDemoDatasetFirstLoadTest() {
   test("seeds a demo dataset on first load", async ({ page }) => {
     await openApp(page);
@@ -140,7 +140,7 @@ function registerImportShowsConfirmationReplacesAllTest() {
     await expect(dialog).toContainText(/undo this with/i);
     await dialog.getByRole("button", { name: "Cancel" }).click();
 
-    // Data is untouched — the seeded resource is still there.
+    // The seeded resource remains after the import is canceled.
     await openSchedule(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
@@ -185,12 +185,12 @@ function registerRejectsNonCapacitylensFileNoticeTest() {
     await openApp(page);
     await importFile(page, "random.json", JSON.stringify({ hello: "world" }));
 
-    // Surfaces the SPECIFIC reason from parseData (a JSON object with no CapacityLens keys), not a generic
+    // Surfaces the specific parseData reason for a JSON object with no CapacityLens keys, not a generic
     // catch-all. Shown via a Sonner error toast now (was the hand-rolled Toast's role="alert");
     // assert on the message text, which is Sonner-DOM-agnostic.
     await expect(page.getByText(/not CapacityLens data/i)).toBeVisible();
     await openSchedule(page);
-    await expect(page.getByText("Bruce Wayne")).toBeVisible(); // data preserved, no dialog, no wipe
+    await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
 }
 

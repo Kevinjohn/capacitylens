@@ -25,7 +25,7 @@ function registerCreatesAllocationRowButtonAssigneeTest() {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     // In row-create mode the assignee is fixed to the clicked row, so there's no
-    // Assignee select — the dialog title names them instead.
+    // Assignee select, the dialog title names them instead.
     await expect(dialog.getByRole("heading")).toContainText("Clark Kent");
     await expect(dialog.getByLabel("Assignee")).toHaveCount(0);
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
@@ -124,7 +124,7 @@ function registerCreatesThreeWeeksDirectDateTest() {
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
-    // Fri 2026-06-12: since #257 a new allocation must start on an effective working day —
+    // Fri 2026-06-12: since  a new allocation must start on an effective working day,
     // there is no ignored-creation escape hatch, so the anchor itself moves to a weekday.
     await dialog.getByLabel("Start Date").fill("2026-06-12");
     await dialog.getByLabel(/^End/).fill("2026-06-12");
@@ -144,8 +144,8 @@ function registerEditsMonthlyOccurrenceDeletesSeriesTest() {
     let dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
-    // Fri 2026-06-12 anchor (weekday start required since #257); later monthly occurrences may
-    // drift onto weekends and are still created — that is the advisory contract under test.
+    // The form requires a weekday start, but later monthly occurrences may drift onto weekends.
+    // This test verifies that the later dates are still created.
     await dialog.getByLabel("Start Date").fill("2026-06-12");
     await dialog.getByLabel(/^End/).fill("2026-06-12");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
@@ -183,8 +183,8 @@ function registerEditsMonthlyOccurrenceDeletesSeriesTest() {
     dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
-    // Fri 2027-01-29: a weekday day-29 anchor (weekday start required since #257) that still
-    // exercises the February month-length clamp without any month-end fallback copy.
+    // This weekday day-29 anchor exercises the February month-length clamp without relying on
+    // a month-end fallback.
     await dialog.getByLabel("Start Date").fill("2027-01-29");
     await dialog.getByLabel(/^End/).fill("2027-01-29");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
@@ -296,19 +296,20 @@ function registerReassignsAllocationAnotherResourceDialogTest() {
 
 function registerSnapsProjectPlaceholderBoundProjectTest() {
   test("snaps the project to a placeholder bound project when chosen", async ({ page }) => {
-    // Placeholders are hidden by default (per-account pref) — turn them on in Settings first so
+    // Placeholders are hidden by default (per-account pref), turn them on in Settings first so
     // the seeded placeholder's lane (and its "+" button) appears in the schedule.
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await showPlaceholders(page);
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
-    // Open create mode from the placeholder's OWN row (in create mode the assignee is fixed to the
+    // Open create mode from the placeholder's own row (in create mode the assignee is fixed to the
     // clicked row). The seeded "Senior Designer" slot shows as "Placeholder" and is bound to p-acme.
     await page.getByRole("button", { name: "Add allocation for Placeholder" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     const project = dialog.getByLabel("Project", { exact: true });
-    await expect(project).toHaveText(/Project Watchtower/); // bound project preselected
+    // bound project preselected
+    await expect(project).toHaveText(/Project Watchtower/);
     // The trigger remains readable, but incompatible project-less scopes are disabled. The bound
     // project can use both its own activities and All-projects activities.
     await expect(project).toBeEnabled();

@@ -12,11 +12,11 @@ import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// #780 — the ownership transfer ceremony, end to end in the browser, against the auth-backed
+// The ownership transfer ceremony runs end to end in the browser against the auth-backed
 // project's server (see playwright.config.ts). Owner A bootstraps an org and the disposable fixture
 // seeds Admin B. Then both people drive the real UI: A nominates B, B agrees, A confirms,
-// and the two roles swap. We also assert the two things the ceremony exists for — that nobody else
-// can see the request, and that nobody but B can give B's consent. Browser-agnostic (no UA branching).
+// and the two roles swap. The test also checks that nobody else
+// can see the request or give B's consent. The flow is browser-agnostic.
 
 const STAMP = Date.now();
 const OWNER = `ot-owner-${STAMP}@capacitylens.dev`;
@@ -45,7 +45,7 @@ async function setupCeremony(request: APIRequestContext) {
 }
 
 /** Open the nominee picker, prove the only choices are active Admins, and choose one. The option
- *  value carries the member id, so this never depends on how a display name is rendered. */
+ * value carries the member ID, so this never depends on how a display name is rendered. */
 async function nominate(page: Page, adminUserId: string, editorUserId: string): Promise<void> {
   const trigger = page.getByTestId("ownership-transfer-nominee");
   await trigger.click();
@@ -95,7 +95,7 @@ test("an owner nominates an admin, the admin agrees, the owner confirms, and the
   const ownerPage = await openTeamAccess(ownerContext, OWNER);
   await expect(ownerPage.getByTestId("current-access")).toContainText("Owner");
 
-  // NOMINATE. Only active Admins are offered, so the editor must not appear as a candidate.
+  // Only active Admins can be nominated, so the editor must not appear as a candidate.
   await expect(ownerPage.getByTestId("ownership-transfer-card")).toBeVisible();
   await openOwnershipDialog(ownerPage);
   await nominate(ownerPage, admin.userId, editor.userId);
@@ -104,7 +104,7 @@ test("an owner nominates an admin, the admin agrees, the owner confirms, and the
   // Nothing has happened yet: the Owner cannot confirm a nomination nobody has agreed to.
   await expect(ownerPage.getByTestId("ownership-transfer-complete")).toHaveCount(0);
 
-  // A bystander sees no ceremony at all — the card is a participant-only projection.
+  // A bystander cannot see the ceremony because the card is participant-only.
   const editorContext = await newObservedContext({ reducedMotion: "reduce" });
   const editorPage = await openTeamAccess(editorContext, EDITOR);
   await expect(editorPage.getByTestId("ownership-transfer-card")).toHaveCount(0);
@@ -122,7 +122,6 @@ test("an owner nominates an admin, the admin agrees, the owner confirms, and the
   );
   expect(stolenConsent.status()).toBe(403);
 
-  // AGREE, as the nominee and nobody else.
   const adminContext = await newObservedContext({ reducedMotion: "reduce" });
   const adminPage = await openTeamAccess(adminContext, ADMIN);
   await openOwnershipDialog(adminPage);
@@ -131,7 +130,6 @@ test("an owner nominates an admin, the admin agrees, the owner confirms, and the
   await adminPage.getByTestId("ownership-transfer-accept").click();
   await expect(adminPage.getByTestId("ownership-transfer-withdraw")).toBeVisible();
 
-  // CONFIRM, by the same Owner who nominated.
   await ownerPage.reload();
   await openOwnershipDialog(ownerPage);
   await ownerPage.getByTestId("ownership-transfer-complete").click();

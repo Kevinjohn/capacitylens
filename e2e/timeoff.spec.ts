@@ -78,7 +78,7 @@ function registerKeepsListRowTerseStartTest() {
       .getByTestId("timeoff-group")
       .filter({ has: page.getByRole("heading", { name: "Bruce Wayne", exact: true }) })
       .getByTestId("timeoff-row");
-    // The list row is intentionally terse: the start date and how many days — no end date, no type.
+    // The list row omits the end date and type, so the count is its only duration summary.
     // (Seed: Bruce off 10–12 June, starting a Wednesday, three inclusive days.)
     await expect(row).toContainText("Wed 10th Jun");
     await expect(row).toContainText("3 days");
@@ -89,8 +89,8 @@ function registerKeepsListRowTerseStartTest() {
     await setZoom(page, 1);
     await goToSeedWeek(page);
     const block = page.locator('[data-resource-id="r-tyler"]').getByTestId("timeoff-block");
-    await expect(block).toContainText("Holiday"); // the human label…
-    await expect(block).not.toContainText("holiday"); // …not the raw enum
+    await expect(block).toContainText("Holiday");
+    await expect(block).not.toContainText("holiday");
   });
 }
 
@@ -105,15 +105,15 @@ function registerEditsTimeOffEntryListTest() {
     const dialog = page.getByRole("dialog", { name: "Edit time off" });
     await selectShadOption(dialog.getByLabel("Type"), { label: "Sick" });
     // exact: the seed entry's Note ("Long weekend") otherwise substring-matches "End".
-    await dialog.getByLabel(/^End/).fill("2026-06-11"); // shorten 12 June → 11 June
+    await dialog.getByLabel(/^End/).fill("2026-06-11");
     await page.getByRole("button", { name: "Save" }).click();
 
     // The list shows the start date + day count, so shortening the end reflects as a smaller count.
-    await expect(row).toContainText("Wed 10th Jun"); // start unchanged
-    await expect(row).toContainText("2 days"); // was 3 days
+    await expect(row).toContainText("Wed 10th Jun");
+    await expect(row).toContainText("2 days");
     await expect(row).not.toContainText("3 days");
 
-    // The type change persisted too — reopen the editor to confirm (the type isn't in the list).
+    // The type change persisted too, reopen the editor to confirm (the type isn't in the list).
     await row.getByRole("button", { name: /^Edit / }).click();
     await expect(page.getByRole("dialog", { name: "Edit time off" }).getByLabel("Type")).toHaveText("Sick");
   });
@@ -178,7 +178,8 @@ function registerCreatesRepeatedTimeOffIndependentTests() {
       .getByTestId("timeoff-group")
       .filter({ has: page.getByRole("heading", { name: "Bruce Wayne", exact: true }) })
       .getByTestId("timeoff-row");
-    await expect(bruceRows).toHaveCount(13); // twelve generated entries plus the seed entry
+    // The generated series adds twelve entries alongside the existing seed entry.
+    await expect(bruceRows).toHaveCount(13);
 
     await bruceRows
       .nth(1)

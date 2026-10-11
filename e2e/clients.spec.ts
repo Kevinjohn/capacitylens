@@ -34,7 +34,8 @@ function registerOwnerCanAddPrivateClientTest() {
     await page.getByRole("button", { name: "Save" }).click();
 
     const row = page.getByTestId("client-row").filter({ hasText: "Embargoed Client Ltd" });
-    await expect(row).toBeVisible(); // trusted-local/demo is owner-equivalent and sees the real name.
+    // trusted-local/demo is owner-equivalent and sees the real name.
+    await expect(row).toBeVisible();
     await row.getByRole("button", { name: /^Edit / }).click();
     await expect(page.getByRole("switch", { name: "Use code name" })).toHaveAttribute("aria-checked", "true");
     await expect(page.getByRole("textbox", { name: "Code name", exact: true })).toHaveValue("Nightwing");
@@ -49,7 +50,8 @@ function registerRejectsEmojiJunkCharactersNameTest() {
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Ferris \u{1F389} Co");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("alert")).toContainText(/emoji or special characters/i);
-    await expect(page.getByRole("dialog")).toBeVisible(); // dialog stays open; nothing added
+    // dialog stays open; nothing added
+    await expect(page.getByRole("dialog")).toBeVisible();
     // …a real accented name saves fine.
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Café Crème");
     await page.getByRole("button", { name: "Save" }).click();
@@ -77,8 +79,8 @@ function registerEditsClientRenameReflectsProjectTest() {
   });
 }
 
-// P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
-// a hard cascade-delete). Its projects keep their OWN active status (archiving filters by each row's
+// the per-row destructive action archives (hidden from the active list, fully retained, not
+// a hard cascade-delete). Its projects keep their own active status (archiving filters by each row's
 // own status, it does not cascade), so they stay visible; archiving is undoable via the local store.
 function registerArchivingClientHidesListRestorableTests() {
   test("archiving a client hides it from the list, restorable with undo", async ({ page }) => {

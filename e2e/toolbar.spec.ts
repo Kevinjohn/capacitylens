@@ -12,7 +12,7 @@ import {
 function registerZoomsTimelineTracksActiveLevelTest() {
   test("zooms the timeline and tracks the active level", async ({ page }) => {
     await openApp(page);
-    // #173: the weeks dropdown replaced the 1w..8w segments — the current span is the closed
+    // : the weeks dropdown replaced the 1w..8w segments, the current span is the closed
     // trigger's own text, so "which level is active" is readable without opening anything.
     const weeks = page.getByRole("combobox", { name: "Weeks visible" });
     await setZoom(page, 6);
@@ -75,7 +75,7 @@ function registerReCentresTodayScrollingAwayTest() {
   });
 }
 
-// The jump-to-date picker is hidden from the toolbar (#173), so there is nothing to drive here.
+// The toolbar has no jump-to-date picker in this layout.
 // Its coverage lives at the two levels that still exercise it: the component
 // (src/components/scheduler/JumpToDateInput.test.tsx) and the week-start snap it triggers
 // (goToDate in src/store/useStore.test.ts). This test asserts only that it is gone from the bar.
@@ -153,10 +153,10 @@ function registerSwitchesDrawModeBetweenWorkTest() {
     await expect(timeoff).toHaveAttribute("aria-checked", "true");
     await expect(work).toHaveAttribute("aria-checked", "false");
 
-    // The work bars go inert via a SINGLE ancestor layer (ResourceLane's BarsLayer), not a
-    // per-bar attribute — so the bar carries no `inert` of its own, but its nearest [inert]
+    // The work bars go inert via a single ancestor layer (ResourceLane's BarsLayer), not a
+    // per-bar attribute, so the bar carries no `inert` of its own, but its nearest [inert]
     // ancestor makes it non-interactive, off the tab order, and removed from the a11y tree.
-    // Prove the semantics hold THROUGH the ancestor: every bar is matched by `[inert] <bar>`,
+    // Prove the semantics hold through the ancestor: every bar is matched by `[inert] <bar>`,
     // and an attempt to focus one is refused (inert subtrees can't take focus).
     await resetSchedulerScroll(page);
     const bar = page.getByTestId("allocation-bar").first();
@@ -172,7 +172,7 @@ function registerSwitchesDrawModeBetweenWorkTest() {
       }),
     ).toBe(false);
 
-    // Toggling back to Work clears the ancestor inert — the bar is interactive (focusable) again.
+    // Toggling back to Work clears the ancestor inert, the bar is interactive (focusable) again.
     await work.click();
     await expect(page.locator('[inert] [data-testid="allocation-bar"]')).toHaveCount(0);
     expect(
@@ -184,7 +184,7 @@ function registerSwitchesDrawModeBetweenWorkTest() {
   });
 }
 
-// Undo/redo now has BOTH a visible affordance (the toolbar buttons) and the global
+// Undo/redo now has both a visible affordance (the toolbar buttons) and the global
 // ⌘Z / ⌘⇧Z shortcut (handled in AppShell). This test drives the buttons + their
 // disabled states; the keyboard test below covers the shortcut path + the typing guard.
 function registerUndoesRedoesToolbarButtonsDisabledTest() {
@@ -231,7 +231,7 @@ function registerUndoesRedoesKeyboardIgnoresShortcutTests() {
     await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
 
-    // Typing in the search box must NOT trigger undo.
+    // Typing in the search box must not trigger undo.
     await page.getByLabel("Search people").click();
     await page.keyboard.press("Meta+z");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);

@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 import { waitForAppLanding, freezeBrowserDate, openApp, setTheme } from "./browserTestSupport";
 
 // Covers US-NAV-01, 02, 06. (Loading gate, persist-error banner, toast and error
-// boundary are covered by unit tests / manual scripts — impractical to trigger reliably in E2E.)
+// boundary are covered by unit tests / manual scripts, impractical to trigger reliably in E2E.)
 const deepDestinations = [
   ["/resources", "Resources"],
   ["/disciplines", "Disciplines"],
@@ -17,7 +17,7 @@ const deepDestinations = [
   ["/help", "Help"],
 ] as const;
 
-// #216: exercise real document navigations, not React Router transitions. The Vite history
+// : exercise real document navigations, not React Router transitions. The Vite history
 // fallback must serve index.html, then the session-only company gate must preserve the URL.
 function registerValidDeepLinkPathSurvivesTest() {
   for (const [path, heading] of deepDestinations) {
@@ -50,7 +50,7 @@ function registerValidDeepLinkPathSurvivesTest() {
 
       const reloadResponse = await page.reload();
       // Firefox exposes a successful cache revalidation as 304 here, while Chromium and WebKit
-      // report the cached shell as 200. In both cases the browser has loaded the SPA document; the
+      // report the cached shell as 200. In both cases the browser has loaded the spa document; the
       // URL, company gate and resumed destination assertions below verify the observable contract.
       expect([200, 304]).toContain(reloadResponse?.status());
       await expect(page).toHaveURL(new RegExp(`${path}$`));
@@ -108,8 +108,7 @@ function registerSidebarLinksRouteSectionTest() {
   });
 }
 
-// Issues #169/#172. Assert real DOM order and the account block below it — mere presence of the
-// links passed under the old layout too, so only order proves the move happened.
+// Assert the links appear above the account block; presence alone does not verify their order.
 function registerPinsTeamAccessSettingsBelowTest() {
   test("pins Team & access, Settings and Diagnostics below the working destinations, above the account block", async ({
     page,
@@ -142,7 +141,7 @@ function registerPinsTeamAccessSettingsBelowTest() {
     expect(footerHrefs.slice(-2)).toEqual(["/help", "/account"]);
     await expect(page.getByTestId("nav-sign-out")).toHaveCount(0);
 
-    // Import/export is gone from the sidebar and lives on Settings instead (#169).
+    // Import and export are available from Settings.
     await expect(page.getByTestId("export-data")).toHaveCount(0);
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Import and export" })).toBeVisible();
@@ -168,8 +167,8 @@ function registerSettingsTogglesColourThemeTest() {
 }
 
 // WCAG 2.4.2 (Page Titled): each route sets a descriptive document.title of "<nav label> · CapacityLens",
-// derived from the SAME nav labels — so the tab/history/bookmark differs per page rather than the
-// static "CapacityLens" index.html sets. Assert a couple of routes are distinct AND descriptive.
+// derived from the same nav labels, so the tab/history/bookmark differs per page rather than the
+// static "CapacityLens" index.html sets. Assert a couple of routes are distinct and descriptive.
 function registerRouteSetsDescriptiveDistinctDocumentTest() {
   test("each route sets a descriptive, distinct document.title", async ({ page }) => {
     await openApp(page);

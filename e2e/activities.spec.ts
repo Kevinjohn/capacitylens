@@ -7,7 +7,7 @@ import { dismissLandscapeHint, openApp, resetSchedulerScroll, selectShadOption, 
 // Firefox lays this dialog out at subpixel precision, so geometry that is "equal" or "aligned" by
 // design comes back a hair over a whole pixel apart (observed: a 1.0000152587890625px spread across
 // three equal grid segments). Every alignment assertion below therefore allows 1.5px, which still
-// catches a real layout regression — those are whole pixels wide — without failing on rounding.
+// catches a real layout regression, those are whole pixels wide, without failing on rounding.
 const SUBPIXEL_TOLERANCE_PX = 1.5;
 async function expectEqualFullWidthSegments(
   dialog: import("@playwright/test").Locator,

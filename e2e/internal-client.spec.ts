@@ -1,25 +1,25 @@
 import { test, expect } from "./fixtures";
 import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleFilters } from "./browserTestSupport";
 
-// Covers US-CLI-04 — the built-in "Internal" pseudo-client.
+// Covers US-CLI-04, the built-in "Internal" pseudo-client.
 test.describe("Internal client", () => {
   test("Internal is HIDDEN from the Clients management list, but stays selectable + a binding target", async ({
     page,
   }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
-    // Internal is a behind-the-scenes data anchor — it does NOT appear in the management list…
+    // Internal is a behind-the-scenes data anchor; it does not appear in the management list…
     await expect(page.getByTestId("client-row").filter({ hasText: "Internal" })).toHaveCount(0);
-    // …while normal clients are listed with their Edit/Archive affordances (P2.5b: the row's
-    // destructive action archives — Internal has no such row, so it can't be archived from here).
+    // …while normal clients are listed with their Edit/Archive affordances (the row's
+    // destructive action archives; Internal has no such row, so it cannot be archived from here).
     const queenRow = page.getByTestId("client-row").filter({ hasText: "Queen" });
     await expect(queenRow).toBeVisible();
     await expect(queenRow.getByRole("button", { name: /^Edit / })).toBeVisible();
     await expect(queenRow.getByRole("button", { name: "Archive Queen Consolidated" })).toBeVisible();
 
-    // It is still SELECTABLE as a project's client in ProjectForm's client picker (name chosen
-    // WITHOUT "Internal" in it, so the client-label assertion below can't pass by accident).
-    // Navigate IN-APP (a fresh page.goto would re-show the account picker — the active account
-    // isn't persisted).
+    // It is still selectable as a project's client in ProjectForm's client picker (name chosen
+    // without "Internal" in it, so the client-label assertion below can't pass by accident).
+    // Navigate in-app; a fresh page.goto would re-show the account picker because the active
+    // account is not persisted.
     await page.getByRole("link", { name: "Projects" }).click();
     await page.getByRole("button", { name: "Add project" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Quarterly planning");
@@ -57,8 +57,8 @@ test.describe("Internal client", () => {
     const barryRow = page.getByTestId("scheduler-row").filter({ hasText: "Barry Allen" });
     const internalDesignBar = barryRow.getByTestId("allocation-bar").filter({ hasText: "Design" });
     await expect(internalDesignBar).toBeVisible();
-    // Filtering by the Internal client KEEPS the project-less work (it derives client = Internal)
-    // and HIDES project work owned by other clients (Brand System under LexCorp is gone).
+    // Filtering by the Internal client keeps the project-less work (it derives client = Internal)
+    // and hides project work owned by other clients (Brand System under LexCorp is gone).
     await selectShadOption(page.getByLabel("Filter by client"), {
       label: "Internal",
     });

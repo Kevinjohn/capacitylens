@@ -114,17 +114,17 @@ function registerShowsSeededResourcesGroupingCapacityTest() {
     // Seed over-allocates Bruce on 3-4 June; weekends/time off are unavailable.
     const overMarker = page.getByTestId("over-marker").first();
     await expect(overMarker).toBeVisible();
-    // The over-capacity day reads as a CLEAR, saturated red background (the dedicated
+    // The over-capacity day reads as a clear, saturated red background (the dedicated
     // `danger-cell` token), not a faint blush. Resolve the computed fill to true sRGB bytes
-    // by painting it onto a canvas and reading the pixel back — robust whether the engine
+    // by painting it onto a canvas and reading the pixel back, robust whether the engine
     // serialises the `color-mix(in oklab,…)` result as `rgb(…)`, `oklab(…)`, or `color(…)`.
     const rgba = await overMarker.evaluate((el) => {
       const bg = getComputedStyle(el).backgroundColor;
       const c = document.createElement("canvas");
       c.width = c.height = 1;
       const ctx = c.getContext("2d")!;
-      // Opaque base so a (regressed) translucent fill blends toward white, not black —
-      // a near-invisible alpha tint then reads as a near-white pixel and FAILS the gate.
+      // Opaque base so a (regressed) translucent fill blends toward white, not black,
+      // a near-invisible alpha tint then reads as a near-white pixel and fails the gate.
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, 1, 1);
       ctx.fillStyle = bg;
@@ -140,7 +140,7 @@ function registerShowsSeededResourcesGroupingCapacityTest() {
     // Opaque fill (the old /12 alpha would composite away above; the cell itself is solid).
     expect(rgba.a).toBe(255);
     // Real saturation: R must lead the other channels by a wide margin. Light `danger-cell`
-    // is ~rgb(251,158,161) → R − max(G,B) ≈ 90; a blush like rgb(255,230,230) (≈25) FAILS.
+    // is ~rgb(251,158,161) → R − max(G,B) ≈ 90; a blush like rgb(255,230,230) (≈25) fails.
     expect(rgba.r - Math.max(rgba.g, rgba.b)).toBeGreaterThan(60);
     await expect(page.getByTestId("unavailable-day").first()).toBeVisible();
     await expect(page.getByTestId("utilization").first()).toBeVisible();
@@ -261,9 +261,9 @@ function registerZoomingMoreWeeksShrinksDayTest() {
 function registerClickingTodayReCentresTimelineTest() {
   test("clicking Today re-centres the timeline after scrolling away", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
-    // Turn the free-scroll week snap OFF first. With it armed, the 120ms idle timer
+    // Turn the free-scroll week snap off first. With it armed, the 120ms idle timer
     // (WEEK_SNAP_IDLE_MS) re-floors the left edge to a Monday between our park and the probe on
-    // slow runners, so a mid-week precondition can never be made stable. With it OFF the park
+    // slow runners, so a mid-week precondition can never be made stable. With it off the park
     // sticks, and the Monday landing after Today is attributable to Today's re-anchor alone.
     await disableWeekSnap(page);
     await openApp(page);
@@ -272,7 +272,7 @@ function registerClickingTodayReCentresTimelineTest() {
     await expect(grid).toBeVisible();
 
     // Scroll far to the right, then keep nudging by half a weekday column until the left edge sits
-    // MID-WEEK (a fixed pixel offset can coincidentally align to a Monday — minimised weekend
+    // mid-week (a fixed pixel offset can coincidentally align to a Monday, minimised weekend
     // columns make the week pitch non-uniform, so no single offset is safe on every start date).
     // The mid-week precondition is what proves Today actively re-anchors to the week start, rather
     // than the view having merely stayed put on a Monday.
@@ -288,7 +288,7 @@ function registerClickingTodayReCentresTimelineTest() {
         Math.max(1, Math.round(weekdayWidth / 2)),
       );
     }
-    // Let the idle timer elapse; the snap is OFF, so the mid-week park must STICK.
+    // Let the idle timer elapse; the snap is off, so the mid-week park must stick.
     await waitForWeekSnap(page);
     const scrolled = await grid.evaluate((el) => (el as HTMLElement).scrollLeft);
     expect(scrolled).toBeGreaterThan(800);
@@ -298,14 +298,13 @@ function registerClickingTodayReCentresTimelineTest() {
 
     // The grid re-scrolls back towards today (much smaller scrollLeft than where we were)…
     await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeLessThan(scrolled - 400);
-    // …AND the left edge lands flush on the focus week's start (Monday), not a coarse pixel target.
+    // …and the left edge lands flush on the focus week's start (Monday), not a coarse pixel target.
     await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
   });
 }
 
-// This used to jump straight to August through the date picker. That picker is hidden as of
-// #173, so the same "the header follows the window into another month" behaviour is driven by
-// the controls that remain: Today, then Next a week at a time.
+// Today and repeated Next actions move the visible window into another month, allowing this test
+// to verify that the header follows the window.
 function registerPaningForwardMovesTimelineNextTest() {
   test("paning forward moves the timeline into the next month", async ({ page }) => {
     await openApp(page);
@@ -314,7 +313,7 @@ function registerPaningForwardMovesTimelineNextTest() {
     await goToSeedWeek(page); // left edge = Mon 2026-06-01
     await expect.poll(() => schedulerLeftMonthLabel(page)).toBe("Jun 2026");
 
-    // Five weeks on from 1 June is Mon 6 July — the first left edge that is fully in July.
+    // Five weeks on from 1 June is Mon 6 July, the first left edge that is fully in July.
     for (let week = 0; week < 5; week += 1) await page.getByRole("button", { name: "Next" }).click();
     await expect.poll(() => schedulerLeftMonthLabel(page)).toBe("Jul 2026");
     expect(await settledSchedulerLeftDate(page)).toContain("Mon");
@@ -493,13 +492,13 @@ function registerWeekRangeToggleRecomputesUtilisationTest() {
 
     // Per-person % for a known seeded resource row (Bruce Wayne). Its utilisation lives in the row
     // header's `utilization` testid, scoped to Bruce's scheduler-row so it can't pick up another
-    // person's cell. Bruce is FRONT-LOADED in the seed (8h/day Mon–Thu of the frozen-clock week +
+    // person's cell. Bruce is front-loaded in the seed (8h/day Mon–Thu of the frozen-clock week +
     // a tentative bar) → dense week 1 that idle later weeks dilute as the span widens.
     const bruceUtil = page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" }).getByTestId("utilization");
     const brucePct = async () => Number.parseInt((await bruceUtil.textContent())?.replace("%", "") ?? "", 10);
 
-    // Read the overall + Bruce % for a given zoom AFTER it settles: click the toggle, wait for the
-    // label to track the zoom, then poll BOTH numbers to a STABLE value (two equal reads in a row) —
+    // Read the overall + Bruce % for a given zoom after it settles: click the toggle, wait for the
+    // label to track the zoom, then poll both numbers to a stable value (two equal reads in a row),
     // the visible window re-anchors via a rAF after the scroll settles, so a bare read can race that.
     const readAtZoom = async (weeks: 1 | 2 | 4 | 8): Promise<{ overall: number; bruce: number }> => {
       await setZoom(page, weeks);
@@ -527,20 +526,20 @@ function registerWeekRangeToggleRecomputesUtilisationTest() {
     };
 
     // The seed concentrates work in week 1 (early June, the frozen-clock week) and tapers off, so the
-    // utilisation read over the visible window FALLS as the span widens (idle later weeks dilute the
+    // utilisation read over the visible window falls as the span widens (idle later weeks dilute the
     // dense first week). Monotone non-increasing because every span shares the same left edge.
     const wk1 = await readAtZoom(1);
     const wk2 = await readAtZoom(2);
     const wk4 = await readAtZoom(4);
     const wk8 = await readAtZoom(8);
     expect(wk1.overall).toBeGreaterThan(0);
-    // Changing the toggle genuinely changes the OVERALL number to reflect the visible span.
+    // Changing the toggle genuinely changes the overall number to reflect the visible span.
     expect(wk1.overall).toBeGreaterThan(wk8.overall);
     expect(wk2.overall).toBeLessThanOrEqual(wk1.overall);
     expect(wk4.overall).toBeLessThanOrEqual(wk2.overall);
     expect(wk8.overall).toBeLessThanOrEqual(wk4.overall);
-    // Per-person % moves in the SAME direction for a front-loaded resource: Bruce's dense week 1
-    // reads higher at 1w than at 8w (the idle later weeks dilute it). Direction/inequality only —
+    // Per-person % moves in the same direction for a front-loaded resource: Bruce's dense week 1
+    // reads higher at 1w than at 8w (the idle later weeks dilute it). Direction/inequality only,
     // no flaky exact-number race for the intermediate spans.
     expect(wk1.bruce).toBeGreaterThan(0);
     expect(wk1.bruce).toBeGreaterThanOrEqual(wk8.bruce);
@@ -593,31 +592,30 @@ function registerAllocationStatusNoteVisuallyDistinctTest() {
   });
 }
 
-// Feature 1 (ALWAYS on): a zoom click and a Prev/Next pan re-anchor the grid's left edge to the
-// week start (account weekStartsOn, default Monday) — INDEPENDENT of Feature 2's free-scroll
-// week snap. The audit found this test was CONFOUNDED: because F2 defaults ON, the
+// Feature 1 (always on): a zoom click and a Prev/Next pan re-anchor the grid's left edge to the
+// week start (account weekStartsOn, default Monday), independent of Feature 2's free-scroll
+// week snap. The audit found this test was confounded: because F2 defaults on, the
 // idle free-scroll snap masked the F1 navigation snap (disabling only F1 still left it green).
-// So we turn F2 OFF first — now a free nudge to a mid-week day STICKS, and the ONLY thing that can
+// So we turn F2 off first, now a free nudge to a mid-week day sticks, and the only thing that can
 // re-anchor the left edge to a Monday is the navigation branch under test (zoom / Next / Prev).
 // Frozen clock 2026-06-03 (Wed); week origin Monday 2026-06-01 → the 1w view opens flush on "1Mon".
 function registerNavigationReAnchorsLeftEdgeTest() {
   test("navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
-    // Turn F2 (the free-scroll week snap) OFF so the idle snap can't mask the navigation snap.
+    // Turn F2 (the free-scroll week snap) off so the idle snap can't mask the navigation snap.
     await disableWeekSnap(page);
     await openApp(page);
     await setZoom(page, 1);
 
     // Header day cells read "<dayNum><EEE>", e.g. "1Mon"; a minimised weekend collapses to "<n>S".
-    // We assert on the weekday suffix, and capture the leading day NUMBER to prove the window moved.
+    // We assert on the weekday suffix, and capture the leading day number to prove the window moved.
     const grid = page.getByTestId("scheduler-grid");
     const start = await probe(page);
     expect(start.leftDate).toMatch(/Mon$/); // the focused left edge opens on the current week's Monday
     const nudge = Math.round(start.weekdayWidth * 2.5);
     const dayNum = (s: string) => Number.parseInt(s, 10); // leading day number, e.g. "12Wed" → 12
-    // The idle snap is OFF, so a nudge to a mid-week day must STICK — proving any later return to
-    // Monday is attributable to NAVIGATION, not the free-scroll snap. (If the nudge didn't move off
-    // Monday, every assertion below would be vacuous.)
+    // The idle snap is off, so a nudge to a mid-week day must stick. Any later return to Monday then
+    // comes from navigation; otherwise the assertions below would be vacuous.
     const nudgeOffMonday = async () => {
       await grid.evaluate((el, px) => {
         (el as HTMLElement).scrollLeft = px;
@@ -626,21 +624,17 @@ function registerNavigationReAnchorsLeftEdgeTest() {
       expect((await probe(page)).leftDate).not.toMatch(/Mon$/);
     };
 
-    // (1) ZOOM snaps even with the pref OFF.
     await nudgeOffMonday();
     await setZoom(page, 2);
     await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
     const afterZoom = dayNum((await probe(page)).leftDate);
 
-    // (2) NEXT pans forward AND snaps: the window advances ~a week and lands on a Monday.
     await nudgeOffMonday();
     await page.getByRole("button", { name: "Next" }).click();
     await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
     const afterNext = dayNum((await probe(page)).leftDate);
     expect(afterNext).toBeGreaterThan(afterZoom); // moved roughly a week forward (still a Monday)
 
-    // (3) PREV pans backward AND snaps (this branch was previously UNtested). It must land on a
-    // Monday EARLIER than the Next position — i.e. a real backward week step, not a no-op.
     await nudgeOffMonday();
     await page.getByRole("button", { name: "Prev" }).click();
     await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
@@ -649,10 +643,10 @@ function registerNavigationReAnchorsLeftEdgeTest() {
   });
 }
 
-// #786. A bar that started before the visible window used to carry its label off-screen with it,
+// A bar that starts before the visible window keeps its label visible,
 // leaving long-running work unlabelled in any given view. The label now sits over the intersection
-// of the bar and the scroll container's viewport. The free-scroll week snap is turned OFF first
-// (a test-only override): its idle snap animates the scroll position shortly AFTER the scroll is written,
+// of the bar and the scroll container's viewport. The free-scroll week snap is turned off first
+// (a test-only override): its idle snap animates the scroll position shortly after the scroll is written,
 // and measuring through that animation has produced CI-only flakes before.
 function registerKeepsBarsLabelScreenScrollingTests() {
   test("keeps a bar's label on screen after scrolling past the bar's start (#786)", async ({ page }) => {
@@ -668,7 +662,7 @@ function registerKeepsBarsLabelScreenScrollingTests() {
     const timelineLeft = resourceHeader.x + resourceHeader.width;
 
     // Park the bar's own left edge behind the frozen resource column while roughly half of it is
-    // still on screen — exactly the case a start-anchored label cannot survive.
+    // still on screen, exactly the case a start-anchored label cannot survive.
     const before = await box(bar);
     await page.getByTestId("scheduler-grid").evaluate(
       (element, delta) => {

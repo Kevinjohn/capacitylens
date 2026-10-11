@@ -3,10 +3,10 @@ import { openNewCompanyForm, createCompany } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce", timezoneId: "Europe/London" } });
 
-// Onboarding capture (P1.14): the create-company form captures week-start, time zone and language
-// (the three fields the server FREEZES after creation), then lands in the app; Settings shows those
-// three controls DISABLED. Runs in the default OFF/in-memory demo build (the create flow is identical
-// to server mode — it routes through the same addAccount).
+// The create-company form captures week start, time zone, and language
+// (the three fields the server freezes after creation), then lands in the app; Settings shows those
+// three controls disabled. Runs in the default off/in-memory demo build (the create flow is identical
+// in-memory demo, but both modes use the same addAccount flow).
 
 test.describe("onboarding: capture-then-freeze language / week-start / time zone", () => {
   test("create a company capturing week-start + timezone → Settings shows the read-only summary", async ({ page }) => {
@@ -18,7 +18,7 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
     // The three frozen-after-creation fields are present with concrete defaults.
     await expect(page.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = page.getByLabel("Timezone");
-    // The abbreviation follows the current date: BST in summer, GMT in winter.
+    // The abbreviation follows the current date: bst in summer, gmt in winter.
     await expect(tz).toContainText(/London.*Europe\/London.*(?:BST|GMT)/);
     await tz.click();
     await expect(page.getByRole("option", { name: "GMT (UTC+00:00)", exact: true })).toBeVisible();

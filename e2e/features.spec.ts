@@ -63,7 +63,7 @@ function registerBookingTimeOffGreysScheduleTest() {
     await page.getByLabel("Start", { exact: true }).fill("2026-06-18");
     await page.getByLabel("End").fill("2026-06-20");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("timeoff-row")).toHaveCount(2); // seed Bruce + new Clark
+    await expect(page.getByTestId("timeoff-row")).toHaveCount(2);
 
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -76,8 +76,8 @@ function registerClickingDisciplineHeaderCollapsesRowsTest() {
     await openApp(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
     await page.getByRole("button", { name: "Design", exact: true }).click();
-    await expect(page.getByText("Bruce Wayne")).toHaveCount(0); // rows removed
-    await expect(page.getByTestId("discipline-group").first()).toBeVisible(); // header stays
+    await expect(page.getByText("Bruce Wayne")).toHaveCount(0);
+    await expect(page.getByTestId("discipline-group").first()).toBeVisible();
     await page.screenshot({
       path: testInfo.outputPath("capacitylens_collapsed.png"),
     });
@@ -88,12 +88,12 @@ function registerDraggingAllocationOntoAnotherRowTest() {
   test("dragging an allocation onto another row reassigns it", async ({ page }, testInfo) => {
     await openApp(page);
     // Zoom keeps the left-edge date anchored (the frozen "today"'s Monday), so the
-    // early-June seed bars stay in view — no manual scroll reset needed.
+    // early-June seed bars stay in view, no manual scroll reset needed.
     await setZoom(page, 4);
 
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
     const b0 = await box(bar);
-    // Address the target row by identity, not position — robust to seed re-ordering.
+    // Target the resource by its stable ID so seed reordering cannot change the destination.
     const clarkLane = page.locator('[data-resource-id="r-nike"]');
     const clark = await box(clarkLane);
     const cx = b0.x + b0.width / 2;
@@ -124,7 +124,8 @@ function registerRejectsVerticalReassignmentOntoNonTest() {
     const createDialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(createDialog.getByLabel("Project", { exact: true }), "p-brand");
     await selectShadOption(createDialog.getByRole("combobox", { name: "Activity", exact: true }), "t-brand");
-    await createDialog.getByLabel("Start").fill("2026-06-05"); // Friday
+    // Friday
+    await createDialog.getByLabel("Start").fill("2026-06-05");
     await createDialog.getByLabel("End").fill("2026-06-05");
     await createDialog.getByRole("button", { name: "Save" }).click();
 
@@ -196,14 +197,14 @@ function registerDrawingTimeOffModeOpensTest() {
 function registerDrawingPlaceholderLocksModalBoundTests() {
   test("drawing on a placeholder locks the modal to its bound project", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
-    // Placeholders are hidden by default (per-account pref) — enable them so the lane renders.
+    // Placeholders are hidden by default (per-account pref), enable them so the lane renders.
     await showPlaceholders(page);
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
     await waitForWeekSnap(page);
 
-    // The seeded placeholder is bound to p-acme — select it by id, not position.
+    // The seeded placeholder is bound to p-acme, select it by ID, not position.
     const lane = page.locator('[data-resource-id="r-ph-designer"]');
     const b = await box(lane);
     const y = b.y + b.height / 2;
@@ -224,7 +225,7 @@ function registerDrawingPlaceholderLocksModalBoundTests() {
     await expect(page.getByRole("dialog", { name: "New allocation" })).toBeVisible();
     const project = page.getByLabel("Project", { exact: true });
     // "Locked" = the bound project is preselected and the choices are restricted to it
-    // (+ the general option), but the select stays ENABLED so the placeholder can still
+    // (+ the general option), but the select stays enabled so the placeholder can still
     // take general activities. A non-bound project ("Metropolis Rebrand") is not offered.
     await expect(project).toHaveText(/Project Watchtower/);
     await expect(project).toBeEnabled();
