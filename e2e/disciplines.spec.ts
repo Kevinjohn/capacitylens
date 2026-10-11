@@ -33,7 +33,7 @@ test.describe("Disciplines", () => {
     await page.getByRole("alertdialog", { name: "Delete discipline?" }).getByRole("button", { name: "Delete" }).click();
     await expect(page.getByTestId("discipline-row").filter({ hasText: "Design" })).toHaveCount(0);
 
-    // Bruce (was in Design) still exists — just ungrouped.
+    // Bruce Wayne remains in the resource list after his discipline is deleted.
     await page.getByRole("link", { name: "Resources" }).click();
     const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
     await expect(bruce).toBeVisible();

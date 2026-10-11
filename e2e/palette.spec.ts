@@ -11,17 +11,13 @@ function registerOpensControlShowsActionsPagesTest() {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
-    // Palette is not visible initially
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
 
-    // Open with Ctrl+K (or Cmd+K — Playwright maps ControlOrMeta)
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).toBeVisible();
 
-    // Input is focused
     await expect(page.getByTestId("command-palette-input")).toBeFocused();
 
-    // Shows Actions section
     await expect(page.getByTestId("command-palette").getByText("Go to today")).toBeVisible();
 
     // Shows Pages section with every first-class route (scoped to the palette to avoid strict-mode
@@ -43,7 +39,6 @@ function registerOpensControlShowsActionsPagesTest() {
       await expect(palette.getByText(label, { exact: true }).last()).toBeVisible();
     }
 
-    // Close with Escape
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
   });
@@ -55,7 +50,6 @@ function registerToggleSecondControlClosesOpenTest() {
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).toBeVisible();
 
-    // Second press closes it
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
   });
@@ -65,12 +59,10 @@ function registerOpensInputFieldCtrlFiresTest() {
   test("opens from an input field (Ctrl+K fires even while typing)", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    // Focus the "Search people…" input on the scheduler
     const searchInput = page.getByPlaceholder("Search people…");
     await searchInput.click();
     await searchInput.type("ty");
 
-    // Ctrl+K should open palette even while typing in the search field
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).toBeVisible();
   });
@@ -81,28 +73,21 @@ function registerFuzzyFindsSeededResourceJumpsTest() {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
-    // Open palette
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).toBeVisible();
 
-    // Type the resource name (seeded: "Bruce Wayne")
     await page.getByTestId("command-palette-input").fill("Bruce");
 
-    // Wait for People section with Bruce Wayne option
     await expect(page.getByText("People")).toBeVisible();
     const bruceOption = page.getByTestId("command-palette-option").filter({ hasText: "Bruce Wayne" });
     await expect(bruceOption).toBeVisible();
 
-    // Navigate to Bruce with ArrowDown and Enter (or just click)
     await bruceOption.click();
 
-    // Palette should be closed
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
 
-    // Schedule should still be visible (we navigated to '/' and jumped to Bruce)
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
-    // Bruce Wayne's lane should be visible (scrolled into view)
     await expect(page.locator('[data-resource-id="r-tyler"]')).toBeVisible();
   });
 }
@@ -112,26 +97,19 @@ function registerKeyboardTypeArrowDownEnterTest() {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
 
-    // Type to filter resources
     await page.getByTestId("command-palette-input").fill("Clark");
 
-    // ArrowDown to first result (Clark Kent should appear)
     await page.keyboard.press("ArrowDown");
-    // The active option should advance
     const options = page.getByTestId("command-palette-option");
-    // Find the Clark Kent option
     await expect(options.filter({ hasText: "Clark Kent" })).toBeVisible();
     const activeId = await page.getByTestId("command-palette-input").getAttribute("aria-activedescendant");
     expect(activeId).toBeTruthy();
     await expect(page.locator(`#${activeId}`)).toHaveAttribute("aria-selected", "true");
 
-    // Press Enter
     await page.keyboard.press("Enter");
 
-    // Palette closes
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
 
-    // Clark Kent's lane should be on the schedule
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
     await expect(page.locator('[data-resource-id="r-nike"]')).toBeVisible();
   });
@@ -142,15 +120,12 @@ function registerNavigatesPagePaletteTest() {
     await openApp(page);
     await page.keyboard.press("ControlOrMeta+k");
 
-    // Type "res" to find Resources page
     await page.getByTestId("command-palette-input").fill("res");
 
-    // Click the Resources page option
     const resourcesOption = page.getByTestId("command-palette-option").filter({ hasText: "Resources" });
     await expect(resourcesOption).toBeVisible();
     await resourcesOption.click();
 
-    // Should navigate to /resources
     await expect(page.getByRole("button", { name: "Add resource" })).toBeVisible();
   });
 }
@@ -165,11 +140,9 @@ function registerGoTodayActionNavigatesScheduleTest() {
     await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeGreaterThan(4000);
     await page.getByRole("link", { name: "Resources" }).click();
 
-    // Open palette and click "Go to today"
     await page.keyboard.press("ControlOrMeta+k");
     await page.getByText("Go to today").click();
 
-    // It returns to the schedule and applies the recenter action, rather than merely navigating.
     await expect(grid).toBeVisible();
     await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeLessThan(4000);
   });
@@ -214,8 +187,6 @@ function registerBackdropClickClosesPaletteTest() {
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).toBeVisible();
 
-    // Click on the backdrop (the outer fixed overlay area, outside the panel)
-    // Use a coordinate that is on the backdrop but outside the panel (bottom-left corner area)
     await page.mouse.click(10, 10);
 
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
@@ -227,21 +198,16 @@ function registerDirtyFormGuardCtrlWhileTest() {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
-    // Open the Add client form (a real modal) to get a dirty form
     await page.getByRole("link", { name: "Clients" }).click();
     await page.getByRole("button", { name: "Add client" }).click();
 
-    // Make the form dirty by typing in the Name field
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Dirty Client");
 
-    // Now press ControlOrMeta+K — the palette must NOT appear
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
 
-    // The modal (form) must still be visible
     await expect(page.getByRole("textbox", { name: "Name", exact: true })).toBeVisible();
 
-    // The unsaved-changes notice must appear
     await expect(page.getByText("You have unsaved changes — use Cancel or Save to close this dialog.")).toBeVisible();
   });
 }
@@ -254,7 +220,6 @@ function registerImpossibleDate20260231Test() {
 
     await page.getByTestId("command-palette-input").fill("2026-02-31");
 
-    // No "Go to date 2026-02-31" option should appear
     await expect(page.getByTestId("command-palette").getByText(/Go to date 2026-02-31/)).not.toBeVisible();
   });
 }
@@ -265,11 +230,9 @@ function registerPaletteProjectSelectionReplacesStaleTest() {
     await showScheduleFilters(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
-    // Pre-set a stale search filter that would leave the schedule empty
     const searchInput = page.getByPlaceholder("Search people…");
     await searchInput.fill("zzz-nobody-matches-zzz");
 
-    // Open palette and select a seeded project (Project Watchtower)
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).toBeVisible();
 
@@ -279,14 +242,11 @@ function registerPaletteProjectSelectionReplacesStaleTest() {
     await expect(projectOption).toBeVisible();
     await projectOption.click();
 
-    // Palette closed
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
 
-    // Scheduler must be visible (not the empty-state)
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
     await expect(page.getByTestId("scheduler-empty")).not.toBeVisible();
 
-    // The project filter must show Project Watchtower and the stale search text must be gone.
     await expect(page.getByRole("combobox", { name: "Filter by project" })).toHaveText(
       "Queen Consolidated / Project Watchtower",
     );

@@ -11,10 +11,9 @@ const packageQualifiedPath = (filepath: string): string => {
   return `node_modules/${packagePath}`;
 };
 
-// Keep Vue's default development and production source sensitivity while removing
-// only pnpm/worktree topology from dependency component paths. The callback shape
-// is the supported @vitejs/plugin-vue features.componentIdGenerator API:
-// https://github.com/vitejs/vite-plugin-vue#options
+/** Normalizes dependency paths before hashing so pnpm and worktree layout do not change component IDs.
+ * Development IDs omit source text; production IDs include it, matching Vue's default behavior.
+ */
 export const generateDocumentationComponentId = (
   filepath: string,
   source: string,

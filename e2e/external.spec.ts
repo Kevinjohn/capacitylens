@@ -1,9 +1,9 @@
 import { test, expect } from "./fixtures";
 import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleFilters } from "./browserTestSupport";
 
-// Covers US-SET-07. External / 3rd parties are a PER-ACCOUNT view pref (`externalEnabled` on the
-// active Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is
-// untouched and returns when the switch goes on. They moved from a standalone /external tab INTO a
+// Covers US-SET-07. External parties use a per-account view preference (`externalEnabled` on the
+// active Account, absent = false), default off, hidden everywhere out of the box, but their data is
+// untouched and returns when the switch goes on. They moved from a standalone /external tab into a
 // gated **External** section under the Resources tab. The seed has one external party
 // (r-ext-northstar, "Kord Industries", booked on Visual Design) so the toggle is demonstrable.
 
@@ -12,7 +12,8 @@ import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleF
 async function enableExternal(page: import("@playwright/test").Page): Promise<void> {
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   const toggle = page.getByRole("switch", { name: "Show external resources" });
-  await expect(toggle).toHaveAttribute("aria-checked", "false"); // default off
+  // The per-account preference starts disabled.
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "true");
 }
@@ -34,7 +35,7 @@ function registerHiddenDefaultSeededExternalAbsentTest() {
 
 function registerOldExternalURLRedirectsResourcesTest() {
   test("the old /external URL redirects to the Resources tab", async ({ page }) => {
-    // External no longer has its own tab — a saved bookmark must not 404; it redirects to /resources.
+    // External no longer has its own tab. Redirect saved bookmarks to /resources instead of 404ing.
     await openApp(page, "Wayne Enterprises", "/external");
     await expect(page).toHaveURL(/\/resources$/);
     await expect(page.getByRole("heading", { name: "Resources", exact: true })).toBeVisible();
@@ -66,7 +67,7 @@ function registerTurningRevealsExternalSectionHelpTest() {
     ).toBeVisible();
     await resourcesHelpDialog.getByRole("button", { name: "Close" }).click();
     await expect(page.getByTestId("external-row").filter({ hasText: "Kord Industries" })).toBeVisible();
-    // Externals are NOT mixed into the people rows.
+    // Externals are not mixed into the people rows.
     await expect(page.getByTestId("resource-row").filter({ hasText: "Kord Industries" })).toHaveCount(0);
 
     // Schedule now shows the neutral External band at the very bottom.
@@ -82,7 +83,8 @@ function registerTurningRevealsExternalSectionHelpTest() {
       .getByTestId("allocation-bar")
       .filter({ hasText: "Visual Design" });
     await expect(extBar).toBeVisible();
-    await expect(extBar).not.toContainText(/\b\d+(?:\.\d+)?h\b/); // an external bar suppresses every hours figure
+    // External allocations suppress all hour figures.
+    await expect(extBar).not.toContainText(/\b\d+(?:\.\d+)?h\b/);
     // No per-row utilisation chip on the external row.
     await expect(
       page.getByTestId("scheduler-row").filter({ hasText: "Kord Industries" }).getByTestId("utilization"),
@@ -93,7 +95,7 @@ function registerTurningRevealsExternalSectionHelpTest() {
 function registerChoiceSurvivesNavigationCurrentDemoTest() {
   test("the choice survives navigation in the current demo session", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
-    await page.getByRole("switch", { name: "Show external resources" }).click(); // → on
+    await page.getByRole("switch", { name: "Show external resources" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("switch", { name: "Show external resources" })).toHaveAttribute("aria-checked", "true");
@@ -132,14 +134,14 @@ function registerAssignsActivityRowModalHasTest() {
     await page.getByRole("button", { name: "Add allocation for Kord Industries" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     await expect(dialog.getByRole("heading")).toContainText("Kord Industries");
-    // External work carries no load — the modal collects a date span only.
+    // External work has no capacity, so its modal collects only a date span.
     await expect(dialog.getByLabel("Hours / day")).toHaveCount(0);
     // Externals already use literal calendar spans, so the override is hidden.
     await expect(dialog.getByRole("checkbox", { name: "Ignore working days" })).toHaveCount(0);
     await expect(dialog.getByLabel("Start Date")).toBeVisible();
 
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
-    await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires"); // Wireframes
+    await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
     await page.getByRole("button", { name: "Save" }).click();
 
     const newBar = page
@@ -153,8 +155,8 @@ function registerAssignsActivityRowModalHasTest() {
 
 function registerExternalPartiesExcludedTimeOffTest() {
   test("external parties are excluded from the Time off resource picker", async ({ page }) => {
-    // Time off excludes externals unconditionally (no capacity), regardless of the view pref — but
-    // enable the pref so the seeded external could otherwise be a candidate.
+    // Enable the preference so the seeded external would otherwise be eligible. Time off still
+    // excludes it because external parties have no capacity.
     await openApp(page);
     await enableExternal(page);
     await page.getByRole("link", { name: "Time off" }).click();
@@ -162,7 +164,7 @@ function registerExternalPartiesExcludedTimeOffTest() {
     const resource = page.getByRole("dialog").getByLabel("Resource");
     await resource.click();
     await expect(page.getByRole("option", { name: "Kord Industries" })).toHaveCount(0);
-    // Sanity: a real person IS offered.
+    // Sanity: a real person is offered.
     await expect(page.getByRole("option", { name: "Bruce Wayne" })).toBeVisible();
   });
 }
@@ -181,8 +183,8 @@ function registerTimeOffDrawModeOpTest() {
     });
     // Switch the draw mode from Work to Time off (the toolbar toggle, not the nav link).
     await page.getByRole("radio", { name: "Time off", exact: true }).click();
-    // Draw a span on the empty far-left (back-buffer) of the external party's lane — a draw here on
-    // a person's lane opens the time-off form; on an external it must be a no-op (no capacity).
+    // A time-off gesture on an external party must be a no-op because it has no capacity. A draw
+    // on a person's lane opens the time-off form.
     const lane = page.locator('[data-resource-id="r-ext-northstar"]');
     const b = await lane.boundingBox();
     if (!b) throw new Error("external lane not found");
@@ -197,7 +199,7 @@ function registerTimeOffDrawModeOpTest() {
   });
 }
 
-// P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
+// the per-row destructive action archives (hidden from the active list, fully retained, not
 // a hard delete). Archiving is undoable via the local store.
 function registerArchivingExternalPartyUndoableTests() {
   test("archiving an external party is undoable", async ({ page }) => {

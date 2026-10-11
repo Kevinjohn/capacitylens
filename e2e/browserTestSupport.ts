@@ -2,7 +2,7 @@ import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { WEEK_SNAP_IDLE_MS } from "../src/lib/schedulerConfig";
 
-// The seed dataset lives in the first half of June 2026 — the over-allocated day is
+// The seed dataset covers the first half of June 2026. The over-allocated day is
 // 3-4 June and every demo bar falls between 1-9 June. The scheduler is anchored to
 // "today": the default origin snaps to the current week's Monday and the utilisation
 // window runs forward from today. So once the real wall-clock drifts past that window
@@ -15,10 +15,9 @@ import { WEEK_SNAP_IDLE_MS } from "../src/lib/schedulerConfig";
 // replay. Noon gives a wide margin against host/browser timezone offsets.
 const FIXED_NOW = "2026-06-03T12:00:00";
 
-/** TEST-ONLY: hold a free-scroll position mid-week. Users always get the week snap and Settings has
- *  no control for it; the app still reads `capacitylens/snapToWeekStart` = "off" once at startup
- *  (src/lib/displayPrefs.ts), so a spec can park the grid mid-week across the WEEK_SNAP_IDLE_MS
- *  re-floor. Call before `openApp`; the init script re-applies on every load in the page. */
+/** Disables the free-scroll week snap before each page load so a test can keep the grid parked mid-week.
+ * Settings has no control for this preference. Call before openApp; the init script applies
+ * capacitylens/snapToWeekStart on every load. The idle re-floor delay is WEEK_SNAP_IDLE_MS. */
 export async function disableWeekSnap(page: Page): Promise<void> {
   await page.addInitScript(() => localStorage.setItem("capacitylens/snapToWeekStart", "off"));
 }
@@ -43,9 +42,9 @@ export async function computedStyles<const Properties extends readonly string[]>
 }
 
 /** Reach a target through real keyboard navigation. `:focus-visible` depends on input modality, so
- *  programmatic focus does not reproduce a keyboard user and can diverge across browsers. For a
- *  roving-tabindex group, the selected item is the group's tab stop. Call this helper before any
- *  mouse interaction in the test, or `:focus-visible` will not match. */
+ * programmatic focus does not reproduce a keyboard user and can diverge across browsers. For a
+ * roving-tabindex group, the selected item is the group's tab stop. Call this helper before any
+ * mouse interaction in the test, or `:focus-visible` will not match. */
 export async function focusByKeyboard(page: Page, target: Locator): Promise<number> {
   const maxTabPresses = 100;
   for (let tabPresses = 1; tabPresses <= maxTabPresses; tabPresses += 1) {
@@ -124,7 +123,7 @@ export async function disableCssMotion(page: Page): Promise<void> {
 }
 
 /** A locator's bounding box, or throw if it isn't rendered (Playwright returns null instead of
- *  failing, so geometry assertions need an explicit guard). */
+ * failing, so geometry assertions need an explicit guard). */
 export async function boundingBoxOrThrow(
   locator: Locator,
 ): Promise<{ x: number; y: number; width: number; height: number }> {
@@ -134,8 +133,8 @@ export async function boundingBoxOrThrow(
 }
 
 /** Shrink to a phone-portrait viewport and dismiss the resulting "Best in landscape" hint dialog,
- *  for specs that need the narrow layout without testing the hint itself (see mobile.spec.ts for
- *  that coverage). */
+ * for specs that need the narrow layout without testing the hint itself (see mobile.spec.ts for
+ * that coverage). */
 export async function dismissLandscapeHint(page: Page): Promise<void> {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
@@ -156,7 +155,7 @@ export async function selectShadOption(trigger: Locator, option: string | { labe
 }
 
 /** Set the schedule toolbar's "Weeks visible" dropdown. Centralised so every zoom-dependent spec
- *  goes through one locator. */
+ * goes through one locator. */
 export async function setZoom(page: Page, weeks: 1 | 2 | 4 | 6 | 8): Promise<void> {
   await selectShadOption(page.getByRole("combobox", { name: "Weeks visible" }), String(weeks));
 }
@@ -171,7 +170,7 @@ export async function showScheduleFilters(page: Page): Promise<void> {
 }
 
 /** Turn on the "Show placeholders" per-account pref (default off) from Settings, for specs that
- *  just need placeholders visible rather than testing the toggle itself. */
+ * just need placeholders visible rather than testing the toggle itself. */
 export async function showPlaceholders(page: Page): Promise<void> {
   const toggle = page.getByRole("switch", { name: "Show placeholders" });
   if ((await toggle.getAttribute("aria-checked")) !== "true") await toggle.click();
@@ -186,13 +185,13 @@ export async function enableInlineActivityCreation(page: Page): Promise<void> {
 }
 
 /** Re-anchor the schedule on the seeded week. `freezeBrowserDate` pins the clock to 2026-06-03,
- *  whose week start is 2026-06-01, so **Today** puts the seed week's Monday at the left edge. */
+ * whose week start is 2026-06-01, so **Today** puts the seed week's Monday at the left edge. */
 export async function goToSeedWeek(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Today", exact: true }).click();
 }
 
 /** Snap the scheduler grid's horizontal scroll back to 0. A literal DOM write resetting to the
- *  timeline origin — deliberately NOT `goToSeedWeek`, which drives app navigation instead. */
+ * timeline origin, deliberately not `goToSeedWeek`, which drives app navigation instead. */
 export async function resetSchedulerScroll(page: Page): Promise<void> {
   await page.getByTestId("scheduler-grid").evaluate((el) => {
     (el as HTMLElement).scrollLeft = 0;
@@ -204,7 +203,7 @@ export async function resetSchedulerScroll(page: Page): Promise<void> {
 export async function waitForAppLanding(page: Page, landedOn: Locator): Promise<void> {
   await landedOn.waitFor();
   const orientation = page.getByTestId("product-orientation");
-  if (await orientation.isVisible().catch(() => false)) {
+  if (await orientation.isVisible()) {
     await orientation.getByRole("button", { name: "Got it" }).click();
   }
 }
@@ -213,6 +212,7 @@ export async function waitForAppLanding(page: Page, landedOn: Locator): Promise<
 // server-backed login with exactly one valid company may skip it on a browser reload, but
 // activeAccountId itself remains unpersisted. Almost every core spec wants the seeded company, so
 // they navigate through `openApp` instead of `goto('/')`.
+/** Opens a seeded company at the requested path and clears sign-in, picker, and intro gates. */
 export async function openApp(page: Page, company = "Wayne Enterprises", path = "/"): Promise<void> {
   // Must precede goto so the app reads the frozen date on its first render.
   await freezeBrowserDate(page);
@@ -235,12 +235,11 @@ export async function openApp(page: Page, company = "Wayne Enterprises", path = 
   await waitForAppLanding(page, page.locator("#main"));
 }
 
-// A few specs (getting-started, onboarding) need a FRESH, empty company rather than one of the
-// seeded ones, so they can't go through `openApp`'s "pick an existing company" step — they walk
-// the picker's "New company" create form instead. That walk splits into two halves so a spec can
-// inspect/interact with the open form (onboarding asserts its default fields and changes them)
-// before filling in the name and submitting: `openNewCompanyForm` gets to the open form, and
+// Getting-started and onboarding specs need a fresh company. They use the picker's "New company"
+// form instead of `openApp`, which selects an existing company. The flow is split so a spec can
+// inspect or change the initial fields before submission: `openNewCompanyForm` opens the form, and
 // `createCompany` fills the name, submits, and clears the same post-create intro gate as `openApp`.
+/** Opens the new-company form without submitting it, so specs can inspect its initial fields. */
 export async function openNewCompanyForm(page: Page): Promise<void> {
   // Must precede goto so the app reads the frozen date on its first render.
   await freezeBrowserDate(page);
@@ -254,8 +253,8 @@ export async function openNewCompanyForm(page: Page): Promise<void> {
 }
 
 /** Fill in the company name on an already-open create-company form (see `openNewCompanyForm`),
- *  submit it, and clear through to the app — including the same post-create intro gate as
- *  `openApp` — so callers land with `#main` visible. */
+ * submit it, and clear through to the app, including the same post-create intro gate as
+ * `openApp`, so callers land with `#main` visible. */
 export async function createCompany(page: Page, name: string): Promise<void> {
   await page.getByLabel("Company name").fill(name);
   await page.getByRole("button", { name: "Create company" }).click();
@@ -265,12 +264,13 @@ export async function createCompany(page: Page, name: string): Promise<void> {
 }
 
 /** Land in a brand-new empty company (through the fake-sign-in, picker create form, and intro
- *  gates) in one call, for specs that don't need to touch the create form itself. */
+ * gates) in one call, for specs that don't need to touch the create form itself. */
 export async function openNewCompany(page: Page, name: string): Promise<void> {
   await openNewCompanyForm(page);
   await createCompany(page, name);
 }
 
+/** Reports the visible timeline's left edge, day count, and weekday column width. */
 export interface SchedulerGeometryProbe {
   leftDate: string;
   leftWeekday: string;
@@ -311,6 +311,7 @@ export async function probeSchedulerGeometry(page: Page): Promise<SchedulerGeome
   });
 }
 
+/** Waits for horizontal scrolling to settle, then returns the date at the timeline's left edge. */
 export async function settledSchedulerLeftDate(page: Page): Promise<string> {
   const grid = page.getByTestId("scheduler-grid");
   let last = Number.NaN;
@@ -328,6 +329,7 @@ export async function settledSchedulerLeftDate(page: Page): Promise<string> {
   return (await probeSchedulerGeometry(page)).leftDate;
 }
 
+/** Scrolls the timeline by the measured width of the requested number of weekday columns. */
 export async function nudgeScheduler(page: Page, columns: number): Promise<void> {
   const { weekdayWidth } = await probeSchedulerGeometry(page);
   await page.getByTestId("scheduler-grid").evaluate(
@@ -339,8 +341,8 @@ export async function nudgeScheduler(page: Page, columns: number): Promise<void>
 }
 
 /** The month label covering the left edge of the visible timeline (e.g. "Jun 2026"). The date header
- * always renders EVERY month in the window, so `getByText("Jul 2026")` proves nothing about where
- * the window sits — this reads the month block that actually spans the first visible column. */
+ * always renders every month in the window, so `getByText("Jul 2026")` proves nothing about where
+ * the window sits, this reads the month block that actually spans the first visible column. */
 export async function schedulerLeftMonthLabel(page: Page): Promise<string> {
   return page.evaluate(async () => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));

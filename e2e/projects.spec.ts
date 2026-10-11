@@ -38,7 +38,7 @@ test.describe("Projects", () => {
     await expect(page.getByTestId("project-row").filter({ hasText: "Brand Refresh" })).toBeVisible();
   });
 
-  // P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
+  // the per-row destructive action archives (hidden from the active list, fully retained, not
   // a hard cascade-delete). Archiving is undoable via the local store.
   test("archiving a project hides it from the list, restorable with undo", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/projects");

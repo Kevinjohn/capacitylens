@@ -69,7 +69,7 @@ function registerSchedulerExposesGridRolesSrTest() {
     const lane = page.getByRole("gridcell", { name: /Bruce Wayne timeline/ });
     await expect(lane).toBeVisible();
     await expect(lane).toHaveAttribute("aria-colindex", "2");
-    await expect(page.getByText(/\d+ allocation/).first()).toBeAttached(); // sr-only summary
+    await expect(page.getByText(/\d+ allocation/).first()).toBeAttached();
   });
 }
 
@@ -77,7 +77,7 @@ function registerInvalidFieldMarkedAriaInvalidTests() {
   test("an invalid field is marked aria-invalid and described by the error", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
     await page.getByRole("button", { name: "Add resource" }).click();
-    await page.getByRole("button", { name: "Save" }).click(); // blank name
+    await page.getByRole("button", { name: "Save" }).click();
 
     const name = page.getByRole("textbox", { name: "Name", exact: true });
     await expect(name).toHaveAttribute("aria-invalid", "true");

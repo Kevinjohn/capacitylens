@@ -13,19 +13,11 @@ import { waitForAppLanding, selectShadOption } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// P1.11 — Owner/Admin member management, against the auth-backed project's server
-// (CAPACITYLENS_MODE=password on :8887 — see playwright.config.ts). Owner A bootstraps an org and
-// seeds admin B + editor C in the disposable test database. Then, as B (admin), we drive the Team &
-// access UI: list members, change C editor→viewer, mint a viewer invite (the link appears once),
-// revoke it. We assert the Owner option is ABSENT for B in the UI, and at the API layer that nobody
-// can assign Owner through PATCH (400), cannot touch owner A (→ 403), cannot nominate a next Owner
-// (→ 403), that owner membership cannot be removed through the ordinary member endpoint (→ 403),
-// and — the cross-tenant headline — that B cannot read ANOTHER account's members (→ 403). Then owner
-// A drives the gear menu to disable and restore C, and we assert ownership is reachable from no
-// member row and no longer from the retired single-call endpoint (#175, #780) — the ceremony itself
-// is covered by e2e/ownership-transfer.auth.spec.ts. Browser-agnostic (no UA branching).
-
-// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp/signUpUserWithId) comes from ./authTestSupport.
+// This spec exercises owner and admin member management against the password-mode auth server. Owner A
+// bootstraps an org and seeds admin B plus editor C in the disposable database. As B, it changes C's
+// role, creates and revokes an invite, and verifies that owners cannot be assigned, changed, removed,
+// or read across accounts through ordinary member endpoints. Owner A then disables and restores C from
+// the gear menu. Ownership transfer remains covered by e2e/ownership-transfer.auth.spec.ts.
 const STAMP = Date.now();
 const OWNER = `m-owner-${STAMP}@capacitylens.dev`;
 const ADMIN = `m-admin-${STAMP}@capacitylens.dev`;
@@ -141,8 +133,7 @@ async function manageAdminMembers(
   await revokeViewerInvite(page);
 }
 
-/** Ownership never moves from the member table. The per-row control is gone (#175) and the single
- *  call that replaced it is gone too (#780): the whole ceremony lives in its own spec. */
+/** Ownership changes use the dedicated transfer ceremony rather than member-row actions. */
 async function assertOwnershipIsNotAMemberRowAction(
   ownerContext: BrowserContext,
   ownerPage: Page,

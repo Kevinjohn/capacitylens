@@ -11,23 +11,18 @@ import {
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// US-NAV-10: the flag-gated login wall, against the auth-backed project's server
-// (CAPACITYLENS_MODE=password on :8887 — see playwright.config.ts). The default deploy keeps
-// auth off, so this is the ONLY place the login screen exists; the rest of the suite
-// running unchanged in the other two projects is the off-guarantee.
+// US-NAV-10 covers the login wall in the password-mode auth project. The default deployment keeps
+// auth off, so the login screen only appears here; the other projects run without it.
 
-// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUpUser) comes from ./authTestSupport. P1.13: a fresh
-// user has NO membership, so GET /api/accounts is empty and the picker would have nothing to pick. The
-// org-bootstrap test provisions this login its own org via POST /api/orgs (BOOTSTRAP_TOKEN → Owner) so
-// the picker then lists it — account_members is a server-only control table excluded from the shared
-// seed, so a membership CAN'T be pre-seeded; bootstrapping is the path.
+// Shared auth helpers come from authTestSupport. A fresh user has no membership, so GET /api/accounts
+// returns no companies. The org-bootstrap test provisions this login's company through POST /api/orgs
+// using BOOTSTRAP_TOKEN. The account_members table is server-only and cannot be pre-seeded by shared fixtures.
 const EMAIL = "tester@capacitylens.dev";
 const ORG_NAME = `Login Studio ${Date.now()}`;
 
-// Sign-up is API-only this round (no form). Idempotent for the FIXED EMAIL (kept LOCAL, not the shared
-// signUpUser, because this deliberately TOLERATES a rerun's USER_ALREADY_EXISTS 422 rather than
-// asserting a fresh success): a rerun against a reused server hits 422, which is fine — the user
-// exists either way, and it uses the shared `request` jar (no cookie needed here).
+// This path signs up through the API because the test does not need the form. It tolerates
+// USER_ALREADY_EXISTS (422) when rerun against a reused server. It uses the request cookie jar because
+// this test does not need the returned session; the shared signUpUser helper requires a fresh signup.
 async function seedUser(request: APIRequestContext, email = EMAIL) {
   const res = await request.post(`${API}/api/auth/sign-up/email`, {
     data: { email, password: PASSWORD, name: "Tester" },
@@ -71,8 +66,8 @@ function registerSigningRevealsAppSigningOutTest() {
     page,
     request,
   }) => {
-    // P1.13: bootstrap THIS login its own org so the picker (now sourced from the login's memberships
-    // via GET /api/accounts) has something to list. A FRESH per-run user guarantees the sign-up cookie
+    // bootstrap this login its own org so the picker (now sourced from the login's memberships
+    // via GET /api/accounts) has something to list. A fresh per-run user guarantees the sign-up cookie
     // (no 422 on a reused DB); /api/orgs makes the caller the org's Owner.
     const { email, cookie } = await signUpUser(`login-${Date.now()}@capacitylens.dev`);
     await bootstrapOrg(request, cookie, ORG_NAME);
@@ -90,9 +85,9 @@ function registerSigningRevealsAppSigningOutTest() {
     await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
     expect(unscopedStateReads).toEqual([]);
 
-    // The boot flow resumes: the picker lists ONLY this login's memberships (P1.13) → pick our org →
+    // The boot flow resumes: the picker lists only this login's memberships → pick our org →
     // the active account hydrates its slice via GET /api/state?accountId= → app.
-    // exact: true — a bare name would also match a "Delete <name>" control.
+    // Match the full company name; without exact matching, this could also match a Delete control.
     await page.getByRole("button", { name: ORG_NAME, exact: true }).click();
     await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeVisible();
     await page.getByRole("button", { name: "Got it" }).click();
@@ -155,12 +150,10 @@ function registerLoginMembershipsSeesEMPTYPickerTests() {
     page,
     request,
   }, testInfo) => {
-    // P1.13 isolation: a fresh user with NO org bootstrapped sees no companies — the picker lists ONLY
-    // the login's memberships, never another tenant's org (the no-arg whole read that leaked all tenants
-    // is closed in auth-on). And since canCreateAccount now reflects the caller's actual standing
-    // (owner/admin somewhere — the same predicate POST /api/orgs enforces), a membership-less login
-    // on an instance with existing accounts sees NO "New company" affordance either: the old button
-    // was a dead end (submission always 403'd). The empty state tells them to ask for an invite.
+    // A user with no account memberships sees no companies. The picker is scoped to the caller's
+    // memberships, and account creation requires the owner or admin role enforced by POST /api/orgs.
+    // This user therefore sees no "New company" action while accounts exist. The empty state tells
+    // them to request an invitation.
     const isolationSuffix = `${Date.now()}-${testInfo.workerIndex}`;
     const controlOrgName = `Isolation Control ${isolationSuffix}`;
     const controlOwner = await signUpUser(`isolation-owner-${isolationSuffix}@capacitylens.dev`);
@@ -173,7 +166,7 @@ function registerLoginMembershipsSeesEMPTYPickerTests() {
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    // Past the wall, on the picker — but with no company button (no other tenant's org leaked in).
+    // Past the wall, on the picker, but with no company button (no other tenant's org leaked in).
     await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
     await expect(page.getByText("Ask an admin for an invite to join a company.")).toBeVisible();
     await expect(page.getByRole("button", { name: controlOrgName, exact: true })).toHaveCount(0);

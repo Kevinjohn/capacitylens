@@ -3,17 +3,17 @@ import type { Page } from "./fixtures";
 import { enableInlineActivityCreation, openApp, selectShadOption, setZoom } from "./browserTestSupport";
 
 // Covers US-SCH-09 (weekend criteria): the per-day over-marker is weekend-aware. A bar that merely
-// SPANS a weekend adds no over-marker; ignoring its working pattern turns those days red; and
-// work on a TIME-OFF working day still flags (a real conflict, distinct from a spanned weekend).
+// spans a weekend adds no over-marker; ignoring its working pattern turns those days red; and
+// work on a time-off working day still flags (a real conflict, distinct from a spanned weekend).
 //
 // Seed bars live 1–9 June 2026 (clock frozen to 2026-06-03), so a fresh allocation Fri 12 → Mon 15
 // June (spanning the empty weekend 13–14) collides with nothing. Clark Kent is Mon–Fri. Over-marker
 // + unavailable-day cells render across the whole timeline DOM (absolutely positioned, both via the
-// SAME `left: geom.x(i)`), so the counts AND `style.left` comparisons below are scroll-independent.
-// The spec drives the modal in the seed's default HOURLY scheduling mode (Start/End + Hours / day).
+// same `left: geom.x(i)`), so the counts and `style.left` comparisons below are scroll-independent.
+// The spec drives the modal in the seed's default hourly scheduling mode (Start/End + Hours / day).
 const clarkLane = (page: Page) => page.locator('[data-resource-id="r-nike"]');
 const clarkOverMarkers = (page: Page) => clarkLane(page).getByTestId("over-marker");
-// The inline `left` is the geom column offset — stable identity for "which day" a marker sits on.
+// The inline `left` is the geom column offset, stable identity for "which day" a marker sits on.
 const leftsOf = (loc: ReturnType<Page["locator"]>) =>
   loc.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.left));
 
@@ -29,7 +29,8 @@ function registerSpannedWeekendOverIgnoredWorkingTests() {
   test("a spanned weekend is not over; ignored working days and time off are", async ({ page }) => {
     await openScheduleWithInlineActivityCreation(page);
 
-    await expect(clarkOverMarkers(page)).toHaveCount(0); // Clark has no seed over-days
+    // Clark has no seeded over-capacity days, so the baseline marker count is zero.
+    await expect(clarkOverMarkers(page)).toHaveCount(0);
     const baseline = 0;
 
     // A fresh allocation spanning the weekend, default (weekend-aware).
@@ -38,15 +39,16 @@ function registerSpannedWeekendOverIgnoredWorkingTests() {
     await selectShadOption(create.getByLabel("Project", { exact: true }), "p-acme");
     await create.getByLabel("New activity name").fill("Weekend Verify");
     await create.getByRole("button", { name: "Add activity" }).click();
-    await create.getByLabel(/^Start/).fill("2026-06-12"); // Fri
-    await create.getByLabel(/^End/).fill("2026-06-15"); // Mon
-    await selectShadOption(create.getByRole("combobox", { name: "Hours / day" }), "8"); // exactly at capacity, so the working days are NOT over
+    await create.getByLabel(/^Start/).fill("2026-06-12");
+    await create.getByLabel(/^End/).fill("2026-06-15");
+    // The 8-hour allocation matches Clark's daily capacity, so working days should not be over capacity.
+    await selectShadOption(create.getByRole("combobox", { name: "Hours / day" }), "8");
     await page.getByRole("button", { name: "Save" }).click();
 
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Weekend Verify" });
     await expect(bar).toBeVisible();
 
-    // Sat 13 / Sun 14 are merely spanned → NOT over (no new marker).
+    // The allocation spans the weekend, but those non-working days should not add markers.
     await expect(clarkOverMarkers(page)).toHaveCount(baseline);
     const weekendAwareLefts = await leftsOf(clarkOverMarkers(page));
 
@@ -54,12 +56,12 @@ function registerSpannedWeekendOverIgnoredWorkingTests() {
     await bar.click();
     const edit = page.getByRole("dialog", { name: "Edit allocation" });
     await edit.getByRole("checkbox", { name: "Ignore working days" }).click();
-    // The modal advisory must MIRROR the grid (not stay silent as it did before): Sat+Sun = 2 days.
+    // The modal should show over-capacity on both weekend days.
     await expect(edit.getByText(/over capacity on 2 days/i)).toBeVisible();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(clarkOverMarkers(page)).toHaveCount(baseline + 2);
-    // POSITION (not just count): the two NEW markers sit on non-working (weekend) columns — the same
-    // `left` as Clark's grey unavailable-day cells — so a regression that flagged Fri/Mon instead would
+    // Check marker positions as well as count: both new markers should sit on non-working weekend columns, the same
+    // `left` as Clark's grey unavailable-day cells, so a regression that flagged Fri/Mon instead would
     // fail even though the count of 2 held.
     const ignoredWorkingDaysLefts = await leftsOf(clarkOverMarkers(page));
     const newWeekendLefts = ignoredWorkingDaysLefts.filter((l) => !weekendAwareLefts.includes(l));
@@ -89,16 +91,15 @@ function registerSpannedWeekendOverIgnoredWorkingTests() {
 
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(clarkOverMarkers(page)).toHaveCount(baseline + 1);
-    // POSITION: the single new over-marker sits on the time-off day (Mon 15), not a weekend — assert
-    // it shares the time-off block's column offset.
+    // The single new over-marker should share the time-off block's column offset on Monday 15, not a weekend.
     //
     // Retry until the column geometry settles. We just navigated Time off → back to Schedule, which
-    // REMOUNTS the grid; its `dayWidth` is derived from the MEASURED container width, applied a tick
+    // remounts the grid; its `dayWidth` is derived from the measured container width, applied a tick
     // after first paint. WebKit lays the remounted grid out a frame later than Chromium/Firefox, so a
     // single `style.left` read here can catch the over-marker at an intermediate dayWidth before the
-    // measure effect lands (the marker is on the right DAY throughout — only its px settles; the count
-    // assertion above doesn't gate the pixel). toPass() re-reads BOTH lefts each attempt, comparing
-    // them from one settled snapshot — they re-render to the final geometry in lockstep. Chromium/
+    // measure effect lands (the marker is on the right day throughout, only its px settles; the count
+    // assertion above doesn't gate the pixel). toPass() re-reads both lefts each attempt, comparing
+    // them from one settled snapshot because both re-render to the final geometry in lockstep. Chromium/
     // Firefox pass on the first attempt; a real wrong-day regression still fails the inner toEqual.
     await expect(async () => {
       const newTimeOffLefts = (await leftsOf(clarkOverMarkers(page))).filter((l) => !weekendAwareLefts.includes(l));

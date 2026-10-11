@@ -2,27 +2,22 @@ import { test, expect } from "./fixtures";
 import type { Locator } from "./fixtures";
 import { openApp, resetSchedulerScroll, setZoom } from "./browserTestSupport";
 
-// The hard colour invariant, end-to-end (Phase 9 verification). CapacityLens allows colour to be
-// set ONLY by picking a preset swatch (no hex/RGB entry — see ColorField + the "preset
-// swatches only" rule), and that swatch must actually RENDER on the scheduler: a discipline's
-// colour drives its group-header dot + every member's
-// avatar, and a project's colour drives its allocation bars. This spec drives a real swatch
-// pick through the ColorField popover and asserts the picked HEX renders (not merely “a colour”).
-// Browser-agnostic (no UA branching) so it runs
-// unchanged under e2e:browsers / e2e:webkit / e2e:firefox.
+// The end-to-end colour invariant ensures a selected preset swatch renders on the scheduler.
+// Disciplines use their swatch for the group-header dot and member avatars; projects use theirs
+// for allocation bars. This browser-agnostic spec picks a swatch through ColorField and checks
+// the rendered hex value across the supported Playwright browser projects.
 
-// "Blue dark" — flat index 47 in the 13×4 SWATCHES grid (swatchLabel(47) === 'Blue dark').
-// Chosen because it ALREADY clears WCAG AA against its ink, so resolveAccessibleBarColors() (the
-// contrast-nudge applied to bars + avatars) returns it UNCHANGED — the rendered background is
-// the picked hex exactly, which lets us assert the hex rather than an approximation. It also
-// differs from every seeded entity colour, so the change is genuinely observable.
+// "Blue dark", flat index 47 in the 13×4 swatches grid (swatchLabel(47) === 'Blue dark').
+// This swatch already clears WCAG AA against its ink, so resolveAccessibleBarColors() leaves it
+// unchanged. The rendered hex is therefore testable and differs from every seeded entity colour,
+// making the selected colour visible in the browser.
 const PICK_LABEL = "Blue dark";
-// SWATCHES[47] is #1b4f98; computed `background-color` is reported as rgb(...) by every engine.
+// SWATCHES[47] is #1b4f98; browsers report its computed background color as rgb(...).
 const PICK_RGB = "rgb(27, 79, 152)";
 
 /** Open a form's ColorField popover and click a swatch by its accessible label. The trigger's
- *  accessible name is `Colour (<current colour>)`, so match it by its "Colour" prefix; the
- *  swatch radios are labelled by swatchLabel(i) (e.g. "Blue dark"). */
+ * accessible name is `Colour (<current colour>)`, so match it by its "Colour" prefix; the
+ * swatch radios are labelled by swatchLabel(i) (e.g. "Blue dark"). */
 async function pickSwatch(scope: Locator, swatchLabel: string): Promise<void> {
   await scope.getByRole("button", { name: /^Colour/ }).click();
   // Popover content is portalled, so select the open swatch group from the page.
@@ -57,12 +52,11 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
       .click();
     const dialog = page.getByRole("dialog", { name: "Edit discipline" });
     await pickSwatch(dialog, PICK_LABEL);
-    // The trigger now reports the picked colour by name — proves the pick registered pre-save.
     await expect(dialog.getByRole("button", { name: `Colour (${PICK_LABEL})` })).toBeVisible();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toBeHidden();
 
-    // On the schedule the Design group-header dot AND Bruce's avatar must show the picked hex.
+    // On the schedule the Design group-header dot and Bruce's avatar must show the picked hex.
     await page.getByRole("link", { name: "Schedule" }).click();
     const designGroup = page.getByTestId("discipline-group").filter({ hasText: "Design" });
     await expect(designGroup).toBeVisible();
@@ -75,8 +69,8 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
   test("a project colour pick tints its allocation bars", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/projects");
 
-    // Edit the seeded "Project Watchtower" (p-acme) — Bruce's "Wireframes" bar is one of its
-    // allocations — and pick a new swatch.
+    // Edit the seeded "Project Watchtower", which owns Bruce's scheduled "Wireframes" allocation,
+    // then pick a new swatch.
     await page
       .getByTestId("project-row")
       .filter({ hasText: "Project Watchtower" })

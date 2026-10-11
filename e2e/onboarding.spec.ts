@@ -3,10 +3,9 @@ import { openNewCompanyForm, createCompany } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce", timezoneId: "Europe/London" } });
 
-// Onboarding capture (P1.14): the create-company form captures week-start, time zone and language
-// (the three fields the server FREEZES after creation), then lands in the app; Settings shows those
-// three controls DISABLED. Runs in the default OFF/in-memory demo build (the create flow is identical
-// to server mode — it routes through the same addAccount).
+// The create-company form captures week start, time zone, and language, which the server freezes after creation.
+// Settings shows those controls as disabled. This spec uses the default in-memory demo; server mode
+// follows the same addAccount flow.
 
 test.describe("onboarding: capture-then-freeze language / week-start / time zone", () => {
   test("create a company capturing week-start + timezone → Settings shows the read-only summary", async ({ page }) => {
