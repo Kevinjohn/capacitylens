@@ -35,19 +35,18 @@ dist-ssr
 /blob-report/
 /playwright/.cache/
 coverage/
-# Stryker mutation-testing output (`pnpm run mutation`) — report + sandbox, never committed
+# Stryker mutation output: report and sandbox are generated locally.
 /reports/
 .stryker-tmp/
 stryker.log
 
-# Design/competitor reference scraps — not app assets
+# Design and competitor reference scraps are not app assets.
 /_input/
 
 # Local handbook and extraction workspace
 /to-my-siblings/
 
-# Paraglide (inlang) generated i18n output (P1.5.1) — compiled from project.inlang + messages/
-# on dev/build/test/gate (those scripts precompile); the committed source is the input, this isn't.
+# Generated Paraglide output is rebuilt from the committed project and message sources.
 src/paraglide/
 
 # Build artifacts (incremental TS, local SQLite DB + WAL/SHM)
@@ -57,12 +56,11 @@ src/paraglide/
 *.db-wal
 *.db-shm
 server/.auth-e2e-mailbox.jsonl
-# Server audit log (P1.15, ON by default beside the DB; a runtime artifact, never committed)
+# Server audit logs are runtime artifacts written beside the database.
 *-audit.jsonl
 
-# Agent/loop scratch — never ship these in a clone (P0.2)
-# Anchored exact names, deliberately not broad globs: these two directories are
-# repository-local tool scratch that any clone may accumulate.
+# Repository-local tool scratch can appear in any clone.
+# Ignore these exact directories so broader patterns do not hide project files.
 /.playwright-mcp/
 /.issue-fix-state/
 *-state.json
