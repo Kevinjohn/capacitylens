@@ -15,6 +15,7 @@ interface ConfirmMemberActionInput {
   confirmationName: RegExp | string;
 }
 
+/** Renders the raw member interface. */
 export interface RawMember {
   userId: string;
   role: "owner" | "admin" | "editor" | "viewer";
@@ -93,6 +94,7 @@ export function mockApi(members: RawMember[] | { status: number } = [], override
   });
 }
 
+/** Creates sign in tracking api from the supplied inputs. */
 export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
   let trackingEnabled = false;
   const members: RawMember[] = [
@@ -129,6 +131,7 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
   });
 }
 
+/** Creates an auth context value for member section tests. */
 export const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
   authMode: "password-only",
   user: { id: "me", email: "me@x.io" },
@@ -139,6 +142,7 @@ export const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValu
   ...over,
 });
 
+/** Renders the member section with the supplied authentication context. */
 export function renderSection(authOverrides: Partial<AuthContextValue> = {}) {
   return render(
     <AuthContext.Provider value={authValue(authOverrides)}>
@@ -147,20 +151,22 @@ export function renderSection(authOverrides: Partial<AuthContextValue> = {}) {
   );
 }
 
+/** Represents the user-event interface used by the member section tests. */
 export type User = ReturnType<typeof userEvent.setup>;
 
+/** Returns a defined value or throws with the supplied test context. */
 export function requireValue<T>(value: T | undefined, context: string): T {
   if (value === undefined) throw new Error(`Expected ${context}`);
   return value;
 }
 
+/** Returns a callback or throws with the supplied test context. */
 export function requireCallback(value: (() => void) | null, context: string): () => void {
   if (value === null) throw new Error(`Expected ${context}`);
   return value;
 }
 
-/** Row actions moved behind the row's gear popover. Open it; the popover renders in a
- * portal, so its items are reachable from `screen`, never from `within(row)`. */
+/** Opens a member's action menu. Portal items are queried from `screen`. */
 export async function openMemberMenu(user: User, row: HTMLElement): Promise<void> {
   await user.click(within(row).getByTestId("member-menu"));
   await screen.findByText(m.settings_member_settings_heading());
@@ -179,8 +185,7 @@ export async function chooseMemberAction(user: User, row: HTMLElement, testId: s
   await user.click(screen.getByTestId(testId));
 }
 
-/** The role selector moved out of the row and into the pencil's dialog: open it, pick the
- * role, then Save. Selecting a role is now a draft. Nothing is sent until Save. */
+/** Selects a role in the edit dialog and saves the draft. No write occurs before Save. */
 export async function saveRoleVia(user: User, row: HTMLElement, option: string): Promise<void> {
   await user.click(within(row).getByTestId("member-edit"));
   const dialog = await screen.findByRole("dialog");
@@ -189,6 +194,7 @@ export async function saveRoleVia(user: User, row: HTMLElement, option: string):
   await user.click(within(dialog).getByTestId("member-role-save"));
 }
 
+/** Finds a rendered member row whose email matches the supplied pattern. */
 export async function waitForMemberRow(email: RegExp): Promise<HTMLElement> {
   return requireValue(
     (await screen.findAllByTestId("member-row")).find((candidate) => within(candidate).queryByText(email)),
@@ -196,6 +202,7 @@ export async function waitForMemberRow(email: RegExp): Promise<HTMLElement> {
   );
 }
 
+/** Confirms the selected member action in the alert dialog. */
 export async function confirmMemberAction({
   user,
   row,
@@ -206,17 +213,20 @@ export async function confirmMemberAction({
   await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: confirmationName }));
 }
 
+/** Test members representing an owner and editor with distinct permissions. */
 export const ownerAndEditor: RawMember[] = [
   { userId: "owner", role: "owner" },
   { userId: "me", role: "admin", isSelf: true, mayRevokeSessions: true },
   { userId: "ed", role: "editor", mayResetPassword: true, mayRevokeSessions: true },
 ];
 
+/** Test members for an owner who is the only owner, plus an editor. */
 export const soleOwnerAndEditor: RawMember[] = [
   { userId: "me", role: "owner", isSelf: true },
   { userId: "ed", role: "editor" },
 ];
 
+/** Test members with names that exercise accessible row labels. */
 export const accessibleNameMembers: RawMember[] = [
   { userId: "me", role: "owner", isSelf: true },
   {
@@ -237,6 +247,7 @@ export const accessibleNameMembers: RawMember[] = [
   },
 ];
 
+/** Expected accessible labels for the test members. */
 export const accessibleMemberNames = [
   ["Barbara Gordon", "Barbara Gordon (alice@example.test)"],
   ["James Gordon", "James Gordon (bob@example.test)"],
@@ -249,6 +260,7 @@ interface AccessibleMemberControlsInput {
   member: string;
 }
 
+/** Checks that each member row exposes its expected accessible controls. */
 export async function expectAccessibleMemberControls({
   user,
   rows,
@@ -276,6 +288,7 @@ export async function expectAccessibleMemberControls({
   await user.keyboard("{Escape}");
 }
 
+/** Stubs `window.location.reload` and returns its mock function. */
 export function stubPageReload(): ReturnType<typeof vi.fn> {
   const reload = vi.fn();
   const windowStub = Object.create(window) as Window;
@@ -287,6 +300,7 @@ export function stubPageReload(): ReturnType<typeof vi.fn> {
   return reload;
 }
 
+/** Waits until the store notice matches the supplied message. */
 export async function expectNotice(message: RegExp): Promise<void> {
   await waitFor(() => expect(useStore.getState().notice?.message).toMatch(message));
 }

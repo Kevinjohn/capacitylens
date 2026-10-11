@@ -5,8 +5,11 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 /** One selectable segment: the value it sets and the label shown on its button. */
 export type SegmentedOption<T> = { value: T; label: ReactNode; title?: string };
+/** Renders the segmented geometry interface. */
 export type SegmentedGeometry = "gapped" | "connected";
+/** Renders the segmented size interface. */
 export type SegmentedSize = "sm" | "md" | "lg";
+/** Renders the segmented density interface. */
 export type SegmentedDensity = "default" | "compact";
 /**
  * `recessed` sinks the track and lifts only the selected item; it is what every product surface

@@ -1,12 +1,14 @@
 import { effectiveProjectId } from "@capacitylens/shared/lib/integrity";
 import type { Activity, Allocation, Client, ID, Project } from "@capacitylens/shared/types/entities";
 
+/** Renders the allocation attribution interface. */
 export interface AllocationAttribution {
   projectId: ID | undefined;
   project: Project | undefined;
   client: Client | undefined;
 }
 
+/** Builds allocation attribution from the supplied inputs. */
 export function buildAllocationAttribution({
   allocation,
   activitiesById,

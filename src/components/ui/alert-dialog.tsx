@@ -4,12 +4,14 @@ import { AlertDialog as AlertDialogPrimitive } from "radix-ui";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 
+/** Provides the root state for an accessible confirmation dialog. */
 function AlertDialog({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />;
 }
 
+/** Opens the associated confirmation dialog. */
 function AlertDialogTrigger({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Trigger>) {
@@ -18,6 +20,7 @@ function AlertDialogTrigger({
   );
 }
 
+/** Mounts confirmation dialog content outside its parent. */
 function AlertDialogPortal({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Portal>) {
@@ -26,6 +29,7 @@ function AlertDialogPortal({
   );
 }
 
+/** Renders the backdrop behind confirmation dialog content. */
 function AlertDialogOverlay({
   className,
   ...props
@@ -43,6 +47,7 @@ function AlertDialogOverlay({
   );
 }
 
+/** Renders the accessible confirmation dialog surface. */
 function AlertDialogContent({
   className,
   size = "default",
@@ -67,6 +72,7 @@ function AlertDialogContent({
   );
 }
 
+/** Groups the confirmation dialog heading and description. */
 function AlertDialogHeader({
   className,
   ...props
@@ -83,6 +89,7 @@ function AlertDialogHeader({
   );
 }
 
+/** Groups confirmation dialog actions. */
 function AlertDialogFooter({
   className,
   ...props
@@ -99,6 +106,7 @@ function AlertDialogFooter({
   );
 }
 
+/** Renders the accessible confirmation dialog title. */
 function AlertDialogTitle({
   className,
   ...props
@@ -115,6 +123,7 @@ function AlertDialogTitle({
   );
 }
 
+/** Renders the confirmation dialog description. */
 function AlertDialogDescription({
   className,
   ...props
@@ -128,6 +137,7 @@ function AlertDialogDescription({
   );
 }
 
+/** Renders optional media beside confirmation dialog content. */
 function AlertDialogMedia({
   className,
   ...props
@@ -144,6 +154,7 @@ function AlertDialogMedia({
   );
 }
 
+/** Renders the confirmation action that closes the dialog. */
 function AlertDialogAction({
   className,
   variant = "default",
@@ -162,6 +173,7 @@ function AlertDialogAction({
   );
 }
 
+/** Renders the cancel action that closes the dialog. */
 function AlertDialogCancel({
   className,
   variant = "outline",

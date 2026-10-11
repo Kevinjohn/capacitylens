@@ -8,6 +8,7 @@ import { resolveErrorMessage } from "@/lib/errorMessage";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 
+/** Renders the favourite button interface. */
 export function FavouriteButton({ resource }: { resource: Resource }) {
   const canEdit = useCanEdit();
   const updateResource = useStore((state) => state.updateResource);

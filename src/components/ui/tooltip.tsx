@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 // nav-rail hover label in AppShell, which is AA-safe in both themes. A tooltip is supplementary:
 // the trigger keeps its own aria-label so the tooltip is never the sole accessible name.
 
+/** Provides shared behavior for descendant tooltips. */
 function TooltipProvider({
   delayDuration = 0,
   ...props
@@ -23,6 +24,7 @@ function TooltipProvider({
   );
 }
 
+/** Provides the root state for a tooltip. */
 function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
@@ -35,18 +37,21 @@ function Tooltip({
 
 /** Render a root for collections that share one provider above many tooltips.
  * Must be rendered inside a `TooltipProvider`. */
+/** Provides the root state for a tooltip. */
 function TooltipRoot({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
 }
 
+/** Associates an element with its tooltip. */
 function TooltipTrigger({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
   return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
+/** Renders the tooltip content. */
 function TooltipContent({
   className,
   sideOffset = 4,

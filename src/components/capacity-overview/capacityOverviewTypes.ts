@@ -1,8 +1,10 @@
 import type { AppData, Closure, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 import type { CapacityOverviewHorizon, CapacityOverviewPeriod } from "./capacityOverviewDates";
 
+/** Describes the capacity overview state used by this module. */
 export type CapacityOverviewState = "available" | "fully-booked" | "unavailable" | "unassigned";
 
+/** Describes the capacity overview period result used by this module. */
 export interface CapacityOverviewPeriodResult {
   period: CapacityOverviewPeriod;
   availableHours: number;
@@ -18,11 +20,13 @@ export interface CapacityOverviewPeriodResult {
   state: CapacityOverviewState;
 }
 
+/** Renders the capacity overview row interface. */
 export interface CapacityOverviewRow {
   resource: Resource;
   periods: CapacityOverviewPeriodResult[];
 }
 
+/** Renders the capacity overview group interface. */
 export interface CapacityOverviewGroup {
   key: string;
   title: string;
@@ -30,6 +34,7 @@ export interface CapacityOverviewGroup {
   rows: CapacityOverviewRow[];
 }
 
+/** Describes the capacity overview model used by this module. */
 export interface CapacityOverviewModel {
   measured: boolean;
   reason?: "blocks-mode";
@@ -37,6 +42,7 @@ export interface CapacityOverviewModel {
   groups: CapacityOverviewGroup[];
 }
 
+/** Builds capacity overview model input from the supplied inputs. */
 export interface BuildCapacityOverviewModelInput {
   data: AppData;
   today: ISODate;

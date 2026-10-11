@@ -11,6 +11,7 @@ import type { useActiveScopedData } from "@/store/useScopedData";
 import { buildEmptyFilters } from "@/store/useStore";
 import type { Filters } from "@/store/useStore";
 
+/** Renders the palette item interface. */
 export interface PaletteItem {
   id: string;
   label: string;
@@ -174,6 +175,7 @@ function buildActivityItems({ data, navigate, onClose }: BuildPaletteItemsInput)
   });
 }
 
+/** Builds palette items from the supplied inputs. */
 export function buildPaletteItems(input: BuildPaletteItemsInput): PaletteItem[] {
   const query = input.query.trim();
   const actions = filterPaletteItems({

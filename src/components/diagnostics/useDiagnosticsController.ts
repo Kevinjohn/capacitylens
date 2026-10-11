@@ -48,6 +48,7 @@ export function useDiagnosticsController() {
       await navigator.clipboard.writeText(report);
       setCopyState("copied");
     } catch {
+      // Clipboard failures are reflected in the copy state shown by the view.
       setCopyState("failed");
     }
   };

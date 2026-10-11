@@ -25,7 +25,8 @@ interface Span {
 function buildMonthSpans(days: string[]): Span[] {
   const spans: Span[] = [];
   days.forEach((day, i) => {
-    const key = day.slice(0, 7); // YYYY-MM
+    // YYYY-MM
+    const key = day.slice(0, 7);
     const last = spans[spans.length - 1];
     if (last && last.key === key) last.days += 1;
     else spans.push({ key, label: formatMonthYear(day), days: 1, start: i });
@@ -154,6 +155,7 @@ function DateMonthTier({ months, geometry, alignVisibleMonths }: DateMonthTierPr
 
 // Memoised: its props (the memoised `days` array + the memoised `geom`) are stable
 // across data mutations, so it stops re-rendering ~120 cells on every store change.
+/** Renders date and week labels for the visible schedule columns. */
 export const DateHeader = memo(function DateHeader({
   days,
   geom: geometry,
@@ -169,7 +171,8 @@ export const DateHeader = memo(function DateHeader({
   weekStartsOn: 0 | 1;
   today: string;
 }) {
-  const showDays = geometry.perDayColumns; // per-day columns vs per-week blocks
+  // per-day columns vs per-week blocks
+  const showDays = geometry.perDayColumns;
   const showWeekday = geometry.showWeekdayLabels;
   // The 1/2-week views have enough room to place labels at the visible month segment's start.
   // At compact zooms that treatment would leave too little room, so keep the bounded sticky label.

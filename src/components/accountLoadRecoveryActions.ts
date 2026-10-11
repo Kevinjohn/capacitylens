@@ -6,6 +6,7 @@ import { m } from "@/i18n";
 /** The recovery screen's only exit: leave a company whose data failed to load. A silent failure
  * here would leave the user stuck on a blocking full-screen stage with no visible next step. */
 type ChooseAnotherAccountAfterLoadFailureOptions = { accountRoute: boolean; navigate: NavigateFunction };
+/** Describes the choose another account after load failure contract. */
 export async function chooseAnotherAccountAfterLoadFailure({
   accountRoute,
   navigate,

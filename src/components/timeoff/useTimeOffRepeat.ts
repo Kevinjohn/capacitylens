@@ -6,6 +6,7 @@ import { buildRepeatedTimeOffDrafts } from "@/lib/repeatingTimeOff";
 import type { TimeOffRepeatSelection } from "@/lib/repeatingTimeOff";
 import type { Draft } from "@/store/useStore";
 
+/** Repeat cadence choices available for a time-off draft. */
 export type TimeOffRepeatChoice = "none" | TimeOffRepeatSelection;
 
 interface TimeOffRepeatDraftInput {
@@ -16,6 +17,7 @@ interface TimeOffRepeatDraftInput {
   note: string;
 }
 
+/** Manages repeat cadence, end date, and preview state for a time-off draft. */
 export function useTimeOffRepeat(input: TimeOffRepeatDraftInput) {
   const [repeat, setRepeat] = useState<TimeOffRepeatChoice>("none");
   const [repeatUntil, setRepeatUntil] = useState<ISODate | "">("");
@@ -63,8 +65,12 @@ export function useTimeOffRepeat(input: TimeOffRepeatDraftInput) {
     };
     try {
       return buildRepeatedTimeOffDrafts(baseDraft, repeatUntil, repeat);
-    } catch {
-      return null;
+    } catch (error) {
+      if (error instanceof RangeError) {
+        // Invalid date ranges keep the preview unavailable until the input is corrected.
+        return null;
+      }
+      throw error;
     }
   }, [input.endDate, input.note, input.resourceId, input.startDate, input.type, repeat, repeatUntil]);
 

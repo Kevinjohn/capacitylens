@@ -125,6 +125,7 @@ function PasswordDialog({
   );
 }
 
+/** Renders the security section interface. */
 export function SecuritySection({
   passwordOpen = false,
   onPasswordOpenChange = () => {},

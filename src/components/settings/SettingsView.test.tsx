@@ -429,11 +429,13 @@ it("runs only one offline activation when the switch is triggered twice", async 
 describe("SettingsView — Schedule (minimise weekends)", () => {
   it("reflects the default-on preference and toggles it through the store", async () => {
     const user = userEvent.setup();
-    useStore.getState().setMinimiseWeekends(true); // deterministic starting point (device-global pref)
+    // deterministic starting point (device-global pref)
+    useStore.getState().setMinimiseWeekends(true);
     render(<SettingsView />);
 
     const sw = screen.getByRole("switch", { name: "Minimise weekends" });
-    expect(sw).toHaveAttribute("aria-checked", "true"); // default on
+    // default on
+    expect(sw).toHaveAttribute("aria-checked", "true");
 
     await user.click(sw);
     expect(useStore.getState().minimiseWeekends).toBe(false);

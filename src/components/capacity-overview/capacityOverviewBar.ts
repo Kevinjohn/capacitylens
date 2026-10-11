@@ -9,6 +9,7 @@ export type CapacityDisplayMode = "ledger" | "load-curve";
 /** Availability health of a person-week, derived from the share of their capacity still free. */
 export type CapacityTone = "ok" | "warn" | "danger";
 
+/** Renders the capacity cell fill interface. */
 export interface CapacityCellFill {
   /** 0..1 share of the person's available capacity still free. */
   freeFraction: number;
@@ -24,8 +25,10 @@ const WARN_FREE_SHARE = 0.4;
 export function buildTentativeHatch(stripe: number): string {
   return `repeating-linear-gradient(45deg, var(--color-faint) 0 ${stripe}px, transparent ${stripe}px ${stripe * 2}px)`;
 }
+/** Renders the tentative hatch interface. */
 export const TENTATIVE_HATCH = buildTentativeHatch(3);
 
+/** Renders the tone fill interface. */
 export const TONE_FILL: Record<CapacityTone, string> = {
   ok: "var(--color-ok)",
   warn: "var(--color-warn)",
@@ -67,6 +70,7 @@ export function computeCapacityCellFill({
 /** Ink for a week's committed percentage: danger once tentative work would push it to 90%. */
 export type CapacityTotalsTone = "danger" | "ink" | "muted";
 
+/** Renders the capacity period totals interface. */
 export interface CapacityPeriodTotals {
   capacityDays: number;
   freeDays: number;
@@ -126,6 +130,7 @@ export function formatDayFigure(days: number): string {
   return String(roundToHundredths(days));
 }
 
+/** Formats days from the supplied inputs. */
 export function formatDays(days: number, kind: "capacity" | "overbooked" | "unassigned" | "tentative"): string {
   const figure = formatDayFigure(days);
   if (kind === "capacity") return m.capacity_overview_days({ days: figure });
@@ -148,6 +153,7 @@ export function describePeriod(result: CapacityOverviewPeriodResult, rangeLabel:
   return parts.join(" · ");
 }
 
+/** Describes the describe totals contract. */
 export function describeTotals(totals: CapacityPeriodTotals, rangeLabel: string): string {
   const parts: string[] = [
     m.capacity_overview_totals_title({

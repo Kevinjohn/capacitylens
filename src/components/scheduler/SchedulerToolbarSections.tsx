@@ -33,6 +33,7 @@ interface ChromeProps {
   filtersOpen: boolean;
   setFiltersOpen: (value: boolean | ((open: boolean) => boolean)) => void;
 }
+/** Describes the filters props used by this module. */
 export interface FiltersProps extends Options {
   disciplinesEnabled: boolean;
   filters: StoreState["ui"]["filters"];
@@ -46,6 +47,7 @@ export interface FiltersProps extends Options {
   setToolbarFilters: StoreState["setFilters"];
 }
 
+/** Renders the scheduler toolbar chrome interface. */
 export function SchedulerToolbarChrome(props: ChromeProps) {
   return (
     <div
@@ -192,6 +194,7 @@ function ViewFilters(props: FiltersProps) {
   );
 }
 
+/** Renders the scheduler toolbar filters interface. */
 export function SchedulerToolbarFilters(props: FiltersProps) {
   const [searchTooLong, setSearchTooLong] = useState(false);
   const searchErrorId = useId();

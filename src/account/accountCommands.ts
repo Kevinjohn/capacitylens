@@ -1,10 +1,12 @@
 import { isAccountCommandId, isAccountIdempotencyKey } from "@capacitylens/shared/account/validation";
 
+/** Identifies one browser-issued account command and its idempotency key. */
 export interface BrowserAccountCommand {
   commandId: string;
   idempotencyKey: string;
 }
 
+/** Creates unique identifiers for an account command. */
 export function createBrowserAccountCommand(): BrowserAccountCommand {
   return {
     commandId: crypto.randomUUID(),
@@ -25,6 +27,7 @@ interface CommandCohort {
   generation: number;
 }
 
+/** Identifies a command cohort generation for balanced completion tracking. */
 export interface CommandCohortHandle {
   key: string;
   generation: number;
@@ -45,6 +48,7 @@ function invalidateCommandCohorts(): void {
   commandCohorts.clear();
 }
 
+/** Starts or joins the in-flight cohort for an operation key. */
 export function beginCommandCohort(operationKey: string): CommandCohortHandle {
   const key = buildCommandStorageKey(operationKey);
   const existing = commandCohorts.get(key);
@@ -57,6 +61,7 @@ export function beginCommandCohort(operationKey: string): CommandCohortHandle {
   return { key, generation: cohort.generation };
 }
 
+/** Marks the current cohort as having an ambiguous command outcome. */
 export function markCommandCohortUnknown(handle: CommandCohortHandle): void {
   const cohort = commandCohorts.get(handle.key);
   if (cohort?.generation === handle.generation) cohort.unknown = true;
@@ -65,6 +70,7 @@ export function markCommandCohortUnknown(handle: CommandCohortHandle): void {
 // The generation check rejects a stale sibling's completion: sign-out bumps the generation and
 // clears every cohort, so a handle from before sign-out must not decrement or clear a same-key
 // cohort a re-bound identity created afterward.
+/** Releases one cohort reference if the handle belongs to the current generation. */
 export function finishCommandCohort(handle: CommandCohortHandle): void {
   const cohort = commandCohorts.get(handle.key);
   if (!cohort || cohort.generation !== handle.generation) return;
@@ -119,6 +125,7 @@ export function bindStoredAccountCommandsToIdentity(identity: string): void {
   }
 }
 
+/** Reuses or creates the command identity stored for an operation key. */
 export function readOrCreateStoredCommand(operationKey: string): BrowserAccountCommand {
   const storageKey = buildCommandStorageKey(operationKey);
   const memoryCommand = memoryCommands.get(storageKey);

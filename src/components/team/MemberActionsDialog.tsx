@@ -5,6 +5,7 @@ import { Modal } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 
+/** Renders the member actions dialog interface. */
 export function MemberActionsDialog({
   memberLabel,
   hasExistingActions,

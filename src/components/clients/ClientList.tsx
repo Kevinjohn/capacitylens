@@ -61,6 +61,7 @@ function ClientItems({ clients, onEdit, onArchive }: ClientItemsProps) {
   );
 }
 
+/** Renders the client list interface. */
 export function ClientList() {
   // The built-in Internal client is a behind-the-scenes data anchor (project-less internal/all-projects
   // activities bucket under it; it can own real projects), not a user-managed client, so it is hidden

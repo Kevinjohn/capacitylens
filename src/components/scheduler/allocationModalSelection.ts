@@ -17,14 +17,18 @@ import type { EffectiveAllocationInput } from "./allocationModalTypes";
  * (½ → 0.5, ⅛-day → 1.875). Keeping the seed exact means re-deriving hours on a
  * no-op save returns the original value rather than drifting it. */
 export const roundDays = (dayCount: number) => Math.round(dayCount * 1e6) / 1e6;
+/** Renders the internal project selection interface. */
 export const INTERNAL_PROJECT_SELECTION = "__allocation_internal__";
+/** Renders the any project selection interface. */
 export const ANY_PROJECT_SELECTION = "__allocation_any_project__";
+/** Resolves project selection from the supplied inputs. */
 export function resolveProjectSelection(activity: Activity | undefined): string {
   if (allocationAttributionAllowed(activity?.kind)) return ANY_PROJECT_SELECTION;
   if (activity?.kind === "project" && activity.projectId) return activity.projectId;
   return INTERNAL_PROJECT_SELECTION;
 }
 
+/** Resolves attributed project from the supplied inputs. */
 export function resolveAttributedProject(activity: Activity | undefined, selection: string): string | undefined {
   if (
     !allocationAttributionAllowed(activity?.kind) ||
@@ -36,6 +40,7 @@ export function resolveAttributedProject(activity: Activity | undefined, selecti
   return selection;
 }
 
+/** Reports whether activity in project selection. */
 export function isActivityInProjectSelection(
   activity: Pick<Activity, "kind" | "projectId">,
   selection: string,
@@ -45,6 +50,7 @@ export function isActivityInProjectSelection(
   return activity.kind === "repeatable" || (activity.kind === "project" && activity.projectId === selection);
 }
 
+/** Builds activity scope from the supplied inputs. */
 export function buildActivityScope(selection: string): { kind: Activity["kind"]; projectId?: string } {
   if (selection === INTERNAL_PROJECT_SELECTION) return { kind: "internal" };
   if (selection === ANY_PROJECT_SELECTION) return { kind: "repeatable" };
@@ -115,6 +121,7 @@ function buildWorkingWeekValues({ input, external, validDaysOver }: BuildWorking
   };
 }
 
+/** Builds effective allocation values from the supplied inputs. */
 export function buildEffectiveAllocationValues({
   resource,
   effectiveWeek,

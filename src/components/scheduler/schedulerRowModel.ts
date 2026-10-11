@@ -134,6 +134,7 @@ function buildDayStates(input: {
   return { dayStates, conflictDayCount, partialCapacityDayCount };
 }
 
+/** Creates row builder from the supplied inputs. */
 export function createRowBuilder({
   model: { data, geom: geometry, days },
   accountWorkingDays,

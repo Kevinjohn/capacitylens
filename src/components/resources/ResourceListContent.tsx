@@ -21,6 +21,7 @@ type ResourceListContentProps = {
   onRequestExternalArchive: (resource: Resource) => void;
 };
 
+/** Renders the resource list content interface. */
 export function ResourceListContent(props: ResourceListContentProps) {
   return (
     <>

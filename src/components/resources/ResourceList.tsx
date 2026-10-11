@@ -11,6 +11,7 @@ import { ResourceListContent } from "./ResourceListContent";
 import { useResourceListModel } from "./useResourceListModel";
 import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
 
+/** Renders the resource list interface. */
 export function ResourceList() {
   const model = useResourceListModel();
   const { archive } = useLifecycleActions();

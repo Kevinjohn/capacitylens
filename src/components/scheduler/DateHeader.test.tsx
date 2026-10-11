@@ -192,15 +192,18 @@ function registerMinimisedWeekendTests() {
       renderMinimised(48);
       expect(screen.getByText("Fri")).toBeInTheDocument();
       expect(screen.getByText("Mon")).toBeInTheDocument();
-      expect(screen.getAllByText("S")).toHaveLength(2); // Sat + Sun both collapse to "S"
+      // Sat + Sun both collapse to "S"
+      expect(screen.getAllByText("S")).toHaveLength(2);
       expect(screen.queryByText("Sat")).not.toBeInTheDocument();
       expect(screen.queryByText("Sun")).not.toBeInTheDocument();
     });
 
     it("still shows the date number in each narrowed weekend column", () => {
       renderMinimised(48);
-      expect(screen.getByText("6")).toBeInTheDocument(); // Sat 06-06
-      expect(screen.getByText("7")).toBeInTheDocument(); // Sun 06-07
+      // Sat 06-06
+      expect(screen.getByText("6")).toBeInTheDocument();
+      // Sun 06-07
+      expect(screen.getByText("7")).toBeInTheDocument();
     });
 
     it("renders weekend cells at the narrow width and weekdays at dayWidth", () => {
@@ -223,7 +226,8 @@ function registerDateStyleReactivityTests() {
     // fails if that dependency (or the `useDateStyle` subscription that feeds it) is removed.
     it("re-reads its labels when the format changes", () => {
       resetStoreWithAccount();
-      renderHeader(17); // coarse zoom: week-start blocks, whose label is a day/month reading
+      // coarse zoom: week-start blocks, whose label is a day/month reading
+      renderHeader(17);
       expect(screen.getByText("1 Jun")).toBeInTheDocument();
 
       act(() => useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { dateStyle: "month-day" }));

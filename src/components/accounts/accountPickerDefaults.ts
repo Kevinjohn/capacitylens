@@ -5,12 +5,16 @@ import { DEFAULT_TIME_ZONE } from "@/lib/timezones";
 // freezes after creation. Defaults are always concrete, and Settings does not edit them. Company
 // colour uses the default preset. Option labels are getters so they resolve at render time after a
 // locale change rather than at module import.
+/** Renders the week start options interface. */
 export const WEEK_START_OPTIONS: { value: 0 | 1; label: () => string }[] = [
   { value: 1, label: () => m.picker_week_monday() },
   { value: 0, label: () => m.picker_week_sunday() },
 ];
+/** Renders the default week starts on interface. */
 export const DEFAULT_WEEK_STARTS_ON = 1 as const;
+/** Renders the default timezone interface. */
 export const DEFAULT_TIMEZONE = DEFAULT_TIME_ZONE;
+/** Renders the default language interface. */
 export const DEFAULT_LANGUAGE = "en";
 
 /** Validate the untrusted 2xx body of POST /api/orgs, same stance as useAccountSummaries'

@@ -48,4 +48,5 @@ export function hasSameEntityRevisions(current: AppData, replacement: AppData): 
   return true;
 }
 
+/** Maximum number of undo and redo snapshots retained by the store. */
 export const HISTORY_LIMIT = 50;

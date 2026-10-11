@@ -3,6 +3,7 @@ import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
+/** Renders the account load recovery interface. */
 export function AccountLoadRecovery({
   accountName,
   onRetry,

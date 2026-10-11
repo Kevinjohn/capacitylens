@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+/** Renders the repeated allocation delete dialog interface. */
 export function RepeatedAllocationDeleteDialog({
   onDeleteOne,
   onDeleteFuture,

@@ -271,6 +271,7 @@ function MemberSettingsMenuItems({
   );
 }
 
+/** Renders the member row interface. */
 // eslint-disable-next-line max-lines-per-function -- the row keeps the table cells and shared dialog wiring together.
 export function MemberRow({
   member: member,

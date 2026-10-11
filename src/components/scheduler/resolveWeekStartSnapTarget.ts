@@ -16,6 +16,7 @@ import type { ISODate } from "@capacitylens/shared/types/entities";
 // epsilon guard returns null, and the caller no-ops. No feedback loop where the snap re-triggers
 // itself.
 
+/** Renders the week start snap target input interface. */
 export interface WeekStartSnapTargetInput {
   geom: ColumnGeometry;
   days: ISODate[];

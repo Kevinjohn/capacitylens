@@ -88,6 +88,7 @@ function TextFieldControl({
   );
 }
 
+/** Renders the text field interface. */
 export function TextField(props: TextFieldProps) {
   const { label, description, invalid, required, disabled, layout = "stacked" } = props;
   const id = useId();
@@ -125,6 +126,7 @@ export function TextField(props: TextFieldProps) {
   );
 }
 
+/** Renders the number field interface. */
 export function NumberField({
   label,
   value,
@@ -193,6 +195,7 @@ export function NumberField({
   );
 }
 
+/** Renders the date field interface. */
 export function DateField({
   label,
   value,

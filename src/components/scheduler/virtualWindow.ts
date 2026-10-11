@@ -17,9 +17,12 @@ interface ResolveVirtualWindowInput {
 // item (the pinned drag source), so it needs the gap either side of every rendered item, not
 // just the two outer ones.
 
+/** First and last row indices to render; `last` is `-1` when empty. */
 export interface VirtualWindow {
-  first: number; // first item index to render
-  last: number; // last item index to render (inclusive); -1 when empty
+  // first item index to render
+  first: number;
+  // last item index to render (inclusive); -1 when empty
+  last: number;
 }
 
 /** Cumulative offsets (prefix sums) of every item + the total. Depends only on
@@ -36,6 +39,7 @@ function requireRowValue(values: number[], index: number, invariant: string): nu
   return value;
 }
 
+/** Calculates each row top offset and the total height from row heights. */
 export function buildLayout(heights: number[]): RowLayout {
   const tops = Array.from<number>({ length: heights.length });
   let totalHeight = 0;

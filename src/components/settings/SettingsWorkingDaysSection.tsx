@@ -57,6 +57,7 @@ function WorkingDayCheckbox({
   );
 }
 
+/** Renders the settings working days section interface. */
 export function SettingsWorkingDaysSection({
   canEdit,
   workingDayOrder,

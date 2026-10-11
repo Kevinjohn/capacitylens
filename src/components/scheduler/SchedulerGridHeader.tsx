@@ -11,6 +11,7 @@ type Props = Pick<ReturnType<typeof useSchedulerViewport>, "days" | "geom"> &
     headerRef: Ref<HTMLDivElement>;
     calendarWeekStartsOn: 0 | 1;
   };
+/** Renders the scheduler grid header interface. */
 export function SchedulerGridHeader({
   headerRef,
   utilizationPrefs: utilizationPreferences,

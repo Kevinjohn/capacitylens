@@ -48,12 +48,14 @@ function registerCapacityAnnouncementTests() {
     // clamped to `visibleRange(ui)`, and the store's default window derives from today (once, at
     // init): so with fixed June allocations this assertion would rot as today drifts past them
     // unless the window is anchored here (mirrors the sibling Window-alignment test below).
-    useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 14 } })); // [2026-06-01 .. 2026-06-14]
+    // [2026-06-01 .. 2026-06-14]
+    useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 14 } }));
     const b = seedConflictPair();
     const { rerender } = render(
       <AllocationBar bar={barFor(b)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
     );
-    expect(useStore.getState().srAnnouncement).toBeNull(); // nothing announced before any edit
+    // nothing announced before any edit
+    expect(useStore.getState().srAnnouncement).toBeNull();
 
     // ArrowRight: B 06-01..06-02 → 06-02..06-03, overlapping A on Wed → 1 over day.
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
@@ -94,7 +96,8 @@ function registerVisibleWindowAnnouncementTest() {
   // re-scanned the resource's full span instead of clamping to the window).
   it("does NOT count an over-day OUTSIDE the visible window (spoken count == rendered row summary)", () => {
     // Pin a deterministic, narrow visible window to early June, independent of "today".
-    useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 14 } })); // [2026-06-01 .. 2026-06-14]
+    // [2026-06-01 .. 2026-06-14]
+    useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 14 } }));
     const st = useStore.getState();
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
@@ -126,15 +129,18 @@ function registerVisibleWindowAnnouncementTest() {
     );
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
     const moved = getStoredAllocation(b.id);
-    expect([moved.startDate, moved.endDate]).toEqual(["2026-09-02", "2026-09-02"]); // the conflict really happened…
+    // the conflict really happened…
+    expect([moved.startDate, moved.endDate]).toEqual(["2026-09-02", "2026-09-02"]);
     // …but it's off-window, so the announcement counts zero over-days, matching the rendered row.
     expect(getSrAnnouncement().text).toBe("Ty: no capacity conflicts.");
 
     // Sanity: widen the window to include September and the same edit now speaks the over-day,
     // proving the divergence was purely the window clamp (the over-marker signal is unchanged).
-    useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 120 } })); // now covers 09-02
+    // now covers 09-02
+    useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 120 } }));
     rerender(<AllocationBar bar={barFor(moved)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
-    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowLeft" }); // 09-02 → 09-01, no overlap
+    // 09-02 → 09-01, no overlap
+    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowLeft" });
     rerender(
       <AllocationBar
         bar={barFor(getStoredAllocation(b.id))}
@@ -143,7 +149,8 @@ function registerVisibleWindowAnnouncementTest() {
         onEdit={vi.fn()}
       />,
     );
-    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" }); // back onto 09-02 → over again
+    // back onto 09-02 → over again
+    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
     expect(getSrAnnouncement().text).toBe("Ty now over capacity on 1 day.");
   });
 }
@@ -158,8 +165,10 @@ function registerPointerAnnouncementTest() {
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
 
-    expect(getStoredAllocation(a.id).startDate).toBe("2026-06-02"); // moved
-    expect(useStore.getState().srAnnouncement).toBeNull(); // but the live region stayed silent
+    // moved
+    expect(getStoredAllocation(a.id).startDate).toBe("2026-06-02");
+    // but the live region stayed silent
+    expect(useStore.getState().srAnnouncement).toBeNull();
   });
 }
 
@@ -190,10 +199,12 @@ function registerCapacityAdviceTests() {
     expect(useStore.getState().draggingAllocationId).toBeNull();
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
-    document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true })); // first move → pin
+    // first move → pin
+    document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true }));
     expect(useStore.getState().draggingAllocationId).toBe(a.id);
 
-    document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true })); // commit → release
+    // commit → release
+    document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
     expect(useStore.getState().draggingAllocationId).toBeNull();
   });
 

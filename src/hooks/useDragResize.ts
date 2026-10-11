@@ -8,11 +8,13 @@ import type { DragMode } from "@/lib/gestureMath";
 // the caller can resolve a target row. A sub-threshold gesture is a click.
 // Listeners are torn down on unmount so an interrupted drag can't commit stale.
 
+/** Viewport coordinates reported for a pointer gesture. */
 export interface Pointer {
   clientX: number;
   clientY: number;
 }
 
+/** Preview coordinates and snapped date shift for an active gesture. */
 export interface DragResizePreviewInput {
   mode: DragMode;
   deltaDays: number;
@@ -20,6 +22,7 @@ export interface DragResizePreviewInput {
   pointer: Pointer;
 }
 
+/** Callbacks and coordinate mapping required to attach a drag or resize gesture. */
 export interface UseDragResizeArgs {
   /** Maps a document clientX to a snapped day index (the ColumnGeometry inverse, applied
    * against the live lane rect, supplied by the lane). The day delta is the difference of
@@ -151,6 +154,7 @@ function createGestureHandlers(state: GestureState): GestureHandlers {
   return handlers;
 }
 
+/** Attaches pointer drag and resize handling to a schedule gesture target. */
 export function useDragResize(args: UseDragResizeArgs) {
   const argsRef = useRef(args);
   useEffect(() => {

@@ -39,7 +39,9 @@ interface SchedulerModelTestInput {
   externalEnabled?: boolean | undefined;
 }
 
+/** Renders the default account working days interface. */
 export const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
+/** Describes the capacity for window of contract. */
 export const capacityForWindowOf = ({
   resource,
   allocations,
@@ -58,6 +60,7 @@ export const capacityForWindowOf = ({
     effectiveWeek: effectiveWorkingWeek(resource, accountWorkingDays),
     closures,
   });
+/** Describes the utilization of contract. */
 export const utilizationOf = ({
   resource,
   allocations,
@@ -77,11 +80,16 @@ export const utilizationOf = ({
     closures,
   });
 
+/** Describes the start contract. */
 export const start = "2026-06-01";
+/** Describes the end contract. */
 export const end = "2026-06-07";
+/** Describes the days contract. */
 export const days = eachDayISO(start, end);
+/** Describes the geom contract. */
 export const geom = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 });
 
+/** Describes the dataset contract. */
 export function dataset(
   disciplines: AppData["disciplines"] = [
     { id: "d-design", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 0 },
@@ -135,6 +143,7 @@ export function dataset(
   };
 }
 
+/** Builds  from the supplied inputs. */
 export const build = ({
   filters = buildEmptyFilters(),
   disciplinesEnabled = true,
@@ -150,8 +159,10 @@ export const build = ({
     filters,
     preferences: { disciplinesEnabled, placeholdersEnabled, externalEnabled },
   });
+/** Describes the all bars contract. */
 export const allBars = (model: GroupModel[]) => model.flatMap((group) => group.rows).flatMap((row) => row.bars);
 
+/** Describes the with external contract. */
 export function withExternal(): AppData {
   const data = dataset();
   data.resources.push(

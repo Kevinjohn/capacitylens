@@ -37,6 +37,7 @@ function ClosureLabel({ name, width }: { name: string; width: number }) {
   );
 }
 
+/** Renders the closure band interface. */
 export function ClosureBand({
   closure,
   visibleStart,

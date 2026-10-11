@@ -15,6 +15,7 @@ const ToggleGroupContext = React.createContext<
   variant: "default",
 });
 
+/** Groups related toggle controls. */
 function ToggleGroup({
   className,
   variant,
@@ -41,6 +42,7 @@ function ToggleGroup({
   );
 }
 
+/** Renders one selectable toggle in a group. */
 function ToggleGroupItem({
   className,
   children,

@@ -234,6 +234,7 @@ function ArchivedContent({
   ));
 }
 
+/** Renders the archived entity section interface. */
 export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
   const { data, mayViewInactive } = useInactiveAccountData();
   const actions = useLifecycleActions();

@@ -6,6 +6,7 @@ import type { BarLayout } from "@/components/scheduler/schedulerModel";
 
 // A fixed-width (500px) lane DOMRect stub for pointer-geometry math in drag/resize tests, only
 // `top`/`bottom` (and the `height` they imply) vary per case.
+/** Describes the rect contract. */
 export const rect = (top: number, bottom: number): DOMRect =>
   ({
     left: 0,
@@ -19,6 +20,7 @@ export const rect = (top: number, bottom: number): DOMRect =>
     toJSON: () => ({}),
   }) as DOMRect;
 
+/** Describes the seed allocation contract. */
 export function seedAllocation(overrides: Partial<Allocation> = {}): Allocation {
   const s = useStore.getState();
   const c = requireCreated(s.addClient({ name: "Ferris", color: "#1" }));
@@ -38,6 +40,7 @@ export function seedAllocation(overrides: Partial<Allocation> = {}): Allocation 
   );
 }
 
+/** Describes the seed visible allocation with hidden capacity contract. */
 export function seedVisibleAllocationWithHiddenCapacity(): Allocation {
   const st = useStore.getState();
   const hiddenClient = requireCreated(st.addClient({ name: "Archived client", color: "#1" }));
@@ -77,6 +80,7 @@ export function seedVisibleAllocationWithHiddenCapacity(): Allocation {
   return visible;
 }
 
+/** Describes the bar for contract. */
 export const barFor = (allocation: Allocation): BarLayout => ({
   allocation,
   x: 0,
@@ -87,18 +91,21 @@ export const barFor = (allocation: Allocation): BarLayout => ({
   external: false,
 });
 
+/** Returns stored allocation from the supplied inputs. */
 export function getStoredAllocation(allocationId: Allocation["id"]): Allocation {
   const allocation = useStore.getState().data.allocations.find((candidate) => candidate.id === allocationId);
   if (!allocation) throw new Error(`Expected allocation ${allocationId} to remain in the store.`);
   return allocation;
 }
 
+/** Returns sr announcement from the supplied inputs. */
 export function getSrAnnouncement() {
   const announcement = useStore.getState().srAnnouncement;
   if (!announcement) throw new Error("Expected the allocation edit to produce a screen-reader announcement.");
   return announcement;
 }
 
+/** Describes the lane rect contract. */
 export const laneRect = (top: number, bottom: number): DOMRect =>
   ({
     left: 0,

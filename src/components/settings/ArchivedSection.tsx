@@ -260,6 +260,7 @@ interface ArchivedSectionProps {
   collapsible?: boolean;
   defaultOpen?: boolean;
 }
+/** Renders the archived section interface. */
 export function ArchivedSection({ collapsible = false, defaultOpen = true }: ArchivedSectionProps = {}) {
   const server = isServerConfigured();
   const activeAccountId = useStore((state) => state.activeAccountId);

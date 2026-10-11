@@ -47,6 +47,7 @@ export interface TimeOffBlock {
   note?: string;
 }
 
+/** A scheduler row with its resource, height, and rendered bar layout. */
 export interface RowModel {
   resource: Resource;
   rowHeight: number;
@@ -59,11 +60,15 @@ export interface RowModel {
   /** Days painted with the neutral half-day (partial capacity) treatment. Same reason as above. */
   partialCapacityDayCount: number;
   timeOff: TimeOffBlock[];
-  utilization: number; // working-day ratio over the visible window [visStart, visEnd]
-  overSoon: boolean; // over-allocated on >=1 working day inside the fixed forward window [overStart, overEnd]
-  dimmed: boolean; // no work on the active project/client filter, shown for staffing context
+  // working-day ratio over the visible window [visStart, visEnd]
+  utilization: number;
+  // over-allocated on >=1 working day inside the fixed forward window [overStart, overEnd]
+  overSoon: boolean;
+  // no work on the active project/client filter, shown for staffing context
+  dimmed: boolean;
 }
 
+/** A scheduler group key with its display title and optional color. */
 export interface GroupModel {
   key: string;
   title: string;
@@ -74,6 +79,7 @@ export interface GroupModel {
   rows: RowModel[];
 }
 
+/** Data and column geometry used to build a scheduler model. */
 export interface SchedulerModelOptions {
   data: AppData;
   // Per-column pixel geometry (built once in SchedulerGrid). Owns the date→x / range→width
@@ -144,6 +150,7 @@ export interface CapacitySource {
   resolveUtilizationOver: (dates: ISODate[]) => number;
   isOverOn: (dates: ISODate[]) => boolean;
 }
+/** A discipline group with scheduler-specific display fields. */
 export interface SchedulerResourceGroup extends DisciplineGroup {
   key: string;
   title: string;

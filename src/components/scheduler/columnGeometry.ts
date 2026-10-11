@@ -58,6 +58,7 @@ export interface ColumnGeometry {
   widthForDates(start: ISODate, end: ISODate): number;
 }
 
+/** Describes the column geometry options used by this module. */
 export interface ColumnGeometryOptions {
   /** The device-global "Minimise weekends" pref. */
   minimiseWeekends: boolean;
@@ -221,7 +222,8 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
   // the zoom scroll-anchor's indexAt() floor to the previous (weekend) column, drifting the
   // left-edge date back a day on every zoom flip. dayWidth is already integer (resolveColumnFit).
   const measurements = buildColumnMeasurements(days, dayWidth, options);
-  const origin = days[0]; // undefined only when n === 0 (an empty window)
+  // undefined only when n === 0 (an empty window)
+  const origin = days[0];
   const accessors = createGeometryAccessors({ ...measurements, dayCount, dayWidth, origin });
 
   return {

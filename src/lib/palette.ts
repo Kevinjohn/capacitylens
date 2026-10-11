@@ -7,6 +7,7 @@ export { NEUTRAL_COLOR } from "@capacitylens/shared/lib/color";
 import { PRESET_COLORS } from "@capacitylens/shared/lib/color";
 import { m } from "@/i18n";
 
+/** Default preset colors grouped by entity type. */
 export const DEFAULT_COLORS = {
   client: "#2d75da", // blue
   project: "#da2d92", // pink
@@ -23,8 +24,10 @@ export const DEFAULT_COLORS = {
 // strong, obvious gradient, and brown rides ~13pts darker so it reads as brown. The
 // matrix deliberately includes every DEFAULT_COLORS value (row 2, the medium-vivid
 // band) so a freshly-opened form's default highlights as the selected swatch. No greyscale.
+/** Number of columns used to arrange the color swatches. */
 export const SWATCH_COLUMNS = 13;
 // Alias the frozen canonical tuple rather than maintaining a second list or mutable copy.
+/** Read-only swatch list backed by the canonical preset colors. */
 export const SWATCHES: readonly string[] = PRESET_COLORS;
 
 // Lowercase hex -> index into SWATCHES, built once from the static swatch list so callers

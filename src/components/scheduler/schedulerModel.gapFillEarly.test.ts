@@ -11,7 +11,8 @@ function buildBlockTimeOffRows() {
       ...requireValue(d.allocations[0], "a1 allocation"),
       startDate: "2026-06-01",
       endDate: "2026-06-07",
-      hoursPerDay: 8, // legacy load is retained in storage but projected to zero in Blocks mode
+      // legacy load is retained in storage but projected to zero in Blocks mode
+      hoursPerDay: 8,
     },
   ];
   d.timeOff = [
@@ -48,7 +49,8 @@ function buildBlockTimeOffRows() {
       disciplinesEnabled: true,
       placeholdersEnabled: true,
       externalEnabled: true,
-      accountWorkingDays: [1, 2, 3, 4], // Friday is globally closed; Sat/Sun are personally closed.
+      // Friday is globally closed; Sat/Sun are personally closed.
+      accountWorkingDays: [1, 2, 3, 4],
       blocksMode: true,
     },
   });
@@ -279,7 +281,8 @@ function registerMovedSchedulerTests20107() {
       model.flatMap((g) => g.rows).find((r) => r.resource.id === "r1"),
       "r1 scheduler row",
     );
-    expect(r1.timeOff).toHaveLength(2); // both accumulate, neither write drops the other
+    // both accumulate, neither write drops the other
+    expect(r1.timeOff).toHaveLength(2);
     const t1 = requireValue(
       r1.timeOff.find((t) => t.id === "to1"),
       "to1 time-off block",
@@ -291,8 +294,10 @@ function registerMovedSchedulerTests20107() {
     expect(t1.label.length).toBeGreaterThan(0);
     // Day-state unavailable is exactly cap.available === 0: true on the time-off day, false on a
     // plain working day with no time off (2026-06-03, a Wednesday r1 works).
-    expect(r1.dayStates[0]?.unavailable).toBe(true); // 2026-06-01, on time off
-    expect(r1.dayStates[2]?.unavailable).toBe(false); // 2026-06-03, ordinary working day
+    // 2026-06-01, on time off
+    expect(r1.dayStates[0]?.unavailable).toBe(true);
+    // 2026-06-03, ordinary working day
+    expect(r1.dayStates[2]?.unavailable).toBe(false);
   });
 }
 
@@ -429,8 +434,10 @@ function registerMovedSchedulerTests201010() {
       false,
       false,
     ]);
-    expect(r1.dayStates[4]).toMatchObject({ unavailable: true, timeOffConflict: false }); // global Friday
-    expect(r1.dayStates[5]).toMatchObject({ unavailable: true, timeOffConflict: false }); // personal Saturday
+    // global Friday
+    expect(r1.dayStates[4]).toMatchObject({ unavailable: true, timeOffConflict: false });
+    // personal Saturday
+    expect(r1.dayStates[5]).toMatchObject({ unavailable: true, timeOffConflict: false });
     expect(r1.utilization).toBe(0);
     expect(r1.overSoon).toBe(false);
     expect(r2.dayStates[2]).toMatchObject({ unavailable: true, over: false, timeOffConflict: false });

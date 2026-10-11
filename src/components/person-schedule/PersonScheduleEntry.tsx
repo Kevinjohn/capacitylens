@@ -66,6 +66,7 @@ function TimeOffEntry({ entry }: { entry: PersonScheduleTimeOffEntry }) {
   );
 }
 
+/** Renders the person schedule entry interface. */
 export function PersonScheduleEntry({ entry }: PersonScheduleEntryProps) {
   return (
     <li

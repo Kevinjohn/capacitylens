@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { m } from "@/i18n";
 import { AddButton } from "./dialogs";
 
+/** Renders the list page interface. */
 export function ListPage({
   title,
   addLabel,

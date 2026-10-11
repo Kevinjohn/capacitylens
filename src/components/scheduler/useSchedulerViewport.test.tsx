@@ -73,7 +73,8 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
   it("onScroll resolves a scrollLeft fractionally below a column boundary to that column, not the previous one", () => {
     render(<Harness />);
     const grid = screen.getByTestId("scroll");
-    const boundary = Number(screen.getByTestId("boundary-2").textContent); // index 2 → 2026-06-03
+    // index 2 → 2026-06-03
+    const boundary = Number(screen.getByTestId("boundary-2").textContent);
 
     act(() => {
       grid.scrollLeft = boundary - 0.4;
@@ -107,13 +108,15 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
     useStore.setState({ draggingAllocationId: "a1" });
     render(<Harness />);
     const grid = screen.getByTestId("scroll");
-    const boundary = Number(screen.getByTestId("boundary-3").textContent); // index 3 → 2026-06-04
+    // index 3 → 2026-06-04
+    const boundary = Number(screen.getByTestId("boundary-3").textContent);
 
     act(() => {
       grid.scrollLeft = boundary - 0.4;
     });
     act(() => {
-      useStore.setState({ draggingAllocationId: null }); // drag ends → resync effect fires
+      // drag ends → resync effect fires
+      useStore.setState({ draggingAllocationId: null });
     });
 
     expect(screen.getByTestId("left-edge-idx").textContent).toBe("3");
@@ -151,7 +154,8 @@ describe("useSchedulerViewport — viewport changes", () => {
     useStore.setState((state) => ({
       ui: {
         ...state.ui,
-        originDate: "2026-06-03", // Wednesday; Monday week-start lies before column zero
+        // Wednesday; Monday week-start lies before column zero
+        originDate: "2026-06-03",
         focusDate: "2026-06-03",
       },
     }));

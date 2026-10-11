@@ -128,6 +128,7 @@ async function reportUnknownAcceptance(setState: InviteStateSetter, error: unkno
   setState({ kind: "error", message, retryAccept: true });
 }
 
+/** Creates invite acceptance actions from the supplied inputs. */
 export function createInviteAcceptanceActions({
   token,
   previewed,

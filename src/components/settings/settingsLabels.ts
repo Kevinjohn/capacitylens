@@ -11,12 +11,14 @@ import type { DateStyle } from "@capacitylens/shared/types/entities";
 // freeze each label to the load-time locale; deferring it to render lets an account/locale switch
 // re-resolve the text. Keying each table by its own union also makes it exhaustive by type: add a
 // theme/mode/preference without a message here and tsc fails.
+/** Renders the theme messages interface. */
 export const THEME_MESSAGES: LabelMessages<ThemePreference> = {
   light: m.settings_theme_light,
   dark: m.settings_theme_dark,
   system: m.settings_theme_system,
 };
 
+/** Renders the date style messages interface. */
 export const DATE_STYLE_MESSAGES: LabelMessages<DateStyle> = {
   "day-month": m.settings_date_style_day_month,
   "day-ordinal-month": m.settings_date_style_day_ordinal_month,
@@ -24,24 +26,28 @@ export const DATE_STYLE_MESSAGES: LabelMessages<DateStyle> = {
   "month-day-ordinal": m.settings_date_style_month_day_ordinal,
 };
 
+/** Renders the scheduling messages interface. */
 export const SCHEDULING_MESSAGES: LabelMessages<SchedulingMode> = {
   hourly: m.settings_scheduling_option_hours,
   days: m.settings_scheduling_option_days,
   blocks: m.settings_scheduling_option_blocks,
 };
 
+/** Renders the capacity overview access messages interface. */
 export const CAPACITY_OVERVIEW_ACCESS_MESSAGES: LabelMessages<CapacityOverviewAccess> = {
   owner_admin: m.settings_capacity_overview_access_owner_admin,
   owner_admin_editor: m.settings_capacity_overview_access_owner_admin_editor,
   everyone: m.settings_capacity_overview_access_everyone,
 };
 
+/** Renders the utilization messages interface. */
 export const UTILIZATION_MESSAGES: LabelMessages<keyof UtilizationPreferences> = {
   showTotal: m.settings_utilisation_show_total,
   showDiscipline: m.settings_utilisation_show_discipline,
   showPersonal: m.settings_utilisation_show_personal,
 };
 
+/** Renders the bar label messages interface. */
 export const BAR_LABEL_MESSAGES: LabelMessages<keyof BarLabelPreferences> = {
   showClient: m.settings_bar_labels_show_client,
   showProject: m.settings_bar_labels_show_project,

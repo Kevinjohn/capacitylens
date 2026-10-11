@@ -315,7 +315,8 @@ function registerServerListMembershipTests() {
     useStore.getState().setAccountSummaries({
       list: [
         { id: "a1", name: "Active Co", role: "owner" },
-        { id: "a2", name: "Other Co", role: "editor" }, // Not in data.accounts
+        // Not in data.accounts
+        { id: "a2", name: "Other Co", role: "editor" },
       ],
     });
     render(
@@ -333,7 +334,8 @@ function registerServerListMembershipTests() {
       </AuthContext.Provider>,
     );
     expect(screen.getByText("Active Co")).toBeInTheDocument();
-    expect(screen.getByText("Other Co")).toBeInTheDocument(); // proves the source is summaries, not data
+    // proves the source is summaries, not data
+    expect(screen.getByText("Other Co")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Active Co" })).toHaveAccessibleDescription("Owner");
     expect(screen.getByRole("button", { name: "Other Co" })).toHaveAccessibleDescription("Editor");
   });
@@ -455,7 +457,8 @@ function registerServerCreateUnusableBodyTest() {
     serverFlag.on = true;
     const user = userEvent.setup();
     const fetchMock = vi.fn(async (url: string) => {
-      if (url === "/api/orgs") return { ok: true, status: 201, json: async () => ({ ok: true }) }; // no id/name
+      // no id/name
+      if (url === "/api/orgs") return { ok: true, status: 201, json: async () => ({ ok: true }) };
       return { ok: true, status: 200, json: async () => [{ id: "org-9", name: "Stark Industries", role: "owner" }] };
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -603,7 +606,8 @@ function registerServerDeleteUnloadedTest() {
     serverFlag.on = true;
     const user = userEvent.setup();
     const fetchMock = stubFetch({ ok: true, status: 204 });
-    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] }); // slice not loaded
+    // slice not loaded
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));

@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 // CapacityLens deliberately enlarges both shadcn switch sizes for a clearer pointer/touch target.
 // Track padding plus fixed thumb travel keep the 5/3-unit thumbs inset at either end; preserve this
 // geometry when reviewing a registry refresh rather than accepting the smaller upstream defaults.
+/** Renders a controlled or uncontrolled switch. */
 function Switch({
   className,
   size = "default",

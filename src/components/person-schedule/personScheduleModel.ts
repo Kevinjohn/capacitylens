@@ -22,6 +22,7 @@ import type {
   PersonScheduleWindow,
 } from "./personScheduleTypes";
 
+/** Builds person schedule input from the supplied inputs. */
 export interface BuildPersonScheduleInput {
   accountId: ID;
   resource: Resource;
@@ -172,6 +173,7 @@ function listTimeOffEntries(input: BuildPersonScheduleInput): {
   return { entries, invalidRecords };
 }
 
+/** Builds person schedule from the supplied inputs. */
 export function buildPersonSchedule(input: BuildPersonScheduleInput): PersonScheduleBuildResult {
   const context = createProjectionContext(input);
   const allocationInvalidRecords = collectSeriesMetadata(

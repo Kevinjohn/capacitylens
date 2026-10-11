@@ -11,12 +11,15 @@ interface BuildActivityOptionsInput {
   projectId?: string | undefined;
 }
 
+/** Renders the activity group key interface. */
 export type ActivityGroupKey = "all-projects" | "project";
 
+/** Resolves group key for kind from the supplied inputs. */
 export function resolveGroupKeyForKind(kind: Activity["kind"]): ActivityGroupKey {
   return kind === "repeatable" ? "all-projects" : "project";
 }
 
+/** Resolves group label for kind from the supplied inputs. */
 export function resolveGroupLabelForKind(kind: Activity["kind"]): string {
   return kind === "repeatable" ? m.scheduler_filter_all_projects() : m.form_activity_kind_project();
 }
@@ -37,6 +40,7 @@ function resolveDuplicateContext(
   return projectNamesById.get(activity.projectId ?? "") ?? "Project";
 }
 
+/** Describes the sort grouped options used by this module. */
 export function sortGroupedOptions(options: readonly Option[]): Option[] {
   return options.toSorted((left, right) => {
     return (

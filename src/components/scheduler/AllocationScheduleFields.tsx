@@ -278,6 +278,7 @@ function DetailFields(props: DetailProps) {
   );
 }
 
+/** Renders the allocation schedule fields interface. */
 export function AllocationScheduleFields(props: ScheduleProps) {
   return (
     <>

@@ -27,6 +27,7 @@ function resolveGroupSummary({ group, collapsed, showDisciplineUtilization }: Re
   return percent === null ? "" : m.scheduler_group_avg_utilisation({ percent });
 }
 
+/** Renders the scheduler grid group header interface. */
 export function SchedulerGridGroupHeader({
   group,
   rowIndex,

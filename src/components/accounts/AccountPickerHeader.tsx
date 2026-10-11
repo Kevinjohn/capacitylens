@@ -47,6 +47,7 @@ function DemoSessionBar({ onSignOut }: { onSignOut: () => void }) {
   );
 }
 
+/** Renders the account picker header interface. */
 export function AccountPickerHeader({
   demoAuthActive,
   previous,

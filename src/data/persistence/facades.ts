@@ -35,7 +35,9 @@ export function suspendServerWrites(): (options?: { dropParkedEdits?: boolean })
  *  - 'unattached': no orchestrator (demo build / unit tests); the caller may fall back to a
  *                   bare loadAll+replaceAll, safe only because there is no debounce state.
  */
+/** Outcome of requesting a persistence refresh. */
 export type RefreshOutcome = { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" };
+/** Outcome of flushing queued persistence writes. */
 export type FlushPendingWritesResult = { kind: "clean" } | { kind: "blocked" } | { kind: "failed"; error: unknown };
 
 /**

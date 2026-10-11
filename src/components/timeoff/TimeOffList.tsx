@@ -112,6 +112,7 @@ function TimeOffItem({ timeOff, resourceName, separated, onEdit, onDelete }: Tim
   );
 }
 
+/** Renders the time off list interface. */
 export function TimeOffList() {
   const data = useActiveScopedData();
   const resources = data.resources;

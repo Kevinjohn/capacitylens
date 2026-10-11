@@ -55,6 +55,7 @@ function SettingsBottomSections({ controller }: { controller: Controller }) {
   );
 }
 
+/** Renders the settings view interface. */
 export function SettingsView() {
   const controller = useSettingsViewController();
   useSettingsOnboardingTarget({ ready: controller.activeAccount !== null });

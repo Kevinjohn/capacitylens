@@ -10,6 +10,7 @@ import {
 import type { Allocation, Closure, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 import { hasAllocationLoadOnDay, warnOnNonFiniteCapacity } from "./primitives";
 
+/** Checks whether a date belongs to the effective working week. */
 export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate): boolean {
   return effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
 }
@@ -20,6 +21,7 @@ export function isHalfDay(resource: Resource, weekday: Weekday): boolean {
   return hasPersonalWorkingPattern(resource) && resource.halfDays.includes(weekday);
 }
 
+/** Returns scheduled hours for a resource on a weekday. */
 export function resolveScheduledHoursForWeekday(
   resource: Resource,
   weekday: Weekday,
@@ -50,6 +52,7 @@ export function listTimeOffApplyingTo(resourceId: ID, timeOff: TimeOff[]): TimeO
   return timeOff.filter((timeOffEntry) => isApplicableToResource(resourceId, timeOffEntry));
 }
 
+/** Checks whether a resource has time off on a date. */
 export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): boolean {
   return timeOff.some(
     (timeOffEntry) =>
@@ -85,6 +88,7 @@ interface ResolveAvailableHoursForWeekdayInput {
   effectiveWeek: EffectiveWorkingWeek;
 }
 
+/** Calculates a resource available hours for one weekday after time off and closure rules. */
 export function resolveAvailableHoursForWeekday({
   resource,
   date,
@@ -166,6 +170,7 @@ interface ResolveAllocatedHoursForWeekdayInput {
   effectiveWeek: EffectiveWorkingWeek;
 }
 
+/** Totals a resource allocated hours for one weekday. */
 export function resolveAllocatedHoursForWeekday({
   resource,
   date,

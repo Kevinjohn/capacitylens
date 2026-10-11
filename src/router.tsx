@@ -71,6 +71,7 @@ const JoinCompany = lazy(() =>
 // Lazy for the same bundle reason: the chunk loads only when a reset link is actually opened.
 const ResetPassword = lazy(() => import("./auth/ResetPassword").then((module) => ({ default: module.ResetPassword })));
 
+/** Shows a localized loading status while route access is unresolved. */
 export function RouteLoading() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
@@ -88,6 +89,7 @@ function DisciplineRoute() {
   return enabled ? <DisciplineList /> : <Navigate to="/" replace />;
 }
 
+/** Renders the capacity overview only when account access is allowed. */
 export function CapacityOverviewRoute() {
   const role = useRole();
   const status = usePermissionStatus();
@@ -103,6 +105,7 @@ export function CapacityOverviewRoute() {
 }
 
 // Diagnostics is Owner/Admin-only, with the Overview route's pending and auth-off handling.
+/** Renders diagnostics only for authorized owners or administrators. */
 export function DiagnosticsRoute() {
   const decision = useDiagnosticsAccessDecision();
   if (decision === "pending")
@@ -126,6 +129,7 @@ function ActivityRoute() {
   return <ActivityList {...(selectedActivityId === undefined ? {} : { selectedActivityId })} />;
 }
 
+/** Defines the application routes and their authentication and error boundaries. */
 export const router = createBrowserRouter([
   {
     path: "/",

@@ -1,7 +1,9 @@
 // Product field APIs composed from ShadCN's Field family.
 
+/** Renders the product field layout interface. */
 export type ProductFieldLayout = "stacked" | "label-control";
 
+/** Renders the option interface. */
 export interface Option {
   value: string;
   label: string;
@@ -17,4 +19,5 @@ export interface Option {
   disabled?: boolean;
 }
 
+/** Renders the working day option interface. */
 export type WorkingDayOption = "full" | "half" | "off";

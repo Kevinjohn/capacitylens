@@ -7,6 +7,7 @@ import type { AllocationModalState } from "./useAllocationModalState";
 
 type AllocationFooterProps = AllocationModalState["footer"];
 
+/** Renders the allocation footer interface. */
 export function AllocationFooter({
   editing,
   canEdit,

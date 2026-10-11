@@ -61,6 +61,7 @@ function createWorkVisibility({
   };
 }
 
+/** Creates allocation filters from the supplied inputs. */
 export function createAllocationFilters(
   filters: Filters,
   { disciplinesEnabled, placeholdersEnabled, externalEnabled }: SchedulerModelOptions["preferences"],

@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+/** Describes the toolbar activity filter props used by this module. */
 export interface ToolbarActivityFilterProps {
   activityId: string | null;
   activityKind: "internal" | "repeatable" | null;
@@ -24,6 +25,7 @@ function buildActivityFilterPatch(value: string): Parameters<ToolbarActivityFilt
   return { activityId: value === "all" ? null : value, activityKind: null };
 }
 
+/** Renders the toolbar activity filter interface. */
 export function ToolbarActivityFilter({
   activityId,
   activityKind,

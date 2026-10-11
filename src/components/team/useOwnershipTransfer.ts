@@ -30,6 +30,7 @@ interface OwnershipTransferReadState {
   error: string | null;
 }
 
+/** Describes the ownership transfer state used by this module. */
 export interface OwnershipTransferState extends OwnershipTransferReadState {
   /** The first read is still in flight. Derived, not stored: a projection is an object once the
    * server has answered, so "no projection yet and no error" is the loading state, and deriving
@@ -43,6 +44,7 @@ interface CommandInput {
   expectedRevision: string;
 }
 
+/** Renders the ownership transfer controller interface. */
 export interface OwnershipTransferController extends OwnershipTransferState {
   refresh(): Promise<void>;
   nominate(targetPrincipalId: string): Promise<void>;
@@ -276,6 +278,7 @@ function useTransferCommand({
   );
 }
 
+/** Returns the ownership transfer state and actions for this feature. */
 export function useOwnershipTransfer(
   accountId: string | null,
   refreshAuth: () => Promise<void>,

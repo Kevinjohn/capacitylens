@@ -333,6 +333,7 @@ function activateAccount(id: string): void {
 
 // Full-screen tenant chooser. `accountSummaries`, rather than the active account slice, is the
 // complete server-backed list of companies this login may open.
+/** Renders the account picker interface. */
 export function AccountPicker() {
   const accounts = useStore((state) => state.accountSummaries);
   const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);

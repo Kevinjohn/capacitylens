@@ -333,6 +333,7 @@ function MasqueradeBanner({
   );
 }
 
+/** Renders the app shell interface. */
 export function AppShell() {
   const navigate = useNavigate();
   const { paletteOpen, closePalette } = useAppShellController();

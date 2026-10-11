@@ -9,6 +9,7 @@ import { API_BASE } from "@/data/apiConfig";
 // Same-origin by default: an empty API_BASE is now the normal case (server persistence defaults to
 // the same origin), so fall back to window.location.origin rather than leaving a bare `/api/auth`
 // with no origin. The lazy-import invariant above keeps this module out of the initial app chunk.
+/** Better Auth browser client configured for the application API origin. */
 export const authClient = createAuthClient({
   baseURL: `${API_BASE || window.location.origin}/api/auth`,
 });

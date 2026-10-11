@@ -70,6 +70,7 @@ function TimeOffRepeatPreview({ projection }: { projection: RepeatProjection }) 
   );
 }
 
+/** Renders the time off repeat fields interface. */
 export function TimeOffRepeatFields(props: TimeOffRepeatFieldsProps) {
   return (
     <>

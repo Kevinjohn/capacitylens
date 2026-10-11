@@ -132,6 +132,7 @@ function ActivitySelectionFields({
   );
 }
 
+/** Renders the allocation target fields interface. */
 export function AllocationTargetFields({
   create,
   resourceId,

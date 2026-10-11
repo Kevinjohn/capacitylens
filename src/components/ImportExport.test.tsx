@@ -85,7 +85,8 @@ describe("ImportExport – Export", () => {
 
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(anchorClick).toHaveBeenCalledOnce();
-    expect(revokeObjectURL).not.toHaveBeenCalled(); // deferred past the click so the download isn't truncated
+    // deferred past the click so the download isn't truncated
+    expect(revokeObjectURL).not.toHaveBeenCalled();
 
     await new Promise((r) => setTimeout(r, 0));
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:x");
@@ -246,7 +247,8 @@ describe("ImportExport – Import", () => {
 
 describe("ImportExport – Import", () => {
   it("shows a confirmation summary and does NOT replace data until confirmed", async () => {
-    useStore.getState().replaceAll(seed()); // existing data
+    // existing data
+    useStore.getState().replaceAll(seed());
     const before = useStore.getState().data.clients.length;
     render(<ImportExport />);
 
@@ -324,10 +326,12 @@ describe("ImportExport – Import", () => {
     fireEvent.change(input);
     await new Promise((resolve) => setTimeout(resolve, 0));
     fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
-    expect(useStore.getState().data.resources).toHaveLength(1); // replaced by the imported one
+    // replaced by the imported one
+    expect(useStore.getState().data.resources).toHaveLength(1);
 
     useStore.getState().undo();
-    expect(useStore.getState().data.resources).toHaveLength(before); // restored
+    // restored
+    expect(useStore.getState().data.resources).toHaveLength(before);
   });
 });
 
@@ -363,19 +367,23 @@ describe("ImportExport – Import", () => {
     Object.defineProperty(input, "files", { value: [file], writable: false });
 
     fireEvent.change(input);
-    fireEvent.click(await screen.findByRole("button", { name: "Replace data" })); // confirm the import
+    // confirm the import
+    fireEvent.click(await screen.findByRole("button", { name: "Replace data" }));
 
     const notice = useStore.getState().notice;
     expect(notice?.message).toMatch(/no records imported/i);
-    expect(notice?.message).not.toMatch(/undo/i); // must not lure the user into ⌘Z
+    // must not lure the user into ⌘Z
+    expect(notice?.message).not.toMatch(/undo/i);
     expect(notice?.tone).toBe("error");
-    expect(useStore.getState().data.clients.map((c) => c.name)).toContain("Real Edit"); // prior edit intact
+    // prior edit intact
+    expect(useStore.getState().data.clients.map((c) => c.name)).toContain("Real Edit");
   });
 });
 
 describe("ImportExport – Import", () => {
   it("rejects a CapacityLens-shaped file with zero records (no dialog, no wipe)", async () => {
-    useStore.getState().replaceAll(seed()); // existing data that must not be wiped
+    // existing data that must not be wiped
+    useStore.getState().replaceAll(seed());
     render(<ImportExport />);
 
     const file = new File([serializeData(emptyAppData())], "empty.json", {
@@ -395,7 +403,8 @@ describe("ImportExport – Import", () => {
   });
 
   it("surfaces a notice (and keeps the data) when the file is not valid CapacityLens JSON", async () => {
-    useStore.getState().replaceAll(seed()); // existing data that must not be wiped
+    // existing data that must not be wiped
+    useStore.getState().replaceAll(seed());
     render(<ImportExport />);
 
     const file = new File(["{ this is not json"], "bad.json", {
@@ -409,7 +418,8 @@ describe("ImportExport – Import", () => {
 
     // Invalid JSON now surfaces parseData's specific "That file isn't valid JSON." message.
     expect(useStore.getState().notice?.message).toMatch(/valid JSON/i);
-    expect(useStore.getState().data.resources.length).toBeGreaterThan(0); // data preserved
+    // data preserved
+    expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
   });
 });
 
@@ -607,7 +617,8 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     // that the authoritative slice was reloaded.
     expect(useStore.getState().data).toBe(before);
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/imported 3 records/i));
-    expect(useStore.getState().notice?.message).not.toMatch(/undo|⌘Z/i); // a server import is not undoable
+    // a server import is not undoable
+    expect(useStore.getState().notice?.message).not.toMatch(/undo|⌘Z/i);
   });
 });
 
@@ -1020,7 +1031,8 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     );
     expect(screen.getByTestId("import-data")).toBeInTheDocument();
     unmount();
-    render(<ImportExport />); // no provider → role null → importable (server 403 backstops)
+    // no provider → role null → importable (server 403 backstops)
+    render(<ImportExport />);
     expect(screen.getByTestId("import-data")).toBeInTheDocument();
   });
 

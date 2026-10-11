@@ -114,6 +114,7 @@ function buildProjection(input: ProjectionInput, context: NonNullable<ReturnType
   }
 }
 
+/** Builds repeat projection from the supplied inputs. */
 export function buildRepeatProjection(input: ProjectionInput) {
   const { selectedActivity, selectedEffectiveProjectId } = input;
   const context = resolveProjectionContext(input);

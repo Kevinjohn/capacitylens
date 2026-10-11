@@ -36,6 +36,7 @@ function hasOpenNestedOverlay(): boolean {
   );
 }
 
+/** Renders the add button interface. */
 export function AddButton({
   label,
   onClick,
@@ -57,6 +58,7 @@ export function AddButton({
   );
 }
 
+/** Renders the edit button interface. */
 export function EditButton({
   label = m.form_edit(),
   onClick,
@@ -82,6 +84,7 @@ export function EditButton({
   );
 }
 
+/** Renders the delete button interface. */
 export function DeleteButton({
   label = m.form_delete(),
   onClick,
@@ -107,6 +110,7 @@ export function DeleteButton({
   );
 }
 
+/** Renders the modal interface. */
 export function Modal({
   title,
   description,
@@ -297,6 +301,7 @@ function ModalForm({
   );
 }
 
+/** Renders the confirm dialog interface. */
 export function ConfirmDialog({
   title,
   message,
@@ -348,6 +353,7 @@ export function ConfirmDialog({
   );
 }
 
+/** Describes the empty state used by this module. */
 export function EmptyState({
   children,
   icon,

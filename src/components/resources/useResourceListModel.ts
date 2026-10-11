@@ -43,6 +43,7 @@ function partitionResources({ resources, groupByEngagement }: PartitionResources
   };
 }
 
+/** Describes the use resource list model used by this module. */
 export function useResourceListModel() {
   const { resources, disciplines } = useActiveScopedData();
   const disciplinesById = useMemo(
@@ -80,4 +81,5 @@ export function useResourceListModel() {
   };
 }
 
+/** Describes the resource list model used by this module. */
 export type ResourceListModel = ReturnType<typeof useResourceListModel>;

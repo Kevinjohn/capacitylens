@@ -107,6 +107,7 @@ function ExampleDataSection() {
   );
 }
 
+/** Renders the settings data section interface. */
 export function SettingsDataSection({
   serverMode,
   authMode,

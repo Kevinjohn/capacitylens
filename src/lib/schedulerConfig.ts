@@ -2,18 +2,20 @@
 // day-column width is derived to fit that many weeks into the available width
 // (see resolveColumnFit). Pixel row geometry lives in components/scheduler/layout.ts.
 
+/** Supported scheduler zoom levels, expressed in visible weeks. */
 export type WeeksZoom = 1 | 2 | 4 | 6 | 8;
 
+/** Scheduler zoom choices in increasing visible-week order. */
 export const ZOOM_LEVELS: WeeksZoom[] = [1, 2, 4, 6, 8];
+/** Initial scheduler zoom when no user selection is present. */
 export const DEFAULT_ZOOM: WeeksZoom = 2;
 
+/** Smallest scheduler day-column width in pixels. */
 export const MIN_DAY_WIDTH = 8;
 /** Used when the real timeline width can't be measured (tests / first paint / SSR). */
 export const FALLBACK_TIMELINE_WIDTH = 1000;
 
-// Density thresholds shared by the header and the lanes so they flip together as
-// you zoom (avoids the old 18-vs-20 mismatch where weekend tint vanished a step
-// before the per-day columns did).
+// Keep header and lane density changes aligned as zoom changes.
 /** At/above this day width the header shows per-day columns and lanes paint weekend/unavailable tint. */
 export const DAY_COLUMN_MIN_WIDTH = 18;
 /** At/above this day width the header also shows weekday letters (Mon/Tue…). */

@@ -21,6 +21,7 @@ function buildTitle({ editing, createName }: BuildTitleOptions) {
   return m.form_allocation_new_title();
 }
 
+/** Renders the allocation modal interface. */
 export function AllocationModal(props: AllocationModalProps) {
   const state = useAllocationModalState(props);
   const { editing, createName, onClose, submit, clear } = state.shell;

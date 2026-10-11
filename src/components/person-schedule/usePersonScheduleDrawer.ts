@@ -10,6 +10,7 @@ interface PersonScheduleSelection {
   opener: HTMLButtonElement;
 }
 
+/** Returns the person schedule drawer state and actions for this feature. */
 export function usePersonScheduleDrawer({
   data,
   fallbackRef,

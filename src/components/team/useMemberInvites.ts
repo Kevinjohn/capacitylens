@@ -35,6 +35,7 @@ interface InviteMutationDependencies extends MemberInviteDependencies {
   setInvitationResourceId: Dispatch<SetStateAction<string>>;
 }
 
+/** Renders the invitation person option interface. */
 export interface InvitationPersonOption {
   id: string;
   label: string;

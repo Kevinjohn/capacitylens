@@ -81,6 +81,7 @@ function trueOrUndefined({ value }: TrueOrUndefinedOptions): true | undefined {
   return value ? true : undefined;
 }
 
+/** Selects field from the supplied inputs. */
 export function SelectField({
   label,
   value,

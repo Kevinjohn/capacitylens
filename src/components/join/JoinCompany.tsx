@@ -162,6 +162,7 @@ function JoinCompanyForAccount({ accountId, invitationToken }: { accountId: stri
   );
 }
 
+/** Renders the join company interface. */
 export function JoinCompany() {
   const { accountId } = useParams<{ accountId: string }>();
   const [searchParams] = useSearchParams();

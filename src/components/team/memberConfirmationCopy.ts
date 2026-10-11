@@ -5,10 +5,13 @@ import type { TeamMember } from "@/account/teamAccessClient";
 
 // Pure copy and status tables for member confirmations. They live apart from the
 // MemberConfirmations component so that file exports only components (react-refresh).
+/** Renders the member confirmation action interface. */
 export type MemberConfirmationAction =
   "masquerade" | "remove" | "resetPassword" | "revokeSessions" | "disable" | "enable" | "archive" | "restore";
+/** Renders the member confirmation interface. */
 export type MemberConfirmation = { kind: MemberConfirmationAction; member: TeamMember };
 
+/** Resolves member label from the supplied inputs. */
 export function resolveMemberLabel(member: TeamMember): string {
   const name = member.name?.trim();
   if (name && member.email) return `${name} (${member.email})`;
@@ -18,6 +21,7 @@ export function resolveMemberLabel(member: TeamMember): string {
 }
 
 // Keep all confirmation wording beside the action-to-status contract below.
+/** Builds member confirmation copy from the supplied inputs. */
 // eslint-disable-next-line max-lines-per-function
 export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation): {
   title: string;

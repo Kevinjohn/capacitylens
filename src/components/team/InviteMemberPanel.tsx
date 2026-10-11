@@ -63,6 +63,7 @@ export function CopyableLinkBlock({
   );
 }
 
+/** Renders the invite member panel interface. */
 export function InviteMemberPanel(props: {
   authMode: string;
   busy: boolean;

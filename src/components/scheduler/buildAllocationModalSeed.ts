@@ -103,6 +103,7 @@ function resolveInitialCapacityHours({
   );
 }
 
+/** Builds allocation modal seed from the supplied inputs. */
 export function buildAllocationModalSeed({
   editing,
   create,
@@ -162,4 +163,5 @@ export function buildAllocationModalSeed({
     initialCapacityHours,
   };
 }
+/** Renders the allocation modal seed interface. */
 export type AllocationModalSeed = ReturnType<typeof buildAllocationModalSeed>;

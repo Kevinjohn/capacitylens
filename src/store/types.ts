@@ -11,6 +11,7 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 import type { Account, AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
 
+/** Runtime state for the current masquerade session. */
 export type MasqueradeRuntimeState =
   | { kind: "inactive" }
   | {
@@ -74,6 +75,7 @@ export type { WeeksZoom };
 /** What a draw-on-a-lane gesture creates. */
 export type DrawMode = "work" | "timeoff";
 
+/** UI state that controls scheduler zoom, range, and interaction modes. */
 export interface SchedulerUI {
   zoom: WeeksZoom; // number of weeks visible; day-column width is derived from it
   originDate: ISODate;
@@ -100,6 +102,7 @@ type SetDirtyFormSourceOptions = { source: symbol; dirty: boolean };
 type SetUtilizationPrefOptions = { key: keyof UtilizationPreferences; value: boolean };
 type SetBarLabelPrefOptions = { key: keyof BarLabelPreferences; value: boolean };
 
+/** Public state and actions exposed by the application store. */
 export interface StoreState extends StoreEntityActions {
   data: AppData;
   ui: SchedulerUI;

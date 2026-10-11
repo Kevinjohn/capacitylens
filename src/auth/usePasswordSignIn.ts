@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { authClient } from "./authClient";
 
+/** Manages password sign-in, errors, and successful session handling. */
 export function usePasswordSignIn({
   setError,
   setBusy,

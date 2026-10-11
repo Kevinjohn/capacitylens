@@ -79,6 +79,7 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
   };
 }
 
+/** Returns the security controller state and actions for this feature. */
 export function useSecurityController() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);

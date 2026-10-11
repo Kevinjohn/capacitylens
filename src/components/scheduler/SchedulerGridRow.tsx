@@ -18,6 +18,7 @@ import type { ModalState } from "./schedulerGridModal";
 import type { SchedulerUI, StoreState } from "@/store/useStore";
 
 type LaneProps = ComponentProps<typeof ResourceLane>;
+/** Props passed to the scheduler grid row component. */
 export interface SchedulerGridRowProps {
   group: GroupModel;
   row: RowModel;
@@ -192,6 +193,7 @@ function SchedulerGridRowHeader(props: RowHeaderProps) {
   );
 }
 
+/** Renders one resource row in the scheduler grid. */
 export function SchedulerGridRow(props: SchedulerGridRowProps) {
   const { row, rowIndex, density, canEdit, days, todayX, geom, calendarWeekStartsOn, onEdit, onDraw } = props;
   const { resource, rowHeight, bars, dayStates, timeOff, dimmed } = row;
@@ -225,9 +227,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
 
       <ResourceLane
         resourceId={resource.id}
-        // Accessible name for the lane's role="gridcell" (col 2): the timeline cell was
-        // previously unnamed. "<name> timeline" names it without duplicating the rowheader's
-        // sr-only capacity summary, so the cell reads honestly in the column structure (WCAG 1.3.1).
+        // Names the timeline grid cell without repeating the row header's capacity summary.
         ariaLabel={m.scheduler_lane_aria({
           name: resolveResourceDisplayName(resource),
         })}

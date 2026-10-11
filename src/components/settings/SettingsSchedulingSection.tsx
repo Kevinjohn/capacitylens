@@ -95,6 +95,7 @@ function SchedulingModeSection({
   );
 }
 
+/** Renders the schedule view section interface. */
 export function ScheduleViewSection(props: Pick<StoreState, "minimiseWeekends" | "setMinimiseWeekends">) {
   return (
     <SettingsSection title={m.settings_schedule_heading()} help={m.settings_schedule_intro()}>
@@ -199,6 +200,7 @@ function SchedulingFoundationSections(props: SchedulingFoundationSectionsProps) 
 type SettingsCompanySetupSectionsProps = SchedulingFoundationSectionsProps &
   Pick<SettingsSchedulingSectionProps, "canManageCapacityOverviewAccess" | "capacityOverviewAccess" | "dateStyle">;
 
+/** Renders the settings company setup sections interface. */
 export function SettingsCompanySetupSections(props: SettingsCompanySetupSectionsProps) {
   return (
     <>

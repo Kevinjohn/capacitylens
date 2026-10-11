@@ -2,8 +2,10 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import { m } from "@/i18n";
 import type { AccessExperience } from "./resolveAccessExperience";
 
+/** Permission check state used to select access messaging. */
 export type AccessPermissionStatus = "not-applicable" | "pending" | "resolved" | "unavailable";
 
+/** Returns the localised display label for an account role. */
 export function resolveRoleLabel(role: Role): string {
   switch (role) {
     case "owner":
@@ -17,6 +19,7 @@ export function resolveRoleLabel(role: Role): string {
   }
 }
 
+/** Returns a short explanation of an account role. */
 export function resolveRoleSummary(role: Role): string {
   switch (role) {
     case "owner":

@@ -36,6 +36,7 @@ function SettingsSectionTitle({
   );
 }
 
+/** Renders the settings section interface. */
 export function SettingsSection({
   title,
   help,

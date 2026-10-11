@@ -189,6 +189,7 @@ function createReconcileUnknownMutation({
   };
 }
 
+/** Creates member access reconciliation from the supplied inputs. */
 export function createMemberAccessReconciliation({
   activeAccountId,
   invalidateMemberships,

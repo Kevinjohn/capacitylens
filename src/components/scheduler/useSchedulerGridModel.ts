@@ -37,6 +37,7 @@ interface SchedulerModelProjectionInput {
   partiallyExposesNextColumn: boolean;
 }
 
+/** Describes the partially exposes next column contract. */
 export function partiallyExposesNextColumn({
   geometry,
   days,
@@ -56,6 +57,7 @@ export function partiallyExposesNextColumn({
   return viewportWidth > 0 && endIndex < days.length - 1 && scrollLeft + viewportWidth > geometry.x(endIndex + 1);
 }
 
+/** Returns the partially exposed next column state and actions for this feature. */
 export function usePartiallyExposedNextColumn(viewport: GridViewport, zoom: number) {
   const { scrollRef, geom: geometry, days, timelineWidth } = viewport;
   // The window this flag extends stops following the scroll while an allocation is being dragged:
@@ -210,6 +212,7 @@ export function useSchedulerGridPreferences() {
   };
 }
 
+/** Describes the use scheduler grid model used by this module. */
 export function useSchedulerGridModel(preferences: GridPreferences, viewport: GridViewport) {
   const { accountPrefs: accountPreferences, ui } = preferences;
   const { days, leftEdgeIdx: leftEdgeIndex, start, end, geom: geometry } = viewport;

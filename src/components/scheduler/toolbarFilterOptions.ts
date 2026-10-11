@@ -11,6 +11,7 @@ export interface FilterOption {
   primaryLabel?: string;
 }
 
+/** Describes the build filter options used by this module. */
 export function buildFilterOptions(
   data: AppData,
   selectedClientId: string | null = null,

@@ -15,6 +15,7 @@ import { PeriodCell, TotalsCell } from "./CapacityOverviewCells";
 import type { CapacityOverviewGroup, CapacityOverviewModel } from "./capacityOverviewModel";
 import { SURFACE_2_CLASS } from "./OverviewLegend";
 
+/** Renders the person schedule trigger handlers interface. */
 export interface PersonScheduleTriggerHandlers {
   personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
   onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
@@ -224,6 +225,7 @@ function CapacityTableBody({
   );
 }
 
+/** Renders the capacity table interface. */
 export function CapacityTable({
   model,
   showTotals,

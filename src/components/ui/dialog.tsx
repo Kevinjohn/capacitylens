@@ -5,30 +5,35 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 
+/** Provides the root state for an accessible dialog. */
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
+/** Opens the associated dialog. */
 function DialogTrigger({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
 }
 
+/** Mounts dialog content outside its parent. */
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
 }
 
+/** Renders a control that closes the dialog. */
 function DialogClose({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Close>) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
+/** Renders the backdrop behind dialog content. */
 function DialogOverlay({
   className,
   ...props
@@ -46,6 +51,7 @@ function DialogOverlay({
   );
 }
 
+/** Renders the accessible dialog surface. */
 function DialogContent({
   className,
   children,
@@ -85,6 +91,7 @@ function DialogContent({
   );
 }
 
+/** Groups the dialog heading and description. */
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -95,6 +102,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Groups dialog actions. */
 function DialogFooter({
   className,
   showCloseButton = false,
@@ -122,6 +130,7 @@ function DialogFooter({
   );
 }
 
+/** Renders the accessible dialog title. */
 function DialogTitle({
   className,
   ...props
@@ -135,6 +144,7 @@ function DialogTitle({
   );
 }
 
+/** Renders the dialog description. */
 function DialogDescription({
   className,
   ...props

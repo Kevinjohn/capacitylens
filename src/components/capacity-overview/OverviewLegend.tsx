@@ -26,6 +26,7 @@ function LegendItem({ children, swatch }: { children: string; swatch: React.Reac
   );
 }
 
+/** Renders the overview legend interface. */
 export function OverviewLegend() {
   return (
     <div

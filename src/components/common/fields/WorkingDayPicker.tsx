@@ -111,6 +111,7 @@ function WorkingDayRows({ groupId, workingDays, halfDays, onChoose, options }: W
   });
 }
 
+/** Renders the working day picker interface. */
 export function WorkingDayPicker({
   label,
   workingDays,

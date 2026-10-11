@@ -1,7 +1,9 @@
 import { matchPath } from "react-router-dom";
 
+/** Public authentication route that can take precedence over the sign-in screen. */
 export type PublicAuthEntry = "password-reset" | "invitation" | "company-join" | null;
 
+/** Route patterns for token-based public authentication entries. */
 export const PUBLIC_AUTH_ENTRY_PATHS = {
   passwordReset: "/reset-password/:token",
   invitation: "/invite/:token",

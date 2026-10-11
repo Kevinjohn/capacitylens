@@ -12,7 +12,7 @@ afterEach(() => {
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
-  vi.restoreAllMocks(); // console.warn spies in the refreshAuth describe
+  vi.restoreAllMocks();
 });
 
 const me = (status: number, body: unknown) =>
@@ -980,8 +980,8 @@ function registerServerModeTest31() {
           user: { id: "u1", email: "a@b.test" },
         }),
       )
-      .mockImplementationOnce(() => slow.promise) // the refreshAuth click, held open by the test
-      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] })); // the persistError re-check
+      .mockImplementationOnce(() => slow.promise)
+      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider, useStore, useAuth } = await freshProvider();
     render(
@@ -990,10 +990,11 @@ function registerServerModeTest31() {
       </AuthProvider>,
     );
     expect(await screen.findByRole("button", { name: /refresh/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /refresh/ })); // second request, still in flight
-    act(() => useStore.getState().setPersistError(true)); // third request → 401 → login screen
+    // Leave the refresh request pending while a persist error triggers a new auth check.
+    fireEvent.click(screen.getByRole("button", { name: /refresh/ }));
+    act(() => useStore.getState().setPersistError(true));
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    // Now the stale request resolves with the old authenticated snapshot…
+    // The older request resolves after sign-in and must not restore the authenticated state.
     await act(async () => {
       slow.resolve(
         me(200, {

@@ -2,8 +2,10 @@ import { useEffect, useRef } from "react";
 import type { ID } from "@capacitylens/shared/types/entities";
 import { useStore } from "@/store/useStore";
 
+/** Renders the schedule allocation focus interface. */
 export type ScheduleAllocationFocus = (allocationId: ID, accountId: ID | null) => void;
 
+/** Returns the allocation focus state and actions for this feature. */
 export function useAllocationFocus(): ScheduleAllocationFocus {
   const focusRafRef = useRef(0);
   useEffect(

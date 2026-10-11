@@ -20,6 +20,7 @@ function isPreviewCancelled(requestState: { cancelled: boolean }): boolean {
   return requestState.cancelled;
 }
 
+/** Creates invite preview action from the supplied inputs. */
 export function createInvitePreviewAction({
   token,
   previewed,
@@ -29,7 +30,8 @@ export function createInvitePreviewAction({
   setState,
 }: Dependencies) {
   return () => {
-    if (!isServerConfigured() || !token) return; // demo build / no token: nothing to preview
+    // demo build / no token: nothing to preview
+    if (!isServerConfigured() || !token) return;
     const requestState = { cancelled: false };
 
     void (async () => {

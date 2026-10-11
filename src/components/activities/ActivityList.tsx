@@ -180,6 +180,7 @@ function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
   });
 }
 
+/** Renders the activity list interface. */
 export function ActivityList({ selectedActivityId }: { selectedActivityId?: string }) {
   const data = useActiveScopedData();
   const activities = data.activities;

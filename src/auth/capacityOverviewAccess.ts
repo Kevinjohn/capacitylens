@@ -3,8 +3,10 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import type { CapacityOverviewAccess } from "@capacitylens/shared/types/entities";
 
 type PermissionStatus = "not-applicable" | "pending" | "resolved" | "unavailable";
+/** Access outcome for the capacity overview route guard. */
 export type CapacityOverviewAccessDecision = "allowed" | "pending" | "denied";
 
+/** Resolves route access from the caller role and permission-check status. */
 export function resolveCapacityOverviewAccessDecision({
   role,
   status,

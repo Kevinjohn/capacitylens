@@ -9,6 +9,7 @@ import { readApiError } from "@/lib/readApiError";
 import type { AccountSummary } from "@/store/useStore";
 import { useStore } from "@/store/useStore";
 
+/** Returns the delete account state and actions for this feature. */
 export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<typeof useAuth>["refreshAuth"] }) {
   const deleteAccount = useStore((state) => state.deleteAccount);
   const setAccountSummaries = useStore((state) => state.setAccountSummaries);

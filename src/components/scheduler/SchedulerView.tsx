@@ -1,6 +1,7 @@
 import { SchedulerToolbar } from "./SchedulerToolbar";
 import { SchedulerGrid } from "./SchedulerGrid";
 
+/** Renders the scheduler view interface. */
 export function SchedulerView() {
   return (
     <div className="relative flex h-full flex-col">

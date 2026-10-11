@@ -6,6 +6,7 @@ import {
   resolveProductOrientationSubject,
 } from "@/lib/productOrientation";
 
+/** Returns the product orientation state and actions for this feature. */
 export function useProductOrientation(input: { userId: string | null; demo: boolean; accountId: string | null }) {
   const subjectId = resolveProductOrientationSubject(input);
   const accountId = input.accountId ?? NO_ACTIVE_COMPANY_SEGMENT;

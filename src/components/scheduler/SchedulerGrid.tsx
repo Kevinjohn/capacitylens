@@ -336,6 +336,7 @@ function SchedulerGridSurface({
   );
 }
 
+/** Renders the scheduler grid interface. */
 export function SchedulerGrid() {
   const navigate = useNavigate();
   const preferences = useSchedulerGridPreferences();

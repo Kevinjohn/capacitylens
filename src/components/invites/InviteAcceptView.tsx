@@ -14,6 +14,7 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/co
 import { InvitePasswordContent, InviteProviderButtons } from "./InvitePasswordContent";
 import { formatInviteExpiry } from "./inviteExpiry";
 
+/** Describes the invite accept state used by this module. */
 export type InviteAcceptState =
   | { kind: "previewing" }
   | { kind: "ready" }
@@ -29,6 +30,7 @@ export type InviteAcceptState =
   | { kind: "auth"; message?: string; errorField?: string | null }
   | { kind: "local" };
 
+/** Renders the invite preview interface. */
 export interface InvitePreview {
   accountId?: string | null;
   accountName: string;

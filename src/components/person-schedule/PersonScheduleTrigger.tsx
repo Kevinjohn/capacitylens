@@ -4,6 +4,7 @@ import { m } from "@/i18n";
 import { Avatar } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
 
+/** Describes the person schedule trigger props used by this module. */
 export interface PersonScheduleTriggerProps {
   resourceId: ID;
   /** Resolved title used in the "View {name}'s schedule" trigger label. */

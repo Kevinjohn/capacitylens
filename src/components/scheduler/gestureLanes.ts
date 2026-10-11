@@ -1,12 +1,14 @@
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
 import { resolveSharedActiveData, resolveSharedScopedData } from "@/store/useScopedData";
 
+/** Renders the lane snapshot interface. */
 export interface LaneSnapshot {
   id: string;
   el: HTMLElement;
   rect: DOMRect;
 }
 
+/** Describes the read lane snapshots contract. */
 export function readLaneSnapshots(): LaneSnapshot[] {
   return Array.from(document.querySelectorAll<HTMLElement>("[data-resource-id]")).map((el) => ({
     id: el.getAttribute("data-resource-id") ?? "",
@@ -15,6 +17,7 @@ export function readLaneSnapshots(): LaneSnapshot[] {
   }));
 }
 
+/** Resolves lane at from the supplied inputs. */
 export function resolveLaneAt(lanes: LaneSnapshot[], clientX: number, clientY: number): LaneSnapshot | undefined {
   for (const lane of lanes) {
     const { rect } = lane;
@@ -30,6 +33,7 @@ export function resolveLaneAt(lanes: LaneSnapshot[], clientX: number, clientY: n
 // Reuses the hooks' memoised scoping/active-only caches (useScopedData) rather than re-deriving the
 // slice: a gesture reads this on every pointer event, and the rendering hooks have already paid for
 // the identical projection of the same `data` object.
+/** Builds active gesture data from the supplied inputs. */
 export function buildActiveGestureData(data: AppData, activeAccountId: ID | null): AppData {
   return resolveSharedActiveData(resolveSharedScopedData(data, activeAccountId));
 }

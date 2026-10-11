@@ -9,6 +9,7 @@ interface ResolveVisibleWindowInput {
   focusDate: ISODate;
 }
 
+/** Renders the realized visible span interface. */
 export interface RealizedVisibleSpan {
   dayCount: number;
   /** Present only when the realized inclusive range is an exact whole number of weeks. */

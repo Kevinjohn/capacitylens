@@ -33,6 +33,7 @@ function isDismissed(): boolean {
   }
 }
 
+/** Renders the rotate hint interface. */
 export function RotateHint() {
   const [portrait, setPortrait] = useState(isPortraitPhone);
   const [dismissed, setDismissed] = useState(isDismissed);

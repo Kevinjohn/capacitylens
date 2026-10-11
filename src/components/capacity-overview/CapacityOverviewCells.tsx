@@ -115,6 +115,7 @@ function LoadCurveValue({ result, label }: { result: CapacityOverviewPeriodResul
   );
 }
 
+/** Renders the period cell interface. */
 export function PeriodCell({
   result,
   capacityDisplayMode,

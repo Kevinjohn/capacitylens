@@ -45,6 +45,7 @@ interface StorageRecoveryActionsProps {
 
 // Exported beside the recovery boundary so its injected reset path can be tested without mutating
 // real browser storage.
+/** Renders the storage reset error interface. */
 // eslint-disable-next-line react-refresh/only-export-components
 export class StorageResetError extends Error {
   readonly offlineDataCleared: boolean;
@@ -75,6 +76,7 @@ function captureAttempt<T>(operation: () => T | Promise<T>): Promise<T> {
   }
 }
 
+/** Describes the reset local storage contract. */
 // eslint-disable-next-line react-refresh/only-export-components -- see the test-boundary note above
 export async function resetLocalStorage({
   clearOfflineData = clearAllOfflineData,

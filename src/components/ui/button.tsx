@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 // otherwise an enabled button can remain semi-transparent long enough to fail text contrast.
 // Keep the pointer affordance state-aware: enabled controls invite interaction while disabled
 // controls retain their native non-interactive cursor and pointer-events behavior.
+/** Defines the visual and size variants available to buttons. */
 const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors outline-none [&:not(:disabled)]:cursor-pointer focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
@@ -61,6 +62,7 @@ const buttonVariants = cva(
   },
 );
 
+/** Renders a button with the selected visual and size variants. */
 function Button({
   className,
   variant = "default",

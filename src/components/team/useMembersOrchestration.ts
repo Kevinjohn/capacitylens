@@ -255,6 +255,7 @@ function useMemberStoreActions() {
   };
 }
 
+/** Returns the members orchestration state and actions for this feature. */
 // eslint-disable-next-line max-lines-per-function
 export function useMembersOrchestration(activeAccountId: string | null) {
   const { authMode, refreshAuth } = useAuth();
