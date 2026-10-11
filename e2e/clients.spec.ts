@@ -79,9 +79,9 @@ function registerEditsClientRenameReflectsProjectTest() {
   });
 }
 
-// the per-row destructive action archives (hidden from the active list, fully retained, not
-// a hard cascade-delete). Its projects keep their own active status (archiving filters by each row's
-// own status, it does not cascade), so they stay visible; archiving is undoable via the local store.
+// The row action archives the client. It leaves the active list but remains in storage, and its
+// projects keep their own active status because archiving does not cascade. Undo in the local store
+// restores the client.
 function registerArchivingClientHidesListRestorableTests() {
   test("archiving a client hides it from the list, restorable with undo", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");

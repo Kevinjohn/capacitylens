@@ -167,7 +167,7 @@ test('adds a placeholder bound to a project and shows it as "Placeholder" on the
   await page.getByRole("button", { name: "Add placeholder" }).click();
 
   await page.getByLabel("Role").fill("Junior Dev");
-  // Queen Consolidated / Project Watchtower
+  // Bind the placeholder to Project Watchtower before checking its allocation options.
   await selectShadOption(page.getByLabel("Bound project"), "p-acme");
   await page.getByRole("button", { name: "Save" }).click();
 

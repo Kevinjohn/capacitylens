@@ -47,8 +47,8 @@ test("turning disciplines off hides every surface; turning it back on restores t
   // Sidebar nav link is gone.
   await expect(page.getByRole("link", { name: "Disciplines" })).toHaveCount(0);
 
-  // …and the collapsed icon mode drops it too: 10 destinations (Diagnostics included in the demo), no Disciplines.
-  // (External is no longer a standalone nav link, it lives inside Resources.)
+  // Collapsed navigation shows the same 10 destinations, including Diagnostics in the demo, without
+  // Disciplines. External appears under Resources.
   await page.getByRole("button", { name: "Collapse menu" }).click();
   await expect(page.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
   await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(10);
@@ -104,6 +104,6 @@ test("turning disciplines off hides every surface; turning it back on restores t
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
-  // Turn it back on, the nav link returns and the schedule regroups into discipline bands.
+  // Re-enable the setting. The Disciplines link returns, and the schedule uses discipline bands.
   await restoreDisciplines(page);
 });

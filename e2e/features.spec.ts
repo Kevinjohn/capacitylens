@@ -88,7 +88,7 @@ function registerDraggingAllocationOntoAnotherRowTest() {
   test("dragging an allocation onto another row reassigns it", async ({ page }, testInfo) => {
     await openApp(page);
     // Zoom keeps the left-edge date anchored (the frozen "today"'s Monday), so the
-    // early-June seed bars stay in view, no manual scroll reset needed.
+    // Early-June seed bars stay in view, so no manual scroll reset is needed.
     await setZoom(page, 4);
 
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
@@ -110,7 +110,7 @@ function registerDraggingAllocationOntoAnotherRowTest() {
 
     // Assert the resulting state, not a pixel delta: the bar now lives inside Clark's lane.
     await expect(clarkLane.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
-    // Highlight cleared after drop.
+    // The highlight must clear after the drop.
     await expect(clarkLane).not.toHaveAttribute("data-droptarget", "");
   });
 }
@@ -124,7 +124,7 @@ function registerRejectsVerticalReassignmentOntoNonTest() {
     const createDialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(createDialog.getByLabel("Project", { exact: true }), "p-brand");
     await selectShadOption(createDialog.getByRole("combobox", { name: "Activity", exact: true }), "t-brand");
-    // Friday
+
     await createDialog.getByLabel("Start").fill("2026-06-05");
     await createDialog.getByLabel("End").fill("2026-06-05");
     await createDialog.getByRole("button", { name: "Save" }).click();
@@ -197,14 +197,14 @@ function registerDrawingTimeOffModeOpensTest() {
 function registerDrawingPlaceholderLocksModalBoundTests() {
   test("drawing on a placeholder locks the modal to its bound project", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
-    // Placeholders are hidden by default (per-account pref), enable them so the lane renders.
+    // Placeholder lanes are hidden by the per-account preference; enable them for this test.
     await showPlaceholders(page);
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
     await waitForWeekSnap(page);
 
-    // The seeded placeholder is bound to p-acme, select it by ID, not position.
+    // Select the seeded designer placeholder by its stable resource ID.
     const lane = page.locator('[data-resource-id="r-ph-designer"]');
     const b = await box(lane);
     const y = b.y + b.height / 2;

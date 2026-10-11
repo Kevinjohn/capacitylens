@@ -12,8 +12,8 @@ import {
 function registerZoomsTimelineTracksActiveLevelTest() {
   test("zooms the timeline and tracks the active level", async ({ page }) => {
     await openApp(page);
-    // : the weeks dropdown replaced the 1w..8w segments, the current span is the closed
-    // trigger's own text, so "which level is active" is readable without opening anything.
+    // The weeks dropdown replaced the 1w..8w segments. The closed trigger shows the current span,
+    // so the active level is readable without opening the dropdown.
     const weeks = page.getByRole("combobox", { name: "Weeks visible" });
     await setZoom(page, 6);
     await expect(weeks).toHaveText("6 weeks");
@@ -172,7 +172,7 @@ function registerSwitchesDrawModeBetweenWorkTest() {
       }),
     ).toBe(false);
 
-    // Toggling back to Work clears the ancestor inert, the bar is interactive (focusable) again.
+    // Switching back to Work removes inert from the ancestor, so the bar can receive focus again.
     await work.click();
     await expect(page.locator('[inert] [data-testid="allocation-bar"]')).toHaveCount(0);
     expect(

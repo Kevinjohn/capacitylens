@@ -35,7 +35,7 @@ function registerHiddenDefaultSeededExternalAbsentTest() {
 
 function registerOldExternalURLRedirectsResourcesTest() {
   test("the old /external URL redirects to the Resources tab", async ({ page }) => {
-    // External no longer has its own tab, a saved bookmark must not 404; it redirects to /resources.
+    // External no longer has its own tab. Redirect saved bookmarks to /resources instead of 404ing.
     await openApp(page, "Wayne Enterprises", "/external");
     await expect(page).toHaveURL(/\/resources$/);
     await expect(page.getByRole("heading", { name: "Resources", exact: true })).toBeVisible();
@@ -83,7 +83,7 @@ function registerTurningRevealsExternalSectionHelpTest() {
       .getByTestId("allocation-bar")
       .filter({ hasText: "Visual Design" });
     await expect(extBar).toBeVisible();
-    // an external bar suppresses every hours figure
+    // External allocations suppress all hour figures.
     await expect(extBar).not.toContainText(/\b\d+(?:\.\d+)?h\b/);
     // No per-row utilisation chip on the external row.
     await expect(

@@ -113,7 +113,7 @@ function registerEditsTimeOffEntryListTest() {
     await expect(row).toContainText("2 days");
     await expect(row).not.toContainText("3 days");
 
-    // The type change persisted too, reopen the editor to confirm (the type isn't in the list).
+    // Reopen the editor to confirm the selected type persisted; the list does not show it.
     await row.getByRole("button", { name: /^Edit / }).click();
     await expect(page.getByRole("dialog", { name: "Edit time off" }).getByLabel("Type")).toHaveText("Sick");
   });

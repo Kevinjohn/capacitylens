@@ -592,12 +592,9 @@ function registerAllocationStatusNoteVisuallyDistinctTest() {
   });
 }
 
-// Feature 1 (always on): a zoom click and a Prev/Next pan re-anchor the grid's left edge to the
-// week start (account weekStartsOn, default Monday), independent of Feature 2's free-scroll
-// week snap. The audit found this test was confounded: because F2 defaults on, the
-// idle free-scroll snap masked the F1 navigation snap (disabling only F1 still left it green).
-// So we turn F2 off first, now a free nudge to a mid-week day sticks, and the only thing that can
-// re-anchor the left edge to a Monday is the navigation branch under test (zoom / Next / Prev).
+// With free-scroll snapping disabled, a midweek nudge stays put until navigation runs. This lets
+// the test verify that zoom and Prev/Next re-anchor the grid's left edge to the account's week start
+// (Monday by default) instead of passing because the idle snap moved it.
 // Frozen clock 2026-06-03 (Wed); week origin Monday 2026-06-01 → the 1w view opens flush on "1Mon".
 function registerNavigationReAnchorsLeftEdgeTest() {
   test("navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)", async ({ page }) => {

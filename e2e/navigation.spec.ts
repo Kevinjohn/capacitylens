@@ -1,8 +1,9 @@
 import { test, expect } from "./fixtures";
 import { waitForAppLanding, freezeBrowserDate, openApp, setTheme } from "./browserTestSupport";
 
-// Covers US-NAV-01, 02, 06. (Loading gate, persist-error banner, toast and error
-// boundary are covered by unit tests / manual scripts, impractical to trigger reliably in E2E.)
+// Covers US-NAV-01, US-NAV-02, and US-NAV-06. Unit tests and manual scripts cover the loading
+// gate, persist-error banner, toast, and error boundary because these states are impractical to
+// trigger reliably in E2E.
 const deepDestinations = [
   ["/resources", "Resources"],
   ["/disciplines", "Disciplines"],
@@ -17,8 +18,8 @@ const deepDestinations = [
   ["/help", "Help"],
 ] as const;
 
-// : exercise real document navigations, not React Router transitions. The Vite history
-// fallback must serve index.html, then the session-only company gate must preserve the URL.
+// This exercises real document navigations rather than React Router transitions. The Vite history
+// fallback must serve index.html, and the session-only company gate must preserve the URL.
 function registerValidDeepLinkPathSurvivesTest() {
   for (const [path, heading] of deepDestinations) {
     test(`valid deep link ${path} survives a browser reload`, async ({ page }) => {
@@ -50,7 +51,7 @@ function registerValidDeepLinkPathSurvivesTest() {
 
       const reloadResponse = await page.reload();
       // Firefox exposes a successful cache revalidation as 304 here, while Chromium and WebKit
-      // report the cached shell as 200. In both cases the browser has loaded the spa document; the
+      // report the cached shell as 200. In both cases the browser has loaded the SPA document; the
       // URL, company gate and resumed destination assertions below verify the observable contract.
       expect([200, 304]).toContain(reloadResponse?.status());
       await expect(page).toHaveURL(new RegExp(`${path}$`));

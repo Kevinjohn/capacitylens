@@ -15,10 +15,9 @@ import { WEEK_SNAP_IDLE_MS } from "../src/lib/schedulerConfig";
 // replay. Noon gives a wide margin against host/browser timezone offsets.
 const FIXED_NOW = "2026-06-03T12:00:00";
 
-/** test-only: hold a free-scroll position mid-week. The week snap remains enabled, and Settings has
- * no control for it; the app still reads `capacitylens/snapToWeekStart` = "off" once at startup
- * (src/lib/displayPrefs.ts), so a spec can park the grid mid-week across the week_snap_idle_ms
- * re-floor. Call before `openApp`; the init script re-applies on every load in the page. */
+/** Disables the free-scroll week snap before each page load so a test can keep the grid parked mid-week.
+ * Settings has no control for this preference. Call before openApp; the init script applies
+ * capacitylens/snapToWeekStart on every load. The idle re-floor delay is WEEK_SNAP_IDLE_MS. */
 export async function disableWeekSnap(page: Page): Promise<void> {
   await page.addInitScript(() => localStorage.setItem("capacitylens/snapToWeekStart", "off"));
 }
@@ -236,11 +235,9 @@ export async function openApp(page: Page, company = "Wayne Enterprises", path = 
   await waitForAppLanding(page, page.locator("#main"));
 }
 
-// A few specs (getting-started, onboarding) need a fresh, empty company rather than one of the
-// seeded ones, so they can't go through `openApp`'s "pick an existing company" step, they walk
-// the picker's "New company" create form instead. That walk splits into two halves so a spec can
-// inspect/interact with the open form (onboarding asserts its default fields and changes them)
-// before filling in the name and submitting: `openNewCompanyForm` gets to the open form, and
+// Getting-started and onboarding specs need a fresh company. They use the picker's "New company"
+// form instead of `openApp`, which selects an existing company. The flow is split so a spec can
+// inspect or change the initial fields before submission: `openNewCompanyForm` opens the form, and
 // `createCompany` fills the name, submits, and clears the same post-create intro gate as `openApp`.
 /** Opens the new-company form without submitting it, so specs can inspect its initial fields. */
 export async function openNewCompanyForm(page: Page): Promise<void> {

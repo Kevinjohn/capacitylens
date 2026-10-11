@@ -151,7 +151,7 @@ function registerActivityLensMutuallyExclusiveClientTests() {
   test("the activity lens is mutually exclusive with the client / project lens", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    // Activate a project lens, then switch to the activity lens, the project dropdown resets.
+    // Switching from a project lens to the activity lens resets the project dropdown.
     await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
     await expect(page.getByLabel("Filter by project")).toHaveText("LexCorp / Metropolis Rebrand");
     await selectShadOption(page.getByLabel("Filter by activity"), "kind:repeatable");

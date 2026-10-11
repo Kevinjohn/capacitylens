@@ -2,9 +2,9 @@ import { test, expect } from "./fixtures";
 import { API, resetServer, serverState, requireStateRows } from "./serverTestState";
 import { createCompany } from "./browserTestSupport";
 
-// Server-backed half of the onboarding-lock: a direct API PATCH of a frozen account field
-// (language / weekStartsOn / timezone) is rejected with 409. This is the security backstop, the
-// The read-only Settings summary is a convenience; the server enforces the freeze regardless of the client.
+// The server rejects direct API updates to frozen account fields (language, weekStartsOn, and
+// timezone) with 409. The read-only Settings summary is a convenience; server enforcement also
+// applies when a client bypasses the UI.
 
 test.describe("database-backed onboarding lock (P1.14)", () => {
   test.beforeEach(async ({ request }) => {
@@ -55,12 +55,9 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
   });
 });
 
-// Client half of the single-company-per-instance policy. This server (`start:e2e`) runs without
-// CAPACITYLENS_MULTI_ACCOUNT, so the cap is active; resetServer's seed (Wayne Enterprises + Loft
-// Digital) is exempt from it (the reset route bypasses the create-time gate), giving a
-// deterministic "already at the cap" instance to assert the client's affordance-hiding against.
-// The server 403 (asserted below via a direct API call) is the real backstop, the picker's
-// The missing button is only a UI cue; server authorization remains the backstop.
+// With CAPACITYLENS_MULTI_ACCOUNT unset, start:e2e enforces a one-company limit. resetServer seeds
+// the test data while bypassing the create-time gate, so the test starts at the cap. The direct API
+// assertion below verifies the server's 403; hiding the New company button is only a UI cue.
 test.describe("single-company-per-instance policy (client-side affordance + server backstop)", () => {
   test.beforeEach(async ({ request }) => {
     await resetServer({ request: request, withSeed: true }); // wipe + re-seed: TWO companies, exempt from the create-time cap

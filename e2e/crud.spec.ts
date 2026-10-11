@@ -53,7 +53,7 @@ test.describe("CRUD + demo lifecycle", () => {
     await page.getByRole("link", { name: "Clients" }).click();
     await expect(page.getByText("RoundTrip Co")).toHaveCount(0);
 
-    // Importing the file restores it, confirm the replace in the dialog first.
+    // Import the file, then confirm the replacement in the dialog.
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Import and export", exact: true }).click();
     await page.getByTestId("import-input").setInputFiles(file);

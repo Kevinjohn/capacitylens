@@ -4,7 +4,7 @@ import { openApp } from "./browserTestSupport";
 // The temporary demo state exercises archive, restore and soft-delete without a server.
 // Each action must update the scheduler and active list together.
 
-// seed `r-alex` (a freelancer; no over-marker entanglement)
+// Barry Allen is the seeded freelancer used by this archive and restore flow.
 const RESOURCE = "Barry Allen";
 
 test.describe("Inline archives and deleted items (demo mode)", () => {

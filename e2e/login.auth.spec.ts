@@ -11,23 +11,18 @@ import {
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// US-NAV-10: the flag-gated login wall, against the auth-backed project's server
-// (CAPACITYLENS_MODE=password on :8887, see playwright.config.ts). The default deploy keeps
-// auth off, so this is the only place the login screen exists; the rest of the suite
-// running unchanged in the other two projects is the off-guarantee.
+// US-NAV-10 covers the login wall in the password-mode auth project. The default deployment keeps
+// auth off, so the login screen only appears here; the other projects run without it.
 
-// Shared plumbing (API, password, bootstrap token, and signUpUser) comes from ./authTestSupport. A fresh
-// user has no membership, so GET /api/accounts is empty and the picker would have nothing to pick. The
-// org-bootstrap test provisions this login its own org via POST /api/orgs (bootstrap_token → Owner) so
-// the picker then lists it, account_members is a server-only control table excluded from the shared
-// seed, so a membership can't be pre-seeded; bootstrapping is the path.
+// Shared auth helpers come from authTestSupport. A fresh user has no membership, so GET /api/accounts
+// returns no companies. The org-bootstrap test provisions this login's company through POST /api/orgs
+// using BOOTSTRAP_TOKEN. The account_members table is server-only and cannot be pre-seeded by shared fixtures.
 const EMAIL = "tester@capacitylens.dev";
 const ORG_NAME = `Login Studio ${Date.now()}`;
 
-// Sign-up is API-only this round (no form). Idempotent for the fixed email (kept local, not the shared
-// signUpUser, because this deliberately tolerates a rerun's USER_ALREADY_EXISTS 422 rather than
-// asserting a fresh success): a rerun against a reused server hits 422, which is fine, the user
-// exists either way, and it uses the shared `request` jar (no cookie needed here).
+// This path signs up through the API because the test does not need the form. It tolerates
+// USER_ALREADY_EXISTS (422) when rerun against a reused server. It uses the request cookie jar because
+// this test does not need the returned session; the shared signUpUser helper requires a fresh signup.
 async function seedUser(request: APIRequestContext, email = EMAIL) {
   const res = await request.post(`${API}/api/auth/sign-up/email`, {
     data: { email, password: PASSWORD, name: "Tester" },
@@ -92,7 +87,7 @@ function registerSigningRevealsAppSigningOutTest() {
 
     // The boot flow resumes: the picker lists only this login's memberships → pick our org →
     // the active account hydrates its slice via GET /api/state?accountId= → app.
-    // exact: true, a bare name would also match a "Delete <name>" control.
+    // Match the full company name; without exact matching, this could also match a Delete control.
     await page.getByRole("button", { name: ORG_NAME, exact: true }).click();
     await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeVisible();
     await page.getByRole("button", { name: "Got it" }).click();
@@ -155,12 +150,10 @@ function registerLoginMembershipsSeesEMPTYPickerTests() {
     page,
     request,
   }, testInfo) => {
-    // Isolation: a fresh user with no org bootstrapped sees no companies, the picker lists only
-    // the login's memberships, never another tenant's org (the no-arg whole read that leaked all tenants
-    // is closed in auth-on). And since canCreateAccount now reflects the caller's actual standing
-    // (owner/admin somewhere, the same predicate POST /api/orgs enforces), a membership-less login
-    // on an instance with existing accounts sees no "New company" affordance either: the old button
-    // was a dead end (submission always 403'd). The empty state tells them to ask for an invite.
+    // A user with no account memberships sees no companies. The picker is scoped to the caller's
+    // memberships, and account creation requires the owner or admin role enforced by POST /api/orgs.
+    // This user therefore sees no "New company" action while accounts exist. The empty state tells
+    // them to request an invitation.
     const isolationSuffix = `${Date.now()}-${testInfo.workerIndex}`;
     const controlOrgName = `Isolation Control ${isolationSuffix}`;
     const controlOwner = await signUpUser(`isolation-owner-${isolationSuffix}@capacitylens.dev`);

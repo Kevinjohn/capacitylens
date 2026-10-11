@@ -4,7 +4,7 @@ import { openApp } from "./browserTestSupport";
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // The build stamp and Send-feedback link only exist in builds made with
-// vite_capacitylens_build_sha / vite_capacitylens_feedback_mailto set (the deploy script does that).
+// VITE_CAPACITYLENS_BUILD_SHA and VITE_CAPACITYLENS_FEEDBACK_MAILTO are set by the deploy script.
 // The dev server never sets them, so against this suite the correct behaviour is absence.
 
 test.describe("Diagnostics build stamp + feedback link", () => {

@@ -56,7 +56,7 @@ function registerSpannedWeekendOverIgnoredWorkingTests() {
     await bar.click();
     const edit = page.getByRole("dialog", { name: "Edit allocation" });
     await edit.getByRole("checkbox", { name: "Ignore working days" }).click();
-    // The modal advisory must mirror the grid (not stay silent as it did before): Sat+Sun = 2 days.
+    // The modal should show over-capacity on both weekend days.
     await expect(edit.getByText(/over capacity on 2 days/i)).toBeVisible();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(clarkOverMarkers(page)).toHaveCount(baseline + 2);

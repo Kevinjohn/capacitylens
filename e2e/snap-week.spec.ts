@@ -40,11 +40,8 @@ test.describe("Week snap", () => {
     await openApp(page);
     await setZoom(page, 1);
 
-    // Pre-condition: the left edge opens flush on this week's Monday. Frozen clock 2026-06-03 (Wed),
-    // week origin Monday 2026-06-01 → the leading day number here is "1". Read it only once the zoom-
-    // click scroll has come to rest (settledLeftDate), so we capture the real Monday, not a transient
-    // mid-scroll cell, and can prove the snap returns to the same Monday, not a different one.
-    // "1Mon"
+    // The frozen browser date is Wednesday, 3 June 2026, so the default Monday week begins on 1 June.
+    // Read the settled left edge after zoom to confirm the schedule opens on that Monday.
     const mondayDate = await settledLeftDate(page);
     expect(mondayDate).toMatch(/Mon$/);
 
@@ -62,16 +59,13 @@ test.describe("Week snap", () => {
   });
 
   test("with a Sunday week-start, the free-scroll snap floors to Sunday (not a hardcoded Monday)", async ({ page }) => {
-    // weekStartsOn is frozen after creation, so it can no longer be flipped in Settings;
-    // capture Sunday at company creation via the onboarding form instead. With the snap on, a free
-    // nudge must then floor onto a sunday, guarding against a hardcoded-Monday floor. (The snap is
-    // always on, so it needs no setup here.)
-    // land in the app first
+    // Set Sunday as the new company week start during creation, since this setting is fixed afterwards.
+    // The free-scroll snap should return a midweek nudge to Sunday.
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("button", { name: "Switch company" }).click();
     await page.getByRole("button", { name: "New company" }).click();
     await page.getByLabel("Company name").fill("Sunday Co");
-    // capture the Sunday week-start
+    // Select Sunday as the new company week start.
     await page.getByRole("radio", { name: "Sunday" }).click();
     await page.getByRole("button", { name: "Create company" }).click();
     // A post-create intro may precede the app; click through if it's up.
@@ -106,8 +100,8 @@ test.describe("Week snap", () => {
     // Firefox can still be settling on a single read).
     await expect.poll(async () => (await probe(page)).leftWeekday).toBe("Mon");
 
-    // Same nudge as the snapping test, with the override off it must stick on the mid-week day. This
-    // doubles as the proof that the nudge actually leaves Monday (otherwise the snapping test is vacuous).
+    // With snapping disabled, the same nudge should stay on a midweek day.
+    // This confirms the nudge moved away from Monday before the enabled snap test runs.
     await nudge(page, 2.5);
     await waitForWeekSnap(page);
 

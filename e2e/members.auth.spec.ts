@@ -13,19 +13,11 @@ import { waitForAppLanding, selectShadOption } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// Owner/Admin member management uses the auth-backed project's server
-// (CAPACITYLENS_MODE=password on :8887, see playwright.config.ts). Owner A bootstraps an org and
-// seeds admin B + editor C in the disposable test database. Then, as B (admin), we drive the Team &
-// access UI: list members, change C editor→viewer, mint a viewer invite (the link appears once),
-// revoke it. We assert the Owner option is absent for B in the UI, and at the API layer that nobody
-// can assign Owner through PATCH (400), cannot touch owner A (→ 403), cannot nominate a next Owner
-// (→ 403), that owner membership cannot be removed through the ordinary member endpoint (→ 403),
-// Finally, the cross-tenant check proves B cannot read another account's members (403). Owner
-// A drives the gear menu to disable and restore C, and we assert ownership is reachable from no
-// member row or the retired single-call endpoint; see the ownership-transfer spec
-// is covered by E2E/ownership-transfer.auth.spec.ts. Browser-agnostic (no ua branching).
-
-// Shared plumbing (API/password/bootstrap_token/signUp/signUpUserWithId) comes from ./authTestSupport.
+// This spec exercises owner and admin member management against the password-mode auth server. Owner A
+// bootstraps an org and seeds admin B plus editor C in the disposable database. As B, it changes C's
+// role, creates and revokes an invite, and verifies that owners cannot be assigned, changed, removed,
+// or read across accounts through ordinary member endpoints. Owner A then disables and restores C from
+// the gear menu. Ownership transfer remains covered by e2e/ownership-transfer.auth.spec.ts.
 const STAMP = Date.now();
 const OWNER = `m-owner-${STAMP}@capacitylens.dev`;
 const ADMIN = `m-admin-${STAMP}@capacitylens.dev`;

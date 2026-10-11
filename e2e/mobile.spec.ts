@@ -5,7 +5,7 @@ import { openApp } from "./browserTestSupport";
 // Light mobile affordances: portrait phones use the ShadCN off-canvas Sidebar,
 // compact landscape layouts use its icon mode, and portrait phones get a
 // dismissable session-scoped "rotate to landscape" hint.
-// Full mobile workflows remain a non-goal, these specs cover the affordances only.
+// These specs cover mobile layout affordances; full mobile workflows are outside their scope.
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
@@ -30,9 +30,9 @@ test.describe("portrait phone", () => {
   });
 
   test("rotate hint has no serious or critical accessibility violations", async ({ page }) => {
-    // Disable the dialog's entrance animation so axe samples settled colours, not a
-    // mid-fade blend (same rationale as a11y.spec.ts). test.use({ reducedMotion })
-    // did not apply in this describe-scoped setup, emulate explicitly instead.
+    // Reduce motion so axe samples settled colours after the entrance animation completes.
+    // This describe-level setup does not apply test.use({ reducedMotion }), so set the media
+    // feature directly on the page.
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     // Settle first: hydration swaps the loading shell for the demo sign-in, which remounts

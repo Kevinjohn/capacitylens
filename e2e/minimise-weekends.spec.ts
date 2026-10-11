@@ -45,7 +45,7 @@ function registerDefaultWeekendColumnsNarrowLabelledTest() {
   });
 }
 
-// WCAG 2.5.8 (Target Size, aa): the preference switch must be ≥24×24px. The unit test in
+// WCAG 2.5.8 (Target Size, AA): the preference switch must be at least 24 by 24 pixels.
 // SettingsView.test.tsx can only assert the h-6 class (jsdom runs no layout), so this measures the
 // real rendered geometry the build ships, a class rename that drops below 24px is caught here.
 function registerPreferenceSwitchRendersLeast24pxTest() {

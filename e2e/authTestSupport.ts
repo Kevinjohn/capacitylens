@@ -74,17 +74,17 @@ export function seedFixtureMember(accountId: string, email: string, role: "admin
 }
 
 /**
- * Sign up one user in an isolated request context and return its email + auto-signed-in session
- * cookie, one HTTP request. This is the cheap default: use it whenever the test only needs the
- * cookie to drive further API calls or a browser sign-in. If the test needs the user's ID (e.g. to
- * target them in a PATCH/DELETE `.../members/<userId>` or a `toUserId` transfer), use
- * `signUpUserWithId` instead, it costs a second round trip (`GET /api/auth/me`) to resolve it.
+ * Sign up one user in an isolated request context and return its email and auto-signed-in session
+ * cookie in one HTTP request. Use this when the test needs the cookie for API calls or browser
+ * sign-in. When the test needs the user ID (for a PATCH/DELETE .../members/<userId> or a
+ * toUserId transfer), use signUpUserWithId; it makes a second request to GET /api/auth/me.
  *
- * Each user gets its own context on purpose: a shared APIRequestContext keeps a cookie jar, and
- * Better Auth refuses a sign-up that arrives already-authenticated, so signing up B over A's jar
- * would fail. Better Auth auto-signs-in on sign-up, so the Set-Cookie is the session (mirrors the
- * server unit fixtures, which never call sign-in/email). Emails are unique per run (callers stamp
- * them), so a reused server never collides on a duplicate.
+ * Each user gets a separate context because an APIRequestContext keeps a cookie jar. Better Auth
+ * rejects a sign-up request when that jar is already authenticated, so one user's session cannot
+ * be reused for another sign-up. Better Auth signs the new user in during sign-up, and its
+ * Set-Cookie header contains the session. This matches the server unit fixtures, which do not need
+ * a separate sign-in or email step. Callers add a unique suffix to each email so a reused server
+ * does not encounter duplicates.
  */
 export async function signUpUser(email: string, name?: string): Promise<{ email: string; cookie: string }> {
   const ctx = await playwrightRequest.newContext();
@@ -113,8 +113,8 @@ export async function bootstrapOrg(request: APIRequestContext, cookie: string, n
 
 /**
  * Sign up one user and also resolve its user ID (a second request, `GET /api/auth/me`, on top of
- * the sign-up). Use this only when the test actually needs the ID, everyone else should use the
- * cheaper `signUpUser` above. See its TSDoc for the isolated-context rationale.
+ * the sign-up). Use this only when a test needs the ID. Other tests should use the cheaper
+ * `signUpUser` helper above. See its TSDoc for the isolated-context rationale.
  */
 export async function signUpUserWithId(email: string): Promise<{ email: string; cookie: string; userId: string }> {
   const ctx = await playwrightRequest.newContext();

@@ -11,15 +11,11 @@ import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// Viewer read-only mode, against the auth-backed project's server (CAPACITYLENS_MODE=password
-// on :8887, see playwright.config.ts). Owner A bootstraps an org and the disposable fixture seeds
-// viewer V + editor E. Signed in as V (viewer) we assert the read-only UI: no "Add client",
-// no row Edit/Delete, an allocation bar with no resize grips, a draw gesture creates nothing, and the
-// "View only" badge is shown. As E (editor) we assert the contrast, the affordances are present. At
-// the API layer a direct write as the viewer is 403 (the server is the authoritative backstop).
-// Browser-agnostic (no ua branching); unique emails per run.
+// Viewer read-only behavior runs against the password-mode auth server on port 8887. Owner A creates
+// an org and seeds Viewer V plus Editor E. The viewer UI hides write controls, while the editor retains
+// them; a direct viewer write returns 403 from the server. Unique emails keep each run isolated.
 
-// Shared plumbing (API/password/bootstrap_token/signUp) comes from ./authTestSupport.
+// Shared auth setup, including BOOTSTRAP_TOKEN, comes from authTestSupport.
 const STAMP = Date.now();
 const OWNER = `v-owner-${STAMP}@capacitylens.dev`;
 const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`;
@@ -163,7 +159,7 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(page.getByTestId("undo-button")).toHaveCount(0);
   await expect(page.getByTestId("redo-button")).toHaveCount(0);
 
-  // A draw gesture on a real lane creates nothing (the lane bails, no onDraw).
+  // Drawing on this lane creates no allocation because the viewer lane does not call onDraw.
   await expect(page.getByTestId("allocation-bar")).toHaveCount(0);
   const lane = page.locator(`[data-testid="resource-lane"][data-resource-id="${resourceId}"]`);
   await expect(lane).toBeVisible();

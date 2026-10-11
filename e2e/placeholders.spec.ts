@@ -24,7 +24,7 @@ test.describe("Placeholders (per-account pref, default off)", () => {
   }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Show placeholders" });
-    // default off
+    // Placeholder visibility is off by default.
     await expect(toggle).toHaveAttribute("aria-checked", "false");
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-checked", "true");
@@ -49,9 +49,9 @@ test.describe("Placeholders (per-account pref, default off)", () => {
       .getByTestId("scheduler-row")
       .filter({ has: page.locator('[data-resource-id="r-ph-designer"]') });
     const header = phScheduleRow.getByRole("rowheader");
-    // literal name
+    // The schedule row uses the literal name Placeholder.
     await expect(header.getByText("Placeholder", { exact: true })).toBeVisible();
-    // question-mark avatar
+    // The schedule row displays a question-mark avatar.
     await expect(header.getByText("?", { exact: true })).toBeVisible();
   });
 

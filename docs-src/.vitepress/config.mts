@@ -196,14 +196,11 @@ export default defineConfig({
   // turns the build into standalone pages that open straight from disk, where
   // extensionless URLs would need a server to rewrite them.
   cleanUrls: false,
-  // The built pages are a committed artifact in the repo-root docs/ folder,
-  // not an ignored .vitepress/dist, rebuild with `pnpm run docs:build` after
-  // editing anything under docs-src/.
+  // Commit the standalone pages to the repository-root docs/ directory.
+  // Run `pnpm run docs:build` after changing anything under docs-src/.
   outDir: "../docs",
-  // Off, because it cannot work in this build and was rendering as a defect:
-  // VitePress emits `Last updated: <time datetime="…"></time>` and fills the
-  // text in client-side, but docs-standalone.mjs strips every script, so each
-  // page shipped a "Last updated:" label followed by nothing at all.
+  // Disable this because standalone output removes the VitePress client bundle
+  // that fills the timestamp, leaving a "Last updated:" label with no date.
   //
   // It also made the build unreproducible: the baked timestamp is the last
   // commit touching that page's .md, so the same sources built on a CI runner

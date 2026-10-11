@@ -13,9 +13,10 @@ import {
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
-/** Run axe against the settled page and assert no serious/critical violations, in one call, every
- * scan in this file uses the identical impact filter and diagnostic message, so folding the
- * filter+assert in here keeps them byte-identical by construction instead of by copy-paste. */
+/** Run axe against the settled page and reject serious or critical violations.
+ * Every scan in this file uses the same impact filter and diagnostic message. Keeping the filter
+ * and assertion here prevents those checks from drifting across specs.
+ */
 async function settledAxe(page: Page): Promise<void> {
   await disableCssMotion(page);
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
@@ -131,11 +132,9 @@ test("a resource form modal has no serious or critical violations", async ({ pag
   await settledAxe(page);
 });
 
-// A ConfirmDialog in dark mode specifically: its `danger` confirm button is the only place the
-// danger button variant shows, and dark is where a solid bg-danger + white ink fails WCAG AA
-// (the dark --c-danger is a light coral, ~2.7:1). The variant uses capacitylens's aa-safe soft red
-// pairing (bg-danger-soft + danger-soft-ink) instead; this scan locks that in so the button
-// can't silently regress to the failing solid fill.
+// A dark-mode ConfirmDialog is the only place that shows the danger button variant. White text on
+// the solid dark danger fill has 2.7:1 contrast, below WCAG AA. This scan keeps the button on the
+// AA-safe soft red pairing (`bg-danger-soft` and `danger-soft-ink`).
 test("a confirm dialog (dark) danger button has no serious or critical violations", async ({ page }) => {
   await setTheme(page, "dark");
   await openApp(page, "Wayne Enterprises", "/clients");

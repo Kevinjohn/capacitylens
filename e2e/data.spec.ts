@@ -114,8 +114,8 @@ const importFile = async (page: Page, name: string, body: string) => {
 /** Back to the schedule, where the seeded/imported rows are asserted. */
 const openSchedule = (page: Page) => page.getByRole("link", { name: "Schedule", exact: true }).click();
 
-// Covers US-DAT-02..04 and the canonical demo seed. Export round-trip and reset-on-reload
-// are covered in E2E/crud.spec.ts; server persistence lives in persistence.db.spec.ts.
+// Covers US-DAT-02..04 and demo first-load seeding. Export round-trip and reset-on-reload behavior
+// are exercised in e2e/crud.spec.ts; database persistence cases are in persistence.db.spec.ts.
 function registerSeedsDemoDatasetFirstLoadTest() {
   test("seeds a demo dataset on first load", async ({ page }) => {
     await openApp(page);

@@ -4,19 +4,10 @@ import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// Invite accept, against the auth-backed project's server (CAPACITYLENS_MODE=password on
-// :8887, see playwright.config.ts). Owner A signs up, bootstraps an org (via the operator bootstrap
-// token, since the auth-e2e DB is seeded so A is not first-run), and mints an editor invite token via
-// POST /api/invites. User B then opens /invite/<token> in the browser: the safe preview loads without
-// a session and the page shows its own inline onboarding form (the route is deliberately carved out
-// of the login wall, see InviteAccept.tsx). B signs in there, reviews the same invite as that
-// identity, and explicitly accepts. Finally we assert the API-layer single-use guarantee (re-POSTing
-// the same token is 409). Browser-agnostic (no ua branching).
-
-// The auth-e2e server is seeded (Wayne Enterprises + Stark Industries), so a fresh sign-up is not a first-run
-// bootstrap and holds no membership, /api/orgs would 403; the bootstrap_token (from ./authTestSupport)
-// is the documented operator path to provision an org on an already-populated instance. Shared
-// plumbing (API/bootstrap_token/signUp) comes from ./authTestSupport.
+// Invite acceptance runs against the password-mode auth server on port 8887. A new user has no
+// membership, so POST /api/orgs returns 403 without the operator bootstrap path. The spec provisions
+// an org with BOOTSTRAP_TOKEN, creates an invite, and accepts it in the browser. After acceptance,
+// waitForAppLanding handles the session-scoped intro before the spec checks the joined company.
 const STAMP = Date.now();
 const OWNER = `owner-${STAMP}@capacitylens.dev`;
 const JOINER = `joiner-${STAMP}@capacitylens.dev`;
@@ -87,11 +78,9 @@ function registerSignedUserOpensValidInviteTest() {
     // The explicit POST binds B as an editor and the success state renders.
     await expect(page.getByText(new RegExp(`You’ve joined Invite Studio ${STAMP} as Editor`))).toBeVisible();
 
-    // Continue must land inside the joined company, not on the picker: the accept flow refetches
-    // the summaries list (this route mounts outside AppShell, so the hook never ran here) and
-    // activates the joined account before this link is used. Regression guard for the handoff that
-    // used to bounce to the picker with a "company not found" notice. A first visit on this device
-    // may hit the once-per-device intro page, click through it like helpers.openApp does.
+    // The invite preview renders outside AppShell, so the account-summary hook has not run.
+    // Acceptance refreshes the summaries and activates the joined account before following Continue.
+    // A first visit on this device may show the once-per-device intro; waitForAppLanding handles it.
     await page.getByRole("link", { name: "Continue" }).click();
     // Wait for the root navigation before checking the intro. The company name is no longer a safe
     // pre-navigation sentinel because the invite preview deliberately shows it too.

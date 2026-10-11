@@ -9,11 +9,10 @@ import { openApp, resetSchedulerScroll, setZoom } from "./browserTestSupport";
 
 // "Blue dark", flat index 47 in the 13×4 swatches grid (swatchLabel(47) === 'Blue dark').
 // This swatch already clears WCAG AA against its ink, so resolveAccessibleBarColors() leaves it
-// unchanged. The exact rendered hex is therefore testable, and differs from every seeded entity
-// colour.
-// differs from every seeded entity colour, so the change is genuinely observable.
+// unchanged. The rendered hex is therefore testable and differs from every seeded entity colour,
+// making the selected colour visible in the browser.
 const PICK_LABEL = "Blue dark";
-// swatches[47] is #1b4f98; computed `background-color` is reported as rgb(...) by every engine.
+// SWATCHES[47] is #1b4f98; browsers report its computed background color as rgb(...).
 const PICK_RGB = "rgb(27, 79, 152)";
 
 /** Open a form's ColorField popover and click a swatch by its accessible label. The trigger's
@@ -53,7 +52,6 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
       .click();
     const dialog = page.getByRole("dialog", { name: "Edit discipline" });
     await pickSwatch(dialog, PICK_LABEL);
-    // The trigger now reports the picked colour by name, proves the pick registered pre-save.
     await expect(dialog.getByRole("button", { name: `Colour (${PICK_LABEL})` })).toBeVisible();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toBeHidden();
@@ -71,8 +69,8 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
   test("a project colour pick tints its allocation bars", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/projects");
 
-    // Edit the seeded "Project Watchtower" (p-acme), Bruce's "Wireframes" bar is one of its
-    // allocations, and pick a new swatch.
+    // Edit the seeded "Project Watchtower", which owns Bruce's scheduled "Wireframes" allocation,
+    // then pick a new swatch.
     await page
       .getByTestId("project-row")
       .filter({ hasText: "Project Watchtower" })

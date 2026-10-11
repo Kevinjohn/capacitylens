@@ -11,12 +11,10 @@ import {
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // Admin-issued password-reset links use the auth-backed project's server
-// (CAPACITYLENS_MODE=password on :8887, see playwright.config.ts). Owner A signs up, bootstraps an
-// org, seeds member B (editor) in the disposable fixture, then mints B a reset link from Team & access in the browser
-// (the write-once reset-link block). B, signed out, which is the whole point of a reset, opens the
-// link, sets a new password, and signs in with it; the old password is asserted dead at the API
-// layer. Browser-agnostic (no ua branching). Shared plumbing (API/password/bootstrap_token/signUp)
-// comes from ./authTestSupport.
+// The auth-backed password project runs on port 8887 (see playwright.config.ts). Owner A creates
+// an organization and seeds editor B in the disposable fixture, then creates the password reset link.
+// Member B opens the link while signed out, sets a new password and signs in; the API confirms
+// the old password no longer works. This suite uses shared helpers from authTestSupport.ts.
 
 const NEW_PASSWORD = "fresh-password-456";
 // Unique per run so reruns against a reused auth server don't collide on existing users/accounts.

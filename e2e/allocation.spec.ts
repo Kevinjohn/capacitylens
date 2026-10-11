@@ -25,7 +25,7 @@ function registerCreatesAllocationRowButtonAssigneeTest() {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     // In row-create mode the assignee is fixed to the clicked row, so there's no
-    // Assignee select, the dialog title names them instead.
+    // The assignee is fixed in create mode, so the dialog title identifies the resource.
     await expect(dialog.getByRole("heading")).toContainText("Clark Kent");
     await expect(dialog.getByLabel("Assignee")).toHaveCount(0);
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
@@ -124,8 +124,7 @@ function registerCreatesThreeWeeksDirectDateTest() {
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
-    // Fri 2026-06-12: since  a new allocation must start on an effective working day,
-    // there is no ignored-creation escape hatch, so the anchor itself moves to a weekday.
+    // A new allocation series must start on an effective working day; creation has no option to ignore that rule.
     await dialog.getByLabel("Start Date").fill("2026-06-12");
     await dialog.getByLabel(/^End/).fill("2026-06-12");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "every-three-weeks");
@@ -308,7 +307,7 @@ function registerSnapsProjectPlaceholderBoundProjectTest() {
     await page.getByRole("button", { name: "Add allocation for Placeholder" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     const project = dialog.getByLabel("Project", { exact: true });
-    // bound project preselected
+    // The placeholder starts with Project Watchtower as its bound project.
     await expect(project).toHaveText(/Project Watchtower/);
     // The trigger remains readable, but incompatible project-less scopes are disabled. The bound
     // project can use both its own activities and All-projects activities.
