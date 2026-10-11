@@ -35,6 +35,7 @@ export const GEOM = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 
   weekendWidth: 22,
 });
 
+/** Maps a pointer x-coordinate to the test grid column. */
 export const indexAtClientX = (clientX: number): number => GEOM.indexAt(clientX);
 
 /** Opens a Radix combobox by its accessible name/label and picks the option with the given name.

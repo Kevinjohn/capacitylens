@@ -5,8 +5,11 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import { seedForCurrentWeek } from "@capacitylens/shared/data/seed";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
+/** Identifies the fictional account used by access-lab fixtures. */
 export const ACCESS_LAB_ACCOUNT_ID = "a-studio";
+/** Supplies the fixed local credential shared by access-lab personas. */
 export const ACCESS_LAB_PASSWORD = "access-lab-password-2026";
+/** Pins destructive access-lab setup to its repository-local database. */
 export const ACCESS_LAB_DB_PATH = fileURLToPath(new URL("../.access-lab.db", import.meta.url));
 
 /** Resolve and verify the one database the destructive lab setup may initialise. */
@@ -26,6 +29,7 @@ export function resolveAccessLabDbPath(
   return resolved;
 }
 
+/** Fictional users exercise each supported role in the access lab. */
 export const ACCESS_LAB_PERSONAS: ReadonlyArray<{
   name: string;
   email: string;

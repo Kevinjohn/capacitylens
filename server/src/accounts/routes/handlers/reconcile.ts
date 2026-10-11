@@ -30,6 +30,9 @@ function parseReconcileBody(
   };
 }
 
+/**
+ * Runs the authorized account reconciliation and returns its repair summary.
+ */
 export async function reconcile(
   req: FastifyRequest,
   reply: FastifyReply,

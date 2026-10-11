@@ -7,8 +7,11 @@ import { cacheAuthSnapshot, clearAllOfflineData, setOfflineReadState } from "./o
 import type { OfflineAuthSnapshot } from "./offlineCache";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
+/** First timestamp shared by server-sync adapter fixtures. */
 export const TS1 = "2026-01-01T00:00:00.000Z";
+/** Second timestamp shared by server-sync adapter fixtures. */
 export const TS2 = "2026-01-02T00:00:00.000Z";
+/** Builds a client row for server-sync adapter fixtures. */
 export const client = (id: string, updatedAt = TS1): Client => ({
   id,
   accountId: "a1",
@@ -17,6 +20,7 @@ export const client = (id: string, updatedAt = TS1): Client => ({
   createdAt: TS1,
   updatedAt,
 });
+/** Builds a project row linked to a fixture client. */
 export const project = (id: string, clientId: string, updatedAt = TS1): Project => ({
   id,
   accountId: "a1",
@@ -26,6 +30,7 @@ export const project = (id: string, clientId: string, updatedAt = TS1): Project 
   createdAt: TS1,
   updatedAt,
 });
+/** Builds an allocation row for batch persistence tests. */
 export const allocation = (id: string, startDate: Allocation["startDate"]): Allocation => ({
   id,
   accountId: "a1",
@@ -38,6 +43,7 @@ export const allocation = (id: string, startDate: Allocation["startDate"]): Allo
   createdAt: TS1,
   updatedAt: TS1,
 });
+/** Builds a time-off row for batch persistence tests. */
 export const timeOff = (id: string, startDate: TimeOff["startDate"], note?: string): TimeOff => ({
   id,
   accountId: "a1",
@@ -50,10 +56,12 @@ export const timeOff = (id: string, startDate: TimeOff["startDate"], note?: stri
   updatedAt: TS1,
 });
 
+/** Combines partial fixture data with the empty application data shape. */
 export const withData = (over: Partial<AppData>): AppData => ({
   ...emptyAppData(),
   ...over,
 });
+/** Builds a workspace account row for persistence fixtures. */
 export const account = (id: string): Account => ({
   id,
   name: `Account ${id}`,
@@ -61,6 +69,7 @@ export const account = (id: string): Account => ({
   createdAt: TS1,
   updatedAt: TS1,
 });
+/** Builds account-scoped fixture data from partial table overrides. */
 export const scopedData = (accountId: string, over: Partial<AppData>): AppData =>
   withData({
     ...over,
@@ -80,9 +89,11 @@ export const scopedData = (accountId: string, over: Partial<AppData>): AppData =
   });
 
 // Drop known table keys from a slice to simulate an older server omitting them (rolling-deploy skew).
+/** Removes selected table keys to model an older server response. */
 export const omitKeys = (data: AppData, ...keys: string[]): Record<string, unknown> =>
   Object.fromEntries(Object.entries(data).filter(([key]) => !keys.includes(key)));
 
+/** Recorded batch operation and its optional row or revision metadata. */
 export interface ReceiptOp {
   method: string;
   table: string;
@@ -92,16 +103,19 @@ export interface ReceiptOp {
   row?: object;
 }
 
+/** Narrows an unknown test value to a record or throws the supplied message. */
 export const requiredRecord = (value: unknown, message: string): Record<string, unknown> => {
   if (!isRecord(value)) throw new Error(message);
   return value;
 };
 
+/** Narrows an unknown test value to a string or throws the supplied message. */
 export const requiredString = (value: unknown, message: string): string => {
   if (typeof value !== "string") throw new Error(message);
   return value;
 };
 
+/** Parses and validates the JSON operations in a recorded batch request. */
 export const parseReceiptOps = (body: unknown): ReceiptOp[] => {
   if (typeof body !== "string") throw new Error("expected a string batch request body");
   const payload = requiredRecord(JSON.parse(body), "expected a batch payload object");
@@ -122,6 +136,7 @@ export const parseReceiptOps = (body: unknown): ReceiptOp[] => {
   });
 };
 
+/** Reads parsed operations from a fetch request init object. */
 export const opsFromInit = (init?: RequestInit): ReceiptOp[] => parseReceiptOps(init?.body);
 
 const receiptOpsFromInit = (init?: RequestInit): ReceiptOp[] => {
@@ -133,6 +148,7 @@ const receiptOpsFromInit = (init?: RequestInit): ReceiptOp[] => {
   return [];
 };
 
+/** Builds the committed revision for a recorded batch operation. */
 export const revisionFor = (op: ReceiptOp) => {
   const row = op.row === undefined ? undefined : requiredRecord(op.row, "expected revision row object");
   return {
@@ -143,6 +159,7 @@ export const revisionFor = (op: ReceiptOp) => {
   };
 };
 
+/** Creates a successful batch receipt for the operations in a request. */
 export const commitReceipt = (init?: RequestInit): Response => {
   const ops = receiptOpsFromInit(init);
   return new Response(
@@ -158,6 +175,7 @@ export const commitReceipt = (init?: RequestInit): Response => {
   );
 };
 
+/** Returns a present fixture value or throws with the supplied message. */
 export const required = <T>(value: T | null | undefined, message = "expected test value to be present"): T => {
   if (value === undefined || value === null) throw new Error(message);
   return value;
@@ -175,6 +193,7 @@ const OFFLINE_IDENTITY: OfflineAuthSnapshot = {
   multiAccount: false,
 };
 
+/** Runs a test with an isolated IndexedDB offline cache. */
 export async function withOfflineCache(run: () => Promise<void>): Promise<void> {
   vi.stubGlobal("indexedDB", new IDBFactory());
   localStorage.setItem("capacitylens/offlineRead", "on");
@@ -190,12 +209,14 @@ export async function withOfflineCache(run: () => Promise<void>): Promise<void> 
 }
 
 // Helper: pull the parsed ops array out of a recorded /api/batch POST.
+/** Extracts parsed operations from a recorded batch fetch call. */
 export const batchOps = (call: unknown[] | undefined): ReceiptOp[] => {
   if (!call) throw new Error("expected a recorded batch call");
   const init = requiredRecord(call[1], "expected recorded batch request init");
   return parseReceiptOps(init.body);
 };
 
+/** Saves fixture data using a server receipt for the resulting batch. */
 export async function saveAgainstReceipt(
   receipt: unknown,
   options: { initial?: AppData; next?: AppData; unload?: boolean } = {},
@@ -211,6 +232,7 @@ export async function saveAgainstReceipt(
   await adapter.saveAll(next, options.unload ? { unload: true } : undefined);
 }
 
+/** Creates a fetch mock that returns successful batch receipts. */
 export function okFetch() {
   return vi.fn(async (_url: string, init?: RequestInit) => commitReceipt(init));
 }

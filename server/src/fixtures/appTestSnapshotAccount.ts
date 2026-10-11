@@ -11,6 +11,9 @@ import {
 import type { AccountSnapshot, ClosureSnapshot, ResourceSnapshot, TimeOffSnapshot } from "./appTestSnapshotCore";
 import { readProjectBindings, readResourceSnapshot } from "./appTestSnapshotSchedule";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
+/**
+ * Adds the optional account-level feature flags present in a stored row.
+ */
 export function addAccountDisplayOptions(snapshot: AccountSnapshot, row: Record<string, unknown>): void {
   const disciplinesEnabled = readOptionalBoolean(row, "disciplinesEnabled", "account row");
   const externalEnabled = readOptionalBoolean(row, "externalEnabled", "account row");
@@ -20,6 +23,9 @@ export function addAccountDisplayOptions(snapshot: AccountSnapshot, row: Record<
   if (placeholdersEnabled !== undefined) snapshot.placeholdersEnabled = placeholdersEnabled;
 }
 
+/**
+ * Adds optional scheduling and workflow settings present in a stored account row.
+ */
 export function addAccountWorkflowOptions(snapshot: AccountSnapshot, row: Record<string, unknown>): void {
   const capacityOverviewAccess = readOptionalString(row, "capacityOverviewAccess", "account row");
   const dateStyle = readOptionalString(row, "dateStyle", "account row");
@@ -31,6 +37,9 @@ export function addAccountWorkflowOptions(snapshot: AccountSnapshot, row: Record
   if (showTaskFieldInSchedule !== undefined) snapshot.showTaskFieldInSchedule = showTaskFieldInSchedule;
 }
 
+/**
+ * Rejects unknown account fields and converts the row’s required and optional values to a snapshot.
+ */
 export function readAccountSnapshot(row: Record<string, unknown>): AccountSnapshot {
   assertModeledKeys(
     row,
@@ -77,6 +86,9 @@ export function readAccountSnapshot(row: Record<string, unknown>): AccountSnapsh
   return snapshot;
 }
 
+/**
+ * Parses each account row and rejects values that are not objects.
+ */
 export function readAccountSnapshots(rows: unknown[]): AccountSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every account row to be an object.");
@@ -84,18 +96,27 @@ export function readAccountSnapshots(rows: unknown[]): AccountSnapshot[] {
   });
 }
 
+/**
+ * Requires a state response to contain at least one account.
+ */
 export function readFirstAccount(accounts: AccountSnapshot[]): AccountSnapshot {
   const accountRow = accounts[0];
   if (!accountRow) throw new Error("Expected the state response to contain an account.");
   return accountRow;
 }
 
+/**
+ * Finds the requested account in the parsed state response.
+ */
 export function readAccount(accounts: AccountSnapshot[], id: string): AccountSnapshot {
   const accountRow = accounts.find((candidate) => candidate.id === id);
   if (!accountRow) throw new Error(`Expected the state response to contain account ${id}.`);
   return accountRow;
 }
 
+/**
+ * Converts closure rows after checking that only modeled fields and string values are present.
+ */
 export function readClosureSnapshots(rows: unknown[]): ClosureSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every closure row to be an object.");
@@ -116,6 +137,9 @@ export function readClosureSnapshots(rows: unknown[]): ClosureSnapshot[] {
   });
 }
 
+/**
+ * Converts time-off rows while preserving an optional note and rejecting unknown fields.
+ */
 export function readTimeOffSnapshots(rows: unknown[]): TimeOffSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every time-off row to be an object.");
@@ -140,6 +164,9 @@ export function readTimeOffSnapshots(rows: unknown[]): TimeOffSnapshot[] {
   });
 }
 
+/**
+ * Requires exactly one time-off row in the parsed response.
+ */
 export function readOnlyTimeOff(rows: TimeOffSnapshot[]): TimeOffSnapshot {
   if (rows.length !== 1) throw new Error("Expected the state response to contain exactly one time-off row.");
   const row = rows[0];
@@ -147,6 +174,9 @@ export function readOnlyTimeOff(rows: TimeOffSnapshot[]): TimeOffSnapshot {
   return row;
 }
 
+/**
+ * Parses each resource row together with its optional project binding.
+ */
 export function readResourceSnapshots(rows: unknown[]): ResourceSnapshot[] {
   return readProjectBindings(rows, "resource").map((binding, index) => {
     const source = rows[index];
@@ -155,23 +185,35 @@ export function readResourceSnapshots(rows: unknown[]): ResourceSnapshot[] {
   });
 }
 
+/**
+ * Requires the parsed state to contain at least one resource.
+ */
 export function readFirstResource(resources: ResourceSnapshot[]): ResourceSnapshot {
   const resource = resources[0];
   if (!resource) throw new Error("Expected the state response to contain a resource.");
   return resource;
 }
 
+/**
+ * Finds the resource with the requested ID in the parsed state.
+ */
 export function readResource(resources: ResourceSnapshot[], id: string): ResourceSnapshot {
   const resource = resources.find((candidate) => candidate.id === id);
   if (!resource) throw new Error(`Expected the state response to contain resource ${id}.`);
   return resource;
 }
 
+/**
+ * Parses the response body as a single resource snapshot.
+ */
 export function readResourceResponse(response: LightMyRequestResponse): ResourceSnapshot {
   return readFirstResource(readResourceSnapshots([response.json()]));
 }
 
 type PatchResourceFavouriteOptions = { app: FastifyInstance; isFavourite: boolean };
+/**
+ * Updates the resource favourite flag and parses the resulting resource response.
+ */
 export async function patchResourceFavourite({
   app,
   isFavourite,

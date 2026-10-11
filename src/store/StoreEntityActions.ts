@@ -15,20 +15,10 @@ import type {
 /** A create action can be blocked by the active Viewer policy without saving a row. */
 export type CreateResult<T> = { kind: "created"; value: T } | { kind: "blocked" };
 
-/** The active account's entity create/update/delete and data-lifecycle actions on the store. */
+/** Store actions mutate the active account and participate in undo history. Viewer restrictions may
+ * return a blocked result or no-op; stale IDs are no-ops. Tenancy, reference, and input-integrity
+ * failures throw, and callers handling user input must surface them. */
 export interface StoreEntityActions {
-  // --- Scoped entity CRUD (disciplines / resources / clients / projects / phases / activities /
-  // allocations / time off). Contract, identical for every add*/update*/delete* below, and
-  // invisible in the signatures, so it lives here:
-  //  • Runs against the active account and is undoable (⌘Z).
-  //  • throws an Error whose message is safe to display on a tenancy/integrity violation (a
-  //    cross-account id, a dangling required FK, a reversed date range, an empty working-day set,
-  //    or no active account). The store is the last line of defence ("forms reject; store
-  //    backstops"), so these must throw, do not wrap them to swallow.
-  //  • Silently no-ops on a stale id (update/delete of a row not owned by the active account, e.g.
-  //    a drag committed after an undo removed the row). That's a benign race, not corruption.
-  //  • Callers that take user input must wrap the call in try/catch and surface e.message (see
-  //    TimeOffForm / AllocationModal). A throw left uncaught surfaces only as a React error.
   /** Create a discipline in the active account. */
   addDiscipline: (input: Draft<Discipline>) => CreateResult<Discipline>;
   /** Patch a discipline in the active account. */

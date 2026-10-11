@@ -170,6 +170,7 @@ function createAccountRuntime({ db, config, options, accountAudit }: CreateAccou
   };
 }
 
+/** Builds shared runtime services for application routes. */
 export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppConfig>, options: AppOptions) {
   const { application, auditSink } = config;
   // Recover records committed before a prior process stopped between SQLite COMMIT and delivery.

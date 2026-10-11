@@ -91,6 +91,9 @@ function reportOwnerlessPromotion(accountId: string, userId: string, promotedFro
   }
 }
 
+/**
+ * Describes the version-11 promotion rule for installations without an assigned owner.
+ */
 export interface OwnerlessPromotionV11 {
   accountId: string;
   userId: string;

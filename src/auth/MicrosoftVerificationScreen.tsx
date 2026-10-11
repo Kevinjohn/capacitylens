@@ -27,6 +27,7 @@ type VerificationViewState = {
   cancel: () => Promise<void>;
 };
 
+/** Connects verification state to the Microsoft verification screen. */
 export function MicrosoftVerificationScreen() {
   return <MicrosoftVerificationView {...useMicrosoftVerification()} />;
 }

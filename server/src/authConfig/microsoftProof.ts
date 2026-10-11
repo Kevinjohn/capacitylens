@@ -41,6 +41,9 @@ type Input = {
 const TTL_MS = 15 * 60_000;
 const RATE_WINDOW_MS = 60 * 60_000;
 
+/**
+ * Creates the Microsoft email-proof operations used by the authentication callbacks.
+ */
 // eslint-disable-next-line max-lines-per-function -- The closure keeps the proof transitions tied to one database and browser-cookie policy.
 export function createMicrosoftProof(input: Input) {
   const { db, environment, publicUrl, applicationId, tenantId } = input;
@@ -308,4 +311,7 @@ export function createMicrosoftProof(input: Input) {
   };
 }
 
+/**
+ * Carries the verified Microsoft mailbox and single-use browser proof used to admit an external identity.
+ */
 export type MicrosoftProof = ReturnType<typeof createMicrosoftProof>;

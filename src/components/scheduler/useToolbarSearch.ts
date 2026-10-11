@@ -9,6 +9,7 @@ interface UseToolbarSearchInput {
   clearFilters: StoreState["clearFilters"];
 }
 
+/** Debounces schedule search and cancels stale text after external filter changes. */
 export function useToolbarSearch({ filters, activeAccountId, setFilters, clearFilters }: UseToolbarSearchInput) {
   // Debounce the search into the store: each keystroke otherwise rebuilds the whole
   // scheduler model (new filters object → model useMemo) and re-renders every lane.

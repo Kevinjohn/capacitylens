@@ -395,7 +395,8 @@ const registerCorruptLines = (): void => {
     writeFileSync(file, '{"auditId":"a-1"}\n{"auditId":"a-2","broken":\n');
     const errors: string[] = [];
     const sink = createFileAuditSink(file, (m) => errors.push(m));
-    expect(sink.degraded).toBe(false); // nothing latched before first use
+    // Nothing latched before first use.
+    expect(sink.degraded).toBe(false);
     const delivered: AuditEntry[] = [
       {
         ts: "2026-01-01T00:00:00.000Z",
@@ -410,8 +411,10 @@ const registerCorruptLines = (): void => {
     ];
     const appendMany = sink.appendMany;
     if (appendMany === undefined) throw new Error("file sink does not support batch append");
-    expect(appendMany(delivered)).toBe(true); // append still succeeds (safe replay direction)
-    expect(sink.degraded).toBe(true); // corruption is now surfaced, not silently accepted
+    // Append still succeeds (safe replay direction).
+    expect(appendMany(delivered)).toBe(true);
+    // Corruption is now surfaced, not silently accepted.
+    expect(sink.degraded).toBe(true);
     expect(errors.join("\n")).toMatch(/malformed JSONL line/);
   });
 };
@@ -435,7 +438,8 @@ const registerMissingAuditId = (): void => {
         auditId: "a-1",
       }),
     ).toBe(true);
-    expect(sink.degraded).toBe(false); // parseable line: no suppression, but not degradation
+    // Parseable line: no suppression, but not degradation.
+    expect(sink.degraded).toBe(false);
     expect(errors).toHaveLength(0);
   });
 };
@@ -491,7 +495,8 @@ describe("stream sink retry idempotence", () => {
     expect(lines).toHaveLength(2);
     // Retry of the same delivery (e.g. a sibling file sink failed on the first pass):
     expect(appendMany([entry("x-1"), entry("x-2")])).toBe(true);
-    expect(lines).toHaveLength(2); // no amplification
+    // No amplification.
+    expect(lines).toHaveLength(2);
   });
 
   it("emits distinct new records after deduped retries", () => {
@@ -500,8 +505,10 @@ describe("stream sink retry idempotence", () => {
     const appendMany = sink.appendMany;
     if (appendMany === undefined) throw new Error("stream sink does not support batch append");
     appendMany([entry("y-1")]);
-    appendMany([entry("y-1")]); // retry: skipped
-    appendMany([entry("y-2")]); // fresh record, emitted
+    // Retry: skipped.
+    appendMany([entry("y-1")]);
+    // Fresh record, emitted.
+    appendMany([entry("y-2")]);
     expect(lines).toHaveLength(2);
   });
 });

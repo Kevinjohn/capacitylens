@@ -93,7 +93,7 @@ describe("Compose exceptions in the environment register", () => {
   registerNamedProviderComposeTest();
 
   it("keeps production mode out of Vite-loaded env files and sets it on the API process", () => {
-    expect(envExample).toMatch(/Node environment is set on the API process for bare-metal runs/);
+    expect(envExample).toMatch(/Set NODE_ENV on the API process for bare-metal runs/);
     expect(envExample).not.toMatch(/^NODE_ENV=/m);
     expect(compose).not.toMatch(/^\s+NODE_ENV:/m);
     expect(dockerfile).toMatch(/^ENV NODE_ENV=production$/m);

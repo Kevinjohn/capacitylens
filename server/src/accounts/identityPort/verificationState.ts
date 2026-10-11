@@ -1,12 +1,21 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 
+/**
+ * Explains why identity erasure must stop when structured verification state is malformed.
+ */
 export const MALFORMED_STRUCTURED_VERIFICATION =
   "Identity erasure cannot classify malformed structured verification state.";
 
+/**
+ * Signals that structured identity verification state cannot be safely interpreted.
+ */
 export class MalformedVerificationStateError extends Error {
   override name = "MalformedVerificationStateError";
 }
 
+/**
+ * Creates the typed error raised when stored verification state is malformed.
+ */
 export function createInvalidVerificationStateError(
   commandId: string,
   cause: MalformedVerificationStateError,

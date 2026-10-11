@@ -13,6 +13,7 @@ function isOptionalImage(value: unknown) {
   return value === undefined || value === null || typeof value === "string";
 }
 
+/** Validates an untrusted user payload before exposing it to auth context. */
 export function parseAuthUser({ value, requireEmail = false }: ParseAuthUserInput): AuthUser | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const user = value as Record<string, unknown>;

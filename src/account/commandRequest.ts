@@ -15,6 +15,7 @@ interface RunCommandInput {
   ambiguousStatus?: number | undefined;
 }
 
+/** Runs an account mutation with a stable command identity and classifies ambiguous outcomes. */
 export async function runCommand({
   operationKey,
   explicit,
@@ -40,6 +41,7 @@ export async function runCommand({
   }
 }
 
+/** Adds account command identifiers to request headers. */
 export function buildCommandRequestInit(
   requestOptions: RequestInit,
   command = createBrowserAccountCommand(),
@@ -50,6 +52,7 @@ export function buildCommandRequestInit(
   return { ...requestOptions, headers };
 }
 
+/** Builds a JSON request carrying the account command identity. */
 export function buildJsonCommandRequestInit(
   // DELETE carries a body for exactly one caller: the ceremony cancellation, whose expected
   // revision is the compare half of a transition rather than an identifier, so it belongs in the

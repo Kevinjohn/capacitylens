@@ -184,7 +184,7 @@ describe("ProjectForm", () => {
 
     expect(onClose).toHaveBeenCalled();
     expect(useStore.getState().data.projects[0]?.name).toBe("Alpha Renamed");
-    expect(useStore.getState().data.projects[0]?.clientId).toBe(client.id); // unchanged, round-tripped
+    expect(useStore.getState().data.projects[0]?.clientId).toBe(client.id);
   });
 
   it("rejects a stale edit instead of overwriting a concurrently changed project", async () => {

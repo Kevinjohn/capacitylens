@@ -155,7 +155,8 @@ describe("guards", () => {
       payload: { seed: true },
     });
     const s = await readValidatedState(app);
-    expect(s.accounts.length).toBeGreaterThan(0); // seeded demo data present
+    // Seeded demo data present.
+    expect(s.accounts.length).toBeGreaterThan(0);
   });
 
   it("reset removes memberships and invitations for wiped companies", async () => {

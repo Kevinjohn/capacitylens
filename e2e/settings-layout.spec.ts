@@ -76,7 +76,8 @@ async function assertReflow(page: Page) {
 
 for (const width of [1280, 390, 320]) {
   test(`Settings groups reflow and remain accessible at ${width}px, closed and expanded`, async ({ page }) => {
-    test.setTimeout(60_000); // Four full-page axe scans cover the closed and expanded content.
+    // Four full-page axe scans cover the closed and expanded content, so this case needs a longer timeout.
+    test.setTimeout(60_000);
     await page.setViewportSize({ width, height: 900 });
     // The portrait hint has its own coverage; exercise Settings underneath it here.
     if (width < 600) {

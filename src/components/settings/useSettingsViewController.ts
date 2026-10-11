@@ -52,6 +52,7 @@ function readSchedulingSettings(data: ReturnType<(typeof useStore)["getState"]>[
   };
 }
 
+/** Combines current permissions, account preferences, and section actions for settings. */
 export function useSettingsViewController() {
   const workingDaysMinimumId = useId();
   const canEdit = useCanEdit();

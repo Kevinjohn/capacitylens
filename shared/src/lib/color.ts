@@ -109,7 +109,8 @@ export function snapToPresetColor(value: unknown): string {
   let nearestDistance = Infinity;
   for (const [i, preset] of PRESET_COLORS.entries()) {
     const presetRgb = PRESET_RGB[i];
-    if (!presetRgb) continue; // unreachable: every PRESET_COLORS entry is a valid 6-digit hex (pinned by a test)
+    // Every frozen palette entry is a valid six-digit hex value, as pinned by a test.
+    if (!presetRgb) continue;
     const { red: pr, green: pg, blue: pb } = presetRgb;
     // Squared Euclidean distance in RGB space. No sqrt needed since we only compare magnitudes.
     const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;

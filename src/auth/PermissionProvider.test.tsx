@@ -134,7 +134,8 @@ describe("PermissionProvider authenticated lookup posture", () => {
     await waitFor(() => expect(useStore.getState().activeRole).toBe("viewer"));
     expect(useStore.getState().activeRoleStatus).toBe("unavailable");
     expect(fetchMock).not.toHaveBeenCalled();
-    view.unmount(); // reset the global offline marker only after this provider stops observing it
+    // Reset the global offline marker only after the provider stops observing it.
+    view.unmount();
   });
 });
 

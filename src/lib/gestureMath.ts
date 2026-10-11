@@ -40,12 +40,12 @@ interface ApplyResizeInput {
   weekendAwareDays: Weekday[] | null;
 }
 
-// Pure drag/resize math, extracted from the pointer hook so it can be unit
-// tested without a DOM. A gesture is: pixels dragged -> whole-day delta (snap)
-// -> new inclusive [start, end]. Resizes keep a minimum 1-day duration.
+// Drag and resize calculations use whole-day movement and preserve inclusive date ranges.
 
+/** Pointer gesture operation applied to a schedule date range. */
 export type DragMode = "move" | "resize-start" | "resize-end";
 
+/** Inclusive start and end dates for a schedule gesture. */
 export interface DateRange {
   startDate: ISODate;
   endDate: ISODate;
@@ -184,6 +184,7 @@ function resolveMoveSpan(range: DateRange, options: GestureOptions | undefined):
   });
 }
 
+/** Applies a snapped move or resize to an inclusive date range. */
 export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureInput): DateRange {
   // Resolve weekend-awareness once for the whole gesture. A resize only ever sees one week; a move
   // sees two, and absent a source week it stays on one resource, so both of its ends are the same

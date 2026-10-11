@@ -26,6 +26,10 @@ export function withVerifiedFederatedProfile<T>(
   );
 }
 
+/**
+ * Creates a verified federated identity fixture so tests cannot treat an unproven address as
+ * trusted.
+ */
 export function insertVerifiedFederatedAccount(
   db: Db,
   input: {

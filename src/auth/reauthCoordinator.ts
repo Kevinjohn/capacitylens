@@ -10,6 +10,7 @@
 // several security actions failing with SESSION_NOT_FRESH at once de-dupe onto one dialog (they all
 // share the same promise and all retry once it resolves), rather than stacking N identical dialogs.
 
+/** Security-sensitive account action that may require fresh authentication. */
 export type ReauthAction =
   | "connect-provider"
   | "correct-member-email"
@@ -29,6 +30,7 @@ export type ReauthAction =
   | "lifecycle-delete"
   | "lifecycle-purge";
 
+/** Result delivered to callers when the shared re-authentication flow finishes. */
 export type ReauthResult = { kind: "authenticated" } | { kind: "cancelled" };
 
 type Resolver = (result: ReauthResult) => void;
@@ -72,6 +74,7 @@ export function requestReauth(action: ReauthAction | null = null): Promise<Reaut
 /** Fulfil the pending re-auth request. `true` maps to an `authenticated` result (callers retry);
  * `false` maps to `cancelled` (callers surface the original error). No-op when nothing is pending. */
 type CompleteReauthOptions = { reauthenticated: boolean };
+/** Resolves the pending re-authentication request and releases waiting callers. */
 export function completeReauth({ reauthenticated }: CompleteReauthOptions): void {
   const current = pending;
   if (!current) return;

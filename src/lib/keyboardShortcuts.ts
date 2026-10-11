@@ -22,5 +22,7 @@ export function buildPrimaryShortcut({
     : `Ctrl+${shift ? "Shift+" : ""}${normalizedKey}`;
 }
 
+/** Builds the platform-modified undo shortcut. */
 export const buildUndoShortcut = () => buildPrimaryShortcut({ key: "Z" });
+/** Builds the platform-modified redo shortcut. */
 export const buildRedoShortcut = () => buildPrimaryShortcut({ key: "Z", shift: true });

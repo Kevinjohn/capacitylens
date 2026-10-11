@@ -178,7 +178,7 @@ function createEnabledAuthContext(input: {
   };
 }
 
-// Retain one facade-owned error class and policy surface without a runtime cycle.
+/** Creates the environment auth builder while keeping facade-owned policy out of this module. */
 export function createAuthFromEnvironmentFactory(dependencies: FactoryDependencies) {
   /** Build the Better Auth instance for the parsed mode, or null in 'off' mode, where no
    * env beyond CAPACITYLENS_MODE itself is read. `trustedOrigins` should be the same browser

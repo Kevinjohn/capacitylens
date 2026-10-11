@@ -6,14 +6,26 @@ import { tx } from "../txn";
 import type { Invite } from "./invites";
 import { INVITATION_PERSON_PROPOSALS_SQL } from "./invitationPersonProposals";
 
+/**
+ * Bounds used invitation retention limit so resource use remains predictable under load.
+ */
 export const USED_INVITATION_RETENTION_LIMIT = 200;
+/**
+ * Sets how long terminal invitation records remain available for audit and replay checks.
+ */
 export const USED_INVITATION_RETENTION_MS = 365 * 24 * 60 * 60 * 1_000;
+/**
+ * Creates indexes used to expire old invitation records efficiently.
+ */
 export const INVITATION_RETENTION_INDEXES_V24_SQL = `
 CREATE INDEX IF NOT EXISTS idx_invites_account_usedAt_id
   ON invites(accountId, usedAt DESC, id) WHERE usedAt IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_invites_live_preauthEmail
   ON invites(preauthEmail) WHERE usedAt IS NULL AND preauthEmail IS NOT NULL;
 `;
+/**
+ * Defines the version-24 schema change that adds the used-invitation retention index.
+ */
 export const USED_INVITATION_RETENTION_V24_DEFINITION = [
   `policy:retain-newest-${USED_INVITATION_RETENTION_LIMIT}-used-invitations-per-account:v1`,
   `policy:retain-used-invitations-for-${USED_INVITATION_RETENTION_MS}-milliseconds:v1`,

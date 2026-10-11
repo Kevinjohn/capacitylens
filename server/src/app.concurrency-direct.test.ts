@@ -40,7 +40,8 @@ function createDirectPutConcurrencyTests(): void {
       },
     });
     expect(stale.statusCode).toBe(409);
-    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Ferris"); // not overwritten
+    // Not overwritten.
+    expect(readFirstClientName((await readValidatedState(app)).clients)).toBe("Ferris");
     // A PUT at a newer time succeeds.
     const fresh = await put({
       app,
@@ -161,8 +162,10 @@ function createBatchStalePutConcurrencyTests(): void {
       updatedAt: readClientResponse(created).updatedAt,
     });
     const s = await readValidatedState(app);
-    expect(readClientIds(s.clients)).toEqual(["c1"]); // c2 rolled back with the batch
-    expect(readFirstClientName(s.clients)).toBe("Ferris"); // c1 not overwritten
+    // C2 rolled back with the batch.
+    expect(readClientIds(s.clients)).toEqual(["c1"]);
+    // C1 not overwritten.
+    expect(readFirstClientName(s.clients)).toBe("Ferris");
   });
 }
 

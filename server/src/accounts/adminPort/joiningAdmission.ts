@@ -47,6 +47,9 @@ export function hasProofOwnerRestrictionConflict(db: Db, principalId: string, em
   );
 }
 
+/**
+ * Cancels the browser joining intent when the supplied proof matches the active request.
+ */
 export function cancelCompanyJoinForBrowser(input: {
   db: Db;
   headers: Headers;
@@ -113,6 +116,9 @@ export function assertJoinIntentTargetLive(
   }
 }
 
+/**
+ * Rejects company joining when its current policy does not permit the requested admission.
+ */
 export function assertPolicyAllows(
   settings: JoiningPolicySettings,
   purpose: AdmissionInput["purpose"],

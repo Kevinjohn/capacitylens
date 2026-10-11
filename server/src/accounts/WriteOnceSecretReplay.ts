@@ -15,6 +15,9 @@ interface StoredReplayEntry<T> {
 
 type ReplayEntry<T> = ReservedReplayEntry | StoredReplayEntry<T>;
 
+/**
+ * Distinguishes an accepted secret reservation from one rejected with a retry delay.
+ */
 export type ReplayReservationResult = { kind: "accepted" } | { kind: "rejected"; retryAfterMs: number };
 
 /** Bounded process-local cache for a write-once response. Callers reserve capacity before minting

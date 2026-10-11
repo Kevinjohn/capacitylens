@@ -1,5 +1,6 @@
 import type { AppData, ISOTimestamp } from "@capacitylens/shared/types/entities";
 
+/** Client revision metadata used to guard server-side allocation rewrites. */
 export interface AllocationRewriteRevision {
   id: string;
   createdAt: ISOTimestamp;
@@ -9,6 +10,7 @@ export interface AllocationRewriteRevision {
 }
 
 // Persistence contract shared by the in-memory demo and server-backed application.
+/** Load and save contract implemented by local and server-backed persistence. */
 export interface PersistenceAdapter {
   /** Load persisted data. `accountId` (server adapter only) loads only that account's scoped slice
    * and re-seeds the diff snapshot to it; omitted requests the whole tree (off mode and a pre-pick

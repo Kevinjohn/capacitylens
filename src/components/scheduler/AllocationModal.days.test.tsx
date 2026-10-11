@@ -436,7 +436,7 @@ describe("AllocationModal days mode", () => {
     );
 
     expect(screen.getByLabelText("Days over")).toHaveValue(5);
-    expect(screen.getByLabelText("Days of work")).toHaveValue(5); // full-time across the span
+    expect(screen.getByLabelText("Days of work")).toHaveValue(5);
 
     await chooseOption(user, "Project", "Ferris / Lightning");
     await chooseOption(user, "Activity", "Wireframes");

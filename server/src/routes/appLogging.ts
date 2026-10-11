@@ -27,6 +27,7 @@ export const redactSecretUrl = (url: unknown): string | undefined => {
   try {
     pathname = new URL(inviteSafe, "http://capacitylens.invalid").pathname;
   } catch {
+    // Strip query and fragment before redacting token paths when URL parsing fails.
     const suffixIndex = inviteSafe.search(/[?#]/u);
     pathname = suffixIndex < 0 ? inviteSafe : inviteSafe.slice(0, suffixIndex);
   }

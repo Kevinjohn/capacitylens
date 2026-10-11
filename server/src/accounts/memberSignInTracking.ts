@@ -27,6 +27,9 @@ export function migrateMemberSignInTrackingV26(db: Db): void {
   db.exec(`CREATE TABLE IF NOT EXISTS ${TRACKING_TABLE} (accountId TEXT NOT NULL PRIMARY KEY) STRICT;`);
 }
 
+/**
+ * Rejects a missing or stale tracking schema before sign-in policy reads it.
+ */
 export function assertMemberSignInTrackingSchemaCurrent(db: Db): void {
   const observation = (
     db.prepare("PRAGMA table_info(account_members)").all() as Array<{
@@ -65,6 +68,9 @@ export function assertMemberSignInTrackingSchemaCurrent(db: Db): void {
   if (problems.length > 0) throw new Error(`Member sign-in tracking schema mismatch: ${problems.join("; ")}.`);
 }
 
+/**
+ * Carries a member’s persisted sign-in status and the revision used to detect stale updates.
+ */
 export interface MemberSignInTrackingSnapshot {
   enabled: boolean;
   confirmations: ReadonlyMap<string, boolean>;
@@ -83,6 +89,9 @@ export function readMemberSignInTrackingSnapshot(db: Db, accountId: string): Mem
   };
 }
 
+/**
+ * Supplies the account, member, and sign-in status required to update tracking.
+ */
 export interface SetMemberSignInTrackingInput {
   db: Db;
   accountId: string;
@@ -148,6 +157,10 @@ export function clearTrackedMemberSignIn(db: Db, principalId: string): void {
   ).run(principalId);
 }
 
+/**
+ * Removes member sign in tracking for account with its owning state so stale server operations
+ * records cannot remain.
+ */
 export function removeMemberSignInTrackingForAccount(db: Db, accountId: string): void {
   db.prepare(`DELETE FROM ${TRACKING_TABLE} WHERE accountId = ?`).run(accountId);
 }

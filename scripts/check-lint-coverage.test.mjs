@@ -81,10 +81,10 @@ test("local hooks and pull requests run the intended static-analysis checks", ()
 
 // The pre-commit hook names staged files individually, unlike `eslint .` in `pnpm run lint` and in
 // CI. ESLint skips an ignored file found by a directory scan but WARNS about one named on the
-// command line, and `--max-warnings 0` turns that warning into a failed commit (#798). No other
+// command line, and `--max-warnings 0` turns that warning into a failed commit. No other
 // gate can see this: every one of them scans. Without `--no-warn-ignored`, committing any of the
 // files below is impossible except with `--no-verify`, which skips linting the rest of the commit
-// too — so the hook silently stops linting real source whenever docs machinery is staged with it.
+// too, so the hook silently stops linting real source whenever docs machinery is staged with it.
 test("the pre-commit lint command accepts a staged file that ESLint ignores", () => {
   const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   const command = packageJson["lint-staged"]["*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"];

@@ -1,5 +1,8 @@
 import { defineMigration } from "../migrationLedger";
 
+/**
+ * Creates storage for verified identity email proofs and an email lookup index.
+ */
 export const IDENTITY_EMAIL_PROOF_V48_SQL = `
 CREATE TABLE identity_email_proofs (
   principalId TEXT PRIMARY KEY,
@@ -10,6 +13,9 @@ CREATE TABLE identity_email_proofs (
 CREATE INDEX idx_identity_email_proofs_email ON identity_email_proofs(email);
 `;
 
+/**
+ * Adds the version 48 migration that records identity email proofs.
+ */
 export const IDENTITY_EMAIL_PROOF_V48_MIGRATION = defineMigration(
   48,
   "record-identity-email-proof",

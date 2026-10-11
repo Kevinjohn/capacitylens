@@ -5,6 +5,9 @@ import { tableHasColumns } from "../introspection";
 import { defineMigration } from "../migrationLedger";
 import { CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION } from "./definitions";
 
+/**
+ * Adds the version 39 migration that introduces account access for capacity overview.
+ */
 export const CAPACITY_OVERVIEW_ACCESS_V39_MIGRATION = defineMigration(
   39,
   "add-capacity-overview-access",

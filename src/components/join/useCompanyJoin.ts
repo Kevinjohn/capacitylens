@@ -33,6 +33,7 @@ async function readJoinResponses([metadataResponse, statusResponse, microsoftRes
   return { metadata, local, microsoft };
 }
 
+/** Coordinates the account joining journey across sign-in methods and completion. */
 // eslint-disable-next-line max-lines-per-function -- The account-keyed journey coordinates provider, password and completion state.
 export function useCompanyJoin(accountId: string | undefined, invitationToken: string | null) {
   const { user, refreshAuth, providers = [], authMode } = useAuth();

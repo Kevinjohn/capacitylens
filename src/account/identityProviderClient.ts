@@ -3,11 +3,13 @@ import { API_BASE } from "@/data/apiConfig";
 import { apiFetch } from "@/data/requestTimeout";
 import type { ReauthAction } from "@/auth/reauthCoordinator";
 
+/** Reads the current identity-provider link state. */
 export function readIdentityProvider(providerId?: string): Promise<Response> {
   const query = providerId ? `?providerId=${encodeURIComponent(providerId)}` : "";
   return apiFetch(`${API_BASE}/api/identity/provider${query}`, { credentials: "include" });
 }
 
+/** Starts a re-authenticated identity-provider link flow. */
 export function linkIdentityProvider(callbackURL: string, providerId?: string): Promise<Response> {
   return apiFetchReauth(
     `${API_BASE}/api/identity/link-provider`,

@@ -1,4 +1,5 @@
 import type { FlushPendingWritesResult, RefreshOutcome } from "./facades";
+/** Callbacks registered by an adapter for refresh and write coordination. */
 export interface PersistenceRegistration {
   refreshActive?: (id: string) => Promise<Exclude<RefreshOutcome, { kind: "unattached" }>>;
   flushPending?: () => Promise<FlushPendingWritesResult>;
@@ -50,4 +51,5 @@ class PersistenceCoordinator {
   }
 }
 
+/** Shared coordinator for persistence refreshes and write reconciliation. */
 export const persistenceCoordinator = new PersistenceCoordinator();

@@ -333,6 +333,7 @@ function MasqueradeBanner({
   );
 }
 
+/** Coordinates application routes, navigation, account notices, and global dialogs. */
 export function AppShell() {
   const navigate = useNavigate();
   const { paletteOpen, closePalette } = useAppShellController();

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useState } from "react";
 
+/** Field-scoped validation state and actions shared by a form. */
 export interface FieldError {
   /** The current error message, or null. */
   error: string | null;

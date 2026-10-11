@@ -3,18 +3,12 @@ import { coreSpecPattern, parseReportPhaseName, selectsOnlyExplicitCoreSpecs } f
 import { resolvePlaywrightRunMode } from "./scripts/playwrightRunMode.mjs";
 import { ports, testShare } from "./scripts/ports.mjs";
 
-// Playwright drives the real app via Vite. Three project flavours:
-//   chromium    — the in-memory DEMO build on the lane web port (VITE_CAPACITYLENS_DEMO=1).
-//   db-backed   — the SQLite server (lane db API, reset enabled, temp DB) + a second Vite
-//                 dev server (lane db web) whose same-origin /api proxy targets that server
-//                 through the entity-level ServerSyncAdapter. *.db.spec.ts run here.
-//   auth-backed — a third server (lane auth API) booted with CAPACITYLENS_MODE=password-only (fresh
-//                 DB per run) + a Vite dev server (lane auth web) proxying to it — the ONLY place the
-//                 flag-gated login screen exists (US-NAV-10). *.auth.spec.ts run here.
-// Lane-derived (scripts/ports.mjs). Lane 0 is the historical 5173/5273/5373/8787/8887, so a single
-// checkout and CI see no change; a run launched through scripts/with-lane.mjs gets its own lane, so
-// ten worktrees can run this suite at once. The lane is already fixed in the environment by the
-// time this file is evaluated — a globalSetup would claim one far too late to choose these ports.
+// Playwright drives the app through Vite in three project groups:
+//   chromium: in-memory demo on the lane web port.
+//   db-backed: temporary SQLite server plus a Vite proxy; *.db.spec.ts run here.
+//   auth-backed: password-only server plus a Vite proxy, where the login screen exists (US-NAV-10).
+// Each worktree receives isolated lane ports for concurrent runs. Global setup runs too late
+// to choose them, so the lane must set them before this file is evaluated.
 const lanePorts = ports();
 const WEB_PORT = lanePorts.web;
 const API_PORT = lanePorts.dbApi;
@@ -25,23 +19,18 @@ const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
 const coreSpec = coreSpecPattern;
 const flavourSpec = (flavour: "db" | "auth") => new RegExp(String.raw`\.${flavour}\.spec\.${specExtension}$`, "i");
 
-// Cross-browser opt-in (WebKit/Safari + Firefox/Gecko). `e2e:webkit` / `e2e:firefox` set the
-// matching *_ONLY flag: each runs ONLY that browser's twin of the core in-memory demo specs against
-// the lane web dev server, so it needs neither the SQLite nor the auth server — and pointedly NOT
-// Node 24 (those servers need node:sqlite; the core specs don't). `e2e:browsers`
-// (scripts/e2e-browsers.mjs) runs the core specs on all THREE engines (Chromium+WebKit, then
-// Firefox) Vite-only via CAPACITYLENS_VITE_ONLY; `e2e:all` (scripts/e2e-all.mjs) runs Chromium with
-// the db/auth server specs, then gives WebKit and Firefox isolated Vite-only invocations. Later
-// engines run unconditionally — see those scripts for why.
-// A *_ONLY flag (or its un-suffixed sibling CAPACITYLENS_WEBKIT / CAPACITYLENS_FIREFOX) makes that browser's
-// project exist; CAPACITYLENS_VITE_ONLY (or either *_ONLY) trims the webServer list to Vite-only.
+// WebKit and Firefox opt-ins run the core demo specs against Vite without SQLite or auth servers.
+// e2e:browsers runs the core specs on all three engines. e2e:all runs Chromium's server-backed
+// specs, then starts isolated Vite-only runs for WebKit and Firefox; later engines still run
+// after an earlier engine fails. CAPACITYLENS_WEBKIT or CAPACITYLENS_FIREFOX enables its project.
+// The matching *_ONLY flag also selects Vite-only servers; CAPACITYLENS_VITE_ONLY selects them
+// without limiting the browser projects.
 const runMode = resolvePlaywrightRunMode(process.env, process.argv, selectsOnlyExplicitCoreSpecs);
 const projectEnabled = (name: (typeof runMode.projects)[number]) => runMode.projects.includes(name);
 const reportPhase = parseReportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
 
-// The base app under Vite on the lane web port — the only server the core (and WebKit/Firefox) specs need.
-// Runs the in-memory DEMO build so the core specs stay backend-free now that server is the
-// app's default; the db/auth flavours below carry their own proxy target.
+// Core and cross-browser specs use the in-memory demo server. Database and auth projects have
+// their own Vite proxies and API targets.
 const devWebServer = {
   command: "pnpm run dev:demo",
   url: `http://localhost:${WEB_PORT}`,
@@ -65,11 +54,8 @@ export default defineConfig({
   // that half. Every worker drives a browser, so the reservation is the right unit here.
   workers: testShare(),
   retries: process.env.CI ? 2 : 0,
-  // No global override here on purpose: only db-backed and rehearsal share a mutable SQLite
-  // fixture across tests (see their own `workers: 1`, below) — chromium and auth-backed
-  // are per-test-isolated (fresh browser context; auth specs mint unique
-  // emails/orgs per test, e.g. login.auth.spec.ts's `${Date.now()}-${testInfo.workerIndex}`
-  // suffix) and are safe at Playwright's default parallelism, including on CI.
+  // Only db-backed and rehearsal share a mutable SQLite fixture, so each sets workers to one.
+  // Chromium and auth-backed tests use isolated browser contexts and can run in parallel.
   reporter: process.env.CI
     ? [
         ["github"],
@@ -116,13 +102,9 @@ export default defineConfig({
           },
         ]
       : []),
-    // Safari/WebKit & Firefox twins of the core in-memory demo specs (owner; WebKit 2026-06-13,
-    // Firefox 2026-06-16): the exact same specs as `chromium` (testIgnore matches), run on the
-    // other engines to catch Safari-/Gecko-only rendering and interaction regressions. Kept OUT of
-    // the default `pnpm run e2e` so Chrome stays the fast inner loop — opt in with `pnpm run
-    // e2e:webkit` / `pnpm run e2e:firefox` (one project each) or `pnpm run e2e:all` (full matrix).
-    // The db-backed/auth-backed flavours stay Chrome-only: they exercise server round-trips and
-    // the persistence seam, not cross-engine rendering.
+    // WebKit and Firefox run the same in-memory demo specs as Chromium to catch engine-specific
+    // rendering and interaction regressions. They are opt-in so the default e2e command stays fast.
+    // Database and auth projects remain Chromium-only because they cover server and persistence flows.
     ...(projectEnabled("webkit")
       ? [
           {
@@ -140,10 +122,7 @@ export default defineConfig({
           {
             name: "firefox",
             testMatch: coreSpec,
-            // No `dependencies` here on purpose: `e2e:all` sequences Firefox AFTER the WebKit matrix
-            // at the SCRIPT level (scripts/e2e-all.mjs runs two invocations) so Firefox runs
-            // unconditionally — a project dependency on `webkit` would SKIP Firefox whenever the
-            // WebKit pass had a single failure, hiding Firefox-only regressions.
+            // Firefox runs separately, so a WebKit failure cannot skip it.
             use: {
               ...devices["Desktop Firefox"],
               baseURL: `http://localhost:${WEB_PORT}`,
@@ -151,11 +130,7 @@ export default defineConfig({
           },
         ]
       : []),
-    // Browser upgrade rehearsal (docs-src/reference/development.md#browser-upgrade-rehearsal): exists only when CAPACITYLENS_REHEARSAL_URL is set —
-    // the production build served behind a local /api proxy (scripts/serve-dist.mjs), with
-    // test reset enabled on a disposable API. Reuses the db-backed specs verbatim; the
-    // baseURL override is the only difference. Started by the operator, so the
-    // dev webServers below are skipped for these runs (see the webServer conditional).
+    // The browser-upgrade rehearsal exists only when CAPACITYLENS_REHEARSAL_URL is set.
     ...(projectEnabled("rehearsal")
       ? [
           {
@@ -174,10 +149,8 @@ export default defineConfig({
         ]
       : []),
   ],
-  // Rehearsal runs bring their own production-shaped stack (development guide) — don't boot the dev
-  // servers under them. A core-specs-only run (`e2e:webkit`/`e2e:firefox`/`e2e:browsers`, i.e.
-  // viteOnly) needs only Vite on the lane web port. Every other run keeps the full list (the SQLite + auth
-  // servers the db/auth specs depend on).
+  // Rehearsal runs provide their own stack. Cross-browser core runs need only Vite; other runs
+  // start the SQLite and auth servers required by their specs.
   webServer:
     runMode.serverProfile === "rehearsal"
       ? []
@@ -205,12 +178,8 @@ export default defineConfig({
               env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT), VITE_CAPACITYLENS_API: "" },
             },
             {
-              // CAPACITYLENS_MODE=password-only + a dev-only secret live in the pnpm script; the DB file is
-              // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
-              // already-running auth API — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
-              // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
-              // bootstrap-credential spec with a confusing red (same lesson as the web-port block
-              // above and the 2026-07-08 orphaned-:8787 war story in the decisions log).
+              // Start a fresh auth API for each run because its database wipe and admin bootstrap
+              // execute only during startup.
               command: "pnpm run start:auth-e2e",
               cwd: "./server",
               url: `http://localhost:${AUTH_API_PORT}/api/health`,

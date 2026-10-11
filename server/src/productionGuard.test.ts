@@ -189,7 +189,7 @@ describe("production mandatory service controls", () => {
     const end = envExample.indexOf("# Audit log path.", start);
     const auditBlock = envExample.slice(start, end);
 
-    expect(auditBlock).toContain("server REFUSES to boot with CAPACITYLENS_AUDIT=off");
+    expect(auditBlock).toContain("the server refuses to boot with\n# CAPACITYLENS_AUDIT=off");
     expect(auditBlock).toContain("NODE_ENV=production");
     expect(productionPosture({ CAPACITYLENS_MODE: "sso-only", CAPACITYLENS_AUDIT: "off" }).refusals[0]).toContain(
       "CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production",

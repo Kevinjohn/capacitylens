@@ -1,3 +1,4 @@
+/** Window event used to publish a server audit warning. */
 export const AUDIT_WARNING_EVENT = "capacitylens:audit-warning";
 
 /** The response header an API server sets when audit delivery became degraded. */

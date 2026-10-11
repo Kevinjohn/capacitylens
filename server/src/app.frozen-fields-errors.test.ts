@@ -24,7 +24,8 @@ function createFrozenFieldPatchTests(): void {
     await seedFrozen(app);
     const res = await patch({ app, entity: "accounts", id: "a1", payload: { weekStartsOn: 0 } });
     expect(res.statusCode).toBe(409);
-    expect((await readStateAccount(app)).weekStartsOn).toBe(1); // unchanged
+    // Unchanged.
+    expect((await readStateAccount(app)).weekStartsOn).toBe(1);
   });
 
   it("PATCH changing timezone → 409", async () => {
@@ -223,7 +224,8 @@ function createFrozenFieldPreferenceAndBatchTests(): void {
       },
     ]);
     expect(res.statusCode).toBe(409);
-    expect((await readStateAccount(app)).timezone).toBe("Etc/GMT"); // tx rolled back
+    // Tx rolled back.
+    expect((await readStateAccount(app)).timezone).toBe("Etc/GMT");
   });
 }
 
@@ -306,7 +308,8 @@ describe("error status mapping (statusFor)", () => {
     });
 
     it("maps a real FOREIGN KEY violation to 400", () => {
-      const db = openDb(":memory:"); // openDb turns foreign_keys ON
+      // OpenDb turns foreign_keys ON.
+      const db = openDb(":memory:");
       const e = grab(() =>
         db.exec(
           `INSERT INTO clients (id, accountId, name, color, createdAt, updatedAt) VALUES ('c', 'no-such-account', 'Ferris', '#fff', 't', 't')`,

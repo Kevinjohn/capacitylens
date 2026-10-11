@@ -3,8 +3,17 @@ import type { ImportWorkerRequest, ImportWorkerResult } from "./importWorker";
 import { readCurrentRequestAbortSignal, reportCurrentRequestQueueSaturation } from "./requestAbort";
 import { readAbortReason, BoundedWorkQueue } from "./workQueue";
 
+/**
+ * Limits concurrent import workers to two.
+ */
 export const MAX_CONCURRENT_IMPORT_WORKERS = 2;
+/**
+ * Limits import jobs waiting for a worker to eight.
+ */
 export const MAX_QUEUED_IMPORT_WORKERS = 8;
+/**
+ * Fails an import that waits more than five seconds for a worker.
+ */
 export const MAX_IMPORT_QUEUE_WAIT_MS = 5_000;
 const IMPORT_CAPACITY_MESSAGE = "Import preparation is temporarily at capacity. Retry shortly.";
 
@@ -25,6 +34,9 @@ interface ImportWorkerThread {
   terminate(): Promise<number>;
 }
 
+/**
+ * Configures the import worker launcher and its bounded queue.
+ */
 export interface ImportWorkerRunnerOptions {
   maxActive?: number;
   maxQueued?: number;

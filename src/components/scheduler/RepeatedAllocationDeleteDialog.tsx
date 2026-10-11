@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+/** Requires a choice between deleting one entry and its repeated group. */
 export function RepeatedAllocationDeleteDialog({
   onDeleteOne,
   onDeleteFuture,

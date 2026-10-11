@@ -1,5 +1,8 @@
 import type { Db } from "./db";
 
+/**
+ * Names the SQLite table that atomically records one-time bootstrap ownership.
+ */
 export const BOOTSTRAP_CLAIM_TABLE = "capacitylens_bootstrap_claim";
 
 /** Canonical application-owned table used to serialize first-owner identity creation. */

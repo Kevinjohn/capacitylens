@@ -96,6 +96,7 @@ function createToggleOffline(input: LocalDataActionInput, offlineAction: ReturnT
   };
 }
 
+/** Coordinates local backup, import, and reset actions with visible notices. */
 export function useLocalDataActions(input: LocalDataActionInput) {
   const { setNotice } = input;
   const clearAction = useClearLocalStorageAction(setNotice);

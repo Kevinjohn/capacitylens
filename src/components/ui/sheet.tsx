@@ -4,28 +4,33 @@ import { Dialog as SheetPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/cn";
 
+/** Provides the root state for a sheet. */
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
 }
 
+/** Opens the associated sheet. */
 function SheetTrigger({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
   return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
 }
 
+/** Renders a control that closes the sheet. */
 function SheetClose({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Close>) {
   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />;
 }
 
+/** Mounts sheet content outside its parent. */
 function SheetPortal({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />;
 }
 
+/** Renders the backdrop behind sheet content. */
 function SheetOverlay({
   className,
   ...props
@@ -43,6 +48,7 @@ function SheetOverlay({
   );
 }
 
+/** Renders the sheet surface. */
 function SheetContent({
   className,
   children,
@@ -84,6 +90,7 @@ function SheetContent({
   );
 }
 
+/** Groups the sheet heading and description. */
 function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -94,6 +101,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Groups sheet actions. */
 function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -104,6 +112,7 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Renders the accessible sheet title. */
 function SheetTitle({
   className,
   ...props
@@ -117,6 +126,7 @@ function SheetTitle({
   );
 }
 
+/** Renders the sheet description. */
 function SheetDescription({
   className,
   ...props

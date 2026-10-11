@@ -22,7 +22,7 @@ import { ports } from "../../scripts/ports.mjs";
 // Read measured source at build time; generated pages keep this inline script.
 const escapeClosesLightbox = readFileSync(new URL("../../scripts/docs-lightbox.js", import.meta.url), "utf8").trimEnd();
 
-// VitePress is Vite, so `docs:dev` would default to 5173 and `docs:preview` to 4173 — the exact
+// VitePress is Vite, so `docs:dev` would default to 5173 and `docs:preview` to 4173, the exact
 // ports the application dev server and the E2E suite bind. Writing documentation would then quietly
 // block a test run in another worktree, and the collision surfaces as an unrelated E2E failure.
 // Pin both to the documentation lane instead (scripts/ports.mjs).
@@ -186,14 +186,11 @@ export default defineConfig({
   // turns the build into standalone pages that open straight from disk, where
   // extensionless URLs would need a server to rewrite them.
   cleanUrls: false,
-  // The built pages are a committed artifact in the repo-root docs/ folder,
-  // not an ignored .vitepress/dist — rebuild with `pnpm run docs:build` after
-  // editing anything under docs-src/.
+  // Commit the standalone pages to the repository-root docs/ directory.
+  // Run `pnpm run docs:build` after changing anything under docs-src/.
   outDir: "../docs",
-  // Off, because it cannot work in this build and was rendering as a defect:
-  // VitePress emits `Last updated: <time datetime="…"></time>` and fills the
-  // text in client-side, but docs-standalone.mjs strips every script — so each
-  // page shipped a "Last updated:" label followed by nothing at all.
+  // Disable this because standalone output removes the VitePress client bundle
+  // that fills the timestamp, leaving a "Last updated:" label with no date.
   //
   // It also made the build unreproducible: the baked timestamp is the last
   // commit touching that page's .md, so the same sources built on a CI runner

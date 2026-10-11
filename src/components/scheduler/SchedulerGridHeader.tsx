@@ -11,6 +11,7 @@ type Props = Pick<ReturnType<typeof useSchedulerViewport>, "days" | "geom"> &
     headerRef: Ref<HTMLDivElement>;
     calendarWeekStartsOn: 0 | 1;
   };
+/** Aligns date labels and capacity columns with the schedule grid. */
 export function SchedulerGridHeader({
   headerRef,
   utilizationPrefs: utilizationPreferences,

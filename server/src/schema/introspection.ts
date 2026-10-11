@@ -1,4 +1,7 @@
 import type { Db } from "../db";
+/**
+ * Describes the name, type, nullability, and primary-key position reported by SQLite.
+ */
 export interface ColumnInfo {
   name: string;
   type: string;
@@ -14,14 +17,23 @@ interface SchemaColumnInfo extends ColumnInfo {
 const columns = (db: Db, table: string): ColumnInfo[] =>
   db.prepare(`PRAGMA table_info(${table})`).all() as unknown as ColumnInfo[];
 
+/**
+ * Reads the SQLite column metadata for a table.
+ */
 export const schemaColumns = (db: Db, table: string): SchemaColumnInfo[] =>
   db.prepare(`PRAGMA table_xinfo(${table})`).all() as unknown as SchemaColumnInfo[];
 
 // Exported so controlTables.ts's own PRAGMA table_info(X)-shaped column-presence checks can reuse
 // this single definition instead of a second hand-rolled copy.
+/**
+ * Returns whether a table contains the named column.
+ */
 export const hasColumn = (db: Db, table: string, column: string): boolean =>
   columns(db, table).some((c) => c.name === column);
 
+/**
+ * Returns whether SQLite marks the column as non-null.
+ */
 export const isNotNull = (db: Db, table: string, column: string): boolean =>
   columns(db, table).some((c) => c.name === column && c.notnull === 1);
 
@@ -31,6 +43,9 @@ export const isNotNull = (db: Db, table: string, column: string): boolean =>
 export const tableExists = (db: Db, table: string): boolean =>
   (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`).all(table) as unknown[]).length > 0;
 
+/**
+ * Supplies the table name and required column definitions checked by schema validation.
+ */
 export interface AssertTableColumnsInput {
   db: Db;
   table: string;
@@ -39,6 +54,9 @@ export interface AssertTableColumnsInput {
   message: string;
 }
 
+/**
+ * Describes the expected name and nullability for one schema column.
+ */
 export interface ExpectedColumn {
   name: string;
   type: string;

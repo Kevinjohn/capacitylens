@@ -53,6 +53,9 @@ type ListMembersContext = Pick<
 >;
 
 // This projection binds directory, resource and account-level permissions in one response.
+/**
+ * Builds the authorized member directory with its account and resource permissions.
+ */
 // eslint-disable-next-line max-lines-per-function
 export async function listMembers(req: FastifyRequest<AccountRoute>, reply: FastifyReply, context: ListMembersContext) {
   const {
@@ -136,6 +139,9 @@ export async function listResourceAvatars(
   }
 }
 
+/**
+ * Updates the member’s sign-in tracking setting through the account administration port.
+ */
 export async function setMemberSignInTracking(
   req: FastifyRequest<AccountRoute>,
   reply: FastifyReply,
@@ -171,6 +177,9 @@ export async function setMemberSignInTracking(
   }
 }
 
+/**
+ * Changes a member’s role after checking the caller’s authority and target.
+ */
 export async function changeMemberRole(
   req: FastifyRequest<MemberRoute>,
   reply: FastifyReply,
@@ -218,6 +227,9 @@ export async function changeMemberRole(
   }
 }
 
+/**
+ * Changes a member’s active, disabled, or archived state after authorization.
+ */
 export async function changeMemberStatus(
   req: FastifyRequest<MemberRoute>,
   reply: FastifyReply,
@@ -266,6 +278,9 @@ export async function changeMemberStatus(
   }
 }
 
+/**
+ * Restores a member’s access after authorization and membership checks.
+ */
 export async function enableMemberAccess(
   req: FastifyRequest<MemberRoute>,
   reply: FastifyReply,
@@ -301,6 +316,9 @@ export async function enableMemberAccess(
   }
 }
 
+/**
+ * Removes the member and its dependent account records through the administration port.
+ */
 export async function removeMember(
   req: FastifyRequest<MemberRoute>,
   reply: FastifyReply,

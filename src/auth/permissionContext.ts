@@ -28,6 +28,7 @@ export interface PermissionContextValue {
   status?: "not-applicable" | "pending" | "resolved" | "unavailable";
 }
 
+/** Context for the active account role and permission-check status. */
 export const PermissionContext = createContext<PermissionContextValue>({ role: null, status: "not-applicable" });
 
 /**

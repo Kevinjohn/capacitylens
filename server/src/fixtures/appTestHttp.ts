@@ -1,11 +1,20 @@
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
+/**
+ * Sends an HTTP request through Fastify’s in-process injection API.
+ */
 export const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> => app.inject(opts);
 
+/**
+ * Represents the error fields asserted by API integration tests.
+ */
 export interface ErrorResponse {
   error: string;
   code?: string;
 }
 
+/**
+ * Requires a JSON error string and returns its optional string code.
+ */
 export function readErrorResponse(response: LightMyRequestResponse): ErrorResponse {
   const value: unknown = response.json();
   if (typeof value !== "object" || value === null || !("error" in value) || typeof value.error !== "string") {
@@ -20,11 +29,20 @@ export function readErrorResponse(response: LightMyRequestResponse): ErrorRespon
   return { error: value.error };
 }
 
+/**
+ * Narrows a request payload to Fastify’s accepted injection payload type.
+ */
 export const body = (payload: unknown) => payload as NonNullable<InjectOptions["payload"]>;
 
+/**
+ * Sends a JSON POST request to an entity collection endpoint.
+ */
 export const post = (app: FastifyInstance, entity: string, payload: unknown) =>
   call(app, { method: "POST", url: `/api/${entity}`, payload: body(payload) });
 
+/**
+ * Supplies the route and payload for an entity replacement request.
+ */
 export interface PutInput {
   app: FastifyInstance;
   entity: string;
@@ -32,6 +50,9 @@ export interface PutInput {
   payload: unknown;
 }
 
+/**
+ * Sends a JSON PUT request to one entity endpoint.
+ */
 export const put = ({ app, entity, id, payload }: PutInput) =>
   call(app, {
     method: "PUT",
@@ -39,6 +60,9 @@ export const put = ({ app, entity, id, payload }: PutInput) =>
     payload: body(payload),
   });
 
+/**
+ * Supplies the route and payload for an entity partial update.
+ */
 export interface PatchInput {
   app: FastifyInstance;
   entity: string;
@@ -46,6 +70,9 @@ export interface PatchInput {
   payload: unknown;
 }
 
+/**
+ * Sends a JSON PATCH request to one entity endpoint.
+ */
 export const patch = ({ app, entity, id, payload }: PatchInput) =>
   call(app, {
     method: "PATCH",
@@ -53,6 +80,9 @@ export const patch = ({ app, entity, id, payload }: PatchInput) =>
     payload: body(payload),
   });
 
+/**
+ * Supplies the entity ID and optional account scope for a delete request.
+ */
 export interface DelInput {
   app: FastifyInstance;
   entity: string;
@@ -62,14 +92,23 @@ export interface DelInput {
 
 // Scoped tables now require an asserted owning account on DELETE; pass accountId for them.
 // accounts (top-level) carry none, so accountId is omitted there.
+/**
+ * Sends a DELETE request, including the account ID when the table is scoped.
+ */
 export const del = ({ app, entity, id, accountId }: DelInput) =>
   call(app, {
     method: "DELETE",
     url: accountId ? `/api/${entity}/${id}?accountId=${accountId}` : `/api/${entity}/${id}`,
   });
+/**
+ * Posts operations to the batch endpoint.
+ */
 export const batch = (app: FastifyInstance, ops: unknown[]) =>
   call(app, { method: "POST", url: "/api/batch", payload: body({ ops }) });
 
+/**
+ * Carries the operations and sync-order headers for an ordered batch request.
+ */
 export interface OrderedBatchInput {
   app: FastifyInstance;
   sessionId: string;
@@ -77,6 +116,9 @@ export interface OrderedBatchInput {
   ops: unknown[];
 }
 
+/**
+ * Posts a batch with its sync session and sequence headers.
+ */
 export const orderedBatch = ({ app, sessionId, sequence, ops }: OrderedBatchInput) =>
   call(app, {
     method: "POST",

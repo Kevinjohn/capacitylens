@@ -28,7 +28,8 @@ describe("fixed demo seed", () => {
 describe("runtime demo seed", () => {
   it("shifts date scenarios onto the reference week while retaining their relative layout", () => {
     const fixed = seed();
-    const current = seedForCurrentWeek("2031-09-17"); // Wednesday; week starts Monday 15th
+    // Wednesday; week starts Monday 15th.
+    const current = seedForCurrentWeek("2031-09-17");
 
     expect(current.allocations[0]).toMatchObject({
       startDate: "2031-09-15",

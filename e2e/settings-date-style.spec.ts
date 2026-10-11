@@ -5,7 +5,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // Covers US-SET-17. The date-style preference (account-wide, default "day-month") governs how
 // dates and ranges read across the app. This spec asserts the Settings control and one
-// representative surface — the Time off list, whose weekday form reorders
+// representative surface, the Time off list, whose weekday form reorders
 // without losing its ordinal. Range collapsing itself is covered exhaustively in
 // src/lib/dateDisplay.test.ts, so it is not re-asserted here through the browser.
 test.describe("Settings — date style", () => {
@@ -31,7 +31,7 @@ test.describe("Settings — date style", () => {
       .filter({ has: page.getByRole("heading", { name: "Bruce Wayne", exact: true }) })
       .getByTestId("timeoff-row")
       .first();
-    // Weekday form always carries the ordinal; the style only reorders day/month — Bruce's first
+    // Weekday form always carries the ordinal; the style only reorders day/month, Bruce's first
     // seeded row reads "Wed Jun 10th" under 'month-day' and "Wed 10th Jun" under the default.
     await expect(row).toContainText("Wed Jun 10th");
   });
@@ -45,8 +45,8 @@ test.describe("Settings — date style", () => {
     const sheet = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
     // The header's range collapses the repeated month at both styles; only the order moves, so
     // this is the assertion that would catch a call site left on a hand-built range.
-    // "Jun" is a pin, not an accident: `freezeBrowserDate` (e2e/browserTestSupport.ts) holds the clock at
-    // 2026-06-03, so a regression that rendered the window against the wrong month would show here.
+    // The browser date is frozen to 3 June 2026, so the schedule header should show a June range.
+    // This checks the range formatter against the fixed date rather than the machine date.
     await expect(sheet.getByTestId("person-schedule-header")).toContainText(/Jun \d{1,2} – \d{1,2}/);
     await expect(sheet.getByTestId("person-schedule-header")).not.toContainText(/\d{1,2} – \d{1,2} Jun/);
   });

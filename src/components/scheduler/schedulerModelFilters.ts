@@ -61,6 +61,7 @@ function createWorkVisibility({
   };
 }
 
+/** Builds predicates for the active schedule filters and resource visibility. */
 export function createAllocationFilters(
   filters: Filters,
   { disciplinesEnabled, placeholdersEnabled, externalEnabled }: SchedulerModelOptions["preferences"],

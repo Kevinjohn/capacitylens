@@ -6,6 +6,7 @@ import { Slot } from "radix-ui";
 import { cn } from "@/lib/cn";
 import { Separator } from "@/components/ui/separator";
 
+/** Groups related items. */
 function ItemGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -17,6 +18,7 @@ function ItemGroup({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Separates adjacent items. */
 function ItemSeparator({
   className,
   ...props
@@ -53,6 +55,7 @@ const itemVariants = cva(
   },
 );
 
+/** Renders a content item with a selected layout variant. */
 function Item({
   className,
   variant = "default",
@@ -91,6 +94,7 @@ const itemMediaVariants = cva(
   },
 );
 
+/** Renders media alongside item content. */
 function ItemMedia({
   className,
   variant = "default",
@@ -106,6 +110,7 @@ function ItemMedia({
   );
 }
 
+/** Groups the title and description of an item. */
 function ItemContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -119,6 +124,7 @@ function ItemContent({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Renders an item heading. */
 function ItemTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -132,6 +138,7 @@ function ItemTitle({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Renders supporting text for an item. */
 function ItemDescription({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
@@ -146,6 +153,7 @@ function ItemDescription({ className, ...props }: React.ComponentProps<"p">) {
   );
 }
 
+/** Groups actions associated with an item. */
 function ItemActions({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -156,6 +164,7 @@ function ItemActions({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Groups item header content. */
 function ItemHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -169,6 +178,7 @@ function ItemHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Renders supplementary item content. */
 function ItemFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

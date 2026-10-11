@@ -107,6 +107,7 @@ function ExampleDataSection() {
   );
 }
 
+/** Exposes export, import, and local data controls allowed by the current mode. */
 export function SettingsDataSection({
   serverMode,
   authMode,

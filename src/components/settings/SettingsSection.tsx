@@ -36,6 +36,7 @@ function SettingsSectionTitle({
   );
 }
 
+/** Provides the shared heading and content layout for settings. */
 export function SettingsSection({
   title,
   help,

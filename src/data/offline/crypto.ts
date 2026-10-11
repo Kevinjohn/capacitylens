@@ -10,6 +10,7 @@ import { awaitRequest, awaitTx, openOfflineDb } from "./idb";
 import { cacheGeneration, advanceCacheGeneration } from "./state";
 import type { CachedRecord, EncryptedRecord, WriteBoundary } from "./types";
 
+/** Returns Web Crypto when available or explains why encrypted offline access cannot start. */
 export function assertWebCrypto(): Crypto {
   const availableCrypto: unknown = Reflect.get(globalThis, "crypto");
   if (!hasSubtleCrypto(availableCrypto)) {
@@ -34,6 +35,7 @@ async function readDeviceKey(db: IDBDatabase): Promise<CryptoKey | null> {
     : null;
 }
 
+/** Loads or creates the persisted non-extractable device encryption key. */
 export async function readOrCreateDeviceKey(db: IDBDatabase): Promise<CryptoKey> {
   const existing = await readDeviceKey(db);
   if (existing) return existing;
@@ -86,6 +88,7 @@ function createWriteBoundaryToken(): string {
 type WriteBoundaryAdvanceResult =
   { kind: "stored"; token: string } | { kind: "storageFailed"; token: string; storageError: unknown };
 
+/** Advances the cache-write boundary so earlier in-flight writes can be rejected. */
 export function advanceWriteBoundary(): WriteBoundaryAdvanceResult {
   advanceCacheGeneration();
   const token = createWriteBoundaryToken();
@@ -105,6 +108,7 @@ async function readDurableWriteBoundary(store: IDBObjectStore): Promise<string |
   return value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string" ? value.token : null;
 }
 
+/** Initialises the durable cache-write boundary in IndexedDB. */
 export async function initialiseWriteBoundary(db: IDBDatabase): Promise<void> {
   const tx = db.transaction(KEY_STORE_NAME, "readwrite");
   const store = tx.objectStore(KEY_STORE_NAME);
@@ -119,6 +123,7 @@ export async function initialiseWriteBoundary(db: IDBDatabase): Promise<void> {
   localStorage.setItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, token);
 }
 
+/** Builds authenticated metadata bound to a cache record key and save time. */
 export function buildAssociatedData(key: string, savedAt: number): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v1`);
 }
@@ -128,6 +133,7 @@ export function readWriteBoundary(): WriteBoundary {
   return { generation: cacheGeneration, token: readStoredWriteBoundaryToken() };
 }
 
+/** Encrypts and stores a cache record with its authenticated key and timestamp. */
 export async function writeEncryptedRecord<T>(
   record: CachedRecord<T>,
   writeBoundary: WriteBoundary,

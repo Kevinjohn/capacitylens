@@ -6,6 +6,7 @@ import type { Allocation, Closure, ISODate, Resource, TimeOff } from "@capacityl
 import { hasAllocationLoadOnDay, hasOverCapacity } from "./primitives";
 import { isWorkingDay, isUnavailable, resolveScheduledHoursOnDay } from "./availability";
 
+/** Capacity impact summary for a proposed allocation. */
 export interface CapacityAdvisory {
   overDays: number; // days the proposed allocation works where existing + proposed hours exceed availability
   timeOffDays: number; // days in the window the resource is on time off

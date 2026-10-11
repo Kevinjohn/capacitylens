@@ -138,7 +138,8 @@ describe("resetOwnerPassword guards", () => {
 
   it("refuses a database that is not migrated to the current schema", async () => {
     const databasePath = tempDbPath();
-    writeFileSync(databasePath, ""); // a zero-byte file is a valid, entirely unmigrated SQLite database
+    // A zero-byte file is a valid, entirely unmigrated SQLite database.
+    writeFileSync(databasePath, "");
     await expect(run(databasePath)).rejects.toThrow(/is not current/);
   });
 

@@ -2,8 +2,14 @@ import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
 import type { CommandId, IdempotencyKey, PrincipalId, WorkspaceId } from "@capacitylens/shared/account/types";
 import type { Db } from "../../db";
 
+/**
+ * Names the persisted lifecycle states of an idempotent account command.
+ */
 export type AccountCommandStatus = "pending" | "completed" | "compensated" | "reconciliation_required";
 
+/**
+ * Represents the stored command key, participants, outcome, and audit timestamps.
+ */
 export interface AccountCommandRecord {
   applicationId: string;
   operation: string;
@@ -52,6 +58,9 @@ interface GetAccountCommandInput {
   idempotencyKey: IdempotencyKey;
 }
 
+/**
+ * Finds the command matching an application, operation, and idempotency key.
+ */
 export function getAccountCommand({
   db,
   applicationId,
@@ -70,6 +79,9 @@ export function getAccountCommand({
   return row ? parseAccountCommandRow(row) : null;
 }
 
+/**
+ * Finds a command by its identifier within one application.
+ */
 export function getAccountCommandById(
   db: Db,
   applicationId: string,
@@ -87,6 +99,9 @@ export function getAccountCommandById(
   return row ? parseAccountCommandRow(row) : null;
 }
 
+/**
+ * Finds a command by identifier across applications for installation-level recovery.
+ */
 export function getAccountCommandByGlobalId(db: Db, commandId: CommandId): AccountCommandRecord | null {
   const row = db
     .prepare(

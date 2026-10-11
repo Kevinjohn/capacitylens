@@ -13,6 +13,7 @@ import type { AccountMode } from "@capacitylens/shared/account/types";
 /** @deprecated Prefer the provider-neutral AccountMode. */
 export type AuthMode = AccountMode;
 
+/** Verified user identity exposed to authenticated application screens. */
 export interface AuthUser {
   id: string;
   name?: string;
@@ -29,22 +30,28 @@ interface AuthProviderBase {
   brand?: AuthProviderBrand;
 }
 
+/** Brand used to label a configured social sign-in provider. */
 export type AuthProviderBrand = "generic" | "google" | "microsoft";
 
+/** Social provider IDs the client recognises from server metadata. */
 export const SUPPORTED_SOCIAL_PROVIDER_IDS = ["google", "microsoft", "github"] as const;
+/** Provider ID accepted by social sign-in flows. */
 export type SupportedSocialProviderId = (typeof SUPPORTED_SOCIAL_PROVIDER_IDS)[number];
 const supportedSocialProviderIds: ReadonlySet<string> = new Set(SUPPORTED_SOCIAL_PROVIDER_IDS);
 
+/** Checks whether an untrusted provider ID is supported by the client. */
 export function isSupportedSocialProviderId(value: unknown): value is SupportedSocialProviderId {
   return typeof value === "string" && supportedSocialProviderIds.has(value);
 }
 
+/** Configured social provider metadata used by sign-in and linking screens. */
 export type AuthProviderInfo = AuthProviderBase & { id: SupportedSocialProviderId; kind: "social" };
 
 export function hasGoogleProviderBrand(provider: Pick<AuthProviderInfo, "id" | "kind" | "brand">): boolean {
   return provider.brand === "google" || (provider.brand === undefined && provider.id === "google");
 }
 
+/** Authentication state, provider options, and actions available to app screens. */
 export interface AuthContextValue {
   authMode: AccountMode;
   user: AuthUser | null;
@@ -78,6 +85,7 @@ export interface AuthContextValue {
   signOut: () => Promise<void>;
 }
 
+/** Context supplying authentication state to the application. */
 export const AuthContext = createContext<AuthContextValue>({
   authMode: "off",
   user: null,
@@ -88,6 +96,7 @@ export const AuthContext = createContext<AuthContextValue>({
   signOut: async () => {},
 });
 
+/** Reads authentication state and actions from the nearest auth provider. */
 export function useAuth(): AuthContextValue {
   return useContext(AuthContext);
 }

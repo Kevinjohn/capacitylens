@@ -36,6 +36,7 @@ type AccountWriteDependencies = Pick<
   | "accountFail"
 >;
 
+/** Route parameters for a single account item. */
 export interface AccountItemRoute {
   Params: { id: string };
 }
@@ -326,6 +327,7 @@ function patch(dependencies: AccountWriteDependencies, req: FastifyRequest<Accou
   }
 }
 
+/** Builds account PUT and PATCH handlers with their shared dependencies. */
 export function createAccountWriteHandlers(dependencies: AccountWriteDependencies) {
   return {
     put: (req: FastifyRequest<AccountItemRoute>, reply: FastifyReply) => put(dependencies, req, reply),

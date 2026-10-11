@@ -586,7 +586,7 @@ function registerModalFooterTests() {
     );
     const first = screen.getByRole("button", { name: "First" });
     const second = screen.getByRole("button", { name: "Second" });
-    expect(document.activeElement).toBe(first); // focuses first control on open
+    expect(document.activeElement).toBe(first);
 
     second.focus();
     // Parent re-renders with a brand-new onClose (as a store mutation would cause).
@@ -595,10 +595,10 @@ function registerModalFooterTests() {
         {body}
       </Modal>,
     );
-    expect(document.activeElement).toBe(second); // focus not yanked back to first
+    expect(document.activeElement).toBe(second);
 
     unmount();
-    expect(document.activeElement).toBe(trigger); // focus returns to the opener
+    expect(document.activeElement).toBe(trigger);
     trigger.remove();
   });
 }
@@ -1226,8 +1226,8 @@ function registerColorFieldModalTests(BLUE: string, RED: string) {
     expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument();
     const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
     await user.click(backdrop);
-    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument(); // popup closed
-    expect(onClose).not.toHaveBeenCalled(); // modal stayed open
+    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("does NOT swallow a press on another control inside the same dialog (first click lands)", async () => {
@@ -1242,11 +1242,11 @@ function registerColorFieldModalTests(BLUE: string, RED: string) {
       </Modal>,
     );
     fireEvent.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
-    expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument(); // popup open
+    expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument();
     // A press on another in-dialog control must reach it while Popover handles dismissal.
     await user.click(screen.getByTestId("sibling"));
-    expect(onSiblingDown).toHaveBeenCalledTimes(1); // not swallowed
-    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument(); // popup closed
+    expect(onSiblingDown).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 }
 

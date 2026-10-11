@@ -87,10 +87,12 @@ export function resolveTimeOffTypeLabel(type: TimeOffType): string {
   return resolveMessage(timeOffTypeMessages, type);
 }
 
+/** Builds localised labels for every allocation status. */
 export function buildAllocationStatusLabels(): Record<AllocationStatus, string> {
   return buildLabels(allocationStatusMessages);
 }
 
+/** Builds localised labels for every time-off type. */
 export function buildTimeOffTypeLabels(): Record<TimeOffType, string> {
   return buildLabels(timeOffTypeMessages);
 }
@@ -116,12 +118,15 @@ export function resolveResourceDisplayName(resource: Resource): string {
   return resolveTrimmedValue(resource.name, resource.role);
 }
 
+/** Builds allocation status choices for form controls. */
 export function buildAllocationStatusOptions(): LabelOption<AllocationStatus>[] {
   return buildLabelOptions(buildAllocationStatusLabels());
 }
+/** Builds resource engagement choices for form controls. */
 export function buildResourceEngagementOptions(): LabelOption<ResourceEngagement>[] {
   return buildLabelOptions(buildLabels(resourceEngagementMessages));
 }
+/** Builds time-off type choices for form controls. */
 export function buildTimeOffTypeOptions(): LabelOption<TimeOffType>[] {
   return buildLabelOptions(buildTimeOffTypeLabels());
 }

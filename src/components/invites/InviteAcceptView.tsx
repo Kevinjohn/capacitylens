@@ -14,6 +14,7 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/co
 import { InvitePasswordContent, InviteProviderButtons } from "./InvitePasswordContent";
 import { formatInviteExpiry } from "./inviteExpiry";
 
+/** Distinguishes invitation preview, authentication, completion, and failure states. */
 export type InviteAcceptState =
   | { kind: "previewing" }
   | { kind: "ready" }
@@ -29,6 +30,7 @@ export type InviteAcceptState =
   | { kind: "auth"; message?: string; errorField?: string | null }
   | { kind: "local" };
 
+/** Validated invitation details shown before acceptance. */
 export interface InvitePreview {
   accountId?: string | null;
   accountName: string;

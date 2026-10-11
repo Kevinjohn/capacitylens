@@ -249,6 +249,7 @@ function parseJoiningPolicy(value: unknown): JoiningPolicySettings | null {
 /** Typed account-administration boundary. Raw Response handling and untrusted payload codecs stay
  * here; the Team & access controller consumes semantic outcomes only. */
 type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
+/** Provides typed request methods for team and access administration. */
 export const teamAccessClient = {
   ...ownershipTransferAccess,
 

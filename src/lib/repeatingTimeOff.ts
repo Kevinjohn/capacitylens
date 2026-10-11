@@ -1,6 +1,10 @@
 import { addDaysISO, daysInclusive } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { generateRepeatingStartDates, TIME_OFF_REPEAT_POLICY } from "@capacitylens/shared/lib/repeatingDates";
+import {
+  generateRepeatingStartDates,
+  RepeatingDateError,
+  TIME_OFF_REPEAT_POLICY,
+} from "@capacitylens/shared/lib/repeatingDates";
 import type { RepeatPattern } from "@capacitylens/shared/lib/repeatingDates";
 import type { ISODate, TimeOff } from "@capacitylens/shared/types/entities";
 import type { Draft } from "@/store/useStore";
@@ -30,11 +34,11 @@ export function buildRepeatedTimeOffDrafts(
   selection: TimeOffRepeatSelection,
 ): { repeatUntil: ISODate; drafts: Draft<TimeOff>[] } {
   if (!isValidISODate(baseDraft.startDate) || !isValidISODate(baseDraft.endDate)) {
-    throw new RangeError("Time off requires valid ISO dates.");
+    throw new RepeatingDateError("invalid-date", "Time off requires valid ISO dates.");
   }
   const duration = daysInclusive(baseDraft.startDate, baseDraft.endDate);
   if (!Number.isSafeInteger(duration) || duration < 1) {
-    throw new RangeError("Repeat projection requires a valid inclusive date range.");
+    throw new RepeatingDateError("invalid-date", "Repeat projection requires a valid inclusive date range.");
   }
   const generated = generateRepeatingStartDates(
     baseDraft.startDate,
@@ -44,7 +48,14 @@ export function buildRepeatedTimeOffDrafts(
   );
   const drafts = generated.startDates.map((startDate, index) => {
     if (index === 0) return baseDraft;
-    return { ...baseDraft, startDate, endDate: addDaysISO(startDate, duration - 1) };
+    try {
+      return { ...baseDraft, startDate, endDate: addDaysISO(startDate, duration - 1) };
+    } catch (error) {
+      if (error instanceof RangeError) {
+        throw new RepeatingDateError("invalid-date", "Repeated time off extends beyond the supported ISO date range.");
+      }
+      throw error;
+    }
   });
   return { repeatUntil: generated.repeatUntil, drafts };
 }

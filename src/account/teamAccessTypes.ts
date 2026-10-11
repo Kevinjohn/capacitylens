@@ -1,6 +1,7 @@
 import type { InvitationRole, MembershipStatus } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 
+/** A workspace member and the resource-link state shown in team access. */
 export interface TeamMember {
   userId: string;
   role: Role;
@@ -27,12 +28,14 @@ export interface TeamMember {
   } | null;
 }
 
+/** Members, sign-in tracking state, and resource candidates for a workspace. */
 export interface TeamDirectory {
   members: TeamMember[];
   signInTrackingEnabled: boolean;
   resourceCandidates: { resourceId: string; label: string }[];
 }
 
+/** An invitation and its optional pre-authorised resource assignment. */
 export interface TeamInvitation {
   id: string;
   role: InvitationRole;
@@ -44,6 +47,7 @@ export interface TeamInvitation {
   proposedResourceLabel?: string;
 }
 
+/** A one-time secret returned by a member-access operation. */
 export interface OneTimeToken {
   emailed?: boolean;
   id?: string;

@@ -14,6 +14,9 @@ import type { AccountAuditInput } from "../accountFlowRuntime";
 import type { SynchronousCallback } from "../../txn";
 import type { WriteOnceSecretReplay } from "../WriteOnceSecretReplay";
 
+/**
+ * Implements the account administration operations backed by the local SQLite store.
+ */
 export interface LocalAccountAdminPort extends AccountAdminPort {
   roleForPrincipalInWorkspace(principalId: string, workspaceId: string): Role | null;
   workspacePrincipalIds(workspaceId: string): readonly string[];
@@ -69,9 +72,18 @@ export interface SsoCutoverWorkspaceFact {
   members: readonly { principalId: string; role: Role; status: "active" }[];
 }
 
+/**
+ * Pins the policy version stored with account administration records.
+ */
 export const ACCOUNT_POLICY_VERSION = "account-policy-v1";
 
+/**
+ * Caps invitations at thirty days so an issued invitation cannot remain redeemable indefinitely.
+ */
 export const MAX_INVITATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * Carries the database, application identity, and trust mode needed by account administration.
+ */
 export interface AdminPortContext {
   applicationId: string;
   audit: (event: AccountAuditInput) => void;
@@ -81,6 +93,9 @@ export interface AdminPortContext {
   runMutation: <Execute extends () => unknown>(options: MutationOptions<Execute>) => Promise<ReturnType<Execute>>;
 }
 
+/**
+ * Carries the operation name and callback used to record an account mutation.
+ */
 export interface MutationOptions<Execute extends () => unknown> {
   operation: string;
   actorPrincipalId: string | null;

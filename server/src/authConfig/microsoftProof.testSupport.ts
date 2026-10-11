@@ -3,7 +3,14 @@ import { createAuthFromEnvironment, runAuthMigrations } from "../auth";
 import type { Auth } from "../auth";
 import { insertRow, openDb } from "../db";
 
+/**
+ * Collects sent mail so provider proof tests can inspect delivery without an external mail
+ * service.
+ */
 const sentMessages = vi.hoisted(() => [] as Array<{ to: string; text: string }>);
+/**
+ * Lets provider proof tests force a delivery failure without changing production behavior.
+ */
 const mailFailure = vi.hoisted(() => ({ enabled: false }));
 export { sentMessages, mailFailure };
 vi.mock("nodemailer", () => ({
@@ -22,8 +29,17 @@ vi.mock("nodemailer", () => ({
   },
 }));
 
+/**
+ * Pins the Microsoft tenant used by provider proof tests so identity claims stay deterministic.
+ */
 export const tenant = "01234567-89ab-cdef-0123-456789abcdef";
+/**
+ * Provides the local origin used by browser proof tests without contacting a real provider.
+ */
 export const origin = "http://localhost:8787";
+/**
+ * Provides controlled auth configurations for provider proof tests.
+ */
 export const environments = {
   CAPACITYLENS_MODE: "sso-only",
   CAPACITYLENS_SECRET: "unit-test-secret-0123456789abcdef-0123",
@@ -43,16 +59,25 @@ function jwt(claims: Record<string, unknown>): string {
   return `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.sig`;
 }
 
+/**
+ * Builds the Cookie header from Set-Cookie values so callback tests preserve browser state.
+ */
 export function cookieHeader(setCookies: readonly string[]): string {
   return setCookies.map((line) => line.split(";", 1)[0]).join("; ");
 }
 
+/**
+ * Reads callback state from a URL so tests exercise the browser state check.
+ */
 export function requiredState(url: string): string {
   const state = new URL(url).searchParams.get("state");
   if (!state) throw new Error("Expected a native OAuth state.");
   return state;
 }
 
+/**
+ * Replaces matching cookie values so tests can follow a browser callback across responses.
+ */
 export function replaceCookies(existing: string, replacement: readonly string[]): string {
   const cookies = new Map<string, string>();
   for (const pair of existing.split("; ")) {
@@ -66,6 +91,9 @@ export function replaceCookies(existing: string, replacement: readonly string[])
   return [...cookies.values()].join("; ");
 }
 
+/**
+ * Supplies deterministic Microsoft token claims without making a network request.
+ */
 export function mockMicrosoftToken(claims: Record<string, unknown>): void {
   vi.stubGlobal(
     "fetch",
@@ -85,6 +113,9 @@ export function mockMicrosoftToken(claims: Record<string, unknown>): void {
   );
 }
 
+/**
+ * Builds an auth instance with a controlled Microsoft proof configuration for tests.
+ */
 export async function configured(mode: "sso-only" | "password-and-sso" = "sso-only") {
   const db = openDb(":memory:");
   const { auth } = createAuthFromEnvironment(
@@ -100,6 +131,9 @@ export async function configured(mode: "sso-only" | "password-and-sso" = "sso-on
   return { db, auth: auth as Auth & { microsoftProof: NonNullable<Auth["microsoftProof"]> } };
 }
 
+/**
+ * Builds a Microsoft profile with the requested verified-email state for tests.
+ */
 export function claims(email?: string) {
   return {
     iss: `https://login.microsoftonline.com/${tenant}/v2.0`,
@@ -113,6 +147,9 @@ export function claims(email?: string) {
   };
 }
 
+/**
+ * Starts a Microsoft proof flow through the auth instance used by the test.
+ */
 export async function begin(auth: Auth & { microsoftProof: NonNullable<Auth["microsoftProof"]> }) {
   const result = await auth.microsoftProof.start({
     body: {
@@ -129,6 +166,9 @@ export async function begin(auth: Auth & { microsoftProof: NonNullable<Auth["mic
   return { state, cookies: cookieHeader(result.setCookies) };
 }
 
+/**
+ * Completes the Microsoft proof callback with the state and cookies held by the test browser.
+ */
 export async function callback(auth: Auth, state: string, cookies: string) {
   return auth.handler(
     new Request(`${origin}/api/auth/callback/microsoft?code=controlled-code&state=${encodeURIComponent(state)}`, {
@@ -137,6 +177,9 @@ export async function callback(auth: Auth, state: string, cookies: string) {
   );
 }
 
+/**
+ * Creates a verified federated account fixture so callback tests start from a proven identity.
+ */
 export function insertProofAccount(db: ReturnType<typeof openDb>, accountId: "a-studio" | "a-loft"): void {
   insertRow(db, "accounts", {
     id: accountId,

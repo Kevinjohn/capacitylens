@@ -69,4 +69,7 @@ export function createCachedTableStatement({
   return statement;
 }
 
+/**
+ * Returns one SQLite placeholder per supplied value for a parameterized `IN` clause.
+ */
 export const buildPlaceholders = (n: number) => Array.from({ length: n }, () => "?").join(", ");

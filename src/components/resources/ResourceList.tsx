@@ -11,6 +11,7 @@ import { ResourceListContent } from "./ResourceListContent";
 import { useResourceListModel } from "./useResourceListModel";
 import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
 
+/** Shows scoped people and external resources using the resource list model. */
 export function ResourceList() {
   const model = useResourceListModel();
   const { archive } = useLifecycleActions();

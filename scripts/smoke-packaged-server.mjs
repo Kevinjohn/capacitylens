@@ -56,6 +56,9 @@ async function waitFor({ description, timeoutMs, check, childOutcome }) {
   throw new Error(`Timed out waiting for ${description}.${detail}`);
 }
 
+/**
+ * Builds the isolated environment used to smoke-test a packaged server.
+ */
 export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port }) {
   const environment = { ...inherited };
   for (const key of Object.keys(environment)) {

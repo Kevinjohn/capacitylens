@@ -5,10 +5,13 @@ import type { TeamMember } from "@/account/teamAccessClient";
 
 // Pure copy and status tables for member confirmations. They live apart from the
 // MemberConfirmations component so that file exports only components (react-refresh).
+/** Member administration actions that require a confirmation message. */
 export type MemberConfirmationAction =
   "masquerade" | "remove" | "resetPassword" | "revokeSessions" | "disable" | "enable" | "archive" | "restore";
+/** A pending action and its target member. */
 export type MemberConfirmation = { kind: MemberConfirmationAction; member: TeamMember };
 
+/** Chooses a non-empty display label for a member confirmation. */
 export function resolveMemberLabel(member: TeamMember): string {
   const name = member.name?.trim();
   if (name && member.email) return `${name} (${member.email})`;
@@ -18,6 +21,7 @@ export function resolveMemberLabel(member: TeamMember): string {
 }
 
 // Keep all confirmation wording beside the action-to-status contract below.
+/** Builds action-specific confirmation wording for the target member. */
 // eslint-disable-next-line max-lines-per-function
 export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation): {
   title: string;

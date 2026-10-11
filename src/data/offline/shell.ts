@@ -11,6 +11,7 @@ import { assertWebCrypto, readOrCreateDeviceKey, initialiseWriteBoundary } from 
 import { openOfflineDb } from "./idb";
 import { clearAllOfflineData } from "./cleanup";
 
+/** Reports whether the current build can register the offline application shell. */
 export function isOfflineShellAvailable(environment: { PROD: boolean; MODE: string }): boolean {
   return environment.PROD || environment.MODE === "test";
 }

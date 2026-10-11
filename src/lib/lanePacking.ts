@@ -7,17 +7,20 @@ import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 // lane. Ends are inclusive, so an item ending on day X overlaps one starting on
 // day X, hence the strict `<` in the free-lane test.
 
+/** Date interval and stable identifier supplied to the lane packer. */
 export interface Interval {
   id: ID;
   startDate: ISODate; // inclusive
   endDate: ISODate; // inclusive
 }
 
+/** Packed interval with its assigned lane index. */
 export interface LaneItem {
   id: ID;
   lane: number;
 }
 
+/** Packed lane assignments and the number of lanes required. */
 export interface PackResult {
   lanes: LaneItem[];
   laneCount: number;
@@ -31,6 +34,7 @@ function compareIntervals(a: Interval, b: Interval): number {
   return 0;
 }
 
+/** Assigns overlapping date intervals to separate lanes. */
 export function packLanes(items: Interval[]): PackResult {
   if (items.length === 0) return { lanes: [], laneCount: 0 };
 
@@ -70,6 +74,7 @@ export function packLanes(items: Interval[]): PackResult {
   return { lanes, laneCount: laneEnds.length };
 }
 
+/** Pixel geometry for rows and bars in a packed lane group. */
 export interface LaneLayout {
   barHeight: number;
   laneGap: number;

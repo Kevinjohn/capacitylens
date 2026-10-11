@@ -155,6 +155,7 @@ function useScheduleFields(seed: AllocationModalSeed, calendarTimeZone: string) 
   };
 }
 
+/** Tracks dates, quantity, and repeat choices for an allocation draft. */
 export function useAllocationScheduleState({
   selectedResource,
   mode,

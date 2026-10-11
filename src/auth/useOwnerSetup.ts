@@ -61,6 +61,7 @@ export function normalizeSetupToken(value: string): string | null {
   }
 }
 
+/** Manages first-owner account creation and its form state. */
 export function useOwnerSetup({
   email,
   password,

@@ -934,14 +934,17 @@ function registerPersistentErrorNoticeTest(): void {
         useStore.getState().setNotice("Info that should auto-dismiss.");
       });
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(50); // let Sonner mount/portal the toast
+        // Sonner needs a tick to mount the toast portal.
+        await vi.advanceTimersByTimeAsync(50);
       });
       expect(screen.getByText(/auto-dismiss/)).toBeInTheDocument();
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(4500); // past the 4000ms info window + exit animation
+        // Advance past the info duration and exit animation.
+        await vi.advanceTimersByTimeAsync(4500);
       });
       expect(screen.queryByText(/auto-dismiss/)).not.toBeInTheDocument();
-      expect(useStore.getState().notice).toBeNull(); // bridge cleared the store in lock-step
+      // The bridge must clear the store when the toast closes.
+      expect(useStore.getState().notice).toBeNull();
 
       // Error: created with duration: Infinity, so the same 4500ms advance must not dismiss it.
       act(() => {
@@ -956,7 +959,8 @@ function registerPersistentErrorNoticeTest(): void {
       expect(message.closest("[data-sonner-toast]")).toHaveClass("toast-error");
 
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(4500); // well past where an info toast would have gone
+        // An error toast must remain after the info duration.
+        await vi.advanceTimersByTimeAsync(4500);
       });
       expect(screen.getByText(/could not be moved/)).toBeInTheDocument();
       expect(useStore.getState().notice?.tone).toBe("error");
@@ -966,7 +970,8 @@ function registerPersistentErrorNoticeTest(): void {
         screen.getByRole("button", { name: "Close toast" }).click();
       });
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(500); // exit animation → removal + onDismiss
+        // Let the exit animation finish so onDismiss can clear the notice.
+        await vi.advanceTimersByTimeAsync(500);
       });
       expect(useStore.getState().notice).toBeNull();
     } finally {
@@ -989,7 +994,8 @@ function registerPersistentWarningNoticeTest(): void {
         useStore.getState().setNotice("Work volume was capped at 24h/day.", "warning");
       });
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(50); // let Sonner mount/portal the toast
+        // Sonner needs a tick to mount the toast portal.
+        await vi.advanceTimersByTimeAsync(50);
       });
       const message = screen.getByText(/capped at 24h\/day/);
       const toastEl = message.closest("[data-sonner-toast]");
@@ -1038,7 +1044,8 @@ function registerNoticeReplacementRaceTest(): void {
         useStore.getState().setNotice("First notice");
       });
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(50); // let Sonner mount/portal toast A
+        // Sonner needs a tick to mount the first toast portal.
+        await vi.advanceTimersByTimeAsync(50);
       });
       expect(screen.getByText("First notice")).toBeInTheDocument();
 
@@ -1052,10 +1059,12 @@ function registerNoticeReplacementRaceTest(): void {
       // mid-animation. Total here (~250ms post-swap) stays well under the 4000ms auto-dismiss,
       // so B never auto-closes.
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(50); // A's deferred onDismiss fires (the race trigger)
+        // The first toast may dismiss after the replacement is visible.
+        await vi.advanceTimersByTimeAsync(50);
       });
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(200); // A's exit animation completes → node removed
+        // Finish the first toast's exit animation before checking the replacement.
+        await vi.advanceTimersByTimeAsync(200);
       });
 
       // Core assertion, the store still holds B (A's deferred clear was identity-guarded out; an
@@ -1168,7 +1177,8 @@ describe("AppShell undo/redo keyboard", () => {
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
     });
-    expect(useStore.getState().data.clients).toHaveLength(1); // Not undone
+    // A dirty form must retain its unsaved edit when undo is requested.
+    expect(useStore.getState().data.clients).toHaveLength(1);
 
     // Form no longer dirty → ⌘Z undoes as normal.
     act(() => {
@@ -1177,7 +1187,8 @@ describe("AppShell undo/redo keyboard", () => {
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
     });
-    expect(useStore.getState().data.clients).toHaveLength(0); // undone
+    // Once the form is clean, undo must reach the store.
+    expect(useStore.getState().data.clients).toHaveLength(0);
   });
 
   it("ignores undo and redo while a clean modal has focus on a non-text control", () => {

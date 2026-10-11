@@ -6,6 +6,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 /** Per-call admin token capture prevents concurrent copy-link requests from swapping tokens. */
 export const resetTokenCapture = new AsyncLocalStorage<{ token: string | null }>();
+/** Captures session handles to revoke after a password reset. */
 export const passwordResetSessionCapture = new AsyncLocalStorage<{ sessionHandles: readonly string[] }>();
 
 /** Better Auth converts adapter exceptions into a generic 500 Response before its public handler
@@ -18,6 +19,7 @@ export const authHandlerErrorCapture = new AsyncLocalStorage<{ error: unknown }>
  * writes from running while the transaction is open. */
 export const preparedPasswordHashCapture = new AsyncLocalStorage<{ password: string | null; hash: string | null }>();
 
+/** Holds Microsoft proof and profile state for the current provider callback only. */
 export const microsoftCallbackCapture = new AsyncLocalStorage<{
   request: Request;
   proofId: string | null;
@@ -44,6 +46,7 @@ function hasSqliteConstraintCode(error: object): boolean {
   );
 }
 
+/** Recognizes a uniqueness conflict between federated account coordinates. */
 export function isFederatedAccountCoordinateConstraint(error: unknown): boolean {
   if (!isObject(error) || !hasSqliteConstraintCode(error) || !("message" in error)) return false;
 

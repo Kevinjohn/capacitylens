@@ -14,6 +14,7 @@ import type { createAppRuntime } from "./appRuntime";
 import { enqueueMasqueradeEndAudit } from "./masqueradeRoutes";
 import { REPLY_ERRORS } from "./replyErrors";
 
+/** Inputs required to resolve the session attached to an incoming request. */
 export interface ResolveIncomingSessionInput {
   req: FastifyRequest;
   force?: boolean | undefined;
@@ -233,6 +234,7 @@ function isUnsafeMethod(method: string): boolean {
   return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
 }
 
+/** Installs the hooks that resolve and attach authenticated sessions. */
 export function installSessionResolution({
   app,
   runtime,

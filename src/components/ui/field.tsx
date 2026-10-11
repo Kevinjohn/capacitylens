@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
+/** Groups related form fields in a fieldset. */
 function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   return (
     <fieldset
@@ -20,6 +21,7 @@ function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   );
 }
 
+/** Renders the legend for a fieldset. */
 function FieldLegend({
   className,
   variant = "legend",
@@ -40,6 +42,7 @@ function FieldLegend({
   );
 }
 
+/** Groups related form fields. */
 function FieldGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -77,6 +80,7 @@ const fieldVariants = cva(
   },
 );
 
+/** Renders a form field and its associated content. */
 function Field({
   className,
   orientation = "vertical",
@@ -93,6 +97,7 @@ function Field({
   );
 }
 
+/** Groups the label and supporting content for a field. */
 function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -106,6 +111,7 @@ function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Renders a field label. */
 function FieldLabel({
   className,
   ...props
@@ -124,6 +130,7 @@ function FieldLabel({
   );
 }
 
+/** Renders a field title. */
 function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -137,6 +144,7 @@ function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Renders supporting text for a field. */
 function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
@@ -152,6 +160,7 @@ function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
   );
 }
 
+/** Separates field groups with optional text. */
 function FieldSeparator({
   children,
   className,
@@ -182,6 +191,7 @@ function FieldSeparator({
   );
 }
 
+/** Renders validation messages associated with a field. */
 function FieldError({
   className,
   children,

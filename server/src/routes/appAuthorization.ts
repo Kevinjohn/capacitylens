@@ -14,7 +14,9 @@ import type { installRootHooks } from "./appRootHooks";
 import type { AppOptions } from "../app";
 import { FROZEN_REPLY_MESSAGES, REPLY_ERRORS } from "./replyErrors";
 
+/** The outcome of an authorization check. */
 export type AuthorizationResult = { kind: "allowed"; role: Role | null } | { kind: "denied" };
+/** The result of resolving a user's effective role for an account. */
 export type EffectiveRoleResult = { kind: "resolved"; role: Role | null } | { kind: "ended" };
 
 interface CreateAuthorizationInput {
@@ -172,7 +174,8 @@ function createAuthorize({ authMode, resolveEffectiveRole, securityEvent }: Auth
     }
     const { role } = resolved;
     if (role === null) return denyMissingRole(input, securityEvent);
-    if (!can(role, input.action)) return denyInsufficientRole(input, role, securityEvent); // member, tier too low
+    // Members and lower roles cannot perform this action.
+    if (!can(role, input.action)) return denyInsufficientRole(input, role, securityEvent);
     return requireFreshSession(input, securityEvent) ? { kind: "allowed", role } : { kind: "denied" };
   };
 }
@@ -202,6 +205,7 @@ function redactWriteEcho(
   return redactGatedEcho(table, row, visibility);
 }
 
+/** Builds route authorization helpers from the application runtime and request hooks. */
 export function createAuthorization({ app, runtime, config, options, rootHelpers }: CreateAuthorizationInput) {
   const { authMode } = config;
   const { corsOrigins, securityEvent } = rootHelpers;

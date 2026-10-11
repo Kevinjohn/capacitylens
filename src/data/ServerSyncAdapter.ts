@@ -176,6 +176,7 @@ function throwLifecycleError(error: unknown): void {
 // atomic on failure. Batch receipts carry server-owned revisions; the adapter reconciles them
 // with client-local change markers before advancing lastSynced or flushing a queued edit.
 
+/** Persists account data through the server batch and refresh APIs. */
 export class ServerSyncAdapter implements PersistenceAdapter {
   private readonly state: SyncState;
 

@@ -6,13 +6,20 @@ import { REPLY_ERRORS } from "./replyErrors";
 // TRIGGER (1811), FUNCTION (1043), VTAB (2323), COMMIT_HOOK (531) and other internal constraint
 // sources: those are server/storage failures and must remain logged 500s.
 const SQLITE_CALLER_DATA_CONSTRAINT_CODES = new Set([
-  275, // SQLITE_CONSTRAINT_CHECK
-  787, // SQLITE_CONSTRAINT_FOREIGNKEY
-  1299, // SQLITE_CONSTRAINT_NOTNULL
-  1555, // SQLITE_CONSTRAINT_PRIMARYKEY
-  2067, // SQLITE_CONSTRAINT_UNIQUE
-  2579, // SQLITE_CONSTRAINT_ROWID
-  3091, // SQLITE_CONSTRAINT_DATATYPE
+  // SQLite's extended code for CHECK constraint failure.
+  275,
+  // SQLite's extended code for foreign key constraint failure.
+  787,
+  // SQLite's extended code for NOT NULL constraint failure.
+  1299,
+  // SQLite's extended code for primary key constraint failure.
+  1555,
+  // SQLite's extended code for unique constraint failure.
+  2067,
+  // SQLite's extended code for row ID constraint failure.
+  2579,
+  // SQLite's extended code for data type constraint failure.
+  3091,
 ]);
 
 /** node:sqlite exposes SQLite's extended numeric result in `errcode`. Require both its error code
@@ -29,10 +36,7 @@ function isSqliteConstraintError(error: unknown): boolean {
   );
 }
 
-// Map a thrown error to an HTTP status. Caller-fault errors, domain validation
-// (ValidationError) and DB constraint/FK violations, are 400; anything else is an
-// unexpected server/db bug and must surface as 500 (not be hidden as a 400).
-// Exported for unit testing the classification.
+/** Maps validated caller faults to 400 and unexpected server or database failures to 500. */
 export function resolveErrorStatus(error: unknown): number {
   if (error instanceof ValidationError) return 400;
   if (isSqliteConstraintError(error)) return 400;
@@ -54,6 +58,7 @@ export function resolveRequestClientIp({ request, trustProxyHeaders }: ResolveRe
   return request.ip;
 }
 
+/** Sends a redacted client error and logs unexpected server failures. */
 export function fail(reply: FastifyReply, error: unknown, logError: (e: unknown) => void = console.error) {
   const status = resolveErrorStatus(error);
   // A 500 is an unexpected server/db bug: log the real error server-side but return a

@@ -100,14 +100,14 @@ export default defineConfig([
     "playwright-report",
     "test-results",
     "**/node_modules",
-    // Paraglide-generated i18n output (P1.5.1) — machine-generated, never hand-edited or linted.
+    // Paraglide generates this message runtime from committed sources, so coverage excludes it.
     "src/paraglide",
-    // Stryker mutation-testing sandbox + report (`pnpm run mutation`) — copies of the whole repo;
+    // Stryker mutation output copies the repository during an on-demand run.
     // linting them double-parses every file and confuses the typed parser's tsconfig-root lookup.
     ".stryker-tmp",
     "reports",
-    // Documentation: docs/ is the generated build, docs-src/ is hand-maintained
-    // prose (plus its VitePress config) — linters keep their hands off both.
+    // Linters skip both documentation trees: docs/ is generated, and docs-src/ contains
+    // prose and the VitePress config.
     "docs",
     "docs-src",
     "scripts/docs-lightbox.js",
@@ -152,8 +152,8 @@ export default defineConfig([
     },
   },
 
-  // The web app is the only React package — React/Fast-Refresh rules and browser
-  // globals apply here, not to the DOM-free shared/ and server/ packages.
+  // React/Fast-Refresh rules and browser globals apply only to the web app; shared/ and
+  // server/ stay DOM-free.
   {
     files: ["src/**/*.{ts,tsx}"],
     extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],

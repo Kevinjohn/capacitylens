@@ -15,6 +15,7 @@ interface PrivacyPatch {
   codeName?: string | undefined;
 }
 
+/** Tracks private name edits under the current role permission. */
 export function usePrivateNameFields(source: PrivateNameSource | undefined, fail: FormFieldError["fail"]) {
   const role = useRole();
   const canManagePrivacy = role === null || canSeePrivateNames(role);
@@ -40,4 +41,5 @@ export function usePrivateNameFields(source: PrivateNameSource | undefined, fail
   };
 }
 
+/** State and handlers returned for authorised private name editing. */
 export type PrivateNameFieldsState = ReturnType<typeof usePrivateNameFields>;

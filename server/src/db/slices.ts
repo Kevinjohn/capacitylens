@@ -100,6 +100,9 @@ export function buildCompleteAccountSlice(data: AppData): CompleteAccountSlice {
   return data as CompleteAccountSlice;
 }
 
+/**
+ * Reads slice from its authoritative source so decisions use persisted state.
+ */
 export function readSlice(
   db: Db,
   accountId: string,

@@ -315,6 +315,9 @@ async function acceptInviteWithPasswordSignup(
   });
 }
 
+/**
+ * Creates the invitation signup operations that coordinate identity creation and invitation redemption.
+ */
 export function createInviteSignupFlows(
   dependencies: InviteSignupDependencies,
 ): Pick<LocalAccountFlows, "acceptInviteWithPasswordSignup"> {

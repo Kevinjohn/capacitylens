@@ -1,5 +1,6 @@
 import type { ID } from "@capacitylens/shared/types/entities";
 
+/** Schedule filters for discipline, work, search, and visibility preferences. */
 export interface Filters {
   disciplineId: ID | null;
   clientId: ID | null;
@@ -18,6 +19,7 @@ export interface Filters {
   showUnmatched: boolean;
 }
 
+/** Create the default schedule filters with no active lens. */
 export const buildEmptyFilters = (): Filters => ({
   disciplineId: null,
   clientId: null,
@@ -32,6 +34,7 @@ export const buildEmptyFilters = (): Filters => ({
 /** Drop the entity lenses (discipline / client / project / activity) while leaving the text search
  * and the tentative/unmatched view preferences exactly as the user set them. Used where new data
  * arrives under the same tenant and the old lens ids no longer resolve. */
+/** Clear entity lenses while preserving search and view preferences. */
 export const clearEntityLenses = (filters: Filters): Filters => ({
   ...filters,
   disciplineId: null,
@@ -43,16 +46,19 @@ export const clearEntityLenses = (filters: Filters): Filters => ({
 
 /** The project/client lens specifically, the pair that decides whether a bar "matches the filter"
  * (the activity lens is standalone and mutually exclusive with it via setFilters). */
+/** Check whether a project or client lens is active. */
 export function hasProjectClientLens(filters: Filters): boolean {
   return filters.projectId !== null || filters.clientId !== null;
 }
 
 /** Any "what work" lens is active, project/client or activity. This is the gate for the dimmed
  * show-unmatched staffing view, which behaves identically whichever of the two lenses is set. */
+/** Check whether any work lens is active. */
 export function hasLensFilter(filters: Filters): boolean {
   return hasProjectClientLens(filters) || filters.activityId !== null || filters.activityKind !== null;
 }
 
+/** Check whether any filter changes the visible schedule. */
 export function hasActiveFilters(filters: Filters): boolean {
   return hasLensFilter(filters) || !!filters.disciplineId || filters.search.trim() !== "" || filters.hideTentative;
 }

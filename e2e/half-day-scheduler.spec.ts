@@ -56,7 +56,7 @@ test("saved half days tint the lower cell while preserving schedule signals and 
   await expect(overHalfDay).toHaveClass(/pointer-events-none/);
   await expect(overHalfDay).toHaveAttribute("aria-hidden", "true");
   await expectBottomHalf(overHalfDay, lane);
-  await expect(dated(lane, "half-day", "2026-06-01")).toHaveCount(0); // ordinary full day
+  await expect(dated(lane, "half-day", "2026-06-01")).toHaveCount(0);
   const nonWorkingDay = dated(lane, "unavailable-day", "2026-06-06");
   await expect(nonWorkingDay).toBeVisible();
   await expectFullHeight(nonWorkingDay, lane);
@@ -83,7 +83,7 @@ test("saved half days tint the lower cell while preserving schedule signals and 
   const timeOffDay = dated(lane, "unavailable-day", "2026-06-10");
   await expect(timeOffDay).toBeVisible();
   await expectFullHeight(timeOffDay, lane);
-  await expect(dated(lane, "half-day", "2026-06-10")).toHaveCount(0); // time off stays fully unavailable
+  await expect(dated(lane, "half-day", "2026-06-10")).toHaveCount(0);
   await expect(lane.getByTestId("timeoff-block")).toContainText("Holiday");
 
   const point = await pointInBottomHalf(page, lane, "2026-06-09");

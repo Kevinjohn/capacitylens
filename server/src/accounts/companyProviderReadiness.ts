@@ -1,6 +1,9 @@
 import type { SsoCutoverIdentityPort, SsoCutoverIdentityFacts } from "./betterAuthIdentityPort";
 import type { SsoCutoverAccountAdminPort, SsoCutoverWorkspaceFact } from "./sqliteAccountAdminPort";
 
+/**
+ * Lists the reasons a configured company identity provider is not ready for sign-in.
+ */
 export type SsoCompanyProviderReadinessReason =
   | "company_provider_not_configured"
   | "principal_not_connected"

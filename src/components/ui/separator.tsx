@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 // kept as-is. Decorative by default (aria role omitted) so it adds a visual rule without injecting
 // a spurious separator into the accessibility tree.
 
+/** Renders a horizontal or vertical separator. */
 function Separator({
   className,
   orientation = "horizontal",

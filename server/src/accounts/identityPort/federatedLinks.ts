@@ -220,6 +220,9 @@ function createCorrectPrincipalEmail(context: FederatedLinksContext) {
   };
 }
 
+/**
+ * Creates operations for listing, linking, and removing federated identities.
+ */
 export function createFederatedLinks(
   context: FederatedLinksContext,
 ): Pick<

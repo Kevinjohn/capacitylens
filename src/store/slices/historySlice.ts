@@ -14,6 +14,7 @@ import type { StoreState } from "@/store/types";
 type HistorySlice = Pick<StoreState, "past" | "future" | "replaceAll" | "importData" | "undo" | "redo">;
 type HistorySliceInternals = Pick<StoreInternals, "createGuardedAction" | "importSlice" | "requireAccount">;
 
+/** Create undo and redo actions for the store. */
 export function createHistorySlice(internals: HistorySliceInternals): StateCreator<StoreState, [], [], HistorySlice> {
   return (set) => {
     const { createGuardedAction, importSlice, requireAccount } = internals;

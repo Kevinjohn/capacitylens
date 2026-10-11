@@ -94,6 +94,7 @@ function parseLinkReturnUrl(options: {
   try {
     url = new URL(options.value);
   } catch {
+    // Reject malformed return URLs as client input before origin checks.
     throw APIError.from("BAD_REQUEST", {
       message: "The identity-link return URL is invalid.",
       code: "INVALID_CALLBACK_URL",
@@ -359,7 +360,7 @@ function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactory
   };
 }
 
-// The reset-state SQL stays in the facade; bind it without a runtime back-edge.
+/** Binds adapter dependencies while keeping facade-owned reset SQL out of this module. */
 export function createAuthAdapterFactory(dependencies: AdapterFactoryDependencies) {
   return (options: AdapterOptions): Auth => createAuthAdapter(options, dependencies);
 }

@@ -31,6 +31,9 @@ function assertFreshLinkSession(
   }
 }
 
+/**
+ * Creates checks that authorize a Microsoft proof action against the current account and session.
+ */
 // eslint-disable-next-line max-lines-per-function -- The factory groups two small checks over the same database and session dependency.
 export function createMicrosoftProofAuthorization(input: {
   db: Db;

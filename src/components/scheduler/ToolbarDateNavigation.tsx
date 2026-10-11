@@ -19,6 +19,7 @@ const SHOW_JUMP_TO_DATE: boolean = false;
 const buildZoomLabel = (weeks: number) =>
   weeks > 1 ? m.scheduler_weeks_option_other({ count: weeks }) : m.scheduler_weeks_option_one({ count: weeks });
 
+/** Zoom and date navigation callbacks for the schedule toolbar. */
 export interface ToolbarDateNavigationProps {
   zoom: WeeksZoom;
   onZoomChange: (zoom: WeeksZoom) => void;
@@ -26,6 +27,7 @@ export interface ToolbarDateNavigationProps {
   onToday: () => void;
 }
 
+/** Lets users move the visible window, change zoom, or return to today. */
 export function ToolbarDateNavigation({ zoom, onZoomChange, onPanDays, onToday }: ToolbarDateNavigationProps) {
   return (
     <>

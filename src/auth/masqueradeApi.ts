@@ -47,6 +47,7 @@ async function assertMasqueradeState(response: Response): Promise<MasqueradeStat
   return state;
 }
 
+/** Reads and changes the current user’s temporary account masquerade. */
 export const masqueradeApi = {
   async status(): Promise<MasqueradeStatus> {
     const response = await accountClient.masqueradeStatus();

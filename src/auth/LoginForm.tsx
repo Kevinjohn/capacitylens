@@ -40,6 +40,7 @@ type LoginFormProps = {
   };
 };
 
+/** Chooses the owner-setup or password sign-in form from the current login state. */
 export function LoginForm(props: LoginFormProps) {
   if (props.setup) {
     return (

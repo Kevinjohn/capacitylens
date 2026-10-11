@@ -160,14 +160,15 @@ test("keeps resource details compact and the working-days table aligned without 
 
 test('adds a placeholder bound to a project and shows it as "Placeholder" on the schedule', async ({ page }) => {
   await openApp(page, "Wayne Enterprises", "/settings");
-  // Placeholders are hidden by default (per-account pref) — turn them on so the management
+  // Placeholders are hidden by default (per-account pref), turn them on so the management
   // section + "Add placeholder" button appear on the Resources page.
   await showPlaceholders(page);
   await page.getByRole("link", { name: "Resources" }).click();
   await page.getByRole("button", { name: "Add placeholder" }).click();
 
   await page.getByLabel("Role").fill("Junior Dev");
-  await selectShadOption(page.getByLabel("Bound project"), "p-acme"); // Queen Consolidated / Project Watchtower
+  // Bind the placeholder to Project Watchtower before checking its allocation options.
+  await selectShadOption(page.getByLabel("Bound project"), "p-acme");
   await page.getByRole("button", { name: "Save" }).click();
 
   await page.getByRole("link", { name: "Schedule" }).click();
@@ -307,7 +308,7 @@ test("groups Studio before Supplementary only while someone is Supplementary", a
     .toEqual([1, 2]);
 });
 
-// P2.5b: the per-row destructive action ARCHIVES (hidden from list + schedule, fully retained),
+// the per-row destructive action archives (hidden from list + schedule, fully retained),
 // not a hard cascade-delete. Archiving is undoable via the local store (it goes through mutate()).
 test("archiving a resource hides it from the list + schedule, and undo restores it", async ({ page }) => {
   await openApp(page);

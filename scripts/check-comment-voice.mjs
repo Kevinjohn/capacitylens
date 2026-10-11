@@ -31,6 +31,9 @@ function scriptKind(path) {
 // previous line's trailing comments and the next token's leading ones, so both are read. JSX text
 // is skipped because its characters are copy, not trivia, and JSDoc nodes because they sit inside
 // a comment that is already read.
+/**
+ * Extracts source comments with their line numbers and documentation status.
+ */
 export function extractComments(path, content) {
   const source = ts.createSourceFile(path, content, ts.ScriptTarget.Latest, false, scriptKind(path));
   const seen = new Map();
@@ -121,6 +124,9 @@ export function evaluateCommentVoice(path, content) {
 }
 
 // `git ls-files` lists tracked files only, so ignored and generated output is never scanned.
+/**
+ * Lists tracked source files covered by the comment-voice check.
+ */
 export function collectSourceFiles(root) {
   const result = spawnSync("git", ["ls-files", "-z", "--", "src", "shared", "server/src"], {
     cwd: root,

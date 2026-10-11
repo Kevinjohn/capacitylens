@@ -27,6 +27,9 @@ export async function verifyPasswordWithBackpressure(
   return withPasswordQueueBackpressure(() => hasher.verify(input));
 }
 
+/**
+ * Runs password hashing through the bounded scrypt queue and request cancellation context.
+ */
 export async function hashPasswordWithBackpressure(hasher: PasswordHasher, password: string): Promise<string> {
   return withPasswordQueueBackpressure(() => hasher.hash(password));
 }

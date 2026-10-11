@@ -7,6 +7,7 @@
  */
 export { FROZEN_REPLY_MESSAGES } from "@capacitylens/shared/api/replyMessages";
 
+/** Canonical client-facing messages used by route error responses. */
 export const REPLY_ERRORS = {
   // Generic transport and server failures.
   internalServerError: "Internal server error.",

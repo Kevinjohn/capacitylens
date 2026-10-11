@@ -93,12 +93,15 @@ describe("CAPACITYLENS_LOG on", () => {
     const { lines, stream } = createLogCapture();
     const db = openDb(":memory:");
     const app = createApp(db, { log: true, logStream: stream });
-    db.close(); // /api/state now throws → the 500 redaction funnel
+    // /api/state now throws so the 500 redaction funnel.
+    db.close();
     const res = await app.inject({ method: "GET", url: "/api/state" });
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toEqual({ error: "Internal server error." }); // body still generic
+    // Body still generic.
+    expect(res.json()).toEqual({ error: "Internal server error." });
     expect(consoleError).not.toHaveBeenCalled();
-    expect(lines.join("")).toContain('"level":50'); // pino error line carries the real cause
+    // Pino error line carries the real cause.
+    expect(lines.join("")).toContain('"level":50');
   });
 });
 
@@ -168,7 +171,8 @@ describe("CAPACITYLENS_LOG redaction (P0.5.5)", () => {
       },
     });
     const out = lines.join("");
-    expect(out).toContain('"url":"/api/health"'); // the request was logged
+    // The request was logged.
+    expect(out).toContain('"url":"/api/health"');
     expect(out).not.toContain("SENTINEL_AUTH");
     expect(out).not.toContain("SENTINEL_C");
   });
@@ -189,8 +193,10 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
     });
     expect(res.statusCode).toBe(404);
     const out = lines.join("");
-    expect(out).toContain('"url":"/api/invites/[redacted]/accept"'); // masked path logged
-    expect(out).not.toContain(TOKEN); // the live token never reaches the log
+    // Masked path logged.
+    expect(out).toContain('"url":"/api/invites/[redacted]/accept"');
+    // The live token never reaches the log.
+    expect(out).not.toContain(TOKEN);
   });
 
   it.each(inviteOperations)("also redacts the token from the %s URL", async (operation) => {
@@ -321,7 +327,8 @@ describe("security-event client identity", () => {
 describe("CAPACITYLENS_LOG off (default)", () => {
   it("emits no request logs at all", async () => {
     const { lines, stream } = createLogCapture();
-    const app = createApp(openDb(":memory:"), { logStream: stream }); // stream ignored when off
+    // Stream ignored when off.
+    const app = createApp(openDb(":memory:"), { logStream: stream });
     await app.inject({ method: "GET", url: "/api/health" });
     expect(lines).toEqual([]);
   });

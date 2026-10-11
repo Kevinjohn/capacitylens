@@ -30,6 +30,7 @@ function subscribeToMobileChange(onStoreChange: () => void) {
   return () => mediaQuery.removeEventListener("change", onStoreChange);
 }
 
+/** Subscribes to the mobile viewport media query. */
 export function useIsMobile() {
   return React.useSyncExternalStore(subscribeToMobileChange, readIsMobile, () => false);
 }

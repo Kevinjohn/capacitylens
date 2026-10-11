@@ -1,5 +1,8 @@
 import { defineMigration } from "../migrationLedger";
 
+/**
+ * Creates Microsoft identity-proof storage and the indexes used to find pending and approved proofs.
+ */
 export const MICROSOFT_PROOF_V46_SQL = `
 CREATE TABLE microsoft_identity_proofs (
   id TEXT PRIMARY KEY,
@@ -36,6 +39,9 @@ CREATE UNIQUE INDEX idx_microsoft_identity_proofs_approved_identity
   ON microsoft_identity_proofs(tenantId, oid) WHERE state = 'approved';
 `;
 
+/**
+ * Adds the version 46 migration for Microsoft identity proof.
+ */
 export const MICROSOFT_PROOF_V46_MIGRATION = defineMigration(
   46,
   "add-microsoft-identity-proof",

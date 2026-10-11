@@ -37,7 +37,7 @@ export function MembersSection() {
 function AccountMembersSection({ activeAccountId }: { activeAccountId: string | null }) {
   const { setActionStatusElement, ...orchestration } = useMembersOrchestration(activeAccountId);
 
-  if (!orchestration.enabled) return null; // Off / demo build: the section does not exist.
+  if (!orchestration.enabled) return null;
   // Privileged controls stay fail-closed until the current account's members read authorizes this
   // section. A 403 remains hidden, and a switch cannot briefly expose the next account's form while
   // its authorization request is still pending.

@@ -236,6 +236,10 @@ END`;
  *      otherwise valid TABLES row, so startup refuses that unknown shape before accepting traffic.
  */
 type AssertSchemaVersionOptions = { db: Db; tableSpecs: Record<string, TableSpec>; allowCompatibleExtensions: boolean };
+/**
+ * Rejects a database whose schema differs from the declared tables before application writes
+ * begin.
+ */
 export function assertSchemaVersion({ db, tableSpecs, allowCompatibleExtensions }: AssertSchemaVersionOptions): void {
   const schemaProblems = createSchemaProblems();
   const tableOptions = new Map(

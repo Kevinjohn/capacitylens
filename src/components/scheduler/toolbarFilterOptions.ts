@@ -11,6 +11,7 @@ export interface FilterOption {
   primaryLabel?: string;
 }
 
+/** Builds scoped filter choices from active projects, activities, and resources. */
 export function buildFilterOptions(
   data: AppData,
   selectedClientId: string | null = null,

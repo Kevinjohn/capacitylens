@@ -53,9 +53,12 @@ test("sets global working days and gates schedule creation starts", async ({ pag
   await goToSeedWeek(page);
 
   const lane = page.locator('[data-resource-id="r-tyler"]');
-  await expectBlockedStart(page, lane, "2026-06-05"); // globally non-working Friday
-  await expectBlockedStart(page, lane, "2026-06-06"); // personally non-working Saturday
-  await expectBlockedStart(page, lane, "2026-06-10"); // Bruce's holiday
+  // Friday is globally non-working.
+  await expectBlockedStart(page, lane, "2026-06-05");
+  // Saturday is non-working for this person.
+  await expectBlockedStart(page, lane, "2026-06-06");
+  // Bruce is on holiday that Wednesday.
+  await expectBlockedStart(page, lane, "2026-06-10");
   await page.screenshot({ path: testInfo.outputPath("global_working_days_schedule.png") });
 
   // An allowed Tuesday start may cross the holiday dates after it.

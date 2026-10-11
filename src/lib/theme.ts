@@ -8,6 +8,7 @@
 // query, so the explicit choices and the OS-following choice share one mechanism.
 import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
 
+/** Theme selection stored for the current device. */
 export type ThemePreference = "light" | "dark" | "system";
 
 const STORAGE_KEY = `${STORAGE_KEY_PREFIX}theme`;

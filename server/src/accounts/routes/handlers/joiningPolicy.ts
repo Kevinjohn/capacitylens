@@ -10,6 +10,9 @@ import type { AccountRoute } from "../accountRouteDependencies";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAccountActor } from "./authenticatedPrincipal";
 
+/**
+ * Returns the account’s current company-joining policy.
+ */
 export async function readJoiningPolicy(
   req: FastifyRequest<AccountRoute>,
   reply: FastifyReply,
@@ -49,6 +52,9 @@ function parseJoiningPolicyBody(
   return { kind: "parsed", value: { policy: body.policy, approvedDomains: domains } };
 }
 
+/**
+ * Saves the requested company-joining policy through the account administration port.
+ */
 export async function setJoiningPolicy(
   req: FastifyRequest<AccountRoute>,
   reply: FastifyReply,

@@ -103,6 +103,7 @@ async function reauthWithProvider(provider: AuthProviderInfo, state: ReauthState
   }
 }
 
+/** Prompts for fresh authentication before a protected account action continues. */
 export function ReauthDialog({
   authMode,
   user,

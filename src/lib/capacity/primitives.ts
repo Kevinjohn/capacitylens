@@ -8,6 +8,7 @@ import type { Allocation } from "@capacitylens/shared/types/entities";
 // while comfortably absorbing the few-ULP drift from summing days-mode fractional allocations.
 const CAPACITY_COMPARISON_EPSILON_HOURS = 1e-9;
 
+/** Checks whether allocated hours exceed available capacity beyond numeric tolerance. */
 export function hasOverCapacity(allocated: number, available: number): boolean {
   return allocated - available > CAPACITY_COMPARISON_EPSILON_HOURS;
 }
@@ -46,6 +47,7 @@ export function applyCapacityMode({ allocations, blocksMode }: ApplyCapacityMode
 // would read as "never over", a silently wrong answer in a multi-tenant scheduler, not a visible
 // failure. We therefore do not throw on this per-day × per-allocation hot path (that would swallow
 // or crash in the wrong place); in DEV we warn so corruption surfaces as a fault to investigate.
+/** Warns during development when a capacity calculation is not finite. */
 export function warnOnNonFiniteCapacity(hours: number): void {
   if (import.meta.env.DEV && !Number.isFinite(hours)) {
     console.warn(

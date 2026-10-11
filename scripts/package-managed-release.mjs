@@ -20,6 +20,10 @@ import { fileURLToPath } from "node:url";
 
 const generatedMarker = "CapacityLens generated production artifact\n";
 
+/**
+ * Requires a nonempty regular file at the given path.
+ * @throws When the path is missing, empty, or not a regular file.
+ */
 export async function requireNonemptyFile(path, label) {
   // Only a missing entry means "missing"; any other stat failure is reported as itself.
   const details = await stat(path).catch((error) => {
@@ -40,6 +44,10 @@ export function assertDeploySucceeded(result) {
 // of a hand-kept sample: it forbids every devDependency of the root, server and shared manifests
 // that the server or shared does not also need at runtime, and the whole scope of a scoped
 // devDependency (for example `@vitest/`), whose tooling arrives transitively.
+/**
+ * Lists development packages not needed by the server or shared runtime.
+ * @throws When a package manifest cannot be read or parsed.
+ */
 export async function readDevelopmentPackages(repositoryRoot) {
   const readManifest = async (path) => JSON.parse(await readFile(join(repositoryRoot, path), "utf8"));
   const manifests = await Promise.all(["package.json", "server/package.json", "shared/package.json"].map(readManifest));
@@ -74,6 +82,10 @@ const requiredReleaseFiles = [
   "VERSION",
 ];
 
+/**
+ * Checks that a managed release has its required files and no forbidden packages.
+ * @throws When a required file is missing or a forbidden package is present.
+ */
 export async function inspectManagedRelease(root, forbiddenPackages) {
   for (const file of requiredReleaseFiles) await requireNonemptyFile(join(root, ...file.split("/")), file);
 
@@ -90,6 +102,10 @@ export async function inspectManagedRelease(root, forbiddenPackages) {
   return { packageCount: packages.length };
 }
 
+/**
+ * Replaces production output after confirming it is generated release content.
+ * @throws When existing output fails the generated-content checks.
+ */
 export async function resetGeneratedOutput(output) {
   // Move the entry aside before inspecting it, so the checks and the deletion apply to the same
   // entry even if production/ is swapped concurrently. A refused entry is moved back.
@@ -160,6 +176,10 @@ async function readVersion(repositoryRoot) {
   return JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8")).version;
 }
 
+/**
+ * Builds and validates the managed production release.
+ * @throws When deployment or release validation fails.
+ */
 export async function packageManagedRelease(outputPath = "production") {
   const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
   if (outputPath !== "production") throw new Error("Production output path must be exactly production/.");
@@ -215,6 +235,9 @@ export async function inspectArchiveTree(root) {
   if (refusals.length > 0) throw new Error(`Refusing to archive the release:\n  ${refusals.join("\n  ")}`);
 }
 
+/**
+ * Returns the lowercase SHA-256 digest of a file as hexadecimal.
+ */
 export async function sha256File(path) {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(path)) hash.update(chunk);

@@ -123,7 +123,7 @@ async function assertClosureBand(page: Page) {
   const band = page.getByTestId("scheduler-closure-band");
   await expect(band).toHaveCount(1);
   // The closure name lives on its own sibling layer, not inside the band: `z-0` on the band makes
-  // a stacking context, so a nested label could never clear the group-header rows (#788).
+  // a stacking context, so a nested label could never clear the group-header rows.
   await expect(page.getByTestId("scheduler-closure-label-layer")).toContainText("Long weekend");
   await expect(band).toHaveAttribute("data-start-date", "2026-06-05");
   await expect(band).toHaveAttribute("data-end-date", "2026-06-08");
@@ -137,7 +137,7 @@ async function assertClosureBand(page: Page) {
     literalSpanWidth,
   );
 
-  // #787: closures are time off for everyone, so switching the schedule's draw mode from Work to
+  // Closures apply to everyone, so switching the schedule's draw mode from Work to
   // Time off must highlight the closure band with the same timeoff-selected treatment as a
   // personal time-off block (src/index.css `[data-draw-mode="timeoff"] .scheduler-closure-band`),
   // and switching back to Work must restore the plain hatch. getComputedStyle-based, so it stays

@@ -35,6 +35,9 @@ export function projectExpiry(request: OwnershipTransferRequest, now: number): O
     : request;
 }
 
+/**
+ * Loads the transfer request for the account and rejects a missing or mismatched request.
+ */
 export function readRequiredRequest(
   context: TransferContext,
   input: OwnershipTransferCommandInput,
@@ -44,6 +47,9 @@ export function readRequiredRequest(
   return row;
 }
 
+/**
+ * Rejects the transition unless the principal is one of the request participants.
+ */
 export function assertParticipant(row: OwnershipTransferRequest, principalId: string, commandId: string): void {
   if (
     !canReadOwnershipTransfer({
@@ -55,6 +61,9 @@ export function assertParticipant(row: OwnershipTransferRequest, principalId: st
   }
 }
 
+/**
+ * Carries the current request and the state, timestamp, and reason for its next transition.
+ */
 export interface TransitionInput {
   row: OwnershipTransferRequest;
   state: OwnershipTransferState;
@@ -64,6 +73,9 @@ export interface TransitionInput {
   commandId: string;
 }
 
+/**
+ * Persists the transfer transition and returns the updated request.
+ */
 export function applyRequestTransition({ db }: TransferContext, input: TransitionInput): OwnershipTransferRequest {
   const { row, state, now, reason, commandId } = input;
   const request: OwnershipTransferRequest = {
@@ -92,6 +104,9 @@ export function applyRequestTransition({ db }: TransferContext, input: Transitio
   return request;
 }
 
+/**
+ * Records a terminal decision for an open ownership-transfer request and returns the updated row.
+ */
 export function terminaliseRequest(
   context: TransferContext,
   input: TransitionInput & { reason: OwnershipTransferTerminalReason },

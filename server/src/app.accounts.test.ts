@@ -168,16 +168,19 @@ describe("PATCH /api/accounts/:id foreign-accountId parity with PUT", () => {
       url: "/api/accounts/a2",
       payload: { ...account("a2"), accountId: "a1" },
     });
-    expect(put.statusCode).toBe(404); // ownsRow concealment, the established PUT contract
+    // OwnsRow concealment, the established PUT contract.
+    expect(put.statusCode).toBe(404);
 
     const patch = await app.inject({
       method: "PATCH",
       url: "/api/accounts/a2",
       payload: { name: "Renamed", accountId: "a1" },
     });
-    expect(patch.statusCode).toBe(404); // parity: same assertion, same rejection
+    // Parity: same assertion, same rejection.
+    expect(patch.statusCode).toBe(404);
     const row = db.prepare(`SELECT name FROM accounts WHERE id = 'a2'`).get() as { name: string };
-    expect(row.name).toBe("Studio a2"); // nothing was applied
+    // Nothing was applied.
+    expect(row.name).toBe("Studio a2");
 
     // A PATCH without any accountId assertion keeps working:
     const plain = await app.inject({

@@ -96,9 +96,10 @@ describe("apiFetchReauth passthrough", () => {
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    completeReauth({ reauthenticated: true }); // the dialog reports a fresh session
+    // Fresh authentication resumes the original request.
+    completeReauth({ reauthenticated: true });
     const res = await pending;
-    expect(res.status).toBe(200); // the retried request's response, handed back transparently
+    expect(res.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(isReauthPending()).toBe(false);
   });
@@ -237,7 +238,8 @@ describe("apiFetchReauth request guards", () => {
     });
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
 
-    completeReauth({ reauthenticated: false }); // the user cancels the dialog
+    // Cancellation leaves the original response available to the caller.
+    completeReauth({ reauthenticated: false });
     const res = await pending;
     expect(res.status).toBe(403);
     // The body was only ever peeked at via clone(), so the caller can still read it (readApiError).

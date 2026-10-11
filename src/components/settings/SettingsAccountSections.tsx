@@ -9,6 +9,7 @@ type SettingsAccountOptionsProps = {
   timezone: NonNullable<Account["timezone"]>;
 };
 
+/** Edits company name, calendar week start, and timezone settings. */
 export function SettingsAccountOptions({ companyName, weekStartsOn, timezone }: SettingsAccountOptionsProps) {
   const weekStartLabel = weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday();
   const rows = [

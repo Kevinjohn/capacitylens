@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 // ShadCN/cmdk primitives with CapacityLens colour tokens. CommandPalette composes these inside
 // the shared ShadCN Dialog.
 
+/** Renders the command menu root. */
 function Command({
   className,
   ...props
@@ -22,6 +23,7 @@ function Command({
   );
 }
 
+/** Renders the command menu search input. */
 function CommandInput({
   className,
   ...props
@@ -38,6 +40,7 @@ function CommandInput({
   );
 }
 
+/** Renders the filtered command results. */
 function CommandList({
   className,
   ...props
@@ -52,6 +55,7 @@ function CommandList({
 }
 
 // Export the empty-state primitive so searchable fields can provide an explicit no-results state.
+/** Renders content when no command results match. */
 function CommandEmpty({
   className,
   ...props
@@ -68,6 +72,7 @@ function CommandEmpty({
   );
 }
 
+/** Groups related commands with an optional heading. */
 function CommandGroup({
   className,
   ...props
@@ -84,6 +89,7 @@ function CommandGroup({
   );
 }
 
+/** Renders an actionable command result. */
 function CommandItem({
   className,
   ...props

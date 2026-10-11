@@ -226,7 +226,8 @@ function exportFile(accountId: string) {
       activities: [activity({ id: "src-t", accountId, projectId: "src-p" })],
       allocations: [
         allocation({ id: "src-al", accountId, resourceId: "src-r", activityId: "src-t" }),
-        allocation({ id: "bad", accountId, resourceId: "src-r", activityId: "no-activity" }), // dropped: dangling activity
+        // Dropped: dangling activity.
+        allocation({ id: "bad", accountId, resourceId: "src-r", activityId: "no-activity" }),
       ],
       timeOff: [],
     },
@@ -296,13 +297,16 @@ async function testImportWithFreshIds(): Promise<void> {
   });
   expect(res.statusCode).toBe(200);
   const out = readImportSummary(res);
-  expect(out.imported).toBe(5); // client, project, resource, activity, 1 valid allocation
-  expect(out.skipped).toBe(1); // the dangling allocation
+  // Client, project, resource, activity, 1 valid allocation.
+  expect(out.imported).toBe(5);
+  // The dangling allocation.
+  expect(out.skipped).toBe(1);
   const s = await readValidatedState(app);
   const proj = readFirstProject(s.projects);
   expect(proj.id).not.toBe("src-p");
   expect(proj.accountId).toBe("a1");
-  expect(readFirstProjectId(s.activities)).toBe(proj.id); // FK rewired to the new project id
+  // FK rewired to the new project id.
+  expect(readFirstProjectId(s.activities)).toBe(proj.id);
   expect(s.allocations).toHaveLength(1);
 }
 
@@ -462,7 +466,8 @@ async function testDanglingImportForeignKeys(): Promise<void> {
       accounts: [],
       clients: [],
       disciplines: [],
-      projects: [project("dp", "x", "ghost-client")], // dropped: missing client
+      // Dropped: missing client.
+      projects: [project("dp", "x", "ghost-client")],
       phases: [
         {
           id: "dph",
@@ -471,9 +476,12 @@ async function testDanglingImportForeignKeys(): Promise<void> {
           projectId: "ghost-project",
           ...meta(),
         },
-      ], // dropped
-      resources: [{ ...person("dr", "x"), disciplineId: "ghost-disc" }], // kept, discipline unbound
-      activities: [activity({ id: "dt", accountId: "x", projectId: "ghost-project" })], // kept, unbound to a general activity
+        // Dropped.
+      ],
+      // Kept, discipline unbound.
+      resources: [{ ...person("dr", "x"), disciplineId: "ghost-disc" }],
+      // Kept, unbound to a general activity.
+      activities: [activity({ id: "dt", accountId: "x", projectId: "ghost-project" })],
       allocations: [],
       timeOff: [],
     },
@@ -489,9 +497,11 @@ async function testDanglingImportForeignKeys(): Promise<void> {
   expect(s.projects).toHaveLength(0);
   expect(s.phases).toHaveLength(0);
   expect(s.activities).toHaveLength(1);
-  expect(readFirstProjectId(s.activities)).toBeUndefined(); // unbound → general activity
+  // Unbound so general activity.
+  expect(readFirstProjectId(s.activities)).toBeUndefined();
   expect(s.resources).toHaveLength(1);
-  expect(readFirstResource(s.resources).disciplineId).toBeUndefined(); // unbound discipline
+  // Unbound discipline.
+  expect(readFirstResource(s.resources).disciplineId).toBeUndefined();
 }
 
 async function testLegacyImportMigration(): Promise<void> {
