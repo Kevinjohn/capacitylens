@@ -80,6 +80,10 @@
      scattered text-[10px]/text-[11px] near-duplicates. */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
+  /* Body copy, controls and menus read at 13px, the desktop convention, rather than Tailwind's
+     14px. The 20px leading is kept so control and row heights do not move. */
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
 
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;

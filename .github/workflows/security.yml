@@ -118,19 +118,16 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
 
-  # DAST policy (2026-07-17): the BLOCKING scan validates the HARDENED posture — the
-  # configuration we document as recommended and must keep delivering. The out-of-the-box
-  # default (open instance, optional hardening off) is scanned separately below as a
-  # non-blocking weekly job: ZAP rightly warns about the separations the default
-  # deliberately leaves off, and those findings are accepted visibility, not regressions.
+  # The blocking scan checks the hardened posture recommended for operators. The weekly scan
+  # records warnings from the open default separately because that profile leaves optional
+  # protections disabled.
   dast:
     name: OWASP ZAP baseline (hardened posture)
     if: github.event_name != 'workflow_dispatch' || inputs.secret_scan_only != true
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      # Password auth ON plus the optional hardening a security-conscious operator enables:
-      # scheduled backups.
+      # Password authentication is enabled with scheduled backups for the hardened scan.
       # http:// is permitted for the public URL because localhost is a loopback origin;
       # production account configuration refuses plaintext for non-loopback origins.
       CAPACITYLENS_DEPLOYMENT_PROFILE: self-hosted-password
@@ -224,19 +221,9 @@ jobs:
         if: always()
         run: docker compose down --volumes
 
-  # A failed scheduled run has no pull request to turn red and no reviewer waiting on it, so
-  # nothing surfaces it: the weekly scan broke on 2026-08-04 and went unnoticed until someone
-  # happened to open the Actions tab two days later. This job gives a branch-event failure a
-  # place to land. Pull requests are excluded deliberately — their failures are already in front
-  # of the person who caused them.
-  #
-  # `always()` rather than `failure()` because a run that never got to execute is the failure
-  # mode least likely to be noticed: during the Actions outage of 2026-08-06 these jobs sat
-  # queued for ninety minutes and were then cancelled having run zero steps, which `failure()`
-  # does not match. scripts/report-workflow-outcome.mjs decides what that means — in particular
-  # it stays silent when `cancel-in-progress` cancelled a superseded push, which is healthy — and
-  # closes the report once the workflow is clean again so a transient failure tidies up after
-  # itself. Its judgement calls are covered by scripts/report-workflow-outcome.test.mjs.
+  # Scheduled and push failures have no pull request status to draw attention to them.
+  # Run this report even if an earlier job fails or is canceled before a step starts.
+  # The reporter ignores superseded push cancellations and closes the report after a clean run.
   notify:
     name: Report an unattended failure
     if: always() && (github.event_name == 'schedule' || github.event_name == 'push')

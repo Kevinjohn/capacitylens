@@ -4,6 +4,6 @@
     var dark = preference === "dark" || (preference === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.dataset.theme = dark ? "dark" : "light";
   } catch {
-    // Storage/matchMedia unavailable — leave the default light palette.
+    // If storage or matchMedia is unavailable, keep the default light palette.
   }
 })();

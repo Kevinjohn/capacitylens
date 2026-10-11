@@ -1,4 +1,4 @@
-# CapacityLens — one reproducible deployment: the API server + the SPA, built
+# CapacityLens, one reproducible deployment: the API server + the SPA, built
 # from the single multi-stage Dockerfile (targets `internal-tls`, `api`, `web` and `web-client`).
 #
 #   internal-tls  : one-shot per-install CA/API certificate creation and renewal
@@ -58,22 +58,18 @@ services:
     depends_on:
       internal-tls:
         condition: service_completed_successfully
-    # SQLite DB and the backups dir live INSIDE the mounted volumes so data
-    # persists across container rebuilds. CAPACITYLENS_HOST=0.0.0.0 is
-    # baked into the api image (compose-network reachability for nginx).
+    # The database and backups directory are inside mounted volumes so data persists across rebuilds.
+    # The API image binds to 0.0.0.0 for nginx on the private Compose network.
     environment:
       PORT: "8787"
       CAPACITYLENS_DB: /data/capacitylens.db
-      # Backups are ON by default in Docker (hourly snapshots into the named
-      # volume). To disable, set CAPACITYLENS_BACKUP_DIR= (explicitly empty) in
-      # .env — the `-` form (not `:-`) only substitutes /backups when the var is
-      # UNSET, so an empty value reaches the server and turns backups off. The
-      # /backups volume mount below stays either way; it is simply unused then.
-      # Deliberately use `-`, not `:-`: unset selects /backups, while an explicitly empty value
-      # disables scheduled backups as documented in docs-src/self-hosting/backups-and-restore.md.
+      # Backups are on by default in Docker, with hourly snapshots in the named volume.
+      # Set CAPACITYLENS_BACKUP_DIR= (explicitly empty) in .env to disable backups.
+      # Compose supplies /backups only when the variable is unset; an empty value reaches
+      # the server and disables snapshots. The mount remains available and is unused then.
       CAPACITYLENS_BACKUP_DIR: ${CAPACITYLENS_BACKUP_DIR-/backups}
-      # Same-origin via the nginx proxy -> CORS stays fail-closed. The explicit empty
-      # value also stops production defaulting it to the public URL's origin.
+      # Nginx handles same-origin requests, so CORS stays fail-closed. The explicit empty value
+      # also stops production from defaulting to the public URL origin.
       # Override only if you expose the API on a different origin.
       CAPACITYLENS_CORS_ORIGIN: ${CAPACITYLENS_CORS_ORIGIN:-}
       CAPACITYLENS_LOG: ${CAPACITYLENS_LOG:-1}
@@ -90,7 +86,7 @@ services:
       CAPACITYLENS_TRUST_PROXY_HEADERS: "1"
       CAPACITYLENS_BACKUP_INTERVAL_MIN: ${CAPACITYLENS_BACKUP_INTERVAL_MIN:-}
       CAPACITYLENS_BACKUP_KEEP: ${CAPACITYLENS_BACKUP_KEEP:-}
-      # Canonical account configuration. Auth is OFF when mode is empty/unset.
+      # Canonical account configuration. Auth is off when mode is empty/unset.
       CAPACITYLENS_DEPLOYMENT_PROFILE: ${CAPACITYLENS_DEPLOYMENT_PROFILE:-}
       CAPACITYLENS_MODE: ${CAPACITYLENS_MODE:-}
       CAPACITYLENS_SECRET: ${CAPACITYLENS_SECRET:-}
@@ -111,15 +107,15 @@ services:
       CAPACITYLENS_GITHUB_CLIENT_ID: ${CAPACITYLENS_GITHUB_CLIENT_ID:-}
       CAPACITYLENS_GITHUB_CLIENT_SECRET: ${CAPACITYLENS_GITHUB_CLIENT_SECRET:-}
       # The api image bakes NODE_ENV=production, and the production safety
-      # interlock (server/src/productionGuard.ts) refuses to boot with auth OFF
+      # interlock (server/src/productionGuard.ts) refuses to boot with auth off
       # unless you explicitly consent to an open instance. For the trusted-local
       # no-login mode set this to "1" in .env; it is ignored once auth is on.
       # Without it the api container restart-loops (`docker compose logs api`).
       CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: ${CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION:-}
       # Single-company-per-instance policy (see AppOptions.multiAccount): default
       # off = one company; "1" allows more. SEED_DEMO=1 seeds the two-company demo
-      # dataset on a never-initialised DB (pair it with MULTI_ACCOUNT=1) — a fresh
-      # real instance starts EMPTY at the create-your-company screen.
+      # dataset on a never-initialised DB; pair it with MULTI_ACCOUNT=1.
+      # A fresh real instance starts empty at the create-your-company screen.
       CAPACITYLENS_MULTI_ACCOUNT: ${CAPACITYLENS_MULTI_ACCOUNT:-}
       CAPACITYLENS_SEED_DEMO: ${CAPACITYLENS_SEED_DEMO:-}
       CAPACITYLENS_BOOTSTRAP_TOKEN: ${CAPACITYLENS_BOOTSTRAP_TOKEN:-}
@@ -140,14 +136,13 @@ services:
       context: .
       target: web
       args:
-        # Inlined into the SPA at build time. EMPTY (the default) = server mode
-        # against the SAME ORIGIN — nginx proxies /api to the api service, so it
-        # works on any host with no per-host rebuild. Set to an ORIGIN (not "/api")
-        # only to point the SPA at a different host. Empty no longer means
-        # browser persistence; build with VITE_CAPACITYLENS_DEMO=1 for the in-memory demo.
+        # Empty selects server mode against the same origin. Nginx proxies /api to the API service,
+        # so the app works on any host without a per-host rebuild.
+        # Set another origin only for a remote API. Empty does not enable browser persistence;
+        # build with VITE_CAPACITYLENS_DEMO=1 to select the in-memory demo.
         VITE_CAPACITYLENS_API: ${VITE_CAPACITYLENS_API:-}
         # Set VITE_CAPACITYLENS_DEMO=1 in .env to build the in-memory demo image
-        # (no backend; wins over the API var). Empty = the default server build above.
+        # (no backend; wins over the API var). Empty selects the server build above.
         VITE_CAPACITYLENS_DEMO: ${VITE_CAPACITYLENS_DEMO:-}
         VITE_CAPACITYLENS_BUILD_SHA: ${VITE_CAPACITYLENS_BUILD_SHA:-}
         VITE_CAPACITYLENS_FEEDBACK_MAILTO: ${VITE_CAPACITYLENS_FEEDBACK_MAILTO:-}
