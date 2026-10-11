@@ -22,18 +22,9 @@ export function createHistorySlice(internals: HistorySliceInternals): StateCreat
       past: [],
       future: [],
       replaceAll: (data) => set((state) => replaceAllState(state, data)),
-      // Replace only the active account's slice; other accounts and the account
-      // list itself are untouched. Undoable via ⌘Z.
-      //
-      // Imported entities keep their relationships but are given fresh ids. An
-      // exported file carries the source account's ids; re-importing it into a
-      // different account would otherwise collide, the store matches entities by
-      // id globally (updateById / cascade scan all accounts), so a shared id would
-      // let an edit in one account silently rewrite another's row.
-      // The account is resolved at the call, ahead of the shared viewer gate: replacing a slice with
-      // no active account is a programming error for every role, so requireAccount must still throw
-      // where `createGuardedAction` would merely refuse. Viewer no-op (defense-in-depth): a read-only user
-      // can't replace the account slice, and gets a zero-effect summary so the caller reports honestly.
+      // Replace only the selected tenant and remap imported IDs so a foreign export cannot
+      // collide with another account’s globally matched rows. Require an account before
+      // the viewer gate so a missing scope remains a programming error rather than a refusal.
       importData: (incoming) => importSlice(requireAccount(), incoming),
 
       undo: createGuardedAction(() => {

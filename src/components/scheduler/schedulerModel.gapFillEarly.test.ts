@@ -48,7 +48,7 @@ function buildBlockTimeOffRows() {
       disciplinesEnabled: true,
       placeholdersEnabled: true,
       externalEnabled: true,
-      // Friday is globally closed; Sat/Sun are personally closed.
+
       accountWorkingDays: [1, 2, 3, 4],
       blocksMode: true,
     },
@@ -66,15 +66,10 @@ function buildBlockTimeOffRows() {
   return { r1, r2 };
 }
 
-// Mutation-testing gap-fill: each block below targets a specific line the exhaustive suites above
-// happen not to exercise in a way that observes real output (a fallback path, an optional-chain
-// guard, a Map built via array-pair entries, etc).
 function registerMovedSchedulerTests20101() {
   it("search is TRIMMED before matching (leading/trailing whitespace is not part of the term)", () => {
     const d = dataset();
-    // A resource whose displayName/name/role all collapse to the same single word, so there's no
-    // duplicate occurrence anywhere in the searched string to coincidentally rescue an un-trimmed
-    // search: the only way 'zed ' (trailing space) matches is if it's trimmed to 'zed' first.
+    // Use a single-occurrence search term so a duplicate name or role cannot accidentally rescue an untrimmed query.
     d.resources.push(
       makeResource({
         id: "r-zed",
@@ -112,7 +107,7 @@ function registerMovedSchedulerTests20102() {
     const resourceWithoutName = { ...firstResource };
     delete resourceWithoutName.name;
     d.resources[0] = resourceWithoutName;
-    // Searching for a term that would only ever match via a bogus non-empty fallback string.
+
     const model = buildSchedulerModel({
       data: d,
       geom: geom,
@@ -238,8 +233,7 @@ function registerMovedSchedulerTests20106() {
 function registerMovedSchedulerTests20107() {
   it("positions time-off blocks with real fields (id/x/width/label/note), and marks only its OWN days unavailable", () => {
     const d = dataset();
-    // Two time-off rows for the same resource, so the resourceId -> TimeOff[] map must accumulate
-    // (push into an existing bucket) rather than each write clobbering the last one.
+    // Time-off indexing must accumulate all entries for a resource rather than replace earlier entries.
     d.timeOff.push(
       {
         id: "to1",
@@ -290,11 +284,9 @@ function registerMovedSchedulerTests20107() {
     expect(t1.note).toBe("day one");
     expect(typeof t1.label).toBe("string");
     expect(t1.label.length).toBeGreaterThan(0);
-    // Day-state unavailable is exactly cap.available === 0: true on the time-off day, false on a
-    // plain working day with no time off (2026-06-03, a Wednesday r1 works).
-    // June 1 is covered by time off.
+
     expect(r1.dayStates[0]?.unavailable).toBe(true);
-    // June 3 is an ordinary working day.
+
     expect(r1.dayStates[2]?.unavailable).toBe(false);
   });
 }
@@ -338,8 +330,6 @@ function registerMovedSchedulerTests20108() {
       "r1 scheduler row",
     );
 
-    // Monday's time off and globally closed Friday stay fully unavailable. Tuesday is the only
-    // saved half day that retains 4h capacity; ordinary full days and the weekend stay unmarked.
     expect(row.dayStates.map((state) => state.partialCapacity)).toEqual([
       false,
       true,
@@ -358,9 +348,7 @@ function registerMovedSchedulerTests20108() {
 function registerMovedSchedulerTests20109() {
   it("marks only the holiday day of a partial allocation overlap as over", () => {
     const d = dataset();
-    // a1 spans Mon–Tue at exactly 8h/day. Monday remains at capacity; Tuesday has zero available
-    // hours because of time off and therefore becomes the sole over day. r2's Wednesday holiday has
-    // no allocation and must stay non-red.
+
     d.timeOff.push(
       {
         id: "to-r1-tuesday",

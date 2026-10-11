@@ -157,11 +157,11 @@ function registerSchedulerUiPart1(): void {
 function registerSchedulerUiPart5(): void {
   it("setActiveAccount reopens on the current week (resets a panned origin/focus)", () => {
     s().setOriginDate("2020-01-01");
-    // Re-selecting the (already active) account still runs the switch reset.
+
     s().setActiveAccount(s().activeAccountId);
     expect(s().ui.originDate).not.toBe("2020-01-01");
-    expect(weekdayOf(s().ui.focusDate)).toBe(1); // this week's Monday
-    // Origin sits the back-buffer earlier, so the past is scrollable to the left.
+    expect(weekdayOf(s().ui.focusDate)).toBe(1);
+
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
   });
 
@@ -186,8 +186,7 @@ function registerSchedulerUiPart7(): void {
     s().goToToday();
     expect(s().ui.recenterToken).toBe(before + 1);
     expect(s().ui.originDate).not.toBe("2020-01-01");
-    // Focus snaps to the current week's Monday (scrolled flush to the left edge);
-    // origin sits the back-buffer earlier so last month stays reachable by scrolling.
+
     expect(weekdayOf(s().ui.focusDate)).toBe(1);
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
   });
@@ -204,26 +203,23 @@ function registerSchedulerUiPart7(): void {
     expect(s().notice?.tone).toBe("info");
     s().setNotice("Boom", "error");
     expect(s().notice?.tone).toBe("error");
-    // Clearing drops the whole notice (message + tone together, they can't desync).
+
     s().setNotice(null);
     expect(s().notice).toBeNull();
   });
 
   it("goToDate snaps focusDate to the week start and bumps recenterToken", () => {
     const before = s().ui.recenterToken;
-    // 2026-09-09 is a Wednesday (verified); with the default weekStartsOn=1 the picker
-    // re-anchors the left edge to that week's Monday so the grid always opens on a week boundary.
+
     s().goToDate("2026-09-09");
-    expect(weekdayOf(s().ui.focusDate)).toBe(1); // Monday
-    expect(s().ui.focusDate).toBe("2026-09-07"); // that week's Monday
+    expect(weekdayOf(s().ui.focusDate)).toBe(1);
+    expect(s().ui.focusDate).toBe("2026-09-07");
     expect(s().ui.recenterToken).toBe(before + 1);
-    // Origin sits the back-buffer behind the snapped Monday, so the past stays scrollable.
+
     expect(s().ui.originDate).toBe(addDaysISO("2026-09-07", -PAST_BUFFER_DAYS));
   });
 
   it("goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday", () => {
-    // Seed an account whose calendar week starts on Sunday and make it active. This guards a
-    // regression where goToDate floored to Monday regardless of the account's weekStartsOn.
     const sunStart = "acct-sun";
     useStore.getState().replaceAll(
       makeAppData({
@@ -231,11 +227,11 @@ function registerSchedulerUiPart7(): void {
       }),
     );
     useStore.getState().setActiveAccount(sunStart);
-    // 2026-09-09 is a Wednesday (verified); the Sunday that starts its week is 2026-09-06 (verified).
+
     useStore.getState().goToDate("2026-09-09");
-    expect(useStore.getState().ui.focusDate).toBe("2026-09-06"); // that week's Sunday, not 09-07 (Monday)
-    expect(weekdayOf(useStore.getState().ui.focusDate)).toBe(0); // 0 = Sunday
-    // Origin sits the back-buffer behind the snapped Sunday, so the past stays scrollable.
+    expect(useStore.getState().ui.focusDate).toBe("2026-09-06");
+    expect(weekdayOf(useStore.getState().ui.focusDate)).toBe(0);
+
     expect(useStore.getState().ui.originDate).toBe(addDaysISO("2026-09-06", -PAST_BUFFER_DAYS));
   });
 }
@@ -284,7 +280,7 @@ function registerSchedulerUiPart2(): void {
   it("re-anchors after the first slice for a selected account replaces the temporary fallback", () => {
     const accountId = "late-account";
     s().setAccountSummaries({ list: [{ id: accountId, name: "Late account", role: "owner" }] });
-    s().setActiveAccount(accountId); // absent locally: temporarily anchored with GMT/Monday
+    s().setActiveAccount(accountId);
     s().goToDate("2031-09-10");
 
     s().replaceAll(
@@ -303,12 +299,10 @@ function registerSchedulerUiPart2(): void {
 
 function registerSchedulerUiPart3(): void {
   it("snaps free scrolling to the week start when no test override is stored", () => {
-    // There is no user setting; only a browser-test storage override can turn the snap off.
     expect(s().weekSnapEnabled).toBe(true);
   });
 
   it("the date format is account data: undoable, exported, and mirrored to the formatters", () => {
-    // The formatter reads the updated preference before a React render.
     const accountId = s().activeAccountId;
     if (!accountId) throw new Error("Expected an active account.");
     s().updateAccount(accountId, { dateStyle: "month-day" });
@@ -317,7 +311,6 @@ function registerSchedulerUiPart3(): void {
     expect(readActiveDateStyle()).toBe("month-day");
     expect(formatDayMonth("2026-09-09")).toBe("Sep 9");
 
-    // Account preference mutations join history; device theme changes do not.
     s().undo();
     expect(resolveDateStyle(s().data, accountId)).toBe("day-month");
     expect(readActiveDateStyle()).toBe("day-month");

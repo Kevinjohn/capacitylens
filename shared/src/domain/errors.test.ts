@@ -26,6 +26,7 @@ describe("throwDomainError", () => {
     try {
       throwDomainError("date_invalid", "That date is invalid.");
       expect.unreachable();
+      // Verify the surfaced domain failure retains its stable code and error type.
     } catch (err) {
       expect(err).toBeInstanceOf(DomainError);
       expect((err as DomainError).name).toBe("DomainError");

@@ -1,6 +1,3 @@
-// Shared helpers for the persist.*.test.ts suites in src/data/.
-// Extracted from the former single-file persist.test.ts; bodies unchanged.
-
 import { expect, vi } from "vitest";
 import { attachPersistence, switchAndAwaitHydration } from "@/data/persist";
 import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
@@ -44,10 +41,6 @@ export function makeLocalTwoAccounts() {
     ],
   };
 }
-
-// Shared server-mode refresh helpers.
-// Used by the refresh-on-focus, refreshActiveAccountSlice, and batch-conflict suites (hoisted so the
-// three don't carry verbatim copies).
 
 /** A recording adapter whose loadAll serves a fixed slice for the active account. */
 export function recordingAdapter(slice: AppData) {
@@ -127,9 +120,10 @@ export async function attachActiveA2({ adapter, debounceMs = 0, onError, onSucce
     serverMode: true,
   });
   try {
-    await expect(switchAndAwaitHydration("a2")).resolves.toEqual({ kind: "reloaded" }); // hydrates a2, seeds snapshot := a2
+    await expect(switchAndAwaitHydration("a2")).resolves.toEqual({ kind: "reloaded" });
     return detach;
   } catch (error) {
+    // Detach the test persistence owner before rethrowing setup failure so it cannot leak listeners into later tests.
     detach();
     throw error;
   }

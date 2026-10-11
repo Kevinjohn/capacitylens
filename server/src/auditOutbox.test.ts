@@ -395,7 +395,6 @@ const registerCorruptLines = (): void => {
     writeFileSync(file, '{"auditId":"a-1"}\n{"auditId":"a-2","broken":\n');
     const errors: string[] = [];
     const sink = createFileAuditSink(file, (m) => errors.push(m));
-    // Nothing latched before first use.
     expect(sink.degraded).toBe(false);
     const delivered: AuditEntry[] = [
       {
@@ -411,9 +410,7 @@ const registerCorruptLines = (): void => {
     ];
     const appendMany = sink.appendMany;
     if (appendMany === undefined) throw new Error("file sink does not support batch append");
-    // Append still succeeds (safe replay direction).
     expect(appendMany(delivered)).toBe(true);
-    // Corruption is now surfaced, not silently accepted.
     expect(sink.degraded).toBe(true);
     expect(errors.join("\n")).toMatch(/malformed JSONL line/);
   });
@@ -438,7 +435,6 @@ const registerMissingAuditId = (): void => {
         auditId: "a-1",
       }),
     ).toBe(true);
-    // Parseable line: no suppression, but not degradation.
     expect(sink.degraded).toBe(false);
     expect(errors).toHaveLength(0);
   });
@@ -495,7 +491,6 @@ describe("stream sink retry idempotence", () => {
     expect(lines).toHaveLength(2);
     // Retry of the same delivery (e.g. a sibling file sink failed on the first pass):
     expect(appendMany([entry("x-1"), entry("x-2")])).toBe(true);
-    // No amplification.
     expect(lines).toHaveLength(2);
   });
 
@@ -505,9 +500,7 @@ describe("stream sink retry idempotence", () => {
     const appendMany = sink.appendMany;
     if (appendMany === undefined) throw new Error("stream sink does not support batch append");
     appendMany([entry("y-1")]);
-    // Retry: skipped.
     appendMany([entry("y-1")]);
-    // Fresh record, emitted.
     appendMany([entry("y-2")]);
     expect(lines).toHaveLength(2);
   });

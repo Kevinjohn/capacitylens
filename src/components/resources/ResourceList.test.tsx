@@ -18,13 +18,10 @@ import { PermissionContext } from "@/auth/permissionContext";
 beforeEach(() => {
   resetStoreWithAccount();
   useStore.getState().clearFilters();
-  // Placeholders are gated behind a per-account pref that defaults off. Most tests here exercise
-  // the placeholder management section, so enable it for the suite; the default-off hide behaviour
-  // has its own dedicated test below.
+  // Enable placeholders for this suite because the management cases require their otherwise-hidden section.
   setPlaceholdersEnabled({ on: true });
 });
 
-// Shared resource shape helpers
 const personDraft = (name: string) => ({
   kind: "person" as const,
   name,
@@ -326,10 +323,10 @@ describe("ResourceList display", () => {
     expect(rows).toHaveLength(1);
     const row = requireValue(rows[0], "resource row");
     expect(within(row).getByText("placeholder")).toBeInTheDocument();
-    // The placeholder's name shows as the literal "Placeholder"; its role is in the secondary text.
+
     expect(within(row).getByText("Placeholder")).toBeInTheDocument();
     expect(within(row).getByText(/Senior Designer/)).toBeInTheDocument();
-    // No "Temp" tag since it is permanent
+
     expect(within(row).queryByText("Temp")).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /favourites/i })).not.toBeInTheDocument();
   });
@@ -378,10 +375,10 @@ describe("ResourceList display", () => {
       color: "#a855f7",
       projectId: project.id,
     });
-    // Turn the feature off. The placeholder data still exists, it's just hidden.
+
     setPlaceholdersEnabled({ on: false });
     render(<ResourceList />);
-    // The person still renders; the placeholder section/heading/row do not.
+
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.queryByText("Placeholders")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Add placeholder/i })).not.toBeInTheDocument();
@@ -416,7 +413,6 @@ describe("ResourceList display", () => {
     const rows = screen.getAllByTestId("resource-row");
     expect(rows).toHaveLength(3);
 
-    // Alice row: no tags
     const aliceRow = requireValue(
       rows.find((r) => within(r).queryByText("Alice")),
       "Alice row",
@@ -425,7 +421,6 @@ describe("ResourceList display", () => {
     expect(within(aliceRow).queryByText("placeholder")).not.toBeInTheDocument();
     expect(within(aliceRow).queryByText("Temp")).not.toBeInTheDocument();
 
-    // Bob row (freelancer): no tags either. The Temp pill is parked
     const bobRow = requireValue(
       rows.find((r) => within(r).queryByText("Bob")),
       "Bob row",
@@ -434,7 +429,6 @@ describe("ResourceList display", () => {
     expect(within(bobRow).queryByText("Temp")).not.toBeInTheDocument();
     expect(within(bobRow).queryByText("placeholder")).not.toBeInTheDocument();
 
-    // Placeholder row: placeholder tag, no Temp tag (role "Senior Designer" is in its secondary text)
     const slotRow = requireValue(
       rows.find((r) => within(r).queryByText(/Senior Designer/)),
       "placeholder row",
@@ -446,13 +440,7 @@ describe("ResourceList display", () => {
   });
 });
 
-// The per-row "Delete" affordance now archives (the simplest coherent flow, soft-delete is
-// reached later from the inline archive section on an archived row). Demo build here, so the
-// archive affordance dispatches the store's archiveEntity directly (no fetch, no reload): the row
-// gets `archivedAt` set (still in `data`) and vanishes from this list (which reads
-// useActiveScopedData → active-only). The button + confirm copy read "Archive". Server is the app
-// default now, so we opt into the demo build (VITE_CAPACITYLENS_DEMO=1) for the local-mutation path
-// these assertions check. isServerConfigured() reads the env per dispatch, so a stub here is enough.
+// Archive hides a resource from active views while retaining it for restoration. The demo fixture exercises local state without requests.
 describe("ResourceList archive flow", () => {
   beforeEach(() => vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1"));
   afterEach(() => vi.unstubAllEnvs());
@@ -469,7 +457,6 @@ describe("ResourceList archive flow", () => {
     expect(dialog).toHaveTextContent(/Archive resource\?/i);
     expect(dialog).toHaveTextContent(/Alice/i);
 
-    // Cancel keeps the resource active + visible.
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(useStore.getState().data.resources).toHaveLength(1);
     expect(requireValue(useStore.getState().data.resources[0], "active resource")).not.toHaveProperty("archivedAt");
@@ -485,7 +472,6 @@ describe("ResourceList archive flow", () => {
     const dialog = screen.getByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
-    // Still in the data and immediately recoverable below the active-only list.
     expect(useStore.getState().data.resources).toHaveLength(1);
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
     expect(screen.queryByTestId("resource-row")).not.toBeInTheDocument();
@@ -570,7 +556,6 @@ describe("ResourceList archive flow", () => {
     useStore.getState().addResource(personDraft("Bob"));
     render(<ResourceList />);
 
-    // Find the Bob row and click its Archive button.
     const rows = screen.getAllByTestId("resource-row");
     const bobRow = requireValue(
       rows.find((r) => within(r).queryByText("Bob")),
@@ -582,7 +567,6 @@ describe("ResourceList archive flow", () => {
     expect(dialog).toHaveTextContent(/Bob/i);
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
-    // Alice stays active + visible; Bob is archived (still in data) and gone from the list.
     const bob = requireValue(
       useStore.getState().data.resources.find((r) => r.name === "Bob"),
       "Bob resource",
@@ -633,16 +617,14 @@ describe("ResourceList archive flow", () => {
     });
     render(<ResourceList />);
 
-    // The placeholder's name shows as the literal "Placeholder"; its role ("Senior Designer") is in
-    // the secondary text. Match the role with a substring matcher since it's combined with the rest.
+    // Match the secondary role label separately from the fixed Placeholder display name.
     expect(screen.getByText("Placeholder")).toBeInTheDocument();
     expect(screen.getByText(/Senior Designer/)).toBeInTheDocument();
     expect(screen.getByText("placeholder")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Archive Placeholder" }));
     const dialog = screen.getByRole("alertdialog");
-    // The confirm dialog names the placeholder by its display name ("Placeholder"), matching the
-    // row above it, not its role ("Senior Designer"), which would read inconsistently.
+    // The confirmation uses the same Placeholder display identity as the row so the target remains recognizable.
     expect(dialog).toHaveTextContent(/Archive "Placeholder"/i);
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 

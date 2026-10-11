@@ -50,6 +50,7 @@ function createPermissionPinner(pinPermissions: (file: string, mode: number) => 
     try {
       pinPermissions(path, 0o600);
     } catch (permissionError) {
+      // Preserve permission diagnostics as the cause so the sink reports degradation instead of writing to an unsafe file.
       const detail = permissionError instanceof Error ? permissionError.message : String(permissionError);
       throw new Error(`Audit permission pin failed: ${detail}`, { cause: permissionError });
     }
@@ -197,6 +198,7 @@ export function createFileAuditSink(
     try {
       return appendRecords(context, records);
     } catch (error) {
+      // Latch degraded health and invalidate cached recovery state so retained outbox records can retry after this logged write failure.
       state.degraded = true;
       state.deliveryStateLoaded = false;
       state.activeSize = null;

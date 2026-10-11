@@ -92,7 +92,7 @@ beforeEach(() => {
     }),
   );
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-  // Add some resources, clients, projects for search tests
+
   useStore.getState().addClient({ name: "Queen Consolidated", color: "#6366f1" });
   useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne", role: "Designer" }));
   useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince", role: "Copywriter" }));
@@ -106,14 +106,11 @@ describe("CommandPalette", () => {
     expect(input).toBeInTheDocument();
     expect(document.activeElement).toBe(input);
 
-    // Should show Actions and Pages by default
     expect(screen.getByText("Actions")).toBeInTheDocument();
     expect(screen.getByText("Pages")).toBeInTheDocument();
 
-    // Go to today action
     expect(screen.getByText("Go to today")).toBeInTheDocument();
 
-    // All page entries
     expect(screen.getByText("Schedule")).toBeInTheDocument();
     expect(screen.getByText("Resources")).toBeInTheDocument();
     expect(screen.getByText("Team & access")).toBeInTheDocument();
@@ -373,7 +370,7 @@ describe("CommandPalette", () => {
     renderPalette();
 
     const input = screen.getByTestId("command-palette-input");
-    // Initially first option is active (aria-selected="true")
+
     const options = screen.getAllByTestId("command-palette-option");
     expect(options[0]).toHaveAttribute("aria-selected", "true");
     expect(options[1]).toHaveAttribute("aria-selected", "false");
@@ -392,7 +389,6 @@ describe("CommandPalette", () => {
     const options = screen.getAllByTestId("command-palette-option");
     expect(options[0]).toHaveAttribute("aria-selected", "true");
 
-    // ArrowUp from first should stay at first (clamped)
     fireEvent.keyDown(input, { key: "ArrowUp" });
 
     const updatedOptions = screen.getAllByTestId("command-palette-option");
@@ -430,9 +426,7 @@ describe("CommandPalette", () => {
 
     const options = screen.getAllByTestId("command-palette-option");
     if (!options[0] || !options[1]) throw new Error("Expected command palette options");
-    // Hover the second option. cmdk activates on its native onPointerMove (not mouseEnter), so the
-    // interaction fires pointerMove. The assertion (hovering a row makes it the active option) is
-    // unchanged.
+    // cmdk responds to pointermove rather than mouseenter, so simulate that event to exercise hover selection.
     fireEvent.pointerMove(options[1]);
 
     expect(options[0]).toHaveAttribute("aria-selected", "false");
@@ -469,13 +463,10 @@ describe("CommandPalette", () => {
     if (!tylerOption) throw new Error("Expected Bruce Wayne command palette option");
     expect(tylerOption).toBeTruthy();
 
-    // Click it, should call jumpToResource (store action). cmdk's onSelect fires on click (and
-    // Enter), so the pointer pick is a click; the assertion (selecting the row runs its action) holds.
     act(() => {
       fireEvent.click(tylerOption);
     });
 
-    // The scrollToResource state should be set in the store
     const sr = useStore.getState().ui.scrollToResource;
     expect(sr).not.toBeNull();
     if (!sr) throw new Error("Expected scroll-to-resource state after selecting a resource");
@@ -486,7 +477,6 @@ describe("CommandPalette", () => {
 
 describe("CommandPalette", () => {
   it("setFilters is called with projectId when a project is selected", () => {
-    // Add a project first
     const clients = useStore.getState().data.clients;
     const client = clients[0];
     if (!client) throw new Error("Expected client");
@@ -515,7 +505,6 @@ describe("CommandPalette", () => {
       fireEvent.click(projectOption);
     });
 
-    // The filters should be updated
     const filters = useStore.getState().ui.filters;
     expect(filters.projectId).not.toBeNull();
   });
@@ -561,7 +550,6 @@ describe("CommandPalette", () => {
       projectId = p.id;
     });
 
-    // Pre-set stale filters that should be wiped on project select
     act(() => {
       useStore.getState().setFilters({
         search: "stale-search",
@@ -589,7 +577,6 @@ describe("CommandPalette", () => {
       fireEvent.click(projectOption);
     });
 
-    // Filters must deep-equal { ...emptyFilters(), projectId }, no stale fields survive
     const filters = useStore.getState().ui.filters;
     if (!projectId) throw new Error("Expected Project Alpha id");
     expect(filters).toEqual({ ...buildEmptyFilters(), projectId });
@@ -604,7 +591,6 @@ describe("CommandPalette", () => {
       clientId = c.id;
     });
 
-    // Pre-set stale filters
     act(() => {
       useStore.getState().setFilters({
         search: "stale",
@@ -632,7 +618,6 @@ describe("CommandPalette", () => {
       fireEvent.click(clientOption);
     });
 
-    // Filters must deep-equal { ...emptyFilters(), clientId }, no stale fields survive
     const filters = useStore.getState().ui.filters;
     if (!clientId) throw new Error("Expected Client Zeta id");
     expect(filters).toEqual({ ...buildEmptyFilters(), clientId });

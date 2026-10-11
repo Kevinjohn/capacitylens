@@ -6,7 +6,6 @@ import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { downloadTextFile } from "@/lib/download";
 
-// The export must be observable (not actually save files in jsdom), mock the one download seam.
 vi.mock("@/lib/download", () => ({ downloadTextFile: vi.fn() }));
 
 // Friction on the one irreversible action: Delete stays aria-disabled but focusable until the exact
@@ -118,7 +117,7 @@ it("DEMO build: exports the local scoped slice without any fetch", async () => {
 
 it("DEMO build: refuses an all-empty export with a loud inline warning (no file saved)", async () => {
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
-  // Account exists but carries zero scoped records, e.g. the slice never loaded.
+
   useStore.getState().replaceAll(makeAppData());
   render(<DeleteCompanyDialog account={makeAccount()} onConfirm={() => {}} onCancel={() => {}} />);
 
@@ -160,9 +159,6 @@ it("SERVER mode: exports the fetched COMPLETE (?includeInactive=1) slice, not th
 });
 
 it("SERVER mode: a failed fetch surfaces inline and saves NO file (backup blocks the delete step)", async () => {
-  // `json` present but empty: fetchInactiveSlice best-effort reads the server's `{ error }`
-  // sentence off a non-OK body (readApiError); a bodyless failure falls back to the
-  // status-stamped message asserted below.
   const fetchSpy = vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) });
   vi.stubGlobal("fetch", fetchSpy);
   render(<DeleteCompanyDialog account={makeAccount()} onConfirm={() => {}} onCancel={() => {}} />);

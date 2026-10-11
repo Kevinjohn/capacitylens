@@ -18,7 +18,7 @@ function tempDir(): string {
   return dir;
 }
 
-/** A fake clock that advances one second per call, so every snapshot gets a unique name. */
+// Advance the fixture clock so snapshots receive distinct names.
 function tickingClock(start = new Date("2026-06-13T00:00:00")) {
   let t = start.getTime();
   return () => new Date((t += 1000));

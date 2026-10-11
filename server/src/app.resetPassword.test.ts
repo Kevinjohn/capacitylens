@@ -39,8 +39,7 @@ function seedAccount(db: Db, id: string): void {
 // this suite's "old password still works / no longer works" assertions test the right credential.
 const PASSWORD = "password-123456";
 
-// 'sso' mode without a real IdP: discovery is parsed but not fetched at construction time, so the
-// reset route can prove it refuses before touching the provider.
+// Provider configuration is validated at construction without contacting the remote provider.
 const SSO_ENV = {
   CAPACITYLENS_MODE: "sso-only",
   CAPACITYLENS_SECRET: "unit-test-secret-0123456789abcdef-0123",
@@ -76,7 +75,6 @@ interface MemberInput {
   role: Role;
 }
 
-/** Sign-up + membership in one step: the (email, role) principal this suite's matrix drives. */
 async function member({ app, db, accountId, email, role }: MemberInput): Promise<{ cookie: string; userId: string }> {
   const user = await signUp(app, email);
   upsertMember(db, {
@@ -159,11 +157,9 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     const done = await redeem(app, body.token, "brand-new-password-456");
     expect(done.statusCode).toBe(200);
 
-    // The old password is dead, the new one signs in.
     expect((await signIn(app, "editor@capacitylens.dev", PASSWORD)).statusCode).toBe(401);
     expect((await signIn(app, "editor@capacitylens.dev", "brand-new-password-456")).statusCode).toBe(200);
 
-    // Single-use: the token was consumed on redeem. A second redeem is refused.
     expect((await redeem(app, body.token, "attacker-password-789")).statusCode).toBe(400);
   });
 });
@@ -175,7 +171,6 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
     const editor = await member({ app, db, accountId: "a1", email: "editor@capacitylens.dev", role: "editor" });
 
-    // The editor's sign-up session is live before the reset…
     const before = await call(app, {
       method: "GET",
       url: "/api/auth/me",
@@ -206,14 +201,11 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     const editor = await member({ app, db, accountId: "a1", email: "editor@capacitylens.dev", role: "editor" });
     const viewer = await member({ app, db, accountId: "a1", email: "viewer@capacitylens.dev", role: "viewer" });
 
-    // Below admin tier: no reset minting at all (the authorize 'manageMembers' gate).
     expect((await mint({ app, accountId: "a1", userId: viewer.userId, cookie: editor.cookie })).statusCode).toBe(403);
     expect((await mint({ app, accountId: "a1", userId: editor.userId, cookie: viewer.cookie })).statusCode).toBe(403);
-    // Admin may reset a non-owner…
     expect((await mint({ app, accountId: "a1", userId: editor.userId, cookie: admin.cookie })).statusCode).toBe(201);
     // …but never an owner. A reset link is an account-takeover capability (pure guard, 403).
     expect((await mint({ app, accountId: "a1", userId: owner.userId, cookie: admin.cookie })).statusCode).toBe(403);
-    // An owner may reset anyone, including an owner (self here, useful for social-only sign-ins).
     expect((await mint({ app, accountId: "a1", userId: owner.userId, cookie: owner.cookie })).statusCode).toBe(201);
   });
 });
@@ -226,9 +218,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     const owner1 = await member({ app, db, accountId: "a1", email: "owner1@capacitylens.dev", role: "owner" });
     const owner2 = await member({ app, db, accountId: "a2", email: "owner2@capacitylens.dev", role: "owner" });
 
-    // a2's owner holds no membership in a1 → the authorize gate 403s before anything else runs.
     expect((await mint({ app, accountId: "a1", userId: owner1.userId, cookie: owner2.cookie })).statusCode).toBe(403);
-    // A userId that is not a member of a1 (owner2 targeted in a1's URL-space) → 404.
     const unknownTarget = await mint({ app, accountId: "a1", userId: owner2.userId, cookie: owner1.cookie });
     expect(unknownTarget.statusCode).toBe(404);
     expect(unknownTarget.json()).toMatchObject({
@@ -236,7 +226,6 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
       retryable: false,
     });
     expect(unknownTarget.json<{ commandId: string }>().commandId).toEqual(expect.any(String));
-    // No session at all → the requireUser preHandler 401s upstream of the route.
     expect((await mint({ app, accountId: "a1", userId: owner1.userId })).statusCode).toBe(401);
   });
 });
@@ -262,7 +251,6 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     seedAccount(db, "x");
     seedAccount(db, "y");
     const adminX = await member({ app, db, accountId: "x", email: "admin-x@capacitylens.dev", role: "admin" });
-    // Bob is a mere editor in X but the owner of Y (one identity, two memberships).
     const bob = await member({ app, db, accountId: "x", email: "bob@capacitylens.dev", role: "editor" });
     upsertMember(db, {
       accountId: "y",
@@ -281,7 +269,6 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
       "This member belongs to another account where you lack password-reset authority.",
     );
 
-    // Even the owner of X is refused. An owner of X has no authority over account Y.
     const ownerX = await member({ app, db, accountId: "x", email: "owner-x@capacitylens.dev", role: "owner" });
     expect((await mint({ app, accountId: "x", userId: bob.userId, cookie: ownerX.cookie })).statusCode).toBe(403);
   });
@@ -289,9 +276,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
 
 describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("SELF-RESET across accounts: a user who is owner of X but a mere editor of Y may reset their OWN password", async () => {
-    // The finding-1 scenario: without the isSelf exemption the cross-account loop hits Y and
-    // Identity administration for editor/editor fails the manageMembers tier, wrongly 403-ing a
-    // self-reset. The acting account is X (where they are owner, so authorize passes); actor === target.
+    // Self-reset must remain available even when the caller lacks member-administration authority in another company.
     const { app, db } = await appWith(PASSWORD_ENV, { multiAccount: true });
     seedAccount(db, "x");
     seedAccount(db, "y");
@@ -304,7 +289,6 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
       createdAt: TS,
     });
 
-    // Resetting their own credential succeeds (201), self-reset needs no cross-account standing.
     const res = await mint({ app, accountId: "x", userId: self.userId, cookie: self.cookie });
     expect(res.statusCode).toBe(201);
     // And the link redeems, proving it is a real, usable reset (not a hollow 201).
@@ -335,7 +319,6 @@ function registerFailureTooShort(): void {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
     const token = await freshToken(app, db);
-    // Below Better Auth's 8-char minimum.
     const res = await redeem(app, token, "short");
     expect(res.statusCode).toBe(400);
     expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_SHORT");
@@ -383,7 +366,6 @@ function registerFailureTooLong(): void {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
     const token = await freshToken(app, db);
-    // 128 is the Better Auth default cap.
     const res = await redeem(app, token, "x".repeat(129));
     expect(res.statusCode).toBe(400);
     expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_LONG");
@@ -419,12 +401,10 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
     const editor = await member({ app, db, accountId: "a1", email: "editor@capacitylens.dev", role: "editor" });
 
-    // Admin-issued link minted while the target is an editor (allowed)…
     const res = await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie });
     expect(res.statusCode).toBe(201);
     const token = (res.json() as { token: string }).token;
 
-    // …then the owner promotes the editor to owner within the token's lifetime.
     const promote = await call(app, {
       method: "PATCH",
       url: `/api/accounts/a1/members/${editor.userId}`,
@@ -433,9 +413,8 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     });
     expect(promote.statusCode).toBe(200);
 
-    // The still-held link must not redeem into the now-admin identity. It was revoked on promotion.
+    // A role elevation must revoke previously minted reset capabilities.
     expect((await redeem(app, token, "attacker-owner-password")).statusCode).toBe(400);
-    // The old password therefore still works (nothing was changed).
     expect((await signIn(app, "editor@capacitylens.dev", PASSWORD)).statusCode).toBe(200);
   });
 });
@@ -490,7 +469,6 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
     const editor = await member({ app, db, accountId: "a1", email: "editor@capacitylens.dev", role: "editor" });
 
-    // Admin-issued link minted while the target is an editor (allowed).
     const token = (
       (await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie })).json() as {
         token: string;
@@ -515,7 +493,6 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
     expect(accept.statusCode).toBe(200);
     expect(accept.json()).toMatchObject({ role: "editor" });
 
-    // No privilege change occurred, so the editor-scoped reset capability remains valid.
     expect((await redeem(app, token, "new-editor-password")).statusCode).toBe(200);
     expect((await signIn(app, "editor@capacitylens.dev", "new-editor-password")).statusCode).toBe(200);
   });
@@ -523,20 +500,17 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
 
 describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
   it("TOCTOU via ORG-CREATE: becoming the owner of a new account burns an outstanding reset link", async () => {
-    // Multi-account instance so POST /api/orgs is not capped to one company.
     const { app, db } = await appWith(PASSWORD_ENV, { multiAccount: true });
     seedAccount(db, "a1");
     const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
     const adminM = await member({ app, db, accountId: "a1", email: "admin@capacitylens.dev", role: "admin" });
 
-    // An owner may reset an admin (mint-time guard passes: admin is only {a1: admin}).
     const token = (
       (await mint({ app, accountId: "a1", userId: adminM.userId, cookie: owner.cookie })).json() as {
         token: string;
       }
     ).token;
 
-    // The admin then creates a new org, becoming its owner (upsertMember at POST /api/orgs).
     const org = await call(app, {
       method: "POST",
       url: "/api/orgs",

@@ -16,11 +16,9 @@ beforeEach(() => {
 const DAYS: [string, string, string] = ["2026-06-01", "2026-06-02", "2026-06-03"];
 const DAY_WIDTH = 48;
 const GEOM = buildColumnGeometry(DAYS, DAY_WIDTH, { minimiseWeekends: false, weekendWidth: 22 });
-// Below DAY_COLUMN_MIN_WIDTH: `geom.perDayColumns` is false, so the lane drops its per-day
-// decorations. The gate lives on the geometry now, so a coarse-zoom case must build one.
+// Build coarse geometry explicitly so per-day decorations remain disabled under the grid's zoom threshold.
 const COARSE_GEOM = buildColumnGeometry(DAYS, 17, { minimiseWeekends: false, weekendWidth: 22 });
 
-/** An ordinary working day; each case spreads in only the flags it is actually about. */
 const dayState = (overrides: Partial<DayState> = {}): DayState => ({
   over: false,
   timeOffConflict: false,
@@ -114,9 +112,7 @@ describe("ResourceLane day rendering", () => {
     renderLane({ timeOff: [], dayStates: DAY_STATES.map((s) => ({ ...s, hasTimeOff: false })) });
     const marker = screen.getByTestId("over-marker");
     expect(marker).toBeInTheDocument();
-    // The user-facing point: a clear, saturated red background, not a faint tint. Lock the
-    // dedicated `danger-cell` token class so a regression back to the subtle `bg-danger/12`
-    // alpha or the pale `danger-soft` button tint reds the gate.
+    // Over-capacity cells use the strong semantic danger fill so the conflict remains visible rather than resembling an action-button tint.
     expect(marker).toHaveClass("bg-danger-cell");
   });
 
@@ -170,10 +166,10 @@ describe("ResourceLane allocation rendering", () => {
     // A 30px block drops the visible uppercase label (<=44px), but the sr-only span must still name it.
     renderLane({ timeOff: [{ id: "to1", x: 0, width: 30, label: "Holiday" }] });
     const block = screen.getByTestId("timeoff-block");
-    // The specific label survives in an sr-only span (not just dropped to AT).
+
     expect(block).toHaveTextContent("Holiday");
     expect(block.querySelector(".sr-only")?.textContent).toBe("Holiday");
-    // The dead pointer-events-none `title` is gone. It was unreachable, so it conveyed nothing.
+
     expect(block).not.toHaveAttribute("title");
   });
 
@@ -355,9 +351,7 @@ describe("ResourceLane draw coordinates", () => {
     const { onDraw } = renderLane();
     const lane = screen.getByTestId("resource-lane");
 
-    // Own the geometry explicitly (don't depend on jsdom's zero-rect default):
-    // with left=0 and dayWidth=48, clientX=0 → day 0 ('2026-06-01'),
-    // clientX=100 → floor(100/48)=2 → day 2 ('2026-06-03').
+    // Supply an explicit lane rectangle because jsdom does not measure layout; the gesture then uses deterministic column coordinates.
     lane.getBoundingClientRect = () =>
       ({
         left: 0,
@@ -385,7 +379,7 @@ describe("ResourceLane draw coordinates", () => {
     expect(startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(startDate <= endDate).toBe(true);
-    // Exact values given rect.left=0 and dayWidth=48
+
     expect(startDate).toBe("2026-06-01");
     expect(endDate).toBe("2026-06-03");
   });
@@ -408,7 +402,6 @@ describe("ResourceLane draw clicks", () => {
         toJSON: () => ({}),
       }) as DOMRect;
 
-    // clientX=30, dayWidth=48 → day 0 ('2026-06-01'); start === end (one day).
     fireEvent.pointerDown(lane, { clientX: 30, button: 0 });
     act(() => {
       document.dispatchEvent(new MouseEvent("pointerup", { clientX: 30, bubbles: true }));

@@ -8,8 +8,10 @@ import { isWorkingDay, isUnavailable, resolveScheduledHoursOnDay } from "./avail
 
 /** Capacity impact summary for a proposed allocation. */
 export interface CapacityAdvisory {
-  overDays: number; // days the proposed allocation works where existing + proposed hours exceed availability
-  timeOffDays: number; // days in the window the resource is on time off
+  /** Days worked by the proposal where total load exceeds availability. */
+  overDays: number;
+  /** Covered effective weekdays on personal time off or a company closure. */
+  timeOffDays: number;
   /** Repeat-only: generated occurrences whose start weekday is outside the effective week. */
   nonEffectiveStartAllocations?: number;
 }
@@ -53,7 +55,6 @@ export function addCapacityLoad({
   const from = allocation.startDate > start ? allocation.startDate : start;
   const to = allocation.endDate < end ? allocation.endDate : end;
   for (const day of eachDayISO(from, to)) {
-    // Count each existing allocation only on the days it works, matching the over-marker's load.
     if (
       !hasAllocationLoadOnDay({
         effectiveWeek: effectiveWeek,
@@ -97,9 +98,8 @@ export function bucketCapacityLoad({
   return byDay;
 }
 
-/** The days a proposal covers, or `null` when its window is empty or beyond the product span limit.
- * Proposed input may not have reached the durable write boundary yet, so this refusal is O(1) and
- * happens before eachDayISO allocates one string per date. */
+// Refuse empty or excessive draft windows before allocating a date array because
+// transient input has not reached the durable validation boundary.
 function listAdvisoryDays(proposal: CapacityAllocationInput): ISODate[] | null {
   const span = daysInclusive(proposal.startDate, proposal.endDate);
   if (span < 1 || span > MAX_SPAN_DAYS) return null;
@@ -142,7 +142,7 @@ function tallyAdvisory({
       timeOffDays++;
       continue;
     }
-    // The proposal does no work on a day it doesn't cover (a weekend-aware bar over Sat/Sun), skip.
+    // Skip non-effective days so a spanning bar cannot create work outside its working calendar.
     if (
       !hasAllocationLoadOnDay({
         effectiveWeek: effectiveWeek,

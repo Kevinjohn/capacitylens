@@ -160,6 +160,7 @@ async function runLockedMutation<Execute extends () => unknown>(
   try {
     result = executeMutation(dependencies, options, scope);
   } catch (error) {
+    // Release rollback reservations and record the durable failure before surfacing the mutation error.
     options.afterRollback?.();
     recordFailedMutation({ dependencies, options, scope, error });
     throw error;

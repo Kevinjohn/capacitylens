@@ -38,7 +38,7 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 
 interface AppSidebarProps {
   activeAccount: { name: string } | undefined;
-  /** Administration destinations pinned to the bottom of the nav (Team & access, Settings). */
+
   adminLinks: NavigationLinkDefinition[];
   accessibleAccountCount: number;
   demoAuthActive: boolean;
@@ -67,13 +67,7 @@ export function AppSidebar({
     if (isMobile) setOpenMobile(false);
   };
 
-  // Vertical density (the schedule's roomy rhythm). Published as CSS custom
-  // properties on the sidebar root rather than threaded as props: the nav is assembled from several
-  // groups (the primary destinations, the pinned admin group, the account footer), and the rules
-  // below key off the shadcn primitives' own `data-slot` hooks, so every menu inside the sidebar
-  // picks the rhythm up without each one having to read the store. Only gaps and padding move, item
-  // height is untouched, so the collapsed icon rail (which pins each button square) is unaffected.
-  // See src/index.css.
+  // Sidebar spacing flows through shared CSS variables so menu groups use one rhythm while icon-rail buttons retain square geometry.
   const density = SCHEDULER_DENSITY;
 
   return (
@@ -226,9 +220,7 @@ function HelpMenuItem({ onNavigate, pathname }: { onNavigate: () => void; pathna
   );
 }
 
-/** One menu of nav destinations. Shared by the primary list and the pinned admin group so both
- * render identical markup (same active matching, same `data-nav` tour anchor, same collapsed-rail
- * tooltip) and can never drift apart. */
+// Share destination markup so primary and administration links keep matching and tour anchors consistent.
 function NavMenu({
   links,
   onNavigate,
@@ -261,10 +253,8 @@ function NavMenu({
   );
 }
 
-/** Fast light/dark access beside the persistent administration destinations. Settings retains the
- * full three-way preference, including Match system; this button deliberately makes an explicit
- * light or dark choice rather than cycling through the three-way setting. Its label, icon and
- * target follow the scheme actually displayed, so Match system resolves through the OS. */
+// Choose explicit light or dark here; Settings retains the separate system-following preference.
+// Derive the target from the displayed scheme so system mode toggles predictably.
 function ThemeToggleMenuItem() {
   const theme = useStore((state) => state.theme);
   const setTheme = useStore((state) => state.setTheme);
@@ -287,7 +277,6 @@ function ThemeToggleMenuItem() {
   );
 }
 
-/** The personal Account destination and identity avatar at the very bottom of the nav. */
 function SessionMenuItem({
   demoAuthActive,
   onNavigate,
@@ -327,7 +316,6 @@ function SessionMenuItem({
   );
 }
 
-/** Resolves the current account role from inside PermissionProvider. */
 function ActiveRoleBadge() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();

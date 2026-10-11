@@ -1,5 +1,4 @@
-/* Plain, light, text-first — tuned toward classic documentation sites.
-   Brand blue mirrors src/index.css so the docs read as part of the product. */
+/* Brand blue keeps the documentation visually consistent with the product. */
 :root {
   --vp-c-brand-1: #2563eb;
   --vp-c-brand-2: #1d4ed8;
@@ -29,13 +28,11 @@
   --vp-code-copy-code-active-text: rgba(235, 235, 245, 0.8);
 }
 
-/* Keep body copy at a comfortable reading measure. */
 .vp-doc {
   font-size: 16px;
   line-height: 1.7;
 }
 
-/* Screenshots: bordered, never wider than the text column. */
 .vp-doc img {
   border: 1px solid var(--vp-c-divider);
   border-radius: 6px;
@@ -47,8 +44,7 @@
    or Space does not add history entries. The standalone build retains the small
    keyboard handler that lets Escape or Tab close an open overlay. */
 
-/* Visually hidden but still focusable and still operable with Space — this is
-   the control, so it must not be display:none or hidden. */
+/* The checkbox must remain focusable and operable with Space, so it cannot use display:none or hidden. */
 .vp-doc .cl-toggle {
   position: absolute;
   width: 1px;
@@ -63,9 +59,7 @@
   cursor: zoom-in;
 }
 
-/* The image is the only affordance a reader sees, so it has to look clickable,
-   and keyboard focus lands on the (invisible) checkbox — show that on the
-   image instead, or focus would appear to vanish. */
+/* Show the invisible checkbox’s keyboard focus on the image so focus remains visible. */
 .vp-doc label.cl-zoom:hover img,
 .vp-doc .cl-toggle:focus-visible + label.cl-zoom img {
   border-color: var(--vp-c-brand-1);
@@ -95,10 +89,7 @@
   cursor: zoom-out;
 }
 
-/* Adjacent siblings, not `~`: the plugin emits toggle, inline label and overlay
-   as a run of three, and a general sibling combinator would let one checked
-   toggle reveal every later overlay in the same paragraph — clicking the first
-   of two screenshots would open the second. */
+/* Each toggle controls only its adjacent overlay; a general sibling selector would reveal later screenshots too. */
 .cl-toggle:checked + .cl-zoom + .cl-lightbox {
   display: flex;
 }
@@ -109,15 +100,7 @@ html:has(.cl-toggle:checked) {
   overflow: hidden;
 }
 
-/* Natural size where it fits, shrunk to the window where it does not — never
-   stretched past 1:1, which would only blur the detail being sought.
-   Both axes are capped, and to the padded box rather than the raw viewport, so
-   the enlarged image is always visible in one go. Letting it overflow instead
-   turns the lightbox into a surface you have to pan around, which is the one
-   thing a reader who clicked a screenshot did not ask for — and the padding
-   made even an image the exact size of the screen overflow.
-   Our captures are viewport-shaped, so fitting costs little: they still land
-   near 1:1, and vastly wider than the ~690px text column. */
+/* Cap both axes to the padded viewport and never enlarge beyond natural size, so screenshot details stay visible and sharp. */
 .cl-lightbox img {
   max-width: 100%;
   max-height: 100%;

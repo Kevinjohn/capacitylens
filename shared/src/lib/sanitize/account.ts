@@ -2,18 +2,7 @@ import { normalizeAccountWorkingDays } from "../accountWorkingDays";
 import { CAPACITY_OVERVIEW_ACCESS_VALUES, DATE_STYLES, SCHEDULING_MODES } from "../../types/entities";
 import type { Account } from "../../types/entities";
 
-/**
- * Every optional boolean preference on an account. Each is dropped rather than persisted when a
- * hand-edited value isn't a real boolean, so its absence reads back as the documented default on
- * the client, which differs per field and is what `Account` documents:
- * disciplinesEnabled            absent = true  (disciplines shown)
- * placeholdersEnabled           absent = false (placeholders hidden out of the box)
- * externalEnabled               absent = false (external resources hidden out of the box)
- * inlineActivityCreateEnabled   absent = false (inline "Add activity" hidden)
- * showTaskFieldInSchedule       absent = false (allocation task hidden)
- * Dropping junk, rather than coercing it, is what keeps a `false`-defaulting flag from turning on
- * because someone typed "no" into the file.
- */
+// Drop malformed boolean preferences so each reader uses its declared default instead of coercing strings such as "no" to true.
 const ACCOUNT_BOOLEAN_FIELDS = [
   "disciplinesEnabled",
   "placeholdersEnabled",
@@ -22,7 +11,6 @@ const ACCOUNT_BOOLEAN_FIELDS = [
   "showTaskFieldInSchedule",
 ] as const satisfies readonly AccountBooleanField[];
 
-/** Every boolean-valued optional preference declared on `Account`. */
 type AccountBooleanField = {
   [K in keyof Account]-?: boolean extends NonNullable<Account[K]> ? K : never;
 }[keyof Account];

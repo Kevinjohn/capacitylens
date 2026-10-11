@@ -10,11 +10,7 @@ import {
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// Admin-issued password-reset links use the auth-backed project's server
-// The auth-backed password project runs on port 8887 (see playwright.config.ts). Owner A creates
-// an organization and seeds editor B in the disposable fixture, then creates the password reset link.
-// Member B opens the link while signed out, sets a new password and signs in; the API confirms
-// the old password no longer works. This suite uses shared helpers from authTestSupport.ts.
+// Password resets use this run’s auth API lane. Reset links work without a session; after reset, the API rejects the old password.
 
 const NEW_PASSWORD = "fresh-password-456";
 // Unique per run so reruns against a reused auth server don't collide on existing users/accounts.
@@ -36,14 +32,12 @@ test("admin mints a reset link in Team & access; the locked-out member sets a ne
 }) => {
   await setupResetScenario(request);
 
-  // The owner creates a reset link from Team & access.
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
   await page.getByLabel("Email").fill(OWNER);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  // Pick the freshly-bootstrapped company and dismiss its non-blocking orientation.
   await page.getByRole("button", { name: `Reset Studio ${STAMP}`, exact: true }).click();
   await page.getByRole("button", { name: "Got it" }).click();
 
@@ -58,12 +52,10 @@ test("admin mints a reset link in Team & access; the locked-out member sets a ne
     .getByRole("button", { name: "Reset password" })
     .click();
 
-  // The write-once reset-link block: shown exactly once, straight from the create response.
   const linkEl = page.getByTestId("reset-link");
   await expect(linkEl).toContainText("/reset-password/");
   const resetLink = (await linkEl.textContent())?.trim() ?? "";
 
-  // A reset link must open without an authenticated session.
   await page.context().clearCookies();
   await page.goto(resetLink);
   await expect(page.getByRole("heading", { name: "Reset password" })).toBeVisible();
@@ -72,13 +64,11 @@ test("admin mints a reset link in Team & access; the locked-out member sets a ne
   await page.getByTestId("reset-submit").click();
   await expect(page.getByTestId("reset-success")).toBeVisible();
 
-  // "Go to sign in" is a full page load that lands on the login wall; the new password works.
   await page.getByRole("link", { name: "Go to sign in" }).click();
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
   await page.getByLabel("Email").fill(MEMBER);
   await page.getByLabel("Password").fill(NEW_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  // Signed in with the new password: the member lands on their company picker, not the wall.
   await expect(page.getByRole("button", { name: `Reset Studio ${STAMP}`, exact: true })).toBeVisible();
 
   const oldSignIn = await request.post(`${API}/api/auth/sign-in/email`, {

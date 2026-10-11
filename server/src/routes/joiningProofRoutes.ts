@@ -43,7 +43,7 @@ function createInvalidRequest(message: string = REPLY_ERRORS.joiningRequestInval
   return new AccountContractError({ code: "VALIDATION_FAILED", message, retryable: false });
 }
 
-/** Refuse a request whose mode, session or proof does not permit joining; `respond` replies. */
+// Joining policy failures use the account refusal shape rather than unexpected-server diagnostics.
 function invalid(message?: string): never {
   throw createInvalidRequest(message);
 }

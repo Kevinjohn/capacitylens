@@ -43,8 +43,7 @@ function buildCanonicalJson(value: unknown): string {
   return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${buildCanonicalJson(child)}`).join(",")}}`;
 }
 
-/** Fingerprint only the scoped rows an import replaces. Row and field ordering are normalized so
- * equivalent SQLite reads compare equal while any accepted tenant mutation changes the token. */
+// Normalize row and field ordering so equivalent scoped snapshots compare equal while changes to replaced rows invalidate preparation.
 function buildImportSnapshotFingerprint(slice: AppData): string {
   const scoped = Object.fromEntries(
     APP_DATA_KEYS.filter((table) => table !== "accounts").map((table) => [
@@ -142,11 +141,7 @@ function buildImportAuditRecord(userId: string, accountId: string): AuditRecord 
   };
 }
 
-/**
- * Recheck the uploaded data on the server. The browser runs the same parser before upload and
- * shows its specific reason; here the detail is logged and the caller receives one fixed message
- * rather than a thrown error's text.
- */
+// Do not echo parser internals to the browser; surface a fixed input refusal and retain diagnostics in the request log.
 function parseImportData(req: FastifyRequest, data: unknown): ParseResult<ReturnType<typeof parseData>, string> {
   try {
     return { kind: "parsed", value: parseData(JSON.stringify(data ?? {})) };
@@ -210,6 +205,7 @@ async function importState(
       auditWarning: !auditOk,
     });
   } catch (error) {
+    // Report queue pressure as retryable unavailability and a changed snapshot as conflict; other preparation or write failures use the redaction boundary.
     return sendImportFailure(reply, error, dependencies);
   }
 }

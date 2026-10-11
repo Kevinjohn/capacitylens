@@ -32,16 +32,9 @@ function warnRuntimeFallback(message: string, error?: unknown): void {
   }
 }
 
-/**
- * The IANA time-zone list offered wherever an account's `timezone` is chosen: the
- * create-company form (AccountPicker) and Settings. Extracted so both share one source.
- *
- * Prefers the engine's full `Intl.supportedValuesOf('timeZone')`, ensuring the app's default
- * `Etc/GMT` and the useful `UTC` alias are present; falls back to a small hand-list on older
- * engines that lack the API. Rendered through {@link resolveTimeZoneOptionLabel}, which owns the
- * display copy.
- *
- * The returned array is frozen and shared between callers; read it, do not sort or splice it.
+/** Lists supported IANA zones, including the app default and UTC alias. Falls back
+ * when the engine cannot enumerate zones. The returned array is frozen and shared;
+ * callers must not sort or splice it.
  */
 export function listSupportedTimeZones(): readonly string[] {
   cachedZones ??= Object.freeze(buildSupportedTimeZones());
@@ -54,6 +47,7 @@ export function resolveBrowserTimeZone(supportedZones = listSupportedTimeZones()
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     return typeof timeZone === "string" && supportedZones.includes(timeZone) ? timeZone : DEFAULT_TIME_ZONE;
   } catch (error) {
+    // Unavailable browser zone detection uses the stable default and logs the runtime failure rather than breaking calendar setup.
     warnRuntimeFallback("timezones: browser zone detection failed; using Etc/GMT", error);
     return DEFAULT_TIME_ZONE;
   }

@@ -6,10 +6,7 @@ import { call } from "./testHelpers/passwordAuth";
 import { deferred } from "./testHelpers/deferred";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 
-// Routing-boundary contract for the dedicated `accounts` write routes (routes/accountEntityRoutes.ts).
-//
-// Routing contract for dedicated `accounts` writes: static `/api/accounts/:id` routes must not
-// swallow deeper parametric routes or let an account write fall back into scoped-entity semantics.
+// Static account-write routes must not swallow deeper parametric routes or use scoped-entity semantics.
 
 const TS = "2026-01-01T00:00:00.000Z";
 
@@ -17,7 +14,6 @@ function freshApp(): FastifyInstance {
   return createApp(openDb(":memory:"), { optimisticConcurrency: false });
 }
 
-/** Trusted-local (off mode) create through the dedicated POST /api/accounts route. */
 async function createAccount(app: FastifyInstance, id: string): Promise<void> {
   const res = await call(app, {
     method: "POST",
@@ -86,7 +82,6 @@ describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
     expect(res.statusCode).toBe(204);
     expect((await call(app, { method: "GET", url: "/api/accounts" })).json()).toEqual([]);
 
-    // Contrast: the generic scoped route still demands the owning account.
     const scoped = await call(app, { method: "DELETE", url: "/api/disciplines/d1" });
     expect(scoped.statusCode).toBe(400);
     expect(scoped.json<{ error: string }>().error).toBe("accountId is required to delete a scoped record.");
@@ -120,7 +115,6 @@ describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
     expect(frozen.statusCode).toBe(409);
     expect(frozen.json<{ error: string }>().error).toContain("cannot be changed");
 
-    // A non-frozen field on the same route still applies.
     const renamed = await call(app, {
       method: "PATCH",
       url: "/api/accounts/a1",

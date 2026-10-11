@@ -66,8 +66,7 @@ function readAuthenticatedUserId(req: FastifyRequest): string {
 const sendUnknownEntity = (reply: FastifyReply, entity: string) =>
   reply.code(404).send({ error: buildUnknownEntityMessage(entity) });
 
-/** Send the refusal when a replacement may not proceed; null when it may. A refusal already sent
- * by the authorization gate is returned as the same reply. */
+// Preserve a sent authorization refusal as the same reply for immediate handler return.
 function sendReplacementRefusal(
   { req, reply, entity, dependencies }: EntityWriteContext,
   body: Record<string, unknown>,
@@ -222,6 +221,7 @@ function registerCreateRoute(app: FastifyInstance, dependencies: EntityRouteDepe
       });
       return reply.code(201).send(row);
     } catch (error) {
+      // Surface validation or storage failure through the reply boundary so creation cannot fail invisibly.
       return sendFail(reply, error);
     }
   });
@@ -280,6 +280,7 @@ function replaceEntity(
     const echo = redactWriteEcho(entity, row, visibility);
     return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
   } catch (error) {
+    // Report replacement failure through the shared redaction boundary instead of returning a successful write echo.
     return sendFail(reply, error);
   }
 }
@@ -348,6 +349,7 @@ function patchEntity(
     const echo = redactWriteEcho(entity, stamped, visibility);
     return reply.code(200).send(shapeActivityWriteEcho(entity, echo, rewrittenAllocations));
   } catch (error) {
+    // Report patch failure through the shared redaction boundary instead of acknowledging an uncompleted mutation.
     return sendFail(reply, error);
   }
 }
@@ -389,6 +391,7 @@ function registerDeleteRoute(app: FastifyInstance, dependencies: EntityRouteDepe
       }
       return reply.code(204).send();
     } catch (error) {
+      // Report deletion failure through the shared redaction boundary so the caller can distinguish failure from idempotent success.
       return sendFail(reply, error);
     }
   });

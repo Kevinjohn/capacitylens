@@ -72,7 +72,6 @@ it("shows an error and does not close when saving with a blank name", async () =
   const onClose = vi.fn();
   render(<ClientForm onClose={onClose} />);
 
-  // Name field starts empty; click Save without typing anything
   await user.click(screen.getByRole("button", { name: "Save" }));
 
   expect(screen.getByRole("alert")).toHaveTextContent(/name is required/i);
@@ -99,7 +98,7 @@ it("saves a colour chosen from the swatch picker", async () => {
   render(<ClientForm onClose={onClose} />);
 
   await user.type(screen.getByLabelText("Name"), "Ferris");
-  // Open the colour popup (trigger is labelled "<label> (<value>)") and pick a swatch.
+
   await user.click(screen.getByRole("button", { name: /^Colour \(/ }));
   await user.click(screen.getByRole("radio", { name: resolveColorName("#e02727") }));
   await user.click(screen.getByRole("button", { name: "Save" }));
@@ -248,7 +247,7 @@ it("shows an error and does not close when clearing the name in edit mode", asyn
 
   expect(screen.getByRole("alert")).toHaveTextContent(/name is required/i);
   expect(onClose).not.toHaveBeenCalled();
-  // Store still has the original client unchanged
+
   expect(useStore.getState().data.clients[0]?.name).toBe("Existing");
 });
 

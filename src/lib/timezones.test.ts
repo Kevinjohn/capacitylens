@@ -111,7 +111,6 @@ describe("time zone option labels", () => {
   });
 
   it("renders the default zone as the localised GMT without the caller spelling it out", () => {
-    // The GMT display rule lives in timeZoneOptionLabel, so no call site re-implements the ternary.
     expect(resolveTimeZoneOptionLabel(DEFAULT_TIME_ZONE, undefined, new Date("2026-07-01T12:00:00.000Z"))).toBe(
       `${m.settings_timezone_gmt()} (UTC+00:00)`,
     );

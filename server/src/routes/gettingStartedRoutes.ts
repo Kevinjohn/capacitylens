@@ -8,7 +8,7 @@ interface GettingStartedRoute {
   Params: { accountId: string };
 }
 
-/** The only accepted body is exactly `{ dismissed: true }`. */
+// Only the explicit dismissal value may create the company-level preference.
 function parseDismissalBody(body: unknown): ParseResult<true, string> {
   if (
     !body ||

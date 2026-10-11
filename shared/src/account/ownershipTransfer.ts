@@ -92,15 +92,8 @@ export const OWNERSHIP_TRANSFER_TERMINAL_REASONS = Object.freeze([
 /** A bounded reason code for a request that ended without exchanging roles. */
 export type OwnershipTransferTerminalReason = (typeof OWNERSHIP_TRANSFER_TERMINAL_REASONS)[number];
 
-/**
- * The permitted transitions, keyed by the state a command is applied to.
- *
- * `withdraw` returning `awaiting_owner` → `awaiting_target` is deliberately not a decline: it
- * removes the "accepted forever" trap without discarding the Owner's original nomination, so the
- * nominee may accept again before the deadline. Because accept → withdraw → accept returns to a
- * state it already held, a monotonic revision, not the state alone, is what stops a delayed
- * command from applying to a later acceptance cycle.
- */
+// Withdrawal preserves the nomination so the nominee may accept again before the deadline.
+// Commands need a monotonic revision because accept-withdraw-accept revisits the same state.
 const PERMITTED_TRANSITIONS = {
   awaiting_target: Object.freeze(["accept", "decline", "cancel"] as const),
   awaiting_owner: Object.freeze(["withdraw", "complete", "cancel"] as const),

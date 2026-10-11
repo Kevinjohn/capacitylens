@@ -105,25 +105,7 @@ function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
   return { role: "viewer", status: input.fetched?.status ?? "pending" };
 }
 
-// Resolves the active account's role for the client permission hooks. Off mode and demo mode do not
-// fetch membership; authenticated server lookups project unresolved results to Viewer.
-//
-// Fail-closed: in the auth-on + server path, pending/failed/missing role resolution is projected as
-// viewer for affordance safety and separately labelled pending/unavailable for explanatory UI.
-// This prevents an optimistic edit window after every account switch and prevents local UI
-// divergence while the permission endpoint is unavailable. Off/demo still use null (editable).
-
-/**
- * Resolve and provide the caller's role for the active account.
- *
- * - off mode or the demo build (no server): `role: null`, no fetch. The must-stay-editable path.
- * - auth-on + server + an active account: own the shared `GET /api/accounts` refresh for this
- *   generation, publish its validated summaries for the picker, and resolve the active role from
- *   that same result. Pending/failure/absence is viewer.
- *
- * The resolved role is also pushed to the store (`setActiveRole`) so the store's defense-in-depth
- * mutation guard can no-op a viewer's optimistic local write, see useStore.assertCanWrite.
- */
+/** Publishes the active company role from the shared validated directory. Authenticated lookups project unresolved membership to Viewer; off/demo uses no membership role. The store independently applies the same read-only guard. */
 export function PermissionProvider({ children }: { children: ReactNode }) {
   const { authMode } = useAuth();
   const activeAccountId = useStore((state) => state.activeAccountId);
@@ -131,16 +113,9 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   const membershipRevision = useStore((state) => state.membershipRevision);
   const offline = useOfflineState();
   const offlineEpisode = readOfflineStateEpisode();
-  // The fetched role tagged with the account it was resolved for. Only ever set behind an `await` in
-  // the effect's async IIFE (the MembersSection / AuthProvider idiom), never synchronously in the
-  // effect body, so there's no cascading-render setState-in-effect. Tagging with `accountId` is what
-  // lets the value computation below discard a prior tenant's role the instant the active account
-  // changes (without a synchronous reset that the set-state-in-effect lint forbids): a stale entry
-  // whose accountId/revision no longer matches reads as pending with a fail-closed Viewer projection
-  // until the new fetch lands.
+  // Tag resolved roles with accountId and membership revision so switching company immediately discards the previous role and projects Viewer until the new lookup succeeds.
   const [fetched, setFetched] = useState<FetchedPermission | null>(null);
 
-  // Enabled only in an auth-on, server-backed deploy. Off / demo provides null and fetches nothing.
   const enabled = authMode !== "off" && isServerConfigured();
 
   useEffect(() => {
@@ -148,9 +123,8 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       setActiveRole("viewer", "unavailable");
       return;
     }
-    // Off / demo / no active account has no membership role to load.
+
     if (!enabled || !activeAccountId) {
-      // Keep the store guard aligned when no permission check applies.
       setActiveRole(null, "not-applicable");
       return;
     }
@@ -166,15 +140,8 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-    // activeAccountId in the deps re-keys the fetch per tenant; an account switch re-runs the effect
-    // (resetting the store role above) and the stale `fetched` is discarded by the accountId tag check
-    // in the value computation below until the new fetch lands.
   }, [enabled, activeAccountId, membershipRevision, offline.readOnly, offlineEpisode, setActiveRole]);
 
-  // Off / demo / no active account → null (editable). Otherwise use the fetched role only when it was
-  // resolved for the currently active account (the accountId tag). A prior tenant's role can't leak
-  // across a switch. This computation is what lets the off/demo branch above avoid a synchronous
-  // setState (the set-state-in-effect lint).
   const currentFetched =
     fetched?.accountId === activeAccountId &&
     fetched.membershipRevision === membershipRevision &&
@@ -190,7 +157,6 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     fetched: currentFetched,
   });
 
-  // Preserve the value reference until the resolved role or lookup status changes.
   const value = useMemo(() => ({ role, status }), [role, status]);
 
   return <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>;

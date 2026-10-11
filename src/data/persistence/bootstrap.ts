@@ -52,6 +52,7 @@ async function saveInitialSeed(
   try {
     await adapter.saveAll(initial);
   } catch (error) {
+    // Report the failed seed write through the supplied persistence surface and continue attaching later writes.
     onError?.(error);
   }
 }
@@ -90,9 +91,7 @@ export async function bootstrap(
 
   store.getState().replaceAll(initial);
   store.getState().setHydrated(true);
-  // Guard the first-run seed write: a failure here (quota / private mode) must
-  // surface via onError and must not stop persistence from being attached,
-  // otherwise the session would silently never save and never show the banner.
+  // Seed-write failure must be surfaced without disabling later persistence writes.
   if (seedNeeded) await saveInitialSeed(adapter, initial, options.onError);
 
   return attachPersistence({

@@ -72,6 +72,7 @@ function captureAttempt<T>(operation: () => T | Promise<T>): Promise<T> {
   try {
     return Promise.resolve(operation());
   } catch (error) {
+    // Convert synchronous injected reset failure into rejection so callers share one asynchronous error boundary.
     return Promise.reject(error);
   }
 }
@@ -166,6 +167,7 @@ export function StorageRecovery({
       onDownload();
       setError(null);
     } catch {
+      // Expose a failed backup download without advancing into reset.
       setError("download");
     }
   };
@@ -177,6 +179,7 @@ export function StorageRecovery({
       setError(null);
       setResetting(false);
     } catch (caught) {
+      // Surface which reset stage failed and release busy state so recovery remains usable.
       setError(resolveResetError(caught));
       setResetting(false);
     }

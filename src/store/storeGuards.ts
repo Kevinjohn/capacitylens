@@ -65,17 +65,12 @@ interface BuildGuardsInput {
 }
 
 function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput) {
-  // Inject the active account for owned-row lookups; the remaining shared guards
-  // are used directly at their call sites.
   const resolveOwnedRow = <K extends ScopedEntityKey>(data: AppData, key: K, id: ID): AppData[K][number] | null =>
     findOwnedIn(data, requireAccount(), key, id);
   const assertAllocation = assertAllocationRefs;
 
-  // The built-in "Internal" client is a fixed bucket, every account must keep exactly one, so it
-  // may be neither renamed nor moved through the lifecycle. One guard for all four rejecting
-  // actions, each supplying the verb its message ends with. A non-client entity, a stale id and an
-  // owned ordinary client all pass. Throws a display-safe message: surface, don't swallow (the callers
-  // catch and show it; the UI also hides the affordance). See shared/src/data/internalClient.ts.
+  // Every account must retain one Internal client. Reject renaming and lifecycle
+  // transitions even when an untyped caller bypasses hidden UI affordances.
   const assertNotBuiltinClient = (entity: ScopedEntityKey, id: ID, verb: "renamed" | "archived" | "deleted"): void => {
     if (entity !== "clients") return;
     const client = resolveOwnedRow(get().data, "clients", id);
@@ -84,13 +79,7 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
     }
   };
 
-  // Value-level integrity backstop: a resource with zero working days has no capacity
-  // any day. The form guards this, but the store is the last line so no path can persist
-  // it. (The import path instead repairs an empty set to Mon–Fri, see sanitizeImport.)
-  // The guards share one shape rule, a distinct set of in-week weekday numbers, from the
-  // shared isWeekdaySet, and enforce the same policy for resources and companies: at least
-  // one working day, because company days govern capacity and an empty company week would zero
-  // every person. A half day must additionally be a working day.
+  // Require each company and resource working-day set to be non-empty and valid. Half days must belong to that set; imports repair invalid sets.
   const assertWorkingDays = (days: Weekday[]): void => {
     if (!isWeekdaySet(days) || days.length === 0) {
       throw new Error("At least one working day is required, using unique whole-number weekdays from 0 to 6.");

@@ -90,6 +90,7 @@ const readInternalTlsIdentity = ({ certPath, keyPath, readFile }: ReadInternalTl
     cert = readFile(certPath);
     key = readFile(keyPath);
   } catch (error) {
+    // Retain unreadable identity-file diagnostics as a typed configuration refusal; never downgrade partial TLS setup to plaintext.
     const detail = error instanceof Error ? error.message : String(error);
     throw new InternalTlsConfigError(`Unable to read the configured internal TLS identity: ${detail}`, {
       cause: error,
@@ -111,6 +112,7 @@ const assertInternalTlsIdentityValid = ({ cert, key, validateIdentity }: Validat
   try {
     validateIdentity(cert, key);
   } catch (error) {
+    // Treat certificate or key validation failure as fatal TLS configuration, with the original cause available to the operator.
     const detail = error instanceof Error ? error.message : String(error);
     throw new InternalTlsConfigError(`The configured internal TLS identity is invalid: ${detail}`, { cause: error });
   }
@@ -121,6 +123,7 @@ const parseInternalTlsExpiry = (cert: Buffer, expiry: (certificate: Buffer) => s
   try {
     expiresAt = expiry(cert);
   } catch (error) {
+    // Reject an unreadable certificate expiry as configuration failure rather than advertising an unchecked TLS identity.
     const detail = error instanceof Error ? error.message : String(error);
     throw new InternalTlsConfigError(`The configured internal TLS certificate is invalid: ${detail}`, { cause: error });
   }
@@ -151,6 +154,7 @@ const assertInternalTlsGeneration = ({
   try {
     publishedGeneration = readFile(generationPath).toString("utf8").trim();
   } catch (error) {
+    // Reject an unreadable publication marker because the loaded certificate cannot be proven to match the configured generation.
     const detail = error instanceof Error ? error.message : String(error);
     throw new InternalTlsConfigError(`Unable to read the configured internal TLS generation: ${detail}`, {
       cause: error,

@@ -1,14 +1,9 @@
-// The CapacityLens shape guards (looksLikeCapacityLens / hasNonArrayKnownTable) live in migrate.ts,
-// next to the migrate they gate, so the "is this even CapacityLens" check and the transform it
-// protects can't drift (mirrors schedule/diary). Imported back here for the parse path.
 import { importCandidate, RECOGNISED_KEYS, migrate, looksLikeCapacityLens, hasNonArrayKnownTable } from "./migrate";
 import { assertUnambiguousJson } from "./strictJson";
 import { EXPORT_SCHEMA_VERSION } from "../types/entities";
 import type { AppData, PersistedState } from "../types/entities";
 
-// Whole-dataset export/import, a one-click backup and a cheap way to hand a
-// snapshot to a friend before the shared backend exists. Import reuses migrate()
-// so legacy / partial / slightly-off files are tolerated rather than rejected.
+// Import validates the file structure before migration; callers repair field values through the import remapper.
 
 /** Serialize data as a versioned, pretty-printed export document. Pure. */
 export function serializeData(data: AppData): string {
@@ -74,8 +69,7 @@ export function parseData(json: string): AppData {
   try {
     raw = parseJson(json);
   } catch (e) {
-    // Forward the SyntaxError as `cause` so the parse failure's chain survives behind our friendly
-    // message (ESLint preserve-caught-error enforces this for re-thrown native errors).
+    // Preserve the parser failure as the cause while returning a display-safe import error.
     throw new Error("That file isn't valid JSON.", { cause: e });
   }
   // Reject a structurally damaged file (a known table present but not a list) rather than
@@ -108,11 +102,7 @@ export function parseData(json: string): AppData {
     }
   }
   const data = migrate(raw);
-  // Note: this `total` counts every table on AppData (it includes `accounts`), because here we're
-  // gating the file, its size and emptiness, not the per-account import. The importer
-  // (remapAndValidateImport) later counts only the SCOPED_KEYS it actually brings into the active
-  // account, so its "imported N" can be smaller than this total by exactly the accounts array.
-  // The two counts answer different questions on purpose; don't "reconcile" them into one.
+  // File limits include accounts; the destination import counts only retained non-built-in scoped rows.
   const total = Object.values(data).reduce<number>((recordCount, rows) => recordCount + countRecords(rows), 0);
   if (total > MAX_IMPORT_RECORDS) {
     throw new Error(`This file has too many records (${total.toLocaleString()}).`);

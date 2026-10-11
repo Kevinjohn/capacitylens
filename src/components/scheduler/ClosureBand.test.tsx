@@ -29,10 +29,7 @@ describe("ClosureBand", () => {
     expect(band.style.left).toBe(`${256 + GEOM.xForDateInGeom("2026-06-05")}px`);
     expect(band.style.width).toBe(`${GEOM.widthForDates("2026-06-05", "2026-06-08")}px`);
     expect(screen.getAllByTestId("scheduler-closure-band")).toHaveLength(1);
-    // Styling hook for the time-off draw-mode highlight (see src/index.css
-    // `[data-draw-mode="timeoff"] .scheduler-closure-band`). The band itself is mode-agnostic;
-    // the ancestor grid publishes `data-draw-mode`, so this class is the only thing a later,
-    // closure-specific style needs to key off.
+    // The band shares the ancestor grid's draw-mode styling hook so time-off highlights can be applied without per-band mode state.
     expect(band).toHaveClass("scheduler-closure-band");
   });
 
@@ -64,14 +61,14 @@ describe("ClosureBand", () => {
     expect(band.contains(labelLayer)).toBe(false);
     expect(labelLayer.parentElement).toBe(band.parentElement);
     expect(labelLayer.getAttribute("style")).toContain("z-index: var(--z-index-scheduler-closure-label)");
-    // Both layers are placed from one geometry, so the name cannot drift from its shading.
+
     expect(labelLayer.style.left).toBe(band.style.left);
     expect(labelLayer.style.width).toBe(band.style.width);
     expect(labelLayer.style.height).toBe(band.style.height);
-    // Readable on the hatch: the standard foreground, not the muted grey it used to carry.
+
     expect(labelLayer).toHaveClass("text-foreground");
     expect(labelLayer).not.toHaveClass("text-muted-foreground");
-    // Styling hook for the time-off ink, which no longer reaches the name by inheritance.
+
     expect(labelLayer).toHaveClass("scheduler-closure-label-layer");
 
     const horizontal = buildVisibleSpanInsets("x", "var(--band-left)", "var(--band-width)");
@@ -85,7 +82,6 @@ describe("ClosureBand", () => {
   });
 
   it("keeps the vertical label on a band too narrow to read across", () => {
-    // A single day zoomed out below the 44px threshold, the case the sideways label exists for.
     const narrow = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 20, {
       minimiseWeekends: false,
       weekendWidth: 12,

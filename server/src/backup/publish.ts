@@ -13,6 +13,7 @@ export function claimBackupTemp(nextFile: () => string): {
       writeFileSync(tmp, "", { flag: "wx", mode: 0o600 });
       return { file, tmp };
     } catch (error) {
+      // Retry only an occupied temporary filename; other filesystem failures must abort snapshot creation.
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     }
   }
@@ -25,11 +26,8 @@ export function readDatabaseVersion(db: Db): number {
   return Number((db.prepare("PRAGMA user_version").get() as { user_version?: number }).user_version ?? 0);
 }
 
-/** Verify and normalize a completed snapshot while it still has an unpublished temp name.
- * quick_check catches structural/page faults; foreign_key_check catches a logically inconsistent
- * but structurally readable source; the version equality proves the copy is from the expected
- * schema generation. Open writable so WAL-mode metadata can be checkpointed and converted to one
- * standalone DELETE-journal `.db` file before publication. */
+// Verify structural integrity, foreign keys and schema version before publishing a valid snapshot name.
+// Checkpoint WAL metadata into a standalone DELETE-journal file first.
 function verifyStandaloneSnapshot(path: string, label: string, expectedVersion: number): void {
   const verification = new DatabaseSync(path, {
     enableForeignKeyConstraints: false,

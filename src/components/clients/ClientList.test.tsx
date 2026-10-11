@@ -52,11 +52,7 @@ it("gives repeated client edit controls distinct contextual names", () => {
   expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
 });
 
-// The per-row "Delete" affordance now archives (soft-delete is reached later from
-// the inline archive section). Demo mode here → the store's archiveEntity: the client gets
-// `archivedAt` set (its projects/activities are retained, archiving is reversible, unlike the old
-// cascade-delete) and vanishes from this active-only list. Server is the app default now, so we opt
-// into demo (VITE_CAPACITYLENS_DEMO=1) for the local-mutation path; the env is read per dispatch.
+// Archiving hides a client and its descendants from active views while retaining them for restoration. This suite uses the demo so it exercises store mutations without server requests.
 describe("ClientList archive flow", () => {
   beforeEach(() => vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1"));
   afterEach(() => vi.unstubAllEnvs());
@@ -71,7 +67,6 @@ describe("ClientList archive flow", () => {
 
     expect(screen.getByText("Ferris")).toBeInTheDocument();
 
-    // Open the row's archive -> a confirm dialog appears.
     await user.click(screen.getByRole("button", { name: "Archive Ferris" }));
     const dialog = screen.getByRole("alertdialog");
     expect(dialog).toHaveTextContent(/Archive client\?/i);
@@ -79,11 +74,9 @@ describe("ClientList archive flow", () => {
       "This also hides 1 project, 1 phase, and 0 allocations from the schedule; restore the client to bring them back.",
     );
 
-    // Cancel keeps it active.
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(requireValue(useStore.getState().data.clients[0], "active client")).not.toHaveProperty("archivedAt");
 
-    // Confirm archives it (children retained, archiving is reversible, not a cascade-delete).
     await user.click(screen.getByRole("button", { name: "Archive Ferris" }));
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
@@ -182,13 +175,9 @@ describe("ClientList archive flow", () => {
   });
 });
 
-// The built-in Internal client is a behind-the-scenes data anchor, not a user-managed client, so it
-// is hidden from this management list (ClientList filters out isBuiltinClient). It must therefore
-// carry no Archive affordance here, archiving it is forbidden, and the list never even shows its row.
+// The built-in Internal client is a persisted project bucket, so ordinary client management must neither list nor archive it.
 describe("ClientList withholds the Archive affordance for the built-in Internal client", () => {
   it("renders no row and no Archive control for the Internal client (only normal clients show)", () => {
-    // Mint the one builtin Internal via addAccount (the privileged path), then add a normal client so
-    // the list isn't empty, matching internalClient.test.ts / the lifecycle suite's seeding.
     useStore.getState().replaceAll(emptyAppData());
     const a = useStore.getState().addAccount({ name: "Ferris Co", color: "#6366f1" });
     if (!a) throw new Error("Expected account");
@@ -198,10 +187,9 @@ describe("ClientList withholds the Archive affordance for the built-in Internal 
 
     render(<ClientList />);
 
-    // The normal client shows and is archivable; the Internal client shows no row and no Archive control.
     expect(screen.getByText("Globex")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive Globex" })).toBeInTheDocument();
-    // The internal client name is filtered out of the displayed list.
+
     expect(screen.queryByText(internal.name)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: `Archive ${internal.name}` })).not.toBeInTheDocument();
   });

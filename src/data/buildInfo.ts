@@ -147,7 +147,7 @@ function readMatching(value: string, pattern: RegExp): string {
   return pattern.test(value) ? value : UNKNOWN;
 }
 
-/** Keep each browser fact to its expected shape, so a report never carries free text it did not ask for. */
+// Restrict browser facts to fixed shapes so support reports cannot carry arbitrary private text.
 function readBrowserProjection(browser: BrowserDiagnostics): BrowserDiagnostics {
   return {
     // A user agent may carry a crawler URL or contact address; such a string is dropped whole.

@@ -34,7 +34,7 @@ export interface CapacityOverviewGroup {
   rows: CapacityOverviewRow[];
 }
 
-/** Measured periods and resource groups consumed by the view. */
+/** Period capacity and grouped resource rows consumed by the view. */
 export interface CapacityOverviewModel {
   measured: boolean;
   reason?: "blocks-mode";

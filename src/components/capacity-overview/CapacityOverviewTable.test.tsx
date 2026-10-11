@@ -236,7 +236,7 @@ describe("CapacityOverviewTable content", () => {
       expect(avatar).toHaveAttribute("referrerpolicy", "no-referrer");
       const cells = within(person).getAllByRole("cell");
       expect(within(cells[0] as HTMLElement).getByText("1.5d")).toHaveClass("text-ink");
-      // The overbooked days replace the capacity figure in red; the track shows free time only.
+
       expect(within(cells[0] as HTMLElement).queryByText("/ 5d")).not.toBeInTheDocument();
       expect(within(cells[0] as HTMLElement).getByText("+0.25d")).toHaveClass("text-danger");
       const overbookedBar = within(cells[0] as HTMLElement).getByTestId("capacity-ledger-bar");
@@ -280,9 +280,7 @@ describe("CapacityOverviewTable content", () => {
   it("names a placeholder's trigger from its role, not the generic placeholder fallback", () => {
     renderTable();
 
-    // Without a real resource behind it, the trigger's title degrades to the generic
-    // "View Placeholder's schedule" instead of naming the role, the case a defaulted-to-empty
-    // `data` prop was silently masking.
+    // The schedule trigger must receive real scoped resource data so it can resolve its role-specific accessible title.
     const trigger = screen.getByRole("button", { name: "View Placeholder — Designer's schedule" });
     expect(trigger).toHaveAttribute("data-testid", "person-schedule-trigger");
   });
@@ -332,8 +330,7 @@ describe("CapacityOverviewTable interactions", () => {
     const totalsRow = screen.getByTestId("capacity-overview-totals");
     const totalsCells = within(totalsRow).getAllByTestId("capacity-overview-totals-cell");
     expect(totalsCells).toHaveLength(4);
-    // Clark: 40h capacity, 12h free, 8h tentative → 20h committed (50%), 20% tentative, 1.5d free,
-    // and 2h overbooked: the overbooked days replace the free figure.
+
     expect(within(totalsCells[0] as HTMLElement).getByText("50%")).toHaveClass("text-muted-foreground");
     expect(within(totalsCells[0] as HTMLElement).queryByText("1.5d")).not.toBeInTheDocument();
     expect(within(totalsCells[0] as HTMLElement).getByText("+0.25d")).toHaveClass("text-danger");
@@ -348,10 +345,10 @@ describe("CapacityOverviewTable interactions", () => {
     expect(within(totalsCells[0] as HTMLElement).getByTestId("capacity-totals-tentative")).toHaveStyle({
       width: "20%",
     });
-    // Fully booked: 100% committed reads as danger; unavailable weeks have no capacity at all.
+
     expect(within(totalsCells[1] as HTMLElement).getByText("100%")).toHaveClass("text-danger");
     expect(totalsCells[2]).toHaveAttribute("title", "21 – 27 Sep · 0d committed of 0d");
-    // The tier adds no column header and its person cell stays empty, so nothing shifts.
+
     expect(within(screen.getByRole("table")).getAllByRole("columnheader")).toHaveLength(5);
     expect(totalsRow.firstElementChild).toBeEmptyDOMElement();
     expect(within(screen.getByTestId("capacity-overview-group")).queryByText(/committed/)).not.toBeInTheDocument();
@@ -368,7 +365,7 @@ describe("CapacityOverviewTable interactions", () => {
     expect(within(person).queryByTestId("capacity-ledger-bar")).not.toBeInTheDocument();
     const firstWeekCell = accessibleValue.closest("td") as HTMLElement;
     const curve = within(firstWeekCell).getByTestId("capacity-load-curve");
-    // The overbooked week carries no extra overlay: the curve shows free and tentative time only.
+
     expect(curve.children).toHaveLength(2);
     expect(within(curve).getByTestId("capacity-bar-free")).toHaveStyle({ height: "30%" });
     expect(within(curve).getByTestId("capacity-bar-tentative")).toHaveStyle({ height: "20%" });

@@ -34,6 +34,7 @@ export async function signOut(
     if (result.setCookies.length > 0) reply.header("set-cookie", [...result.setCookies]);
     return reply.code(200).send({ ok: true });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -51,6 +52,7 @@ export async function listSessions(
   try {
     return reply.code(200).send({ sessions: await identityPort.listSessions({ actor: requireAccountActor(req) }) });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -77,6 +79,7 @@ export async function revokeSession(
     });
     return reply.code(204).send();
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }

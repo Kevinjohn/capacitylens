@@ -183,8 +183,6 @@ export function assertControlTablesCurrent(db: Db): void {
   };
   const problems: string[] = [];
   for (const [table, expected] of Object.entries(expectedColumns)) {
-    // account_members was already fetched above (to decide whether signInConfirmed is expected),
-    // reuse it rather than re-running the identical PRAGMA a second time.
     const columns =
       table === "account_members"
         ? accountMemberColumns

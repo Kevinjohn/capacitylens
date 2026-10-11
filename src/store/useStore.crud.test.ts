@@ -202,11 +202,11 @@ function registerStoreCrudEntity11(): void {
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
-    // Leaving kind='project' while removing the project is incoherent, rejected at the store boundary.
+
     expect(() => s().updateActivity(t.id, { projectId: undefined })).toThrow(
       /project-specific activity must be assigned/i,
     );
-    // And an internal/all-projects activity may not carry a project.
+
     expect(() => requireCreated(s().addActivity({ name: "X", kind: "internal", projectId: p.id }))).toThrow(
       /cannot belong to a project/i,
     );
@@ -257,13 +257,8 @@ function registerStoreCrudEntity13(): void {
       }),
     );
 
-    // A phaseId-only patch (re-setting the same phase) must not be wrongly rejected: the
-    // merged row still carries projectId from the existing activity, so coherence holds.
     expect(() => s().updateActivity(t.id, { phaseId: ph1.id })).not.toThrow();
 
-    // A projectId-only patch that would retain the previous project's phase is rejected
-    // (merged row: projectId=p2 but phaseId=ph1-of-p1) instead of silently persisting an
-    // incoherent activity the server would later 400 on sync.
     expect(() => s().updateActivity(t.id, { projectId: p2.id })).toThrow(/phase/i);
     expect(s().data.activities[0]?.projectId).toBe(p1.id);
   });
@@ -637,7 +632,7 @@ function registerDateRangeGuard3(): void {
     );
     expect(() => s().updateAllocation(a.id, { status: "tentative" })).not.toThrow();
     expect(s().data.allocations[0]?.status).toBe("tentative");
-    // …but a patch that would reverse the range is rejected.
+
     expect(() => s().updateAllocation(a.id, { endDate: "2026-05-01" })).toThrow(
       /end date cannot be before the start date/i,
     );
@@ -758,7 +753,7 @@ function registerDateRangeGuard9(): void {
     });
     s().selectAllocation("stale-allocation");
     s().toggleGroup("discipline:stale-discipline");
-    // A non-empty import replaces the slice (a zero-record import is refused, see below).
+
     const incoming = {
       ...emptyAppData(),
       clients: [
@@ -850,7 +845,7 @@ function registerMergedRow1(): void {
         status: "confirmed",
       }),
     );
-    // Valid non-external allocations remain editable after full-row validation.
+
     expect(() => s().updateAllocation(a.id, { note: "ping" })).not.toThrow();
     expect(() => s().updateAllocation(a.id, { startDate: "2026-06-02" })).not.toThrow();
     expect(s().data.allocations[0]?.note).toBe("ping");
@@ -882,7 +877,7 @@ function registerMergedRow2(): void {
       activityId: "act-1",
       startDate: "2026-06-01",
       endDate: "2026-06-03",
-      // Persisted invalid data: external resources cannot carry allocated hours.
+
       hoursPerDay: 8,
       status: "confirmed",
     };
@@ -903,7 +898,6 @@ function registerMergedRow2(): void {
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
-    // The unchanged row still violates the external-resource allocation rule.
     expect(() => s().updateAllocation(alloc.id, { note: "just a note" })).toThrow(/external.*can.t carry hours/i);
     expect(requireValue(s().data.allocations[0], "allocation")).not.toHaveProperty("note");
   });
@@ -926,14 +920,12 @@ function registerMergedRow3(): void {
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
-    // Time off is invalid for an external resource even when the patch changes only its dates.
     expect(() => s().updateTimeOff(timeOff.id, { startDate: "2026-06-11" })).toThrow(/external.*3rd-party/i);
     expect(s().data.timeOff[0]?.startDate).toBe("2026-06-10");
   });
 }
 
 function registerMergedRow4(): void {
-  // Clear nonzero allocations and time off before converting a resource, because the scheduler hides them.
   it("a name-only updateResource on an external resource that still carries a loaded allocation THROWS", () => {
     const ext = externalResource("ext-3");
     const data: AppData = makeAppData({
@@ -958,7 +950,7 @@ function registerMergedRow4(): void {
           activityId: "act-3",
           startDate: "2026-06-01",
           endDate: "2026-06-03",
-          hoursPerDay: 8, // legacy: an external carrying capacity
+          hoursPerDay: 8,
           status: "confirmed",
         },
       ],
@@ -966,7 +958,6 @@ function registerMergedRow4(): void {
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
-    // The patch alone (a name) is unimpeachable; the merged row is what the server rejects.
     expect(() => s().updateResource(ext.id, { name: "Outsource Co Ltd" })).toThrow(
       /work and time off before making it external/i,
     );
@@ -981,7 +972,6 @@ describe("update* re-validates the merged row so the store + server agree", () =
   registerMergedRow4();
 });
 
-// This non-preset colour is closest to #7adae3.
 const NON_PRESET = "#7cd9e4";
 const NEAREST_PRESET = "#7adae3";
 
@@ -1081,7 +1071,7 @@ function registerColourSnap4(): void {
     expect(client.color).toBe(NORMALIZED);
     const stored = s().data.clients.find((c) => c.id === client.id)?.color;
     expect(stored).toBe(NORMALIZED);
-    // Swatch selection requires the canonical preset spelling.
+
     expect(PRESET_COLORS).toContain(stored);
   });
 }

@@ -24,7 +24,7 @@ function registerExternalFlip1(): void {
     });
 
     expect(() => s().updateResource(r.id, { kind: "external" })).toThrow(/kind cannot change/i);
-    expect(s().data.resources[0]?.kind).toBe("person"); // atomic failure, the flip did not land
+    expect(s().data.resources[0]?.kind).toBe("person");
   });
 }
 
@@ -57,7 +57,6 @@ function registerExternalFlip3(): void {
     expect(() => s().updateResource(free.id, { kind: "external" })).toThrow(/kind cannot change/i);
     expect(s().data.resources.find((r) => r.id === free.id)?.kind).toBe("person");
 
-    // Zero-load allocations do not bypass the immutable resource-kind rule.
     const z = requireCreated(
       s().addResource({
         ...personDraft,

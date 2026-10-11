@@ -233,6 +233,7 @@ async function executeWorkspaceProvisioning<T>(
     const result = provisionWorkspaceInTransaction(dependencies, input, scope);
     return { ...result, replayed: false };
   } catch (error) {
+    // Record the provisioning failure before surfacing it so the command remains recoverable instead of appearing pending forever.
     updateProvisioningFailure(dependencies, { provisioning: input, scope, error });
     throw error;
   }

@@ -22,14 +22,9 @@ import type { Client, Project } from "@capacitylens/shared/types/entities";
  * the row body alone cannot carry, so field-level gating runs at the single write funnel (not as
  * per-route hacks). Owns the type here because the field-policy map is its single source of truth. */
 export interface SanitizeWriteOptions {
-  /**
-   * Write-side counterpart of read redaction: `false` when the caller's role may not see
-   * the time-off `note` (the same `canSeeTimeOffNote` rule readSlice applies; auth off ⇒ always
-   * `true`). A note-blind writer round-trips rows the server redacted, their PUT body has no
-   * `note` key, so without a pin, upsertRow would store NULL (rowCodec: absent optional → SQL
-   * NULL) and silently erase a note the writer never saw. Defaults to `true` (visible), which is
-   * byte-identical to the pre-option behaviour, so callers writing tables other than `timeOff`
-   * need not pass it.
+  /** False when the caller cannot read time-off notes.
+   * Such writes preserve the stored note on update and cannot author it on create.
+   * Defaults to true for trusted callers; authorization boundaries must pass the resolved visibility.
    */
   canSeeTimeOffNote?: boolean;
   /** Whether the writer may manage/read private client/project real-name fields. False for every
@@ -170,8 +165,7 @@ export function resolveVisibilityForRole(role: Role | null): SanitizeWriteOption
   return visibility;
 }
 
-/** Project the policy catalogue onto readSlice's include flags. Adding a gated-field policy now
- * requires declaring its read projection beside its redact and pin behaviour. */
+/** Derives readSlice visibility flags from the same catalogue used for read redaction and write preservation. */
 export function buildReadSliceVisibility(visibility: SanitizeWriteOptions): ReadSliceFieldVisibility {
   const includes: ReadSliceFieldVisibility = {
     includeTimeOffNote: true,

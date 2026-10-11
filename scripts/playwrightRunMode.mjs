@@ -1,6 +1,9 @@
 const enabled = (environment, name) => environment[name] === "1";
 
-/** The reset and direct API calls follow the server selected by this Playwright run. */
+/**
+ * The reset and direct API calls follow the server selected by this Playwright run.
+ * @throws When a rehearsal URL is invalid or uses a disallowed protocol or credentials.
+ */
 export function serverTestApiOrigin(laneApiPort, environment = process.env) {
   const rehearsalUrl = environment.CAPACITYLENS_REHEARSAL_URL;
   if (!rehearsalUrl) return `http://localhost:${laneApiPort}`;
@@ -46,7 +49,11 @@ export function presetEnvironment(environment, preset) {
   return { ...selected, ...preset };
 }
 
-/** Resolve projects and supporting servers from one flag interpretation. */
+/**
+ * Resolve projects and supporting servers from one flag interpretation.
+ * Returns a frozen result without changing the supplied inputs.
+ * @throws When both single-engine flags are set or rehearsal is combined with a single-engine mode.
+ */
 export function resolvePlaywrightRunMode(environment, argv, selectsOnlyExplicitCoreSpecs) {
   const webkitOnly = enabled(environment, "CAPACITYLENS_WEBKIT_ONLY");
   const firefoxOnly = enabled(environment, "CAPACITYLENS_FIREFOX_ONLY");

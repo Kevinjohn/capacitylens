@@ -7,7 +7,6 @@ import { freshApp, account } from "./fixtures/appTestEntities";
 import { call, body, post, put, patch, batch } from "./fixtures/appTestHttp";
 import { readStateAccount } from "./fixtures/appTestScaffold";
 
-// Seed an account carrying all three frozen fields (so a change is detectable).
 const FROZEN = {
   weekStartsOn: 1 as const,
   timezone: "Etc/GMT",
@@ -24,7 +23,7 @@ function createFrozenFieldPatchTests(): void {
     await seedFrozen(app);
     const res = await patch({ app, entity: "accounts", id: "a1", payload: { weekStartsOn: 0 } });
     expect(res.statusCode).toBe(409);
-    // Unchanged.
+
     expect((await readStateAccount(app)).weekStartsOn).toBe(1);
   });
 
@@ -224,7 +223,7 @@ function createFrozenFieldPreferenceAndBatchTests(): void {
       },
     ]);
     expect(res.statusCode).toBe(409);
-    // Tx rolled back.
+
     expect((await readStateAccount(app)).timezone).toBe("Etc/GMT");
   });
 }
@@ -279,6 +278,7 @@ describe("error status mapping (statusFor)", () => {
       try {
         fn();
       } catch (e) {
+        // Capture the expected failure for assertions; the test must still fail if the operation unexpectedly succeeds.
         return e as Error;
       }
       throw new Error("expected a constraint violation, but none was thrown");
@@ -308,7 +308,6 @@ describe("error status mapping (statusFor)", () => {
     });
 
     it("maps a real FOREIGN KEY violation to 400", () => {
-      // OpenDb turns foreign_keys ON.
       const db = openDb(":memory:");
       const e = grab(() =>
         db.exec(

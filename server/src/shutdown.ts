@@ -12,7 +12,9 @@ interface ClosableDb {
   close(): void;
 }
 
+/** Default time allowed for request and background-work drain before forcing a failed exit. */
 export const DEFAULT_SHUTDOWN_DEADLINE_MS = 10_000;
+/** Names the initiating event attached to shutdown diagnostics. */
 export type ShutdownReason =
   `signal:${NodeJS.Signals}` | `process_failure:${LastResortFailureKind}` | "listen_failure" | "requested";
 
@@ -35,6 +37,9 @@ interface CreateShutdownHandlerInput {
   deadlineMs?: number | undefined;
 }
 
+/** Builds a shutdown handler that drains requests and background work before closing SQLite.
+ * Every cleanup stage is attempted and failures are logged before a failed exit.
+ * A repeated call or expired deadline forces exit without closing SQLite beneath live requests. */
 export function createShutdownHandler({
   app,
   db,
@@ -66,6 +71,7 @@ export function createShutdownHandler({
         await action();
         return null;
       } catch (error) {
+        // Retain each stage failure for later logging while allowing the other drain stages to finish.
         return { stage, error } satisfies ShutdownFailure;
       }
     };
@@ -83,6 +89,7 @@ export function createShutdownHandler({
     try {
       db.close();
     } catch (error) {
+      // Retain database-close failure with the drain failures so shutdown logs every stage and exits unsuccessfully.
       failures.push({ stage: "database close", error });
     }
 
@@ -102,6 +109,7 @@ export function createShutdownHandler({
   };
 }
 
+/** Classifies failures that escape the request boundary and require a process restart. */
 export type LastResortFailureKind = "uncaught_exception" | "unhandled_rejection";
 
 /**

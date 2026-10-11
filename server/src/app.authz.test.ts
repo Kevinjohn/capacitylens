@@ -83,11 +83,7 @@ const closure = (id: string, accountId: string) => ({
 // body (not just the parsed key) is what proves the redaction is server-side. The note never serialized.
 const SENTINEL_TIMEOFF_NOTE = "SENTINEL_TIMEOFF_NOTE";
 
-/**
- * Two accounts a1/a2, seeded directly via insertAll (parent-first). a1 additionally carries a
- * resource + a time-off row whose `note` is {@link SENTINEL_TIMEOFF_NOTE}, so the redaction
- * suite can assert owner/admin see it and editor/viewer do not.
- */
+// Seed a private note so raw-response assertions prove server-side redaction for note-blind roles.
 function seedTwo(db: Db): void {
   const d = emptyAppData() as unknown as Record<string, unknown[]>;
   d.accounts = [account("a1"), account("a2")];
@@ -233,7 +229,6 @@ function readCurrentObject(response: LightMyRequestResponse): object {
   return body.current;
 }
 
-/** Add owner-only names to the a1 client/project without changing the broad authz fixture shape. */
 function seedPrivateNames(db: Db): void {
   seedTwo(db);
   db.prepare("UPDATE clients SET name = ?, isPrivate = ?, codeName = ? WHERE id = ?").run(
@@ -250,9 +245,6 @@ function seedPrivateNames(db: Db): void {
   );
 }
 
-// Per-verb requests against a1's seeded rows (cookie carries the session in auth-on).
-// Each returns the status of one write/read so a test can assert allow (2xx) vs deny (403).
-
 const getState = (app: FastifyInstance, accountId: string, cookie?: string) =>
   call(app, { method: "GET", url: `/api/state?accountId=${accountId}`, headers: cookie ? { cookie } : {} });
 
@@ -263,7 +255,6 @@ interface PostClientInput {
   cookie?: string | undefined;
 }
 
-/** POST a new client into `accountId`. */
 const postClient = ({ app, accountId, id, cookie }: PostClientInput) =>
   call(app, { method: "POST", url: "/api/clients", payload: client(id, accountId), headers: cookie ? { cookie } : {} });
 
@@ -274,7 +265,6 @@ interface PutClientInput {
   cookie?: string | undefined;
 }
 
-/** PUT (upsert) a client by id into `accountId`. */
 const putClient = ({ app, accountId, id, cookie }: PutClientInput) =>
   call(app, {
     method: "PUT",
@@ -283,7 +273,7 @@ const putClient = ({ app, accountId, id, cookie }: PutClientInput) =>
     headers: cookie ? { cookie } : {},
   });
 
-/** PATCH the seeded client c1/c2 (no accountId in the body, it merges from the stored row). */
+// Omit accountId to exercise ownership inherited from the stored row during PATCH.
 const patchClient = (app: FastifyInstance, id: string, cookie?: string) =>
   call(app, {
     method: "PATCH",
@@ -307,7 +297,7 @@ interface DeleteProjectInput {
   cookie?: string | undefined;
 }
 
-/** DELETE a seeded non-lifecycle row (scoped delete needs ?accountId=). */
+// Use a non-lifecycle entity so generic deletion reaches its account-scoping check.
 const deleteProject = ({ app, accountId, id, cookie }: DeleteProjectInput) =>
   call(app, {
     method: "DELETE",
@@ -322,7 +312,6 @@ interface BatchIntoInput {
   cookie?: string | undefined;
 }
 
-/** A batch that upserts a new client into `accountId`. */
 const batchInto = ({ app, accountId, id, cookie }: BatchIntoInput) =>
   call(app, {
     method: "POST",
@@ -387,7 +376,6 @@ interface ImportIntoInput {
   cookie?: string | undefined;
 }
 
-/** Import a single-client slice into `accountId`. */
 const importInto = ({ app, accountId, id, cookie }: ImportIntoInput) => {
   const data = { ...emptyAppData(), clients: [client(id, accountId)] };
   return call(app, {
@@ -416,7 +404,6 @@ const batchDeleteAccount = (app: FastifyInstance, id: string, cookie?: string) =
     headers: cookie ? { cookie } : {},
   });
 
-/** Does the accounts row still exist? Read it back through an authorized member session. */
 async function accountExists(app: FastifyInstance, id: string, cookie: string): Promise<boolean> {
   const res = await getState(app, id, cookie);
   return res.statusCode === 200 ? readAccountRows(res).length === 1 : false;
@@ -638,13 +625,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     const { cookie, userId } = await signUp(app, "batch-role-cache@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
-    // controlTables.ts now caches the prepared active-membership-role Statement per Db handle (see
-    // `cachedStatement`), so `db.prepare()` for its SQL runs at most once per handle regardless of
-    // how many times the role is actually looked up. SQLite's authorizer callback fires at prepare
-    // time, not at execution time, so counting it (as this test used to) would now undercount,
-    // it'd see one prepare no matter how many logical reads happen. Wrap `db.prepare` instead: when
-    // the active-membership-role SQL is (once) prepared, instrument the returned Statement's `.get`
-    // so every actual execution against it, cached statement or not, still increments the count.
+    // Count statement executions rather than preparations because the membership statement is cached per database.
     let membershipRoleReads = 0;
     const originalPrepare = db.prepare.bind(db);
     db.prepare = ((sql: string) => {
@@ -720,10 +701,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       payload: account("newAcct"),
       headers: { cookie },
     });
-    // The old onboarding exemption (this POST used to 201 for a membership-less user) became an
-    // authz bypass once POST /api/orgs landed: the bare row write never mints a membership (and
-    // none is ever backfilled), so every generic auth-on create is now refused. Even the zero-
-    // account first-run goes through /api/orgs, which handles it atomically.
+    // Authenticated company creation uses /api/orgs so product data and Owner membership commit together.
     expect(res.statusCode).toBe(403);
     expect(readErrorMessage(res)).toContain("/api/orgs");
     expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
@@ -967,21 +945,21 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
     const res = await getState(app, "a1", cookie);
     expect(res.statusCode).toBe(200);
-    // The time-off row remains visible while its note is redacted.
+
     expect(readTimeOffRows(res).length).toBe(1);
-    // The response omits the note key for this caller.
+
     expect("note" in readFirstTimeOff(res)).toBe(false);
     expect(readTimeOffNote(res)).toBeUndefined();
-    // The clincher: the sentinel was never serialized onto the wire (server-side redaction).
+
     expect(res.body).not.toContain(SENTINEL_TIMEOFF_NOTE);
   });
 
   it("OFF mode (trusted-local): scoped read INCLUDES the note", async () => {
     const db = openDb(":memory:");
-    // Omitting authMode selects the trusted-local mode.
+
     const app = createApp(db, { optimisticConcurrency: false });
     seedTwo(db);
-    // Trusted-local mode permits this read without a cookie.
+
     const res = await getState(app, "a1");
     expect(res.statusCode).toBe(200);
     expect(readTimeOffNote(res)).toBe(SENTINEL_TIMEOFF_NOTE);
@@ -1000,11 +978,9 @@ function timeOffWriteFixture() {
   const stampedTimeOff = (over: Record<string, unknown> = {}) =>
     ({ ...timeOff({ id: "to1", accountId: "a1", resourceId: "r1" }), ...over }) as Record<string, unknown>;
 
-  /** The note as an owner sees it after the write under test (the ground truth in the DB). */
   const noteInDb = (db: Db): unknown =>
     (db.prepare(`SELECT note FROM timeOff WHERE id = 'to1'`).get() as { note: unknown }).note;
 
-  /** Auth-on app + seed + a signed-up member of a1 with `role`. */
   async function memberApp(role: Role, opts: { optimisticConcurrency?: boolean } = {}) {
     const { app, db } = await appWithAuth({ optimisticConcurrency: opts.optimisticConcurrency ?? false });
     seedTwo(db);
@@ -1093,14 +1069,14 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     const res = await call(app, {
       method: "PUT",
       url: "/api/timeOff/to1",
-      // The editor submits the note-less row it previously received.
+
       payload: stampedTimeOff({ endDate: "2026-02-05" }),
       headers: { cookie },
     });
     expect(res.statusCode).toBe(200);
-    // The server preserves the unreadable stored note when this writer omits it.
+
     expect(noteInDb(db)).toBe(SENTINEL);
-    // …and the write itself took effect (the pin is surgical, not a rejected write).
+
     expect((db.prepare(`SELECT endDate FROM timeOff WHERE id = 'to1'`).get() as { endDate: string }).endDate).toBe(
       "2026-02-05",
     );
@@ -1129,14 +1105,14 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     // The conflict path is a read of the stored row: without redaction, an editor could learn a
     // note they can't read simply by sending a stale write. Both write paths must redact it.
     const { app, cookie } = await memberApp("editor", { optimisticConcurrency: true });
-    // The stored timestamp is newer, so this stale update must conflict.
+
     const stale = stampedTimeOff({ updatedAt: "1999-01-01T00:00:00.000Z" });
 
     const put = await call(app, { method: "PUT", url: "/api/timeOff/to1", payload: stale, headers: { cookie } });
     expect(put.statusCode).toBe(409);
-    // The conflict response still includes the current time-off row.
+
     expect(readCurrentObject(put)).toMatchObject({ id: "to1" });
-    // Redaction keeps the unreadable note out of the response.
+
     expect(put.body).not.toContain(SENTINEL);
 
     const batch = await call(app, {
@@ -1161,8 +1137,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     expect(patched.statusCode).toBe(200);
     // A note-blind caller cannot overwrite a note it cannot read.
     expect(noteInDb(db)).toBe(SENTINEL);
-    // PATCH's merge pulls the stored row (note included) into its echo, redactNoteEcho must strip
-    // it for a note-blind patcher, closing the pre-existing merge-echo leak.
+    // PATCH merges the stored note into the row, so the response must redact it for a note-blind caller.
     expect(patched.body).not.toContain(SENTINEL);
   });
 });
@@ -1177,7 +1152,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       payload: { ...timeOff({ id: "to2", accountId: "a1", resourceId: "r1" }), note: "smuggled onto a create" },
       headers: { cookie },
     });
-    // A note-blind caller may create a row because there is no existing note to preserve.
+
     expect(res.statusCode).toBe(201);
     expect((db.prepare(`SELECT note FROM timeOff WHERE id = 'to2'`).get() as { note: unknown }).note).toBeNull();
   });
@@ -1198,7 +1173,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       const cleared = await call(app, {
         method: "PUT",
         url: "/api/timeOff/to1",
-        // A note-visible caller can clear the note by omitting its key.
+
         payload: stampedTimeOff(),
         headers: { cookie },
       });
@@ -1212,7 +1187,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
   const { stampedTimeOff, noteInDb } = timeOffWriteFixture();
   it("OFF mode (trusted-local): PUT without the note key still clears it — pre-change behaviour intact", async () => {
     const db = openDb(":memory:");
-    // Trusted-local mode lets the writer see the note and clear it by omission.
+
     const app = createApp(db, { optimisticConcurrency: false });
     seedTwo(db);
     const res = await call(app, { method: "PUT", url: "/api/timeOff/to1", payload: stampedTimeOff() });
@@ -1231,7 +1206,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
   it("non-member: direct DELETE is 403 and generic batch DELETE is 400; a1 survives", async () => {
     const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
-    // No membership.
+
     const { cookie } = await signUp(app, "stranger-del@capacitylens.dev");
     // A separate admin of a1 so we can read a1 back afterwards (the stranger can't read it).
     const admin = await signUp(app, "a1admin-witness@capacitylens.dev");
@@ -1241,7 +1216,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
     expect(await accountExists(app, "a1", admin.cookie)).toBe(true);
 
     expect((await batchDeleteAccount(app, "a1", cookie)).statusCode).toBe(400);
-    // Pre-scan rejected the batch before the tx opened, a1 left wholly intact.
+
     expect(await accountExists(app, "a1", admin.cookie)).toBe(true);
   });
 
@@ -1270,10 +1245,7 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
 
     const res = await deleteAccount(app, "purgeMe", cookie);
     expect(res.statusCode).toBe(204);
-    // This is now a tenant erasure, not a bare row delete. The caller is the sole member, so the
-    // erasure also removes their identity and kills their session, their cookie no longer authenticates, so a
-    // read-back as them is 401 (not 200). "Account gone" is therefore asserted on observable DB state
-    // directly: the accounts row, the membership row, and the member's auth session are all removed.
+    // Erasing the sole member’s company also revokes their session, so verify deletion through the database.
     expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeMe'`).get() as { n: number }).n).toBe(0);
     expect(
       (db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'purgeMe'`).get() as { n: number }).n,
@@ -1313,7 +1285,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
     const data = {
       ...emptyAppData(),
       resources: [person("r1", accountId)],
-      // No note key.
+
       timeOff: [timeOff({ id: "to1", accountId, resourceId: "r1" })],
     };
     return call(app, { method: "POST", url: "/api/import", payload: { accountId, data }, headers: { cookie } });
@@ -1328,7 +1300,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
       upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
 
       expect((await importSlice(app, "a1", cookie)).statusCode).toBe(403);
-      // Nothing was replaced: the seeded client is still there and the confidential note is intact.
+
       const row = db.prepare(`SELECT note FROM timeOff WHERE id = 'to1'`).get() as { note: unknown };
       expect(row.note).toBe(SENTINEL_TIMEOFF_NOTE);
       expect((db.prepare(`SELECT COUNT(*) AS n FROM clients WHERE id = 'c1'`).get() as { n: number }).n).toBe(1);
@@ -1376,13 +1348,8 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
 });
 
 function accountWriteFixture() {
-  // The scoped tables carry accountId and pass through the isScopedTable() authorize gate; `accounts`
-  // does not (top-level, no accountId column), so a bare account UPDATE (rename / colour / scheduling
-  // mode / feature toggles) needs its own gate, else any signed-in user could rewrite another tenant's
-  // company settings. An UPDATE (existing row) requires membership + write tier; a CREATE (no existing
-  // row) is closed auth-on (403 → POST /api/orgs; the old onboarding exemption is retired) and open
-  // only in off mode. Off mode stays allow-all. (Regression for the cross-tenant account-write gap,
-  // this is a deliberate compatibility boundary.)
+  // Accounts have no accountId column, so account updates need a dedicated tenant permission check.
+  // Authenticated creation must use /api/orgs to create its Owner membership atomically.
 
   const putAccount = (app: FastifyInstance, id: string, cookie?: string) =>
     call(app, { method: "PUT", url: `/api/accounts/${id}`, payload: account(id), headers: cookie ? { cookie } : {} });
@@ -1409,7 +1376,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   it("non-member (signed in): PUT / PATCH / batch-PUT updating a1 → 403", async () => {
     const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
-    // No membership.
+
     const { cookie } = await signUp(app, "acct-stranger@capacitylens.dev");
     expect((await putAccount(app, "a1", cookie)).statusCode).toBe(403);
     expect((await patchAccount(app, "a1", cookie)).statusCode).toBe(403);
@@ -1452,16 +1419,14 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   // auth-on: it fires ahead of the single-company cap, at zero accounts (the bootstrap case now
   // belongs to /api/orgs too), and regardless of multiAccount. Three cases pin the full behaviour:
   it("(a) zero-account instance, auth-on: a non-member PUT / batch-PUT of the FIRST account → 403 → /api/orgs (bootstrap moved there)", async () => {
-    // Fresh db, zero accounts.
     const put = await appWithAuth({ optimisticConcurrency: false });
-    // No membership.
+
     const { cookie: putCookie } = await signUp(put.app, "acct-onboard-put@capacitylens.dev");
     const putRes = await putAccount(put.app, "brandNew1", putCookie);
     expect(putRes.statusCode).toBe(403);
     expect(readErrorMessage(putRes)).toContain("/api/orgs");
     expect((put.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
 
-    // Separate fresh instance, also zero accounts.
     const batch = await appWithAuth({ optimisticConcurrency: false });
     const { cookie: batchCookie } = await signUp(batch.app, "acct-onboard-batch@capacitylens.dev");
     const batchRes = await batchPutAccount(batch.app, "brandNew2", batchCookie);
@@ -1471,11 +1436,10 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   });
 
   it("(b) instance with ≥1 account, default opts: a non-member PUT / batch-PUT of a NEW account → 403 → /api/orgs (the auth-on closure outranks the cap message)", async () => {
-    // MultiAccount defaults to false.
     const { app, db } = await appWithAuth({ optimisticConcurrency: false });
-    // A1 + a2 already exist.
+
     seedTwo(db);
-    // No membership.
+
     const { cookie } = await signUp(app, "acct-onboard-cap@capacitylens.dev");
 
     const put = await putAccount(app, "brandNew3", cookie);
@@ -1494,7 +1458,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   it("(c) multiAccount: true does NOT reopen the generic vectors auth-on — creation still goes through /api/orgs", async () => {
     const { app, db } = await appWithAuth({ multiAccount: true, optimisticConcurrency: false });
     seedTwo(db);
-    // No membership.
+
     const { cookie } = await signUp(app, "acct-onboard-multi@capacitylens.dev");
     expect((await putAccount(app, "brandNew5", cookie)).statusCode).toBe(403);
     expect((await batchPutAccount(app, "brandNew6", cookie)).statusCode).toBe(403);
@@ -1505,7 +1469,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 
   it("OFF mode: account update (PUT/PATCH/batch) is allow-all (no cookie, no membership)", async () => {
     const db = openDb(":memory:");
-    // Off.
+
     const app = createApp(db, { optimisticConcurrency: false });
     seedTwo(db);
     expect((await putAccount(app, "a1")).statusCode).toBe(200);
@@ -1731,12 +1695,12 @@ describe("P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)",
     // The default deploy can still delete companies through the coordinated erasure route, while
     // a generic sync diff can never become a tenant-erasure command.
     const app = offApp();
-    // Direct route: DELETE /api/accounts/a1 (no cookie, no membership) → 204.
+
     const direct = await call(app, { method: "DELETE", url: "/api/accounts/a1" });
     expect(direct.statusCode).toBe(204);
-    // The trusted-local contract remains idempotent after the coordinator extraction.
+    // Repeated trusted-local company deletion remains idempotent.
     expect((await call(app, { method: "DELETE", url: "/api/accounts/a1" })).statusCode).toBe(204);
-    // Batch op: {method:'DELETE',table:'accounts',id:'a2'} is rejected and leaves a2 intact.
+
     const batch = await call(app, {
       method: "POST",
       url: "/api/batch",
@@ -1790,9 +1754,7 @@ describe("batch ownership checks after authorization", () => {
 });
 
 describe("high-impact actions keep the fresh-sign-in gate", () => {
-  // Ordinary administration no longer re-prompts, so the destructive pair is pinned here: an
-  // aged-out owner session must still be refused on whole-company deletion and on import, which
-  // replaces a company's entire dataset.
+  // Whole-company deletion and import require fresh assurance because they replace or remove an entire dataset.
   const ageOwnerSession = (db: Db, userId: string): void => {
     db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`).run(
       new Date(Date.now() - 16 * 60 * 1000).toISOString(),

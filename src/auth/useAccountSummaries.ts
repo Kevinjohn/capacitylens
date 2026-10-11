@@ -9,26 +9,10 @@ import { isTransportFailure } from "@/data/requestTimeout";
 import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
 import { m } from "@/i18n";
 
-// The AccountPicker's data source populates `store.accountSummaries`, the
-// list of accounts the login may open, from the right source for the deploy:
-//
-//   - server mode (the default, off *or* auth-on): fetch `GET /api/accounts`. Auth-on
-//     returns only the caller's memberships; off returns every account tagged role:'owner'. Either way
-//     the picker lists exactly what the server says this login may open, and the no-arg whole-state
-//     read is closed in auth-on, so this is the only way the client learns the account list.
-//   - demo build (VITE_CAPACITYLENS_DEMO=1, no server): derive the summaries from `data.accounts` (no
-//     fetch): the picker shows the local companies the store holds.
-//
-// Mirrors PermissionProvider's idiom exactly: an in-effect async IIFE with a cancellation flag, every
-// setState behind the await, an untrusted-shape guard on the server body (a bad entry is dropped, not
-// trusted via an `as` cast). It runs outside the tenant gate (called at the top of AppShell, before
-// the tenant gate) so the picker has the list before a tenant is chosen.
+// The picker needs the server directory before a tenant is selected because the loaded tenant slice cannot enumerate other companies. Demo mode derives its directory from local accounts.
 
-/** Coerce one untrusted `/api/accounts` array entry to an {@link AccountSummary}, or null if it's
- * off-spec (not an object, missing id/name). A null entry is dropped. A malformed row must never
- * crash the picker or smuggle a bogus account in. A valid account with an unrecognized role stays
- * selectable under a fail-closed Viewer projection, but is explicitly tagged unavailable so the
- * picker never presents Viewer as an authoritative membership role. */
+// Validate directory entries before publication. Unknown roles remain selectable but
+// fail closed without claiming an authoritative Viewer membership.
 function parseAccountSummary(entry: unknown): AccountSummary | null {
   if (typeof entry !== "object" || entry === null) return null;
   const summaryRecord = entry as { id?: unknown; name?: unknown; role?: unknown };
@@ -131,22 +115,7 @@ async function readAccountSummaryFailureFallback({
   return readCachedAccountSummaryFallback(acceptEffects);
 }
 
-/**
- * Fetch `GET /api/accounts` and coerce it to a validated summaries list, the shared server read
- * behind {@link useAccountSummaries}, exported so routes that mount outside AppShell (InviteAccept)
- * can pull a fresh list on demand: a just-joined account is in neither `data.accounts` nor
- * `accountSummaries` there, so `setActiveAccount` would reject it without this refetch.
- *
- * @param requestOptions optional `{ signal }` threaded to the fetch, lets a caller bound the read (e.g.
- * InviteAccept's `AbortSignal.timeout(5000)` best-effort activation step); an abort
- * lands in the catch below and reports as null like any other failure.
- * @returns the validated list, or null on any failure (non-OK status, transport error, abort,
- * a 200 whose body is not an array, or a nonempty array in which no row survives
- * validation), fail-soft, matching the hook's leave-the-existing-list-alone stance;
- * the caller decides what a null means for its flow. `[]` is reserved for a genuine
- * empty array (a real "no accounts" answer). A mixed body keeps its valid rows; every
- * dropped row leaves a `console.warn` breadcrumb.
- */
+/** Reads the validated company directory, using the encrypted cached directory only when permitted. Null means the read failed; only a genuine empty array means no companies. Mixed responses retain valid rows and log rejected entries. Callers requiring mutation reconciliation must disable cached fallback. */
 export async function fetchAccountSummaries(requestOptions?: {
   signal?: AbortSignal;
   acceptEffects?: () => boolean;
@@ -176,9 +145,7 @@ export async function fetchAccountSummaries(requestOptions?: {
     });
     return parsed.valid;
   } catch (e) {
-    // Fail-soft by contract (see @returns): a transport error/abort is reported as null, never a
-    // throw: the callers treat a failed list read as "keep what you have", not an error surface of
-    // its own. Breadcrumb per DEFENSIVE-CODING.md §5: handled-but-logged, never totally silent.
+    // A failed directory read preserves existing data; warn for diagnosis and return null rather than presenting a false empty directory.
     return readAccountSummaryFailureFallback({
       error: e,
       allowCachedFallback: allowCachedFallback,
@@ -231,18 +198,7 @@ export async function refreshAccountSummaries(requestOptions?: {
   return list;
 }
 
-/**
- * Keep {@link useStore}.accountSummaries, the AccountPicker's account list, in sync.
- *
- * - server mode: own picker reads and auth-off active-account reads. Authenticated active-account
- *   generations are yielded to PermissionProvider, which uses the same validated refresh and
- *   publishes its result here. On any failure (including a 200 whose body is not an array, or a
- *   nonempty array with zero valid rows) the existing list is left as-is (a transient blip or a
- *   malformed body shouldn't blank the picker); only a genuine empty array empties it.
- * - demo build: derive the list from `data.accounts` on every change (no fetch).
- *
- * Renders nothing, it's a side-effect hook mounted high in the tree (alongside the auth providers).
- */
+/** Keeps the picker directory current. Authenticated active-company reads belong to PermissionProvider; picker and auth-off reads belong here. Failed reads preserve the previous list, and demo mode derives local summaries. */
 export function useAccountSummaries({
   refreshActiveAccount = true,
 }: {
@@ -256,18 +212,14 @@ export function useAccountSummaries({
   // (a freshly accepted invite or a just-created org then appears). Harmless in the demo build.
   const activeAccountId = useStore((state) => state.activeAccountId);
   const membershipRevision = useStore((state) => state.membershipRevision);
-  // The demo build reads the accounts straight off the store; selecting the array keeps the derive effect
-  // reactive to add/delete. (In server mode `data.accounts` holds only the active slice, so this is
-  // not the picker source there, the fetch is.)
+  // Demo accounts are the complete local directory; server account rows hold only the hydrated tenant and cannot drive the picker.
   const localAccounts = useStore((state) => state.data.accounts);
 
   useEffect(() => {
-    // Demo account summaries are derived from the local store below.
     if (!serverMode) return;
     if (activeAccountId !== null && !refreshActiveAccount) return;
     let cancelled = false;
     void (async () => {
-      // Failed or malformed reads preserve the current picker list until a successful refresh.
       await refreshAccountSummaries({ acceptEffects: () => !cancelled });
     })();
     return () => {
@@ -276,7 +228,6 @@ export function useAccountSummaries({
   }, [serverMode, activeAccountId, membershipRevision, refreshActiveAccount]);
 
   useEffect(() => {
-    // Server account summaries are loaded by the request effect above.
     if (serverMode) return;
     // Demo build: the picker's list is the store's accounts (tagged owner = full access, mirroring the
     // server's off wire shape so the pure `can` keeps local fully editable). Kept in lockstep on every

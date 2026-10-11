@@ -69,7 +69,7 @@ export function joiningEmailHint(email: string): string {
   return `${email.slice(0, 1)}***${email.slice(email.indexOf("@"))}`;
 }
 
-/** Sign with a key derived for this purpose only, so the application secret is never used directly. */
+// Derive a purpose-specific signing key so joining proof never uses the application secret directly.
 function signJoinEmailProof(secret: string, payload: string): Buffer {
   const key = createHmac("sha256", secret).update("join-email-proof-key").digest();
   return createHmac("sha256", key)

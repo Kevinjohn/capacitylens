@@ -126,8 +126,7 @@ async function persistPut(input: {
   return provisioned.product;
 }
 
-/** Returns the sent refusal when the PUT may not proceed, or null when it may. A refusal already
- * sent by the authorization gate is returned as the same reply. */
+// Preserve an authorization refusal as the same reply so the handler can return it directly.
 function sendPutRefusal(input: AccountWriteInput, existing: Record<string, unknown> | undefined): FastifyReply | null {
   const { dependencies, req, reply, id } = input;
   // Authenticated account creation is closed before the off-mode cap is considered. Existing rows
@@ -168,7 +167,7 @@ function enforcePutPreflight(
   });
 }
 
-/** Returns the replayed product row of a completed trusted-local command, or null. */
+// Trusted-local replay returns the committed row before a newer stored revision can reject its retry.
 async function replayPut(
   input: AccountWriteInput & {
     existing: Record<string, unknown> | undefined;
@@ -251,6 +250,7 @@ async function put(dependencies: AccountWriteDependencies, req: FastifyRequest<A
   try {
     return await applyPut({ dependencies, req, reply, id, body: readWriteBody(req.body) });
   } catch (error) {
+    // Keep typed account-command failures distinguishable while routing unexpected replacement faults through the redaction boundary.
     return sendAccountRouteFailure(reply, error, dependencies);
   }
 }
@@ -323,6 +323,7 @@ function patch(dependencies: AccountWriteDependencies, req: FastifyRequest<Accou
   try {
     return applyPatch({ dependencies, req, reply, id, body: readWriteBody(req.body) });
   } catch (error) {
+    // Surface validation failures and redact unexpected patch faults through the shared reply boundary.
     return dependencies.fail(reply, error);
   }
 }

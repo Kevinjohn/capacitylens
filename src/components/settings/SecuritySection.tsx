@@ -125,7 +125,7 @@ function PasswordDialog({
   );
 }
 
-/** Presents the account's password, session, and provider controls. */
+/** Presents the signed-in identity's password, session and provider controls. */
 export function SecuritySection({
   passwordOpen = false,
   onPasswordOpenChange = () => {},

@@ -86,7 +86,6 @@ test("adds a person and shows them in the list and schedule", async ({ page }) =
   await page.getByRole("button", { name: "Save" }).click();
 
   await expect(page.getByText("Dana Lee")).toBeVisible();
-  // It appears on the schedule under the Design group.
   await page.getByRole("link", { name: "Schedule" }).click();
   await expect(page.getByTestId("scheduler-row").filter({ hasText: "Dana Lee" })).toBeVisible();
 });
@@ -167,13 +166,10 @@ test('adds a placeholder bound to a project and shows it as "Placeholder" on the
   await page.getByRole("button", { name: "Add placeholder" }).click();
 
   await page.getByLabel("Role").fill("Junior Dev");
-  // Bind the placeholder to Project Watchtower before checking its allocation options.
   await selectShadOption(page.getByLabel("Bound project"), "p-acme");
   await page.getByRole("button", { name: "Save" }).click();
 
   await page.getByRole("link", { name: "Schedule" }).click();
-  // A placeholder shows as the literal name "Placeholder" in the schedule view; its role
-  // ("Junior Dev") is the secondary text below.
   const row = page.getByTestId("scheduler-row").filter({ hasText: "Placeholder" }).filter({ hasText: "Junior Dev" });
   await expect(row).toBeVisible();
 });
@@ -263,7 +259,6 @@ test("favourites a person and keeps them first in the resource list and discipli
 
 test("groups Studio before Supplementary only while someone is Supplementary", async ({ page }) => {
   await openApp(page, "Wayne Enterprises", "/resources");
-  // The seeded company is Studio-only, so People is one list.
   await expect(page.getByRole("heading", { name: "Studio" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Supplementary" })).toHaveCount(0);
 
@@ -287,7 +282,6 @@ test("groups Studio before Supplementary only while someone is Supplementary", a
     })
     .toEqual([1, 2]);
 
-  // Moving the only Supplementary person back to Studio restores one favourites-first order.
   await page.getByRole("link", { name: "Resources" }).click();
   await barry.getByRole("button", { name: "Edit Barry Allen" }).click();
   await page.getByRole("radio", { name: "Studio" }).click();
@@ -329,7 +323,6 @@ test("archiving a resource hides it from the list + schedule, and undo restores 
     .click();
   await expect(page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" })).toHaveCount(0);
 
-  // Undo restores the resource (back to active → reappears in the list + schedule).
   await page.keyboard.press("Meta+z");
   await expect(page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
 });

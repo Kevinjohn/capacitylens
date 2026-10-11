@@ -13,22 +13,14 @@ import type { Role } from "./types";
 
 const ROLES: readonly Role[] = ACCOUNT_ROLES;
 
-/** Every standing a caller can hold relative to one request. A caller cannot be both participants:
- * the table forbids equal ids, so that combination is not modelled. */
+// Equal participant IDs are forbidden by storage, so no caller can occupy both participant roles.
 const STANDINGS = [
   { label: "initiator", isInitiator: true, isTarget: false },
   { label: "target", isInitiator: false, isTarget: true },
   { label: "bystander", isInitiator: false, isTarget: false },
 ] as const;
 
-/**
- * The authorisation matrix, written from the product contract.
- *
- * The rows that matter most are the Admin ones: `admin/target` may accept, withdraw and decline,
- * and `admin/bystander` may do nothing. If tier alone decided, those two rows would be identical,
- * and every Admin in the company could consent on the nominee's behalf, which is the exact consent
- * the ceremony exists to obtain.
- */
+// Only the nominated Admin may consent; the matrix must distinguish that Admin from an unrelated Admin.
 function expected(
   action: OwnershipTransferAction,
   { role, isInitiator, isTarget }: { role: Role; isInitiator: boolean; isTarget: boolean },

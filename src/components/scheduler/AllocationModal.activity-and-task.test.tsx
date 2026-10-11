@@ -18,9 +18,7 @@ const capacityAdvisoryMock = vi.hoisted(() =>
     timeOffDays: 0,
   })),
 );
-// Both entry points share one mock: the repeat path advises against a batch-shared load bucket
-// (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory verdicts the modal renders.
+// Single and repeat advisory paths share one verdict stub so these modal tests exercise presentation rather than load calculations.
 vi.mock("@/lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
@@ -105,10 +103,10 @@ describe("AllocationModal inline activity creation pref", () => {
         onClose={vi.fn()}
       />,
     );
-    // The inline creator is gone…
+
     expect(screen.queryByLabelText("New activity name")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add activity" })).not.toBeInTheDocument();
-    // …but the Activity SelectField is still rendered and usable.
+
     expect(screen.getByRole("combobox", { name: "Activity" })).toBeInTheDocument();
   });
 

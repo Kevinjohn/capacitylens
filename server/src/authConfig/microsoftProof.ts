@@ -140,6 +140,7 @@ export function createMicrosoftProof(input: Input) {
     try {
       await mail(intent.targetEmail, token);
     } catch (cause) {
+      // Invalidate only this failed mail attempt’s token, log a safe transport cause and report unavailable delivery so proof can be retried.
       db.prepare(
         "UPDATE microsoft_identity_proofs SET state = 'started', tokenHash = NULL, tokenExpiresAt = NULL WHERE id = ? AND tokenHash = ?",
       ).run(intent.id, hashProofValue(token));

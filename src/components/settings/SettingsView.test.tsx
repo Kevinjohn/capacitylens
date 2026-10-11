@@ -71,7 +71,7 @@ describe("SettingsView — scheduling mode", () => {
 
     const hours = screen.getByRole("radio", { name: "Hours" });
     const days = screen.getByRole("radio", { name: "Days" });
-    // Absent schedulingMode reads as the original 'hourly' behaviour.
+
     expect(hours).toHaveAttribute("aria-checked", "true");
     expect(days).toHaveAttribute("aria-checked", "false");
 
@@ -316,7 +316,7 @@ describe("SettingsView — theme", () => {
 
     expect(useStore.getState().theme).toBe("dark");
     expect(dark).toHaveAttribute("aria-checked", "true");
-    // The choice is reflected onto <html> for the CSS to key off.
+
     expect(document.documentElement.dataset.theme).toBe("dark");
   });
 });
@@ -446,9 +446,7 @@ describe("SettingsView — Schedule (minimise weekends)", () => {
 });
 
 describe("SettingsView — account toggle wiring", () => {
-  // Third tuple entry = the documented absent-field default (store/selectors.ts). Pinned as a
-  // literal per row: re-deriving it from the key would only restate the component's own rule and
-  // would keep agreeing with it if that rule ever changed.
+  // Pin each absent-field default independently as a literal so changing the selector cannot silently change the expected behaviour too.
   it.each([
     ["Use disciplines", "disciplinesEnabled", true],
     ["Show placeholders", "placeholdersEnabled", false],
@@ -524,7 +522,6 @@ describe("SettingsView — device preference toggle wiring", () => {
 });
 
 describe("SettingsView — switch target size (WCAG 2.5.8 AA, ≥24px)", () => {
-  // The shared ShadCN Switch uses the default 24×40px size. Real geometry is also covered by E2E.
   it('renders the role="switch" control at the h-6 (24px) target-size floor', () => {
     render(<SettingsView />);
     const sw = screen.getByRole("switch", { name: "Minimise weekends" });

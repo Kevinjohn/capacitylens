@@ -65,12 +65,8 @@ export const PRESET_COLORS = Object.freeze([
 ] as const);
 const PRESET_COLOR_SET = new Set<string>(PRESET_COLORS);
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
-/** Parsed RGB of every preset, precomputed once alongside `PRESET_COLOR_SET`. The nearest-preset
- * scan below runs on every persisted/imported colour, and re-parsing all 52 palette hex strings
- * per call was pure repeated work. Index-aligned with `PRESET_COLORS`, so palette order (the
- * deterministic tie-break) is preserved. An entry is `null` only if a palette member were not a
- * valid 6-digit hex, unreachable (pinned by a test), but kept nullable so such an entry is
- * skipped rather than poisoning every distance with NaN. */
+// Cache palette channels so nearest-colour lookup avoids reparsing every swatch.
+// Preserve palette order for deterministic ties and skip invalid entries rather than propagating NaN.
 const PRESET_RGB: readonly (RgbChannels | null)[] = PRESET_COLORS.map((preset) => parseRgb(preset));
 
 /** True when the value is one of the preset swatches, ignoring case and surrounding space. Pure. */
@@ -78,10 +74,7 @@ export function isPresetColor(value: unknown): value is string {
   return typeof value === "string" && PRESET_COLOR_SET.has(value.trim().toLowerCase());
 }
 
-/** Used by {@link snapToPresetColor} only when the input can't be parsed as a 6-digit hex at
- * all (so no "nearest" distance can even be computed), e.g. `null`, `undefined`, `"nope"`.
- * This is the one fixed colour left in the system; every *parseable* colour, however far off
- * the palette, is snapped to its nearest preset instead, see snapToPresetColor. */
+/** Preset used when an input cannot be parsed as a six-digit hex colour. */
 export const FALLBACK_PRESET_COLOR = "#5c34d4";
 
 /**
@@ -232,9 +225,7 @@ export function readableTextColor(hex: string): string {
 
 const AA_NORMAL = 4.5;
 
-/** The exact channel quantisation `toHex` writes (and therefore the value a later re-parse of that
- * hex reads back). Shared so the nudge loop below can score a candidate from its live float
- * channels without round-tripping through a hex string, yet score the identical byte values. */
+// Quantize candidate channels exactly as output hex serialization does so the contrast test scores the emitted colour.
 const channelByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
 
 const toHex = (redChannel: number, greenChannel: number, blueChannel: number) =>
@@ -273,19 +264,15 @@ export function resolveAccessibleBarColors(hex: string): { bg: string; ink: stri
   if (!channels) return { bg: NEUTRAL_COLOR, ink: readableTextColor(NEUTRAL_COLOR) };
   const nudgedChannels = { ...channels };
   const darken = ink === LIGHT_INK;
-  // The ink never changes inside the loop, so linearise it once. Previously each iteration
-  // re-formatted the candidate to hex and re-parsed both it and the ink through contrastRatio;
-  // now only the settled colour is formatted, after the loop.
+  // The ink is fixed through the loop, so linearize it once.
   const inkLuminance = calculateRelativeLuminance(ink) ?? 0;
-  // Score from the quantised bytes (`channelByte`), i.e. exactly the channels a re-parse of
-  // `toHex(...)` would yield, so the loop stops on precisely the same iteration as before.
+  // Score quantized channels so the contrast check matches the emitted hex colour.
   let nudged = false;
   for (let i = 0; i < 30 && contrastForChannels(nudgedChannels, inkLuminance) < AA_NORMAL; i++) {
     nudgeChannels(nudgedChannels, darken);
     nudged = true;
   }
-  // An already-legible colour is returned verbatim (the caller's casing/whitespace survives),
-  // matching the previous `let bg = hex` that only the loop ever overwrote.
+  // Return an already-legible input verbatim to preserve its casing and whitespace.
   return {
     bg: nudged ? toHex(nudgedChannels.red, nudgedChannels.green, nudgedChannels.blue) : hex,
     ink,

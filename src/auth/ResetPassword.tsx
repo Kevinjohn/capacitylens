@@ -12,21 +12,8 @@ import { resolveResetPasswordFailureMessage } from "./resetPasswordFailure";
 import { m } from "@/i18n";
 import { createRequestSignal } from "@/data/requestTimeout";
 
-// Password-reset page for /reset-password/:token. The token arrives out-of-band, an
-// Owner/Admin shared it from Team & access, or optional SMTP delivered a self-service reset.
-// This page collects the new password and POSTs Better
-// Auth's public redeem endpoint, `${API_BASE}/api/auth/reset-password`, a plain fetch, not the
-// better-auth client, so this lazy chunk stays free of the auth bundle (the endpoint is one JSON
-// POST; the client library adds nothing here). The server is the authority: single-use consumption,
-// expiry, and password length all live there. This page only pre-checks what saves a round trip
-// (mismatched confirmation, an obviously-short password) and renders the outcome.
-//
-// Auth wall: unlike /invite/:token this page must work with no session. The visitor is exactly the
-// person who cannot sign in. AuthProvider carves this path out of the login wall (see the
-// status.kind === 'login' branch there); the redeem endpoint sits under /api/auth/*, which the
-// server's requireUser preHandler already exempts.
+// Password recovery must render before a session exists. The public redeem request keeps this lazy route independent of the auth client bundle; the server enforces token consumption and password policy.
 
-// Password reset is available only in server mode; the demo build has no reset endpoint.
 type State = { kind: "form" } | { kind: "working" } | { kind: "done" } | { kind: "unknown" } | { kind: "local" };
 
 interface ResetPasswordViewProps {
@@ -140,16 +127,7 @@ function ResetPasswordView(props: ResetPasswordViewProps) {
   );
 }
 
-/**
- * Reset-password page for `/reset-password/:token`.
- *
- * Renders a new-password + confirmation form and redeems the admin-issued single-use token against
- * Better Auth's public reset endpoint. Success offers "Go to sign in" as a full page load (a plain
- * anchor, not a router <Link>): there is no session, so a clean boot is what lands the visitor on
- * the login screen, client-side navigation would leave AuthProvider's boot-time status stale. In
- * the demo build (VITE_CAPACITYLENS_DEMO=1) there is no server, so it shows a short note and makes no
- * request. Surface-not-swallow: every failure path lands on a visible message.
- */
+/** Redeems a single-use password-reset token and shows the result. A successful reset returns to sign-in through a full reload so authentication is rechecked. Demo mode makes no request. */
 export function ResetPassword() {
   const { token } = useParams<{ token: string }>();
   const [state, setState] = useState<State>(() => (isServerConfigured() ? { kind: "form" } : { kind: "local" }));

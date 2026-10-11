@@ -779,10 +779,8 @@ function registerDirtyFormPaletteGuardTest(): void {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
     });
 
-    // Palette must not render
     expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
-    // Notice must show the exact message. It's surfaced via a Sonner toast now (bridged from
-    // the store `notice`), which portals in asynchronously, so await it.
+    // Sonner mounts notices through its portal asynchronously, so wait for the rendered message.
     expect(
       await screen.findByText("You have unsaved changes — use Cancel or Save to close this dialog."),
     ).toBeInTheDocument();
@@ -901,14 +899,11 @@ function registerInfoNoticeDismissalTest(): void {
     act(() => {
       useStore.getState().setNotice("That allocation could not be moved there.");
     });
-    // Sonner portals the toast in asynchronously; wait for it, then confirm it's a real Sonner
-    // toast living in the polite live region (not, say, a loading spinner's status node).
+    // Wait for Sonner's portal before asserting the notification live region.
     const message = await screen.findByText(/could not be moved/);
     expect(message.closest("[data-sonner-toast]")).not.toBeNull();
     expect(message.closest('[aria-live="polite"]')).not.toBeNull();
 
-    // Dismiss via Sonner's close button (aria-label "Close toast"); the bridge's onDismiss
-    // calls setNotice(null), so the store clears in lock-step with the toast leaving.
     act(() => {
       screen.getByRole("button", { name: "Close toast" }).click();
     });
@@ -919,11 +914,7 @@ function registerInfoNoticeDismissalTest(): void {
 
 function registerPersistentErrorNoticeTest(): void {
   it("keeps an ERROR notice on screen past the 4s info window (no auto-dismiss), unlike info", async () => {
-    // Drive Sonner's auto-close timer with fake timers so we can genuinely advance past the
-    // 4000ms info window deterministically (a real 4s wait is too slow + flaky). `findBy*`
-    // polls on real timers, so we never use it here. We pump Sonner's mount + dismiss timers
-    // with advanceTimersByTimeAsync and read synchronously. Restored in finally so the other
-    // async tests in this file keep their real-timer behaviour.
+    // Fake timers exercise auto-dismiss and exit animations without real waits. Read synchronously after advancing timers so polling cannot stall while the clock is paused.
     vi.useFakeTimers();
     try {
       renderAppShell({});
@@ -939,11 +930,10 @@ function registerPersistentErrorNoticeTest(): void {
       });
       expect(screen.getByText(/auto-dismiss/)).toBeInTheDocument();
       await act(async () => {
-        // Advance past the info duration and exit animation.
         await vi.advanceTimersByTimeAsync(4500);
       });
       expect(screen.queryByText(/auto-dismiss/)).not.toBeInTheDocument();
-      // The bridge must clear the store when the toast closes.
+
       expect(useStore.getState().notice).toBeNull();
 
       // Error: created with duration: Infinity, so the same 4500ms advance must not dismiss it.
@@ -955,17 +945,15 @@ function registerPersistentErrorNoticeTest(): void {
       });
       const message = screen.getByText(/could not be moved/);
       expect(message.closest("[data-sonner-toast]")).not.toBeNull();
-      // Tagged for the danger affordance (index.css `.toast-error`) so it reads as an error.
+
       expect(message.closest("[data-sonner-toast]")).toHaveClass("toast-error");
 
       await act(async () => {
-        // An error toast must remain after the info duration.
         await vi.advanceTimersByTimeAsync(4500);
       });
       expect(screen.getByText(/could not be moved/)).toBeInTheDocument();
       expect(useStore.getState().notice?.tone).toBe("error");
 
-      // It is still dismissible, and dismissal clears the store in lock-step.
       act(() => {
         screen.getByRole("button", { name: "Close toast" }).click();
       });
@@ -982,10 +970,7 @@ function registerPersistentErrorNoticeTest(): void {
 
 function registerPersistentWarningNoticeTest(): void {
   it("keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)", async () => {
-    // The 'warning' tone (e.g. the clamped-hours/data-truncation advisory) must inherit the
-    // persistent (duration: Infinity) treatment like an error (a fixed 4s timer on the sole signal
-    // of a silent truncation fails WCAG 2.2.1) but must not carry the danger `.toast-error` accent,
-    // since the edit succeeded. Same fake-timer technique as the info-vs-error test above.
+    // A truncation warning must persist until dismissed because it is the only signal that committed work was reduced. It uses neutral styling because the edit succeeded.
     vi.useFakeTimers();
     try {
       renderAppShell({});
@@ -994,23 +979,20 @@ function registerPersistentWarningNoticeTest(): void {
         useStore.getState().setNotice("Work volume was capped at 24h/day.", "warning");
       });
       await act(async () => {
-        // Sonner needs a tick to mount the toast portal.
         await vi.advanceTimersByTimeAsync(50);
       });
       const message = screen.getByText(/capped at 24h\/day/);
       const toastEl = message.closest("[data-sonner-toast]");
       expect(toastEl).not.toBeNull();
-      // Neutral surface: not raised via toast.error, so no danger accent (unlike the error tone).
+
       expect(toastEl).not.toHaveClass("toast-error");
 
-      // Persists well past where an info toast (4000ms) would have auto-dismissed.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(4500);
       });
       expect(screen.getByText(/capped at 24h\/day/)).toBeInTheDocument();
       expect(useStore.getState().notice?.tone).toBe("warning");
 
-      // Still dismissible via the close button; dismissal clears the store in lock-step.
       act(() => {
         screen.getByRole("button", { name: "Close toast" }).click();
       });
@@ -1026,14 +1008,7 @@ function registerPersistentWarningNoticeTest(): void {
 
 function registerNoticeReplacementRaceTest(): void {
   it("rapidly replacing notice A with B leaves B intact (no stale-clear race)", async () => {
-    // Regression for the stale-clear race: rapidly swapping notice A→B (e.g. two drags
-    // in quick succession) must not let A's deferred programmatic dismiss wipe B. When the bridge
-    // replaces A's toast it runs cleanup `toast.dismiss(idA)`, and Sonner fires A's `onDismiss`
-    // even for a *programmatic* dismiss, so without the `=== thisNotice` identity guard A's
-    // `clear()` would call setNotice(null) and erase B. (Verified: with the guard removed the
-    // store reads `notice === undefined` here instead of B.) Fake timers let us pump Sonner's
-    // deferred-dismiss + exit-animation rAFs for A deterministically while staying well under the
-    // 4000ms auto-dismiss window, so B never auto-closes. We isolate the swap race, not the timer.
+    // Dismissing an old Sonner toast can invoke its callback after the replacement is shown. The callback must clear only its own notice; fake timers exercise that ordering before the new notice auto-dismisses.
     vi.useFakeTimers();
     try {
       renderAppShell({});
@@ -1049,8 +1024,6 @@ function registerNoticeReplacementRaceTest(): void {
       });
       expect(screen.getByText("First notice")).toBeInTheDocument();
 
-      // The back-to-back second notice replaces A. This is what tears A's toast down and fires
-      // A's deferred onDismiss (the thing that, unguarded, would wipe B).
       act(() => {
         useStore.getState().setNotice("Second notice");
       });
@@ -1059,20 +1032,15 @@ function registerNoticeReplacementRaceTest(): void {
       // mid-animation. Total here (~250ms post-swap) stays well under the 4000ms auto-dismiss,
       // so B never auto-closes.
       await act(async () => {
-        // The first toast may dismiss after the replacement is visible.
         await vi.advanceTimersByTimeAsync(50);
       });
       await act(async () => {
-        // Finish the first toast's exit animation before checking the replacement.
         await vi.advanceTimersByTimeAsync(200);
       });
 
-      // Core assertion, the store still holds B (A's deferred clear was identity-guarded out; an
-      // unguarded bridge leaves this undefined). Read synchronously: `findBy*` polls on real timers
-      // and would hang under fake timers, so we never use it here.
+      // Use synchronous queries after advancing the fake clock; polling queries can stall under paused timers.
       expect(useStore.getState().notice?.message).toBe("Second notice");
-      // B is on screen as a real Sonner toast; A's toast has left the DOM (its 300ms dismiss +
-      // exit completed), proving A's teardown removed only A, not B.
+
       const message = screen.getByText("Second notice");
       expect(message.closest("[data-sonner-toast]")).not.toBeNull();
       expect(screen.queryByText("First notice")).not.toBeInTheDocument();
@@ -1100,7 +1068,6 @@ describe("AppShell navigation links", () => {
 
 describe("AppShell sidebar collapse", () => {
   beforeEach(() => {
-    // Reset to the open default and forget any persisted choice from a prior test.
     act(() => {
       useStore.getState().setSidebarOpen(true);
     });
@@ -1130,7 +1097,6 @@ describe("AppShell hydration gate", () => {
   it("does not render the outlet area when not hydrated", () => {
     renderAppShell({});
 
-    // The loading placeholder should be shown, not the outlet content area
     expect(screen.getByText("Loading…")).toBeInTheDocument();
     expect(screen.queryByRole("main")?.textContent).toContain("Loading");
   });
@@ -1138,15 +1104,12 @@ describe("AppShell hydration gate", () => {
   it('hides "Loading…" and renders outlet area after setHydrated(true)', () => {
     renderAppShell({});
 
-    // Initially shows loading
     expect(screen.getByText("Loading…")).toBeInTheDocument();
 
-    // Set hydrated inside act so React processes the state update
     act(() => {
       useStore.getState().setHydrated(true);
     });
 
-    // Loading text should be gone, outlet rendered instead
     expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
   });
 
@@ -1163,7 +1126,7 @@ describe("AppShell undo/redo keyboard", () => {
   it("⌘Z undoes a data change, but is IGNORED while a form is dirty", () => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
-    // A change so there's something to undo.
+
     act(() => {
       useStore.getState().addClient({ name: "Undoable", color: "#111111" });
     });
@@ -1177,17 +1140,16 @@ describe("AppShell undo/redo keyboard", () => {
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
     });
-    // A dirty form must retain its unsaved edit when undo is requested.
+
     expect(useStore.getState().data.clients).toHaveLength(1);
 
-    // Form no longer dirty → ⌘Z undoes as normal.
     act(() => {
       useStore.getState().setDirtyForm(false);
     });
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
     });
-    // Once the form is clean, undo must reach the store.
+
     expect(useStore.getState().data.clients).toHaveLength(0);
   });
 
@@ -1212,7 +1174,6 @@ describe("AppShell undo/redo keyboard", () => {
       });
       expect(useStore.getState().data.clients).toHaveLength(1);
 
-      // Seed the redo side of history directly, then prove the same clean modal owns Cmd+Shift+Z.
       act(() => useStore.getState().undo());
       expect(useStore.getState().data.clients).toHaveLength(0);
       act(() => {
@@ -1243,13 +1204,7 @@ describe("AppShell command palette dirty-form guard", () => {
 });
 
 describe("AppShell transient notice", () => {
-  // The store `notice`/`setNotice` API is unchanged; AppShell now bridges it to a Sonner
-  // toast. Sonner portals the toast in
-  // asynchronously inside a polite live region (<section aria-label="Notifications…"
-  // aria-live="polite">), each toast a `li[data-sonner-toast]` with an aria-label="Close
-  // toast" button, so these assertions match Sonner's DOM, while the behavioural intent
-  // (info appears + auto-dismisses, error persists + is dismissible, store stays in sync)
-  // is preserved.
+  // Sonner renders notices asynchronously in its own polite live region, so this suite awaits its portal markup.
   registerInfoNoticeDismissalTest();
   registerPersistentErrorNoticeTest();
   registerPersistentWarningNoticeTest();
@@ -1263,7 +1218,7 @@ describe("AppShell fake sign-in gate (cosmetic demo)", () => {
     renderAppShell({});
 
     expect(screen.getByRole("heading", { name: "Choose an account" })).toBeInTheDocument();
-    // Both downstream gates are walled off behind the demo sign-in.
+
     expect(screen.queryByText("Choose a company")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Schedule" })).not.toBeInTheDocument();
   });

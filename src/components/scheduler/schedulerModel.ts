@@ -83,13 +83,7 @@ function includeRenderableDateRange<T extends { id: string; startDate: ISODate; 
   return renderable;
 }
 
-// Pure view-model builder for the scheduler: turns the dataset + window + filters
-// into positioned bars, per-day capacity states, time-off blocks and utilisation,
-// grouped by discipline. No React, independently unit-testable.
-//
-// The model owns the shapes the view renders (one-way data -> model -> view), so
-// these live here and the presentational components import them from the model,
-// not the other way round.
+// The scheduler's pure projection owns view-model shapes; presentation consumes those shapes without introducing a reverse dependency. Computation errors must propagate rather than be swallowed.
 
 function projectVisibleLanes({
   row,
@@ -150,8 +144,7 @@ export function applyVisibleUtilization({
         layout: laneLayout,
         partiallyExposesNextColumn,
       });
-      // External / 3rd-party rows carry no capacity, so their 0 can never change (the same
-      // starvation contract the build's capacity seam states).
+
       if (isExternalResource(row.resource)) {
         if (row.utilization === 0 && visibleLanes.bars === row.bars && visibleLanes.rowHeight === row.rowHeight) {
           return row;
@@ -164,10 +157,7 @@ export function applyVisibleUtilization({
       });
       const resourceTimeOff = personalTimeOff.get(row.resource.id) ?? [];
       const effectiveWeek = effectiveWorkingWeek(row.resource, accountWorkingDays);
-      // Bucket this resource's load and time off by the days they cover once, exactly as the full
-      // build does, so a horizontal scroll costs O(days + coverage) per row instead of rescanning
-      // every allocation on every day of the window. Bucket order follows the input, so the hours
-      // are summed in the same order and the ratio is bit-identical to the rescan.
+      // Bucket load once per row so scrolling does not rescan every allocation for every date. Preserve insertion order because floating-point addition is order-dependent.
       const allocationsByDate = bucketByCoveredDate(resourceAllocations, days);
       const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, days);
       const next = resolveUtilizationFromCapacity(
@@ -191,8 +181,6 @@ export function applyVisibleUtilization({
   });
 }
 
-// With disciplines on, the single band holds people without a discipline ("Unassigned"); with
-// disciplines off it holds everyone, so it takes the neutral navigation label instead.
 const UNASSIGNED_BAND = { key: "unassigned", title: "Unassigned" };
 const ALL_RESOURCES_BAND = { key: "resources", title: "Resources" };
 
@@ -303,12 +291,9 @@ function createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode }: 
 export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[] {
   const { data, filters, preferences } = options;
   const { disciplinesEnabled, accountWorkingDays = [1, 2, 3, 4, 5], blocksMode = false } = preferences;
-  // Derived from the people themselves: Studio/Supplementary partitioning applies only once the
-  // company has an active Supplementary resource, so a Studio-only company reads as one list.
+
   const groupByEngagement = hasSupplementaryResources(data.resources);
-  // One i18n read per build for the placeholder label: the sort below calls the display name
-  // O(n log n) times and every placeholder resolves the same word. Per build call, never module
-  // scope: a Paraglide message must be called at use time so it follows the active locale.
+  // Resolve the shared placeholder label once per model build so sorting reuses it while still following the active locale.
   const placeholderLabel = resolvePlaceholderDisplayName();
   const resolveDisplayName = (resource: Resource): string =>
     resource.kind === "placeholder" ? placeholderLabel : resolveResourceDisplayName(resource);
@@ -326,9 +311,6 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   });
   const { buildRow, resourceVisible } = createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode });
 
-  // Assigned resources retain canonical discipline order. Every unassigned capacity-tracked row
-  // then receives a useful engagement home; with disciplines off, that fallback becomes the whole
-  // capacity grouping. External / 3rd party is deliberately appended last in both modes.
   const groups = buildResourceGroups({ data, disciplinesEnabled, groupByEngagement });
   return groups
     .map((group) => ({
@@ -336,15 +318,12 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
       title: group.title,
       ...(group.color ? { color: group.color } : {}),
       external: !!group.external,
-      // Keep discipline/external grouping intact. People are Studio then Supplementary when the
-      // company has Supplementary people, with favourites first alphabetically inside each
-      // partition. Placeholders remain after all people and have no favourite affordance.
+
       rows: group.resources
         .filter(resourceVisible)
         .sort(byResourceOrder)
         .map(buildRow)
-        // Non-matching rows are hidden by default; the "Show unallocated" toggle opts
-        // the dimmed staffing view back in.
+
         .filter((row) => filters.showUnmatched || !row.dimmed),
     }))
     .filter((group) => group.rows.length > 0);

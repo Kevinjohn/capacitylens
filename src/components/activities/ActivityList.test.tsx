@@ -73,7 +73,7 @@ describe("ActivityList", () => {
     const dialog = screen.getByRole("dialog", { name: "Add activity" });
 
     await user.type(within(dialog).getByLabelText("Name"), "Internal sync");
-    // Pick the Internal kind, the project picker disappears (project-less).
+
     await user.click(within(dialog).getByRole("radio", { name: "Internal" }));
     expect(within(dialog).queryByLabelText("Project")).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -153,7 +153,6 @@ describe("ActivityList", () => {
     await user.click(screen.getByRole("button", { name: "Add activity" }));
     const dialog = screen.getByRole("dialog", { name: "Add activity" });
 
-    // 'Project-specific' is the default kind, so the project picker is shown.
     await user.type(within(dialog).getByLabelText("Name"), "My Activity");
     fireEvent.keyDown(within(dialog).getByLabelText("Project"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Ferris / Lightning" }));
@@ -219,11 +218,9 @@ describe("ActivityList", () => {
     await user.click(screen.getByRole("button", { name: "Add activity" }));
     const dialog = screen.getByRole("dialog", { name: "Add activity" });
 
-    // Default kind is Project-specific; leave the project unselected and Save.
     await user.type(within(dialog).getByLabelText("Name"), "Orphan");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    // The dialog stays open with a field error, and no activity is created.
     expect(screen.getByRole("dialog", { name: "Add activity" })).toBeInTheDocument();
     expect(within(dialog).getByText("A project-specific activity must be assigned to a project.")).toBeInTheDocument();
     expect(useStore.getState().data.activities).toHaveLength(0);
@@ -333,7 +330,6 @@ describe("ActivityList", () => {
     const dialog = screen.getByRole("alertdialog");
     expect(dialog).toHaveTextContent(/Archive activity\?/i);
 
-    // Cancel keeps the activity
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(useStore.getState().data.activities).toHaveLength(1);
 
@@ -406,9 +402,7 @@ describe("ActivityList", () => {
     await user.click(screen.getByRole("button", { name: "Archive My Activity" }));
     expect(screen.getByRole("alertdialog")).toHaveTextContent(/Archive activity\?/i);
 
-    // Simulate a teammate/sync archiving the row while the dialog is still open and pointed at it,
-    // `confirming` keeps holding the now-stale activity object. The dialog must re-render with the
-    // base message, not throw archiveImpact's "already_inactive" error into the component tree.
+    // A record can become inactive while its archive dialog is open. Rendering the confirmation must then show the base message rather than throw an already-inactive error.
     act(() => {
       useStore.getState().archiveEntity("activities", activity.id);
     });

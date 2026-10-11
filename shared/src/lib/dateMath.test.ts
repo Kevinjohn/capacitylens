@@ -63,7 +63,6 @@ describe("dateMath", () => {
   });
 
   it("eachDayISO is empty for ANY end-before-start range, not just adjacent reversals", () => {
-    // A reversed range is empty even when its endpoints are far apart.
     expect(eachDayISO("2026-06-15", "2026-01-01")).toEqual([]);
   });
 
@@ -106,10 +105,8 @@ describe("dateMath range predicates", () => {
 
   it("rangesOverlap is inclusive at both ends of both ranges", () => {
     expect(rangesOverlap("2026-05-01", "2026-05-31", "2026-05-10", "2026-05-12")).toBe(true);
-    // Touching edges count as an overlap in both directions.
     expect(rangesOverlap("2026-05-01", "2026-05-10", "2026-05-10", "2026-05-20")).toBe(true);
     expect(rangesOverlap("2026-05-10", "2026-05-20", "2026-05-01", "2026-05-10")).toBe(true);
-    // A one-day gap on either side does not.
     expect(rangesOverlap("2026-05-01", "2026-05-09", "2026-05-10", "2026-05-20")).toBe(false);
     expect(rangesOverlap("2026-05-21", "2026-05-30", "2026-05-10", "2026-05-20")).toBe(false);
   });

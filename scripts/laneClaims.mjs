@@ -36,11 +36,12 @@ import {
 import { portInUse } from "./devProcesses.mjs";
 
 const MUTEX_STALE_MS = 30_000;
-// A legacy publisher wrote its owner microseconds after creating the file.
+// File-format mutexes need a grace period because the owner can be written after the path becomes visible.
 const LEGACY_PUBLISH_GRACE_MS = 5_000;
 const MUTEX_WAIT_ARRAY = new Int32Array(new SharedArrayBuffer(4));
 let claimSequence = 0;
 
+/** Returns the shared lane-claim directory selected by XDG_CACHE_HOME or the user’s cache directory, without creating it. */
 export function laneDirectory(environment = process.env) {
   const cacheHome = environment.XDG_CACHE_HOME || join(environment.HOME || homedir(), ".cache");
   return join(cacheHome, "capacitylens", "lanes");
@@ -75,11 +76,7 @@ function readClaim(path) {
   }
 }
 
-/**
- * Hold the directory mutex for the duration of `body`. Kept to the scan-and-write window only.
- * It lasts milliseconds. A dead holder can be reaped, while a live holder is never reaped based on age.
- * MUTEX_STALE_MS only limits how long a contender waits for a live holder.
- */
+// Hold the mutex only across scan and publication. A live owner must never be reaped by age; the timeout limits contenders’ waiting.
 function withMutex(directory, body) {
   const path = join(directory, ".mutex");
   const deadline = Date.now() + MUTEX_STALE_MS;
@@ -96,12 +93,11 @@ function withMutex(directory, body) {
       // its owner file is complete, so contenders never observe a half-written owner.
       renameSync(temporary, path);
     } catch (error) {
+      // Discard our unpublished mutex candidate; retry only ownership races and rethrow other publication failures.
       releaseMutex(temporary, ownerName);
       if (!["EEXIST", "ENOTEMPTY", "EISDIR", "ENOTDIR"].includes(error.code)) throw error;
       const holder = readMutexOwner(path);
-      // The old file format published the path before writing its owner. An empty/corrupt legacy
-      // file may belong to a live publisher paused in that window, so it is reaped only once it
-      // is older than any such pause could be.
+      // An empty file-format mutex may still belong to a paused publisher; allow the publication grace period before reaping it.
       if (holder?.legacy && (holder.corrupt || !Number.isInteger(holder.pid) || holder.pid <= 0)) {
         if (legacyMutexAbandoned(path)) {
           removeLegacyMutex(path);
@@ -146,16 +142,19 @@ function legacyMutexAbandoned(path) {
   try {
     return Date.now() - statSync(path).mtimeMs > LEGACY_PUBLISH_GRACE_MS;
   } catch (error) {
+    // A vanished mutex is no longer reapable; rethrow other stat failures because owner safety remains unknown.
     if (error.code === "ENOENT") return false;
     throw error;
   }
 }
 
-// Older launchers used a regular file. Unlink cannot delete a directory successor.
+// Unlinking a file-format mutex cannot remove a directory-format successor.
 function removeLegacyMutex(path) {
   try {
     unlinkSync(path);
   } catch (error) {
+    // Ignore missing paths and directory-unlink errors; other failures surface.
+    // EPERM is accepted because platforms may use it for directory unlink.
     if (!["ENOENT", "EISDIR", "EPERM"].includes(error.code)) throw error;
   }
 }
@@ -167,6 +166,7 @@ function readMutexOwner(path) {
     const claim = readClaim(join(path, name));
     return claim ? { ...claim, name } : null;
   } catch (error) {
+    // A disappeared path is unowned; inspect regular-file claims for compatibility and rethrow every other directory-read failure.
     if (error.code === "ENOENT") return null;
     if (error.code === "ENOTDIR") {
       const claim = readClaim(path);
@@ -176,17 +176,19 @@ function readMutexOwner(path) {
   }
 }
 
+/** Removes only the named mutex owner and its empty directory, tolerating a concurrent replacement and reporting other cleanup failures. */
 export function releaseMutex(path, ownerName) {
   removeQuietly(join(path, ownerName));
   try {
     rmdirSync(path);
   } catch (error) {
+    // A successor can keep the directory nonempty; tolerate that ownership race and report other removal failures.
     if (error.code !== "ENOENT" && error.code !== "ENOTEMPTY")
       console.error(`lane: could not remove ${path}: ${error.message}`);
   }
 }
 
-/** Remove a lock file, tolerating one that a racing reclaimer has already taken away. */
+// Another reclaimer may already have removed the file; report every other unlink failure.
 function removeQuietly(path) {
   try {
     unlinkSync(path);
@@ -210,6 +212,7 @@ export function readLiveClaims(directory) {
   try {
     names = readdirSync(directory);
   } catch (error) {
+    // A missing claim directory means no claims exist; unreadable claims must surface because reaping would be unsafe.
     if (error.code === "ENOENT") return claims;
     throw error;
   }
@@ -275,6 +278,7 @@ export function listenerDirectory(pid, run = execFileSync) {
     const line = output.split("\n").find((entry) => entry.startsWith("n"));
     return line ? line.slice(1) : null;
   } catch (error) {
+    // Working-directory details are diagnostic; a failed lookup returns unknown, while missing lsof must still surface.
     if (error.code === "ENOENT")
       throw new Error("lane: lsof is required to inspect an occupied lane port; install lsof and retry.", {
         cause: error,
@@ -286,6 +290,8 @@ export function listenerDirectory(pid, run = execFileSync) {
 /**
  * Refuse a freshly claimed lane when any of its ports are occupied. Occupancy is not ownership, so
  * the launcher reports the listener and leaves stopping it to the developer.
+ * Does not stop listeners.
+ * @throws When an endpoint is occupied or listener inspection fails.
  */
 export async function assertLaneFree(
   lane,
@@ -309,6 +315,8 @@ export async function assertLaneFree(
 /**
  * Claim a selected lane, or the lowest free lane, plus a CPU share. Returns the lane, share, claim
  * token, and a release that is safe to call more than once.
+ * Creates a filesystem reservation; releasing the returned claim is idempotent.
+ * @throws When no lane is available, mutex acquisition times out or filesystem operations fail.
  */
 export function claimLane({ worktree, environment = process.env, cores, lane: requestedLane } = {}) {
   const directory = laneDirectory(environment);
@@ -339,7 +347,7 @@ export function claimLane({ worktree, environment = process.env, cores, lane: re
   });
 }
 
-/** Release a lane, but only if it is still ours — see invariant 2 at the top of this file. */
+/** Releases only the current process’s matching claim token so a slow releaser cannot delete a successor’s claim. */
 export function releaseLane(directory, lane, token) {
   const path = claimPath(directory, lane);
   const claim = readClaim(path);

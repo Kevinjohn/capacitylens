@@ -115,8 +115,7 @@ function registerImportedRecordBasics(): void {
 
 function registerImportedResourceTests(): void {
   it("de-duplicates a resource’s working days so length reflects real coverage", () => {
-    // [1×7] must not reach length 7 (which the scheduling math reads as a full 7-day
-    // week and flips weekend-awareness off). A Monday-only resource stays Monday-only.
+    // Duplicate weekday entries must collapse to a canonical set so a Monday-only resource stays Monday-only.
     expect(sanitizeImportedRecord("resources", { workingDays: [1, 1, 1, 1, 1, 1, 1] }).workingDays).toEqual([1]);
     expect(sanitizeImportedRecord("resources", { workingDays: [5, 1, 3, 1, 5] }).workingDays).toEqual([1, 3, 5]);
   });
@@ -264,9 +263,7 @@ function registerImportedColorTests(): void {
   });
 
   it("falls back a malformed / overlong colour to the safe default", () => {
-    // 8 digits.
     expect(sanitizeImportedRecord("clients", { color: "#aabbccdd" }).color).toBe(FALLBACK_PRESET_COLOR);
-    // 3 digits.
     expect(sanitizeImportedRecord("projects", { color: "#abc" }).color).toBe(FALLBACK_PRESET_COLOR);
   });
 }
@@ -284,9 +281,7 @@ function registerImportedDateTests(): void {
   });
 
   it("normalizes ONLY a whole, trimmed Y-M-D string — not a partial or embedded match", () => {
-    // trims surrounding whitespace before matching
     expect(sanitizeImportedRecord("allocations", { startDate: "  2026-6-1  " }).startDate).toBe("2026-06-01");
-    // pads a 1-digit month even when the day is already 2 digits (the whole string must match)
     expect(sanitizeImportedRecord("allocations", { startDate: "2026-6-12" }).startDate).toBe("2026-06-12");
     // a prefixed / suffixed value is not a date. It's left verbatim for validateDateRange to reject,
     // never partially rewritten from an embedded match.
@@ -307,8 +302,7 @@ function registerImportedTextFieldTests(): void {
   });
 
   it("falls back a REQUIRED text column (per entity) to its placeholder when empty / missing", () => {
-    // The server marks these NOT NULL; an emoji-only or absent value collapses to '' locally,
-    // so each case supplies the right field name + placeholder so both import paths agree.
+    // Empty or missing required text needs a field-specific placeholder so demo and server imports agree.
     expect(sanitizeImportedRecord("clients", {}).name).toBe("Untitled");
     expect(sanitizeImportedRecord("clients", { name: "💩" }).name).toBe("Untitled");
     expect(sanitizeImportedRecord("projects", { name: "" }).name).toBe("Untitled");
@@ -325,12 +319,9 @@ function registerImportedTextFieldTests(): void {
   });
 
   it("cleans a single-line name (collapsing newlines) but preserves newlines in multiline notes", () => {
-    // resources.name uses the default (single-line) mode, a newline collapses to a space...
     expect(sanitizeImportedRecord("resources", { name: "a\nb", role: "r" }).name).toBe("a b");
-    // ...whereas allocation / time-off notes are multiline, so a newline is preserved.
     expect(sanitizeImportedRecord("allocations", { note: "a\nb" }).note).toBe("a\nb");
     expect(sanitizeImportedRecord("timeOff", { note: "a\nb" }).note).toBe("a\nb");
-    // and a note is still stripped of emoji junk (proving the cleaned field really is 'note')
     expect(sanitizeImportedRecord("timeOff", { note: "done ✅" }).note).toBe("done");
   });
 

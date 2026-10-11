@@ -17,11 +17,7 @@ interface SidebarItem {
   items?: SidebarItem[];
 }
 
-// Sidebar links are written without an extension ("/using/read-the-schedule"). The
-// site is built with cleanUrls off and read straight from disk, where only a
-// server would resolve an extensionless URL — so every link this component
-// emits needs the real .html on it. Directory links ("/company-login/") already
-// resolve to that directory's index.html, and so do fine as they are.
+// Disk-opened pages need .html links because no server resolves extensionless paths; directory links already resolve index.html.
 const href = (link: string) => withBase(/\/$|\.\w+$|^https?:/.test(link) ? link : `${link}.html`);
 
 // The first link anywhere in the group, including nested ones, so a group whose
@@ -47,7 +43,6 @@ const pathTo = (items: SidebarItem[] = [], current: string): SidebarItem[] | und
 };
 
 const crumbs = computed<Crumb[]>(() => {
-  // page.relativePath is e.g. "self-hosting/backups-and-restore.md"
   const current = "/" + page.value.relativePath.replace(/\.md$/, "").replace(/(^|\/)index$/, "$1");
   if (current === "/") return [];
 
@@ -60,7 +55,6 @@ const crumbs = computed<Crumb[]>(() => {
         .find(([prefix]) => current.startsWith(prefix.replace(/\/$/, "")))?.[1];
   const found = Array.isArray(sidebar) ? pathTo(sidebar, current.replace(/\/$/, "")) : undefined;
   if (found) {
-    // Everything but the last entry is a group; the last is the page itself.
     for (const group of found.slice(0, -1)) {
       const link = firstLink(group.items);
       trail.push({ text: group.text, link: link ? href(link) : undefined });

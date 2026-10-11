@@ -197,6 +197,7 @@ function createPasswordReset(
           expiresAt: new Date(Date.now() + RESET_LINK_TTL_SECONDS * 1000).toISOString(),
         };
       } catch (error) {
+        // Preserve recognized account failures and surface unexpected identity-store failures as dependency errors with their cause.
         if (error instanceof AccountContractError) throw error;
         throw createProviderFailure("Password-reset issuance is temporarily unavailable.", error);
       }
@@ -207,6 +208,7 @@ function createPasswordReset(
         // Conservatively revoking every outstanding ceremony for this principal is fail-closed.
         revokeResetTokensForUser(input.db, targetPrincipalId);
       } catch (error) {
+        // Surface identity-store failures as dependency errors while preserving their cause for diagnostics.
         throw createProviderFailure("Password-reset ceremony revocation failed.", error);
       }
     },

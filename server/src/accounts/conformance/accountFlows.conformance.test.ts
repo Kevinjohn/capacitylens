@@ -187,9 +187,7 @@ type MembershipAdministrationMethods = Pick<
   | "completeOwnershipTransfer"
 >;
 
-/** The seven ceremony stubs. Every command answers with the same committed-terminal outcome: these
- * are conformance placeholders, and a single shape keeps the stub set from implying behaviour the
- * flows under test do not exercise. */
+// Use one terminal stub outcome so these unused port capabilities imply no untested ceremony behavior.
 function ownershipTransferMethods(): Pick<
   MembershipAdministrationMethods,
   | "readOwnershipTransfer"

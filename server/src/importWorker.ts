@@ -30,6 +30,7 @@ if (!isMainThread) {
         result: remapAndValidateImport(request.current, request.accountId, request.incoming, request.now),
       });
     } catch (error) {
+      // Send the preparation failure back to the parent worker boundary so import rejects before any replacement commits.
       workerPort.postMessage({
         ok: false,
         error:

@@ -227,7 +227,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
 
       <ResourceLane
         resourceId={resource.id}
-        // Names the timeline grid cell without repeating the row header's capacity summary.
+
         ariaLabel={m.scheduler_lane_aria({
           name: resolveResourceDisplayName(resource),
         })}

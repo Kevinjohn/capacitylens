@@ -18,7 +18,6 @@ import {
 const trustedLocalProposalFailure = () =>
   new AccountContractError({ code: "FORBIDDEN", message: REPLY_ERRORS.forbidden, retryable: false });
 
-/** The account-route members the invitation handlers read. */
 type InvitationRouteContext = Pick<
   AccountRouteContext,
   | "administration"
@@ -102,6 +101,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
       ...(invite.proposedResourceId === undefined ? {} : { proposedResourceId: invite.proposedResourceId }),
     });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -128,6 +128,7 @@ export async function previewInvitation(
       emailHint: invite.emailHint,
     });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -204,6 +205,7 @@ export async function acceptInvitation(
     });
     return reply.code(200).send({ accountId: accepted.workspaceId, role: accepted.role });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -246,6 +248,7 @@ export async function signupInvitation(
     });
     return reply.code(201).send({ ok: true, accountId: result.membership.workspaceId, role: result.membership.role });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return fail(reply, error);
   }
 }
@@ -283,6 +286,7 @@ export async function listInvitations(
       })),
     });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -329,11 +333,12 @@ export async function revokeInvitation(
     });
     return reply.code(204).send();
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
 
-/** Delivery failure preserves the created invitation and its copyable link. */
+// Delivery failure must preserve the created invitation and its copyable link.
 async function sendInvitationEmail({
   req,
   context,
@@ -355,6 +360,7 @@ async function sendInvitationEmail({
     });
     return true;
   } catch (cause) {
+    // Log delivery failure and return an explicit failure result while preserving the created invitation and its copyable link.
     req.log.error({ cause: resolveMailDeliveryCause(cause) }, "Invitation email delivery failed");
     return false;
   }

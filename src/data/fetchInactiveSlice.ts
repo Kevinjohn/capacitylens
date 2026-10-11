@@ -4,12 +4,7 @@ import { API_BASE } from "./apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "./requestTimeout";
 import { parseAccountSlice } from "./validateAccountSlice";
 
-// The one client-side reader of the purge-gated admin endpoint
-// `GET /api/state?accountId=…&includeInactive=1` (the complete per-tenant read: archived +
-// soft-deleted rows retained). Shared by DeleteCompanyDialog ("Export first", the last backup
-// before a no-undo cascade delete) and ArchivedSection (the Settings lifecycle admin view) so the
-// two call sites can't drift on how much they trust the response. They briefly disagreed, and the
-// unvalidated copy rendered a proxy error page as an empty archived list.
+// The shared inactive-slice reader validates the complete tenant projection so backup and lifecycle views cannot accept a partial response.
 
 /**
  * A non-OK response from the inactive-slice read. Carries the raw {@link status} so callers can
@@ -43,25 +38,9 @@ export class InactiveSliceShapeError extends Error {
 }
 
 /**
- * Fetch the complete per-tenant slice (archived + soft-deleted retained) from the purge-gated
- * admin read and return it validated + migrated.
+ * Fetches one structurally complete tenant slice including inactive rows, then repairs field-level defects. Repair can change invalid lifecycle state; completeness does not prove archival semantics.
  *
- * The body is untrusted external input, never a bare `as AppData` cast. And it must be
- * structure-checked before migrate(): this endpoint returns the bare table map (no schemaVersion
- * wrapper), so migrate() treats it as a legacy blob, coerces any absent table to [] and
- * synthesizes the built-in Internal client for every accounts row, meaning a partial body
- * (broken proxy, wrong-version server) would migrate into a nearly-empty AppData that reads as an
- * empty archived list or defeats the export's zero-record guard and gets saved as the "complete
- * last backup". Require every known table to be present as an array (KNOWN_KEYS is the
- * drift-proofed list, a new entity extends it automatically); anything less is not a complete
- * slice, so throw ({@link InactiveSliceShapeError}) for the caller's error surface. A non-OK
- * response throws {@link InactiveSliceHttpError}. A network/parse failure rejects with the raw
- * error. The callers already route unknown failures to their surfaces.
- *
- * Once structurally complete, migrate() normalizes and repairs field-level defects exactly like
- * ServerSyncAdapter.loadAll. This boundary proves table completeness, not archival semantics: a
- * malformed lifecycle field can be repaired to active and consequently disappear from an inactive
- * list. Callers surface structural/HTTP failures; repairable legacy fields follow import policy.
+ * @throws InactiveSliceHttpError for non-success HTTP status; InactiveSliceShapeError for missing tables, invalid or duplicate row IDs, or rows belonging to another account. Transport and decoding errors propagate.
  */
 export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): Promise<AppData> {
   const res = await apiFetch(

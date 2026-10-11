@@ -10,7 +10,6 @@ test("Internal work is always grey and hides the project colour picker", async (
   await page.getByRole("button", { name: "Add project" }).click();
   const addDialog = page.getByRole("dialog", { name: "Add project" });
   await addDialog.getByRole("textbox", { name: "Name", exact: true }).fill("Quarterly planning");
-  // The picker starts visible while no client is selected, then hides as soon as Internal owns it.
   await expect(addDialog.getByRole("button", { name: /^Colour/ })).toBeVisible();
   await selectShadOption(addDialog.getByLabel("Client"), { label: "Internal" });
   await expect(addDialog.getByRole("button", { name: /^Colour/ })).toHaveCount(0);

@@ -21,7 +21,7 @@ const discipline = (updatedAt = TS1): Discipline => ({
   createdAt: TS1,
   updatedAt,
 });
-// Record every request as { url, body } so a spec can assert both the endpoints hit and their order.
+
 const recordingFetch = (onCall?: (url: string) => Response | null) => {
   const calls: Array<{ url: string; body?: string; keepalive?: boolean }> = [];
   const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
@@ -44,27 +44,24 @@ function registerLifecycleArchiveTests(): void {
     const { calls, fetchImpl } = recordingFetch();
     const a = new ServerSyncAdapter("http://x", fetchImpl);
 
-    // 1) create + sync a client (its PUT rides the batch. A lifecycle PUT is allowed).
     await a.saveAll(scopedData("a1", { clients: [client("c1")] }));
-    // 2) undo: c1 is removed. Its delete must not ride the batch (that would 400 the whole request);
-    //    it converges by archiving through the dedicated archive route instead.
+    // Lifecycle entities must archive through their dedicated routes; ordinary batch deletion is invalid.
     calls.length = 0;
     await a.saveAll(scopedData("a1", {}));
     const urls = calls.map((c) => c.url);
     expect(urls).toContain("http://x/api/clients/c1/archive");
-    // the sync layer never hits /delete, soft-delete is not emitted by background sync.
+
     expect(urls.some((u) => u.endsWith("/clients/c1/delete"))).toBe(false);
-    // the archive carries the owning account in its body.
+
     const archive = required(calls.find((call) => call.url.endsWith("/clients/c1/archive")));
     expect(requiredRecord(JSON.parse(required(archive.body)), "expected archive request payload")).toEqual({
       accountId: "a1",
     });
-    // no batch carried a lifecycle DELETE.
+
     for (const bc of calls.filter((c) => c.url.endsWith("/api/batch"))) {
       expect(opsOf(bc).some((o) => o.method === "DELETE" && o.table === "clients")).toBe(false);
     }
 
-    // 3) a later unrelated edit still syncs. The poison is gone.
     calls.length = 0;
     await a.saveAll(scopedData("a1", { clients: [client("c2")] }));
     const put = required(calls.find((call) => call.url.endsWith("/api/batch")));
@@ -110,7 +107,7 @@ function registerLifecycleRestoreTests(): void {
   });
 
   it("announces an audit warning returned by the dedicated unarchive route", async () => {
-    // Same gap as the archive route above: unarchiveLifecycleRow also bypasses apiFetch.
+    // Unarchival bypasses apiFetch, so it must surface the audit warning explicitly.
     const warning = vi.fn();
     globalThis.addEventListener(AUDIT_WARNING_EVENT, warning);
     try {
@@ -210,11 +207,9 @@ function registerLifecycleBatchOrderingTests(): void {
       }),
     );
 
-    // Remove the lifecycle client and edit the discipline in the same diff.
     calls.length = 0;
     await a.saveAll(scopedData("a1", { disciplines: [discipline(TS2)] }));
 
-    // the discipline edit landed via the batch, which never carries the lifecycle delete...
     const batch = required(calls.find((call) => call.url.endsWith("/api/batch")));
     expect(opsOf(batch)).toEqual([
       expect.objectContaining({
@@ -224,8 +219,7 @@ function registerLifecycleBatchOrderingTests(): void {
       }),
     ]);
     expect(opsOf(batch).some((o) => o.table === "clients")).toBe(false);
-    // ...and the client delete converged by archiving (no /delete), after the batch (so any
-    // reparent/upsert the diff carried lands first).
+
     const urls = calls.map((c) => c.url);
     expect(urls).toContain("http://x/api/clients/c1/archive");
     expect(urls.some((u) => u.endsWith("/clients/c1/delete"))).toBe(false);
@@ -245,10 +239,9 @@ function registerLifecycleBatchOrderingTests(): void {
       }),
     );
 
-    // Undo the client (lifecycle delete) and edit the discipline; the archive endpoint is down.
     calls.length = 0;
     await expect(a.saveAll(scopedData("a1", { disciplines: [discipline(TS2)] }))).rejects.toThrow(/Lifecycle archive/);
-    // The unrelated discipline edit still committed. The batch is independent of the stuck archive.
+
     expect(opsOf(required(calls.find((call) => call.url.endsWith("/api/batch"))))).toEqual([
       expect.objectContaining({
         method: "PUT",
@@ -257,15 +250,14 @@ function registerLifecycleBatchOrderingTests(): void {
       }),
     ]);
 
-    // A re-save of the same target must not replay the committed discipline edit (snapshot advanced for
-    // the batch), but must re-attempt the un-converged client archive (restored to the snapshot).
-    failArchive = false; // the archive endpoint recovers
+    // Retry only unconverged archives; an already committed ordinary edit must not replay.
+
+    failArchive = false;
     calls.length = 0;
     await a.saveAll(scopedData("a1", { disciplines: [discipline(TS2)] }));
-    expect(calls.some((c) => c.url.endsWith("/api/batch"))).toBe(false); // discipline edit not replayed
+    expect(calls.some((c) => c.url.endsWith("/api/batch"))).toBe(false);
     expect(calls.map((c) => c.url)).toContain("http://x/api/clients/c1/archive");
 
-    // Fully converged now: a further identical save is a clean no-op (no batch, no archive).
     calls.length = 0;
     await a.saveAll(scopedData("a1", { disciplines: [discipline(TS2)] }));
     expect(calls).toHaveLength(0);
@@ -274,9 +266,8 @@ function registerLifecycleBatchOrderingTests(): void {
 
 function registerLifecycleConflictTests(): void {
   it("(d) a lifecycle-ARCHIVE 409 (already archived) is treated as converged, not a poison", async () => {
-    // 409 from the archive route = the row is already out of active (a concurrent archive or a
-    // converged retry). Surfacing it would re-poison every future diff with a delete that can never
-    // "succeed"; instead it advances the snapshot as removed. (404 is handled the same way.)
+    // A 409 with code already_inactive proves archival converged. Only the API row-absence
+    // envelope makes a 404 converged; other conflicts and proxy responses remain failures.
     const { calls, fetchImpl } = recordingFetch((url) =>
       url.endsWith("/clients/c1/archive")
         ? new Response(
@@ -291,8 +282,8 @@ function registerLifecycleConflictTests(): void {
     const a = new ServerSyncAdapter("http://x", fetchImpl);
     await a.saveAll(scopedData("a1", { clients: [client("c1")] }));
     calls.length = 0;
-    await expect(a.saveAll(scopedData("a1", {}))).resolves.toBeUndefined(); // 409 → converged, no throw
-    // and the row is gone from the snapshot: a further identical save emits nothing.
+    await expect(a.saveAll(scopedData("a1", {}))).resolves.toBeUndefined();
+
     calls.length = 0;
     await a.saveAll(scopedData("a1", {}));
     expect(calls).toHaveLength(0);
@@ -332,7 +323,7 @@ function registerLifecycleMissingRouteTests(): void {
     const a = new ServerSyncAdapter("http://x", fetchImpl);
     await a.saveAll(scopedData("a1", { clients: [client("c1")] }));
     calls.length = 0;
-    await expect(a.saveAll(scopedData("a1", {}))).resolves.toBeUndefined(); // 404 → converged, no throw
+    await expect(a.saveAll(scopedData("a1", {}))).resolves.toBeUndefined();
     calls.length = 0;
     await a.saveAll(scopedData("a1", {}));
     expect(calls).toHaveLength(0);
@@ -353,8 +344,7 @@ function registerLifecycleMissingRouteTests(): void {
 
 function registerLifecycleUnloadTests(): void {
   it("awaits a pending lifecycle-delete keepalive receipt without poisoning the batch", async () => {
-    // The final teardown state is one ordered transaction: an ARCHIVE operation cannot be overtaken
-    // by an older creation, and ordinary sibling edits commit atomically with it.
+    // Teardown must dispatch one ordered transaction so foreign-key dependencies survive page exit.
     const { calls, fetchImpl } = recordingFetch();
     const a = new ServerSyncAdapter("http://x", fetchImpl);
     await a.saveAll(
@@ -364,13 +354,11 @@ function registerLifecycleUnloadTests(): void {
       }),
     );
 
-    // Teardown flush with the client removed + the discipline edited.
     calls.length = 0;
     await a.saveAll(scopedData("a1", { disciplines: [discipline(TS2)] }), {
       unload: true,
     });
 
-    // The batch carries both the ordinary edit and its lifecycle archive on one keepalive request.
     const batchCalls = calls.filter((c) => c.url.endsWith("/api/batch"));
     expect(batchCalls).toHaveLength(1);
     expect(batchCalls[0]?.keepalive).toBe(true);
@@ -389,7 +377,7 @@ function registerLifecycleUnloadTests(): void {
     ]);
     expect(calls).toHaveLength(1);
     expect(calls.some((c) => c.url.endsWith("/clients/c1/archive"))).toBe(false);
-    expect(calls.some((c) => c.url.endsWith("/clients/c1/delete"))).toBe(false); // never soft-deletes on unload
+    expect(calls.some((c) => c.url.endsWith("/clients/c1/delete"))).toBe(false);
   });
 }
 

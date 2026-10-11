@@ -22,8 +22,7 @@ interface SchedulerViewportOptions {
   calendarWeekStartsOn: 0 | 1;
 }
 
-/** One writer for both scroll offsets: overlays clamped to the visible window read them as custom
- * properties instead of each subscribing to the scroll event (see visibleSpanInsets). */
+// Publish scroll offsets once so visible-span overlays do not each need a scroll subscription.
 const publishScrollOffsets = (element: HTMLElement) => {
   element.style.setProperty("--sched-scroll-left", `${element.scrollLeft}px`);
   element.style.setProperty("--sched-scroll-top", `${element.scrollTop}px`);

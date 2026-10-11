@@ -45,7 +45,7 @@ export function createMicrosoftProofJoining(input: {
     );
   }
 
-  /** A new principal is allowed only from this exact approved, same-browser Microsoft callback. */
+  // A new principal must come from this approved callback and its initiating browser.
   function admitsNewJoiningIdentity(candidate: {
     email?: string;
     emailVerified?: boolean;
@@ -83,7 +83,7 @@ export function createMicrosoftProofJoining(input: {
     }
   }
 
-  /** Session creation is the proof boundary for a returning stable oid. */
+  // Returning identities bind joining at session creation using their stable Microsoft object ID.
   function bindJoiningSession(principalId: string): void {
     const capture = microsoftCallbackCapture.getStore();
     if (!capture?.proofId) return;

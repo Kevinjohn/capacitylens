@@ -77,10 +77,7 @@ function start(label, args, env) {
   return child;
 }
 
-// A) SQLite API on API_PORT (server reads PORT). B) Vite web server with its /api proxy.
-// CAPACITYLENS_SEED_DEMO + CAPACITYLENS_MULTI_ACCOUNT keep dev batteries-included: the demo seed
-// ships TWO companies, and the server's default single-company cap (see server/src/app.ts's
-// AppOptions.multiAccount) would otherwise refuse the second one on every fresh dev DB.
+// Demo seeding creates two companies, so local development also enables multi-account creation.
 start("api", ["--filter", "capacitylens-server", "run", "dev"], {
   PORT: String(API_PORT),
   CAPACITYLENS_SEED_DEMO: "1",

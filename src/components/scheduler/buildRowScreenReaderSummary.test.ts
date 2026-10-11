@@ -61,7 +61,7 @@ describe("rowScreenReaderSummary", () => {
     expect(buildRowScreenReaderSummary(busy, { ...ctx, showPersonalUtilization: true })).toBe(
       "63% utilisation over the visible 4 weeks. 0 allocations.",
     );
-    // An external / 3rd party carries no capacity, so a 0% would read as a lie.
+
     const external = row({ resource: { ...person, kind: "external" }, utilization: 0 });
     expect(buildRowScreenReaderSummary(external, { ...ctx, showPersonalUtilization: true })).toBe("0 allocations.");
   });

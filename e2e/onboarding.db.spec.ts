@@ -43,7 +43,6 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
     });
     expect(language.status()).toBe(400);
 
-    // All stored values must remain untouched after every refused request.
     const after = await serverState(request);
     const updatedAccount = requireStateRows(after, "accounts")[0];
     if (updatedAccount === undefined) throw new Error("Server state must retain the seeded account");
@@ -60,12 +59,11 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
 // assertion below verifies the server's 403; hiding the New company button is only a UI cue.
 test.describe("single-company-per-instance policy (client-side affordance + server backstop)", () => {
   test.beforeEach(async ({ request }) => {
-    await resetServer({ request: request, withSeed: true }); // wipe + re-seed: TWO companies, exempt from the create-time cap
+    await resetServer({ request: request, withSeed: true });
   });
 
   test("the account picker lists both seeded companies but hides the New company button", async ({ page }) => {
     await page.goto("/");
-    // Clear the cosmetic demo sign-in gate if it's up (this server reports authMode 'off').
     const signIn = page.getByTestId("fake-sign-in");
     const wayneEnterprises = page.getByRole("button", {
       name: "Wayne Enterprises",
@@ -99,7 +97,6 @@ test.describe("single-company-per-instance policy (client-side affordance + serv
       retryable: false,
     });
 
-    // The rejected create leaves only the two seeded companies.
     const after = await serverState(request);
     expect(requireStateRows(after, "accounts")).toHaveLength(2);
   });
@@ -110,7 +107,7 @@ test.describe("single-company-per-instance policy (client-side affordance + serv
 // that already shows the example people and their bookings in the current week.
 test.describe("first company with example data", () => {
   test.beforeEach(async ({ request }) => {
-    await resetServer({ request: request, withSeed: false }); // wipe without re-seeding: no companies at all
+    await resetServer({ request: request, withSeed: false });
   });
 
   test("creating the first company with Start with example data ticked opens a populated schedule", async ({

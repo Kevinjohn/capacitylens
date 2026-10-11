@@ -37,11 +37,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// Pins the library-shape sniff in messageForFailure (DEFENSIVE-CODING.md §2: a sniff of a library's
-// message/body shape must be test-pinned). Better Auth's redeem endpoint answers a 400 with a typed
-// `{ code }`; this test locks the mapping from each recognised code, and every unrecognised shape,
-// to the exact user-facing message, so a future Better Auth upgrade that renames/drops a code fails
-// this test instead of silently regressing to the generic fallback (or worse, staying silent).
+// The redeem endpoint returns typed failure codes, so each supported code and malformed shape must map to a fixed user-facing recovery message.
 describe("ResetPassword — messageForFailure (Better Auth 400 body → surfaced message)", () => {
   it("maps INVALID_TOKEN to the invalid-link message", () => {
     expect(resolveResetPasswordFailureMessage({ code: "INVALID_TOKEN" })).toBe(m.reset_err_invalid());

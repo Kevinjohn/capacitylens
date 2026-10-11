@@ -22,9 +22,7 @@ export interface InitOptions {
   out: string | undefined;
 }
 
-/**
- * Reports the files created by initialization and whether an admin claim was written.
- */
+/** Reports the initialization command’s stdout, stderr and exit status. */
 export interface InitResult {
   exitCode: number;
   stdout: string;
@@ -48,6 +46,7 @@ export function parseInitArguments(args: readonly string[]): InitOptions {
       allowPositionals: false,
     }));
   } catch (cause) {
+    // Classify invalid command-line arguments as usage errors while preserving the parser’s cause for diagnostics.
     throw new InitUsageError(cause instanceof Error ? cause.message : String(cause), { cause });
   }
   if (!values["public-url"]) throw new InitUsageError("--public-url is required.");
@@ -67,6 +66,7 @@ export function parseInitArguments(args: readonly string[]): InitOptions {
     // rather than hand the operator a file the server will refuse at first start.
     parsePublicUrl(values["public-url"], "production", AuthConfigError);
   } catch (cause) {
+    // Report an invalid production public URL as init usage failure so the operator receives a correction before a file is written.
     throw new InitUsageError(cause instanceof Error ? cause.message : String(cause), { cause });
   }
   return { publicUrl: values["public-url"], db: values.db, out: values.out };
@@ -109,6 +109,7 @@ export function runInitCommand(args: readonly string[]): InitResult {
   try {
     options = parseInitArguments(args);
   } catch (error) {
+    // Return known usage failures on stderr with status 2; unexpected faults must still escape.
     if (!(error instanceof InitUsageError)) throw error;
     return { exitCode: 2, stdout: "", stderr: `capacitylens-server init: ${error.message}\n${INIT_USAGE}\n` };
   }
@@ -122,6 +123,7 @@ export function runInitCommand(args: readonly string[]): InitResult {
     // "wx" fails if the file exists: a second run must never replace the secret of a live install.
     writeFileSync(options.out, contents, { mode: 0o600, flag: "wx" });
   } catch (error) {
+    // Report file-write failure on stderr without outputting success or replacing an existing installation secret.
     const code = (error as NodeJS.ErrnoException).code;
     const reason =
       code === "EEXIST"

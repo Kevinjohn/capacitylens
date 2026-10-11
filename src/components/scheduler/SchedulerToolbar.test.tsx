@@ -31,7 +31,7 @@ describe("SchedulerToolbar weeks dropdown", () => {
     expect(trigger).toHaveAccessibleName("Weeks visible, 4 weeks");
 
     fireEvent.keyDown(trigger, { key: "ArrowDown" });
-    // Singular for 1, plural beyond it, and no leftover "4w" segment buttons.
+
     expect(screen.getByRole("option", { name: "1 week" })).toBeInTheDocument();
     for (const weeks of [2, 4, 6, 8]) {
       expect(screen.getByRole("option", { name: `${weeks} weeks` })).toBeInTheDocument();
@@ -52,7 +52,6 @@ describe("SchedulerToolbar weeks dropdown", () => {
 });
 
 describe("SchedulerToolbar date navigation", () => {
-  // Prev/Next are icon-only; the accessible name is what both users and locators rely on.
   it.each([
     ["Prev", -7],
     ["Next", 7],
@@ -66,7 +65,6 @@ describe("SchedulerToolbar date navigation", () => {
     expect(panDays).toHaveBeenCalledWith(days);
   });
 
-  // The picker is hidden, not deleted, JumpToDateInput.test.tsx covers the component itself.
   it("does not render the jump-to-date picker", () => {
     render(<SchedulerToolbar />);
 
@@ -433,8 +431,6 @@ describe("SchedulerToolbar tentative visibility", () => {
   });
 });
 
-// The Undo/Redo toolbar buttons (undo-button / redo-button) and the keyboard path
-// (⌘Z / ⌘⇧Z via AppShell) are both exercised end-to-end in e2e/toolbar.spec.ts.
 describe("SchedulerToolbar history errors", () => {
   it.each([
     ["Undo", "undo"],
@@ -519,36 +515,31 @@ describe("SchedulerToolbar Clear filter presentation", () => {
 describe("SchedulerToolbar Clear filter concurrency", () => {
   it("Clear cancels a pending search debounce so a cleared term cannot reappear", async () => {
     const user = userEvent.setup();
-    // A non-search filter is active so Clear Filters is enabled before the debounce.
+
     useStore.getState().setFilters({ disciplineId: "d1" });
     render(<SchedulerToolbar />);
     showFilters();
 
-    // Typing schedules the search debounce.
     await user.type(screen.getByLabelText("Search people"), "jo");
-    // Clearing filters must cancel the pending debounce.
+
     await user.click(screen.getByRole("button", { name: "Clear Filters" }));
 
-    // Wait past the debounce window: the orphaned timer must not re-apply "jo".
     await new Promise((r) => setTimeout(r, 250));
     expect(useStore.getState().ui.filters.search).toBe("");
     expect((screen.getByLabelText("Search people") as HTMLInputElement).value).toBe("");
   });
 
   it("an EXTERNAL filters.search reset (e.g. account switch) cancels a pending search debounce", async () => {
-    // Start with a committed search to distinguish it from pending text.
     useStore.getState().setFilters({ search: "alice" });
     render(<SchedulerToolbar />);
     showFilters();
 
     const box = screen.getByLabelText("Search people") as HTMLInputElement;
-    // Type a new term, schedules a 180ms timer to setFilters({ search: 'bob' }); filters.search
-    // is still 'alice' (the debounce hasn't fired).
+
     fireEvent.change(box, { target: { value: "bob" } });
-    // Simulate the external reset an account switch performs (filters → emptyFilters).
+
     useStore.getState().setFilters({ search: "" });
 
-    // Past the debounce window: the stale 'bob' must not have clobbered the cleared value.
     await new Promise((r) => setTimeout(r, 250));
     expect(useStore.getState().ui.filters.search).toBe("");
   });
@@ -558,19 +549,17 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
     showFilters();
     const box = screen.getByLabelText("Search people") as HTMLInputElement;
 
-    // Pending term: the store's search is '' and stays '' through the replacement below,
-    // so any logic keyed on the search value cannot see this write, the race the palette
-    // e2e spec kept tripping (the timer resurrected the stale term over the replacement).
+    // Key pending-search cancellation on filter-object replacement because an external replacement may leave filters.search unchanged.
     fireEvent.change(box, { target: { value: "zzz-nobody-matches-zzz" } });
-    // What CommandPalette's project selection does: replace the filters wholesale.
+
     useStore.getState().setFilters({ ...buildEmptyFilters(), projectId: "p1" });
 
     await new Promise((r) => setTimeout(r, 250));
-    // The stale search must not return after the debounce window.
+
     expect(useStore.getState().ui.filters.search).toBe("");
-    // The external replacement filter must remain active.
+
     expect(useStore.getState().ui.filters.projectId).toBe("p1");
-    // The input must reflect the external reset.
+
     expect(box.value).toBe("");
   });
 
@@ -591,8 +580,6 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
   });
 });
 
-// Seed one internal + one all-projects activity so the Activities dropdown renders (it covers only the
-// project-less kinds; project-specific activities are reached via the Projects dropdown).
 const seedLensActivities = () => ({
   internal: requireCreated(useStore.getState().addActivity({ name: "Admin", kind: "internal" })),
   repeatable: requireCreated(useStore.getState().addActivity({ name: "Design", kind: "repeatable" })),
@@ -621,7 +608,7 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
   it("selecting a specific activity sets activityId and clears the client/project lens", async () => {
     const user = userEvent.setup();
     const { repeatable } = seedLensActivities();
-    // Start with a project lens so the activity choice can clear it.
+
     useStore.getState().setFilters({ projectId: "p1" });
     render(<SchedulerToolbar />);
     showFilters();
@@ -630,7 +617,7 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
 
     expect(useStore.getState().ui.filters.activityId).toBe(repeatable.id);
     expect(useStore.getState().ui.filters.activityKind).toBeNull();
-    // A standalone activity lens must clear the project filter.
+
     expect(useStore.getState().ui.filters.projectId).toBeNull();
   });
 

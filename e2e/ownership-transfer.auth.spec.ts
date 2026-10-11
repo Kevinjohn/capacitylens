@@ -44,8 +44,7 @@ async function setupCeremony(request: APIRequestContext) {
   return { owner, admin, editor, accountId };
 }
 
-/** Open the nominee picker, prove the only choices are active Admins, and choose one. The option
- * value carries the member ID, so this never depends on how a display name is rendered. */
+// Use the stored member ID so nomination does not depend on display-name rendering.
 async function nominate(page: Page, adminUserId: string, editorUserId: string): Promise<void> {
   const trigger = page.getByTestId("ownership-transfer-nominee");
   await trigger.click();
@@ -55,7 +54,6 @@ async function nominate(page: Page, adminUserId: string, editorUserId: string): 
   await expect(content).toHaveCount(0);
 }
 
-/** Sign one participant in and leave them on Team & access, where the ceremony card lives. */
 async function openTeamAccess(context: BrowserContext, email: string): Promise<Page> {
   const page = await context.newPage();
   await page.goto("/");
@@ -95,22 +93,18 @@ test("an owner nominates an admin, the admin agrees, the owner confirms, and the
   const ownerPage = await openTeamAccess(ownerContext, OWNER);
   await expect(ownerPage.getByTestId("current-access")).toContainText("Owner");
 
-  // Only active Admins can be nominated, so the editor must not appear as a candidate.
   await expect(ownerPage.getByTestId("ownership-transfer-card")).toBeVisible();
   await openOwnershipDialog(ownerPage);
   await nominate(ownerPage, admin.userId, editor.userId);
   await ownerPage.getByTestId("ownership-transfer-start").click();
   await expect(ownerPage.getByTestId("ownership-transfer-state")).toContainText(adminName);
-  // Nothing has happened yet: the Owner cannot confirm a nomination nobody has agreed to.
   await expect(ownerPage.getByTestId("ownership-transfer-complete")).toHaveCount(0);
 
-  // A bystander cannot see the ceremony because the card is participant-only.
   const editorContext = await newObservedContext({ reducedMotion: "reduce" });
   const editorPage = await openTeamAccess(editorContext, EDITOR);
   await expect(editorPage.getByTestId("ownership-transfer-card")).toHaveCount(0);
   await editorContext.close();
 
-  // Nor can a bystander consent through the API on the nominee's behalf.
   const live = await request.get(`${API}/api/accounts/${accountId}/ownership-transfer`, {
     headers: { cookie: owner.cookie },
   });
@@ -134,15 +128,12 @@ test("an owner nominates an admin, the admin agrees, the owner confirms, and the
   await openOwnershipDialog(ownerPage);
   await ownerPage.getByTestId("ownership-transfer-complete").click();
 
-  // The swap: the nominee is the Owner, the person who handed it over is an Admin.
   await expect
     .poll(async () => readRoles(request, owner.cookie, accountId, [admin.userId, owner.userId]))
     .toEqual(["owner", "admin"]);
   await expect(ownerPage.getByTestId("current-access")).toContainText("Admin");
   await adminPage.reload();
   await expect(adminPage.getByTestId("current-access")).toContainText("Owner");
-  // The new Owner now holds the ceremony themselves: their dialog offers a nomination rather than a
-  // request, and offers it to the person who just handed the company over.
   await openOwnershipDialog(adminPage);
   await expect(adminPage.getByTestId("ownership-transfer-start")).toBeVisible();
 

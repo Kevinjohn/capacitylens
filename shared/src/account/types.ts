@@ -88,16 +88,14 @@ export function isAccountRole(value: unknown): value is Role {
  *
  * - `'active'`: an ordinary member: may enter the account under their role.
  * - `'disabled'`: suspended by an administrator. The membership and its role are retained, but the
- *                  principal may not enter the account. Reversible.
+ * principal may not enter the account. Reversible.
  * - `'archived'`: retired by an administrator. Same denial of entry as `'disabled'`; the separate
- *                  state exists so a long-departed member can be filtered out of day-to-day
- *                  administration without destroying the audit trail a removal would.
+ * state exists so a long-departed member can be filtered out of day-to-day
+ * administration without destroying the audit trail a removal would.
  *
  * Only `'active'` confers authority. Every authorization read narrows on `status = 'active'`, so a
  * non-active membership is indistinguishable from absence to the access matrix; the widened union
- * is a listing/administration concern, never a permission one. Administration ports return
- * non-active rows only to the member-directory read, so an administrator can see and reverse the
- * state they applied.
+ * is a listing/administration concern, never a permission one. Administrative reads may include inactive memberships for the member directory and identity-security operations; inactive rows never confer request authority.
  */
 export const MEMBERSHIP_STATUSES = Object.freeze(["active", "disabled", "archived"] as const);
 /** A membership lifecycle state; see {@link MEMBERSHIP_STATUSES}. */
@@ -141,9 +139,8 @@ export interface LocalPrincipal {
   email: string;
   emailVerified: boolean;
   linkedSubject: FederatedSubject | null;
-  /** IdP-asserted avatar URL for the session principal (https-validated upstream). Absent/`null`
-   * for trusted-local and any provider without a picture. Deliberately not on {@link
-   * PrincipalSummary}: only the signed-in user's own avatar is surfaced, teammates stay initials. */
+  /** HTTPS-validated provider avatar for the signed-in principal; absent or null when unavailable.
+   * This field is not part of PrincipalSummary; scheduled-person avatars use the separate account-scoped resource-avatar projection. */
   image?: string | null;
 }
 

@@ -88,7 +88,6 @@ test("adds an internal, an all-projects, and a project-specific activity into th
 }) => {
   await openApp(page, "Wayne Enterprises", "/activities");
 
-  // Internal kind → project picker hidden, lands in the "Internal activities" section.
   await page.getByRole("button", { name: "Add activity" }).click();
   await expect(page.getByRole("radiogroup", { name: "Activity kind" }).getByRole("radio")).toHaveText([
     "Internal",
@@ -102,7 +101,6 @@ test("adds an internal, an all-projects, and a project-specific activity into th
     page.getByTestId("internal-activities").getByTestId("activity-row").filter({ hasText: "Internal sync" }),
   ).toBeVisible();
 
-  // All-projects kind → project-less and usable across projects, lands in the "All-projects activities" section.
   await page.getByRole("button", { name: "Add activity" }).click();
   await page.getByRole("textbox", { name: "Name", exact: true }).fill("Discovery workshop");
   await page.getByRole("radio", { name: "All projects" }).click();
@@ -111,8 +109,6 @@ test("adds an internal, an all-projects, and a project-specific activity into th
     page.getByTestId("cross-project-activities").getByTestId("activity-row").filter({ hasText: "Discovery workshop" }),
   ).toBeVisible();
 
-  // Project-specific kind (the default) → bound to a project, lands beneath one client heading
-  // and one project heading in the "Project-specific activities" section.
   await page.getByRole("button", { name: "Add activity" }).click();
   await page.getByRole("textbox", { name: "Name", exact: true }).fill("Spec review");
   await selectShadOption(page.getByLabel("Project"), "p-acme");

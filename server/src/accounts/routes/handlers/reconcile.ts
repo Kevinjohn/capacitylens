@@ -30,9 +30,7 @@ function parseReconcileBody(
   };
 }
 
-/**
- * Runs the authorized account reconciliation and returns its repair summary.
- */
+/** Returns the bearer-authorized command status with private repair coordinates redacted. */
 export async function reconcile(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -63,6 +61,7 @@ export async function reconcile(
         : outcome,
     );
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }

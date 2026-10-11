@@ -30,7 +30,7 @@ interface AllocationTestInput {
 function registerMovedSchedulerTests201021() {
   it("positions overlapping bars on the SAME resource at DIFFERENT lane tops (laneById is a real Map, not empty)", () => {
     const d = dataset();
-    // a1 already books r1 on 2026-06-01..02; a second, overlapping allocation forces a 2nd lane.
+
     d.allocations.push({
       id: "a-overlap",
       accountId: "acct-test",
@@ -70,8 +70,7 @@ function registerMovedSchedulerTests201021() {
 function registerMovedSchedulerTests201022() {
   it("overSoon truly SKIPS external resources — even one with real over-capacity hours", () => {
     const d = withExternal();
-    // ext1's workingHoursPerDay is 8; this 20h booking on a working Monday would read as over if
-    // the external guard were bypassed.
+    // Book the external above normal person capacity so missing capacity exclusion changes the result.
     d.allocations.push({
       id: "aext2",
       accountId: "acct-test",
@@ -105,9 +104,7 @@ function registerMovedSchedulerTests201022() {
 function registerMovedSchedulerTests201023() {
   it("overSoon follows strict allocated > available on an opted-in weekend", () => {
     const d = dataset();
-    // r1 works Mon–Fri; 2026-06-06 is a Saturday (available = 0 for r1 regardless of ignoreWeekends,
-    // that flag only affects whether the allocation counts hours there, not the resource's
-    // availability). ignoreWeekends: true makes the allocation actually work that zero-capacity day.
+    // ignoreWeekends changes booked load, not availability, so opted-in work on a non-working day must report a capacity conflict.
     d.allocations.push({
       id: "a-sat",
       accountId: "acct-test",
@@ -180,7 +177,6 @@ function registerMovedSchedulerTests201024() {
 
 function registerMovedSchedulerTests201025(withThirdResource: () => AppData) {
   it("utilization/overSoon are IDENTICAL to calling the capacity functions directly, for every resource in a multi-resource model", () => {
-    // A distinct 3rd resource + allocation shape so three resources each have different load.
     const d = withThirdResource();
     const visStart = "2026-06-02";
     const visEnd = "2026-06-05";
@@ -260,7 +256,7 @@ function registerMovedSchedulerTests201026({
 function buildBucketComparisonData(alloc: (input: AllocationTestInput) => Allocation) {
   const d = dataset();
   d.allocations = [
-    // Spans the whole timeline (starts before it, ends after it), bucketing must clip, not drop.
+    // A booking that covers the complete timeline must be clipped to queried dates rather than dropped for having off-window endpoints.
     alloc({
       id: "b1",
       resourceId: "r1",
@@ -268,7 +264,7 @@ function buildBucketComparisonData(alloc: (input: AllocationTestInput) => Alloca
       endDate: "2026-06-20",
       hoursPerDay: 2.1,
     }),
-    // Overlaps b1 on working days; three fractional sums land on the same days.
+
     alloc({
       id: "b2",
       resourceId: "r1",
@@ -283,7 +279,7 @@ function buildBucketComparisonData(alloc: (input: AllocationTestInput) => Alloca
       endDate: "2026-06-03",
       hoursPerDay: 2.7,
     }),
-    // Weekend-aware (default): merely spans Sat/Sun 06-06/06-07, so it does no work there.
+
     alloc({
       id: "b4",
       resourceId: "r1",
@@ -291,7 +287,7 @@ function buildBucketComparisonData(alloc: (input: AllocationTestInput) => Alloca
       endDate: "2026-06-07",
       hoursPerDay: 8,
     }),
-    // Opts into weekends: 0 capacity there, so it must still read as over on Sat/Sun.
+
     {
       ...alloc({
         id: "b5",
@@ -341,7 +337,7 @@ function addBucketComparisonTimeOff(d: AppData) {
       endDate: "2026-06-04",
       type: "holiday",
     },
-    // Starts before the timeline and ends inside it, the other clipping direction.
+
     {
       id: "to2",
       accountId: "acct-test",

@@ -27,7 +27,7 @@ interface MemberResourceLinkProps {
 
 type MemberResourceView = ReturnType<typeof buildMemberResourceView>;
 
-/** A link whose person is missing from the candidates, archived or disabled is retained but inactive. */
+// Retain missing, archived or disabled person links as inactive instead of silently unlinking the member.
 type IsLinkedPersonInactiveOptions = { link: TeamMember["resourceLink"]; listed: boolean };
 function isLinkedPersonInactive({ link, listed }: IsLinkedPersonInactiveOptions): boolean {
   if (!link) return false;
@@ -38,7 +38,6 @@ function isMemberLinkEditable(member: TeamMember): boolean {
   return member.status === "active" && !member.accessDisabled && member.membershipPresent !== false;
 }
 
-/** What the cell and the editor show for one member, derived from the member and the candidates. */
 function buildMemberResourceView(
   member: TeamMember,
   linkedResourceIds: ReadonlySet<string>,
@@ -70,8 +69,7 @@ export function MemberResourceLink(props: MemberResourceLinkProps) {
   const { member, myRole, linkedResourceIds, resourceCandidates, dialog = false } = props;
   if (myRole !== "owner" && myRole !== "admin") return dialog ? <div /> : <td className="py-2 px-4" />;
   const view = buildMemberResourceView(member, linkedResourceIds, resourceCandidates);
-  // The row icon opens the editor directly. The non-dialog cell remains a compact status-only
-  // view, while the centered dialog starts with its selector ready for the requested change.
+
   if (!dialog) return <MemberResourceCell linked={Boolean(member.resourceLink)} view={view} />;
   return <MemberResourceEditor {...props} view={view} />;
 }

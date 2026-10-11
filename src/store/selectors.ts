@@ -14,31 +14,19 @@ import type { Account, AppData, Discipline, ID, Resource, Weekday } from "@capac
 import type { SchedulerUI } from "./types";
 import { DEFAULT_TIME_ZONE } from "@/lib/timezones";
 
-/** The calendar-facing name for the app default, single-sourced in lib/timezones.ts alongside the
- * option-label rule that renders it as "GMT". */
 const DEFAULT_CALENDAR_TIME_ZONE = DEFAULT_TIME_ZONE;
 /** Monday is the default first day for calendar weeks. */
 export const DEFAULT_WEEK_STARTS_ON = 1 as const;
 
-/** One per-account setting read: the active account's field, or `fallback` when the account is
- * missing (no selection, a stale id, or a slice that hasn't loaded) or the field is absent.
- * Absent-field defaults differ per setting and are load-bearing. Each binding below documents
- * its own, and a lookup miss must read the same default as an absent field. */
+// Missing accounts and missing setting fields must resolve to the same per-setting default.
 const createAccountFieldSelector =
   <K extends keyof Account>(key: K, fallback: NonNullable<Account[K]>) =>
   (data: AppData, activeAccountId: ID | null): NonNullable<Account[K]> =>
     data.accounts.find((account) => account.id === activeAccountId)?.[key] ?? fallback;
 
-/** The active company's date format. Absent on the account reads as 'day-month'. Company data, not
- * a device preference: everyone in the account reads one
- * convention. `useStore` mirrors this into `dateDisplay.ts` on every change so the pure formatters
- * can read it synchronously.
- *
- * Unlike the other account-field selectors this one checks membership, not just presence. The
- * column is plain nullable TEXT with no CHECK constraint, so a database written by a build that
- * shipped a fifth style, or a row edited by hand, can hold a string this build has no descriptor
- * for, and the formatters take the style as a lookup key. Reading an unknown value as the default
- * keeps every date on screen; the import sanitiser is what rejects it at the boundary. */
+// Mirror one company date convention into synchronous formatters. Unknown stored
+// styles fall back so legacy or hand-edited rows cannot break date rendering; import
+// sanitisation removes unsupported styles.
 const rawDateStyle = createAccountFieldSelector("dateStyle", DEFAULT_DATE_STYLE);
 /** Resolve the date display style for the active account. */
 export function resolveDateStyle(data: AppData, activeAccountId: ID | null): DateStyle {
@@ -53,7 +41,6 @@ export const resolveSchedulingMode = createAccountFieldSelector("schedulingMode"
 /** Whether the active company uses disciplines; every discipline surface shares this value. */
 export const hasDisciplinesEnabled = createAccountFieldSelector("disciplinesEnabled", true);
 
-/** True for a resource the engagement bands hold as Supplementary: active and capacity-tracked. */
 function isActiveSupplementary(resource: Resource): boolean {
   return resource.engagement === "supplementary" && isCapacityTracked(resource) && !resource.archivedAt;
 }
@@ -70,17 +57,10 @@ export function hasResourceEngagementGrouping(data: AppData, activeAccountId: ID
   return data.resources.some((resource) => resource.accountId === activeAccountId && isActiveSupplementary(resource));
 }
 
-/** Whether the active company shows placeholder ("slot") rows. Absent on the account reads as
- * false (hidden), the documented default-off behaviour. Note the `?? false` (contrast
- * hasDisciplinesEnabled's `?? true`): a new/seed/imported account with no field stays hidden.
- * Single source so every placeholder surface (schedule, assignee picker, Resources + Time off
- * lists, command palette) gates on the same per-account value. */
+/** Whether the active company shows placeholders; an absent field defaults to false. */
 export const hasPlaceholdersEnabled = createAccountFieldSelector("placeholdersEnabled", false);
 
-/** Whether the active company shows external / 3rd-party rows. Absent on the account reads as
- * false (hidden), the documented default-off behaviour (`?? false`, like hasPlaceholdersEnabled,
- * not hasDisciplinesEnabled's `?? true`). Single source so every external surface gates on the
- * same per-account value. */
+/** Whether the active company shows external resources; an absent field defaults to false. */
 export const hasExternalResourcesEnabled = createAccountFieldSelector("externalEnabled", false);
 
 /** Whether the Allocation modal offers the inline "Add activity" input + button. Absent reads as
@@ -93,7 +73,7 @@ export const hasVisibleTaskFieldInSchedule = createAccountFieldSelector("showTas
 /** Who may open Overview. Absent reads as the restricted owner/admin default. */
 export const resolveCapacityOverviewAccess = createAccountFieldSelector("capacityOverviewAccess", "owner_admin");
 
-/** Primitive calendar selectors avoid fresh-object Zustand snapshots while keeping defaults single-sourced. */
+/** Reads the active company time zone, defaulting to DEFAULT_CALENDAR_TIME_ZONE when unavailable. */
 export const resolveTimeZone = createAccountFieldSelector("timezone", DEFAULT_CALENDAR_TIME_ZONE);
 
 /** Resolve the week start day for the active account. */
@@ -144,16 +124,17 @@ export const resourceById = (data: AppData, id: ID) => data.resources.find((reso
 
 /** A discipline row and the resources displayed within its scheduler group. */
 export interface DisciplineGroup {
-  discipline: Discipline | null; // null = the "no discipline" bucket
+  /** Null identifies the ungrouped resources bucket. */
+  discipline: Discipline | null;
   resources: Resource[];
   /** True for the synthetic trailing group of external / 3rd-party resources, rendered as a
    * neutral band at the very bottom of the schedule (externals have no discipline to group by). */
   external?: boolean;
 }
 
-/** Canonical scheduler discipline ordering: by sortOrder, then name as a stable tiebreak.
- * The management list is independently alphabetical because scanning and planning are different
- * surfaces; keep this ordering on the scheduler path. */
+/** Orders scheduler disciplines by sortOrder, then display name and stable ID.
+ * Management lists use alphabetical order for scanning instead.
+ */
 export const byDisciplineOrder = (a: Discipline, b: Discipline): number => {
   const orderDifference = a.sortOrder - b.sortOrder;
   if (orderDifference !== 0 || a.name === b.name) return orderDifference;
@@ -172,11 +153,10 @@ export function buildExternalBand(resources: Resource[]): DisciplineGroup | null
  * band last. External / 3rd-party resources are partitioned out of the discipline buckets entirely
  * so they always render as their own neutral band at the very bottom of the schedule. */
 export function buildDisciplineGroups(data: AppData): DisciplineGroup[] {
-  const ours = data.resources.filter(isCapacityTracked); // externals get their own trailing band
-  // One pass over the resources fills every bucket, so a large roster isn't re-scanned per
-  // discipline. Every known discipline is seeded (an empty discipline still renders its group), and
-  // a resource with no discipline, or one naming a discipline this slice doesn't hold, falls to
-  // the ungrouped bucket.
+  // Seed empty discipline buckets and partition resources once so large rosters are
+  // not rescanned for every discipline. Unknown discipline IDs fall into the ungrouped bucket.
+  const ours = data.resources.filter(isCapacityTracked);
+
   const resourcesByDisciplineId = new Map<ID, Resource[]>(data.disciplines.map((discipline) => [discipline.id, []]));
   const ungrouped: Resource[] = [];
   for (const resource of ours) {

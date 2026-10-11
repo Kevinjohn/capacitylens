@@ -8,8 +8,7 @@ import { isIsoInstant } from "@capacitylens/shared/account/types";
 import { isScopedEntityKey } from "@capacitylens/shared/types/entities";
 import { tx } from "./txn";
 
-/** Immutable v17 schema component. Keep changes to this SQL behind a new explicit migration once
- * v17 ships: its exact text is folded into the migration ledger checksum. */
+/** Immutable v17 schema component whose exact SQL participates in the released migration checksum. */
 export const AUDIT_OUTBOX_SQL = `
 CREATE TABLE IF NOT EXISTS capacitylens_audit_outbox (
   sequence INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,13 +44,8 @@ export const AUDIT_DRAIN_PAGE_SIZE = 500;
 
 type PreparedStatement = ReturnType<Db["prepare"]>;
 
-/**
- * Factory for a per-handle prepared-statement cache: the SQL is prepared at most once per Db handle
- * rather than on every call. This outbox is touched inside the write transaction of nearly every
- * mutating request. WeakMap keyed by the Db handle (mirrors auth.ts's `cachedTableExists` idiom), so
- * an entry is collected with its handle and the many short-lived `:memory:` handles tests open never
- * leak. SQL text is unchanged; only the repeated `prepare()` call is elided.
- */
+// Cache statements per database handle because audit insertion runs inside nearly every write transaction.
+// WeakMap ownership lets short-lived handles and their prepared statements be collected.
 function createCachedStatement(sql: string): (db: Db) => PreparedStatement {
   const cache = new WeakMap<Db, PreparedStatement>();
   return (db: Db): PreparedStatement => {
@@ -254,8 +248,7 @@ export function drainAuditOutbox(db: Db, sink: AuditSink): boolean {
   for (const row of rows) {
     const parsed: unknown = JSON.parse(row.payload);
     if (!isAuditEntry(parsed)) {
-      // Preserve the former row-at-a-time behavior: deliver the valid committed prefix before
-      // the malformed row becomes the oldest item and blocks further progress.
+      // Deliver the valid committed prefix before a malformed head blocks later audit records.
       if (validRows.length > 0) break;
       throw new Error(`Audit outbox row ${row.id} does not contain a valid audit payload.`);
     }

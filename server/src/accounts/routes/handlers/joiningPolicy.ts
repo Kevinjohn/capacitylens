@@ -28,6 +28,7 @@ export async function readJoiningPolicy(
         await context.administration.readJoiningPolicy({ actor: requireAccountActor(req), workspaceId: accountId }),
       );
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return context.fail(reply, error);
   }
 }
@@ -77,6 +78,7 @@ export async function setJoiningPolicy(
       }),
     );
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return context.fail(reply, error);
   }
 }

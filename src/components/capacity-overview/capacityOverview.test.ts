@@ -455,7 +455,7 @@ describe("buildCapacityOverviewModel", () => {
       placeholdersEnabled: true,
       disciplinesEnabled: false,
     });
-    // A Studio-only company has no Supplementary people, so its people form one flat group.
+
     const ungrouped = buildCapacityOverviewModel({
       data: data([studio, slot], [allocation("demand", slot.id, "2026-06-01", "2026-06-01", 8)]),
       today: "2026-06-01",

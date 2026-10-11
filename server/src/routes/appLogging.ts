@@ -1,13 +1,8 @@
 import type { FastifyRequest } from "fastify";
 import type { AppOptions } from "../app";
 
-// Never let a secret reach the logs. pino strips these exact paths from every record
-// when logging is on; remove:true deletes the key (so the value is gone entirely, not printed as
-// "[Redacted]"). Defense-in-depth: Fastify's default req/res serializers don't log headers at all
-// (req → method/url/hostname/remoteAddress; res → statusCode/responseTime), so today nothing here
-// would emit these, but the moment a custom serializer logs headers, or someone logs a raw req/res,
-// this is the backstop that keeps Authorization / Cookie / Set-Cookie out of stdout. If such a
-// serializer is ever added, extend this list to cover any new path it surfaces.
+// Redact credential headers even if a caller supplies a raw request or response to the logger.
+// Serializer omission alone cannot protect arbitrary structured log records.
 const LOG_REDACT_PATHS = ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'];
 
 // Keep only the path in access logs so query and fragment data cannot expose one-time credentials.
@@ -18,8 +13,9 @@ const INVITE_OPERATION_URL_RE = /^(\/api\/invites\/)[^/?#]+(\/(?:accept|signup|p
 // bearer secret; mask everything after the prefix (the packaged nginx edge drops these log lines entirely).
 const WEB_TOKEN_PATH_RE = /^(\/(?:invite|reset-password)\/).*$/;
 
-// `url` is typed unknown because the serializer may also run over a hand-built `{ req: {...} }`
-// record (e.g. app.log.info(...)) whose url is absent; a non-string passes through untouched.
+/** Removes query and fragment data and masks bearer-token path segments.
+ * Non-string input returns undefined so malformed log fields are omitted.
+ */
 export const redactSecretUrl = (url: unknown): string | undefined => {
   if (typeof url !== "string") return undefined;
   const inviteSafe = url.replace(INVITE_OPERATION_URL_RE, "$1[redacted]$2$3");

@@ -13,7 +13,6 @@ function present<T>(value: T | null | undefined): T {
   return value;
 }
 
-// Two accounts, each with one client + one project, used to prove isolation.
 function twoAccountData(): AppData {
   return {
     ...emptyAppData(),
@@ -208,10 +207,10 @@ describe("account CRUD", () => {
     s().setActiveAccount("a1");
     s().deleteAccount("a1");
     expect(s().data.accounts.map((a) => a.id)).toEqual(["a2"]);
-    // a1's data is gone, a2's survives.
+
     expect(s().data.clients.map((c) => c.id)).toEqual(["c2"]);
     expect(s().data.projects.map((p) => p.id)).toEqual(["p2"]);
-    // active account fell back to the picker.
+
     expect(s().activeAccountId).toBeNull();
   });
 
@@ -246,7 +245,7 @@ describe("setActiveAccount resets per-account view state", () => {
     s().setFilters({ search: "x" });
     s().toggleGroup("g");
     s().selectAllocation("alloc");
-    s().addClient({ name: "New", color: "#1" }); // pushes onto past
+    s().addClient({ name: "New", color: "#1" });
     expect(s().past.length).toBeGreaterThan(0);
 
     s().setActiveAccount("a2");
@@ -284,25 +283,22 @@ function registerScopedImportPart1(): void {
     };
     s().importData(incoming);
 
-    // a1's old client replaced by the imported one, re-stamped to a1. Import also guarantees the
-    // account keeps exactly one built-in Internal client (synthesised here, the file carried none).
     const a1Clients = s().data.clients.filter((c) => c.accountId === "a1");
     expect(a1Clients.filter((c) => !c.builtin).map((c) => c.name)).toEqual(["Imported"]);
     expect(a1Clients.filter((c) => c.builtin)).toHaveLength(1);
     expect(a1Clients[0]?.accountId).toBe("a1");
-    // a2 untouched; accounts list untouched.
+
     expect(s().data.clients.some((c) => c.id === "c2")).toBe(true);
     expect(s().data.accounts).toHaveLength(2);
   });
 
   it("gives imported entities fresh ids so a re-import into another account can’t corrupt the source", () => {
-    // Import a file that reuses account a1's client id (c1) into a2.
     s().setActiveAccount("a2");
     s().importData({
       ...emptyAppData(),
       clients: [{ id: "c1", accountId: "X", createdAt: "t", updatedAt: "t", name: "Dupe", color: "#9" }],
     });
-    // Editing the imported row in a2 must not touch a1's original c1.
+
     const importedId = present(s().data.clients.find((c) => c.accountId === "a2")).id;
     expect(importedId).not.toBe("c1");
     s().updateClient(importedId, { name: "Changed" });
@@ -323,18 +319,17 @@ function registerScopedImportPart3(): void {
     const a2 = scopeData(s().data, "a2");
     const client = present(a2.clients.find((c) => c.name === "C"));
     const project = present(a2.projects.find((p) => p.name === "P"));
-    // The project's clientId was rewritten to the imported client's new id.
+
     expect(project.clientId).toBe(client.id);
     expect(client.id).not.toBe("imp-c");
   });
 
   it("is undoable via ⌘Z", () => {
-    // A real (non-empty) import is undoable; a zero-record import is refused (see below).
     s().importData({
       ...emptyAppData(),
       clients: [{ id: "imp", accountId: "X", createdAt: "t", updatedAt: "t", name: "Imported", color: "#9" }],
     });
-    // The imported (non-builtin) client landed (alongside the guaranteed Internal client).
+
     expect(
       s()
         .data.clients.filter((c) => c.accountId === "a1" && !c.builtin)
@@ -361,13 +356,11 @@ function registerScopedImportPart3(): void {
 
 function registerScopedImportPart2(): void {
   it("drops imported allocations/time-off that violate the integrity rules", () => {
-    // The store is the integrity boundary on every write, import is no exception.
     s().importData(invalidImportedData);
 
     const a1Allocs = s().data.allocations.filter((a) => a.accountId === "a1");
     const a1TimeOff = s().data.timeOff.filter((t) => t.accountId === "a1");
-    // Only the single valid allocation and time-off survive, remapped + scoped to a1
-    // and still pointing at real imported entities.
+
     expect(a1Allocs).toHaveLength(1);
     expect(a1TimeOff).toHaveLength(1);
     expect(s().data.activities.some((t) => t.id === a1Allocs[0]?.activityId)).toBe(true);

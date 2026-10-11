@@ -34,9 +34,7 @@ export interface SyncOrder {
   sequence: number;
 }
 
-/**
- * Returns the source and revision used to establish a synchronized write’s ordering.
- */
+/** Identifies each batch result and optional row used to record exact successor provenance. */
 export interface SyncProvenanceResult {
   table: string;
   id: string;
@@ -46,15 +44,7 @@ export interface SyncProvenanceResult {
 
 const SYNC_ORDER_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
-/**
- * Per-Db cache for the two pure-read invariant SELECTs below (isSameSessionSuccessor,
- * isSupersededSyncBatch). Mirrors the WeakMap<Db,...> statement-cache idiom used elsewhere
- * (db.ts's statementCache, auth.ts's table-presence probes, txn.ts's activeTransactionModes): a
- * node:sqlite Statement is tied to the Db handle that prepared it, so the cache key is the handle
- * itself and an entry is collected with its handle, tests that open many short-lived in-memory
- * Dbs don't leak. recordAppliedSyncBatch is deliberately not cached here; it keeps preparing its
- * statements per call as before.
- */
+// Cache pure-read provenance statements per database handle; WeakMap ownership permits closed handles to be collected.
 type PreparedStatement = ReturnType<Db["prepare"]>;
 
 interface SyncOrderingStatementCache {
@@ -83,9 +73,7 @@ const readColumnShape = (db: Db, table: string) =>
     }>
   ).map(({ name, type, notnull, pk }) => ({ name, type, notnull, pk }));
 
-/**
- * Rejects a sync write when its ordering metadata no longer matches the account snapshot.
- */
+/** Rejects a sync-ordering control schema whose tables or indexes do not match the current storage contract. */
 export function assertSyncOrderingCurrent(db: Db): void {
   const sessions = readColumnShape(db, "capacitylens_sync_sessions");
   const expectedSessions = [

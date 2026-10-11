@@ -4,10 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { ports } from "../scripts/ports.mjs";
 
-// Shared plumbing for the auth-backed Playwright specs (*.auth.spec.ts), which all run against the
-// auth-e2e server (CAPACITYLENS_MODE=password on the lane auth API, see playwright.config.ts). Extracted here so
-// the bootstrap token, sign-up payload shape, and Set-Cookie collapse live in one place rather than a
-// copy per spec (they were duplicated across members/invite/viewer/login/reset-password).
+// Keep password-server fixture setup in one place so bootstrap credentials and request shapes remain consistent.
 
 /** The auth-e2e API origin (the password-auth server the *.auth specs drive). */
 // Lane-derived, exactly as playwright.config.ts derives the port it boots that server on: a literal
@@ -17,18 +14,11 @@ export const AUTH_API = `http://localhost:${ports().authApi}`;
 /** The password every auth-e2e fixture signs up / signs in with. */
 export const AUTH_PASSWORD = "demo-password-123456";
 
-/** The well-known first-run bootstrap credential the auth-e2e server creates at boot
- * (CAPACITYLENS_CREATE_ADMIN_ADMIN=1 in server's start:auth-e2e). Serving double duty: the specs
- * can sign in with it to prove the escape hatch end-to-end, and its existence means the user
- * table is never empty when a spec first loads the page, so the login wall shows the ordinary
- * Sign in form, never the first-run owner-setup form (which needs a zero-user server and is
- * covered by unit tests instead).
- *
- * Kept as a literal rather than importing server/src/auth.ts (that module pulls in better-auth at
- * top level, which must not enter the Playwright process). The email is auth.ts's fixed
- * BOOTSTRAP_ADMIN_EMAIL; the password is the one start:auth-e2e pins via
- * CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD=auth-e2e-password-2026 (production defaults to a generated secret instead, so
- * this is a test-only known credential). A drift surfaces loudly as the bootstrap sign-in spec failing. */
+/**
+ * Fixed first-run administrator credentials used only by the disposable auth server.
+ * Their presence selects the ordinary sign-in screen rather than zero-user setup.
+ * Keep these literals aligned with start:auth-e2e; importing auth.ts would load the auth runtime into Playwright.
+ */
 export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e-password-2026" };
 
 /** The operator bootstrap token (set in server's start:auth-e2e script). The auth-e2e DB is seeded,
@@ -36,7 +26,6 @@ export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e
  * operator path to provision an org (`POST /api/orgs`) on an already-populated instance. */
 export const BOOTSTRAP_TOKEN = "auth-e2e-bootstrap-token-0123456789abcdef";
 
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
 function cookiesOf(setCookie: string): string {
   return setCookie
     .split("\n")
@@ -45,8 +34,6 @@ function cookiesOf(setCookie: string): string {
     .join("; ");
 }
 
-/** Shared sign-up POST, factored out so the cookie-only and ID-resolving variants below don't
- * duplicate the request shape. Returns the collapsed session cookie. */
 async function postSignUp(ctx: APIRequestContext, email: string, name = email.split("@")[0]): Promise<string> {
   const res = await ctx.post(`${AUTH_API}/api/auth/sign-up/email`, {
     data: { email, password: AUTH_PASSWORD, name },
@@ -55,7 +42,11 @@ async function postSignUp(ctx: APIRequestContext, email: string, name = email.sp
   return cookiesOf(res.headers()["set-cookie"] ?? "");
 }
 
-/** Seed only disposable auth-e2e role/access fixtures. Real invitation tests use the addressed invite path. */
+/**
+ * Seed only disposable auth-e2e role/access fixtures. Real invitation tests use the addressed invite path.
+ * The principal must already exist in the disposable auth database.
+ * @throws When the principal is absent or database writes fail.
+ */
 export function seedFixtureMember(accountId: string, email: string, role: "admin" | "editor" | "viewer"): void {
   const path = fileURLToPath(new URL("../server/.auth-e2e.db", import.meta.url));
   const db = new DatabaseSync(path);
@@ -96,12 +87,7 @@ export async function signUpUser(email: string, name?: string): Promise<{ email:
   }
 }
 
-/**
- * Provision a fresh org via the operator bootstrap path (`POST /api/orgs` with BOOTSTRAP_TOKEN),
- * making `cookie`'s owner the org's Owner, and return the created account ID. Factored out because
- * every auth spec that needs its own org duplicated this same request shape + 201 assertion + ID
- * extraction.
- */
+/** Provisions a disposable company through operator bootstrap, makes the principal identified by cookie its Owner, and returns its account ID. */
 export async function bootstrapOrg(request: APIRequestContext, cookie: string, name: string): Promise<string> {
   const res = await request.post(`${AUTH_API}/api/orgs`, {
     headers: { cookie, "x-capacitylens-bootstrap-token": BOOTSTRAP_TOKEN },

@@ -39,6 +39,7 @@ function removeLegacyPreMigrationBackups({
   try {
     entries = readdirSync(dir);
   } catch (error) {
+    // Log skipped legacy cleanup without failing an already published rollback snapshot.
     log(
       `capacitylens-server: legacy pre-migration backup cleanup skipped — cannot read ${dir} — ${error instanceof Error ? error.message : String(error)}`,
     );
@@ -50,6 +51,7 @@ function removeLegacyPreMigrationBackups({
     try {
       rmSync(path, { force: true });
     } catch (error) {
+      // Surface this legacy-file cleanup failure and continue with the remaining entries without rejecting the verified snapshot.
       log(
         `capacitylens-server: legacy pre-migration backup cleanup failed for ${path} — ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -103,6 +105,7 @@ export async function writePreMigrationBackup({
       publisher,
     });
   } catch (error) {
+    // Remove unpublished artifacts and rethrow because a failed mandatory rollback snapshot must prevent migration.
     cleanupSnapshotTemp(tmp, "pre-migration backup", log);
     throw error;
   }

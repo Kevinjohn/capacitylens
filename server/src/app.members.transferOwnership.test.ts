@@ -223,7 +223,6 @@ function registerAdminOwnershipTransferRejectionTest(): void {
     expect((await nominate({ app, accountId: "a1", toUserId: member.userId, cookie: admin.cookie })).statusCode).toBe(
       403,
     );
-    // Unchanged.
     expect(getMemberRole(db, "a1", admin.userId)).toBe("admin");
     expect(getMemberRole(db, "a1", member.userId)).toBe("admin");
   });
@@ -249,7 +248,6 @@ function registerInvalidOwnershipTransferTargetTest(): void {
     const selfTransfer = await nominate({ app, accountId: "a1", toUserId: owner.userId, cookie: owner.cookie });
     expect(selfTransfer.statusCode).toBe(400);
     expect(parseErrorCode(selfTransfer.json())).toBe("VALIDATION_FAILED");
-    // Still the owner.
     expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
   });
 }
@@ -261,7 +259,6 @@ function registerOwnershipTransferShapeTest(): void {
     const owner = await signUp(app, "owner-guard-xfer@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
 
-    // Absent toUserId.
     expect(
       (
         await call(app, {
@@ -272,7 +269,6 @@ function registerOwnershipTransferShapeTest(): void {
         })
       ).statusCode,
     ).toBe(400);
-    // Empty-string toUserId.
     expect((await nominate({ app, accountId: "a1", toUserId: "", cookie: owner.cookie })).statusCode).toBe(400);
     // Half a replacement predicate names no particular predecessor, so it is malformed rather than
     // leniently treated as "replace whatever is live".
@@ -286,7 +282,6 @@ function registerOwnershipTransferShapeTest(): void {
         })
       ).statusCode,
     ).toBe(400);
-    // Still the owner; nothing changed.
     expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
   });
 }
@@ -303,7 +298,6 @@ function registerCrossTenantOwnershipTransferTest(): void {
     expect(
       (await nominate({ app, accountId: "a2", toUserId: a2member.userId, cookie: a1owner.cookie })).statusCode,
     ).toBe(403);
-    // Unchanged.
     expect(getMemberRole(db, "a2", a2member.userId)).toBe("admin");
   });
 }

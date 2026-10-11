@@ -10,14 +10,9 @@ export function setMasqueradeEndedHandler(handler: (() => void) | null): void {
   masqueradeEndedHandler = handler;
 }
 
-// Two deadline tiers, because one bound can't fit every call. Interactive calls (a single
-// entity write, an auth check, a `hasData` probe) must fail fast. A wedged socket should
-// surface within seconds. But the three bulk operations, the whole-slice `GET /api/state`
-// load/hydrate, the atomic `POST /api/batch` write, and the full inactive-slice export, can
-// legitimately take far longer on a large tenant against a healthy-but-slow server, and the
-// batch is the dangerous one: aborting a still-in-flight batch makes `drain` not advance
-// `lastSynced`, so persist.ts retries the identical diff forever (the banner never clears) even
-// though nothing is actually broken. So bulk calls get a much longer bound.
+// Interactive calls fail quickly; whole-slice reads and writes need a longer deadline
+// to complete on a healthy but slow server. A timed-out batch has an uncertain commit
+// boundary and requires authoritative reconciliation before another write.
 /** Default deadline for interactive API requests. */
 export const API_REQUEST_TIMEOUT_MS = 15_000;
 /** Longer deadline for whole-slice API reads and writes. */
@@ -33,13 +28,9 @@ export function isTransportFailure(error: unknown): boolean {
   );
 }
 
-/**
- * Build the abort signal for an API call. `timeoutMs` picks the deadline tier:
- *   - omitted → the interactive {@link API_REQUEST_TIMEOUT_MS} (15s) bound;
- *   - {@link API_BULK_TIMEOUT_MS} (or any number) → that longer bound, for whole-slice reads/writes;
- *   - `null` → no client deadline at all, for the keepalive unload flush, where a timeout is
- *     self-contradictory (the request is meant to outlive the page as far as the browser permits).
- * A caller `signal` is always honoured; the result aborts as soon as either it or the timeout does.
+/** Builds a request signal using the supplied millisecond deadline, or the interactive
+ * default when omitted. Null disables the client deadline for keepalive teardown.
+ * A caller signal is always honored and can abort before the deadline.
  */
 export function createRequestSignal(
   signal?: AbortSignal | null,
@@ -49,7 +40,7 @@ export function createRequestSignal(
   if (timeout && signal) return AbortSignal.any([signal, timeout]);
   if (timeout) return timeout;
   if (signal) return signal;
-  // No timeout and no caller signal: a signal that never aborts (equivalent to omitting one).
+
   return new AbortController().signal;
 }
 

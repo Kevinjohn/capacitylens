@@ -33,22 +33,9 @@ export function buildCanonicalAccountProductPayload(row: Record<string, unknown>
   return canonical;
 }
 
-/**
- * True when a sanitised accounts write would change an already-set frozen field, the
- * violation signal the PUT/PATCH/batch handlers all turn into a 409, the batch path throws an
- * AccountContractError with code CONFLICT, which the sync client maps through
- * statusForAccountFailure to the same 409 (its authoritative-reload trigger), not a 400.
- *
- * Reports a violation only when `existing` has a stored value and the sanitised incoming value
- * differs. Four deliberate rules:
- *  - Change, not presence: the sync adapter re-sends the whole row on any edit (e.g. a rename),
- *    so an unchanged frozen value must pass, only a real change is a violation.
- *  - A missing stored value may be set once, preserving legacy/minimal API-created accounts.
- *  - sanitizeWrite pins an existing value when malformed input is dropped, making it a no-op.
- *  - No existing row → creation, when these values are legitimately set → never a violation.
- *
- * @param existing the stored row (undefined on a create, always passes)
- * @param incoming the sanitised candidate row, before it is persisted
+/** Reports a change to an already-set immutable account calendar field.
+ * Unchanged echoes and fields omitted then pinned by sanitizeWrite pass; unset stored values may be established once.
+ * Ordinary supplied malformed values must be rejected before this predicate. Creation always passes.
  */
 export function hasFrozenAccountFieldChanges(
   existing: Record<string, unknown> | undefined,

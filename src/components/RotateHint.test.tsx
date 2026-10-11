@@ -56,7 +56,6 @@ describe("RotateHint", () => {
     expect(sessionStorage.getItem("capacitylens/rotateHintDismissed")).toBe("1");
     expect(setItem).toHaveBeenCalledTimes(1);
 
-    // A remount in the same session (e.g. navigating back to the picker) stays quiet.
     unmount();
     render(<RotateHint />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

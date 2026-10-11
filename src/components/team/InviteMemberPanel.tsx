@@ -12,13 +12,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError, FieldSet } from "@/components/ui/field";
 import { sortInvitationsForPresentation } from "./buildMemberDirectoryPresentation";
 
-/**
- * A write-once "here is a freshly-minted link, copy it now" block (shared by the invite link and the
- * password-reset link). Renders the `break-all` <code> + ghost copy Button once; the token behind the
- * link is never read back. Pass `intro` (a <p>) to prepend an explanatory line, the reset block uses
- * it to name who/when; the invite block omits it. Structure is intentionally two shapes (the intro
- * variant needs an outer vertical stack) so both call sites keep their exact prior markup.
- */
+/** Shows a freshly issued invitation or reset link once, with an optional introduction. The secret is never read back after issuance. */
 export function CopyableLinkBlock({
   link,
   testId,

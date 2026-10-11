@@ -16,10 +16,6 @@ function readHealthBody(response: { json: () => unknown }): HealthBody {
   return response.json() as HealthBody;
 }
 
-// The CAPACITYLENS_HEALTH_DEEP flag (opts.healthDeep): on makes /api/health prove the DB
-// answers a constant SELECT 1; off keeps today's unconditional { ok: true }, the exact body
-// Playwright's webServer probe (and anything else pinned to it) depends on.
-
 function createHealthyTest(): void {
   it("reports { ok, db: true, audit: ok } while the DB answers and the audit sink is healthy", async () => {
     // Deep-health also surfaces the audit sink state. The factory default is a noop sink

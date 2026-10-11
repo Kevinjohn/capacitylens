@@ -24,9 +24,7 @@ const capacityAdvisoryMock = vi.hoisted(() =>
     timeOffDays: 0,
   })),
 );
-// Both entry points share one mock: the repeat path advises against a batch-shared load bucket
-// (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory verdicts the modal renders.
+// Single and repeat advisory paths share one verdict stub so these modal tests exercise presentation rather than load calculations.
 vi.mock("@/lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
@@ -206,9 +204,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
   );
 
   it("keeps the original monthly numeric day while preserving a multi-day span", async () => {
-    // A seven-day company and person make the Saturday day-31 anchor an effective start, the
-    // creation gate has no override (no ignored-creation escape hatch), so the numeric-day
-    // preservation under test needs a calendar that genuinely allows the anchor.
+    // The numeric repeat anchor must be an effective working day, so use a seven-day calendar to isolate date preservation from the creation gate.
     useStore.getState().updateAccount(ACC, { workingDays: [0, 1, 2, 3, 4, 5, 6] });
     const resource = requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [0, 1, 2, 3, 4, 5, 6] }),

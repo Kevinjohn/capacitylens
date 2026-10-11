@@ -103,9 +103,11 @@ function readVerbatimSetting(configPath) {
   return parsed.options.verbatimModuleSyntax ?? false;
 }
 
-/** Read each source package's compiler setting once, including inherited options.
+/**
+ * Read each source package's compiler setting once, including inherited options.
  * Fixtures outside these packages use TypeScript's default import-elision mode.
  * Invalid or missing project configurations fail visibly rather than changing the graph.
+ * @throws When project configuration is missing, invalid or inherits unreadable configuration.
  */
 export function createDependencyParser(root) {
   const projects = [

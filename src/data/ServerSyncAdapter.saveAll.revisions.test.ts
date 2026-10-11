@@ -290,8 +290,8 @@ function registerConcurrentRewriteTests(): void {
     }) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
     let visible = await adapter.loadAll();
-    // Supply the removed live-data callback through the old signature so this regression test also
-    // fails against the pre-fix adapter. The current implementation deliberately ignores argument 2.
+    // The receipt must be reconciled against the flushed target even if a supplied callback
+    // exposes a newer live edit while the request is pending.
     const installRewriteHandler = adapter.setAllocationRewriteHandler.bind(adapter) as (
       handler: Parameters<typeof adapter.setAllocationRewriteHandler>[0],
       legacyGetData: () => AppData,
@@ -358,7 +358,6 @@ function registerQueuedSaveTests(): void {
     const fetchImpl = vi.fn(
       (_url: string, init?: RequestInit) =>
         new Promise<Response>((resolve) => {
-          // Hold the very first request open so a second saveAll lands mid-flush.
           if (!resolveFirst) resolveFirst = () => resolve(commitReceipt(init));
           else resolve(commitReceipt(init));
         }),
@@ -372,7 +371,7 @@ function registerQueuedSaveTests(): void {
     const batches = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.map((c) =>
       batchOps(c).map((o) => o.id),
     );
-    // first batch: [c1]; coalesced second batch: [c2] only (c1 already synced).
+
     expect(batches).toEqual([["c1"], ["c2"]]);
   });
 }
@@ -435,8 +434,7 @@ function registerQueuedRebaseTests(): void {
     const queuedRow = requiredRecord(required(batchOps(calls[1])[0]).row, "expected queued client row");
     expect(queuedRow.name).toBe("Queued edit");
     expect(queuedRow.updatedAt).toBe("2030-01-01T00:00:00.000Z");
-    // Saving the unchanged local object again canonicalizes its acknowledged client revision and
-    // does not emit a third, timestamp-only batch.
+
     await adapter.saveAll(second);
     expect(calls).toHaveLength(2);
   });

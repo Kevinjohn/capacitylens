@@ -74,7 +74,6 @@ describe("endDateForSpan is the inverse of spanDays", () => {
     // RangeError when the modal hint formats it).
     expect(endDateForSpan("2026-06-01", 9_999_999, opts)).toBe(capped);
     expect(/^\d{4}-\d{2}-\d{2}$/.test(capped)).toBe(true);
-    // NaN → a single day, never an Invalid Date.
     expect(endDateForSpan("2026-06-01", NaN, opts)).toBe("2026-06-01");
   });
 
@@ -97,9 +96,8 @@ describe("endDateForSpan is the inverse of spanDays", () => {
 
 describe("hoursPerDayFor / daysOfWorkFor", () => {
   it("spreads volume across the span", () => {
-    // 5 days of work over 10 days at an 8h day = half-time = 4h/day.
+    // Five days of work over a ten-day span consume half an eight-hour working day, or four hours per day.
     expect(hoursPerDayFor(5, 10, 8)).toBe(4);
-    // Full-time: work === span.
     expect(hoursPerDayFor(5, 5, 8)).toBe(8);
   });
 

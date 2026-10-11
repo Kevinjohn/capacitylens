@@ -5,13 +5,9 @@
 // Gitleaks skips matching files before scanning them, so a `paths` allowlist can hide secrets in
 // every matched file rather than narrowing a value pattern.
 //
-// The second is a misspelled global table. Gitleaks 8.24 reads `[allowlist]`; Viper silently ignores
-// the unsupported plural `[[allowlists]]`, leaving every reviewed fixture reportable even though
-// this JavaScript checker can still see and compile the nested regex strings.
+// Gitleaks 8.24 reads [allowlist]; an unsupported [[allowlists]] table would be visible to this checker but ignored by the scanner.
 //
-// The third is an over-broad value pattern. `[a-z-]*test-secret-…` looks precise but matches
-// "latest-secret-…", because "la" + "test" satisfies it. Patterns must therefore break on segment
-// boundaries, and the corpora below lock that in.
+// Fixture patterns must match whole hyphen-separated segments so ordinary values such as latest-secret remain reportable.
 //
 // Scope: this checks the allowlist's shape and its patterns' classification behaviour. It does not
 // run gitleaks because the gate job has no gitleaks binary, so it cannot prove the scanner loads this
@@ -112,6 +108,7 @@ for (const pattern of patterns) {
   try {
     compiled.push(new RegExp(pattern));
   } catch (cause) {
+    // Collect invalid regex diagnostics so the configuration check reports every failure before exiting.
     failures.push(`Pattern does not compile: ${pattern} (${cause.message})`);
   }
 }

@@ -10,7 +10,7 @@ export const MAX_MATERIALISED_DAYS = 36_500;
  * never disagree on where the calendar ends. */
 export const MAX_ISO_DATE = "9999-12-31" as ISODate;
 
-// All scheduler geometry is done in INTEGER day-indices derived from date-only
+// All scheduler geometry is done in integer day-indices derived from date-only
 // ISO strings. We never do millisecond Date math for positioning. That is the
 // classic DST / timezone off-by-one bug. date-fns' calendar-day helpers are
 // timezone-agnostic for our purposes.
@@ -36,10 +36,8 @@ export function parseDate(date: ISODate): Date {
   return parseISO(date);
 }
 
-/** Shared four-digit-year, zero-padded "YYYY-MM-DD" shape check, reused by every
- * assembly path (Date-based `toISODate` and the Intl.DateTimeFormat-parts path in
- * `todayISO`'s timezone branch) so an out-of-domain year always throws the same
- * RangeError instead of one path silently emitting a pseudo-ISODate. */
+// Share the four-digit, zero-padded ISO shape check across Date and formatter-parts assembly
+// so every out-of-domain year produces the same RangeError.
 function assertFourDigitISODate(candidate: string): ISODate {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate)) {
     throw new RangeError("Date falls outside the supported four-digit ISO year range.");
@@ -72,7 +70,9 @@ export function daysInclusive(start: ISODate, end: ISODate): number {
   return differenceInCalendarDays(parseISO(end), parseISO(start)) + 1;
 }
 
-/** Every date-only ISO string in [start, end], inclusive. Empty when end < start. */
+/** Return a new array of validated ISO dates in the inclusive range; reversed ranges return an empty array.
+ * Pure; inputs must be validated ISO dates.
+ * @throws RangeError when the range exceeds MAX_MATERIALISED_DAYS or formatting leaves the supported date domain; no date array is returned. */
 export function eachDayISO(start: ISODate, end: ISODate): ISODate[] {
   const count = daysInclusive(start, end);
   if (count <= 0) return [];
@@ -80,10 +80,7 @@ export function eachDayISO(start: ISODate, end: ISODate): ISODate[] {
     throw new RangeError(`Date range exceeds the ${MAX_MATERIALISED_DAYS}-day materialisation limit.`);
   }
   const out: ISODate[] = [];
-  // Parse `start` once and step the resulting Date with addDays, formatting each day once. The
-  // previous `addDaysISO(start, i)` per iteration re-parsed the start string every time (~n+1
-  // parses + n formats for an n-day range). This is a hot path (per-resource capacity windows),
-  // so that redundant re-parsing shows up directly as scroll/zoom jank on large teams.
+  // Parse once because capacity-window calculations materialize many dates on the render path.
   let cursor = parseISO(start);
   for (let i = 0; i < count; i++) {
     out.push(toISODate(cursor));
@@ -128,11 +125,8 @@ const warnedInvalidTimeZones = new Set<string>();
 const MAX_INVALID_TIMEZONE_WARNINGS = 32;
 let warnedInvalidTimeZoneLimit = false;
 
-/** One Intl.DateTimeFormat per zone: constructing a formatter is the expensive part, and
- * `todayISO` is called on every grid render (plus once per step of the calendar-boundary binary
- * search in useCalendarToday). `null` marks a zone whose constructor threw, so a bad stored zone
- * is diagnosed once instead of re-thrown on every call. Bounded in practice. The key is an
- * account's stored IANA zone, drawn from the ICU zone database. */
+// Reuse formatters because construction is expensive on the render path.
+// Cache null for invalid zones to avoid repeated constructor failures; diagnostics have a separate bounded warning budget.
 const calendarFormatters = new Map<string, Intl.DateTimeFormat | null>();
 
 function createCalendarFormatter(timeZone: string): Intl.DateTimeFormat | null {
@@ -211,11 +205,8 @@ export function isWorkingWeekday(date: ISODate, workingDays: Weekday[]): boolean
  * drag math (gestureMath) and the days/hours conversions (schedulingDays) so the
  * two can never disagree on what "a working day" means.
  *
- * Distinctness is tracked in a 7-bit mask rather than a `Set`: this runs per resource × per day ×
- * per allocation when building day capacity (~200k calls in one capacity pass), and the throwaway
- * Set per call dominated the cost. Only weekdays 0–6 set a bit, the `Weekday` type plus import
- * sanitisation (`safeWorkingDays`) already make an out-of-range entry unreachable, and ignoring it
- * is the answer that matches the rest of the weekday math. */
+ * A seven-bit mask counts distinct valid weekdays without allocating a Set on the capacity hot path.
+ * Invalid weekday entries are ignored consistently with the other weekday calculations. */
 export function isWeekendAware(workingDays: Weekday[] | undefined, ignoreWeekends: boolean | undefined): boolean {
   if (ignoreWeekends || !workingDays) return false;
   let mask = 0;

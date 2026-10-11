@@ -101,10 +101,8 @@ export function resolveSliceRewrite(key: string, data: AppData, now: number): Sl
   return { kind: "write-required", complete: () => recent?.set(key, { signature, writtenAt: now }) };
 }
 
-/**
- * Publish which boundary established the current offline claim. Identity/account-list refreshes
- * cannot clear a tenant-slice claim; only a successful tenant reload or cleanup has that authority.
- */
+// Identity and directory refreshes cannot clear a tenant-slice offline claim;
+// only a successful tenant reload or cleanup owns that boundary.
 type SetOfflineReadStateOptions = {
   owner: OfflineReadOwner;
   readOnly: boolean;

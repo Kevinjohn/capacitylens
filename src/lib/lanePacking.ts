@@ -48,7 +48,7 @@ export function packLanes(items: Interval[]): PackResult {
   if (origin === undefined) return { lanes: [], laneCount: 0 };
   // Parse the shared origin once. An unparseable origin makes offsets non-finite, so records use lane 0.
   const originDate = parseISO(origin);
-  // Inclusive end day of the last valid interval placed in each lane.
+
   const laneEnds: number[] = [];
   const lanes: LaneItem[] = [];
 

@@ -7,15 +7,14 @@ import { call } from "./fixtures/appTestHttp";
 function createCorsOriginConfigurationTests() {
   it("defaults FAIL-CLOSED to the localhost allow-list (not a wildcard)", async () => {
     const { app } = freshApp();
-    // A local dev origin is reflected (it's on the default allow-list)…
+
     const local = await call(app, {
       method: "GET",
       url: "/api/health",
       headers: { origin: "http://localhost:5173" },
     });
     expect(local.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
-    // …but an arbitrary site gets no ACAO header (the browser blocks it), the factory
-    // never opens to '*' unless explicitly told to.
+
     const evil = await call(app, {
       method: "GET",
       url: "/api/health",
@@ -99,11 +98,7 @@ function createCorsCredentialAndRequestGateTests() {
   });
 
   it("answers a write preflight with 204 + CORS headers (no OPTIONS route exists)", async () => {
-    // Regression guard: every cross-origin write (JSON POST/PUT/PATCH/DELETE) is
-    // preflighted by the browser, and OPTIONS matches no route. The 204 comes from the
-    // root-level onRequest hook on the not-found path. When the hook briefly moved into
-    // the routes child plugin, preflights became bare 404s without CORS headers and the
-    // db-backed e2e app could no longer save anything.
+    // CORS preflights match no application route, so the root hook must handle OPTIONS on the not-found path.
     const { app } = freshApp();
     const res = await call(app, {
       method: "OPTIONS",
@@ -199,10 +194,7 @@ function createCorsSameOriginTests() {
 
 function createCorsCrossSiteAndTlsTests() {
   it("lets a cross-site write through when its Origin is on the credentialed allow-list (Fetch Metadata notwithstanding)", async () => {
-    // Fix: an Origin exactly on the CORS allow-list is the operator's explicit cross-site contract,
-    // so it must pass the gate even when the browser labels the request Sec-Fetch-Site: cross-site
-    // (the legitimate configured cross-origin call). The old gate 403'd it on the fetchSite clause
-    // despite the allow-list match; now the allow-listed Origin is reflected and the write proceeds.
+    // An exactly allow-listed Origin is the operator’s explicit cross-site contract and must pass the write gate.
     const app = createApp(openDb(":memory:"), {
       allowReset: true,
       corsOrigin: "https://app.example.com",
@@ -262,7 +254,6 @@ function createCorsTlsTerminationTests() {
   });
 
   it("still 403s when the https Origin host does NOT match the request Host", async () => {
-    // The scheme-upgrade exemption is host-pinned: a mismatched host stays a cross-site 403.
     const app = createApp(openDb(":memory:"), {
       allowReset: true,
       corsOrigin: "",
@@ -281,11 +272,7 @@ function createCorsTlsTerminationTests() {
 
 function createCorsMalformedHostAndHeaderTests() {
   it("returns a clean 403 (not a 500) when a broken proxy sends a malformed Host header", async () => {
-    // Regression: the same-origin check reconstructs `${protocol}://${host}` from the Host header, an
-    // untrusted, proxy-influenced string. A broken proxy (or a forged request) can send a Host that
-    // `new URL` rejects, here 'exa mple.com' (embedded space). That reconstruct must be guarded: an
-    // unparseable Host is "cannot prove same-origin" → fail closed → clean cross-site 403. A refactor
-    // once moved the reconstruct out of the try/catch, turning this into an uncaught TypeError → 500.
+    // Host is untrusted and may be malformed. Failure to reconstruct its origin must deny the request cleanly.
     const app = createApp(openDb(":memory:"), {
       allowReset: true,
       corsOrigin: "",

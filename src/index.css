@@ -8,27 +8,19 @@
 /* Semantic tokens map Tailwind utilities to theme variables. src/lib/theme.ts sets
    the root element to the resolved light or dark theme. */
 @theme {
-  /* Page background. NB: named `canvas`, not `base`, on purpose — `--color-base`
-     would shadow Tailwind's `text-base` font-size utility (turning it into a
-     colour), the footgun this rename removes. */
+  /* The canvas token avoids shadowing Tailwind's text-base font-size utility. */
   --color-canvas: var(--c-base);
   --color-surface: var(--c-surface);
   --color-elevated: var(--c-elevated);
   --color-line: var(--c-line);
-  /* A lighter divider for the scheduler's horizontal row lines, which read a touch
-     heavy in light mode at full --color-line. Equal to --color-line in dark. */
+  /* Horizontal row dividers stay softer than week boundaries in light mode; dark mode retains the ordinary line token. */
   --color-line-soft: var(--c-line-soft);
-  /* Lighter still: the per-day hairlines inside scheduler lanes. A step below the
-     Monday week line in BOTH themes (line-soft collapses to full line in dark). */
+  /* Day hairlines stay quieter than week boundaries in both themes. */
   --color-line-faint: var(--c-line-faint);
-  /* Switch-specific non-text colours keep the OFF-state thumb boundary above WCAG 1.4.11's
-     3:1 threshold without darkening the shared input/divider token used elsewhere. */
+  /* Switch-specific colours keep the off-state thumb boundary above the non-text contrast threshold without changing shared divider colours. */
   --color-switch-track: var(--c-switch-track);
   --color-switch-thumb: var(--c-switch-thumb);
-  /* Recessed non-working-day band (weekends + unavailable days) has a calm cool tint,
-     deliberately distinct from the page canvas, the over-cell red, and the time-off amber,
-     so a non-working day never reads as an alert. Shared by the lane tint AND the date-header
-     weekend cell, so Sat/Sun reads as one continuous band header-to-lane. */
+  /* Non-working days use a cool neutral band shared by date headers and lanes so they remain distinct from alerts. */
   --color-weekend: var(--c-weekend);
   /* App chrome is intentionally independent from the shadcn surface semantics below: changing
      navigation or scheduler depth must never recolour cards, dialogs, popovers or tables. */
@@ -52,10 +44,7 @@
   --color-danger-soft: var(--c-danger-soft);
   --color-danger-soft-hover: var(--c-danger-soft-hover);
   --color-danger-soft-ink: var(--c-danger-soft-ink);
-  /* Over-capacity day CELL fill. Far stronger than `danger-soft` (a button tint): the
-     over-marker cell carries NO text — allocation bars paint their own opaque WCAG-tuned
-     fills on top — so this can be a saturated red that reads CLEARLY as red at a glance in
-     both themes without any AA constraint on it. */
+  /* Capacity cells use a stronger red than action-button tints so over-allocation is visible. Opaque allocation bars supply their own text contrast. */
   --color-danger-cell: var(--c-danger-cell);
   --color-warn: var(--c-warn);
   --color-timeoff-selected: var(--c-timeoff-selected);
@@ -64,15 +53,12 @@
   --color-ok-strong: var(--c-ok-strong);
   --color-ok-strong-hover: var(--c-ok-strong-hover);
   --color-ok-strong-ink: var(--c-ok-strong-ink);
-  /* Green siblings of --color-danger-soft/-soft-ink and --color-danger-cell, for the Overview
-     capacity bar. -soft is a tinted ground WITH text on it (paired with -soft-ink, a step darker
-     so the pairing clears WCAG AA); -cell is a saturated fill with NO text on it (no AA bound). */
+  /* Overview capacity fills have paired text-ink tokens when they contain labels; the saturated cell fill is reserved for graphical states. */
   --color-ok-soft: var(--c-ok-soft);
   --color-ok-soft-ink: var(--c-ok-soft-ink);
   --color-ok-cell: var(--c-ok-cell);
 
-  /* One deliberate micro-text size (11px) for the dense labels — replaces the
-     scattered text-[10px]/text-[11px] near-duplicates. */
+  /* Dense labels share one micro-text token. */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
   /* Body copy, controls and menus read at 13px, the desktop convention, rather than Tailwind's
@@ -85,11 +71,7 @@
 
   --shadow-pop: 0 10px 30px -10px rgb(0 0 0 / 0.3);
 
-  /* Small named z-index scale for the few elements that need to sit above ordinary
-     document flow outside a local stacking context (see the getting-started popover
-     below). Named for role, not raw layer count, so new call sites pick a tier by intent:
-     sticky chrome < an in-progress drag < a modal < a floating popover < a tooltip < the focused
-     skip link, which must remain discoverable above every application layer. */
+  /* Named layer tiers keep sticky chrome below drags, dialogs, floating content, tooltips, and the focused skip link. */
   --z-index-sticky: 40;
   --z-index-drag: 50;
   --z-index-modal: 55;
@@ -97,12 +79,7 @@
   --z-index-tooltip: 65;
   --z-index-skip-link: 70;
 
-  /* A grid-LOCAL tier, deliberately below the scale above: it orders layers inside the schedule,
-     not chrome floating over the application. The company-closure band's shading must stay under
-     the group-header rows (#766), but `z-0` on the band makes it a stacking context that would
-     bury its own name with it, so the name is lifted onto its own layer at this tier — above the
-     group-header rows (10), still below the sticky date header and frozen column (20/30) whose
-     edges the name is clamped to (#788). */
+  /* Closure labels sit above group headers but below the sticky date header and resource column so shading cannot bury their names. */
   --z-index-scheduler-closure-label: 15;
 }
 
@@ -112,17 +89,20 @@
   --c-elevated: #ffffff;
   --c-line: #e6e8ee;
   --c-line-soft: #eef0f5;
-  --c-line-faint: #ebedf2; /* nudged darker from #eff1f6 so intra-week day hairlines register at fine zoom; still lighter than --c-line so the Monday week line stays dominant */
-  --c-switch-track: #858d9b; /* 3.07:1 against --c-switch-thumb and 3.34:1 against white surfaces */
+  /* Day hairlines remain lighter than week boundaries. */
+  --c-line-faint: #ebedf2;
+  /* The switch track preserves at least 3:1 contrast with its thumb and adjacent white surface. */
+  --c-switch-track: #858d9b;
   --c-switch-thumb: var(--c-base);
   --c-weekend: color-mix(
     in oklab,
     var(--c-ink) 8%,
-    var(--c-surface)
-  ); /* a calm cool recess vs the white surface — clearly "non-working" at a glance, far from the saturated over-cell red, never an alert */
+    var(--c-surface) /* The neutral recess marks non-working days without using an alert colour. */
+  );
   --c-ink: #1c2230;
   --c-muted: #5b6472;
-  --c-faint: #636c7c; /* darkened from #6b7280 so small text clears WCAG AA (4.5:1) on every ordinary and scheduler light ground */
+  /* Muted light-theme text must retain AA contrast on ordinary and scheduler surfaces. */
+  --c-faint: #636c7c;
   /* CapacityLens blue: identity and state. Keep the light theme dark enough for
      small labels and focus indicators; the dark theme can use a brighter blue
      without losing contrast against the charcoal surfaces. */
@@ -130,20 +110,16 @@
   --c-brand-strong: #1d4ed8;
   --c-brand-soft: color-mix(in oklab, var(--c-brand) 14%, white);
   --c-brand-soft-ink: var(--c-brand-strong);
-  /* Dual-tone allocation-bar focus ring (WCAG 1.4.11) — see `.scheduler-bar:focus-visible`. A fixed
-     near-black + near-white pair (NOT theme-swapped): together they cover both light and dark grounds,
-     so at least one edge clears 3:1 against every adjacency in both themes. Pinned in color.test.ts. */
-  --c-focus-ink: #1c2230; /* near-black edge — wins on pale grounds (light over-cell, pale swatches, light canvas) */
-  --c-focus-halo: #ffffff; /* near-white edge — wins on dark grounds (dark over-cell, dark swatches, dark canvas) */
-  --c-danger: #e11d48; /* 4.70:1 on --c-surface; keep opaque for normal-size destructive Alert copy */
+  /* A fixed dark and light focus-ring pair retains visible edges on both light and dark backgrounds. Contrast is pinned in src/lib/designTokens.test.ts. */
+  --c-focus-ink: #1c2230;
+  --c-focus-halo: #ffffff;
+  /* Destructive text remains opaque to preserve AA contrast on the surface. */
+  --c-danger: #e11d48;
   --c-danger-soft: color-mix(in oklab, var(--c-danger) 13%, white);
   --c-danger-soft-hover: #f8d5de;
-  --c-danger-soft-ink: #be123c; /* a step darker than --c-danger to clear AA on the tint */
-  --c-danger-cell: color-mix(
-    in oklab,
-    var(--c-danger) 50%,
-    white
-  ); /* clear rose-red → ~rgb(251,158,161); empty cell, no AA bound */
+  /* Destructive ink is darker than the fill accent to preserve AA contrast on the tint. */
+  --c-danger-soft-ink: #be123c;
+  --c-danger-cell: color-mix(in oklab, var(--c-danger) 50%, white);
   --c-warn: #d97706;
   /* Draw-mode selection stays deliberately identical in both themes: a vivid yellow marker with
      fixed dark ink. The dark theme inherits these root values instead of overriding them. */
@@ -151,15 +127,13 @@
   --c-timeoff-selected-ink: #1c2230;
   --c-ok: #047857;
   --c-ok-strong: #047857;
-  --c-ok-strong-hover: #065f46; /* darker, rather than translucent-over-surface: white stays AA */
+  /* An opaque hover fill preserves contrast with white action text. */
+  --c-ok-strong-hover: #065f46;
   --c-ok-strong-ink: #ffffff;
   --c-ok-soft: color-mix(in oklab, var(--c-ok) 13%, white);
-  --c-ok-soft-ink: #065f46; /* a step darker than --c-ok to clear AA on the soft fill */
-  --c-ok-cell: color-mix(
-    in oklab,
-    var(--c-ok) 50%,
-    white
-  ); /* clear sage-green → ~rgb(144,186,167); empty cell, no AA bound */
+  /* Success ink is darker than the accent to preserve AA contrast on the soft fill. */
+  --c-ok-soft-ink: #065f46;
+  --c-ok-cell: color-mix(in oklab, var(--c-ok) 50%, white);
   /* Chrome depth, darkest → cleanest: sidebar, toolbar, filter bar, then the scheduler canvas.
      These neutral tokens stay separate from --c-base/--c-surface and shadcn's semantic family. */
   --chrome-sidebar: #222222;
@@ -206,9 +180,7 @@
   --outline-hover-background: var(--accent);
   --ring: var(--c-brand);
   --radius: 0.625rem;
-  /* ShadCN Sidebar keeps its standard semantic API, but its values now derive from the dedicated
-     chrome tier. That lets every source-owned sidebar primitive move together without component
-     hexes or coupling navigation depth to ordinary app surfaces. */
+  /* Sidebar primitives share the chrome tokens so navigation depth does not alter ordinary app surfaces. */
   --sidebar: var(--chrome-sidebar);
   --sidebar-foreground: var(--chrome-sidebar-ink);
   --sidebar-primary: var(--c-brand-soft);
@@ -224,8 +196,10 @@
   --c-surface: #161922;
   --c-elevated: #1d212c;
   --c-line: #2a2f3c;
-  --c-line-soft: var(--c-line); /* no lightening in dark — only light mode read heavy */
-  --c-line-faint: #20242f; /* between surface and line, so day hairlines stay quieter than week lines */
+  /* Dark row dividers retain the ordinary line token. */
+  --c-line-soft: var(--c-line);
+  /* Dark day hairlines stay quieter than week boundaries. */
+  --c-line-faint: #20242f;
   --c-switch-track: var(--c-line);
   --c-switch-thumb: var(--c-ink);
   /* Lightening the dark surface distinguishes non-working days without giving the band
@@ -233,32 +207,29 @@
   --c-weekend: color-mix(in oklab, var(--c-ink) 7%, var(--c-surface));
   --c-ink: #e7eaf0;
   --c-muted: #a3acbd;
-  --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
+  /* Muted dark-theme text must retain AA contrast on the surface. */
+  --c-faint: #8b93a3;
   --c-brand: #60a5fa;
-  --c-brand-strong: #2563eb; /* deep enough that white control text clears AA on dark too */
+  /* White action text must retain AA contrast on the strong brand fill. */
+  --c-brand-strong: #2563eb;
   --c-brand-soft: color-mix(in oklab, var(--c-brand) 22%, #0e1016);
-  --c-brand-soft-ink: #bfdbfe; /* pale blue — brand-strong would vanish on the dark tint */
-  --c-danger: #fb7185; /* AA on --c-surface; keep opaque for normal-size destructive Alert copy */
+  /* Soft brand ink stays visible against the dark tint. */
+  --c-brand-soft-ink: #bfdbfe;
+  /* Destructive text remains opaque to preserve AA contrast on the surface. */
+  --c-danger: #fb7185;
   --c-danger-soft: color-mix(in oklab, var(--c-danger) 22%, #0e1016);
   --c-danger-soft-hover: #49252e;
   --c-danger-soft-ink: #fda4af;
-  --c-danger-cell: color-mix(
-    in oklab,
-    var(--c-danger) 60%,
-    #0e1016
-  ); /* unmistakable dark red → ~rgb(147,73,86); empty cell, no AA bound */
+  --c-danger-cell: color-mix(in oklab, var(--c-danger) 60%, #0e1016);
   --c-warn: #fbbf24;
   --c-ok: #34d399;
   --c-ok-strong: #047857;
   --c-ok-strong-hover: #065f46;
   --c-ok-strong-ink: #ffffff;
   --c-ok-soft: color-mix(in oklab, var(--c-ok) 22%, #0e1016);
-  --c-ok-soft-ink: #6ee7b7; /* a step lighter than --c-ok to clear AA on the soft fill */
-  --c-ok-cell: color-mix(
-    in oklab,
-    var(--c-ok) 60%,
-    #0e1016
-  ); /* unmistakable dark green → ~rgb(44,125,97); empty cell, no AA bound */
+  /* Success ink is lighter than the accent to preserve AA contrast on the dark soft fill. */
+  --c-ok-soft-ink: #6ee7b7;
+  --c-ok-cell: color-mix(in oklab, var(--c-ok) 60%, #0e1016);
   --chrome-sidebar: #0d0d0d;
   --chrome-sidebar-border: #000000;
   --chrome-sidebar-ink: #f5f5f5;
@@ -281,7 +252,7 @@
   --outline-hover-background: color-mix(in oklab, var(--input) 50%, transparent);
   color-scheme: dark;
 
-  /* Drop shadows read as invisible on dark surfaces — lean on a stronger one. */
+  /* Dark surfaces need a stronger popover shadow to keep elevation visible. */
   --shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.6);
 }
 
@@ -318,7 +289,6 @@
 }
 
 @layer base {
-  /* Default border colour for the bare `border` utility. */
   *,
   *::before,
   *::after {
@@ -405,7 +375,6 @@ input[type="radio"] {
   background: color-mix(in oklab, var(--color-brand) 28%, transparent);
 }
 
-/* Thin, theme-aware scrollbars */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-faint) transparent;
@@ -419,7 +388,6 @@ input[type="radio"] {
   border-radius: 9999px;
 }
 
-/* Drop-target row highlight while dragging an allocation between rows. */
 [data-droptarget] {
   background: color-mix(in oklab, var(--color-brand) 9%, transparent);
   box-shadow: inset 0 0 0 2px var(--color-brand);
@@ -465,12 +433,6 @@ input[type="radio"] {
   );
 }
 
-/* Drawing time off dims work and highlights existing absences while a new range is
-   placed. The grid attribute drives the visual change; inert is applied to the bars
-   layer so other memoized rows do not rerender. */
-/* Paired dark and light shadow edges maintain 3:1 non-text contrast on light and
-   dark cells. The blue outline identifies focus; the pair supplies contrast and
-   replaces the resting ring while focused. */
 /* AppSidebar supplies navigation spacing through these custom properties. Fallbacks
    support standalone mounts; item height stays fixed so the collapsed icon rail
    remains square. Scheduler geometry is defined in components/scheduler/layout.ts. */
@@ -487,20 +449,23 @@ input[type="radio"] {
   row-gap: var(--nav-section-gap-y, 0.5rem);
 }
 
+/* Paired dark and light shadow edges maintain 3:1 non-text contrast on light and
+   dark cells. The blue outline identifies focus; the pair supplies contrast and
+   replaces the resting ring while focused. */
 .scheduler-bar:focus-visible {
-  /* Blue identifies focus; contrast comes from the paired shadow. */
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
   box-shadow:
     0 0 0 1px var(--c-focus-ink),
-    /* near-black edge — wins on pale grounds */ 0 0 0 3px var(--c-focus-halo); /* near-white edge — wins on dark grounds */
+    0 0 0 3px var(--c-focus-halo);
 }
 
+/* Drawing time off dims work and highlights existing absences while a new range is
+   placed. The grid attribute drives the visual change; inert is applied to the bars
+   layer so other memoized rows do not rerender. */
 [data-draw-mode="timeoff"] .scheduler-bar {
   opacity: 0.2;
-  /* Drop the discipline colour to a flat neutral so backgrounded work reads as inert filler,
-     not a faded tint of its real colour. Muted foreground is the theme-aware neutral ink;
-     `--color-muted` is deliberately the shadcn muted SURFACE. !important beats the inline fill. */
+  /* A neutral fill makes background bookings read as inert while time off is being drawn. Important overrides the allocation's inline fill. */
   background-color: var(--color-muted-foreground) !important;
   transition:
     opacity 0.15s ease,
@@ -508,9 +473,7 @@ input[type="radio"] {
 }
 
 [data-draw-mode="timeoff"] .scheduler-timeoff-block {
-  /* Lift above the work bars, which paint later in DOM order, so the glow isn't behind
-     the (now-dimmed) bars. Local to the lane's own stacking context, not the global
-     scale above — it only needs to beat sibling bars, not compete with page chrome. */
+  /* Time-off highlights sit above sibling work bars within the lane stacking context. */
   z-index: 3;
   color: var(--color-timeoff-selected-ink);
   /* The block sets its hatch with an inline `background` shorthand. `!important` lets the vivid
@@ -526,12 +489,7 @@ input[type="radio"] {
 }
 
 [data-draw-mode="timeoff"] .scheduler-closure-band {
-  /* Company closures are time off for everyone, so time-off mode highlights the closure band
-     with the same tokens as a personal time-off block. A distinct closure style can come later —
-     this only reuses `timeoff-selected`. The band sets its hatch with an inline `background`
-     shorthand, same as `.scheduler-timeoff-block`; `!important` lets the vivid colour beat that
-     shorthand's transparent background-color without replacing its background-image, so the
-     existing hatch stays visible underneath the tint. */
+  /* Closure bands share the personal time-off highlight because both represent unavailable time. Important overrides the inline background colour while retaining its hatch image. */
   color: var(--color-timeoff-selected-ink);
   background-color: var(--color-timeoff-selected) !important;
   box-shadow:
@@ -542,21 +500,12 @@ input[type="radio"] {
     box-shadow 0.15s ease;
 }
 
-/* The closure's NAME renders on its own layer, not inside the band, so that a group header cannot
-   bury it (#788) — which also puts it outside the reach of the band's inherited colour above. Take
-   only the ink: the vivid fill and glow stay on the band itself, one highlight per closure. */
+/* The separate closure-label layer needs its own text colour because it cannot inherit from the highlighted band. Keep the fill and glow on the band. */
 [data-draw-mode="timeoff"] .scheduler-closure-label-layer {
   color: var(--color-timeoff-selected-ink);
 }
 
-/* Defensive net for the hover popover in time-off mode. The bars-layer `inert` already BLOCKS the
-   mouseenter/focus that opens a popover, so a new one can't appear; and any path to the Time-off
-   toggle blurs/leaves the bar first (clearing a pre-existing one). But the popover is portaled to
-   <body>, OUTSIDE the inert layer, so should one ever linger at the instant of toggle, inert can't
-   suppress it — hide it here. `:has()` lets a body-level rule key off the grid's draw mode without
-   re-subscribing every bar to the store. The mode is keyed off `data-draw-mode` (the real state
-   attribute, set only on the grid container) and the popover off its `.scheduler-alloc-popover`
-   class — production visuals never hang off a `data-testid`. */
+/* Portalled allocation popovers sit outside the inert bars layer, so time-off draw mode must hide any lingering popover through the grid attribute. */
 body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
   display: none;
 }
@@ -573,15 +522,10 @@ body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
 }
 
 [data-sonner-toast].toast-error [data-icon] {
-  /* Tint Sonner's built-in error glyph to the danger token (it ships a neutral currentColor). */
   color: var(--color-danger);
 }
 
-/* "Show me around" tour popover (driver.js — see lib/tour.ts). driver.css ships a hard-coded
-   white popover / #2d2d2d text, which breaks in dark mode; re-skin it onto the SAME
-   elevated/ink/muted/line tokens as the app's tooltips and toasts so both themes hold AA
-   automatically ([data-theme] flips the underlying --c-* values). The arrow is drawn with CSS
-   border triangles, so each side's visible border colour must match the popover surface. */
+/* The vendor tour theme has fixed light colours, so the popover uses application surface and ink tokens. Its arrow borders must match that surface in both themes. */
 .driver-popover {
   background-color: var(--color-elevated);
   color: var(--color-ink);
@@ -608,8 +552,7 @@ body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
   border-bottom-color: var(--color-elevated);
 }
 
-/* driver.css buttons ship a text-shadow + hard-coded greys; flatten them onto the app's
-   ghost-button look (ink text, line border, canvas hover). */
+/* Tour buttons use opaque application surfaces so their text contrast follows the active theme. */
 .driver-popover-footer button {
   text-shadow: none;
   background-color: var(--color-surface);
@@ -623,7 +566,6 @@ body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
 }
 
 .driver-popover-close-btn {
-  /* The close "×" is a borderless icon button in driver.css; keep it that way, just tinted. */
   background-color: transparent;
   border: none;
   color: var(--color-muted-foreground);

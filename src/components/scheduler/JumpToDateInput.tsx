@@ -3,12 +3,7 @@ import { useStore } from "@/store/useStore";
 import { Input } from "@/components/ui/input";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 
-/**
- * The schedule toolbar's jump-to-date picker (native `<input type="date">`).
- *
- * Not currently rendered: the toolbar gates it behind `SHOW_JUMP_TO_DATE` in
- * `ToolbarDateNavigation.tsx`. It remains covered by its own tests.
- */
+/** A native date picker that reanchors the schedule only after a valid date is selected. */
 export function JumpToDateInput() {
   const goToDate = useStore((state) => state.goToDate);
   const focusDate = useStore((state) => state.ui.focusDate);

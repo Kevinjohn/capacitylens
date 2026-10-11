@@ -3,9 +3,6 @@ import { Command as CommandPrimitive } from "cmdk";
 
 import { cn } from "@/lib/cn";
 
-// ShadCN/cmdk primitives with CapacityLens colour tokens. CommandPalette composes these inside
-// the shared ShadCN Dialog.
-
 /** Renders the command menu root. */
 function Command({
   className,
@@ -54,7 +51,6 @@ function CommandList({
   );
 }
 
-// Export the empty-state primitive so searchable fields can provide an explicit no-results state.
 /** Renders content when no command results match. */
 function CommandEmpty({
   className,
@@ -98,11 +94,7 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        // Active (cmdk sets data-[selected=true] on pointer-enter and keyboard nav) → the
-        // AA-validated brand-soft tint + ink. Deliberately no `hover:bg-canvas`: cmdk already
-        // activates the hovered row, so a CSS :hover canvas tint would only ever flash a
-        // `bg-canvas` row whose sublabel is still `text-faint` (4.43:1 on canvas, fails AA),
-        // whereas the active path swaps the sublabel to `text-muted-foreground`. No shadcn bg-accent.
+        // Local colour deviation: selected commands use the paired brand tint and ink. Avoid a separate hover fill because cmdk already changes selection on pointer movement and its paired text colour must change together.
         "relative flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-ink outline-none transition-colors select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-brand-soft data-[selected=true]:text-ink",
         className,
       )}

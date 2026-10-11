@@ -53,7 +53,6 @@ test.describe("Projects", () => {
       .click();
     await expect(page.getByTestId("project-row").filter({ hasText: "Project Watchtower" })).toHaveCount(0);
 
-    // Undo restores the archived project to the active list.
     await page.keyboard.press("Meta+z");
     await expect(page.getByTestId("project-row").filter({ hasText: "Project Watchtower" })).toBeVisible();
   });

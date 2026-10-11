@@ -9,13 +9,7 @@ import {
 } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
 
-// Shared form-validation helpers. Centralised so the same message isn't re-typed in every form
-// (it was duplicated ~15 times across the CRUD forms).
-//
-// i18n: the copy resolves through Paraglide (`@/i18n`), and every validator below calls `m.*()`
-// inside the function, never at module scope. That is load-bearing: a const captured at module
-// load would freeze the import-time language, and the locale can switch without a reload.
-// Mirrors metadata.ts.
+// Share validation copy and resolve it during the call so every form follows the current locale.
 
 type Fail = (field: string, message: string) => void;
 
@@ -79,12 +73,9 @@ export function validatePresetColor(value: string, fail: Fail, field = "color"):
   return true;
 }
 
-/** Require at least one working day. A resource with zero working days has zero capacity
- * every day (reads as permanently over-allocated), so the form must reject it, the
- * import path repairs an empty set, but the form is the only path that could persist one. */
+/** Rejects empty or invalid resource working-day sets and reports the field error. Store and server write boundaries independently enforce the same non-empty policy. */
 export function validateWorkingDays(days: number[], fail: Fail, field = "workingDays"): boolean {
-  // Shape (distinct in-week days) comes from the shared predicate; the non-empty rule is this
-  // caller's own policy. An empty company week is legal, an empty resource week is not.
+  // The shared predicate validates weekday shape; this form additionally requires a non-empty resource working week.
   if (!isWeekdaySet(days) || days.length === 0) {
     fail(field, m.validation_working_days_required());
     return false;

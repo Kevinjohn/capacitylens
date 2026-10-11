@@ -131,9 +131,7 @@ describe("resourceDisplayName / placeholderDisplayName", () => {
   });
 });
 
-// The two derivation primitives, now exported so a surface with an enum table of its own reuses them
-// instead of re-implementing the loop. Tested directly (rather than only through the enum accessors
-// above) because the lazy-resolution rule is the one a caller can break by accident.
+// Exercise the derivation primitives directly so independently owned tables preserve lazy locale lookup.
 describe("labelsFrom / toOptions", () => {
   it("resolves every message at CALL time, so a locale switch is live", () => {
     let locale = "en";

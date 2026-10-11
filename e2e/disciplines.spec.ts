@@ -33,14 +33,11 @@ test.describe("Disciplines", () => {
     await page.getByRole("alertdialog", { name: "Delete discipline?" }).getByRole("button", { name: "Delete" }).click();
     await expect(page.getByTestId("discipline-row").filter({ hasText: "Design" })).toHaveCount(0);
 
-    // Bruce Wayne remains in the resource list after his discipline is deleted.
     await page.getByRole("link", { name: "Resources" }).click();
     const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
     await expect(bruce).toBeVisible();
     await expect(bruce).toContainText("Designer");
     await expect(bruce).not.toContainText("—");
-    // …and still appears on the schedule in the fallback band (one Unassigned band, because the
-    // seeded company has no Supplementary people).
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
     await expect(page.getByTestId("discipline-group").filter({ hasText: "Unassigned" })).toBeVisible();

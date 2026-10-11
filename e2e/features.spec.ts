@@ -87,8 +87,7 @@ function registerClickingDisciplineHeaderCollapsesRowsTest() {
 function registerDraggingAllocationOntoAnotherRowTest() {
   test("dragging an allocation onto another row reassigns it", async ({ page }, testInfo) => {
     await openApp(page);
-    // Zoom keeps the left-edge date anchored (the frozen "today"'s Monday), so the
-    // Early-June seed bars stay in view, so no manual scroll reset is needed.
+    // Zoom preserves the seed week’s left edge, so these bars need no manual scroll reset.
     await setZoom(page, 4);
 
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
@@ -101,16 +100,13 @@ function registerDraggingAllocationOntoAnotherRowTest() {
     await page.mouse.move(cx, b0.y + b0.height / 2);
     await page.mouse.down();
     await page.mouse.move(cx, clark.y + clark.height / 2, { steps: 10 });
-    // Clark's row is highlighted as the drop target mid-drag.
     await expect(clarkLane).toHaveAttribute("data-droptarget", "");
     await page.screenshot({
       path: testInfo.outputPath("capacitylens_drophighlight.png"),
     });
     await page.mouse.up();
 
-    // Assert the resulting state, not a pixel delta: the bar now lives inside Clark's lane.
     await expect(clarkLane.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
-    // The highlight must clear after the drop.
     await expect(clarkLane).not.toHaveAttribute("data-droptarget", "");
   });
 }
@@ -185,7 +181,6 @@ function registerDrawingTimeOffModeOpensTest() {
     await page.mouse.move(x0 + 72, y, { steps: 6 });
     await page.mouse.up();
 
-    // Opens the time-off form (not the allocation modal), prefilled with the row's resource.
     const dialog = page.getByRole("dialog", { name: "Add time off" });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByLabel("Resource")).toHaveText("Clark Kent");
@@ -197,14 +192,12 @@ function registerDrawingTimeOffModeOpensTest() {
 function registerDrawingPlaceholderLocksModalBoundTests() {
   test("drawing on a placeholder locks the modal to its bound project", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
-    // Placeholder lanes are hidden by the per-account preference; enable them for this test.
     await showPlaceholders(page);
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
     await waitForWeekSnap(page);
 
-    // Select the seeded designer placeholder by its stable resource ID.
     const lane = page.locator('[data-resource-id="r-ph-designer"]');
     const b = await box(lane);
     const y = b.y + b.height / 2;

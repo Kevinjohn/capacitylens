@@ -23,8 +23,7 @@ describe("DEFAULT_COLORS", () => {
 
 describe("SWATCHES", () => {
   it("is a 13x4 grid of distinct, valid hex colours", () => {
-    // Kills the StringLiteral mutants (each entry replaced with "") in one pass: a blanked
-    // entry fails the hex-format check and collapses the uniqueness count.
+    // Swatches must remain unique non-empty hex colors.
     expect(SWATCHES.length).toBe(SWATCH_COLUMNS * 4);
     for (const hex of SWATCHES) {
       expect(hex).toMatch(/^#[0-9a-f]{6}$/);
@@ -43,8 +42,7 @@ describe("colorName", () => {
   });
 
   it("falls back to the raw hex for an unknown colour", () => {
-    // Kills the "i >= 0 -> true" and "i >= 0 -> i > 0" mutants: an unknown hex must take the
-    // else-branch and get the hex back verbatim, not a swatch label.
+    // An unknown hex must keep its literal label rather than receive an unrelated swatch name.
     const unknown = "#123456";
     expect(SWATCHES).not.toContain(unknown);
     expect(resolveColorName(unknown)).toBe(unknown);

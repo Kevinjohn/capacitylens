@@ -28,7 +28,6 @@ const twoFactorTableExists = createTableExistenceProbe("twoFactor");
 const federatedLinkObservationsTableExists = createTableExistenceProbe("capacitylens_federated_link_observations");
 const federatedLinkCeremoniesTableExists = createTableExistenceProbe("capacitylens_federated_link_ceremonies");
 const accountSessionAssuranceTableExists = createTableExistenceProbe("account_session_assurance");
-/** Better Auth and SQLite mechanics narrowed behind the provider-neutral IdentityPort. */
 
 function createCompensationMethods() {
   const compensationKey = randomBytes(32);

@@ -15,7 +15,6 @@ function registerDownloadScenarios(): void {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
       this: HTMLAnchorElement,
     ) {
-      // At click time the anchor is in the DOM (not detached) with the right attributes.
       expect(this.getAttribute("download")).toBe("out.json");
       expect(this.getAttribute("href")).toBe("blob:abc");
       expect(document.body.contains(this)).toBe(true);
@@ -27,11 +26,11 @@ function registerDownloadScenarios(): void {
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(clickSpy).toHaveBeenCalledOnce();
     expect(result).toBeUndefined();
-    expect(revokeObjectURL).not.toHaveBeenCalled(); // not synchronous, the browser is handling the request
+    expect(revokeObjectURL).not.toHaveBeenCalled();
 
     await new Promise((r) => setTimeout(r, 0));
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:abc");
-    expect(document.querySelector('a[download="out.json"]')).toBeNull(); // cleaned up afterward
+    expect(document.querySelector('a[download="out.json"]')).toBeNull();
   });
 
   it("does not claim it can observe a cancelled anchor activation", async () => {
@@ -94,7 +93,7 @@ function registerDownloadPropagationScenarios(): void {
     });
 
     downloadTextFile("out.json", '{"a":1}');
-    await new Promise((r) => setTimeout(r, 0)); // let the deferred cleanup remove the anchor
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(blobSpy).toHaveBeenCalledWith(['{"a":1}'], {
       type: "application/json",
@@ -116,7 +115,7 @@ function registerDownloadPropagationScenarios(): void {
 
     downloadTextFile("out.json", "{}");
     expect(clickSpy).toHaveBeenCalledOnce();
-    await new Promise((r) => setTimeout(r, 0)); // let the deferred cleanup remove the anchor
+    await new Promise((r) => setTimeout(r, 0));
   });
 }
 
@@ -135,7 +134,7 @@ function registerDownloadFailureScenarios(): void {
     expect(() => downloadTextFile("out.json", "{}")).toThrow(
       "Could not request the download. Check your browser’s download settings and try again.",
     );
-    // The half-built anchor/object-URL must be cleaned up, not leaked.
+
     expect(document.querySelector('a[download="out.json"]')).toBeNull();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:abc");
   });
@@ -173,6 +172,7 @@ function registerDownloadFailureScenarios(): void {
       downloadTextFile("out.json", "{}");
       expect.unreachable("should have thrown");
     } catch (e) {
+      // Capture the rejection to assert that the original failure survives in cause.
       expect((e as Error).cause).toBe(original);
     }
   });
@@ -198,6 +198,7 @@ function registerDownloadCleanupFailureScenarios(): void {
       downloadTextFile("out.json", "{}");
       expect.unreachable("should have thrown");
     } catch (error) {
+      // Capture the rejection to inspect both the user-safe message and its original cause.
       expect(error).toMatchObject({
         message: "Could not request the download. Check your browser’s download settings and try again.",
         cause: original,
@@ -216,7 +217,7 @@ function registerDownloadCleanupFailureScenarios(): void {
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
       this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
-    // Force the deferred cleanup's own remove() to throw, simulating a failure during teardown.
+
     vi.spyOn(HTMLAnchorElement.prototype, "remove").mockImplementation(() => {
       throw new Error("remove failed");
     });

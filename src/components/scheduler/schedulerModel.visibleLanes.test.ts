@@ -198,13 +198,11 @@ describe("partial exposure during an allocation drag", () => {
     try {
       expect(result.current).toBe(false);
 
-      // The window follows the scroll normally.
       scrollTo(1);
       expect(result.current).toBe(true);
       scrollTo(0);
       expect(result.current).toBe(false);
 
-      // While dragging, leftEdgeIndex is frozen, so this must not move either.
       act(() => useStore.setState({ draggingAllocationId: "a1" }));
       scrollTo(1);
       expect(result.current).toBe(false);

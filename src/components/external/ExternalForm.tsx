@@ -48,13 +48,7 @@ function ExternalFormFields(props: ExternalFormFieldsProps) {
   );
 }
 
-/**
- * Add/edit an external / 3rd-party party, a trimmed resource form. It captures only a company
- * name (required) and an optional descriptor. The capacity fields (hours, working days, discipline,
- * employment, project) don't apply, externals have no capacity, so they're stored as unused
- * silent defaults the rest of the app never reads. Colour is the single neutral swatch (no picker),
- * per DECISIONS.md "external kind". Store rejections surface as a form error, like ResourceForm.
- */
+/** Creates or edits an external company and optional descriptor. Externals have no capacity; neutral colour and inert capacity defaults preserve the Resource entity contract. */
 export function ExternalForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
   const add = useStore((state) => state.addResource);
   const update = useStore((state) => state.updateResource);
@@ -75,9 +69,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
       kind: "external" as const,
       name: cleanName,
       role: cleanRole,
-      // Capacity fields don't apply to an external, store the unused silent defaults (one source,
-      // shared with seed + fixtures) so the entity stays valid (the store asserts a non-empty working
-      // week + positive hours) while the scheduler / forms never show or read them.
+      // External capacity defaults satisfy the shared Resource validation contract even though capacity views exclude external load.
       ...externalCapacityDefaults(),
       color: NEUTRAL_COLOR,
     };
@@ -91,6 +83,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
       } else if (add(patch).kind === "blocked") return;
       onClose();
     } catch (e) {
+      // Surface store rejection inside the external-resource form so invalid writes cannot fail silently.
       fail(null, resolveErrorMessage(e));
     }
   };

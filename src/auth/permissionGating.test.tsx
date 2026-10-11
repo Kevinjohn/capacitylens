@@ -100,7 +100,7 @@ describe("useCanEdit gates the AllocationBar resize grips", () => {
     withRole("viewer", <AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     expect(screen.queryByTestId("resize-start")).not.toBeInTheDocument();
     expect(screen.queryByTestId("resize-end")).not.toBeInTheDocument();
-    // Display-only: role="img", not the interactive "button" an editor bar carries.
+
     expect(screen.getByTestId("allocation-bar")).toHaveAttribute("role", "img");
   });
 
@@ -129,7 +129,6 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
     expect(useStore.getState().data.resources).toHaveLength(0);
     expect(useStore.getState().notice?.message).toMatch(/read-only/i);
 
-    // Seed a row with a writable role so the refusal checks have a target.
     useStore.getState().setActiveRole(null);
     const seeded = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Seeded" })));
     expect(useStore.getState().data.resources).toHaveLength(1);

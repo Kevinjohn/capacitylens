@@ -142,26 +142,21 @@ export function ensureControlTables(db: Db): void {
     CREATE INDEX IF NOT EXISTS idx_account_members_accountId ON account_members(accountId);
     CREATE TABLE IF NOT EXISTS invites (
       tokenHash TEXT NOT NULL PRIMARY KEY,
-      id TEXT NOT NULL UNIQUE,      -- NON-SECRET handle (P1.11); list/revoke key on this, never the token
+      -- Use this non-secret handle for list and revoke operations so reads never expose the bearer.
+      id TEXT NOT NULL UNIQUE,
       accountId TEXT NOT NULL,
       role TEXT NOT NULL,
-      preauthEmail TEXT,            -- NULLABLE; P1.10 (email-preauth) uses it; P1.9 always writes NULL
+      preauthEmail TEXT,
       expiresAt TEXT NOT NULL,
-      usedAt TEXT,                  -- NULL = unused; set once on accept (single-use)
+      usedAt TEXT,
       createdAt TEXT NOT NULL
     );
   `);
   // The v26 migration owns this additive shape. Repeating its guarded repair here keeps fresh and
   // pre-ledger development databases on the same every-boot control-plane boundary as invites.
   migrateMemberSignInTrackingV26(db);
-  // Additive column for an already-created dev DB (the `id` column
-  // arrived after the `invites` table). A DB that already has the older table won't get `id` from the
-  // IF-NOT-EXISTS CREATE above (node:sqlite never re-runs CREATE on an existing table), so add it
-  // here: guarded by a column-exists check, mirroring schema.ts's additive ALTER idiom. SQLite
-  // can't ALTER-ADD a NOT NULL column to existing rows, so it lands nullable; createInvite always
-  // writes a non-null id, and the rebuilt DDL above makes it NOT NULL for every fresh DB.
-  // Fetch the invites column set once (rather than one PRAGMA per column checked below), both
-  // `legacyPlaintextInvites` and the `id`-presence check below read the same live shape.
+  // IF NOT EXISTS cannot add id to an existing invites table.
+  // Read columns once for the released compatibility repair and plaintext-bearer migration.
   const inviteColumnNames = new Set(
     (db.prepare(`PRAGMA table_info(invites)`).all() as Array<{ name: string }>).map((c) => c.name),
   );

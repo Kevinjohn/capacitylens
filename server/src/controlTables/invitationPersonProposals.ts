@@ -290,6 +290,7 @@ export function settleInvitationPersonProposal(input: {
       void mutation;
       removeMemberResourceLinkException(input.db, input.accountId, input.userId);
     } catch (cause) {
+      // Record expected resource occupancy as an administration exception without failing invitation admission; unrelated faults must roll back the claim.
       if (!isAccountMemberResourceConflict(cause, "resource_already_linked")) throw cause;
       upsertMemberResourceLinkException({
         db: input.db,

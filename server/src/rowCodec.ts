@@ -1,18 +1,13 @@
 import type { SQLInputValue } from "node:sqlite";
 import type { TableSpec } from "./tables";
 
-// Row <-> object codecs, extracted from db.ts. They map between a SQL row (column order
-// per the table spec) and the plain AppData entity object the client already speaks:
-// json columns are JSON.stringify'd on write / parsed on read, and absent optionals are
-// stored NULL and omitted again on read so a round-trip deep-equals the client's object.
-// Pure: no DB handle, so they're independently testable.
+// Row codecs preserve column order, JSON encoding and omission of nullable optional values without database I/O.
 
 /**
  * Represents a SQLite row as values keyed by column name.
  */
 export type Row = Record<string, unknown>;
 
-/** Object → SQL row cell: JSON-encode json columns, undefined → null. */
 function toCell(c: TableSpec["columns"][number], v: unknown): SQLInputValue {
   if (v === undefined || v === null) return null;
   return (c.json ? JSON.stringify(v) : v) as SQLInputValue;

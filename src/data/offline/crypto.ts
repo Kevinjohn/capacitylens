@@ -69,6 +69,7 @@ function readStoredWriteBoundaryToken(): string | null {
   try {
     return localStorage.getItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY);
   } catch (error) {
+    // An unreadable write boundary cannot safely authorize cache writes; warn and reject the write claim.
     console.warn("offlineCache: the offline write boundary could not be read; rejecting cache writes", error);
     return null;
   }

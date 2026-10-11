@@ -42,7 +42,7 @@ export function parseSchemaVersion(record: Record<string, unknown>): number {
 }
 
 /** Unwrap the object the import shape-guards inspect: either the bare AppData map, or
- * the `data` field of a { schemaVersion, data } export. Returns null if not a plain object. */
+ * the `data` field of a { schemaVersion, data } export. Returns null if not a non-null, non-array object. */
 export function importCandidate(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
@@ -52,11 +52,7 @@ export function importCandidate(value: unknown): Record<string, unknown> | null 
     : null;
 }
 
-/** Recognisable-CapacityLens guard for the import path: any JSON that parses but isn't
- * shaped like CapacityLens data would otherwise be migrated to an empty dataset and
- * silently wipe the user's data. (The load path stays lenient on purpose.) Lives in
- * migrate.ts so the shape guard and the migrate it gates can't drift, mirrors how
- * schedule/diary keep their `looksLike…` guard next to migrate(). */
+/** Reject unrelated JSON before migration can normalize it into an empty dataset and replace existing data. */
 export function looksLikeCapacityLens(value: unknown): boolean {
   const candidate = importCandidate(value);
   // Accept legacy keys too (e.g. pre-rename `tasks`) so a valid older export, even one

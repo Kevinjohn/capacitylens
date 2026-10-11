@@ -4,9 +4,7 @@ import type { LifecycleFields } from "./types";
 import { PARENT_TABLES, inspectAncestry } from "./ancestry";
 import type { LifecycleAncestryRow, LifecycleAncestryLookup, LifecycleAncestryMemo } from "./ancestry";
 
-// Compile-time completeness guard for {@link activeOnly}'s projection: every scoped table except
-// `disciplines` (which carries no lifecycle edge) must be re-projected below, so adding a scoped
-// table fails the type-check here rather than silently passing through unprojected.
+// Require projection coverage for every scoped table except disciplines and closures, which have no lifecycle edges.
 type ProjectedLifecycleKey = Exclude<ScopedEntityKey, "disciplines" | "closures">;
 const PROJECTED_LIFECYCLE_KEYS = [
   "resources",
@@ -24,33 +22,10 @@ const projectedKeysAreComplete: MissingProjectedKey extends never ? true : never
 void PROJECTED_LIFECYCLE_KEYS;
 void projectedKeysAreComplete;
 
-/**
- * Project an {@link AppData} to its active rows only, drop every non-active (archived or soft-deleted)
- * Resource/Client/Project. Pure: returns a new AppData; the input and every nested array are left
- * untouched (the kept rows are the same object references, just re-collected into fresh arrays).
- *
- * This is the single source of the "hide non-active from the view" rule, reused by both the
- * client view seam (`useActiveScopedData`, src/store) and the server per-account read
- * (`readSlice`'s `includeInactive: false` branch, server/db.ts), so the two halves can't drift on
- * what "shown in the normal app" means. "Active" is exactly `lifecycleStatus(e) === 'active'`, so the
- * lifecycle state machine stays the single authority (a future state never silently leaks into views).
- *
- * Proven lifecycle state is inherited by the read projection: projects under hidden clients, phases and
- * project activities under hidden projects, and allocations/time off whose visible endpoint was
- * hidden are also removed. Storage and exports retain those rows; normal views do not leak
- * orphan-labelled descendants or allocation bars after a parent is archived/deleted. Unresolvable
- * references are retained rather than treated as invented lifecycle evidence, so integrity damage
- * stays visible through the app's safe fallback labels and can be diagnosed.
- *
- * Invariant: view/read projection only. Use this only where the goal is "what the normal app shows":
- * the scheduler/list/picker/palette views and the per-account read. Never on an integrity, mutation,
- * cascade, import, migrate or export path. Those must see every row (a backup retains archived/
- * soft-deleted rows; cascade/integrity reason over the full set). Hiding rows from those paths would
- * silently drop retained data. This is a payload-narrowing projection, not a delete.
- *
- * @param data - the full (already account-scoped) AppData to project.
- * @returns a new AppData identical to `data` except non-active resources/clients/projects are removed.
- */
+/** Project an already account-scoped AppData slice to active lifecycle rows and visible descendants.
+ * Pure; returns a new object without changing the input. Filtered tables receive new arrays; retained rows and unchanged tables share references.
+ * Unresolved references remain visible so integrity damage can be diagnosed.
+ * Use only for read/view projection. Persistence, mutations, integrity checks, imports, migration and exports require the complete dataset. */
 export function activeOnly(data: AppData): AppData {
   const isActive = (entity: LifecycleFields) => lifecycleStatus(entity) === "active";
   const indexes = Object.fromEntries(

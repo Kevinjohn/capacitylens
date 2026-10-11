@@ -1,16 +1,8 @@
 import type { AllocationStatus, Resource, ResourceEngagement, TimeOffType } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 
-// Single source of truth for enum presentation. Each enum gets one message table, exhaustive by
-// type (add a union member without an entry and tsc fails). Everything else (the single-value
-// label getter, the label map, the <select> option array) is derived from that table, so there's
-// nothing to keep in sync. (Enum *unions* stay in types/entities.ts; only their labels here.)
-//
-// i18n: a table holds its message functions uncalled, and every exported accessor invokes them, so
-// the active locale is resolved at call time. The runtime switches locale without a reload
-// (syncLocaleFromAccount), so a resolved string captured at module load would freeze the boot-time
-// language; keeping resolution lazy here is what keeps an account/locale switch live across every
-// select and label render.
+// Exhaustive message-function tables keep enum presentation synchronized. Resolve
+// functions only at lookup so account locale changes cannot reuse import-time copy.
 
 /** A `<select>`/segmented-control option. `V` carries the enum union through the derivation, so a
  * caller binding `options={buildAllocationStatusOptions()}` gets `value: AllocationStatus` rather than a
@@ -20,23 +12,17 @@ export interface LabelOption<V extends string = string> {
   label: string;
 }
 
-/** One uncalled message reference per union member, the per-enum source list. Exported alongside
- * {@link buildLabels} so a caller outside this file can name the shape it must build. */
+/** One uncalled localized message function per enum member. */
 export type LabelMessages<K extends string> = Record<K, () => string>;
 
-/** Resolve a whole message table to strings, in its declaration order. Exported so a surface with an
- * enum table of its own (a settings section's per-option copy, say) derives its labels through the
- * same lazy-resolution rule rather than hand-rolling a second `Object.keys` loop that a locale
- * switch would then have to be re-audited against. */
+/** Resolves a message table in declaration order using the current locale. */
 export function buildLabels<K extends string>(messages: LabelMessages<K>): Record<K, string> {
   const labels = {} as Record<K, string>;
   for (const key of Object.keys(messages) as K[]) labels[key] = messages[key]();
   return labels;
 }
 
-/** Turn a resolved label map into `<select>` options, preserving key order. Exported for the same
- * reason as {@link buildLabels}: option lists built elsewhere keep this file's `LabelOption` shape
- * and its value-typing, instead of a parallel `.map` that widens `value` back to `string`. */
+/** Converts labels into typed control options while preserving key order. */
 export function buildLabelOptions<K extends string>(labels: Record<K, string>): LabelOption<K>[] {
   return (Object.entries(labels) as [K, string][]).map(([value, label]) => ({ value, label }));
 }
@@ -97,22 +83,12 @@ export function buildTimeOffTypeLabels(): Record<TimeOffType, string> {
   return buildLabels(timeOffTypeMessages);
 }
 
-/** Primary display name for a placeholder ("slot") resource: the literal word "Placeholder"
- * (per the product acceptance, it derives from the word itself). The resource's own role/discipline
- * is shown as secondary text by the callers, so we deliberately do not fold the role in here or
- * invent per-slot numbering. One source so the schedule lane, the assignee picker, the command
- * palette and the Resources list can't drift on what a placeholder is called. The placeholder
- * feature is gated behind the per-account `placeholdersEnabled` setting on the Account (default off). */
+/** Returns the localized placeholder label; role and discipline remain separate secondary text. */
 export function resolvePlaceholderDisplayName(): string {
   return m.placeholder_display_name();
 }
 
-/** The display name for any resource: the literal word "Placeholder" for a placeholder ("slot")
- * resource (per `resolvePlaceholderDisplayName` above), otherwise the resource's own name (falling back
- * to its role when unnamed). One source so every render site agrees on what a resource is called
- * (the schedule lane + its add button, the assignee picker, the command palette, and the Resources
- * list row and its delete confirm), and a placeholder can't read as its role in one place while
- * reading as "Placeholder" everywhere else. No behaviour change for non-placeholders. */
+/** Returns the placeholder label for slots, otherwise the resource name with role fallback. */
 export function resolveResourceDisplayName(resource: Resource): string {
   if (resource.kind === "placeholder") return resolvePlaceholderDisplayName();
   return resolveTrimmedValue(resource.name, resource.role);

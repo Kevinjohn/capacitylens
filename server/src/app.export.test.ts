@@ -46,18 +46,11 @@ const person = (id: string, accountId: string, extra: Record<string, unknown> = 
   ...extra,
 });
 
-// A soft-delete TOMBSTONE (deletedAt set; archivedAt precedes it because soft-delete requires prior
-// archival) and a plain ARCHIVED marker, the two non-active states a complete backup must retain.
+// Include archived rows and purge-eligible tombstones because complete backups must retain both.
 const ARCHIVED = { archivedAt: TS };
 const TOMBSTONE = { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" };
 
-/**
- * Seed account a1 with three resources spanning every lifecycle state the backup must retain:
- *  - rActive: active (visible in both the normal and the complete read)
- *  - rArchived: archived (archivedAt set, retained only by the complete read)
- *  - rDeleted: soft-deleted tombstone (deletedAt set, retained only by the complete read)
- * a2 carries an unrelated resource so the per-account scoping is testable.
- */
+// Include every lifecycle state and a foreign account so export assertions cover retention and tenant isolation.
 function seedResources(db: Db): void {
   const d = emptyAppData() as unknown as Record<string, unknown[]>;
   d.accounts = [account("a1"), account("a2")];
@@ -83,11 +76,11 @@ describe("P2.6a complete per-tenant export — full slice INCLUDING inactive (th
     const res = await app.inject({ method: "GET", url: "/api/state?accountId=a1&includeInactive=1" });
     expect(res.statusCode).toBe(200);
     const got = ids(res.json());
-    // The complete backup retains every row, including the two non-active tombstones.
+
     expect(got).toContain("rActive");
     expect(got).toContain("rArchived");
     expect(got).toContain("rDeleted");
-    // Per-account scoping: a2's resource never appears in a1's export.
+
     expect(got).not.toContain("rOther");
   });
 
@@ -102,9 +95,9 @@ describe("P2.6a complete per-tenant export — full slice INCLUDING inactive (th
     const res = await app.inject({ method: "GET", url: "/api/state?accountId=a1" });
     expect(res.statusCode).toBe(200);
     const got = ids(res.json());
-    // The active row survives both reads….
+
     expect(got).toContain("rActive");
-    // But the archived + tombstoned rows are dropped here.
+
     expect(got).not.toContain("rArchived");
     expect(got).not.toContain("rDeleted");
   });
@@ -146,7 +139,7 @@ describe("P2.6a complete per-tenant export — server-control tables / PII struc
     const res = await app.inject({ method: "GET", url: "/api/state?accountId=a1&includeInactive=1" });
     expect(res.statusCode).toBe(200);
     const state = res.json() as Record<string, unknown>;
-    // No control-table key on the wire shape.
+
     expect(state).not.toHaveProperty("account_members");
     expect(state).not.toHaveProperty("invites");
     // No control-plane value anywhere in the serialised export (mirrors app.controlTables.test.ts):
@@ -159,7 +152,7 @@ describe("P2.6a complete per-tenant export — server-control tables / PII struc
     expect(serialised).not.toContain("invitation_person_proposals");
     expect(serialised).not.toContain("private-proposed-resource");
     expect(serialised).not.toContain("resource_unavailable");
-    // Sanity: the account's own data is in the export (proving we asserted absence on a populated payload).
+    // Assert presence first so the secrecy checks cannot pass against an empty export.
     expect(ids(res.json())).toContain("rActive");
   });
 });

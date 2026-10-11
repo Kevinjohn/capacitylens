@@ -13,7 +13,6 @@ describe("account_members is excluded from the AppData path", () => {
   it("is not a known entity for generic CRUD (GET + POST → 4xx, not 200)", async () => {
     const app = createApp(openDb(":memory:"));
 
-    // No GET /api/:entity route exists at all → Fastify 404 (never a 200 listing the table).
     const get = await app.inject({ method: "GET", url: "/api/account_members" });
     expect(get.statusCode).toBe(404);
 
@@ -41,16 +40,14 @@ describe("account_members is excluded from the AppData path", () => {
       createdAt: "2026-01-01T00:00:00.000Z",
     });
 
-    // The wire shape: GET /api/state backs the client hydrate and is the export source.
     const res = await app.inject({ method: "GET", url: "/api/state" });
     expect(res.statusCode).toBe(200);
     const state = res.json() as Record<string, unknown>;
     expect(state).not.toHaveProperty("account_members");
-    // Belt-and-braces: no value anywhere in the serialised state mentions the table or the row.
+
     expect(JSON.stringify(state)).not.toContain("account_members");
     expect(JSON.stringify(state)).not.toContain("user-1");
 
-    // And loadState (the function GET /api/state and export both call) has no such key either.
     expect(readState(db) as unknown as Record<string, unknown>).not.toHaveProperty("account_members");
   });
 });
@@ -104,7 +101,7 @@ describe("account_ownership_transfers is excluded from the AppData path", () => 
     expect(res.statusCode).toBe(200);
     const state = res.json() as Record<string, unknown>;
     expect(state).not.toHaveProperty("account_ownership_transfers");
-    // Belt-and-braces: neither the table name nor either named principal appears on the wire.
+
     const serialised = JSON.stringify(state);
     expect(serialised).not.toContain("account_ownership_transfers");
     expect(serialised).not.toContain("u-bruce-wayne");

@@ -137,6 +137,7 @@ export async function runExternalSignIn({
     try {
       navigate(redirect.url);
     } catch (error) {
+      // Hand transport failure to the invite-specific recovery surface because the provider has not confirmed handoff.
       onRequestError(error);
       return;
     }

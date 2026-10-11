@@ -30,7 +30,6 @@ export function createInvitePreviewAction({
   setState,
 }: Dependencies) {
   return () => {
-    // Demo mode or a missing token has no invitation to preview.
     if (!isServerConfigured() || !token) return;
     const requestState = { cancelled: false };
 

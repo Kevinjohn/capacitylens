@@ -1,3 +1,4 @@
+// Account administration decodes untrusted responses here so Team and access controllers consume semantic outcomes.
 import type { InvitationRole, JoiningPolicySettings, MembershipStatus } from "@capacitylens/shared/account/types";
 import { isAccountRole, isJoiningPolicy, isMembershipStatus } from "@capacitylens/shared/account/types";
 import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";
@@ -236,7 +237,6 @@ function parseToken(value: unknown): OneTimeToken | null {
   };
 }
 
-/** A successful no-content response is the whole answer; there is no body to decode. */
 const noContent = (): true => true;
 
 function parseJoiningPolicy(value: unknown): JoiningPolicySettings | null {
@@ -246,8 +246,6 @@ function parseJoiningPolicy(value: unknown): JoiningPolicySettings | null {
   return { policy: value.policy, approvedDomains };
 }
 
-/** Typed account-administration boundary. Raw Response handling and untrusted payload codecs stay
- * here; the Team & access controller consumes semantic outcomes only. */
 type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
 /** Provides typed request methods for team and access administration. */
 export const teamAccessClient = {

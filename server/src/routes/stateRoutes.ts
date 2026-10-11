@@ -27,8 +27,7 @@ type StateAccountAdministration = AccountAdminPort & {
   roleForPrincipalInWorkspace(principalId: string, workspaceId: string): Role | null;
 };
 
-/** Stable server-owned id for an omitted workspace id. A retry carrying the same command must
- * address the same workspace rather than minting a new id and conflicting with its own ledger. */
+// Derive omitted workspace IDs from the command so an identical retry addresses the same durable outcome.
 function buildWorkspaceId(commandId: string): string {
   return `w_${createHash("sha256")
     .update("capacitylens-workspace-command\0")
@@ -79,11 +78,7 @@ async function listAccounts(
 ): Promise<FastifyReply> {
   const { db, authMode, accountAdminPort, masquerades, resolveEffectiveRole } = dependencies;
   if (authMode === "off") {
-    // No membership in off mode: every account is visible. Map to the same AccountSummary shape
-    // The account port maps to ({ id, name, role }) so the auth-on / auth-off shapes are identical on
-    // the wire. The role is 'owner', the trusted-local full-access sentinel: off is byte-identical
-    // to today's no-login deploy, so the client's pure `can('owner', …)` keeps off fully editable
-    // (and a Viewer read-only mode is reachable only auth-on, where a real membership role exists).
+    // Off mode has no membership gate; return every company with owner as its trusted-local capability sentinel.
     const accounts = listAccountSummaries(db);
     return reply
       .code(200)
@@ -161,43 +156,9 @@ function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDepend
   // With `?accountId=`, return that account's scoped slice through AccountStore. Off mode is
   // trusted-local; auth-on requires read authorization and cannot cross tenant boundaries.
   app.get<StateReadRoute>("/api/state", (req, reply) => {
-    // Refuse a cross-tenant read before any data leaves the DB. The authorize seam is the
-    // single source of truth: off mode short-circuits to allow-all (trusted-local), auth-on
-    // requires membership (read = any member, via can()) and 403s a non-member.
-    // The time-off `note` is owner/admin-only. Decide visibility from
-    // the caller's role and redact it server-side so it never serializes for an Editor/Viewer.
-    // Off mode = trusted-local ⇒ include. Auth-on: owner/admin include, editor/viewer omit.
-    // The port role is non-null here (authorize('read') already proved membership); the `role !==
-    // null` guard is belt-and-braces / fail-closed (an unexpected null omits the note, never leaks).
-    // Derive the export/read include flags from the same GATED_FIELD_POLICIES predicates that
-    // drive the write-pin and read-echo, so the three can never disagree. Off is trusted-local ⇒
-    // include everything; otherwise each gated field is included iff the role may see it.
-    // `?includeInactive=1` asks for the full slice
-    // (archived + soft-deleted rows retained), which is privileged: it is gated at the same tier as
-    // purge (admin+ with a fresh session), the lifecycle-management tier, so an editor/viewer or
-    // stale privileged session cannot pull tombstones. Off mode is trusted-local ⇒ always allowed.
-    // A refusal is explicit rather than silently falling back to the active-only read.
-    //
-    // This admin/'purge'-gated `?includeInactive=1` read is the complete per-tenant backup: exactly
-    // one account's slice (the accountId guard
-    // above), retaining archived + soft-deleted rows so nothing is silently dropped from the backup,
-    // unlike the client's active-only "Export JSON", which projects via activeOnly and so
-    // omits tombstones. The server-control tables (account_members / invites / Better Auth user|
-    // session|account) are structurally excluded: readSlice only ever reads `accounts` + the scoped
-    // tables, never the control plane, so membership/invite secrets/PII can never ride the export.
-    // The slice composition is locked by app.export.test.ts.
-    // The normal app read hides archived/soft-deleted resources/clients/projects: pass
-    // includeInactive:false so readSlice drops them server-side (the same rule the client views
-    // apply via useActiveScopedData). The privileged read passes true to retain them.
-    // Without ?accountId=, auth-on whole reads are closed: a logged-in user hydrates one account
-    // via ?accountId= (the client picker
-    // → GET /api/accounts → GET /api/state?accountId=). Returning the whole DB to any authed user
-    // was a tenant-isolation leak; 400 it. Off mode is trusted-local, so it retains the whole read
-    // (serverTestState, the off db-backed e2e, and the off app.accounts tests all rely on it). The client
-    // adapter treats this 400 on the no-arg read as "hydrate empty, show the picker" (see
-    // ServerSyncAdapter.loadAll), so a no-arg bootstrap in auth-on lands on the picker, not an error.
-    // Off retains its trusted-local whole read. This whole read does not redact the
-    // time-off `note`, fine, off is trusted-local and includes it everywhere.)
+    // Authorize tenant reads before loading data and derive confidentiality from the shared field-policy catalogue.
+    // Inactive rows require purge authority; all projections still redact fields the actor cannot see.
+    // Whole-database reads remain trusted-local only and never include authentication or control tables.
     return readStateRoute(req, reply, dependencies);
   });
 }
@@ -228,8 +189,7 @@ async function provisionOrganisation(input: OrganisationProvisionInput): Promise
     bootstrapAuthorized,
     canonicalProductPayload: canonicalAccountRow,
     provisionProductData: () => {
-      // Account validation is name-only, so it needs no cross-table data. Validate against this
-      // account's empty slice.
+      // Account validation has no referential dependencies, so an empty projection is sufficient.
       assertValidWrite({ state: emptyAppData(), table: "accounts", row: accountRow });
       insertRow(db, "accounts", accountRow);
       insertRow(db, "clients", buildInternalClient(id, now) as unknown as Record<string, unknown>);
@@ -261,43 +221,13 @@ async function createOrganisation(
 ): Promise<FastifyReply> {
   const { authMode, auth, bootstrapToken, accountCommand, accountFail, sendFail } = dependencies;
 
-  // Constrained org creation is the atomic "create a usable account" path and, with auth
-  // on: the only account-create path: the generic vectors (POST /api/accounts, PUT-as-create,
-  // batch PUT-as-create) now refuse auth-on creates with a 403 directing here (see
-  // REPLY_ERRORS.accountCreateClosed; they stay open in off mode for the trusted-local client).
-  // Unlike those bare row writes, /api/orgs also mints the account's built-in Internal client and
-  // makes the caller its Owner, in one transaction.
-  //
-  // Authorization is evaluated by AccountAdminPort inside the coordinator's transaction while
-  // the application-wide provisioning lock is held. That closes the check/write race between two
-  // concurrent first-company requests while keeping policy out of the coordinator itself. Two
-  // separate conditions must pass:
-  //
-  //   (1) The single-company cap (whether a new company may exist at all; see
-  //       AppOptions.multiAccount). It is evaluated first so a denied caller sees the actionable
-  //       cap message. Off mode and the bootstrap token do not bypass it.
-  //
-  //   (2) who may create it once the cap permits. AccountAdminPort applies the same four arms that
-  //       /api/auth/me mirrors for its advisory canCreateAccount flag. Allowed iff any of:
-  //   (1) zero accounts exist, first-run bootstrap (anyone may create the very first org; this
-  //       is also the only case gate 0 lets through by default, so it's the common path).
-  //   (2) off mode (trusted-local), mirrors the authorize() off no-op; req.user is DEMO_USER.
-  //   (3) auth-on: the caller is an active Owner/Admin of some existing account (can(role,
-  //       'manageMembers') = admin-tier) with fresh administrative assurance, an existing
-  //       operator may provision more orgs after the same step-up required for other Owner grants.
-  //   (4) a valid bootstrap token in the `x-capacitylens-bootstrap-token` header (opts.bootstrapToken,
-  //       env CAPACITYLENS_BOOTSTRAP_TOKEN, off by default, disabled when unset/empty).
-  // Otherwise 403, the acceptance criterion: a stranger cannot create an org once any account
-  // exists, absent a bootstrap token. The gate runs in auth-on and off; in off mode (1)/(2) already
-  // allow, so the token/membership branches are moot there.
+  // Provision company data, its Internal client and owner membership atomically under the provisioning lock.
+  // The company-count cap applies before caller authorization and cannot be bypassed by off mode or a bootstrap token.
   try {
     if (!isRecord(req.body)) return reply.code(400).send({ error: REPLY_ERRORS.companyDetailsNotObject });
 
-    // Build a valid account row from the body (name required; colour repaired; junk schedulingMode
-    // dropped) via the same sanitize/validate the generic account create uses, so /api/orgs can't
-    // persist a row the generic path would reject. The id is generated server-side when the body
-    // omits one (the org-create caller need not mint it, unlike the entity sync path); a provided id
-    // is accepted and validated like any other write.
+    // Ordinary company writes reject malformed supplied fields before canonicalization.
+    // Omitted IDs derive from the command for replay; explicit IDs must pass ordinary validation.
     if (authMode === "sso-only" && !isPermittedCompanyProvider(auth, req.authenticationProviderId)) {
       return accountFail(
         reply,
@@ -336,6 +266,7 @@ async function createOrganisation(
     });
     return response;
   } catch (error) {
+    // Preserve typed provisioning refusals and redact unexpected setup faults rather than returning a usable-company receipt.
     return error instanceof AccountContractError ? accountFail(reply, error) : sendFail(reply, error);
   }
 }

@@ -10,9 +10,7 @@ import {
 import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";
 
-// Lazy so Better Auth's client (pulled in by ReauthDialog) never enters the main bundle, the same
-// discipline as LoginScreen. The step-up dialog only exists in an auth-on session that hits a
-// SESSION_NOT_FRESH 403 (defect B).
+// Keep re-authentication behind a lazy boundary so the auth client is loaded only when a protected action needs interactive authentication.
 const ReauthDialog = lazy(() =>
   import("./ReauthDialog").then((screenModule) => ({ default: screenModule.ReauthDialog })),
 );
@@ -37,8 +35,7 @@ export function ReauthMount({
 }) {
   const pending = useSyncExternalStore(subscribeReauth, isReauthPending);
   const action = readReauthAction();
-  // This host exists only while the authenticated subtree is rendered. A concurrent 401 or
-  // A sign-out transition removes it; settle every outside-React waiter before disappearing.
+  // Unmounting this authenticated host must settle every waiting request so sign-out cannot leave non-React callers pending.
   useEffect(() => () => completeReauth({ reauthenticated: false }), []);
   if (!pending) return null;
   return (

@@ -2,17 +2,7 @@
  * Barrel file: it re-exports only (no local component definitions), so it is not itself a
  * Fast Refresh boundary. The rule's `export *` check is a false positive here. Fast
  * Refresh still works at the component-defining modules (./dialogs, ./fields, etc.). */
-// Product-level UI compositions. Generic primitives live in ../ui; this barrel exposes the
-// CapacityLens-specific behaviors layered on top of them.
-//
-//   ./dialogs           AddButton, EditButton, DeleteButton, Modal, ConfirmDialog, EmptyState
-//   ./ListPage          ListPage
-//   ./fields            Product field layouts and labelled text, textarea, number, date, select,
-//                       colour, switch, segmented and weekday controls
-//   ./badges            ColorSwatch, PLACEHOLDER_AVATAR_SYMBOL, Avatar
-//   ./SegmentedControl  SegmentedControl, SegmentedOption  (the pill radio-group chooser)
-//   ./SectionHelp       SectionHelp  (labelled question-mark action + help modal)
-//   ./FormActions       FormActions  (standard Cancel/submit footer actions)
+// Product compositions layer CapacityLens behaviour over the generic primitives.
 
 export * from "./dialogs";
 export * from "./ListPage";

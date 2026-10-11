@@ -1,28 +1,7 @@
-// DDL. Foreign keys mirror the shared cascade rules in shared/src/lib/integrity.ts exactly:
-//   resource → allocations/timeOff : CASCADE        (deleteResourceCascade)
-//   activity     → allocations          : CASCADE        (deleteActivityCascade)
-//   phase    → activities.phaseId         : SET NULL       (deletePhaseCascade: unbind)
-//   project  → phases/activities          : CASCADE        (deleteProjectCascade)
-//   project  → resources.projectId   : SET NULL       (placeholder unbind)
-//   project  → allocations.projectId : SET NULL       (repeatable booking attribution unbind)
-//   client   → projects              : CASCADE        (deleteClientCascade)
-//   discipline → resources.disciplineId : SET NULL    (deleteDisciplineCascade: ungroup)
-//   account  → everything scoped     : CASCADE        (deleteAccountCascade, the one account-scoped
-//                                                     transform, and it lives in
-//                                                     shared/src/domain/mutations.ts, not integrity.ts)
-//
-// SET NULL alone only unbinds; it does not bump the survivor's updatedAt, so an admin purge restamps
-// those rows itself (purgeLifecycleRow in accountStore.ts) and a sync client observes the edit. This
-// mapping is a comment, so cascadeParity.test.ts is what actually holds the two sides together: it
-// runs one fixture through the shared transforms and through this schema (+ purge) and diffs the
-// survivors. Change a rule here or there and that suite fails.
-//
-// id columns are declared NOT NULL here for fresh databases. Existing databases are
-// not rebuilt to add NOT NULL to the PK, a table-rebuild for all 9 tables is
-// disproportionate, and assertSchemaCurrent already exempts `id` from its nullability
-// check (SQLite PRAGMA reports notnull=0 for TEXT PRIMARY KEY regardless of the DDL,
-// so the spec and live DB would always appear to disagree). The route-level
-// assertIdPresent() in sanitizeWrite is the universal guard for all write paths.
+// The immutable v8 DDL anchors historical upgrades; later migrations own additions to the live schema.
+// Foreign-key cascade behavior must stay aligned with shared domain transforms, as cascadeParity verifies.
+// SET NULL does not advance survivor revisions, so lifecycle purge restamps unbound rows.
+// Explicit NOT NULL is required on fresh text primary keys; older nullable primary keys remain supported through write validation.
 /** Immutable schema text checksummed by the released v8 baseline migration. Do not edit. */
 export const SCHEMA_V8_SQL = `
 CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);

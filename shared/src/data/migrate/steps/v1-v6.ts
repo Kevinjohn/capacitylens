@@ -81,7 +81,6 @@ export function migrateV4toV5(data: Record<string, unknown>): Record<string, unk
     }
   }
   delete migratedData.tasks;
-  // Rename the FK on every allocation: `taskId` → `activityId`.
   if (isUnknownArray(migratedData.allocations)) {
     migratedData.allocations = migratedData.allocations.map((allocation) => {
       if (!isRecord(allocation) || !("taskId" in allocation)) return allocation;
@@ -94,20 +93,10 @@ export function migrateV4toV5(data: Record<string, unknown>): Record<string, unk
   return migratedData;
 }
 
-/** v5 → v6: ensure every account carries exactly one built-in "Internal" client (`builtin: true`).
- * A real, persisted Client (not a sentinel) so it can own projects and bucket project-less
- * activities. Idempotent: an account that already has a `builtin` client is left alone, so this is
- * safe to run repeatedly and on already-migrated / seeded data. A duplicate is never created, and a
- * blob that already satisfies the invariant round-trips deep-equal (no client added → no change).
- * Detection is by the flag, not an id (so it survives import-remap). Runs after the v4→v5 rename, so
- * the tables are at their current names; `accounts`/`clients` may be absent on a partial blob. We
- * no-op then (an account-less import slice has nothing to attach an Internal client to).
- *
- * This is the typed `ensureInternalClients` algorithm (see internalClient.ts) re-expressed for the
- * raw, untyped migration blob: a versioned migration runs on a pre-typed `Record<string, unknown>`
- * and must stay deterministic (no live clock, a fixed timestamp), so it can't call the typed helper
- * directly. The row shape + the "match builtin by flag + accountId" predicate are kept in lockstep by
- * using the shared `buildInternalClient` factory for the row literal. */
+/** Backfill one built-in Internal client for each v5 account that has none.
+ * Existing built-in rows, including duplicates, remain for subsequent Internal-client repair.
+ * Match by builtin and accountId so import remapping cannot break detection. Missing clients are treated as an empty list; absent accounts leave nothing to attach.
+ * Use the shared row factory with a fixed timestamp so this raw-blob migration stays deterministic. */
 export function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
   if (!isUnknownArray(data.accounts) || data.accounts.length === 0) return data;
   const clients = isUnknownArray(data.clients) ? [...data.clients] : [];

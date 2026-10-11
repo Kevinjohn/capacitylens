@@ -1,4 +1,3 @@
-// Production-shaped local rehearsal server: static dist/ plus same-origin /api proxying.
 import { createServer, request as httpRequest } from "node:http";
 import { createReadStream, existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
@@ -113,6 +112,7 @@ export function createRehearsalRequestHandler({
           return;
         }
       } catch (error) {
+        // A missing path follows the route’s 404/SPA fallback policy; other filesystem failures surface as faults.
         if (missing(error)) respondMissing(fallbackAllowed);
         else respondFault(error);
         return;

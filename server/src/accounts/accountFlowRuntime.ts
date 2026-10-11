@@ -29,8 +29,7 @@ export function createAccountAuditWriter(
 ): (event: AccountAuditInput) => void {
   const audit = port ?? { append: () => true };
   return (event) => {
-    // The per-principal suffix erasure has always needed is the same mechanism as `eventKey`, so it
-    // is now expressed through it rather than as a second, action-specific rule.
+    // Deprovisioning several principals in one command needs a distinct event identity for each principal.
     const legacyPrincipalKey =
       event.action === "identity.local_deprovisioned" ? (event.targetPrincipalId ?? null) : null;
     const eventKey = event.eventKey ?? legacyPrincipalKey;
@@ -72,6 +71,7 @@ export function recordTerminalOutcome(
       throw new Error("The pending account command no longer accepted its terminal outcome.");
     }
   } catch (recordingError) {
+    // Surface both failures so an unsuccessful terminal-state write cannot hide the original command failure.
     throw new AggregateError([originalError, recordingError], message, {
       cause: recordingError,
     });

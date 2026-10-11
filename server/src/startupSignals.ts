@@ -55,6 +55,7 @@ export function stopStartupIfRequested({ startupSignals, openDb }: StopStartupIf
   try {
     openDb?.close();
   } catch (error) {
+    // Log database-close failure but still complete the requested startup cancellation instead of stranding the signal handlers.
     console.error("capacitylens-server: database close failed while stopping startup", error);
   }
   startupSignals.dispose();

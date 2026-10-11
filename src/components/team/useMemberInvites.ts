@@ -133,6 +133,7 @@ function createSubmitInvite({
         clear();
         void reloadInvites();
       } catch (e) {
+        // Invitation creation may have committed despite a lost response, so reconcile before issuing another link.
         await reconcileUnknownMutation(resolveInviteMutationError(m.settings_members_unknown_invite_creation(), e));
       }
     });
@@ -166,6 +167,7 @@ function createRevokeInvite({
         setNotice(m.settings_members_invite_revoked());
         void reloadInvites();
       } catch (e) {
+        // A lost revocation response does not prove the invitation is still live; reconcile before retrying.
         await reconcileUnknownMutation(
           m.settings_members_error_detail({
             message: m.settings_members_unknown_invite_revocation(),
@@ -191,6 +193,7 @@ function createCopyLink({
         await navigator.clipboard.writeText(link);
         publishNotice(copiedNotice);
       } catch {
+        // Report clipboard failure so the secret is not assumed to have been copied.
         publishNotice(m.settings_members_copy_failed(), "error");
       }
     })();

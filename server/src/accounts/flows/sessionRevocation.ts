@@ -125,6 +125,7 @@ function createSessionRevocationExecutor(
       completeSessionRevocation({ ...input, operation, result });
       return result;
     } catch (error) {
+      // Record the failed revocation once before surfacing it so retries and reconciliation retain its durable outcome.
       if (!terminalOutcomeRecorded) {
         recordSessionRevocationFailure({ ...input, error, operation, revocationStarted });
       }

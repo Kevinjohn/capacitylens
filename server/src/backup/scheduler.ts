@@ -51,6 +51,7 @@ function sweepAbandonedTemps(
   try {
     entries = readdirSync(dir);
   } catch (error) {
+    // Log and skip optional abandoned-temp cleanup when enumeration fails; snapshot creation retains its own failure boundary.
     log(`capacitylens-server: backup start-up sweep skipped — cannot read ${dir} — ${errorText(error)}`);
     return;
   }
@@ -148,6 +149,7 @@ class BackupScheduler implements Backups {
         publisher: this.publisher,
       });
     } catch (error) {
+      // A failed snapshot must latch degraded health, remove unpublished artifacts and reject its caller without pruning a known recovery point.
       this.health.degraded = true;
       if (reserved) cleanupSnapshotTemp(reserved.tmp, "backup", this.log);
       throw error;
@@ -213,9 +215,7 @@ class BackupScheduler implements Backups {
   }
 }
 
-/**
- * Applies backups only after the relevant backup operations checks have passed.
- */
+/** Starts serialized snapshots, retention and startup cleanup; stop drains accepted snapshots before database closure. */
 export function startBackups({
   db,
   config,

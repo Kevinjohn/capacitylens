@@ -43,20 +43,10 @@ export function invalidateRestrictedPrincipal(db: Db, accountId: string, princip
   return terminaliseMemberTransfers(db, accountId, principalId);
 }
 
-/**
- * Insert a membership, or update the role/status of an existing `(accountId, userId)`. `createdAt`
- * is the join timestamp and is **preserved** on a role/status change (it is set once, on the first
- * insert), so a role change or ownership transfer never rewrites a member's displayed "joined"
- * date. The client applies its own role-priority presentation order. The idempotent write the permissioned
- * member-management endpoints use: re-inviting an existing member just changes their role
- * rather than erroring on the PK conflict.
- *
- * @param db      The open SQLite handle.
- * @param member  The membership to upsert.
- * @throws Error  If `member.role` is not a known {@link Role}. A bad role is a programming/integrity
- * fault, not a recoverable request condition; fail loud (mirroring the store's deliberate
- * integrity throws) rather than silently coercing it to a default, which would hand someone the
- * wrong access level.
+/** Inserts or updates membership role and status while preserving the original join timestamp.
+ * The caller must own the write transaction. Membership writes revoke pending reset capabilities,
+ * and actual role or status changes invalidate live ownership transfers unless completion explicitly keeps them.
+ * @throws When role is unknown, indicating caller or control-table corruption.
  */
 export function upsertMember(db: Db, member: AccountMember, transfers: LiveTransferHandling = "invalidate"): string[] {
   if (!isKnownRole(member.role)) {
@@ -78,19 +68,9 @@ export function upsertMember(db: Db, member: AccountMember, transfers: LiveTrans
      ON CONFLICT(accountId, userId) DO UPDATE SET
        role = excluded.role, status = excluded.status`,
   ).run(member.accountId, member.userId, member.role, member.status, member.createdAt, member.accountId);
-  // TOCTOU close: a password-reset link is authorized at mint time against the user's membership
-  // snapshot of that moment, so any membership write for this user (a role change, becoming the
-  // owner of a new org, even a lateral move) invalidates that
-  // authorization and must burn their outstanding reset links, else a link minted while they were
-  // lower-tier could redeem into the elevated identity. Centralised here, at the single
-  // membership-write choke point, precisely so no elevation path (PATCH role, transfer-ownership, invite
-  // accept, POST /api/orgs) can forget it; the sprinkle-at-each-callsite approach missed two.
-  // No-op when the user holds no reset token (the common case: fresh membership) or in off mode
-  // (no Better Auth tables). The reset-token implementation remains identity-owned in auth.ts.
-  // Deliberately unconditional, unlike the ceremony below: the reset-link and security-revision
-  // protocol is this path's TOCTOU close, it is pinned by the late-auth probe test, and narrowing
-  // it is a change to that security decision rather than to this ceremony. A live nomination is
-  // different: ending one is visible to two people and undoes work, so it needs a real change.
+  // Reset capabilities were authorized against earlier membership state, so every membership write must revoke them.
+  // This central boundary covers role, status and company-ownership changes without relying on route-specific revocation.
+  // Live transfers need an actual change because invalidation itself withdraws visible consent.
   revokeResetTokensForUser(db, member.userId);
   bumpSecurityRevision(db, member.userId);
   return changed && transfers === "invalidate" ? terminaliseMemberTransfers(db, member.accountId, member.userId) : [];
@@ -226,13 +206,8 @@ export function getActiveMemberRole(db: Db, accountId: string, userId: string): 
   return row.role;
 }
 
-/**
- * List every membership a login holds, across all accounts: the by-`userId` lookup
- * `listAccounts` builds on (it is what answers "which accounts may this login see?").
- *
- * @param db      The open SQLite handle.
- * @param userId  The login whose memberships to list.
- * @returns That login's membership rows (possibly empty); never another login's rows.
+/** Lists every retained membership for a principal, including disabled and archived rows.
+ * Callers must filter active rows before deriving application access.
  */
 export function listMembershipsForUser(db: Db, userId: string): AccountMember[] {
   const rows = db
@@ -245,19 +220,7 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
   return rows.map((r) => toAccountMember(r, "listMembershipsForUser"));
 }
 
-/**
- * List every membership row of one account: the by-`accountId` lookup the member-management UI
- * builds on ("who is in this account?"). Ordered by `createdAt` then `userId` so the member
- * list renders deterministically.
- *
- * Loud role-integrity throw (mirrors {@link listMembershipsForUser}): a stored role that is not a
- * known {@link Role} is a control-table corruption; fail rather than hand back a mistyped,
- * access-bearing role.
- *
- * @param db         The open SQLite handle.
- * @param accountId  The account whose members to list.
- * @returns The account's membership rows (possibly empty), in a stable order.
- */
+// Count active owners in SQL so the partial owner index answers the query without mapping member rows.
 const activeOwnerCountStatement = cachedStatement(
   `SELECT COUNT(*) AS owners FROM account_members WHERE accountId = ? AND role = 'owner' AND status = 'active'`,
 );
@@ -270,8 +233,8 @@ export function countActiveOwners(db: Db, accountId: string): number {
   return Number(row.owners);
 }
 
-/**
- * Reads members for account from its authoritative source so decisions use persisted state.
+/** Lists all retained account memberships in stable join-time and principal order.
+ * @throws When a stored role is unknown, indicating control-table corruption.
  */
 export function listMembersForAccount(db: Db, accountId: string): AccountMember[] {
   const rows = db

@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 
-/** `setTimeout`'s 32-bit signed delay ceiling. A larger delay overflows in the browser and fires
- * immediately (and then repeatedly, once per re-armed render) instead of far in the future, so a
- * distant deadline must be clamped rather than passed through. A clamped wake is not the deadline:
- * the timer re-arms itself for the remainder (see below) rather than reporting a boundary that has
- * not been crossed. */
+// Clamp distant deadlines because browser timeout delays above the signed 32-bit
+// ceiling overflow into immediate callbacks. A clamped wake must re-arm without
+// claiming the deadline has passed.
 const MAX_TIMEOUT_DELAY = 2_147_483_647;
 
 interface DeadlineClockInput {
@@ -50,7 +48,6 @@ export function useDeadlineClock({ pickNextDeadline, readNow }: DeadlineClockInp
       timer = window.setTimeout(
         () => {
           if (readNow() <= nextAt) {
-            // The deadline is still ahead; wait out the remaining delay.
             arm();
             return;
           }

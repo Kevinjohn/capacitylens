@@ -28,11 +28,12 @@
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
+/** Label used to find and deduplicate the unattended security-workflow failure report. */
 export const ISSUE_LABEL = "security-scan-failure";
+/** Title used when opening the unattended security-workflow failure report. */
 export const ISSUE_TITLE = "Security workflow is failing";
 
-// Decides what to do about a run, given its job results and the state of the branch it ran on.
-// Pure by design: every input is a value, so the awkward cases are testable.
+/** Selects open, comment, close or none from workflow results and branch state without changing inputs or performing I/O. */
 export function decide({ results, headSha, branchTip, existingIssue }) {
   const failed = results.filter((entry) => entry.result === "failure");
   const cancelled = results.filter((entry) => entry.result === "cancelled");
@@ -66,6 +67,7 @@ export function decide({ results, headSha, branchTip, existingIssue }) {
 
 // Parses the `job=result` lines the workflow passes in. Written as text rather than JSON because
 // it is assembled from `needs.*.result` expressions in YAML, where quoting JSON is a trap.
+/** Parses newline-separated job=result records, dropping blank lines and records whose parsed job or result is empty. */
 export function parseResults(raw) {
   return (raw ?? "")
     .split("\n")
@@ -78,6 +80,7 @@ export function parseResults(raw) {
     .filter((entry) => entry.job && entry.result);
 }
 
+/** Builds a failure-report body from the decision and workflow context without publishing it. */
 export function buildBody({ decision, context }) {
   const lines = [
     `The \`${context.workflow}\` workflow ${decision.reason}, on a run nobody is watching.`,

@@ -7,6 +7,7 @@ import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 // Each guarded file must import its ports from scripts/ports.mjs and must not spell one out.
+/** Authored launch/configuration files that must derive their endpoints from the port registry. */
 export const GUARDED_FILES = Object.freeze([
   "vite.config.ts",
   "playwright.config.ts",
@@ -35,6 +36,7 @@ export function stripComments(content) {
     .join("\n");
 }
 
+/** Returns port-policy errors without changing the supplied file records or reading from disk. */
 export function evaluatePortUsage(files) {
   const errors = [];
   for (const { path, content } of files) {

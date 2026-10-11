@@ -6,10 +6,7 @@ import {
   FEDERATED_OBSERVATION_TRIGGER,
 } from "./authConstants";
 
-/** Unreleased v25 application migration definition. The CapacityLens-owned tables make provider
- * callbacks recoverable and their audits at-least-once. The account indexes close Better Auth's
- * subject and per-principal find-then-create races; the trigger records a verified external row in
- * the same SQLite statement that creates it, including direct OIDC admissions. */
+/** Immutable v25 identity migration, including recoverable observations and provider-coordinate uniqueness backstops. */
 export const FEDERATED_IDENTITY_V25_DEFINITION = `
 CREATE TABLE IF NOT EXISTS capacitylens_federated_link_ceremonies (
   id TEXT NOT NULL PRIMARY KEY,
@@ -54,7 +51,7 @@ function federatedObservationTriggerSql(): string {
   return FEDERATED_IDENTITY_V25_DEFINITION.slice(start).trim();
 }
 
-/** SQLite removes IF NOT EXISTS from sqlite_master but otherwise retains the trigger definition. */
+// sqlite_master removes IF NOT EXISTS but otherwise retains this trigger definition.
 function expectedStoredFederatedObservationTriggerSql(): string {
   return federatedObservationTriggerSql()
     .replace(/^CREATE TRIGGER IF NOT EXISTS\s+/, "CREATE TRIGGER ")
@@ -72,9 +69,7 @@ export function sqliteTableExists(db: Db, table: string): boolean {
   return db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) !== undefined;
 }
 
-/** Immutable implementation shared by the unreleased v25 ledger step and its same-version
- * post-Better-Auth repair pass. Future schema versions must compose a new helper rather than edit
- * this one, preserving the shipped migration definition and behavior together. */
+// Keep the shipped v25 installation immutable: migration checksums and same-version auth repairs depend on it.
 function installFederatedIdentityV25(db: Db): void {
   db.exec(
     FEDERATED_IDENTITY_V25_DEFINITION.slice(

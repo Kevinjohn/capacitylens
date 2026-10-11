@@ -2,11 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { IDBFactory } from "fake-indexeddb";
 
-// The auth boundary's three behaviours. The demo build (VITE_CAPACITYLENS_DEMO=1) is a
-// pass-through that performs no fetch at all; server mode (the default) + authMode 'off' renders
-// the app after one /api/auth/me check; a 401 walls everything off behind the LoginScreen. apiConfig
-// freezes its env at import, so each case stubs the env, resets the module registry, and re-imports,
-// the same pattern as apiConfig.test / buildInfo.test.
+// The API base captures build settings at module load, so each test creates a fresh module graph for its configured deployment. Auth context must come from that same graph.
 
 afterEach(() => {
   localStorage.clear();
@@ -47,16 +43,13 @@ async function freshProvider() {
   };
 }
 
-/** Renders the two single-company-per-instance fields off `useAuth()` as plain text, so a test can
- * assert on them without reaching into React internals. Takes the hook as a prop (rather than a
- * static import) for the module-identity reason above. */
+// Pass the hook as a prop so reset module instances do not split context identity.
 function Probe({ useAuth }: { useAuth: () => { canCreateAccount: boolean; multiAccount: boolean } }) {
   const { canCreateAccount, multiAccount } = useAuth();
   return <div>{`canCreateAccount:${canCreateAccount} multiAccount:${multiAccount}`}</div>;
 }
 
-/** Like {@link Probe} but with a button that triggers `refreshAuth`, the fire-and-forget shape
- * (`void`) the real call sites use, which is safe because refreshAuth is total (never rejects). */
+// Exercise fire-and-forget refresh because callers rely on its never-reject contract.
 function RefreshProbe({
   useAuth,
 }: {
@@ -73,16 +66,12 @@ function RefreshProbe({
   );
 }
 
-/** Renders the session-shaped fields off `useAuth()` (authMode + user id) so a test can assert a
- * live authenticated snapshot survives, or doesn't, a failing re-check. Hook-as-prop for the
- * module-identity reason above. */
+// Pass the hook as a prop so session assertions observe the same context instance.
 function SessionProbe({ useAuth }: { useAuth: () => { authMode: string; user: { id: string } | null } }) {
   const { authMode, user } = useAuth();
   return <div>{`authMode:${authMode} user:${user?.id ?? "none"}`}</div>;
 }
 
-/** A promise whose resolution the test controls, used to make an earlier /me request resolve
- * after a later one, pinning the request-ordering guard (authRequestSeq). */
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((r) => {
@@ -347,7 +336,7 @@ function registerServerModeTest09() {
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-    // A well-formed password-mode body is a real signal, not a guess. No degraded notice.
+
     expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
   });
 }
@@ -380,7 +369,7 @@ function registerServerModeTest10() {
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-    // A well-formed SSO body is a real signal too. No degraded notice.
+
     expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
   });
 }
@@ -845,7 +834,7 @@ function registerServerModeTest27() {
       </AuthProvider>,
     );
     expect(await screen.findByText("app-content")).toBeInTheDocument();
-    // A failed write raises the banner → the provider re-checks → 401 → login screen.
+
     act(() => useStore.getState().setPersistError(true));
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
@@ -931,10 +920,7 @@ function registerServerModeTest29() {
 
 function registerServerModeTest30() {
   it("persistError re-check that CANNOT resolve /me keeps the live authenticated snapshot (warns, no flip to auth-off)", async () => {
-    // The regression this pins: a server outage raises persistError and makes /me unreachable at
-    // the same time. The re-check must not reset a live session to passOpen('off', null), that
-    // drops the sign-out affordance and reshapes member-management mid-outage, and nothing puts it
-    // back until a manual reload. Same keep-previous policy as refreshAuth.
+    // An unresolved auth re-check must preserve the current session snapshot so an outage cannot remove sign-out controls or change membership affordances.
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchSpy = vi
@@ -958,7 +944,7 @@ function registerServerModeTest30() {
     await waitFor(() =>
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("refresh failed; keeping the previous auth snapshot")),
     );
-    // Still the live session, not passOpen('off', null).
+
     expect(screen.getByText("authMode:password-only user:u1")).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
@@ -966,10 +952,7 @@ function registerServerModeTest30() {
 
 function registerServerModeTest31() {
   it("a STALE refreshAuth resolving after a newer 401 does not overwrite the login status", async () => {
-    // The interleaving this pins (authRequestSeq): refreshAuth fires but its /me hangs; a
-    // persistError re-check then resolves a real 401 and shows the login screen; the stale refresh
-    // finally resolves with the old authenticated snapshot. Applying it would hide the login screen
-    // and strand the user on a dead session. The guard must drop the superseded result.
+    // A newer confirmed sign-out must win over an earlier authenticated response, or stale credentials would reopen the protected app.
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const slow = deferred<Response>();
     const fetchSpy = vi
@@ -990,11 +973,11 @@ function registerServerModeTest31() {
       </AuthProvider>,
     );
     expect(await screen.findByRole("button", { name: /refresh/ })).toBeInTheDocument();
-    // Leave the refresh request pending while a persist error triggers a new auth check.
+
     fireEvent.click(screen.getByRole("button", { name: /refresh/ }));
     act(() => useStore.getState().setPersistError(true));
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    // The stale request must not restore authentication after the newer check rejects the session.
+
     await act(async () => {
       slow.resolve(
         me(200, {
@@ -1004,7 +987,7 @@ function registerServerModeTest31() {
       );
       await slow.promise;
     });
-    // …and must be dropped: the login screen stays, the app does not come back on a dead session.
+
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /refresh/ })).not.toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(3);
@@ -1218,7 +1201,7 @@ function registerAccountPolicyTest07() {
     await waitFor(() =>
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("refresh failed; keeping the previous auth snapshot")),
     );
-    // Degraded to the stale value, not reset to the fail-open boot default.
+
     expect(screen.getByText("canCreateAccount:false")).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });

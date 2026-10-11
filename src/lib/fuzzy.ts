@@ -1,23 +1,9 @@
-/**
- * Dependency-free fuzzy scorer for the command palette.
- *
- * Scoring tiers (lower = better rank):
- * 0: exact prefix match         "br"    → "Bruce Wayne"
- * 1: word-boundary prefix match "way"   → "Bruce Wayne"
- * 2: contiguous match anywhere  "uce"   → "Bruce Wayne"
- * 3: subsequence (scattered)    "bwn"   → "Bruce Wayne"
- * Infinity: no match
- *
- * Within a tier, shorter names rank higher (tighter fit).
- * Tie-break: lexicographic on lower-cased name (stable).
- *
- * All comparisons are case- and diacritic-insensitive; the original text is preserved for display.
- */
+// Rank command-palette matches by prefix, word boundary, substring and subsequence,
+// then by shorter folded names and lexical order. Preserve original text for display.
 
-/** Fold canonically decomposable diacritics and case for search comparisons. The fixed NFD form
- * and Unicode-property regex are total for arbitrary strings, including lone surrogate code units.
- * Exported so other search surfaces fold identically rather than keeping a private copy that could
- * drift from what the palette actually matches on. */
+/** Folds canonically decomposable diacritics and case for consistent search comparisons.
+ * Pure and total for string input, including lone surrogates.
+ */
 export function foldForSearch(value: string): string {
   return value
     .normalize("NFD")
@@ -25,39 +11,30 @@ export function foldForSearch(value: string): string {
     .toLowerCase();
 }
 
-/** A "word" starts after a space, hyphen, or underscore, or is the string start; the capture is the
- * first character of that word. Hoisted to module scope so a filter over N items doesn't compile N
- * copies of the same pattern. It is stateful (`/g` keeps `lastIndex`), so every use resets it
- * first. Safe: the scan below is synchronous and calls nothing that could re-enter the scorer. */
+// Reuse the boundary regex to avoid compiling it per item. Reset its stateful
+// lastIndex before every synchronous, non-reentrant scan.
 const WORD_BOUNDARY_RE = /(?:^|[\s\-_]+)(.)/g;
 
-/** Score an already-folded query against a raw `text`. Split out so a filter pass folds its query
- * once instead of once per item; `fuzzyScore` is the folding entry point. */
+// Fold the query once per filter pass so scoring does not repeat it for every item.
 function scoreFolded(query: string, text: string): number {
   if (!query) return 0;
 
   const foldedText = foldForSearch(text);
 
-  // Tier 0: exact prefix
   if (foldedText.startsWith(query)) return 0;
 
-  // Tiers 1 and 2 both require `q` to appear contiguously, so a single `includes` gates them: when
-  // it fails (the common case while filtering) the word-boundary scan cannot match either and is
-  // skipped entirely. Ordering within the gate is unchanged. A word-boundary prefix still beats a
-  // mid-word substring.
+  // A failed contiguous match rules out both boundary and substring tiers, avoiding a needless scan.
   if (foldedText.includes(query)) {
-    // Tier 1: word-boundary prefix, query starts a word inside the text
     WORD_BOUNDARY_RE.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = WORD_BOUNDARY_RE.exec(foldedText)) !== null) {
-      const wordStart = match.index + (match[0].length - 1); // position of the captured letter
+      const wordStart = match.index + (match[0].length - 1);
       if (foldedText.startsWith(query, wordStart)) return 1;
     }
-    // Tier 2: contiguous substring match anywhere
+
     return 2;
   }
 
-  // Tier 3: subsequence (every character of query appears in order)
   let queryIndex = 0;
   for (let textIndex = 0; textIndex < foldedText.length && queryIndex < query.length; textIndex++) {
     if (foldedText[textIndex] === query[queryIndex]) queryIndex++;
@@ -94,7 +71,7 @@ export function fuzzyFilter<T>(items: T[], query: string, getText: (item: T) => 
 
   scored.sort((a, b) => {
     if (a.tier !== b.tier) return a.tier - b.tier;
-    // Within tier: prefer shorter (tighter fit), then alpha
+
     if (a.text.length !== b.text.length) return a.text.length - b.text.length;
     return a.lower.localeCompare(b.lower);
   });

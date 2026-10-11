@@ -2,11 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { SCHEMA_V8_SQL, TABLES } from "../tables";
 import type { ColumnSpec, TableSpec } from "../tables";
 import type { ColumnInfo } from "./introspection";
-/**
- * Materialise a historical table contract from its immutable DDL. This deliberately does not
- * consult TABLES: released migrations must not absorb fields added to the live write model later.
- * SQLite does the DDL parsing so the contract stays tied to the exact text checksummed in db.ts.
- */
+// Parse immutable DDL instead of live TABLES so released migrations cannot absorb later write-model fields.
 function tableSpecsFromHistoricalSql(sql: string): Record<string, TableSpec> {
   const db = new DatabaseSync(":memory:");
   try {
@@ -51,12 +47,7 @@ function liveTableSpec(table: string): TableSpec {
   return spec;
 }
 
-/**
- * Account preferences retired from the write model. Their SQLite columns are deliberately kept (no
- * migration), so every released contract still names them; each is restored after its released
- * predecessor so historical column order is unchanged. The live spec omits them, which makes server
- * writes drop them, and live startup accepts them as nullable compatible extensions.
- */
+// Restore retired nullable columns in their released order so historical contracts remain immutable while live writes omit them.
 const RETIRED_ACCOUNT_COLUMNS: ReadonlyArray<{ after: string; column: ColumnSpec }> = [
   { after: "disciplinesEnabled", column: { name: "groupResourcesByEngagement", json: true, optional: true } },
   { after: "externalEnabled", column: { name: "internalColourMode", optional: true } },
@@ -64,7 +55,7 @@ const RETIRED_ACCOUNT_COLUMNS: ReadonlyArray<{ after: string; column: ColumnSpec
   { after: "showInternalProjects", column: { name: "showInternalActivities", json: true, optional: true } },
 ];
 
-/** The live accounts spec with the retired columns restored: the released write shape. */
+// Historical account contracts include retained retired columns.
 function releasedAccountsTableSpec(): TableSpec {
   const accounts = liveTableSpec("accounts");
   const columns = [...accounts.columns];
@@ -216,10 +207,7 @@ export const V39_TABLES: Record<string, TableSpec> = {
   ...PRE_V42_TABLES,
   accounts: buildAccountsTableAtVersion(39),
 };
-/**
- * Released v40 shape. The account columns are derived at the v40 boundary, so a later account
- * migration only needs to add its column and introduction version to the map above.
- */
+/** Defines the released v40 table shape derived from the account-column introduction versions. */
 export const V40_TABLES: Record<string, TableSpec> = {
   ...PRE_V42_TABLES,
   accounts: buildAccountsTableAtVersion(40),

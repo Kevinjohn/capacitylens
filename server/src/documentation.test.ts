@@ -71,7 +71,7 @@ describe("standing documentation contracts", () => {
 });
 
 describe("user guide destinations", () => {
-  // Settings no longer offers Deleted items, so no guide may send readers there to purge records.
+  // Permanent deletion is reached through entity views, so documentation must not direct readers to Settings.
   it("does not send readers to Settings for permanent deletion", () => {
     expect(read("docs-src/using/resources.md")).not.toMatch(/permanent deletion[^.]*\]\(\/using\/settings\)/i);
   });

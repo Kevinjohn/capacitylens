@@ -137,11 +137,7 @@ async function assertClosureBand(page: Page) {
     literalSpanWidth,
   );
 
-  // Closures apply to everyone, so switching the schedule's draw mode from Work to
-  // Time off must highlight the closure band with the same timeoff-selected treatment as a
-  // personal time-off block (src/index.css `[data-draw-mode="timeoff"] .scheduler-closure-band`),
-  // and switching back to Work must restore the plain hatch. getComputedStyle-based, so it stays
-  // browser-agnostic.
+  // Company closures must receive the personal-time-off selected treatment in Time off draw mode.
   await showScheduleFilters(page);
   await disableCssMotion(page);
   const workTreatment = await computedStyles(band, ["background-color", "box-shadow"]);

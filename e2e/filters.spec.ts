@@ -62,11 +62,8 @@ function registerFiltersBarsClientTest() {
     await selectShadOption(page.getByLabel("Filter by client"), {
       label: "LexCorp",
     });
-    // LexCorp only owns Metropolis Rebrand → the schedule collapses to just that work by default.
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(1);
-    // Opting into "Show unallocated" brings back the resources with no LexCorp work,
-    // dimmed, so you can see who's free to staff.
     await page.getByLabel("Show unallocated").check();
     await expect(page.locator('[data-testid="scheduler-row"][data-dimmed]').first()).toBeVisible();
   });
@@ -95,7 +92,6 @@ function registerHidesTentativeBarsWhileCapacityTest() {
     await tentative.click();
     await expect(tentative).toHaveAttribute("aria-pressed", "false");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
-    // Capacity is still truthful: Bruce's 3-4 June over-marker remains.
     await expect(page.getByTestId("over-marker").first()).toBeVisible();
   });
 }
@@ -140,7 +136,6 @@ function registerFiltersScheduleAllProjectsActivityTest() {
   test("filters the schedule to an all-projects activity (the activity lens)", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    // Seed books "Design" (an all-projects activity) for Barry across 8-10 June.
     await selectShadOption(page.getByLabel("Filter by activity"), "kind:repeatable");
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Design" })).toBeVisible();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(1);
@@ -151,13 +146,11 @@ function registerActivityLensMutuallyExclusiveClientTests() {
   test("the activity lens is mutually exclusive with the client / project lens", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    // Switching from a project lens to the activity lens resets the project dropdown.
     await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
     await expect(page.getByLabel("Filter by project")).toHaveText("LexCorp / Metropolis Rebrand");
     await selectShadOption(page.getByLabel("Filter by activity"), "kind:repeatable");
     await expect(page.getByLabel("Filter by project")).toHaveText("All projects");
 
-    // And back the other way: choosing a project clears the activity lens.
     await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
     await expect(page.getByLabel("Filter by activity")).toHaveText("All activities");
   });

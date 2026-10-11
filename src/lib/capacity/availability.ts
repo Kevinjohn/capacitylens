@@ -42,7 +42,6 @@ export function resolveScheduledHoursOnDay(
   return resolveScheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
 }
 
-/** The applies-to-this-resource rule for personal time off. */
 function isApplicableToResource(resourceId: ID, timeOffEntry: TimeOff): boolean {
   return timeOffEntry.resourceId === resourceId;
 }
@@ -88,7 +87,7 @@ interface ResolveAvailableHoursForWeekdayInput {
   effectiveWeek: EffectiveWorkingWeek;
 }
 
-/** Calculates a resource available hours for one weekday after time off and closure rules. */
+/** Calculates a resource’s available hours for one weekday after time-off and closure rules. */
 export function resolveAvailableHoursForWeekday({
   resource,
   date,
@@ -138,15 +137,7 @@ interface ResolveAllocatedHoursOnDayInput {
   effectiveWeek: EffectiveWorkingWeek;
 }
 
-/** Sum of allocated hours for `resource` on `date` across every overlapping allocation.
- * A weekend-aware allocation (the default for a partial working week) does no work on the
- * effective week's non-working weekdays, so a bar that merely spans Sat/Sun contributes 0 there,
- * matching how the same `isWeekendAware` rule governs the bar's duration and drag. An allocation
- * that ignores the working calendars (`ignoreWeekends`) places its hours on every calendar day in
- * `[startDate, endDate]`. A normal allocation with no effective week loads no days. Time-off days
- * that remain effective weekdays still load, preserving the real over-capacity conflict.
- * @remarks Assumes each `hoursPerDay` is finite (see the top-of-file precondition). A NaN would
- * poison the sum and make every over/utilisation comparison read as "never over". */
+/** Keep the allocation/calendar contract, but replace the top-of-file reference with an explicit requirement that hoursPerDay be finite and non-negative. */
 export function resolveAllocatedHoursOnDay({
   resource,
   date,
@@ -170,7 +161,7 @@ interface ResolveAllocatedHoursForWeekdayInput {
   effectiveWeek: EffectiveWorkingWeek;
 }
 
-/** Totals a resource allocated hours for one weekday. */
+/** Totals a resource’s allocated hours for one weekday. */
 export function resolveAllocatedHoursForWeekday({
   resource,
   date,

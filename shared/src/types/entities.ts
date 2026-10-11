@@ -1,6 +1,6 @@
 // Core domain types for CapacityLens. Pure data shapes. No behaviour lives here.
 
-/** Opaque row identifier, generated with `crypto.randomUUID()`. */
+/** A table-global row identifier; generated rows normally use UUIDs. */
 export type ID = string;
 /** Calendar date without a time, `YYYY-MM-DD`. */
 export type ISODate = string;
@@ -30,13 +30,10 @@ export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
   "everyone",
 ];
 /** How human-readable dates read across an account: day/month order, and whether the day number
- * carries an ordinal suffix. Absent means "day-month" ("9 Sep"), the format the app has always
- * used. This is account data, not a device preference. A company reads one convention. */
+ * carries an ordinal suffix. Absent means "day-month" ("9 Sep"). This is account data, not a device preference. A company reads one convention. */
 export type DateStyle = "day-month" | "day-ordinal-month" | "month-day" | "month-day-ordinal";
-/** Every supported style, in the order the Settings control offers them. The server/import
- * sanitiser rejects anything absent from this list, and the `Record<DateStyle, …>` tables in the
- * app fail to compile until they cover a new entry, so a style cannot exist in the type while
- * being missing here. */
+/** Supported date styles in Settings order; server/import sanitization rejects values absent from this list.
+ * Keep this list aligned with DateStyle; the array type alone does not enforce union completeness. */
 export const DATE_STYLES: DateStyle[] = ["day-month", "day-ordinal-month", "month-day", "month-day-ordinal"];
 /** The format an absent `dateStyle` reads back as. */
 export const DEFAULT_DATE_STYLE: DateStyle = "day-month";
@@ -67,7 +64,7 @@ export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
  */
 export type ActivityKind = "project" | "internal" | "repeatable";
 
-/** Fields every persisted entity carries, cheap now, impossible to backfill later. */
+/** Identity and revision fields shared by persisted entities. */
 export interface Entity {
   id: ID;
   createdAt: ISOTimestamp;
@@ -79,7 +76,7 @@ export interface Entity {
 export interface Account extends Entity {
   name: string;
   color: string;
-  /** How this company enters allocations. Absent = 'hourly' (the original behaviour). */
+  /** How this company enters allocations. Absent = 'hourly'. */
   schedulingMode?: SchedulingMode;
   /** IANA time zone used to derive "today" for this account. Absent = 'Etc/GMT'. */
   timezone?: string;
@@ -90,7 +87,7 @@ export interface Account extends Entity {
   /** UI language for this company. Absent = 'en'. English-only for now.
    * Frozen after creation. Not shown in Settings while English is the only option. */
   language?: string;
-  /** Whether this company uses disciplines. Absent = true (the original behaviour).
+  /** Whether this company uses disciplines. Absent = true.
    * When false, disciplines are hidden across the whole UI (nav, resource form,
    * schedule grouping + filter, lists, command palette). The data is preserved. */
   disciplinesEnabled?: boolean;
@@ -203,7 +200,6 @@ export interface Client extends ScopedEntity {
 /** A client project. */
 export interface Project extends ScopedEntity {
   name: string;
-  // Every project must belong to a client.
   clientId: ID;
   color: string;
   /** When true, only account owners receive `name`; every other role receives the quoted
@@ -313,29 +309,8 @@ export {
 } from "./entityKeys";
 export type { AppDataKey, ScopedEntityKey } from "./entityKeys";
 
-/** JSON/export format version. Bump when the portable AppData shape changes; drives
- * data/migrate.ts and is deliberately independent of the server's physical SQLite version.
- * (v4 added Activity.kind;
- * v5 renamed the domain concept Task→Activity: the `tasks` table → `activities` and
- * `Allocation.taskId` → `activityId`; v6 ensures every account has one built-in `Client`
- * with `builtin: true`, the "Internal" pseudo-client; v7 adds optional client/project privacy
- * fields, whose absent values already represent the public default; v8 adds an optional
- * per-account Internal work colour mode (since retired); v9 adds optional per-account schedule
- * view prefs, two internal-work visibility toggles (since retired) and inlineActivityCreateEnabled,
- * whose absence means disabled; v10 adds optional Resource.isFavourite,
- * whose absence means not favourite; v11 adds required Resource.halfDays, initially empty for
- * legacy resources so every previously selected weekday remains a full day; v12 adds required
- * Resource.engagement, defaulting legacy resources to Studio; v13 adds an optional account-wide
- * engagement-grouping view preference (since retired; grouping is now derived); v14 adds account-wide
- * working days, defaulting legacy accounts to the first five days of their configured week; v15
- * adds optional Allocation.seriesId without inferring links for legacy repeat batches; v16 widens
- * TimeOff.resourceId to nullable, where null represents company-wide time off for Everyone; v17
- * separates company closures into their own table and restores required TimeOff.resourceId; v18
- * adds optional per-allocation project attribution for repeatable activities; v19 adds optional
- * Activity lifecycle tombstones archivedAt/deletedAt; v20 adds optional allocation task text and
- * account-wide schedule visibility for it; v21 adds optional person availability boundaries; v22
- * adds the optional account-wide dateStyle, whose absence means 'day-month'; v23 adds optional
- * Resource.avatarUrl for externally hosted scheduled-person avatars.) */
+/** Portable JSON schema version, independent of the physical SQLite schema version.
+ * Increment when the portable AppData shape changes and provide the corresponding migration. */
 export const EXPORT_SCHEMA_VERSION = 23;
 
 /** The versioned export document. */

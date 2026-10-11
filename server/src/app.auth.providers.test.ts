@@ -12,12 +12,6 @@ import {
 } from "./controlTables";
 import { microsoftCallbackCapture } from "./authConfig/captureContexts";
 
-// The CAPACITYLENS_MODE flag (opts.authMode/auth). The load-bearing assertion set: off is
-// byte-for-byte today (the whole existing app.test.ts suite already enforces that by running
-// unchanged; these tests add the /api/auth/me surface and the absence of the Better Auth
-// routes); password gates every data route on a real session; sso issues a
-// provider redirect; any misconfiguration refuses to boot via AuthConfigError.
-
 const MICROSOFT_ENV = {
   CAPACITYLENS_MICROSOFT_CLIENT_ID: "ms-id",
   CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "ms-secret",
@@ -160,7 +154,7 @@ describe("social providers (P1.7)", () => {
       clientId: "gh-id",
       clientSecret: "gh-secret",
     });
-    // Microsoft always uses the configured work/school tenant.
+
     expect(social.microsoft).toMatchObject({
       clientId: "ms-id",
       clientSecret: "ms-secret",
@@ -180,7 +174,7 @@ describe("social providers (P1.7)", () => {
 
   it("refreshes and clears Microsoft avatars by oid when sub and profile id differ", async () => {
     const db = openDb(":memory:");
-    // Seed an established identity before installing the new-connection gate.
+
     const initial = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(parseConfiguredAuth(initial.auth));
     db.prepare(

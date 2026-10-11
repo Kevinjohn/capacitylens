@@ -18,7 +18,6 @@ function resolveResourceStatus({ expectedResourceId, reconciled }: ResolveResour
     : m.settings_member_resource_update_done();
 }
 
-/** Link, relink or unlink; unlinking a member with no link is an immediate success. */
 function requestResourceLinkChange(member: TeamMember, workspaceId: string, resourceId: string) {
   if (resourceId !== "")
     return teamAccessClient.setMemberResourceLink({
@@ -32,11 +31,8 @@ function requestResourceLinkChange(member: TeamMember, workspaceId: string, reso
   return Promise.resolve({ kind: "ok", value: true, status: 204 } as const);
 }
 
-/**
- * Pending/error state plus a generation guard. `beginRequest` returns a `current()` check that stays
- * true only while that request is the latest one for the same company, so a slow reply can never
- * overwrite a newer choice or leak into another company after a switch.
- */
+// A request owns effects only while it is newest in the same company; reject late
+// replies so they cannot overwrite a newer choice or cross tenants.
 function useGuardedRequest(workspaceId: string | null, reload: () => void) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);

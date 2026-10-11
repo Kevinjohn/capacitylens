@@ -35,8 +35,6 @@ export function ToolbarActivityFilter({
 }: ToolbarActivityFilterProps) {
   return (
     <Select
-      // Encoded value: 'all' = all, 'kind:internal'/'kind:repeatable' = a whole group,
-      // otherwise a specific activity id. An activityKind selection wins over a stale activityId.
       value={activityKind ? `kind:${activityKind}` : (activityId ?? "all")}
       onValueChange={(value) => onChange(buildActivityFilterPatch(value))}
     >

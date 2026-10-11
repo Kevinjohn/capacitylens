@@ -60,6 +60,7 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
       setConfirmPassword("");
       setMessage(m.settings_security_password_changed());
     } catch (cause) {
+      // Log authentication-service failure, but publish it only while the password-change request owns the form.
       console.error("SecuritySection: password change failed", cause);
       if (requestGeneration === generation.current) fail("current", m.settings_security_err_auth_unavailable());
     } finally {

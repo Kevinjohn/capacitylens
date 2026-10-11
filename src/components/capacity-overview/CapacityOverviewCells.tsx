@@ -39,7 +39,7 @@ function resolveLedgerValueInk(result: CapacityOverviewPeriodResult): string {
   return result.overDays > 0 ? "text-danger" : "text-faint";
 }
 
-/** The free and tentative fills laid along one axis: full when nothing is booked, empty when nothing is free. */
+// Tentative capacity remains visible even when no free capacity remains; keep both fills on one bounded axis.
 function CapacityTrack({
   result,
   axis,
@@ -75,8 +75,7 @@ function CapacityTrack({
 
 function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; label: string }) {
   const over = result.overDays > 0;
-  // An overbooked week swaps the capacity figure for the overbooked days in red (the long
-  // "overbooked" label wrapped inside twelve-week cells); the track itself only ever shows free time.
+  // Show overbooked days in the detail label while the track represents free and tentative capacity.
   return (
     <div className="flex flex-col gap-[5px] px-3.5 py-[9px]">
       <div className="flex items-baseline justify-between gap-1.5">

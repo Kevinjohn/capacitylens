@@ -201,6 +201,7 @@ export function createAllocationCommands(input: CommandInput) {
     try {
       if (saveDraft(input, draft)) input.onClose();
     } catch (e) {
+      // Route save rejection through the dialog error policy so invalid allocations remain editable.
       reportSaveError(input, e);
     }
   };
@@ -211,6 +212,7 @@ export function createAllocationCommands(input: CommandInput) {
     try {
       if (input.addAllocation(draft).kind === "created") input.onClose();
     } catch (e) {
+      // Surface a failed duplication at form level without closing the dialog.
       input.fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_save_failed());
     }
   };
@@ -221,6 +223,7 @@ export function createAllocationCommands(input: CommandInput) {
       if (scope === "future") input.deleteAllocationSeriesFrom(input.editing.id);
       else input.deleteAllocation(input.editing.id);
     } catch (e) {
+      // Surface a failed deletion at form level without closing the dialog.
       input.fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_delete_failed());
     }
   };

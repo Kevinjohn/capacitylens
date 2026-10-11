@@ -24,9 +24,7 @@ export function prepareHistoryTarget(current: AppData, target: AppData): AppData
         : row;
     });
   };
-  // Driven by the shared key list (same altitude as hasSameEntityRevisions below) so a new AppData
-  // table can't be silently dropped from the history transition by a missed hand-written line. The
-  // row type is erased to Entity here; each table's real type is restored by the AppData return.
+  // Use the exhaustive shared table list so history transitions cannot omit a new table.
   const next = emptyAppData() as Record<AppDataKey, Entity[]>;
   for (const key of APP_DATA_KEYS) {
     next[key] = retime(current[key] as Entity[], target[key] as Entity[]);

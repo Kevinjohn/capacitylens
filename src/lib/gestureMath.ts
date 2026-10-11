@@ -138,7 +138,6 @@ function applyResize({ mode, range, deltaDays, weekendAwareDays }: ApplyResizeIn
     : { startDate: range.startDate, endDate: moved };
 }
 
-// Return the working days only when the gesture must respect a partial workweek.
 type ResolveWeekendAwareWeekOptions = { days: Weekday[] | undefined; ignoreWeekends: boolean | undefined };
 function resolveWeekendAwareWeek({ days, ignoreWeekends }: ResolveWeekendAwareWeekOptions): Weekday[] | null {
   return isWeekendAware(days, ignoreWeekends) ? (days ?? null) : null;
@@ -166,7 +165,6 @@ function resolveMoveSpan(range: DateRange, options: GestureOptions | undefined):
 
 /** Applies a snapped move or resize to an inclusive date range. */
 export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureInput): DateRange {
-  // Resolve weekend awareness once; cross-resource moves may use distinct source and destination weeks.
   const weekendAwareDays = resolveWeekendAwareWeek({
     days: options?.workingDays,
     ignoreWeekends: options?.ignoreWeekends,

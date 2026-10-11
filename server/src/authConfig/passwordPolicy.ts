@@ -87,6 +87,7 @@ function createPasswordHash({
       assertNoContextSpecificPassword(password, input.passwordContextWords);
       if (breachCheckEnabled) await assertPasswordNotBreached(password);
     } catch (error) {
+      // Report policy violations as caller faults and breach-screening outages as unavailable service; do not turn operational failure into a password verdict.
       if (error instanceof PasswordPolicyError) {
         throw APIError.from("BAD_REQUEST", { message: error.message, code: error.code });
       }
@@ -144,11 +145,8 @@ export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<Bette
       enabled: allowsPasswordSignIn(mode),
       // The live before hook owns sign-up gating; the browser's first-run bootstrap uses this route.
       disableSignUp: false,
-      // Pin the minimum length to the shared constant rather than inheriting Better Auth's default,
-      // so the server bound and the client reset-page pre-check (both read MIN_PASSWORD_LENGTH) can't
-      // drift, and a library-default change can't silently move the server's floor. Unconditional:
-      // no boot, flagged or not, ever lowers this. See the bootstrap comment above for how the
-      // required operator-supplied bootstrap password must satisfy the same policy.
+      // Share the password floor with the client so library defaults cannot change acceptance independently.
+      // Bootstrap credentials must satisfy the same policy.
       minPasswordLength: MIN_PASSWORD_LENGTH,
       // Better Auth counts UTF-16 code units. Give its transport guard enough room for 128 astral
       // code points; the hook and hash boundary enforce CapacityLens's shared code-point ceiling.

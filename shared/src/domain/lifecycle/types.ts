@@ -1,18 +1,10 @@
 import type { ISOTimestamp } from "../../types/entities";
 import { parseISOTimestamp } from "../../lib/integrity";
 
-/**
- * The three derived lifecycle states an entity can be read as. There is no stored `state` column.
- * The state is derived from the `archivedAt`/`deletedAt` tombstone fields (see {@link lifecycleStatus}):
- * - `'active'`: neither tombstone set (the default; absent = active).
- * - `'archived'`: valid `archivedAt` set, valid `deletedAt` absent (soft, reversible: hidden from scheduling
- *                  but fully retained).
- * - `'deleted'`: valid `deletedAt` set (a soft-delete tombstone). `deletedAt` wins over `archivedAt`: a
- *                  record archived-then-deleted reads `'deleted'`, never `'archived'`.
- *
- * Invariant: these are the only three states; the predicates + transitions below are exhaustive over
- * them. Adding a state means adding it here first so every guard accounts for it.
- */
+/** Derive three lifecycle states from valid tombstones; no state column is persisted.
+ * Active means neither timestamp is valid. Archived means archivedAt is valid and deletedAt is not.
+ * Deleted means deletedAt is valid, which takes precedence over archivedAt.
+ * These states define the lifecycle predicates and transitions. */
 export type LifecycleState = "active" | "archived" | "deleted";
 
 /**
@@ -32,14 +24,7 @@ export interface LifecycleFields {
   deletedAt?: ISOTimestamp;
 }
 
-/**
- * The entity tables that carry the lifecycle tombstones (archivedAt/deletedAt) and so run the
- * archive/unarchive/soft-delete/purge routes. Single-sourced here (the pure module both app and
- * server import) so the server's lifecycle-route allow-list (`isLifecycleEntity` in app.ts) and the
- * `sanitizeWrite` tombstone-pin (validate.ts) can't drift apart, two hand-rolled copies of this set
- * is exactly what silently rots if a 4th entity ever grows tombstones. Every other table
- * (phases/allocations/timeOff/disciplines/accounts) is deliberately out.
- */
+/** Tables with lifecycle tombstones, shared by lifecycle routing and write validation. */
 export const LIFECYCLE_ENTITY_KEYS = Object.freeze(["resources", "clients", "projects", "activities"] as const);
 /** A tombstone-carrying table; see {@link LIFECYCLE_ENTITY_KEYS}. */
 export type LifecycleEntityKey = (typeof LIFECYCLE_ENTITY_KEYS)[number];
@@ -67,19 +52,9 @@ export function isValidTombstone(value: ISOTimestamp | null | undefined): value 
   return value != null && parseISOTimestamp(value) !== null;
 }
 
-/**
- * Derive the {@link LifecycleState} of an entity from its tombstone fields. Pure: a function of the
- * two fields only. No I/O, no Date.
- *
- * Precedence is load-bearing: `deletedAt` wins over `archivedAt`, so a record that was
- * archived-then-deleted reads `'deleted'` (a tombstone, not "archived"). `archivedAt` is only
- * consulted when `deletedAt` is absent. Both `undefined` and `null` count as absent.
- *
- * @param entity - any object carrying the {@link LifecycleFields} (Resource/Client/Project).
- * @returns the derived state: `'deleted'` if `deletedAt` is set, else `'archived'` if `archivedAt`
- * is valid, else `'active'`. Malformed legacy tombstones are ignored so the row derives
- * to its nearest valid state and can be repaired by its next legal transition.
- */
+/** Derive lifecycle state from valid tombstones without reading the clock. Pure.
+ * A valid deletedAt wins; otherwise a valid archivedAt means archived, and neither means active.
+ * Malformed tombstones are ignored so a later valid transition can repair the row. */
 export function lifecycleStatus(entity: LifecycleFields): LifecycleState {
   if (isValidTombstone(entity.deletedAt)) return "deleted";
   if (isValidTombstone(entity.archivedAt)) return "archived";

@@ -15,11 +15,6 @@ import {
   withOfflineCache,
 } from "./ServerSyncAdapter.testSupport";
 
-// Unit tests for the diff engine and the sync flush, with a fake fetch. Proves:
-// the diff classifies create/update/delete correctly, orders parent-before-child for
-// upserts and child-before-parent for deletes, advances the snapshot only on full
-// success (so a failure replays), and coalesces overlapping saves.
-
 describe("auth-awareness (P3.4)", () => {
   it("sends credentials on every request so a session cookie reaches an auth-enabled server", async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
@@ -36,7 +31,7 @@ describe("auth-awareness (P3.4)", () => {
     await adapter.loadAll();
     await adapter.hasExisting();
     await adapter.saveAll(withData({ clients: [client("c1")] }));
-    expect(calls.length).toBeGreaterThanOrEqual(3); // state, meta, batch
+    expect(calls.length).toBeGreaterThanOrEqual(3);
     for (const { url, init } of calls) {
       expect(init?.credentials, url).toBe("include");
     }
@@ -69,7 +64,8 @@ describe("offline transport fallback", () => {
   ])("does not use a cached account slice when the state request %s", async (_condition, request) => {
     await withOfflineCache(async () => {
       const cached = scopedData("a1", {});
-      required(cached.clients[0]).color = "#2d75da"; // a real preset, so cache sanitisation is identity-preserving
+      // Use a preset colour so migration does not repair the fixture before the diff is exercised.
+      required(cached.clients[0]).color = "#2d75da";
       await cacheAccountSlice("a1", cached);
       const fetchImpl = vi.fn(request);
       const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
@@ -108,7 +104,7 @@ function expectCompensatingFinalStateOps(): void {
       },
     ],
   });
-  const latest = before; // both the c1 rename and d1 creation were undone before acknowledgement
+  const latest = before;
 
   const ops = diffOpsFromPossibleBases([before, dispatched], latest);
 
@@ -141,9 +137,9 @@ describe("diffOps", () => {
 
   it("emits PUT only for rows whose updatedAt changed", () => {
     const prev = withData({ clients: [client("c1", TS1)] });
-    const next = withData({ clients: [client("c1", TS2)] }); // edited
+    const next = withData({ clients: [client("c1", TS2)] });
     expect(diffOps(prev, next)).toHaveLength(1);
-    // unchanged row → no op
+
     expect(diffOps(prev, prev)).toHaveLength(0);
   });
 
@@ -152,12 +148,9 @@ describe("diffOps", () => {
       clients: [client("c1")],
       projects: [project("p1", "c1")],
     });
-    const next = emptyAppData(); // both gone (e.g. cascade delete of the client)
+    const next = emptyAppData();
     const ops = diffOps(prev, next);
-    expect(ops.map((o) => `${o.method} ${o.table}/${o.id}`)).toEqual([
-      "DELETE projects/p1", // child first
-      "DELETE clients/c1",
-    ]);
+    expect(ops.map((o) => `${o.method} ${o.table}/${o.id}`)).toEqual(["DELETE projects/p1", "DELETE clients/c1"]);
   });
 
   it("orders all upserts before all deletes (so a reparent lands before the old parent is deleted)", () => {

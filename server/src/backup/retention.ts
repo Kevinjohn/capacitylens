@@ -23,10 +23,13 @@ export function readMainDatabaseIdentity(db: Db): FileIdentity | null {
     const stat = statSync(path, { bigint: true });
     return { path, device: stat.dev, inode: stat.ino };
   } catch (cause) {
+    // Without the live file’s identity retention cannot safely protect database aliases, so stop with the original stat failure attached.
     throw new Error(`Could not identify the live SQLite database at "${path}" for safe retention.`, { cause });
   }
 }
 
+/** Reports whether a candidate names the open database or an alias of its device and inode.
+ * A candidate that cannot be inspected returns false; enumeration and deletion surface their own failures. */
 export function isProtectedDatabasePath(path: string, database: FileIdentity | null): boolean {
   if (!database) return false;
   if (resolve(path) === database.path) return true;

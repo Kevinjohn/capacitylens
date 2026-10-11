@@ -1,8 +1,10 @@
+/** Project-link fields modeled by server response fixtures. */
 export interface ProjectBinding {
   id: string;
   projectId?: string;
 }
 
+/** Activity response fields checked by the server snapshot parsers. */
 export interface ActivitySnapshot extends ProjectBinding {
   accountId: string;
   createdAt: string;
@@ -12,6 +14,7 @@ export interface ActivitySnapshot extends ProjectBinding {
   updatedAt: string;
 }
 
+/** Discipline response fields checked by the server snapshot parsers. */
 export interface DisciplineSnapshot {
   accountId: string;
   color?: string;
@@ -22,6 +25,7 @@ export interface DisciplineSnapshot {
   updatedAt: string;
 }
 
+/** Phase response fields checked by the server snapshot parsers. */
 export interface PhaseSnapshot {
   accountId: string;
   createdAt: string;
@@ -31,6 +35,7 @@ export interface PhaseSnapshot {
   updatedAt: string;
 }
 
+/** Resource response fields checked by the server snapshot parsers, including availability and optional project binding. */
 export interface ResourceSnapshot extends ProjectBinding {
   accountId: string;
   avatarUrl?: string;
@@ -51,6 +56,7 @@ export interface ResourceSnapshot extends ProjectBinding {
   workingHoursPerDay: number;
 }
 
+/** Allocation response fields checked by the server snapshot parsers. */
 export interface AllocationSnapshot {
   accountId: string;
   activityId: string;
@@ -69,6 +75,7 @@ export interface AllocationSnapshot {
   updatedAt: string;
 }
 
+/** Project response fields checked by the server snapshot parsers, including lifecycle and privacy metadata. */
 export interface ProjectSnapshot {
   accountId: string;
   archivedAt?: string;
@@ -83,6 +90,7 @@ export interface ProjectSnapshot {
   updatedAt: string;
 }
 
+/** Company-closure response fields checked by the server snapshot parsers. */
 export interface ClosureSnapshot {
   accountId: string;
   createdAt: string;
@@ -93,6 +101,7 @@ export interface ClosureSnapshot {
   updatedAt: string;
 }
 
+/** Time-off response fields checked by the server snapshot parsers, including the optional confidential note. */
 export interface TimeOffSnapshot {
   accountId: string;
   createdAt: string;
@@ -105,6 +114,7 @@ export interface TimeOffSnapshot {
   updatedAt: string;
 }
 
+/** Account response fields checked by the server snapshot parsers. */
 export interface AccountSnapshot {
   capacityOverviewAccess?: string;
   color: string;
@@ -125,6 +135,7 @@ export interface AccountSnapshot {
   workingDays?: number[];
 }
 
+/** Import receipt counts and audit-delivery status asserted by server integration tests. */
 export interface ImportSummary {
   auditWarning: boolean;
   imported: number;
@@ -132,6 +143,7 @@ export interface ImportSummary {
   skipped: number;
 }
 
+/** Server revision metadata asserted for submitted and implicit batch writes. */
 export interface BatchRevisionSnapshot {
   createdAt: string;
   id: string;
@@ -140,12 +152,14 @@ export interface BatchRevisionSnapshot {
   updatedAt: string;
 }
 
+/** Lifecycle archive outcome asserted for a batch operation. */
 export interface BatchArchiveSnapshot {
   archived: boolean;
   id: string;
   table: string;
 }
 
+/** Atomic batch receipt shape asserted by server integration tests. */
 export interface BatchReceipt {
   applied: number;
   archives: BatchArchiveSnapshot[];
@@ -156,16 +170,19 @@ export interface BatchReceipt {
   superseded?: boolean;
 }
 
+/** Revision metadata for an allocation rewritten by an activity change. */
 export interface RewrittenAllocationSnapshot {
   createdAt: string;
   id: string;
   updatedAt: string;
 }
 
+/** Activity write response with revisions needed to reconcile rewritten allocations. */
 export interface ActivityWriteResponse extends ActivitySnapshot {
   rewrittenAllocations: RewrittenAllocationSnapshot[];
 }
 
+/** Client response fields checked by the server snapshot parsers, including the built-in and privacy flags. */
 export interface ClientSnapshot {
   accountId: string;
   archivedAt?: string;
@@ -180,8 +197,10 @@ export interface ClientSnapshot {
   updatedAt: string;
 }
 
+/** Client write-response shape shared with the validated client snapshot. */
 export type ClientResponse = ClientSnapshot;
 
+/** Parsed application-state response used by server integration assertions. */
 export interface ValidatedStateResponse {
   accounts: AccountSnapshot[];
   activities: ActivitySnapshot[];

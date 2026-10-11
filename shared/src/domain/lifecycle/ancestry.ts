@@ -47,7 +47,7 @@ interface LifecycleAncestryRelation {
   optional?: boolean;
 }
 
-/** The same ancestor edges inherited by normal-read visibility and generic-write validation. */
+// Share ancestor edges between normal-read visibility and generic-write validation.
 const LIFECYCLE_ANCESTRY: readonly LifecycleAncestryRelation[] = [
   { child: "projects", parent: "clients", field: "clientId" },
   { child: "phases", parent: "projects", field: "projectId" },
@@ -62,8 +62,7 @@ const LIFECYCLE_ANCESTRY: readonly LifecycleAncestryRelation[] = [
 
 // Derived constants, the two access patterns the walk and the projection need, computed once from
 // the single relation list above so a new edge can never leave one of them stale.
-/** Edges grouped by child table: a walk step reads only its own edges (most tables have one or
- * none) instead of re-scanning the whole relation list. */
+// Group edges by child table so each walk step reads only its own relations.
 const CHILD_RELATIONS: ReadonlyMap<AppDataKey, readonly LifecycleAncestryRelation[]> = LIFECYCLE_ANCESTRY.reduce(
   (byChild, relation) => {
     const edges = byChild.get(relation.child);
@@ -126,8 +125,7 @@ export function inspectAncestry({ table, row, lookup, memo }: InspectAncestryOpt
   return { kind: "visible" };
 }
 
-/** One resolved parent's verdict, reused across every child that reaches it (see
- * {@link LifecycleAncestryMemo}). Without a memo this is a plain recursive call. */
+// Reuse a resolved parent’s verdict across children that reach it; without a memo, recurse directly.
 function resolveMemoisedAncestry({ table, row, lookup, memo }: MemoisedAncestryOptions): LifecycleAncestryResult {
   if (!memo) return inspectAncestry({ table, row, lookup, memo: undefined });
   const key = `${table}|${row.id}`;

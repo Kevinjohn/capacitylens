@@ -64,8 +64,7 @@ export function checkEntityWriteBody({
   urlId,
   scoped,
 }: CheckEntityWriteBodyInput): WriteRejection | null {
-  // Array bodies are rejected for every verb (PUT already did; POST/PATCH now match, a spread of an
-  // array into a merge/write is never a valid entity body).
+  // Entity bodies must be records; spreading an array cannot produce valid write input.
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return { status: 400, error: "A request body is required." };
   }
@@ -137,17 +136,10 @@ export interface PreparedWrite {
   scopedState: AppData;
 }
 
-/**
- * The shared prepare-and-validate core sanitizes and stamps the row, reads only the writing
- * account's slice, then runs referential validation.
- *
- * `body` is what the verb feeds sanitizeWrite: the raw create/replace body, or the merged
- * `{...existing, ...patch, id}` for a patch. `existing` is the stored row (undefined on a create).
- *
- * Validation is deferred in exactly two behaviour-preserving cases: an accounts CREATE (validated
- * inside the replay-safe provisioning closure, an accounts UPDATE still validates here, as it did
- * pre-funnel), and a generated-builtin replacement (validated inside replaceGeneratedBuiltin against
- * its re-pointed projection). Everything else validates here.
+/** Prepares a copy of the row with canonical fields and server revisions, then validates its tenant relationships.
+ * body contains the raw create/replacement or the existing row merged with a patch.
+ * Account creation defers validation to replay-safe provisioning; generated Internal-client adoption
+ * validates inside its atomic reparenting operation. Other writes validate before persistence.
  */
 export function prepareScopedWrite(input: {
   store: AccountStore;
@@ -181,8 +173,6 @@ export function prepareScopedWrite(input: {
   return { row, generatedReplacement, scopedState };
 }
 
-// Pure write-path helpers. The funnel and its call sites share one definition; app.ts re-imports them.
-
 /** The server owns persistence timestamps; request timestamps are only precondition versions. */
 export function stampServerRevision(
   row: Record<string, unknown>,
@@ -199,8 +189,8 @@ export function stampServerRevision(
 // State parameter, not `db`: a pure existence check against the caller's already-loaded AppData
 // projection (the funnel's scoped read / the batch's incrementally-maintained projection), so it
 // never triggers a fresh read itself.
-/**
- * Supplies a replacement value for a built-in field omitted from the request.
+/** Returns the deterministic Internal-client ID displaced by an eligible legacy-ID adoption, or null.
+ * Pure; reads the caller’s existing projection without querying storage.
  */
 export function resolveGeneratedBuiltinReplacement(
   state: AppData,

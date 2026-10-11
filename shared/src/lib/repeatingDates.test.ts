@@ -428,6 +428,7 @@ describe("generateRepeatingStartDates validation", () => {
       try {
         generateRepeatingStartDates("2026-01-31", cutoff, { kind: "weeks", interval: 1 });
         throw new Error("Expected repeat generation to reject the cutoff.");
+        // Verify invalid cutoffs surface the expected typed repeat failure.
       } catch (error) {
         expect(error).toBeInstanceOf(RepeatingDateError);
         expect((error as RepeatingDateError).code).toBe(code);

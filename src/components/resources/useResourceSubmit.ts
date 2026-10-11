@@ -190,10 +190,8 @@ function completeResourceSubmit(input: SubmitInput, result: FlushResult, submitt
   input.fail(null, result.kind === "failed" ? resolveFlushFailureMessage(result.error) : m.app_persist_error());
 }
 
-/** Recovery is already running for a reconciliation failure, so its raw text would contradict the
- * retry the user is about to see. BatchValidationError is the exception: it carries the server's
- * own explanation of a deterministic 400, which is the only account the user ever gets of why the
- * save was refused, and resolvePersistenceErrorNotice only restates it when it carries a code. */
+// Reconciliation is already recovering, so show its localized status. Domain validation
+// refusals retain the server’s explanation of why the write was rejected.
 function resolveFlushFailureMessage(error: unknown): string {
   if (error instanceof BatchValidationError) return resolveErrorMessage(error);
   return error instanceof BatchReconciliationError ? m.app_persist_error() : resolveErrorMessage(error);
@@ -242,6 +240,7 @@ function createSubmit(input: SubmitInput) {
         .catch((error: unknown) => reportResourceFlushError(input, error, submittedAccountId))
         .finally(() => finishResourceSubmit(input));
     } catch (e) {
+      // Release both submission locks and surface the failed resource write so the form remains retryable.
       input.submittingRef.current = false;
       input.setSubmitting(false);
       input.fail(null, resolveErrorMessage(e));

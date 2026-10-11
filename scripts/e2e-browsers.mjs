@@ -9,7 +9,6 @@
 // project `dependency` (which skips the dependent when its dependency fails, hiding a Firefox-only
 // regression). Exit code is non-zero if either invocation failed, but both always run first.
 //
-//   node scripts/e2e-browsers.mjs   # = pnpm run e2e:browsers
 
 import { nonColourEnvironment, spawnPnpmSync, reportSpawnFailureAndResolveExitStatus } from "./pnpmSpawn.mjs";
 import { E2E_RUN_PRESETS, presetEnvironment } from "./playwrightRunMode.mjs";
@@ -26,10 +25,6 @@ function run(label, env, extraArgs = []) {
   return reportSpawnFailureAndResolveExitStatus(`e2e:browsers ${label}`, res);
 }
 
-// 1) Chromium + WebKit/Safari core specs in one Vite-only run. CAPACITYLENS_WEBKIT makes the webkit
-//    project exist; CAPACITYLENS_VITE_ONLY trims the webServer list to Vite (no SQLite/auth server);
-//    the --project filters pick the two engines (so the db/auth projects don't run even though
-//    they're defined). CAPACITYLENS_FIREFOX stays unset, so Firefox is not in this invocation.
 const chromeWebkit = run(
   "Chromium + WebKit/Safari",
   {
@@ -39,7 +34,7 @@ const chromeWebkit = run(
   E2E_RUN_PRESETS.chromiumWebkit.projects.flatMap((project) => ["--project", project]),
 );
 
-// 2) Firefox/Gecko core specs on its own after the above, even when the previous run fails even when it failed.
+// Run Firefox even if the Chromium and WebKit invocation failed.
 const firefox = run(
   "Firefox/Gecko",
   {
@@ -49,5 +44,4 @@ const firefox = run(
   E2E_RUN_PRESETS.firefoxOnly.projects.flatMap((project) => ["--project", project]),
 );
 
-// Fail the run if either engine failed; 0 only when BOTH passed.
 process.exit(chromeWebkit || firefox);

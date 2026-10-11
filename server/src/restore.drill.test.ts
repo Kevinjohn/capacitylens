@@ -29,22 +29,10 @@ afterEach(() => {
   temporaryDirectories.clear();
 });
 
-// The restore drill, codified. A backup that has never been restored is a hope, not a
-// backup: this exercises the whole recovery path end to end so the restore sequence itself is
-// continuously verified by `pnpm run gate:server`, not just on a one-off manual run on the droplet.
-//
-// The cycle mirrors docs-src/self-hosting/backups-and-restore.md's "Restore" section exactly: snapshot the live DB → make an
-// edit after the snapshot (work the backup can't have captured) → simulate disaster by corrupting
-// the live file → restore by copying the snapshot over it and removing the WAL/SHM sidecars → open
-// and verify. The two assertions below are deliberately non-vacuous: the corrupt live DB must fail
-// to open before the restore (so "lost" is real, not a no-op that quietly left the data in place),
-// and after the restore the seeded data must be back (recovery proven) while the post-snapshot edit
-// must be gone (point-in-time RPO, proof the file was genuinely replaced by the snapshot).
-//
-// Everything runs against on-disk files in a tmp dir: the source must be on disk so it can be
-// corrupted, unlike backup.test.ts's `:memory:` source.
+// Exercise the documented restore sequence against real files, including a verified snapshot, corrupted live database and atomic replacement.
+// Seeded data must return while post-snapshot edits disappear, proving point-in-time recovery.
 
-/** A fake clock that advances one second per call, so every snapshot gets a unique name. */
+// Advance the fixture clock so snapshots receive distinct names.
 function tickingClock(start = new Date("2026-06-13T00:00:00")) {
   let t = start.getTime();
   return () => new Date((t += 1000));
@@ -56,12 +44,10 @@ describe("P3.3 restore drill", () => {
     const livePath = join(work, "capacitylens.db");
     const backupsDir = join(work, "backups");
 
-    // 1. Seed the live DB on disk (sanity: the seeded 'Wayne Enterprises' account is present).
     const live = openDb(livePath);
     insertAll(live, seed());
     expect(readState(live).accounts.map((a) => a.name)).toContain("Wayne Enterprises");
 
-    // 2. Snapshot S1, the point we will recover to. Then stop the daemon's timer.
     const backups = startBackups({
       db: live,
       config: { dir: backupsDir, intervalMin: 60, keep: 48 },
@@ -72,23 +58,20 @@ describe("P3.3 restore drill", () => {
     await backups.stop();
     expect(existsSync(snapshot)).toBe(true);
 
-    // 3. An edit made after the snapshot, work the backup cannot have captured (the RPO loss).
+    // An edit after the snapshot must be absent after restore, proving the recovery point.
     live.exec("UPDATE accounts SET name = 'POST-SNAPSHOT-EDIT' WHERE name = 'Wayne Enterprises'");
     const afterEdit = readState(live).accounts.map((a) => a.name);
     expect(afterEdit).toContain("POST-SNAPSHOT-EDIT");
     expect(afterEdit).not.toContain("Wayne Enterprises");
 
-    // 4. Close the live handle and clear its WAL/SHM sidecars so the corruption below is unambiguous
-    //    (a stale WAL must not replay old frames over the garbage we are about to write).
+    // Remove sidecars before corruption so stale WAL frames cannot reconstruct the overwritten database.
     live.close();
     rmSync(livePath + "-wal", { force: true });
     rmSync(livePath + "-shm", { force: true });
 
-    // 5. Simulate disaster: overwrite the live file with garbage, a real, not faked, loss.
     writeFileSync(livePath, "this is not a sqlite database");
 
-    // 6. Non-vacuous "lost": opening + reading the corrupted live DB must throw. (If this were a
-    //    no-op the restore could trivially "succeed" while the data was never actually gone.)
+    // The corrupted live database must fail before restore; otherwise recovery could pass without replacing lost data.
     let corrupt: DatabaseSync | undefined;
     try {
       expect(() => {
@@ -100,30 +83,22 @@ describe("P3.3 restore drill", () => {
     }
     expect(corrupt?.isOpen).toBe(false);
 
-    // 7. Restore, the runbook sequence exactly (backups-and-restore.md step 2): copy the snapshot
-    //    to a temporary sibling, pin + verify its mode and owner, atomically rename it over the
-    //    live file, then remove the WAL/SHM sidecars. The earlier direct copyFileSync skipped the
-    //    temp+rename sequence entirely, so the drill never exercised what operators actually run.
+    // Follow the runbook’s temporary-file verification and atomic rename before removing sidecars.
     const temporary = livePath + ".restore";
     copyFileSync(snapshot, temporary);
     chmodSync(temporary, 0o600);
-    // Runbook: verify pinned mode.
     expect(statSync(temporary).mode & 0o777).toBe(0o600);
-    // Owner is us.
     expect(statSync(temporary).uid).toBe(process.getuid?.() ?? statSync(livePath).uid);
     // Atomic replacement, no partially-written live file window.
     renameSync(temporary, livePath);
     rmSync(livePath + "-wal", { force: true });
     rmSync(livePath + "-shm", { force: true });
 
-    // 8. Verify recovery (both non-vacuous): the seeded data is back (if restore were a no-op the
-    //    open would still throw → test fails), and the post-snapshot edit is gone, point-in-time
-    //    RPO behaviour, i.e. the live file was genuinely replaced by the snapshot.
+    // Require both restored seed data and the absence of later edits to prove the snapshot replaced the live database.
     const restored = openDb(livePath);
     const names = readState(restored).accounts.map((a) => a.name);
     const quickCheck = restored.prepare("PRAGMA quick_check").all();
     const foreignKeyViolations = restored.prepare("PRAGMA foreign_key_check").all();
-    // On-disk handle, close it to be tidy (unlike the :memory: handles in backup.test.ts).
     restored.close();
     expect(names).toContain("Wayne Enterprises");
     expect(names).not.toContain("POST-SNAPSHOT-EDIT");

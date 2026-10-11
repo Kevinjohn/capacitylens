@@ -1,35 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { cleanText, hasDisallowedChars, MAX_NAME_LENGTH } from "./strings";
 
-// Built from numeric code points so the source file stays pure ASCII (no invisible
-// or ambiguous literals that would make the test lie about what it checks).
-// Party popper emoji.
+// Build numeric fixtures so invisible or ambiguous characters cannot conceal what the test checks.
+// This fixture is the party popper emoji.
 const PARTY = String.fromCodePoint(0x1f389);
-// Pile of poo emoji.
+// This fixture is the pile of poo emoji.
 const POO = String.fromCodePoint(0x1f4a9);
-// White check mark emoji.
+// This fixture is the white check mark emoji.
 const CHECK = String.fromCodePoint(0x2705);
-// Control char.
+// This fixture is a NUL control character.
 const NUL = String.fromCodePoint(0x0000);
-// Zero-width joiner (format).
+// This fixture is the zero-width joiner, a format character.
 const ZWJ = String.fromCodePoint(0x200d);
-// Right-to-left override (format).
+// This fixture is the right-to-left override, a format character.
 const RLO = String.fromCodePoint(0x202e);
-// Emoji variation selector-16 (Mn).
+// This fixture is variation selector 16, a nonspacing mark used for emoji presentation.
 const VS16 = String.fromCodePoint(0xfe0f);
-// Combining enclosing keycap (Me).
+// This fixture is the combining enclosing keycap, an enclosing mark.
 const KEYCAP = String.fromCodePoint(0x20e3);
-// Combining acute accent (Mn, legitimate).
+// This fixture is a legitimate combining acute accent, a nonspacing mark.
 const ACUTE = String.fromCodePoint(0x0301);
-// Unassigned in the supported runtime baseline.
+// This fixture is unassigned in the supported runtime baseline.
 const UNASSIGNED = String.fromCodePoint(0x0378);
-// Co.
+// This fixture is a private-use character in category Co.
 const PRIVATE_USE = String.fromCodePoint(0xe000);
-// Cs.
+// This fixture is a lone surrogate in category Cs.
 const LONE_SURROGATE = String.fromCharCode(0xd800);
-// Variation-selector supplement.
+// This fixture is from the variation-selector supplement.
 const VS_SUPPLEMENT = String.fromCodePoint(0xe0100);
-// Extended_Pictographic, category Po rather than So.
+// This fixture is Extended_Pictographic despite being category Po rather than So.
 const DOUBLE_EXCLAMATION = String.fromCodePoint(0x203c);
 
 describe("hasDisallowedChars", () => {
@@ -46,10 +45,10 @@ describe("hasDisallowedChars", () => {
   });
 
   it("rejects flag emoji (regional indicators) and symbol marks", () => {
-    // 🇬🇧.
+    // These regional indicators compose the United Kingdom flag emoji.
     const FLAG_GB = String.fromCodePoint(0x1f1ec, 0x1f1e7);
     expect(hasDisallowedChars(`from ${FLAG_GB}`)).toBe(true);
-    // Trademark sign.
+    // This fixture appends the trademark sign.
     expect(hasDisallowedChars(`Ferris${String.fromCodePoint(0x2122)}`)).toBe(true);
   });
 
@@ -75,16 +74,16 @@ describe("hasDisallowedChars", () => {
   });
 
   it("rejects keycap emoji and the emoji variation selector (U+FE0F / U+20E3)", () => {
-    // "1️⃣" keycap emoji.
+    // These components compose the digit-one keycap emoji.
     expect(hasDisallowedChars(`1${VS16}${KEYCAP}`)).toBe(true);
-    // Lone variation selector.
+    // Reject a variation selector without a base character.
     expect(hasDisallowedChars(VS16)).toBe(true);
-    // Lone enclosing-keycap mark.
+    // Reject an enclosing-keycap mark without a base character.
     expect(hasDisallowedChars(KEYCAP)).toBe(true);
   });
 
   it("still accepts a legitimate decomposed accent (does NOT ban Nonspacing_Mark wholesale)", () => {
-    // "é" written as e + U+0301.
+    // This fixture writes the accented letter as e followed by U+0301.
     expect(hasDisallowedChars(`e${ACUTE}`)).toBe(false);
   });
 
@@ -123,9 +122,7 @@ describe("cleanText", () => {
   });
 
   it("strips keycap-emoji parts but keeps the base char, and preserves decomposed accents", () => {
-    // Emoji presentation stripped, digit kept.
     expect(cleanText(`1${VS16}${KEYCAP}`)).toBe("1");
-    // Legitimate accent retained in canonical NFC form.
     expect(cleanText(`e${ACUTE}`)).toBe("é");
   });
 

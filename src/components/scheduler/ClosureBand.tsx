@@ -3,13 +3,10 @@ import type { Closure, ISODate } from "@capacitylens/shared/types/entities";
 import type { ColumnGeometry } from "./columnGeometry";
 import { buildVisibleSpanInsets } from "./visibleSpanInsets";
 
-/** The band is usually both wider and taller than the viewport, so its name is clamped to the
- * visible portion on both axes and centred there: it then stays on screen however far the
- * schedule has been scrolled across a long closure or down a long list of people. */
+// Clamp the closure label to the visible region on both axes so long spans remain identifiable while scrolling.
 const LABEL_INSETS_X = buildVisibleSpanInsets("x", "var(--band-left)", "var(--band-width)");
 const LABEL_INSETS_Y = buildVisibleSpanInsets("y", "0px", "var(--band-height)");
 
-/** Wide enough to read the name across rather than sideways. */
 const READABLE_ACROSS_WIDTH = 44;
 
 function ClosureLabel({ name, width }: { name: string; width: number }) {
@@ -59,11 +56,7 @@ export function ClosureBand({
   if (height <= 0 || width <= 0) return null;
   const timelineLeft = geometry.xForDateInGeom(start);
 
-  // One geometry for both layers, so the name can never drift from the shading it belongs to.
-  // The visible-portion clamp works in timeline coordinates, where the frozen resource column
-  // cancels out, so the published start omits the column offset that `left` itself carries. Both
-  // layers start at the top of the rowgroup, which is also where the vertical scroll offset is
-  // measured from, so their y start is a literal 0.
+  // Both closure layers share one timeline-coordinate geometry so the label stays aligned with its shading. Exclude the frozen resource-column offset from the published clamp coordinate.
   const geometryStyle: CSSProperties = {
     left: leftOffset + timelineLeft,
     width,
@@ -88,11 +81,7 @@ export function ClosureBand({
             "repeating-linear-gradient(45deg, color-mix(in oklab, var(--color-faint) 32%, transparent) 0 3px, color-mix(in oklab, var(--color-scheduler-canvas) 72%, transparent) 3px 9px)",
         }}
       />
-      {/* The name rides on its own layer rather than inside the band. The band's shading has to
-          stay beneath the group-header rows, and `z-0` makes it a stacking context, so a
-          name nested in it would be buried by every group header it scrolled behind, leaving the
-          closure looking unnamed. A sibling layer can outrank those rows while the shading
-          underneath stays beneath them. */}
+      {/* A sibling label layer can sit above group headers while the closure shading stays below them; nesting would trap the label in the band's z-0 stacking context. */}
       <div
         data-testid="scheduler-closure-label-layer"
         data-closure-id={closure.id}

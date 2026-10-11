@@ -60,12 +60,8 @@ function registerSchedulerExposesGridRolesSrTest() {
     await openApp(page);
     const grid = page.getByRole("grid", { name: "Resource schedule" });
     await expect(grid).toBeVisible();
-    // The grid honestly declares its 2-column structure (WCAG 1.3.1): col 1 = the sticky
-    // resource/utilisation column, col 2 = the timeline lane.
     await expect(grid).toHaveAttribute("aria-colcount", "2");
     await expect(page.getByRole("rowheader", { name: /Bruce Wayne/ })).toBeVisible();
-    // The lane cell (col 2) carries an accessible name ("<name> timeline") so it isn't an
-    // unnamed gridcell, and exposes aria-colindex=2 to match the declared columns.
     const lane = page.getByRole("gridcell", { name: /Bruce Wayne timeline/ });
     await expect(lane).toBeVisible();
     await expect(lane).toHaveAttribute("aria-colindex", "2");

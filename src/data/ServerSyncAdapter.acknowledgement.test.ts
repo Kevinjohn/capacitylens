@@ -39,16 +39,16 @@ const ackReceipt = (init?: RequestInit): Response => {
 async function expectDurableAckAcrossUnrelatedSaves(): Promise<void> {
   const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => ackReceipt(init)) as unknown as typeof fetch;
   const a = new ServerSyncAdapter("http://x", fetchImpl);
-  // Edit c1 → save → ack. The store keeps c1@TS1 (the server stamp is never written back into it).
+
   await a.saveAll(withData({ clients: [client("c1", TS1)] }));
-  // Several unrelated saves, each adding a new client while c1 stays at its client stamp TS1.
+
   await a.saveAll(withData({ clients: [client("c1", TS1), client("c2", TS1)] }));
   await a.saveAll(withData({ clients: [client("c1", TS1), client("c2", TS1), client("c3", TS1)] }));
   await a.saveAll(withData({ clients: [client("c1", TS1), client("c2", TS1), client("c3", TS1), client("c4", TS1)] }));
   const batches = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.map((call) =>
     batchOps(call).map((op) => op.id),
   );
-  // c1 is PUT exactly once (its first save) and never re-appears. No phantom re-PUT on alternate saves.
+
   expect(batches).toEqual([["c1"], ["c2"], ["c3"], ["c4"]]);
 }
 
@@ -75,14 +75,14 @@ describe("ServerSyncAdapter — durable acknowledged-revision translation (phant
   it("emits exactly one PUT when a previously-acked row is genuinely edited again, then is durable anew", async () => {
     const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => ackReceipt(init)) as unknown as typeof fetch;
     const a = new ServerSyncAdapter("http://x", fetchImpl);
-    await a.saveAll(withData({ clients: [client("c1", TS1)] })); // ack c1@TS1
+    await a.saveAll(withData({ clients: [client("c1", TS1)] }));
     (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
-    // Genuine re-edit: c1 carries a new client stamp → exactly one PUT; the translation entry is replaced.
+
     await a.saveAll(withData({ clients: [{ ...client("c1", TS2), name: "Renamed" }] }));
     let calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls).toHaveLength(1);
     expect(batchOps(calls[0]).map((o) => o.id)).toEqual(["c1"]);
-    // The re-edit re-acked c1@TS2; a following unrelated save must not re-PUT c1 (durable again).
+
     (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
     await a.saveAll(
       withData({
@@ -99,15 +99,14 @@ describe("ServerSyncAdapter — durable acknowledged-revision translation (phant
       return ackReceipt(init);
     }) as unknown as typeof fetch;
     const a = new ServerSyncAdapter("http://x", fetchImpl);
-    await a.saveAll(withData({ clients: [client("c1", TS1)] })); // ack: client TS1 → server 'TS1::server'
-    await a.loadAll(); // rehydrate → seeds lastSynced (empty) and clears the ack map
+    await a.saveAll(withData({ clients: [client("c1", TS1)] }));
+    await a.loadAll();
     (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
-    // A fresh create reusing stamp TS1. A leaked stale ack would translate it to the server stamp;
-    // a cleared map PUTs it with its real client stamp TS1.
+    // Clear translations on rehydrate so a recreated row using an old client stamp sends that stamp rather than an unrelated server revision.
     await a.saveAll(withData({ clients: [client("c1", TS1)] }));
     const wire = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]);
     expect(wire.map((o) => o.id)).toEqual(["c1"]);
-    expect(requiredRecord(required(wire[0]).row, "expected recreated client row").updatedAt).toBe(TS1); // Not 'TS1::server'. The stale translation was cleared
+    expect(requiredRecord(required(wire[0]).row, "expected recreated client row").updatedAt).toBe(TS1);
   });
 
   it("prunes a translation after committed deletion so an id can reuse its client stamp safely", async () => {
@@ -132,11 +131,5 @@ describe("ServerSyncAdapter — durable acknowledged-revision translation (phant
   });
 });
 
-// The server 400-rejects a batch DELETE of a lifecycle entity (clients/projects/resources/activities), steering
-// writers at the dedicated lifecycle routes. The old client emitted those deletes in the batch, so a
-// single undo of a synced create (add client → sync → Cmd-Z) poisoned every later batch until a
-// reload discarded the edits. The adapter now splits lifecycle deletes out and converges each by
-// archiving only (POST /api/{table}/{id}/archive, action 'write', editor-allowed, never
-// freshness-gated) after the batch. It deliberately does not call /delete: soft-delete is
-// irreversible, admin-gated and step-up-gated, so it is never emitted by background sync. The
-// sync-originated disappearance parks the row as archived (reversible); it lingers in the archived
+// Background sync archives lifecycle entities reversibly after ordinary batch writes.
+// It never emits their irreversible, privileged delete operation.

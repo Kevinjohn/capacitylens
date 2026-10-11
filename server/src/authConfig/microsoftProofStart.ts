@@ -202,6 +202,7 @@ export function createMicrosoftProofStart(input: {
         ],
       };
     } catch (error) {
+      // Cancel the reserved proof intent when provider initiation fails so it cannot remain a live browser journey.
       db.prepare("UPDATE microsoft_identity_proofs SET state = 'cancelled' WHERE id = ?").run(intent.id);
       throw error;
     }

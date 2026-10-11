@@ -56,6 +56,7 @@ async function verifyApplicationSession(
     if (!resolved) return null;
     return buildVerifiedApplicationSession(context, resolved);
   } catch (error) {
+    // Preserve recognized account failures and surface unexpected identity-store failures as dependency errors with their cause.
     if (error instanceof AccountContractError) throw error;
     throw createProviderFailure("Session verification is temporarily unavailable.", error);
   }
@@ -217,6 +218,7 @@ async function signOut(
       ],
     };
   } catch (error) {
+    // Surface identity-store failures as dependency errors while preserving their cause for diagnostics.
     throw createProviderFailure("Sign-out is temporarily unavailable.", error);
   }
 }
@@ -261,6 +263,7 @@ async function listSessions(
     input.masqueradeSessions?.commit(expiredHandles);
     return active;
   } catch (error) {
+    // Surface identity-store failures as dependency errors while preserving their cause for diagnostics.
     throw createProviderFailure("Session listing is temporarily unavailable.", error);
   }
 }
@@ -301,6 +304,7 @@ async function revokeOwnSession(
     }
     return createOperationReceipt({ commandId: command.commandId, changed: row !== undefined });
   } catch (error) {
+    // Surface identity-store failures as dependency errors while preserving their cause for diagnostics.
     throw createProviderFailure("Session revocation is temporarily unavailable.", error);
   }
 }
@@ -325,6 +329,7 @@ async function revokePrincipalSessions(
     input.masqueradeSessions?.commit(masqueradeHandles);
     return createOperationReceipt({ commandId: command.commandId });
   } catch (error) {
+    // Surface identity-store failures as dependency errors while preserving their cause for diagnostics.
     throw createProviderFailure("Session revocation is temporarily unavailable.", error);
   }
 }

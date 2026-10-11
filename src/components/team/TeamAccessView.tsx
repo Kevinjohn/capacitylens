@@ -77,8 +77,7 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
   let accessDetails = null;
 
   if (effectiveRole) {
-    // Collapsed by default: the tick list is reference material, not something anyone reads
-    // on every visit, and expanded it pushed the member table below the fold.
+    // Collapse the capability reference by default so member administration remains easy to reach.
     accessDetails = (
       <>
         <button
@@ -122,8 +121,6 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
 
 function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissionStatus }: AccessManagementProps) {
   if (!authenticated) {
-    // Demo and open installations have no real membership directory, so say so plainly rather
-    // than leaving the page looking broken.
     return (
       <Alert>
         <AlertDescription>{m.access_members_demo_note()}</AlertDescription>
@@ -210,9 +207,7 @@ export function TeamAccessView() {
 
       <PolicyManagement accountId={activeAccountId} role={resolvedRole} enabled={authenticated && mayManage} />
 
-      {/* Below member management, because a transfer is a consequence of who administers the
-          company rather than a way to administer it. The modal entry point renders nothing for
-          anyone who is not a participant, and nothing at all while writes are suspended. */}
+      {/* Ownership controls require a participant projection and remain unavailable while writes are suspended. */}
       {authenticated && mayManage && <OwnershipTransferCard />}
     </div>
   );

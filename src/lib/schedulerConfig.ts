@@ -25,7 +25,7 @@ export const WEEKDAY_LABEL_MIN_WIDTH = 36;
  * two-digit date. Expressed in rem (not px) so it tracks the user's font size / zoom; it's
  * resolved to px against the root font size where the ColumnGeometry is built. Only applies at
  * fine zoom (dayWidth >= DAY_COLUMN_MIN_WIDTH); buildColumnGeometry also caps it at dayWidth. */
-export const WEEKEND_COLUMN_REM = 1.4; // ≈ a 2-digit number at text-xs + a little padding
+export const WEEKEND_COLUMN_REM = 1.4;
 
 /** Idle delay (ms) after a free horizontal scroll settles before the week snap
  * floors the left edge back to the current week's first day, long enough that a continuous drag
@@ -41,15 +41,9 @@ export const DEFAULT_RANGE_DAYS = 120;
  * weeks, so the origin stays on the same weekday as the focused Monday. */
 export const PAST_BUFFER_DAYS = 28;
 
-/**
- * Window (days, forward from today) for the `overSoon` red flag only, the near-term, zoom/pan-
- * independent "over soon" overbooking radar, so a person slammed this week reads as overbooked
- * regardless of the visible range. This is deliberately separate from the displayed utilisation %
- * (per-person / per-discipline avg / overall), which since the visible-window change is computed
- * over the currently visible span (the zoom toggle's `zoom * 7` days at the scroll left edge) so
- * "63% utilisation" answers "over the weeks I'm looking at". A third signal, the per-day
- * over-marker, still flags every over-allocated day across the whole timeline. Three distinct
- * over/utilisation signals, kept apart (AGENTS.md / DECISIONS.md).
+/** Forward day window for the zoom-independent overSoon signal. Visible utilisation
+ * uses the current zoom and scroll window; per-day conflict markers cover the
+ * materialized timeline. These windows remain independent.
  */
 export const UTILIZATION_WINDOW_DAYS = 14;
 
@@ -72,10 +66,8 @@ export function resolveColumnFit(
   weeks: WeeksZoom,
   weekendWidth?: number,
 ): { dayWidth: number; weekWidth: number } {
-  // `availableWidth` comes from a measured DOM rect, which can be NaN (unmeasured / detached
-  // element). Treat non-finite the same as <= 0: a NaN would slip past the `<= 0` check
-  // (NaN <= 0 is false) and Math.ceil(NaN/…) → NaN, propagating a
-  // NaN width into layout. Fall back to the minimum legible width instead.
+  // Reject non-finite measured widths before they propagate through layout; NaN does
+  // not satisfy the ordinary non-positive check.
   if (!Number.isFinite(availableWidth) || availableWidth <= 0) {
     return { dayWidth: MIN_DAY_WIDTH, weekWidth: MIN_DAY_WIDTH * 7 };
   }
@@ -86,9 +78,7 @@ export function resolveColumnFit(
   const uniformRaw = Math.floor(weekWidth / 7);
   const weekendAwareRaw =
     Number.isFinite(weekendWidth) && (weekendWidth as number) > 0
-      ? // 5 weekday columns + 2 weekend columns per week fill `availableWidth`:
-        // 5·dayWidth + 2·weekendWidth = weekWidth.
-        Math.floor((weekWidth - 2 * (weekendWidth as number)) / 5)
+      ? Math.floor((weekWidth - 2 * (weekendWidth as number)) / 5)
       : null;
   // Geometry narrows weekends only at the per-day-column threshold. Below it, use the same
   // uniform fit geometry will render; otherwise the fit assumes narrow weekends that are later

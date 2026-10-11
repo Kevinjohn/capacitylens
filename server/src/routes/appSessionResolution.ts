@@ -145,9 +145,7 @@ interface ApplyMasqueradePolicyInput {
   unsafe: boolean;
 }
 
-/** Send the read-only refusal for a masqueraded write, or end the masquerade on sign-out. Returns
- * the sent refusal, or null when the request continues. Synchronous so the reply is not unwrapped
- * as a thenable before the caller can test it. */
+// Return refusals synchronously so FastifyReply is not unwrapped as a thenable before the caller tests it.
 function applyMasqueradePolicy(input: ApplyMasqueradePolicyInput): FastifyReply | null {
   const { dependencies, path, reply, req, resolution, unsafe } = input;
   const activeMasquerade =

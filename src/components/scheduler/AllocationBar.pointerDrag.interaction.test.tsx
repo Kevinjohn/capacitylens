@@ -25,7 +25,7 @@ function registerBasicPointerTests() {
     const bar = screen.getByTestId("allocation-bar");
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
-    // A 48-pixel drag moves the allocation approximately one day.
+
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
 
@@ -178,7 +178,7 @@ function registerValidReassignmentTest() {
     const bar = screen.getByTestId("allocation-bar");
     fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 55, clientY: 125, bubbles: true }));
-    // resourceLaneAt picks lane-dst, markDropTarget highlights exactly that lane.
+
     expect(screen.getByTestId("lane-dst").hasAttribute("data-droptarget")).toBe(true);
     expect(screen.getByTestId("lane-src").hasAttribute("data-droptarget")).toBe(false);
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 55, clientY: 125, bubbles: true }));
@@ -257,7 +257,7 @@ function verifyWorkingDayRejection({
     st.addAllocation({
       resourceId: source.id,
       activityId: activity.id,
-      // The drop target is Friday.
+
       startDate: "2026-06-05",
       endDate: "2026-06-05",
       hoursPerDay: 8,

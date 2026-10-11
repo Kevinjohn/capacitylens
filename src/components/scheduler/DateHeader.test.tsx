@@ -9,8 +9,7 @@ import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 const DAYS = ["2026-06-01", "2026-06-02", "2026-06-06"];
 const DEFAULT_PROPS = { weekStartsOn: 1 as 0 | 1, today: "2026-06-01" };
 
-// Uniform geometry (minimise off): widths are all `dayWidth`, so weekend labels still read
-// "Sat". The narrow-weekend / "S"-label behaviour is exercised separately (commit 2).
+// Uniform columns retain full weekday labels; narrow-weekend label behaviour has separate coverage.
 const renderHeader = (dayWidth: number, visibleWeeks: WeeksZoom = 2) =>
   render(
     <DateHeader
@@ -144,11 +143,11 @@ function registerDetailedRenderingTests() {
 
     it("shows weekday abbreviations for each day", () => {
       renderHeader(48);
-      // 2026-06-01 is a Monday → Mon
+
       expect(screen.getByText("Mon")).toBeInTheDocument();
-      // 2026-06-02 is a Tuesday → Tue
+
       expect(screen.getByText("Tue")).toBeInTheDocument();
-      // 2026-06-06 is a Saturday → Sat
+
       expect(screen.getByText("Sat")).toBeInTheDocument();
     });
   });
@@ -172,7 +171,6 @@ function registerDetailedRenderingTests() {
 
 function registerMinimisedWeekendTests() {
   describe("with minimise weekends ON (narrowed weekend columns)", () => {
-    // Fri, Sat, Sun, Mon, a window straddling a full weekend.
     const WEEKEND_DAYS = ["2026-06-05", "2026-06-06", "2026-06-07", "2026-06-08"];
     const renderMinimised = (dayWidth: number) =>
       render(
@@ -192,7 +190,7 @@ function registerMinimisedWeekendTests() {
       renderMinimised(48);
       expect(screen.getByText("Fri")).toBeInTheDocument();
       expect(screen.getByText("Mon")).toBeInTheDocument();
-      // Saturday and Sunday both have the narrow label “S”.
+
       expect(screen.getAllByText("S")).toHaveLength(2);
       expect(screen.queryByText("Sat")).not.toBeInTheDocument();
       expect(screen.queryByText("Sun")).not.toBeInTheDocument();
@@ -200,16 +198,16 @@ function registerMinimisedWeekendTests() {
 
     it("still shows the date number in each narrowed weekend column", () => {
       renderMinimised(48);
-      // Saturday is June 6.
+
       expect(screen.getByText("6")).toBeInTheDocument();
-      // Sunday is June 7.
+
       expect(screen.getByText("7")).toBeInTheDocument();
     });
 
     it("renders weekend cells at the narrow width and weekdays at dayWidth", () => {
       const { container } = renderMinimised(48);
       const cells = container.querySelectorAll(".flex.flex-auto > div");
-      // Fri(48), Sat(22), Sun(22), Mon(48), widths come straight from the geometry.
+
       expect(Array.from(cells).map((c) => (c as HTMLElement).style.width)).toEqual(["48px", "22px", "22px", "48px"]);
     });
   });
@@ -220,10 +218,7 @@ function registerDateStyleReactivityTests() {
     // The store is module-global, so hand the rest of the file back its default reading.
     afterEach(() => resetStoreWithAccount());
 
-    // The header's week/month groupings are memoised on `days`, and `days` does not
-    // change when the company's date format does. Without `dateStyle` in the memo dependencies the
-    // label below stays on the old reading until something else forces a recompute, so this test
-    // fails if that dependency (or the `useDateStyle` subscription that feeds it) is removed.
+    // Date format changes must invalidate week-label memoisation even when the visible days are unchanged.
     it("re-reads its labels when the format changes", () => {
       resetStoreWithAccount();
       renderHeader(17);

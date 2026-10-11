@@ -140,11 +140,10 @@ export function ensureAccountBoundaryState(db: Db): void {
   db.exec(CURRENT_ACCOUNT_BOUNDARY_STATE_SQL);
 }
 
-/** Normalized (whitespace-collapsed, lowercased) `CREATE TABLE` SQL for `table`, or `""` if the
- * table doesn't exist. Shared by {@link assertAccountBoundaryStateCurrent} and
- * memberSignInTracking.ts's schema assertion, which derived this identically before extraction. Do
- * not converge with schema.ts's normalizeSchemaObjectSql. That helper has different semantics
- * (case-preserving, strips IF NOT EXISTS/`;`). */
+/**
+ * Returns lowercase, whitespace-collapsed table DDL, or an empty string for an absent table.
+ * This differs from normalizeSchemaObjectSql, which preserves case and removes IF NOT EXISTS and semicolons.
+ */
 export function readNormalizedTableCreateSql(db: Db, table: string): string {
   return String(
     (

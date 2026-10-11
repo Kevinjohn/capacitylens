@@ -26,9 +26,6 @@ export interface AccountCommandRecord {
   updatedAt: string;
 }
 
-// Shared 13-column projection for account_commands, hoisted out of the three readers below (they
-// differed only in WHERE). Interpolated verbatim, so the resulting SQL text is byte-identical to
-// each reader's former standalone literal.
 const ACCOUNT_COMMAND_COLUMNS = `applicationId, operation, idempotencyKey, commandId, actorPrincipalId, targetPrincipalId,
            workspaceId, payloadHash,
            status, resultJson, failureCode, createdAt, updatedAt`;

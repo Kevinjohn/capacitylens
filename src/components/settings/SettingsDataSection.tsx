@@ -35,7 +35,7 @@ function OfflineDataSection({
       <SwitchField
         label={m.settings_offline_toggle()}
         checked={offlineEnabled}
-        // The handler derives the next value itself (it also has to cache/roll back for it).
+
         onChange={() => toggleOffline()}
         disabled={offlineBusy}
       />
@@ -48,8 +48,7 @@ function OfflineDataSection({
   );
 }
 
-/** True while the company holds nothing a person put there. The built-in Internal client is
- * infrastructure every company has, so it does not count. */
+// Ignore the infrastructure Internal client when deciding whether the company has user-created content.
 function useCompanyIsEmpty(): boolean {
   const data = useScopedData();
   return (
@@ -60,7 +59,6 @@ function useCompanyIsEmpty(): boolean {
   );
 }
 
-/** Offered only to a company admin, only while the company is empty; the server enforces both. */
 function ExampleDataSection() {
   const accountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
@@ -81,6 +79,7 @@ function ExampleDataSection() {
       if (outcome.kind === "reloaded") setNotice(m.settings_example_data_added());
       else setNotice(m.settings_example_data_reload(), "warning");
     } catch (cause) {
+      // Report failed example-data creation so an empty company is not presented as successfully populated.
       setNotice(resolveErrorMessage(cause), "error");
     } finally {
       setBusy(false);

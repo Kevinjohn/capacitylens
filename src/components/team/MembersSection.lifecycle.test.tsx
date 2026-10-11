@@ -33,13 +33,6 @@ vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-// MembersSection is the Team & access management UI. It renders only in auth-on + server mode and
-// self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
-// true) and fetch, and assert the owner-only affordances are hidden for an admin (no owner option, no
-// controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
-
-// Make the section "enabled": a configured server. The real module reads import.meta.env, which the
-// test env leaves unset; mocking it is the clean way to flip server mode on.
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: () => true,
@@ -69,9 +62,6 @@ afterEach(() => {
 });
 
 describe("MembersSection — member lifecycle", () => {
-  // Transfer ownership is deliberately not here: there is no per-member button.
-  // Its server route and
-  // client method are untouched, so this describe covers what the row can now do instead.
   const lifecycleMembers: RawMember[] = [
     { userId: "me", role: "owner", isSelf: true },
     { userId: "ed", role: "editor" },
@@ -306,7 +296,7 @@ function registerMemberResourceLinkTests(): void {
                 resourceLink: { resourceId: "r-server-only", resourceName: "Barry Allen", revision: "rev-1" },
               }),
             ],
-            // Deliberately unsorted, and carrying a person the store does not have.
+
             resourceCandidates: [
               { resourceId: "r-server-only", label: "Barry Allen" },
               { resourceId: diana.id, label: "Diana Prince" },
@@ -387,7 +377,7 @@ function registerLifecycleStatusTests(lifecycleMembers: RawMember[]): void {
     await chooseMemberAction(user, edRow, testId);
     const dialog = screen.getByRole("alertdialog");
     expect(within(dialog).getByText(consequence)).toBeInTheDocument();
-    // Opening the confirmation is not the write.
+
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/status"), expect.anything());
 
     await user.click(
@@ -444,12 +434,10 @@ function registerLifecycleVisibilityTests(): void {
     await openInactiveGroup(user);
     const edRow = await waitForMemberRow(/ed@x\.io/);
 
-    // A role change writes status: "active", so offering the pencil here would turn "edit their role"
-    // into a silent reinstatement. Restore is the only way back, and it is its own audited action.
+    // Inactive memberships cannot receive a role edit; reinstatement is a separate explicit transition.
     expect(within(edRow).queryByTestId("member-edit")).not.toBeInTheDocument();
 
-    // The gear is not withdrawn with it: disabling someone must never cost an administrator the
-    // ability to rotate their password, kill their sessions, or remove them outright.
+    // Disabling membership must preserve authorized credential and removal actions so administrators can recover or revoke access.
     await openMemberMenu(user, edRow);
     expect(screen.getByTestId("member-reset-password")).toBeInTheDocument();
     expect(screen.getByTestId("member-revoke-sessions")).toBeInTheDocument();
@@ -470,12 +458,10 @@ function registerLifecycleDisclosureTests(): void {
     );
     renderSection();
 
-    // The main table is the team. Two of these three memberships are history and must not pad it out.
     const mainTable = await screen.findByTestId("members-table");
     expect(within(mainTable).getAllByTestId("member-row")).toHaveLength(1);
     expect(within(mainTable).queryByText(/ed@x\.io/)).not.toBeInTheDocument();
 
-    // Collapsed by default: the group is announced with its count, but lists nobody until asked.
     const toggle = screen.getByTestId("members-inactive-toggle");
     expect(toggle).toHaveTextContent(m.settings_members_inactive_group({ count: 2 }));
     expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -494,13 +480,12 @@ function registerLifecycleDisclosureTests(): void {
         .map((header) => header.textContent),
     ).toEqual(expectedColumns);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
-    // Both non-active states share one group; the per-row badge is what tells them apart.
+
     const badges = within(inactiveTable)
       .getAllByTestId("member-status")
       .map((badge) => badge.textContent);
     expect(badges).toEqual([m.settings_member_status_disabled(), m.settings_member_status_archived()]);
 
-    // It closes again. This is a disclosure, not a one-way reveal.
     await user.click(toggle);
     expect(screen.queryByTestId("members-inactive-table")).not.toBeInTheDocument();
   });
@@ -514,7 +499,7 @@ function registerLifecycleDisclosureTests(): void {
       ]),
     );
     renderSection();
-    // An empty "No longer active (0)" control would be a permanent reminder of nothing.
+
     await screen.findByTestId("members-table");
     expect(screen.queryByTestId("members-inactive-toggle")).not.toBeInTheDocument();
   });
@@ -533,8 +518,7 @@ function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
     renderSection();
     const selfRow = await waitForMemberRow(/me@x\.io/);
 
-    // Self-suspension would be an unrecoverable in-app lockout; the Owner is protected because the
-    // single-active-Owner invariant keys on role='owner' and status='active'.
+    // Self-suspension risks locking the administrator out; the active Owner is additionally protected by the single-owner invariant.
     await openMemberMenu(user, selfRow);
     expect(screen.queryByTestId("member-disable")).not.toBeInTheDocument();
     expect(screen.queryByTestId("member-archive")).not.toBeInTheDocument();
@@ -710,8 +694,6 @@ function registerLifecycleConcurrencyTests(): void {
     await chooseMemberAction(user, editorRow, "member-disable");
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /disable/i }));
 
-    // While the first mutation is in flight the row's own affordances are disabled, so a second
-    // action cannot even be raised, the beginAction lock and the disabled state agree.
     await waitFor(() => expect(within(editorRow).getByTestId("member-menu")).toBeDisabled());
     expect(within(editorRow).getByTestId("member-edit")).toBeDisabled();
     await user.click(within(editorRow).getByTestId("member-menu"));

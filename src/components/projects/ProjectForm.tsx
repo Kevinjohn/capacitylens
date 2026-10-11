@@ -39,11 +39,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   // Internal projects always read as neutral grey, so their colour is not editable.
   const showColourPicker = !selectedClientIsInternal;
 
-  // The internal/ordinary split + sort is the only non-trivial cost here; memoised on its actual
-  // input (clients) so it isn't redone on every keystroke elsewhere in the form. The archived-option
-  // append below stays outside the memo: its label goes through `m.*()`, which must keep resolving
-  // fresh every render (a stale locale/account switch is otherwise possible, see validation.ts's
-  // "getter, not module-scope const" note), so it's rebuilt un-cached each render.
+  // Memoise client ordering because keystrokes do not change the client list. Append the current archived-client option outside that memo so its label resolves using the active locale.
   const baseClientOptions: Option[] = useMemo(() => {
     const internalClient = clients.find((client) => client.builtin === true);
     const ordinaryClients = clients.filter((client) => client.builtin !== true).sort(byName);
@@ -56,11 +52,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
       })),
     ];
   }, [clients]);
-  // Editing a project whose client is archived: the active-only options above don't contain it, so
-  // without this the select would silently blank and an unrelated edit (rename, colour) couldn't
-  // round-trip the unchanged clientId. Append the current id as a disabled option, it stays
-  // selected/submittable as the current value (the store's unchanged-parent relaxation accepts it),
-  // but can't be picked back once the user chooses an active client.
+  // Retain a disabled selected option for the existing archived client so unrelated project edits round-trip its unchanged ID.
   const clientOptions = resolveProjectClientOptions({ baseOptions: baseClientOptions, clients, rawClients, project });
   const submit = useProjectSubmit({ project, name, clientId, color, privateNameFields, fail, add, update, onClose });
 
@@ -155,6 +147,7 @@ function useProjectSubmit({
       if (!saveProject({ project, trimmed, clientId, color, privacy, add, update })) return;
       onClose();
     } catch (error) {
+      // Surface store rejection at the project form so invalid writes cannot escape the event boundary.
       fail(null, resolveErrorMessage(error));
     }
   };

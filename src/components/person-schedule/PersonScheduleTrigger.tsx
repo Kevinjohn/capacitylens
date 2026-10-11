@@ -17,11 +17,7 @@ export interface PersonScheduleTriggerProps {
   onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
 }
 
-/**
- * The avatar-with-eye button that opens the person schedule drawer. Shared by the Schedule
- * grid rows and the Overview person rows so the hover/focus-to-eye interaction and its test ids
- * (person-schedule-trigger/-avatar/-eye) stay one piece of code.
- */
+/** Opens a person schedule through the shared avatar/eye trigger used by Schedule and Overview. */
 export function PersonScheduleTrigger({
   resourceId,
   scheduleTitle,

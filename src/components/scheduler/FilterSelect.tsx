@@ -1,19 +1,7 @@
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { FilterOption } from "./toolbarFilterOptions";
 
-/**
- * One "filter by <entity>" dropdown. The discipline / client / project lenses are the same control
- * three times over, a flat list with an "All …" row on top, differing only in their label, their
- * accessible name and their options, so they share this rather than repeating the Select scaffold.
- *
- * It also owns the one mapping the three had to get right independently: the store's `null` ("no
- * filter") against Radix's `"all"` sentinel, in both directions. The grouped activity lens is
- * deliberately not folded in, its encoded `kind:` values and section headers are a different
- * control that happens to look similar.
- *
- * `ariaLabel`/`allLabel` are uncalled message functions, invoked during render. A caller passing
- * `m.x()` instead would resolve the string once, at module scope, and never follow a locale change.
- */
+/** Selects a nullable entity filter through the application's all sentinel. Resolve supplied label functions during render so account locale changes update the options. */
 export function FilterSelect({
   value,
   onValueChange,

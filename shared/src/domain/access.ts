@@ -55,26 +55,17 @@ export type Action =
 // Product-data policy stays here; account-administration policy lives in account/policy.ts. Both
 // use the account boundary's one canonical role ordering.
 
-/**
- * The minimum role required for CapacityLens product-data actions. Account administration is
- * delegated to `canAdministerAccount` below and has no duplicate thresholds in this module.
- *
- * `satisfies Record<ProductDataAction, Role>` is load-bearing: a newly-added product-data action
- * with no rule is a build error rather than a silent fail-open.
- */
+// Account policy owns administration thresholds; this table owns product-data thresholds.
+// Record coverage makes a missing product-data rule a compile-time error.
 const MIN_TIER = {
-  // Any member can read.
   read: "viewer",
-  // Members at editor tier or higher can write.
   write: "editor",
-  // Admins and owners can manage the internal client.
   manageInternalClient: "admin",
-  // Admins and owners can purge.
   purge: "admin",
 } as const satisfies Record<ProductDataAction, Role>;
 
-/** CapacityLens names mapped to the account boundary's canonical administrative operations.
- * This table deliberately contains no role thresholds: account policy owns those exactly once. */
+// Map CapacityLens action names to canonical account-administration operations.
+// Account policy owns the role thresholds so this table cannot duplicate them.
 const ACCOUNT_ADMIN_ACTION = {
   manageMembers: "manage-members",
   manageInvites: "manage-invitations",
@@ -88,27 +79,7 @@ const ACCOUNT_ADMIN_ACTION = {
 type ProductDataAction = "read" | "write" | "manageInternalClient" | "purge";
 type AccountAdministrationAction = Exclude<Action, ProductDataAction>;
 
-/**
- * The single pure authority for "may this role perform this action" on an account. The server
- * resolves the caller's role for the account and then calls this function; the client uses the
- * same function for affordances, so the
- * permission decision is single-sourced and the two halves cannot drift.
- *
- * Pure by contract: no I/O, no session/Headers param, no Date, no randomness, just the role, the
- * action, and the static matrix. It is a leaf module (only depends on the {@link Role} type) so
- * both server and client can import it freely.
- *
- * Invariant: product-data thresholds are encoded here; account-administration thresholds are
- * encoded in `account/policy.ts`. Affordances and route guards call `can` rather than re-deriving
- * role tests inline.
- *
- * Fail-closed: an unrecognised role or action yields `false` (the types prevent reaching this in
- * well-typed code; the guard is the safe default at an untyped boundary).
- *
- * @param role - the caller's resolved account role (see {@link Role}).
- * @param action - the capability being attempted (see {@link Action}).
- * @returns `true` iff `role` is at or above the action's required tier; `false` otherwise.
- */
+/** Check the resolved account role against product or account-administration policy. Pure; unknown roles or actions return false. */
 export function can(role: Role, action: Action): boolean {
   const accountAction = (ACCOUNT_ADMIN_ACTION as Partial<Record<Action, AccountAdminAction>>)[action];
   if (accountAction !== undefined) return canAdministerAccount(role, accountAction);
@@ -116,152 +87,42 @@ export function can(role: Role, action: Action): boolean {
   return minRole !== undefined && isAtLeastCanonicalRole(role, minRole);
 }
 
-/**
- * Is `role` at or above the minimum tier `min` in the strict role hierarchy
- * (viewer ⊂ editor ⊂ admin ⊂ owner)? The pure tier-comparison primitive the member-management
- * guards below build on, delegated to the neutral account policy so "and up" never drifts from
- * account administration.
- *
- * Pure: no I/O, no session, just the two roles. Fail-closed at an untyped boundary: an unrecognised
- * role makes a rank `undefined`, and any comparison with `undefined` is `false`, so it denies rather
- * than falls open (mirrors {@link can}).
- *
- * @param role - the role being tested.
- * @param min  - the minimum tier `role` must reach.
- * @returns `true` iff the canonical account tier for `role` reaches `min`; `false` otherwise.
- */
+/** Compare resolved roles in the viewer, editor, admin, owner hierarchy.
+ * Pure; unknown roles return false. Canonical account policy owns the ordering. */
 export function isAtLeast(role: Role, min: Role): boolean {
   return isAtLeastCanonicalRole(role, min);
 }
 
-/**
- * May `actorRole` change a member's role from `targetRole` to `nextRole`? The pure policy behind
- * member-management role edits, single-sourced here so the client affordance and the server
- * route guard decide identically and cannot drift (the client uses it to hide controls; the server
- * is the backstop that actually enforces it).
- *
- * Rules (deny by default):
- * - The actor must hold `manageMembers` (admin-tier) at all, else `false`.
- * - `owner` is never an ordinary role change. Promoting a non-owner or demoting the current Owner
- *   both require the explicit atomic ownership-transfer operation, so this guard refuses either.
- * - Admin may not touch the Owner; Owner may manage only non-owner membership roles here.
- *
- * The server database independently enforces the exactly-one-owner invariant.
- *
- * Pure: no I/O, no session, just the three roles.
- *
- * @param actorRole  - the acting member's role.
- * @param targetRole - the role the target member currently holds.
- * @param nextRole   - the role the actor wants to set.
- * @returns `true` iff the role change is permitted by the pure matrix; `false` otherwise.
- */
+/** Check whether an actor may change a target member to the requested role.
+ * Pure; requires admin tier and refuses changes to or from owner, which require atomic ownership transfer.
+ * The server independently enforces the single-owner invariant. */
 export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
   return canManageCanonicalMemberRole(actorRole, targetRole, nextRole);
 }
 
-/**
- * May `actorRole` edit the role of a member holding `targetRole` at all, independent of which role
- * they would set?
- *
- * The question a member row asks before rendering a role control: {@link canManageMemberRole} also
- * judges a specific destination role, which a row that has not chosen one cannot supply without
- * inventing a representative value. Same pure, no-drift reason for living here as its neighbours,
- * the client hides the control, the server enforces the eventual change.
- *
- * Rules (deny by default): admin tier at minimum, and never the Owner (whose role moves only through
- * the atomic ownership transfer).
- *
- * Pure: no I/O, no session, just the two roles.
- *
- * @param actorRole  - the acting member's role.
- * @param targetRole - the role the target member currently holds.
- * @returns `true` iff some role change to that target is permitted; `false` otherwise.
- */
+/** Check whether an actor may edit a target member’s role before choosing a destination role.
+ * Pure; requires admin tier and a recognised non-owner target.
+ * Use canManageMemberRole to judge a selected destination. */
 export function canEditAnyMemberRole(actorRole: Role, targetRole: Role): boolean {
   return canEditAnyCanonicalMemberRole(actorRole, targetRole);
 }
 
-/**
- * May `actorRole` remove (revoke) a member holding `targetRole`? The pure policy behind member
- * removal, single-sourced here alongside {@link canManageMemberRole} for the same
- * no-drift reason (client hides the control, server enforces it).
- *
- * Rules (deny by default):
- * - The actor must hold `manageMembers` (admin-tier) at all, else `false`.
- * - The Owner is never removable. Ownership must first be transferred to another existing member;
- *   that atomic operation steps the former Owner down to Admin, after which ordinary removal applies.
- *
- * The server database independently enforces the exactly-one-owner invariant.
- *
- * Pure: no I/O, no session, just the two roles.
- *
- * @param actorRole  - the acting member's role.
- * @param targetRole - the role the member being removed currently holds.
- * @returns `true` iff the removal is permitted by the pure matrix; `false` otherwise.
- */
+/** Check whether an actor may remove a target member.
+ * Pure; requires admin tier and a recognised non-owner target.
+ * Transfer ownership before removing the current owner; the server independently enforces the single-owner invariant. */
 export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
   return canRemoveCanonicalMember(actorRole, targetRole);
 }
 
-/**
- * May `actorRole` disable, archive or restore the membership of a member holding `targetRole`?
- *
- * Pure: no I/O, no session, the two roles plus whether the target is the actor.
- *
- * Same authority as {@link canRemoveMember} (suspension denies account entry exactly as removal
- * does) with self-operation refused, so an administrator cannot lock themselves out of the very
- * account they would need to enter to undo it. The server enforces this independently; the client
- * imports the same function purely so a control it cannot use is not offered.
- *
- * @param actorRole  - the acting member's role.
- * @param targetRole - the role the member whose status is changing currently holds.
- * @param isSelf     - whether the target membership is the actor's own.
- * @returns `true` iff the lifecycle change is permitted by the pure matrix; `false` otherwise.
- */
+/** Check whether an actor may disable, archive or restore a target membership.
+ * Pure; uses removal authority and refuses self-operation to prevent administrator lockout. */
 export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf: boolean): boolean {
   return canChangeCanonicalMemberStatus(actorRole, targetRole, isSelf);
 }
 
-/**
- * May `actor` issue a password-reset link for `target`, judged across every account the target
- * belongs to?
- *
- * A reset link sets the target's Better Auth credential, which is account-global: whoever redeems it
- * can sign in as the target into every account the target is a member of. So the per-account
- * identity-administration check on the acting account alone is not enough. It would let an
- * admin of account X mint a link for a user who is a mere editor in X but the owner of account Y,
- * handing X's admin a takeover of Y (reachable under CAPACITYLENS_MULTI_ACCOUNT, where one identity
- * holds memberships in several accounts). Even an owner of X must not reset a user who owns Y. X's
- * owner has no standing in Y.
- *
- * The invariant: the actor may reset the target only if, in every account the target is a member of,
- * the actor is also a member there with sufficient authority over the
- * target's role there. In the single-account default (the target belongs to exactly the acting
- * account) this reduces exactly to the per-account check.
- *
- * Self-reset exemption (`isSelf === true`): the cross-account escalation the loop defends against is
- * "actor mints a link that takes over SOMEONE ELSE's global identity". When actor === target there is
- * no such target. You cannot escalate against your own identity, because you already hold that
- * session. So for a self-reset the cross-account authority check is skipped entirely and we require
- * only the fail-closed non-empty-map rule (`size > 0`, a self with zero memberships is not a real
- * identity). This keeps a social-sign-in user setting their own password working under
- * CAPACITYLENS_MULTI_ACCOUNT:
- * without the exemption, an owner of account X who is also a plain editor in account Y could not reset
- * their own password, because the loop would hit Y and identity administration for editor/editor
- * fails the `manageMembers` tier. Behaviour for the acting account is unchanged either way: the
- * route's `authorize(..., 'manageMembers')` gate still restricts who may call at all, and the
- * per-account matrix already passes `(admin,admin)`/`(owner,owner)` for a self-target in that account.
- *
- * Pure: no I/O, operates on the two role-by-account maps the caller reads from the membership table.
- * Fail-closed: a target with no memberships, or any account where the actor lacks sufficient
- * authority (including not being a member there at all), yields `false`.
- *
- * @param actorRolesByAccount   The acting user's role in each account they belong to.
- * @param targetRolesByAccount  The target user's role in each account they belong to.
- * @param isSelf                `true` iff the actor is the target (a self-reset); skips the
- * cross-account authority check per the exemption above.
- * @returns `true` iff the actor may reset the target's global credential; `false` otherwise.
- */
+/** Check password-reset authority across every workspace the target can enter.
+ * The actor needs sufficient authority in every target workspace; self-reset only requires a nonempty membership map.
+ * Pure; callers supply trusted membership snapshots and separately enforce route/session policy. */
 export function canResetMemberAcrossAccounts(
   actorRolesByAccount: ReadonlyMap<string, Role>,
   targetRolesByAccount: ReadonlyMap<string, Role>,
@@ -270,21 +131,8 @@ export function canResetMemberAcrossAccounts(
   return canAdministerIdentityAcrossWorkspaces(actorRolesByAccount, targetRolesByAccount, isSelf);
 }
 
-/**
- * Field-level visibility rule: only an owner or admin may see a time-off entry's `note`.
- *
- * Kept separate from the {@link Action} matrix on purpose. This is a *field-visibility* rule
- * (which columns to project), not a *route action* (whether to allow a request). The server
- * enforces it by redacting `note` from the read slice for everyone below admin; the client
- * uses the same predicate to decide whether to render the field. It is not an `Action` because
- * there is no request to gate. The request (a read) is already allowed; this only narrows the
- * payload.
- *
- * Pure: no I/O, no session, just the role.
- *
- * @param role - the caller's resolved account role.
- * @returns `true` iff `role` is `'owner'` or `'admin'`.
- */
+/** Check whether the caller may see a time-off note.
+ * Pure; only owners and admins may see it. This narrows an allowed read payload independently of route authorization. */
 export function canSeeTimeOffNote(role: Role): boolean {
   return role === "owner" || role === "admin";
 }

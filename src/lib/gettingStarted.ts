@@ -2,10 +2,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import { lifecycleStatus } from "@capacitylens/shared/domain/lifecycle";
 
-// Pure derivation for the first-run "Getting started" checklist (components/GettingStarted.tsx):
-// which useful first-use outcomes the active account has completed, read straight off scoped data.
-// Kept out of the component file so it's a plain testable function (and mutation-tested with the
-// other src/lib helpers).
+// Derive onboarding outcomes from scoped data so checklist rendering shares one pure rule.
 
 /** Which onboarding steps the active account has completed. */
 export interface GettingStartedSteps {
@@ -77,10 +74,7 @@ export function isGettingStartedComplete(steps: GettingStartedSteps): boolean {
   return hasCompletedAllSteps(steps);
 }
 
-/** Whether every step is complete. `Object.values(...).every(Boolean)`
- * is exhaustive by construction over {@link GettingStartedSteps}' fields, unlike a hand-enumerated
- * `steps.a && steps.b && ...`, adding a fifth step here can't silently compile against a stale
- * list and hide the card too early. */
+/** Returns true when every GettingStartedSteps field is complete; new steps participate automatically. */
 export function hasCompletedAllSteps(steps: GettingStartedSteps): boolean {
   return Object.values(steps).every(Boolean);
 }

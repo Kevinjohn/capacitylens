@@ -88,7 +88,6 @@ describe("formatShortDateRange", () => {
   });
 
   it("spells out both years for a cross-year range under day-month order", () => {
-    // Including years distinguishes this cross-year span from a short same-month span.
     expect(formatShortDateRange("2026-06-05", "2027-06-08")).toBe("Fri 5th Jun 2026 – Tue 8th Jun 2027");
   });
 
@@ -242,7 +241,6 @@ describe("schedule dates", () => {
   });
 });
 
-// Exercise each supported style through the single-date and range formatters.
 const STYLE_TABLE: Record<
   DateStyle,
   {
@@ -367,7 +365,6 @@ describe("formatInstant / formatInstantDate", () => {
   });
 
   it("resolves the local calendar day rather than slicing the UTC string", () => {
-    // Derive the local day from the Date so time zones east or west of UTC are handled correctly.
     const lateEvening = "2026-07-14T23:30:00.000Z";
     const local = new Date(lateEvening);
     expect(formatInstantDate(lateEvening)).toBe(local.toLocaleDateString());
@@ -375,8 +372,6 @@ describe("formatInstant / formatInstantDate", () => {
   });
 
   it("degrades an unparseable timestamp to Invalid Date instead of throwing", () => {
-    // Unlike the ISODate formatters above, these render server-supplied values: a bad one must cost
-    // one row, not the whole section.
     expect(() => formatInstant("not-a-timestamp")).not.toThrow();
     expect(formatInstant("not-a-timestamp")).toBe("Invalid Date");
     expect(formatInstantDate("not-a-timestamp")).toBe("Invalid Date");
@@ -385,7 +380,6 @@ describe("formatInstant / formatInstantDate", () => {
 
 describe("an unrecognised active style", () => {
   it("reads as the default instead of throwing out of every formatter", () => {
-    // Unknown mirrored styles should fall back without breaking date rendering.
     setActiveDateStyle("year-month-day" as DateStyle);
 
     expect(formatDayMonth("2026-09-09")).toBe("9 Sep");

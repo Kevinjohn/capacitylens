@@ -7,9 +7,7 @@ import { resolveWeekdayLabel } from "@/lib/weekdays";
 import { useMarkFormDirty } from "@/components/common/formDirty";
 import type { WorkingDayOption } from "./fieldTypes";
 
-// Picker order: Monday-first, Sunday last. Labels resolve through Paraglide at render so they
-// localise and follow a locale switch without a reload. Kept separate from the model order so the
-// order isn't re-stated per locale.
+// Resolve weekday labels at render time so they follow account locale changes. The picker's Monday-first order is independent of numeric weekday order.
 const WEEKDAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 
 function buildWorkingDayOptions(): Array<{ value: WorkingDayOption; label: string }> {
@@ -124,8 +122,7 @@ export function WorkingDayPicker({
   workingDays: Weekday[];
   halfDays: Weekday[];
   onChange: (workingDays: Weekday[], halfDays: Weekday[]) => void;
-  // Mirror the sibling fields (TextField/SelectField/NumberField): mark the group errored so the
-  // required-error (no day selected) re-announces when a SR navigates to the fieldset (WCAG 3.3.1).
+  // Mark errors on the fieldset so assistive technology announces the required-day failure when focus returns to the group.
   invalid?: boolean;
   describedById?: string;
 }) {

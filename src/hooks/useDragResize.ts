@@ -79,11 +79,8 @@ function createPointerHandlers(
   detach: () => void,
 ): Pick<GestureHandlers, "onMove" | "onUp"> {
   const { argsRef, mode, startX, startY, pointerId, threshold } = state;
-  // Note: the day delta is `indexAtClientX(here) - indexAtClientX(start)`. The
-  // divide-by-zero / out-of-range guarding lives in the pure ColumnGeometry.indexAt (it's
-  // total and never returns NaN). This hook intentionally stays guard-free, do not wrap
-  // these pure calls in try/catch (the guard belongs in the geometry layer). The 4px
-  // arm-vs-click test below stays a raw pixel test, independent of the day snapping.
+  // Geometry owns snapping validation; this DOM wrapper relies on its total index lookup.
+  // Keep the click threshold in raw pixels so narrow columns do not change gesture arming.
   const onMove = (event: PointerEvent) => {
     if (isOtherPointer(event, pointerId)) return;
     const dx = event.clientX - startX;
@@ -170,15 +167,16 @@ export function useDragResize(args: UseDragResizeArgs) {
   // those have no onCommit/onCancel/onClick to tear them back down.
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLElement>): boolean => {
     if (e.button !== 0) return false;
-    e.stopPropagation(); // don't let the lane start a draw-to-create gesture
-    // Ignore a re-entrant pointerdown (a second finger / pen) while a gesture is
-    // already live, otherwise its document listeners would leak and a single
-    // pointerup could commit twice.
+    // Stop propagation so the lane cannot start drawing. Reject a second pointer while
+    // a gesture is live to prevent leaked listeners and duplicate commits.
+    e.stopPropagation();
+
     if (teardownRef.current) return false;
 
     const mode = resolveDragMode(e.target);
     const captureTarget = e.currentTarget;
-    const pointerId = e.pointerId; // only react to this pointer's move/up/cancel
+    // Ignore other pointers so only the gesture owner can preview, commit or cancel it.
+    const pointerId = e.pointerId;
     const handlers = createGestureHandlers({
       argsRef,
       teardownRef,

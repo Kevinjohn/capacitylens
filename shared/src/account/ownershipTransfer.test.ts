@@ -10,9 +10,8 @@ import {
 } from "./ownershipTransfer";
 import type { OwnershipTransferAction, OwnershipTransferState } from "./ownershipTransfer";
 
-// The closed vocabularies. Written out rather than imported so the sweep is its own source of
-// truth; the `satisfies` ties each list to its union, so a new member that is not listed here is a
-// compile error and cannot escape the exhaustive matrix below.
+// The independently written vocabularies prevent the test from deriving its expectations from the implementation.
+// `satisfies` rejects unknown members; the EXPECTED record requires every state/action pair.
 const STATES = [
   "awaiting_target",
   "awaiting_owner",
@@ -32,8 +31,7 @@ const ACTIONS = [
   "complete",
 ] as const satisfies readonly OwnershipTransferAction[];
 
-/** The whole state machine as a table, written from the product contract rather than derived from
- * the implementation, a table derived from the code under test would agree with any bug in it. */
+// Derive the expected transition matrix from the product contract so implementation bugs cannot define the expected result.
 const EXPECTED: Record<OwnershipTransferState, Record<OwnershipTransferAction, boolean>> = {
   awaiting_target: {
     initiate: false,

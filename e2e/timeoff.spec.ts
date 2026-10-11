@@ -25,7 +25,6 @@ function registerBooksTimeOffShowsLabelledTest() {
     await expect(editor.getByRole("textbox", { name: "Note" })).toHaveValue("Conference");
     await editor.getByRole("button", { name: "Cancel" }).click();
 
-    // It renders as a labelled block on Clark's lane.
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
@@ -62,7 +61,6 @@ function registerGroupsCurrentFutureEntriesResourceTest() {
     await expect(bruceRows.nth(0)).toContainText("Mon 8th Jun");
     await expect(bruceRows.nth(1)).toContainText("Wed 10th Jun");
 
-    // The first sorted row's action still targets that exact entry.
     await bruceRows
       .nth(0)
       .getByRole("button", { name: /^Edit / })
@@ -108,7 +106,6 @@ function registerEditsTimeOffEntryListTest() {
     await dialog.getByLabel(/^End/).fill("2026-06-11");
     await page.getByRole("button", { name: "Save" }).click();
 
-    // The list shows the start date + day count, so shortening the end reflects as a smaller count.
     await expect(row).toContainText("Wed 10th Jun");
     await expect(row).toContainText("2 days");
     await expect(row).not.toContainText("3 days");
@@ -127,7 +124,6 @@ function registerDeletesTimeOffEntryConfirmationTest() {
       .filter({ has: page.getByRole("heading", { name: "Bruce Wayne", exact: true }) });
     const row = bruceGroup.getByTestId("timeoff-row");
 
-    // The same record exists on the schedule before deletion.
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 1);
     await goToSeedWeek(page);
@@ -135,7 +131,6 @@ function registerDeletesTimeOffEntryConfirmationTest() {
     await expect(block).toContainText("Holiday");
     await page.getByRole("link", { name: "Time off" }).click();
 
-    // Cancel is a no-op.
     await row.getByRole("button", { name: "Delete" }).click();
     const dialog = page.getByRole("alertdialog", { name: "Delete time off?" });
     await dialog.getByRole("button", { name: "Cancel" }).click();
@@ -178,7 +173,6 @@ function registerCreatesRepeatedTimeOffIndependentTests() {
       .getByTestId("timeoff-group")
       .filter({ has: page.getByRole("heading", { name: "Bruce Wayne", exact: true }) })
       .getByTestId("timeoff-row");
-    // The generated series adds twelve entries alongside the existing seed entry.
     await expect(bruceRows).toHaveCount(13);
 
     await bruceRows

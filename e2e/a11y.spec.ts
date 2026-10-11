@@ -13,10 +13,7 @@ import {
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
-/** Run axe against the settled page and reject serious or critical violations.
- * Every scan in this file uses the same impact filter and diagnostic message. Keeping the filter
- * and assertion here prevents those checks from drifting across specs.
- */
+// Keep every axe scan on the same serious/critical filter and diagnostics so severity handling cannot drift.
 async function settledAxe(page: Page): Promise<void> {
   await disableCssMotion(page);
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
@@ -44,8 +41,7 @@ test("scheduler has no serious or critical accessibility violations", async ({ p
 });
 
 test("scheduler in dark mode has no serious or critical violations", async ({ page }) => {
-  // Dark is now an explicit preference (default is light), so seed the stored theme
-  // rather than emulating the OS scheme, otherwise axe would sample the light palette.
+  // Seed an explicit dark preference because the default light preference ignores the OS scheme.
   await setTheme(page, "dark");
   await openApp(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -53,11 +49,7 @@ test("scheduler in dark mode has no serious or critical violations", async ({ pa
   await settledAxe(page);
 });
 
-// Time-off draw mode recedes the work bars (dimmed neutral fill) and marks booked time off with
-// the same vivid yellow, retained hatch and tight glow in both themes. That re-skin must stay
-// a11y-clean too. Wayne Enterprises's seed carries one time-off block
-// (Bruce Wayne, 10-12 Jun); 4w + scrollLeft=0 brings both it and the work bars into view, the
-// same way timeoff.spec proves the block renders.
+// A four-week view includes the seeded holiday and work bars, so axe checks both treatments together.
 async function openDrawMode(page: import("@playwright/test").Page): Promise<void> {
   await openApp(page);
   await showScheduleFilters(page);
@@ -91,13 +83,7 @@ test("scheduler in time-off draw mode (dark) has no serious or critical violatio
   await settledAxe(page);
 });
 
-// The allocation editor opens from inside the scheduler's role="grid" (SchedulerGrid's
-// `{modal && …}`). The shared Modal portals to <body> so its role="dialog" subtree is not a DOM
-// descendant of the grid. An owned dialog would violate axe-critical `aria-required-children` (a grid
-// may only own row/rowgroup). This scan opens that editor and locks the portal in: a regression to
-// inline rendering would re-nest the dialog under the grid and trip the critical in both themes.
-// Selector mirrors allocation.spec / accessibility.spec: the 'Wireframes' seed bar is visible at 4w
-// with scroll reset; clicking it opens the "Edit allocation" dialog.
+// The allocation dialog must be portalled outside the grid, whose owned children may only be rows or rowgroups.
 async function openAllocationEditor(page: import("@playwright/test").Page): Promise<void> {
   await openApp(page);
   await disableCssMotion(page);
@@ -132,15 +118,11 @@ test("a resource form modal has no serious or critical violations", async ({ pag
   await settledAxe(page);
 });
 
-// A dark-mode ConfirmDialog is the only place that shows the danger button variant. White text on
-// the solid dark danger fill has 2.7:1 contrast, below WCAG AA. This scan keeps the button on the
-// AA-safe soft red pairing (`bg-danger-soft` and `danger-soft-ink`).
+// Destructive confirmation buttons must maintain AA text contrast in the dark theme.
 test("a confirm dialog (dark) danger button has no serious or critical violations", async ({ page }) => {
   await setTheme(page, "dark");
   await openApp(page, "Wayne Enterprises", "/clients");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  // the row's destructive action archives; the confirm dialog's "Archive" button is still the
-  // danger variant (ConfirmDialog renders confirm as danger regardless of label), so this scan covers it.
   await page
     .getByTestId("client-row")
     .filter({ hasText: "Queen Consolidated" })
@@ -152,10 +134,7 @@ test("a confirm dialog (dark) danger button has no serious or critical violation
   await settledAxe(page);
 });
 
-// The empty schedule renders the shared EmptyState inside a sticky role="row" > role="gridcell", a
-// new ARIA shape axe has never sampled (grid > row > gridcell must stay valid with no resources). A
-// search that matches nobody is the simplest way to reach it; this locks in the structure + the
-// card's contrast in both themes so the empty state can't silently regress.
+// The empty state must preserve grid > row > gridcell semantics and readable contrast in both themes.
 test("the empty schedule has no serious or critical violations", async ({ page }) => {
   await openApp(page);
   await showScheduleFilters(page);
@@ -180,12 +159,7 @@ test("the diagnostics page has no serious or critical violations", async ({ page
   await settledAxe(page);
 });
 
-// WCAG 1.4.10 Reflow (aa): at 320 CSS px the scheduler chrome (toolbar title/nav/zoom/draw row +
-// filters row) must not force horizontal scrolling. Before the fix the primary row was a
-// non-wrapping flex, so the controls packed past 320px and overflowed; adding flex-wrap lets it
-// reflow into stacked lines. We scope the check to the toolbar container (scrollWidth <= clientWidth,
-// +1px tolerance for subpixel rounding). The timeline grid below is legitimately 2-D scrolling data
-// (exempt under 1.4.10), so it is deliberately not asserted here.
+// WCAG 1.4.10 requires the toolbar to reflow at 320 CSS pixels. The two-dimensional timeline is exempt.
 test("the scheduler toolbar reflows without horizontal scroll at 320px", async ({ page }) => {
   // 320×480 is the WCAG reflow target (320 CSS px wide). The 480 height keeps it portrait, so
   // pre-dismiss the session-scoped rotate hint (it covers the app on portrait phones) rather than
@@ -203,19 +177,8 @@ test("the scheduler toolbar reflows without horizontal scroll at 320px", async (
   ).toBeLessThanOrEqual(overflow.clientWidth + 1);
 });
 
-// WCAG 2.4.11 Focus Not Obscured (Minimum, AA): a focused allocation bar must not be fully hidden
-// behind the grid's sticky chrome (the two-tier date header on top, the utilisation column on the
-// left). On focus the browser scrolls the bar into view; its scroll-margin (top tracks the header's
-// real measured height via --sched-sticky-top, left = the leftColWidth constant) must stop it clear
-// of both. We force the obscured case: a short viewport gives the few-row grid genuine vertical
-// scroll range, then we scroll the grid to its far bottom-right corner so the top-left seed bar
-// (Bruce's first allocation, row 1, the timeline's earliest day) ends up off-screen above the
-// header and left of the utilisation column. Focusing it must then scroll up and left to surface it
-// clear of both. We assert (a) the focus actually moved the scroll (proving a scroll-into-view ran,
-// without this the test false-passes on an already-visible bar) and (b) the bar's box clears the
-// header bottom and the column right. All chrome dimensions are measured from the DOM, never
-// hardcoded. The check tracks the header as it grows with zoom or font size and fails if the
-// reserved margin shrinks below the header's real height (verified by temporarily zeroing it).
+// Focused bars must clear the sticky header and resource column.
+// Start fully obscured and require scroll movement so an already-visible bar cannot make the test pass.
 test("a focused allocation bar is not obscured by the sticky header or left column", async ({ page }) => {
   // The Wayne Enterprises seed has only a handful of rows, so at a tall desktop viewport the grid never
   // overflows vertically (maxScrollTop ≈ 0) and the header-obscured case can't be reached. A short
@@ -243,7 +206,8 @@ test("a focused allocation bar is not obscured by the sticky header or left colu
     g.scrollLeft = g.scrollWidth;
     return { scrollTop: g.scrollTop, scrollLeft: g.scrollLeft };
   });
-  await page.waitForTimeout(150); // let the row-virtualisation window settle after the jump
+  // Let the row virtualisation window settle after the jump.
+  await page.waitForTimeout(150);
   // Sanity: the grid actually has scroll range on both axes (else the obscured case isn't set up).
   expect(before.scrollTop, "grid must have vertical scroll range to obscure the bar behind the header").toBeGreaterThan(
     0,
@@ -257,7 +221,8 @@ test("a focused allocation bar is not obscured by the sticky header or left colu
   // scroll-margin so it lands clear of the sticky chrome.
   await bar.focus();
   await expect(bar).toBeFocused();
-  await page.waitForTimeout(250); // let the focus-triggered scroll-into-view settle before measuring
+  // Let focus-triggered scrolling settle before measuring.
+  await page.waitForTimeout(250);
 
   const after = await grid.evaluate((el) => ({
     scrollTop: (el as HTMLElement).scrollTop,

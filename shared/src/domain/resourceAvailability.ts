@@ -15,7 +15,10 @@ export interface ResourceAvailabilityInput {
   accountWorkingDays: Weekday[];
 }
 
-/** Enforce inclusive person availability boundaries on an allocation's scheduled days. */
+/** Enforce inclusive person availability on scheduled days without mutating the input.
+ * Dates must be validated ISO dates and the allocation range must fit the materialization limit.
+ * Placeholders and external resources are exempt; person days use the effective working week unless ignoreWeekends is true.
+ * @throws DomainError when a scheduled day falls outside availability; do not persist the allocation. */
 export function assertAllocationWithinResourceAvailability({
   allocation,
   resource,

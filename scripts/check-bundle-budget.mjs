@@ -3,22 +3,8 @@ import { gzipSync } from "node:zlib";
 import { resolve } from "node:path";
 import { assertEntryBundleWithinBudget } from "./bundleBudget.mjs";
 
-// This is a large-change detector, not a creep ratchet. It exists to catch the single careless commit:
-// a barrel import that pulls all of an icon set instead of five glyphs, a date library that doesn't
-// tree-shake, which adds hundreds of KB while looking innocent in review. It is not here to police
-// a few KB per feature.
-//
-// Earlier limits sat ~0.2% above the measured size, which meant essentially every feature tripped
-// them and cost a rebase commit arguing over a few hundred bytes. That is toll booth, not guard.
-//
-// So the ceiling is deliberately far above anything a real feature reaches. CapacityLens is a
-// desktop B2B app whose entry bundle is ~225 KB gzip; comparable SaaS commonly ships 1–3 MB, so 1 MB
-// gzip is a generous ceiling that still catches a genuine mistake immediately. The raw limit is
-// proportionate to that ceiling at the bundle's observed compression ratio.
-//
-// Only the entry chunk is measured. Lazily loaded routes cost nothing until visited. The actual
-// sizes are logged on every build below, so real drift stays visible without failing anyone's build.
-// If these ever trip, do not reflexively raise them: look at what was just imported.
+// Measure only the eagerly loaded entry chunk so the budget detects exceptional imports without penalising lazy routes.
+// Inspect new imports before raising a breached ceiling.
 const index = await readFile(resolve("dist/index.html"), "utf8");
 
 const moduleEntries = [...index.matchAll(/<script\b([^>]*)>/gi)]

@@ -28,6 +28,7 @@ function canonical(path) {
   try {
     return realpathSync(path);
   } catch (error) {
+    // A removed worktree path can still be compared lexically; other canonicalisation failures must surface.
     if (error.code === "ENOENT") return resolve(path);
     throw error;
   }
@@ -114,6 +115,7 @@ async function main() {
       process.kill(pid, "SIGTERM");
       console.log(`Stopped pid ${pid}.`);
     } catch (error) {
+      // Report each stop failure and retain a failing exit status while continuing to inspect the other listeners.
       failed = true;
       console.error(`Could not stop pid ${pid}: ${error.message}`);
     }

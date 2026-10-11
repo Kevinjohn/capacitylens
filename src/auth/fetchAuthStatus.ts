@@ -131,6 +131,7 @@ async function readOfflineIdentity(error: unknown, acceptEffects: () => boolean)
       reauthProviderId: null,
     };
   } catch (cacheError) {
+    // An unreadable optional identity cache must not hide the original live-auth failure; warn and let normal recovery continue.
     console.warn("AuthProvider: the offline identity snapshot could not be read", cacheError);
     return null;
   }
@@ -141,6 +142,7 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Aut
   try {
     return await readAuthResponse(await accountClient.me(), acceptEffects);
   } catch (error) {
+    // Prefer a permitted cached identity after a failed live read; otherwise return a visible auth error because this boundary must never reject.
     const cached = await readOfflineIdentity(error, acceptEffects);
     if (cached) return cached;
     console.warn("AuthProvider: /api/auth/me check failed", error);

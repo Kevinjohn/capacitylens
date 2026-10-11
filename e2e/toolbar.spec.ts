@@ -12,7 +12,6 @@ import {
 function registerZoomsTimelineTracksActiveLevelTest() {
   test("zooms the timeline and tracks the active level", async ({ page }) => {
     await openApp(page);
-    // The closed trigger exposes the selected span without opening the dropdown.
     const weeks = page.getByRole("combobox", { name: "Weeks visible" });
     await setZoom(page, 6);
     await expect(weeks).toHaveText("6 weeks");
@@ -50,12 +49,10 @@ function registerPansWindowWeekPrevNextTest() {
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
     const b0 = await box(bar);
 
-    // Panning forward moves the origin later, so a fixed-date bar shifts left.
     await page.getByRole("button", { name: "Next" }).click();
     const b1 = await box(bar);
     expect(b1.x).toBeLessThan(b0.x);
 
-    // Prev brings it back to the right.
     await page.getByRole("button", { name: "Prev" }).click();
     const b2 = await box(bar);
     expect(b2.x).toBeGreaterThan(b1.x);
@@ -160,10 +157,8 @@ function registerSwitchesDrawModeBetweenWorkTest() {
     await resetSchedulerScroll(page);
     const bar = page.getByTestId("allocation-bar").first();
     await expect(bar).toBeVisible();
-    // The bar lives under an [inert] ancestor (the BarsLayer); no bar is outside one.
     await expect(page.locator('[inert] [data-testid="allocation-bar"]').first()).toBeVisible();
     await expect(page.locator('[data-testid="allocation-bar"]:not([inert] *)')).toHaveCount(0);
-    // Inert ⇒ unfocusable: a focus() attempt leaves activeElement off the bar.
     expect(
       await bar.evaluate((el) => {
         el.focus();
@@ -171,7 +166,6 @@ function registerSwitchesDrawModeBetweenWorkTest() {
       }),
     ).toBe(false);
 
-    // Switching back to Work removes inert from the ancestor, so the bar can receive focus again.
     await work.click();
     await expect(page.locator('[inert] [data-testid="allocation-bar"]')).toHaveCount(0);
     expect(
@@ -183,19 +177,15 @@ function registerSwitchesDrawModeBetweenWorkTest() {
   });
 }
 
-// Undo/redo now has both a visible affordance (the toolbar buttons) and the global
-// ⌘Z / ⌘⇧Z shortcut (handled in AppShell). This test drives the buttons + their
-// disabled states; the keyboard test below covers the shortcut path + the typing guard.
+// Button coverage and keyboard coverage must both exercise undo/redo; shortcuts must ignore editable fields.
 function registerUndoesRedoesToolbarButtonsDisabledTest() {
   test("undoes and redoes with the toolbar buttons, disabled when the stack is empty", async ({ page }) => {
     await openApp(page);
     const undoBtn = page.getByTestId("undo-button");
     const redoBtn = page.getByTestId("redo-button");
-    // Fresh load (account just picked): nothing to undo or redo.
     await expect(undoBtn).toBeDisabled();
     await expect(redoBtn).toBeDisabled();
 
-    // Make a mutation (delete an allocation) → Undo becomes available.
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
@@ -206,12 +196,10 @@ function registerUndoesRedoesToolbarButtonsDisabledTest() {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
     await expect(undoBtn).toBeEnabled();
 
-    // Click Undo → the bar is restored and Redo becomes available.
     await undoBtn.click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before);
     await expect(redoBtn).toBeEnabled();
 
-    // Click Redo → the delete re-applies.
     await redoBtn.click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
   });
@@ -230,12 +218,10 @@ function registerUndoesRedoesKeyboardIgnoresShortcutTests() {
     await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
 
-    // Typing in the search box must not trigger undo.
     await page.getByLabel("Search people").click();
     await page.keyboard.press("Meta+z");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
 
-    // Outside an input, ⌘Z undoes and ⌘⇧Z redoes.
     await page.getByTestId("scheduler-grid").click({ position: { x: 5, y: 5 } });
     await page.keyboard.press("Meta+z");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before);

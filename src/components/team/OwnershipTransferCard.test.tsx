@@ -13,12 +13,6 @@ import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { OwnershipTransferCard } from "./OwnershipTransferCard";
 
-/**
- * The card's contract with the person reading it: it offers only the controls their side of the
- * ceremony owns, and it explains an outcome someone else committed. The server re-checks every
- * authority independently, so these assertions are about honesty of presentation, not enforcement.
- */
-
 const client = vi.hoisted(() => ({
   readOwnershipTransfer: vi.fn(),
   listMembers: vi.fn(),
@@ -236,7 +230,7 @@ describe("OwnershipTransferCard as the Owner", () => {
     const select = await screen.findByTestId("ownership-transfer-nominee");
     select.focus();
     fireEvent.keyDown(select, { key: "ArrowDown" });
-    // The standing nominee is not offered again: replacing a request with itself is not a choice.
+
     expect(screen.queryByRole("option", { name: NOMINEE.name ?? "" })).toBeNull();
     fireEvent.click(screen.getByRole("option", { name: OTHER_ADMIN.name ?? "" }));
     fireEvent.click(screen.getByTestId("ownership-transfer-replace"));
@@ -354,7 +348,7 @@ describe("OwnershipTransferCard outcomes", () => {
     fireEvent.click(await screen.findByTestId("ownership-transfer-accept"));
 
     expect(await screen.findByText(m.ownership_transfer_command_failed())).toBeInTheDocument();
-    // A stuck `busy` would leave the ceremony unreachable until a full page reload.
+
     await waitFor(() => {
       expect(screen.getByTestId("ownership-transfer-accept")).toBeEnabled();
     });
@@ -414,8 +408,6 @@ describe("OwnershipTransferCard outcomes", () => {
     client.readOwnershipTransfer.mockRejectedValue(new Error("offline"));
     client.listMembers.mockRejectedValue(new Error("offline"));
     act(() => {
-      // Straight at the slice: the picker refuses an id it has no company for, and which company is
-      // active is the only part of the switch this card reacts to.
       useStore.setState({ activeAccountId: OTHER_ACCOUNT_ID });
     });
 
@@ -448,7 +440,6 @@ describe("OwnershipTransferCard outcomes", () => {
     client.readOwnershipTransfer.mockRejectedValue(new Error("offline"));
     client.listMembers.mockRejectedValue(new Error("offline"));
 
-    // Offering Accept again at the old revision would be refused by the server every time.
     await waitFor(() => {
       expect(screen.queryByTestId("ownership-transfer-accept")).toBeNull();
     });
