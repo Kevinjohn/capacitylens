@@ -6,7 +6,7 @@
 //
 // The first is a `paths` allowlist. Gitleaks applies those at file level and skips the file before
 // scanning it, so a `paths` entry intended to narrow a value pattern to test code instead disables
-// detection across every file it matches — silently, while still reporting "no leaks found". An
+// detection across every file it matches silently, while still reporting "no leaks found". An
 // earlier revision of the config made exactly that mistake; only the scanner's byte counter
 // (0 bytes read instead of 582) gave it away.
 //
@@ -19,7 +19,7 @@
 // boundaries, and the corpora below lock that in.
 //
 // Scope: this checks the allowlist's shape and its patterns' classification behaviour. It does not
-// run gitleaks — the gate job has no gitleaks binary — so it cannot prove the scanner loads this
+// run gitleaks because the gate job has no gitleaks binary, so it cannot prove the scanner loads this
 // file. The security workflow proves that, by passing with no .gitleaksignore present to fall back
 // on. Note also that gitleaks compiles these patterns with Go's RE2 while this check uses
 // JavaScript's engine; the patterns here are plain character classes and alternations, which both
@@ -48,7 +48,7 @@ const fixtures = [
   "0123456789abcdef0123456789abcdef",
 ];
 
-// This file is scanned like any other, so a credential-shaped literal here is a finding here — the
+// This file is scanned like any other, so a credential-shaped literal here is a finding here , the
 // first version of it turned the gate red on its own test data, and GitHub's push protection
 // rejected a provider-shaped key outright. Both are the scanners doing their job. The corpus below
 // therefore assembles its high-entropy values at runtime from fragments too short to trip the

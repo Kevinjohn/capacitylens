@@ -3,6 +3,7 @@ import { Avatar as AvatarPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/cn";
 
+/** Groups an image and its fallback. */
 function Avatar({
   className,
   size = "default",
@@ -24,6 +25,7 @@ function Avatar({
 }
 
 // Local shadcn deviation: crop supplied portraits to the circular frame instead of distorting them.
+/** Renders the avatar image when it is available. */
 function AvatarImage({
   className,
   ...props
@@ -37,6 +39,7 @@ function AvatarImage({
   );
 }
 
+/** Renders fallback content when the avatar image is unavailable. */
 function AvatarFallback({
   className,
   ...props
@@ -53,6 +56,7 @@ function AvatarFallback({
   );
 }
 
+/** Renders a badge attached to an avatar. */
 function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
@@ -69,6 +73,7 @@ function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
   );
 }
 
+/** Groups related avatars into a compact row. */
 function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -82,6 +87,7 @@ function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Renders the count of additional avatars in a group. */
 function AvatarGroupCount({
   className,
   ...props

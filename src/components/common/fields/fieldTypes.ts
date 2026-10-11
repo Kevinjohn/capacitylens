@@ -1,7 +1,9 @@
 // Product field APIs composed from ShadCN's Field family.
 
+/** Shared label placement choices for product fields. */
 export type ProductFieldLayout = "stacked" | "label-control";
 
+/** A value and label accepted by a select field. */
 export interface Option {
   value: string;
   label: string;
@@ -17,4 +19,5 @@ export interface Option {
   disabled?: boolean;
 }
 
+/** A weekday can be full, half, or off. */
 export type WorkingDayOption = "full" | "half" | "off";

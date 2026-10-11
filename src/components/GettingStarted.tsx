@@ -48,6 +48,7 @@ function StepRow({ done, label, to }: { done: boolean; label: string; to: string
 
 const demoDismissedAccounts = new Set<string>();
 
+/** Shows account setup guidance based on the active account state. */
 export function GettingStarted() {
   const accountId = useStore((state) => state.activeAccountId);
   if (!accountId) return null;

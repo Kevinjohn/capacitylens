@@ -5,8 +5,10 @@ import type { Db } from "./db";
 import { isAuditEntry } from "./auditOutbox";
 import { tx } from "./txn";
 
+/** Classifies whether a stored outbox payload can be recovered as an audit entry. */
 export type AuditOutboxPayloadStatus = "valid" | "invalid-json" | "invalid-payload";
 
+/** Captures the current outbox head and a digest of its raw payload for operator review. */
 export interface AuditOutboxHeadInspection {
   sequence: number;
   id: string;
@@ -29,11 +31,13 @@ function parsePayloadStatus(payload: string): AuditOutboxPayloadStatus {
   try {
     parsed = JSON.parse(payload);
   } catch {
+    // Malformed stored JSON is classified as corruption for recovery reporting.
     return "invalid-json";
   }
   return isAuditEntry(parsed) ? "valid" : "invalid-payload";
 }
 
+/** Reads the oldest pending payload without altering its recovery evidence. */
 export function inspectAuditOutboxHead(db: Db): AuditOutboxHeadInspection | null {
   const row = db
     .prepare(

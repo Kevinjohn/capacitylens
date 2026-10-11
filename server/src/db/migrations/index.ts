@@ -73,6 +73,9 @@ import {
 import { MEMBER_SIGN_IN_TRACKING_V26_DEFINITION } from "../../accounts/memberSignInTracking";
 import { migrateMemberSignInTrackingV26 } from "../../accounts/memberSignInTracking";
 import { assertMemberSignInTrackingSchemaCurrent } from "../../accounts/memberSignInTracking";
+/**
+ * Orders the named schema migrations that run against the SQLite database.
+ */
 export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   BASELINE_V8_MIGRATION,
   defineMigration(

@@ -1276,7 +1276,8 @@ function registerV13ColourMigrationTest(): void {
     };
     cleanup();
     try {
-      const db = openDb(path); // fresh DB: already at the current version (v13 is a no-op here)
+      // Fresh DB: already at the current version (v13 is a no-op here).
+      const db = openDb(path);
       // #7cd9e4 is not a preset. Its nearest preset is #7adae3 (see shared color.test.ts for the
       // same fixture, pinned there against the full palette).
       insertRow(db, "accounts", {
@@ -1504,7 +1505,8 @@ describe("schema migration of an existing on-disk DB", () => {
     // The user deletes all their data (cascade empties every scoped table; _meta survives).
     for (const a of readState(db).accounts) deleteRow(db, "accounts", a.id);
     expect(isEmpty(readState(db))).toBe(true);
-    expect(isInitialized(db)).toBe(true); // ...but still initialised
+    // ...but still initialised.
+    expect(isInitialized(db)).toBe(true);
     // The regression guard: a boot against the empty-but-initialised DB must not re-seed
     // (gating on isEmpty(), the old bug, would have resurrected the demo dataset here).
     expect(seedIfUninitialized(db, seed())).toBe(false);
@@ -1584,7 +1586,8 @@ describe("schema migration of an existing on-disk DB", () => {
       old.exec(`INSERT INTO accounts VALUES ('a1','Studio','#111','${TS}','${TS}');`);
       old.close();
 
-      const db = openDb(path); // generic pass adds disciplines.color
+      // Generic pass adds disciplines.color.
+      const db = openDb(path);
       expect(() =>
         insertRow(db, "disciplines", {
           id: "d1",
@@ -4002,7 +4005,8 @@ describe("v13 migration is self-contained (frozen palette folded into the checks
     // The definition folds in the joined frozen-palette hex list so the migration checksum covers the
     // exact palette the repair snaps to. A future shared-palette edit can't silently change v13.
     expect(V13_DEFINITION).toContain(V13_FROZEN_PRESET_COLORS.join(","));
-    expect(V13_DEFINITION).toContain("#7adae3"); // spot-check a representative preset is in the digest
+    // Spot-check a representative preset is in the digest.
+    expect(V13_DEFINITION).toContain("#7adae3");
   });
 
   it("froze the palette byte-for-byte from the shared palette at authoring time", () => {
@@ -4038,7 +4042,8 @@ describe("init failure is not masked by the cleanup PRAGMA", () => {
     } catch (e) {
       thrown = e instanceof Error ? e.message : String(e);
     }
-    expect(thrown).toMatch(/application_id/); // original, not "connection broken during cleanup"
+    // Original, not "connection broken during cleanup".
+    expect(thrown).toMatch(/application_id/);
     real.close();
   });
 });

@@ -463,16 +463,16 @@ describe("validateProjectClient", () => {
 });
 
 describe("isValidISODate", () => {
-  it("accepts a real, zero-padded calendar date and rejects malformed / impossible ones", () => {
+  it("accepts real dates skipped by local time zones and rejects malformed or impossible ones", () => {
     expect(isValidISODate("2026-06-01")).toBe(true);
-    expect(isValidISODate("nope")).toBe(false); // fails the shape regex
-    expect(isValidISODate("x2026-06-01")).toBe(false); // prefix must not be ignored
-    expect(isValidISODate("2026-06-01x")).toBe(false); // suffix must not be ignored
-    expect(isValidISODate("2026-13-01")).toBe(false); // month 13
-    expect(isValidISODate("2026-02-30")).toBe(false); // 30 Feb, never a real date
-    expect(isValidISODate("0000-01-01")).toBe(false); // product dates use the common era
-    expect(isValidISODate("2011-12-30")).toBe(true); // skipped by Pacific/Apia's local timezone
-    expect(isValidISODate("1994-12-31")).toBe(true); // skipped by Pacific/Kiritimati's local timezone
+    expect(isValidISODate("nope")).toBe(false);
+    expect(isValidISODate("x2026-06-01")).toBe(false);
+    expect(isValidISODate("2026-06-01x")).toBe(false);
+    expect(isValidISODate("2026-13-01")).toBe(false);
+    expect(isValidISODate("2026-02-30")).toBe(false);
+    expect(isValidISODate("0000-01-01")).toBe(false);
+    expect(isValidISODate("2011-12-30")).toBe(true);
+    expect(isValidISODate("1994-12-31")).toBe(true);
   });
 
   it("rejects a NON-STRING even when it stringifies to a valid-looking date", () => {
@@ -536,10 +536,10 @@ describe("validateDateRange", () => {
   it("rejects non-zero-padded and out-of-range dates (the invariant isWithin relies on)", () => {
     // A non-padded "2026-6-1" would break isWithin's lexicographic compare, so it must
     // never pass this write-boundary guard.
-    expect(validateDateRange("2026-6-1", "2026-06-05").ok).toBe(false); // unpadded month/day
+    expect(validateDateRange("2026-6-1", "2026-06-05").ok).toBe(false);
     expect(validateDateRange("2026-06-01", "2026-6-5").ok).toBe(false);
-    expect(validateDateRange("2026-13-01", "2026-12-01").ok).toBe(false); // impossible month
-    expect(validateDateRange("2026-02-30", "2026-03-05").ok).toBe(false); // 30 Feb rolls over
+    expect(validateDateRange("2026-13-01", "2026-12-01").ok).toBe(false);
+    expect(validateDateRange("2026-02-30", "2026-03-05").ok).toBe(false);
     // and the rejection names the calendar-date rule (not some other error)
     expect(validateDateRange("2026-13-01", "2026-12-01").errors[0]).toMatch(/valid calendar dates/i);
   });
@@ -603,8 +603,8 @@ function registerResourceCascadeTests(): void {
       type: "sick",
     });
     const next = deleteResourceCascade(data, "r1");
-    expect(next.timeOff.map((t) => t.id)).toEqual(["to2"]); // r1's dropped, ph1's kept
-    expect(next.allocations.map((a) => a.id)).toEqual(["a2"]); // a1 (r1) dropped, a2 (ph1) kept
+    expect(next.timeOff.map((t) => t.id)).toEqual(["to2"]);
+    expect(next.allocations.map((a) => a.id)).toEqual(["a2"]);
   });
 
   it("deleteActivityCascade removes the activity and its allocations", () => {
@@ -645,9 +645,9 @@ function registerPhaseCascadeTests(): void {
       phaseId: "phase2",
     });
     const next = deletePhaseCascade(data, "phase1", CASCADE_REVISION);
-    expect(next.phases.map((p) => p.id)).toEqual(["phase2"]); // sibling phase kept
-    expect(assertEntityById(next.activities, "t3").phaseId).toBe("phase2"); // Not ungrouped
-    expect(assertEntityById(next.activities, "t1").phaseId).toBeUndefined(); // was under phase1
+    expect(next.phases.map((p) => p.id)).toEqual(["phase2"]);
+    expect(assertEntityById(next.activities, "t3").phaseId).toBe("phase2");
+    expect(assertEntityById(next.activities, "t1").phaseId).toBeUndefined();
   });
 }
 
@@ -657,9 +657,9 @@ function registerProjectCascadeTests(): void {
     expect(next.projects).toHaveLength(0);
     expect(next.phases).toHaveLength(0);
     expect(next.activities).toHaveLength(0);
-    expect(next.allocations).toHaveLength(0); // both allocations referenced p1 activities
+    expect(next.allocations).toHaveLength(0);
     expect(assertEntityById(next.resources, "ph1").projectId).toBeUndefined();
-    expect(next.resources).toHaveLength(2); // resources are not deleted
+    expect(next.resources).toHaveLength(2);
   });
 
   it("deleteProjectCascade leaves general (no-project) activities and their allocations intact", () => {
@@ -699,10 +699,10 @@ function registerProjectCascadeTests(): void {
     const data = danglingPhaseData();
     const revision = "2026-07-15T00:00:00.000Z";
     const next = deleteProjectCascade(data, "p1", revision);
-    const keep = assertEntityById(next.activities, "t-keep"); // survives: it belongs to p2
-    expect(keep.phaseId).toBeUndefined(); // dangling phase reference unbound
-    expect(keep.updatedAt).toBe(revision); // surviving FK repair is synchronizable
-    expect(next.phases).toHaveLength(0); // p1's phase removed
+    const keep = assertEntityById(next.activities, "t-keep");
+    expect(keep.phaseId).toBeUndefined();
+    expect(keep.updatedAt).toBe(revision);
+    expect(next.phases).toHaveLength(0);
   });
 
   it("deleteProjectCascade spares a SIBLING project’s phases, activities, allocations and bound placeholder", () => {
@@ -710,12 +710,12 @@ function registerProjectCascadeTests(): void {
     // and a coherent p2 activity keeps its (p2) phase. The removed-phase set must not over-collect.
     const data = siblingProjectData();
     const next = deleteProjectCascade(data, "p1", CASCADE_REVISION);
-    expect(next.projects.map((p) => p.id)).toEqual(["p2"]); // only p1 removed
-    expect(next.phases.map((p) => p.id)).toEqual(["ph-p2"]); // p2's phase kept
-    expect(next.activities.map((t) => t.id)).toEqual(["a-p2"]); // p1 activity removed, p2 kept
-    expect(assertEntityById(next.activities, "a-p2").phaseId).toBe("ph-p2"); // coherent phase not unbound
-    expect(next.allocations.map((a) => a.id)).toEqual(["al-p2"]); // sibling allocation survives
-    expect(assertEntityById(next.resources, "ph2").projectId).toBe("p2"); // p2 placeholder keeps binding
+    expect(next.projects.map((p) => p.id)).toEqual(["p2"]);
+    expect(next.phases.map((p) => p.id)).toEqual(["ph-p2"]);
+    expect(next.activities.map((t) => t.id)).toEqual(["a-p2"]);
+    expect(assertEntityById(next.activities, "a-p2").phaseId).toBe("ph-p2");
+    expect(next.allocations.map((a) => a.id)).toEqual(["al-p2"]);
+    expect(assertEntityById(next.resources, "ph2").projectId).toBe("p2");
   });
 }
 
@@ -761,17 +761,17 @@ function registerClientCascadeTests(): void {
     const next = deleteClientCascade(data, "c1", revision);
     expect(next.clients.map((c) => c.id)).toEqual(["c2"]);
     expect(next.projects.map((p) => p.id)).toEqual(["p2"]);
-    expect(next.phases.map((p) => p.id)).toEqual(["ph2"]); // c1's phase removed, c2's kept
-    expect(next.activities.map((t) => t.id).sort()).toEqual(["a2", "a3"]); // a1 (c1) removed
+    expect(next.phases.map((p) => p.id)).toEqual(["ph2"]);
+    expect(next.activities.map((t) => t.id).sort()).toEqual(["a2", "a3"]);
     const survivingActivity = assertEntityById(next.activities, "a2");
-    expect(survivingActivity.name).toBe("A2"); // record kept whole, not blanked
-    expect(survivingActivity.phaseId).toBe("ph2"); // coherent phase not unbound
+    expect(survivingActivity.name).toBe("A2");
+    expect(survivingActivity.phaseId).toBe("ph2");
     const repairedActivity = assertEntityById(next.activities, "a3");
-    expect(repairedActivity.phaseId).toBeUndefined(); // dangling c1 phase unbound
+    expect(repairedActivity.phaseId).toBeUndefined();
     expect(repairedActivity.updatedAt).toBe(revision);
-    expect(next.allocations.map((a) => a.id)).toEqual(["al2"]); // a1's allocation removed, a2's kept
-    expect(assertEntityById(next.resources, "phc1").projectId).toBeUndefined(); // bound to removed p1
-    expect(assertEntityById(next.resources, "phc2").projectId).toBe("p2"); // bound to surviving p2
+    expect(next.allocations.map((a) => a.id)).toEqual(["al2"]);
+    expect(assertEntityById(next.resources, "phc1").projectId).toBeUndefined();
+    expect(assertEntityById(next.resources, "phc2").projectId).toBe("p2");
   });
 }
 
@@ -795,8 +795,8 @@ function registerDisciplineCascadeTests(): void {
     });
     data.resources.push(person({ id: "r2", disciplineId: "d2" }));
     const next = deleteDisciplineCascade(data, "d1", CASCADE_REVISION);
-    expect(next.disciplines.map((d) => d.id)).toEqual(["d2"]); // sibling discipline kept
-    expect(assertEntityById(next.resources, "r2").disciplineId).toBe("d2"); // Not ungrouped
+    expect(next.disciplines.map((d) => d.id)).toEqual(["d2"]);
+    expect(assertEntityById(next.resources, "r2").disciplineId).toBe("d2");
     // r1 was in d1 → ungrouped, but kept as a whole record (not blanked to {})
     const r1 = assertEntityById(next.resources, "r1");
     expect(r1.disciplineId).toBeUndefined();

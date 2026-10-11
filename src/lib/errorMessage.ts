@@ -7,7 +7,7 @@ import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 // once at import and Paraglide resolves the active locale at call time, so storing resolved strings
 // here would freeze every message to the import-time language. `Record<DomainErrorCode, …>` (not a
 // Partial or an index signature) is what keeps this exhaustive: adding a code without a message
-// fails tsc exactly as the old switch's missing-arm check did.
+// fails tsc when a code has no message.
 const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
   record_wrong_account: m.domain_error_record_wrong_account,
   reference_wrong_account: m.domain_error_reference_wrong_account,
@@ -48,6 +48,7 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
   project_client_required: m.domain_error_project_client_required,
 };
 
+/** Resolves a domain error code to its localised user-facing message. */
 export const resolveDomainErrorMessage = (code: DomainErrorCode): string => DOMAIN_ERROR_MESSAGES[code]();
 
 /** Normalise anything thrown (an Error, a bare string, a React Router ErrorResponse, …)

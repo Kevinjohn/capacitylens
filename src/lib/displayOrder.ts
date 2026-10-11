@@ -32,10 +32,12 @@ function compareNamesAndIds({ leftName, leftId, rightName, rightId }: CompareDis
   );
 }
 
+/** Sorts names consistently, using stable IDs to break ties. */
 export function compareDisplayNames({ leftName, leftId, rightName, rightId }: CompareDisplayNamesInput): number {
   return compareNamesAndIds({ leftName, leftId, rightName, rightId });
 }
 
+/** Creates a comparator that sorts items by display name and stable ID. */
 export function createDisplayNameComparator<T extends Identified>(displayName: (item: T) => string) {
   return (left: T, right: T): number =>
     compareDisplayNames({
@@ -77,6 +79,7 @@ export function createClientProjectDisplayNameComparator<T extends ClientProject
   };
 }
 
+/** Creates a comparator that places favourites before other items, then sorts names. */
 export function createFavouriteDisplayNameComparator<T extends Identified & { isFavourite?: boolean }>(
   displayName: (item: T) => string,
 ) {
@@ -96,4 +99,5 @@ export function createEngagementFavouriteDisplayNameComparator<
     byFavouriteDisplayName(left, right);
 }
 
+/** Default comparator for named items. */
 export const byName = createDisplayNameComparator<Named>((item) => item.name);

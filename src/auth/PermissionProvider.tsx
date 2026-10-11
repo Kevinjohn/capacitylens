@@ -159,7 +159,8 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     // shipped default path stays byte-identical to today. The provided role is null either way (the
     // value computation below short-circuits to null when not enabled), so no local reset is needed.
     if (!enabled || !activeAccountId) {
-      setActiveRole(null, "not-applicable"); // keep the store guard in sync (a plain store write, not a React setState)
+      // Keep the store guard aligned when no permission check applies.
+      setActiveRole(null, "not-applicable");
       return;
     }
     let cancelled = false;

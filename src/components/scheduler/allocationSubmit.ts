@@ -183,6 +183,7 @@ function reportSaveError(input: CommandInput, error: unknown): void {
   input.fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_allocation_err_save_failed());
 }
 
+/** Builds validated create and update commands for the allocation dialog. */
 export function createAllocationCommands(input: CommandInput) {
   const validateDraft = () => parseAllocationCommandDraft(input);
   const submit = () => {

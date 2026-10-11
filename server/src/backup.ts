@@ -10,6 +10,9 @@ export { startBackups } from "./backup/scheduler";
 // stop(), which clears the timer and waits for
 // any in-flight snapshot, so a drain can't close the DB under a running backup.
 
+/**
+ * Configures the directory, cadence, and retention count for snapshot files.
+ */
 export interface BackupConfig {
   dir: string;
   /** Snapshot cadence in minutes (CAPACITYLENS_BACKUP_INTERVAL_MIN, default 60). */
@@ -17,6 +20,9 @@ export interface BackupConfig {
   /** Rolling retention count, oldest pruned (CAPACITYLENS_BACKUP_KEEP, default 48). */
   keep: number;
 }
+/**
+ * Controls snapshot creation and exposes backup health for the lifetime of the server.
+ */
 export interface Backups {
   /** Process-lifetime health for monitored deep-readiness. A failed snapshot latches degraded;
    * later successes advance lastSuccessAt but do not erase evidence of the failure. */
@@ -35,7 +41,13 @@ export interface Backups {
    * shutdown path must not close the DB under a running (or queued) backup. Never rejects. */
   stop(): Promise<void>;
 }
+/**
+ * Upper bound applied to the configured scheduled snapshot interval.
+ */
 export const MAX_BACKUP_INTERVAL_MIN = 35_000;
+/**
+ * Upper bound applied to the number of retained snapshot files.
+ */
 export const MAX_BACKUP_KEEP = 10_000;
 
 interface ReportSubstitutionInput {
@@ -119,6 +131,9 @@ export function parseBackupConfig(
     }),
   };
 }
+/**
+ * Formats the startup failure with the backup path and the underlying filesystem detail.
+ */
 export function formatBackupStartupFailure(dir: string, error: unknown): string {
   const detail = error instanceof Error ? error.message : String(error);
   return `CAPACITYLENS_BACKUP_DIR=${JSON.stringify(dir)} could not be initialized: ${detail}. Fix the path and permissions, or set CAPACITYLENS_BACKUP_DIR= to disable scheduled backups.`;

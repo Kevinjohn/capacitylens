@@ -55,6 +55,7 @@ export function ReauthMount({
   );
 }
 
+/** Shows an accessible loading status, optionally as a full-screen overlay. */
 export function AuthLoading({ message, overlay = false }: { message: string; overlay?: boolean }) {
   const status = (
     <p

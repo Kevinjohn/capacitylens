@@ -13,7 +13,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 // Same set as nginx-security-headers.conf with $capacitylens_connect_src resolved to 'self'.
 // Strict-Transport-Security is deliberately absent: it is emitted only when the operator asserts
 // HTTPS (see the `https` option), so this plugin never forces it on a plain-HTTP host.
-// A test parses the nginx file and asserts this set stays in step with it.
+/** Defines the static web security headers kept aligned with the packaged Nginx edge by a test. */
 export const WEB_SECURITY_HEADERS: Readonly<Record<string, string>> = {
   "Content-Security-Policy":
     "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; report-uri /api/security/csp-report; report-to csp-endpoint",
@@ -45,6 +45,7 @@ function applyWebHeaders(reply: FastifyReply, cacheControl: string): void {
   reply.header("Cache-Control", cacheControl);
 }
 
+/** Options required to serve the built web application. */
 export interface StaticWebOptions {
   /** Directory holding the built web app (contains index.html). */
   webDir: string;
@@ -55,6 +56,7 @@ interface WebPageRoute {
   Params: { "*"?: string };
 }
 
+/** Registers static web assets and the fallback route. */
 export function registerStaticWeb(app: FastifyInstance, { webDir }: StaticWebOptions): void {
   // Encapsulated so sendFile and the routes below exist only for the web app.
   void app.register(async (web) => {

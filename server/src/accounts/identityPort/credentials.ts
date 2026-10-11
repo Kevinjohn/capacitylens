@@ -213,6 +213,9 @@ function createPasswordReset(
   };
 }
 
+/**
+ * Creates credential operations that update or inspect the local identity store.
+ */
 export function createCredentials(
   context: Pick<
     IdentityPortContext,

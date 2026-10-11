@@ -225,7 +225,8 @@ describe("listMembersForAccount", () => {
     const rows = listMembersForAccount(db, "acc-1");
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.accountId === "acc-1")).toBe(true);
-    expect(rows.map((r) => r.userId)).toEqual(["u-a", "u-b"]); // ordered by createdAt then userId
+    // Ordered by createdAt then userId.
+    expect(rows.map((r) => r.userId)).toEqual(["u-a", "u-b"]);
   });
 
   it("returns an empty array for an account with no members", () => {
@@ -326,7 +327,7 @@ const registerSingleOwnerMigrationAdminPromotionTest = () => {
     const db = freshDb();
     upsertMember(db, member({ userId: "old-viewer", role: "viewer", createdAt: "2026-01-01T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "new-admin", role: "admin", createdAt: "2026-01-03T00:00:00.000Z" }));
-    migrateSingleOwnerControlPlaneV10(db); // installs the single-owner index the final assertion requires
+    migrateSingleOwnerControlPlaneV10(db);
 
     // Snapshot the recorded lines before mockRestore (which clears mock.calls) so the assertions
     // below still see them.
@@ -362,13 +363,13 @@ const registerSingleOwnerMigrationEditorPromotionTest = () => {
     upsertMember(db, member({ userId: "a-viewer", role: "viewer", createdAt: "2026-01-01T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "b-editor", role: "editor", createdAt: "2026-01-02T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "c-viewer", role: "viewer", createdAt: "2026-01-03T00:00:00.000Z" }));
-    migrateSingleOwnerControlPlaneV10(db); // installs the single-owner index the final assertion requires
+    migrateSingleOwnerControlPlaneV10(db);
 
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const errorLines = (() => {
       try {
         reportOwnerlessPromotionsV11(migrateOwnerlessControlPlaneV11(db));
-        return errorSpy.mock.calls.map((c) => String(c[0])); // snapshot before mockRestore clears it
+        return errorSpy.mock.calls.map((c) => String(c[0]));
       } finally {
         errorSpy.mockRestore();
       }
@@ -393,13 +394,13 @@ const registerSingleOwnerMigrationViewerFallbackTest = () => {
     const db = freshDb();
     upsertMember(db, member({ userId: "v-late", role: "viewer", createdAt: "2026-01-02T00:00:00.000Z" }));
     upsertMember(db, member({ userId: "v-early", role: "viewer", createdAt: "2026-01-01T00:00:00.000Z" }));
-    migrateSingleOwnerControlPlaneV10(db); // installs the single-owner index the final assertion requires
+    migrateSingleOwnerControlPlaneV10(db);
 
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const errorLines = (() => {
       try {
         reportOwnerlessPromotionsV11(migrateOwnerlessControlPlaneV11(db));
-        return errorSpy.mock.calls.map((c) => String(c[0])); // snapshot before mockRestore clears it
+        return errorSpy.mock.calls.map((c) => String(c[0]));
       } finally {
         errorSpy.mockRestore();
       }
@@ -423,7 +424,7 @@ const registerSingleOwnerMigrationTieBreakTest = () => {
     upsertMember(db, member({ userId: "admin-a", role: "admin", createdAt: "2026-01-01T00:00:00.000Z" }));
     // Same createdAt as admin-a, the userId ascending tie-break decides ('admin-a' < 'admin-c').
     upsertMember(db, member({ userId: "admin-c", role: "admin", createdAt: "2026-01-01T00:00:00.000Z" }));
-    migrateSingleOwnerControlPlaneV10(db); // installs the single-owner index the final assertion requires
+    migrateSingleOwnerControlPlaneV10(db);
 
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
@@ -535,7 +536,7 @@ describe("removeMember", () => {
     upsertMember(db, member({ accountId: "acc-1", userId: "u-1", role: "editor" }));
     removeMember(db, "acc-1", "u-1");
     expect(getMemberRole(db, "acc-1", "u-1")).toBeNull();
-    expect(() => removeMember(db, "acc-1", "u-1")).not.toThrow(); // idempotent
+    expect(() => removeMember(db, "acc-1", "u-1")).not.toThrow();
   });
 
   it("only deletes the row of the named account (cross-tenant safe)", () => {
@@ -544,7 +545,8 @@ describe("removeMember", () => {
     upsertMember(db, member({ accountId: "acc-2", userId: "u-1", role: "admin" }));
     removeMember(db, "acc-1", "u-1");
     expect(getMemberRole(db, "acc-1", "u-1")).toBeNull();
-    expect(getMemberRole(db, "acc-2", "u-1")).toBe("admin"); // the other account's row survives
+    // The other account's row survives.
+    expect(getMemberRole(db, "acc-2", "u-1")).toBe("admin");
   });
 });
 
@@ -597,10 +599,10 @@ describe("listInvitesForAccount", () => {
     const db = freshDb();
     createInvite(db, invite({ token: "tok-1", id: "inv-1", createdAt: "2026-01-01T00:00:00.000Z" }));
     createInvite(db, invite({ token: "tok-2", id: "inv-2", createdAt: "2026-01-02T00:00:00.000Z" }));
-    createInvite(db, invite({ token: "tok-3", id: "inv-3", accountId: "acc-2" })); // other account
+    createInvite(db, invite({ token: "tok-3", id: "inv-3", accountId: "acc-2" }));
 
     const list = listInvitesForAccount(db, "acc-1");
-    expect(list.map((i) => i.id)).toEqual(["inv-2", "inv-1"]); // newest first
+    expect(list.map((i) => i.id)).toEqual(["inv-2", "inv-1"]);
     // No token field on any row (it's a write-once secret, never on a read path).
     expect(list.every((i) => !("token" in i))).toBe(true);
     expect(JSON.stringify(list)).not.toContain("tok-");
@@ -643,7 +645,7 @@ describe("listInvitesForAccount", () => {
   it('lists USED invites too — the members UI shows a consumed invite with a "used" badge', () => {
     const db = freshDb();
     createInvite(db, invite({ token: "tok-used", id: "inv-used", usedAt: TS }));
-    createInvite(db, invite({ token: "tok-open", id: "inv-open" })); // still unused
+    createInvite(db, invite({ token: "tok-open", id: "inv-open" }));
     const list = listInvitesForAccount(db, "acc-1");
     expect(list.map((i) => i.id).sort()).toEqual(["inv-open", "inv-used"]);
     const usedInvite = list.find((i) => i.id === "inv-used");
@@ -655,11 +657,15 @@ describe("listInvitesForAccount", () => {
 const registerInviteExpiryPruneTests = (tsExpired: string) => {
   it("deletes expired-unused links while retaining recent used history and live invites", () => {
     const db = freshDb();
-    createInvite(db, invite({ token: "tok-live", id: "inv-live" })); // unused, future expiry
-    createInvite(db, invite({ token: "tok-used", id: "inv-used", usedAt: TS, expiresAt: tsExpired })); // used + expired
-    createInvite(db, invite({ token: "tok-dead", id: "inv-dead", expiresAt: tsExpired })); // unused + expired → dead link
+    // Unused, future expiry.
+    createInvite(db, invite({ token: "tok-live", id: "inv-live" }));
+    // Used + expired.
+    createInvite(db, invite({ token: "tok-used", id: "inv-used", usedAt: TS, expiresAt: tsExpired }));
+    // Unused + expired so dead link.
+    createInvite(db, invite({ token: "tok-dead", id: "inv-dead", expiresAt: tsExpired }));
 
-    expect(pruneInvites(db)).toBe(1); // only the dead unused link is removed
+    // Only the dead unused link is removed.
+    expect(pruneInvites(db)).toBe(1);
     expect(getInvite(db, "tok-dead")).toBeNull();
     // A recent used invite survives even when its bearer expiry is past.
     expect(getInvite(db, "tok-used")).not.toBeNull();
@@ -761,14 +767,17 @@ describe("revokeInvite", () => {
     createInvite(db, invite({ token: "tok-1", id: "inv-1" }));
     revokeInvite(db, "acc-1", "inv-1");
     expect(getInvite(db, "tok-1")).toBeNull();
-    expect(() => revokeInvite(db, "acc-1", "inv-1")).not.toThrow(); // idempotent
+    // Idempotent.
+    expect(() => revokeInvite(db, "acc-1", "inv-1")).not.toThrow();
   });
 
   it("cross-tenant revoke is a NO-OP — an admin of one account can't revoke another's invite", () => {
     const db = freshDb();
     createInvite(db, invite({ token: "tok-1", id: "inv-1", accountId: "acc-1" }));
-    revokeInvite(db, "acc-2", "inv-1"); // wrong account predicate → no row matches
-    expect(getInvite(db, "tok-1")).not.toBeNull(); // survives
+    // Wrong account predicate so no row matches.
+    revokeInvite(db, "acc-2", "inv-1");
+    // Survives.
+    expect(getInvite(db, "tok-1")).not.toBeNull();
   });
 });
 

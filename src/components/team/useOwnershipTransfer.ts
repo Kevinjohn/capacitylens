@@ -30,6 +30,7 @@ interface OwnershipTransferReadState {
   error: string | null;
 }
 
+/** Current transfer record, loading status, and latest outcome. */
 export interface OwnershipTransferState extends OwnershipTransferReadState {
   /** The first read is still in flight. Derived, not stored: a projection is an object once the
    * server has answered, so "no projection yet and no error" is the loading state, and deriving
@@ -43,6 +44,7 @@ interface CommandInput {
   expectedRevision: string;
 }
 
+/** Ownership transfer state and operations exposed to the card. */
 export interface OwnershipTransferController extends OwnershipTransferState {
   refresh(): Promise<void>;
   nominate(targetPrincipalId: string): Promise<void>;
@@ -276,6 +278,7 @@ function useTransferCommand({
   );
 }
 
+/** Loads and mutates ownership transfers for the requested account. */
 export function useOwnershipTransfer(
   accountId: string | null,
   refreshAuth: () => Promise<void>,

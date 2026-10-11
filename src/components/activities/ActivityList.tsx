@@ -180,6 +180,7 @@ function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
   });
 }
 
+/** Lists scoped activities with selection and editing actions. */
 export function ActivityList({ selectedActivityId }: { selectedActivityId?: string }) {
   const data = useActiveScopedData();
   const activities = data.activities;

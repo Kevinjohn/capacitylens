@@ -60,6 +60,9 @@ export function markAccountCommandReplay<T>(result: T): T {
   return result;
 }
 
+/**
+ * Returns true only for the same in-memory result object marked as a replay.
+ */
 export function wasAccountCommandReplayed(result: unknown): boolean {
   return (
     ((typeof result === "object" && result !== null) || typeof result === "function") &&
@@ -67,14 +70,23 @@ export function wasAccountCommandReplayed(result: unknown): boolean {
   );
 }
 
+/**
+ * Hashes recursively key-sorted JSON so retries with equivalent payloads share a ledger identity.
+ */
 export function buildAccountPayloadHash(payload: unknown): string {
   return createHash("sha256").update(buildCanonicalJson(payload)).digest("hex");
 }
 
+/**
+ * Domain-separates a secret hash by purpose before persisting it for replay checks.
+ */
 export function buildSecretDigest(purpose: string, secret: string): string {
   return createHash("sha256").update(`smallsass-account:${purpose}\0`).update(secret).digest("hex");
 }
 
+/**
+ * Identifies the operation and actor used to bind an idempotency key; optional target and workspace IDs narrow the command context.
+ */
 export interface CommandScope {
   applicationId: string;
   operation: string;
@@ -83,6 +95,9 @@ export interface CommandScope {
   workspaceId?: string | null;
 }
 
+/**
+ * Distinguishes a newly reserved command from a completed result that can be replayed.
+ */
 export type BeginCommandResult<T> =
   { kind: "execute"; record: AccountCommandRecord } | { kind: "replay"; record: AccountCommandRecord; result: T };
 
@@ -181,6 +196,9 @@ interface BeginCommandInput {
   canonicalPayload: unknown;
 }
 
+/**
+ * Reserves the scoped command, rejects conflicting reuse, or returns the stored successful result for an idempotent retry.
+ */
 export function beginCommand<T>({ db, scope, command, canonicalPayload }: BeginCommandInput): BeginCommandResult<T> {
   const reserved = reserveAccountCommand(db, {
     applicationId: scope.applicationId,
@@ -206,6 +224,9 @@ interface CompleteCommandInput {
   result: unknown;
 }
 
+/**
+ * Stores the canonical result and marks the reserved command completed.
+ */
 export function completeCommand({ db, scope, command, result }: CompleteCommandInput): void {
   finishAccountCommand(db, {
     applicationId: scope.applicationId,
@@ -246,6 +267,9 @@ interface TerminateCommandInput {
   result?: unknown | undefined;
 }
 
+/**
+ * Records a compensated or reconciliation-required terminal outcome and its failure code.
+ */
 export function terminateCommand({ db, scope, command, status, failureCode, result }: TerminateCommandInput): void {
   finishAccountCommand(db, buildFinishInput({ scope, command, status, failureCode, result }));
 }
@@ -259,6 +283,9 @@ interface TerminatePendingCommandInput {
   result?: unknown | undefined;
 }
 
+/**
+ * Records a terminal outcome only while this command is still pending; returns false if another transition already won.
+ */
 export function terminatePendingCommand({
   db,
   scope,
@@ -277,6 +304,9 @@ interface ReadCommandInput {
   command: CommandIdentity;
 }
 
+/**
+ * Looks up the ledger record by application, operation, and idempotency key without changing it.
+ */
 export function readCommand({ db, applicationId, operation, command }: ReadCommandInput): AccountCommandRecord | null {
   return getAccountCommand({ db, applicationId, operation, idempotencyKey: command.idempotencyKey });
 }

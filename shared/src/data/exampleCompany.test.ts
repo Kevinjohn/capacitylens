@@ -8,7 +8,8 @@ import { buildExampleCompany, countExampleRows } from "./exampleCompany";
 
 const ACCOUNT = "a-example";
 const NOW = "2031-09-17T10:00:00.000Z";
-const WEDNESDAY = "2031-09-17"; // week starts Monday 15th
+// Week starts Monday 15th.
+const WEDNESDAY = "2031-09-17";
 
 function build(overrides: Partial<Parameters<typeof buildExampleCompany>[0]> = {}) {
   return buildExampleCompany({ accountId: ACCOUNT, referenceDate: WEDNESDAY, now: NOW, ...overrides });

@@ -230,6 +230,7 @@ function isSqliteConstraintCollision(sqlite: { code?: unknown; errcode?: unknown
   return sqlite.errcode === 19 || (typeof sqlite.code === "string" && sqlite.code.startsWith("SQLITE_CONSTRAINT"));
 }
 
+/** Builds authentication configuration from the normalized deployment environment. */
 export const createAuthFromEnvironment = createAuthFromEnvironmentFactory({
   AuthConfigError,
   parseAuthMode,
@@ -247,6 +248,7 @@ export const createAuthFromEnvironment = createAuthFromEnvironmentFactory({
   }),
 });
 
+/** Builds bootstrap-admin setup using the shared account and identity controls. */
 export const createBootstrapAdmin = createBootstrapAdminFactory({
   AuthConfigError,
   countUsers,

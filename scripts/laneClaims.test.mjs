@@ -63,7 +63,8 @@ test("an explicitly selected lane held by a live claim is refused", () => {
 test("a lane whose holder has gone is reclaimed, and a live holder's is not", () => {
   const environment = scratch();
   const directory = laneDirectory(environment);
-  claimLane({ worktree: "/tmp/a", environment }); // lane 0, held by this live process
+  // Lane 0 is held by this live process.
+  claimLane({ worktree: "/tmp/a", environment });
   // A claim from a pid that cannot exist: the highest pid is well below this.
   writeFileSync(join(directory, "1.json"), JSON.stringify({ pid: 2 ** 30, worktree: "/tmp/dead", share: 4 }));
   const next = claimLane({ worktree: "/tmp/c", environment });

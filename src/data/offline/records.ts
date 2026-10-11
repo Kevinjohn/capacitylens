@@ -128,6 +128,7 @@ async function getValidated<T>(key: string, validate: (value: unknown) => T | nu
   return { key: record.key, savedAt: record.savedAt, value };
 }
 
+/** Validates the cached auth snapshot before it is used offline. */
 export function parseAuthSnapshot(value: unknown): OfflineAuthSnapshot | null {
   if (!isRecord(value) || !isAuthMode(value.authMode)) return null;
   if (!parseAuthUser({ value: value.user, requireEmail: value.authMode !== "off" })) return null;
@@ -135,6 +136,7 @@ export function parseAuthSnapshot(value: unknown): OfflineAuthSnapshot | null {
   return value as unknown as OfflineAuthSnapshot;
 }
 
+/** Validates the cached account summaries while preserving malformed-data distinction. */
 export function parseAccountSummaries(value: unknown): OfflineAccountSummary[] | null {
   if (!Array.isArray(value)) return null;
   for (const row of value) {

@@ -355,6 +355,7 @@ function startPointerGesture(runtime: GestureRuntime) {
   runtime.startGeometryWatch();
 }
 
+/** Coordinates pointer and keyboard allocation gestures with preview and commit state. */
 export function useAllocationGestureController(options: ControllerOptions, runtime: GestureRuntime) {
   const { bar, indexAtClientX, onEdit } = options;
   const [preview, setPreview] = useState<GesturePreview | null>(null);

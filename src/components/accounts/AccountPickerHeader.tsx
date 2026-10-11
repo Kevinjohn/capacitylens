@@ -47,6 +47,7 @@ function DemoSessionBar({ onSignOut }: { onSignOut: () => void }) {
   );
 }
 
+/** Shows account picker context and actions for the current auth mode. */
 export function AccountPickerHeader({
   demoAuthActive,
   previous,

@@ -2,6 +2,7 @@ import type { AccountAuditEvent, StandardAccountAuditAction } from "@capacitylen
 import type { AccountAuditPort } from "@capacitylens/shared/account/ports";
 import type { CommandIdentity, OperationReceipt } from "@capacitylens/shared/account/types";
 
+/** Describes one account audit event before the writer adds runtime metadata. */
 export interface AccountAuditInput {
   action: StandardAccountAuditAction;
   outcome: AccountAuditEvent["outcome"];
@@ -21,6 +22,7 @@ export interface AccountAuditInput {
   eventKey?: string;
 }
 
+/** Builds account audit records with stable per-command identity and timestamps. */
 export function createAccountAuditWriter(
   applicationId: string,
   port: AccountAuditPort | undefined,

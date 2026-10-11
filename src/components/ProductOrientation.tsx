@@ -3,6 +3,7 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
 import { Button } from "./ui/button";
 
+/** Guides the user to the requested product area. */
 export function ProductOrientation({
   focusRequest,
   onDismiss,

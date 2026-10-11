@@ -46,6 +46,7 @@ function settleSwitchWaiters(
   }
 }
 
+/** Connects account-switch events to persistence flush and refresh operations. */
 export function attachAccountSwitch({ store, owner, writes, refresh, serverMode }: AttachAccountSwitchInput) {
   const { save } = writes;
   const { refreshActive } = refresh;

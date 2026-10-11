@@ -286,6 +286,9 @@ async function issueNewPasswordReset(operation: PasswordResetOperation): Promise
   }
 }
 
+/**
+ * Creates password-reset operations that coordinate identity credentials and account command state.
+ */
 export function createPasswordResetFlows(
   context: PasswordResetDependencies,
 ): Pick<LocalAccountFlows, "issuePasswordReset"> {

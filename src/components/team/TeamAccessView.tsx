@@ -123,7 +123,7 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
 function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissionStatus }: AccessManagementProps) {
   if (!authenticated) {
     // Demo and open installations have no real membership directory, so say so plainly rather
-    // than leaving the page looking broken. Previously this lived in a members explainer card.
+    // than leaving the page looking broken.
     return (
       <Alert>
         <AlertDescription>{m.access_members_demo_note()}</AlertDescription>
@@ -158,6 +158,7 @@ function PolicyManagement({
   return <JoiningPolicyPanel key={accountId} accountId={accountId} role={role} />;
 }
 
+/** Coordinates member management, invitations, joining policy, and ownership. */
 export function TeamAccessView() {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const role = useRole();

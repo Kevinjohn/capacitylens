@@ -1,5 +1,8 @@
 import type { DatabaseSync } from "node:sqlite";
 
+/**
+ * SQLite database handle used by server persistence and migration helpers.
+ */
 export type Db = DatabaseSync;
 
 // Preserve the public data-access entry point for existing consumers.

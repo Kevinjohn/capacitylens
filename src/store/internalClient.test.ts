@@ -102,10 +102,6 @@ describe("built-in Internal client in the store", () => {
 
   it("addAccount creates exactly one builtin Internal client for the new account", addsAccountWithBuiltinClient);
   it("rejects renaming the built-in Internal client", rejectsBuiltinRename);
-  // The builtin Internal client's protection from removal is now exercised through the lifecycle
-  // actions (archive/softDelete/purge all throw "built in") in useStore.lifecycle.test.ts, there is
-  // no immediate deleteClient action anymore. This file keeps the rename guard, which is the
-  // updateClient concern that stays here.
   it("still allows renaming a normal client", renamesNormalClient);
   it(
     "addClient cannot create a SECOND builtin — the flag is stripped (one Internal per account)",

@@ -294,6 +294,7 @@ function useTargetFieldState(seed: AllocationModalSeed) {
   };
 }
 
+/** Tracks resource and activity selections for an allocation draft. */
 export function useAllocationTargetState(input: TargetInput) {
   const { seed, resourceById: resourcesById, canEdit } = input;
   const { inlineActivityCreateEnabled, fail, clear, errorField, errorId, addActivity } = input;

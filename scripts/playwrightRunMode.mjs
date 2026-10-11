@@ -11,6 +11,9 @@ export function serverTestApiOrigin(laneApiPort, environment = process.env) {
   return url.origin;
 }
 
+/**
+ * Preconfigured multi-browser E2E run modes.
+ */
 export const E2E_RUN_PRESETS = Object.freeze({
   chromiumWebkit: Object.freeze({
     environment: Object.freeze({ CAPACITYLENS_WEBKIT: "1", CAPACITYLENS_VITE_ONLY: "1" }),

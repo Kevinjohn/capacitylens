@@ -151,6 +151,7 @@ class WriteQueueOwner {
   };
 }
 
+/** Creates the persistence write queue for a store attachment. */
 export function createWriteQueue(input: CreateWriteQueueInput) {
   const queue = new WriteQueueOwner(input);
   return {
@@ -161,4 +162,5 @@ export function createWriteQueue(input: CreateWriteQueueInput) {
     flushWhileAlive: queue.flushWhileAlive,
   };
 }
+/** Public write-queue interface returned by createWriteQueue. */
 export type WriteQueue = ReturnType<typeof createWriteQueue>;

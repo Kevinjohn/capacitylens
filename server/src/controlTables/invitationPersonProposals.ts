@@ -9,6 +9,9 @@ export { INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "../db/constants";
 export type MemberResourceLinkExceptionReason =
   "resource_unavailable" | "resource_already_linked" | "member_already_linked";
 
+/**
+ * Creates the table and indexes that retain proposed people attached to invitations.
+ */
 export const INVITATION_PERSON_PROPOSALS_SQL = `
 CREATE TABLE IF NOT EXISTS invitation_person_proposals (
   invitationId TEXT NOT NULL PRIMARY KEY,
@@ -32,6 +35,9 @@ CREATE INDEX IF NOT EXISTS idx_member_resource_link_exceptions_accountId
   ON member_resource_link_exceptions(accountId);
 `;
 
+/**
+ * Describes a proposed person retained while an invitation is pending.
+ */
 export interface InvitationPersonProposal {
   invitationId: string;
   accountId: string;
@@ -40,6 +46,9 @@ export interface InvitationPersonProposal {
   updatedAt: string;
 }
 
+/**
+ * Records the resource-link exception created when an invited person is mapped to a member.
+ */
 export interface MemberResourceLinkException {
   accountId: string;
   userId: string;
@@ -85,6 +94,9 @@ export function createInvitationPersonProposal(input: ProposalInput): void {
     .run(input.invitationId, input.accountId, input.resourceId, input.now, input.now);
 }
 
+/**
+ * Returns the proposed person attached to one invitation, if present.
+ */
 export function getInvitationPersonProposal(
   db: Db,
   invitationId: string,
@@ -102,6 +114,9 @@ export function getInvitationPersonProposal(
   return row ?? null;
 }
 
+/**
+ * Lists proposed people attached to invitations in the account.
+ */
 export function listInvitationPersonProposals(db: Db, accountId: string): InvitationPersonProposal[] {
   if (!hasInvitationPersonProposalSchema(db)) return [];
   return db
@@ -112,16 +127,25 @@ export function listInvitationPersonProposals(db: Db, accountId: string): Invita
     .all(accountId) as unknown as InvitationPersonProposal[];
 }
 
+/**
+ * Deletes the proposed-person record attached to one invitation.
+ */
 export function removeInvitationPersonProposal(db: Db, invitationId: string): void {
   if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(`DELETE FROM invitation_person_proposals WHERE invitationId = ?`).run(invitationId);
 }
 
+/**
+ * Deletes all proposed-person records for invitations in the account.
+ */
 export function removeInvitationPersonProposalsForAccount(db: Db, accountId: string): void {
   if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(`DELETE FROM invitation_person_proposals WHERE accountId = ?`).run(accountId);
 }
 
+/**
+ * Deletes proposed-person records that refer to the removed account resource.
+ */
 export function removeInvitationPersonProposalsForResource(db: Db, accountId: string, resourceId: string): void {
   if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(`DELETE FROM invitation_person_proposals WHERE accountId = ? AND resourceId = ?`).run(
@@ -130,6 +154,9 @@ export function removeInvitationPersonProposalsForResource(db: Db, accountId: st
   );
 }
 
+/**
+ * Lists the member resource-link exceptions recorded for the account.
+ */
 export function listMemberResourceLinkExceptions(db: Db, accountId: string): MemberResourceLinkException[] {
   if (!hasInvitationPersonProposalSchema(db)) return [];
   return db
@@ -140,6 +167,9 @@ export function listMemberResourceLinkExceptions(db: Db, accountId: string): Mem
     .all(accountId) as unknown as MemberResourceLinkException[];
 }
 
+/**
+ * Returns the resource-link exception for one account member, if present.
+ */
 export function getMemberResourceLinkException(
   db: Db,
   accountId: string,
@@ -155,6 +185,9 @@ export function getMemberResourceLinkException(
   return row ?? null;
 }
 
+/**
+ * Creates or updates the member’s recorded resource-link exception.
+ */
 export function upsertMemberResourceLinkException(input: {
   db: Db;
   accountId: string;
@@ -176,16 +209,25 @@ export function upsertMemberResourceLinkException(input: {
     .run(input.accountId, input.userId, input.proposedResourceId, input.reason, input.now, input.now);
 }
 
+/**
+ * Deletes one member resource-link exception.
+ */
 export function removeMemberResourceLinkException(db: Db, accountId: string, userId: string): void {
   if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(`DELETE FROM member_resource_link_exceptions WHERE accountId = ? AND userId = ?`).run(accountId, userId);
 }
 
+/**
+ * Deletes all resource-link exceptions belonging to the account.
+ */
 export function removeMemberResourceLinkExceptionsForAccount(db: Db, accountId: string): void {
   if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(`DELETE FROM member_resource_link_exceptions WHERE accountId = ?`).run(accountId);
 }
 
+/**
+ * Deletes resource-link exceptions that refer to the removed account resource.
+ */
 export function removeMemberResourceLinkExceptionsForResource(db: Db, accountId: string, resourceId: string): void {
   if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(

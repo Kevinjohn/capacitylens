@@ -3,6 +3,9 @@ import type { Db } from "../db";
 // Print one clear "refusing to start" line and exit non-zero. Boot should crash on a bad
 // precondition (we never limp along half-configured). This just makes the failure legible to an
 // operator instead of a raw stack, matching the framed AuthConfigError / resetForbidden paths.
+/**
+ * Logs the startup refusal and exits with the repository’s fail-closed status.
+ */
 export function refuseToStart(reason: string): never {
   console.error(`capacitylens-server: refusing to start — ${reason}`);
   process.exit(1);
@@ -12,6 +15,9 @@ export function refuseToStart(reason: string): never {
 // options below (each just parses/validates one env-derived value with no extra cleanup on
 // failure). Larger boot phases that must also close the database or dispose signal handlers on
 // failure keep their own explicit try/catch instead of this helper.
+/**
+ * Runs startup work and converts a thrown failure into the standard refusal path.
+ */
 export function tryOrRefuse<T>(callback: () => T): T {
   try {
     return callback();
@@ -24,6 +30,9 @@ export function tryOrRefuse<T>(callback: () => T): T {
 // operator (via refuseToStart), so a close failure here is a second, surfaced-not-swallowed
 // problem, never the one that wins the message. `candidate` may be unassigned (a failure before
 // openDbConnection ran), hence the optional call.
+/**
+ * Attempts to close SQLite during startup recovery without hiding the original failure.
+ */
 export function closeDbSafely(candidate: Db | undefined): void {
   try {
     candidate?.close();
@@ -35,6 +44,9 @@ export function closeDbSafely(candidate: Db | undefined): void {
 // Fail-closed PORT parse (mirrors parseRateLimit): a typo like PORT=abc or an out-of-range value
 // must not silently fall through to a confusing app.listen error, reject it up front with a clear
 // message. Unset → the 8787 default.
+/**
+ * Validates the configured listener port and returns its numeric value.
+ */
 export function parsePort(raw: string | undefined): number {
   if (raw === undefined) return 8787;
   const n = Number(raw);
@@ -47,6 +59,9 @@ export function parsePort(raw: string | undefined): number {
 // Fail-soft numeric parse (mirrors parseBackupConfig's `positive`, not parsePort's refuseToStart):
 // this only bounds the audit log's on-disk size, not a security-relevant gate, so a missing/junk
 // value falls back to the documented 64 MiB default rather than refusing to boot.
+/**
+ * Validates the audit size limit before startup uses it.
+ */
 export function parseAuditMaxMb(raw: string | undefined): number {
   const n = Number(raw);
   const maxMb = 1024 * 1024;

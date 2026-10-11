@@ -1,13 +1,26 @@
 // The entry limit is a blowup detector, not a creep ratchet. It is intentionally far above the
 // measured ~744 kB raw / ~225 kB gzip entry so ordinary feature work does not churn the threshold,
 // while still catching an exceptional multi-megabyte barrel import or dependency mistake.
+/**
+ * Maximum raw entry-bundle size in bytes.
+ */
 export const ENTRY_RAW_LIMIT_BYTES = 3_200_000;
+/**
+ * Maximum gzip-compressed entry-bundle size in bytes.
+ */
 export const ENTRY_GZIP_LIMIT_BYTES = 1_000_000;
 
 // Vite compares chunkSizeWarningLimit against uncompressed decimal kilobytes. Keep its generic
 // warning on the same raw boundary as the authoritative entry check so one build has one policy.
+/**
+ * Entry-bundle raw-size limit in decimal kilobytes for Vite warnings.
+ */
 export const ENTRY_RAW_LIMIT_KB = ENTRY_RAW_LIMIT_BYTES / 1_000;
 
+/**
+ * Checks both entry-bundle limits.
+ * @throws When either size exceeds its limit.
+ */
 export function assertEntryBundleWithinBudget(rawBytes, gzipBytes) {
   if (rawBytes <= ENTRY_RAW_LIMIT_BYTES && gzipBytes <= ENTRY_GZIP_LIMIT_BYTES) return;
   throw new Error(

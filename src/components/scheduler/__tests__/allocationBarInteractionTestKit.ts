@@ -6,6 +6,7 @@ import type { BarLayout } from "@/components/scheduler/schedulerModel";
 
 // A fixed-width (500px) lane DOMRect stub for pointer-geometry math in drag/resize tests, only
 // `top`/`bottom` (and the `height` they imply) vary per case.
+/** Creates a DOM rectangle with predictable vertical bounds for gesture tests. */
 export const rect = (top: number, bottom: number): DOMRect =>
   ({
     left: 0,
@@ -19,6 +20,7 @@ export const rect = (top: number, bottom: number): DOMRect =>
     toJSON: () => ({}),
   }) as DOMRect;
 
+/** Creates a stored allocation with optional field overrides for interaction tests. */
 export function seedAllocation(overrides: Partial<Allocation> = {}): Allocation {
   const s = useStore.getState();
   const c = requireCreated(s.addClient({ name: "Ferris", color: "#1" }));
@@ -38,6 +40,7 @@ export function seedAllocation(overrides: Partial<Allocation> = {}): Allocation 
   );
 }
 
+/** Creates an allocation whose capacity signal is outside the visible test window. */
 export function seedVisibleAllocationWithHiddenCapacity(): Allocation {
   const st = useStore.getState();
   const hiddenClient = requireCreated(st.addClient({ name: "Archived client", color: "#1" }));
@@ -77,6 +80,7 @@ export function seedVisibleAllocationWithHiddenCapacity(): Allocation {
   return visible;
 }
 
+/** Wraps an allocation in the bar layout expected by interaction tests. */
 export const barFor = (allocation: Allocation): BarLayout => ({
   allocation,
   x: 0,
@@ -87,18 +91,21 @@ export const barFor = (allocation: Allocation): BarLayout => ({
   external: false,
 });
 
+/** Reads a saved allocation and fails the test when it is missing. */
 export function getStoredAllocation(allocationId: Allocation["id"]): Allocation {
   const allocation = useStore.getState().data.allocations.find((candidate) => candidate.id === allocationId);
   if (!allocation) throw new Error(`Expected allocation ${allocationId} to remain in the store.`);
   return allocation;
 }
 
+/** Reads the current screen-reader announcement and fails when absent. */
 export function getSrAnnouncement() {
   const announcement = useStore.getState().srAnnouncement;
   if (!announcement) throw new Error("Expected the allocation edit to produce a screen-reader announcement.");
   return announcement;
 }
 
+/** Creates predictable lane bounds for pointer interaction tests. */
 export const laneRect = (top: number, bottom: number): DOMRect =>
   ({
     left: 0,

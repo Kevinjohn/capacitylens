@@ -1,7 +1,7 @@
-// `pnpm run dev` — the everyday full-stack dev launcher. Server-backed persistence is now the
+// `pnpm run dev` starts the full-stack development environment. Server-backed persistence is now the
 // app's DEFAULT (empty env = same-origin API; in-memory demo only under VITE_CAPACITYLENS_DEMO=1),
 // so a bare `vite` would boot the app in server-mode against a backend-less dev server (broken).
-// This boots BOTH halves and keeps them in lockstep:
+// This boots both halves and keeps them in lockstep:
 //   A) the SQLite API (capacitylens-server, tsx watch on :8787, seeds on first boot), and
 //   B) the Vite web server (`dev:web`), whose dev proxy forwards /api → the API port.
 // The web app talks to a same-origin /api, exactly like prod behind nginx; the Vite proxy
@@ -21,7 +21,7 @@ import { portInUse, requireNode24, terminateProcessTrees } from "./devProcesses.
 // Fail fast, in the launcher's own process, with the fix in the message. Without this, an old
 // Node surfaces as a raw "No such built-in module: node:sqlite" from inside the API child's tsx
 // (thrown at module-link time, before any server code runs) and the launcher then tears the
-// whole stack down — accurate, but it never tells the user the actual requirement.
+// whole stack down. This is accurate, but it never tells the user the actual requirement.
 requireNode24(
   (version) =>
     `dev: full-stack dev needs Node 24+ — found ${version}. The API uses Node's ` +
@@ -29,8 +29,8 @@ requireNode24(
     `https://nodejs.org. No Node 24? \`pnpm run dev:demo\` runs the backend-free demo build.`,
 );
 
-// Keep the launcher, the API child (server reads PORT), and the Vite proxy on the SAME port.
-// vite.config.ts's proxy target MUST resolve the same `CAPACITYLENS_DEV_API_PORT ?? lane db API`
+// Keep the launcher, the API child (server reads PORT), and the Vite proxy on the same port.
+// vite.config.ts's proxy target must resolve the same `CAPACITYLENS_DEV_API_PORT ?? lane db API`
 // default so the launcher and the Vite proxy stay in lockstep (scripts/ports.mjs is the one source).
 // NB this is the DEV-proxy API port, distinct from serve-dist.mjs's bare API_PORT (its dist-serving port).
 const lanePorts = ports();
@@ -40,7 +40,7 @@ const API_PORT = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, lanePorts.dbAp
 const WEB_PORT = lanePorts.web;
 
 /**
- * Resolve true iff something is already listening on 127.0.0.1:port. A short-lived connect probe —
+ * Resolve true iff something is already listening on 127.0.0.1:port. A short-lived connect probe,
  * no new dependency. We surface a collision as a hard error rather than letting the API child fail
  * with a confusing EADDRINUSE deep in tsx, or (worse) silently reuse a stale/foreign server.
  */
@@ -54,8 +54,8 @@ if (await portInUse(API_PORT)) {
 }
 
 // Symmetric with the API check above: Vite is strictPort:true on WEB_PORT, so a collision is a hard
-// EADDRINUSE — but it would surface only AFTER the API child booted, leaving a half-up stack. Catch it
-// here, BEFORE starting either child, so neither runs against an unusable web port.
+// EADDRINUSE, but it would surface only after the API child booted, leaving a half-up stack. Catch it
+// here, before starting either child, so neither runs against an unusable web port.
 if (await portInUse(WEB_PORT)) {
   console.error(
     `dev: port ${WEB_PORT} is already in use — the Vite web server can't start (strictPort). Stop ` +
@@ -69,7 +69,7 @@ const children = [];
 let shuttingDown = false;
 
 /**
- * SIGTERM a child's WHOLE process group, not just the immediate `pnpm`. Each child
+ * SIGTERM a child's whole process group, not just the immediate `pnpm`. Each child
  * is a pnpm → node(vite/tsx) tree; signalling only pnpm leaves vite/tsx orphaned holding
  * the lane's web/API ports. `detached:true` (below) makes each child a group leader, so a negative-pid kill
  * reaches the whole tree. ESRCH (group already gone) is fine; Windows has no POSIX groups, so fall
@@ -97,7 +97,7 @@ function start(label, args, env) {
     env: { ...process.env, ...env },
   });
   children.push(child);
-  // Either child exiting tears the WHOLE stack down — a dead API or a dead web server both mean
+  // Either child exiting tears the whole stack down. A dead API or a dead web server both mean
   // dev is broken, and we never leave the survivor orphaned.
   child.on("exit", (code, signal) => {
     if (shuttingDown) return;

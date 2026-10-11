@@ -8,6 +8,9 @@ import type { Db } from "../db";
 // injection point) and turns a cryptic "cannot read properties of undefined" into a clear message.
 // One own-property lookup, `Object.hasOwn`, not `in`, so a prototype key like "constructor" can't
 // masquerade as a table.
+/**
+ * Rejects table names outside the declared schema before they are interpolated into SQL.
+ */
 export function assertKnownTable(table: string): void {
   if (!Object.hasOwn(TABLES, table)) {
     throw new Error(`Unknown table "${table}" — not a known entity table (SQL-identifier safety guard).`);
@@ -24,9 +27,15 @@ export function resolveTable(table: string): TableSpec {
   return spec;
 }
 
+/**
+ * Reads the numeric value of `user_version` or `application_id` from SQLite.
+ */
 export const pragmaNumber = (db: Db, pragma: "user_version" | "application_id"): number =>
   Number((db.prepare(`PRAGMA ${pragma}`).get() as Record<string, number | undefined>)[pragma] ?? 0);
 
+/**
+ * Lists declared application tables while excluding SQLite’s internal objects.
+ */
 export const userTables = (db: Db): string[] =>
   (
     db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`).all() as Array<{
@@ -34,6 +43,9 @@ export const userTables = (db: Db): string[] =>
     }>
   ).map((row) => row.name);
 
+/**
+ * Reports whether the table contains every requested column.
+ */
 export const tableHasColumns = (db: Db, table: string, required: readonly string[]): boolean => {
   const columns = new Set(
     (
@@ -45,6 +57,9 @@ export const tableHasColumns = (db: Db, table: string, required: readonly string
   return required.every((column) => columns.has(column));
 };
 
+/**
+ * Reports whether the named table exists in SQLite.
+ */
 export const tableExists = (db: Db, table: string): boolean =>
   db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) !== undefined;
 

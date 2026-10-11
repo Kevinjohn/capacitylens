@@ -352,6 +352,7 @@ function registerMicrosoftCompletion(app: FastifyInstance, input: Dependencies):
   );
 }
 
+/** Registers the account joining email proof endpoint. */
 export function registerJoiningProofRoutes(app: FastifyInstance, input: Dependencies): void {
   const lifecycle = createJoiningProviderLifecycle({
     db: input.db,

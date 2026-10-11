@@ -25,7 +25,8 @@ function registerBasicPointerTests() {
     const bar = screen.getByTestId("allocation-bar");
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
-    document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true })); // +48px ≈ +1 day
+    // A 48-pixel drag moves the allocation approximately one day.
+    document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
 
     const moved = getStoredAllocation(a.id);
@@ -183,7 +184,7 @@ function registerValidReassignmentTest() {
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 55, clientY: 125, bubbles: true }));
 
     expect(getStoredAllocation(a.id).resourceId).toBe(r2.id);
-    expect(screen.getByTestId("lane-dst").hasAttribute("data-droptarget")).toBe(false); // cleared on commit
+    expect(screen.getByTestId("lane-dst").hasAttribute("data-droptarget")).toBe(false);
   });
 }
 
@@ -256,7 +257,8 @@ function verifyWorkingDayRejection({
     st.addAllocation({
       resourceId: source.id,
       activityId: activity.id,
-      startDate: "2026-06-05", // Friday
+      // The drop target is Friday.
+      startDate: "2026-06-05",
       endDate: "2026-06-05",
       hoursPerDay: 8,
       status: "confirmed",
@@ -317,7 +319,7 @@ function registerIgnoredWorkingDayTest() {
         employmentType: "permanent",
         engagement: "studio" as const,
         workingHoursPerDay: 8,
-        workingDays: [5], // no overlap with the company's Mon–Thu week
+        workingDays: [5],
         halfDays: [],
         color: "#4",
       }),
@@ -326,7 +328,8 @@ function registerIgnoredWorkingDayTest() {
       st.addAllocation({
         resourceId: source.id,
         activityId: activity.id,
-        startDate: "2026-06-05", // Friday; destination has no effective weekdays under Mon–Thu company days
+        // The Friday destination has no effective weekdays under the company’s Monday-through-Thursday schedule.
+        startDate: "2026-06-05",
         endDate: "2026-06-05",
         hoursPerDay: 8,
         status: "confirmed",

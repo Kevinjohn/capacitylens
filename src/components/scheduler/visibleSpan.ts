@@ -9,6 +9,7 @@ interface ResolveVisibleWindowInput {
   focusDate: ISODate;
 }
 
+/** Number of visible days and edge dates realized by the grid. */
 export interface RealizedVisibleSpan {
   dayCount: number;
   /** Present only when the realized inclusive range is an exact whole number of weeks. */

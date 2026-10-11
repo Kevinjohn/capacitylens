@@ -33,6 +33,7 @@ export function isIsoInstant(value: unknown): value is IsoInstant {
   try {
     return new Date(milliseconds).toISOString() === value;
   } catch {
+    // Date values outside the ISO range cannot be represented canonically.
     return false;
   }
 }

@@ -605,8 +605,10 @@ describe("P2.6b erasure — (e) atomic rollback (fail-closed)", () => {
 
 describe("P2.6b erasure — (f) OFF mode deletes the account WITHOUT touching auth tables", () => {
   it('an OFF-mode account delete succeeds (no "no such table: user") and the AppData is gone', async () => {
-    const db = openDb(":memory:"); // Off mode: no auth migrations → no user/account/session tables
-    const app = createApp(db); // authMode defaults to 'off'
+    // Off mode: no auth migrations so no user/account/session tables.
+    const db = openDb(":memory:");
+    // AuthMode defaults to 'off'.
+    const app = createApp(db);
     insertAll(db, {
       ...emptyAppData(),
       accounts: [account("a1")],

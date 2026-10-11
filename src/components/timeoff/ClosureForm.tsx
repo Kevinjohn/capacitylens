@@ -62,6 +62,7 @@ function ClosureFormFields(props: ClosureFormFieldsProps) {
   );
 }
 
+/** Creates or edits a company closure with guarded date fields. */
 export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: () => void }) {
   const add = useStore((state) => state.addClosure);
   const update = useStore((state) => state.updateClosure);

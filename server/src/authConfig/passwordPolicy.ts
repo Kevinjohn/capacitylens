@@ -115,6 +115,9 @@ function passwordResetOptions(input: BuildPasswordPolicyInput): Partial<BetterAu
   };
 }
 
+/**
+ * Builds Better Auth password settings from the installation’s credential policy.
+ */
 export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<BetterAuthOptions, "emailAndPassword"> & {
   assertAuthRequestPasswordLength: (path: string, body: unknown) => void;
   prepareSignUpPasswordHash: (path: string, body: unknown) => Promise<void>;

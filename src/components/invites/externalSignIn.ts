@@ -1,3 +1,4 @@
+/** Maximum wait before an external sign-in navigation is treated as timed out. */
 export const EXTERNAL_NAVIGATION_TIMEOUT_MS = 10_000;
 
 interface ExternalSignInResult {
@@ -17,6 +18,7 @@ function parseExternalRedirectUrl(value: string | null | undefined): string | nu
     const url = new URL(value, window.location.href);
     return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
   } catch {
+    // Malformed redirect URLs become failures so recovery can continue without navigation.
     return null;
   }
 }

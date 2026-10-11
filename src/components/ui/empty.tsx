@@ -3,6 +3,7 @@ import type { VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/cn";
 
+/** Renders an empty-state container. */
 function Empty({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -16,6 +17,7 @@ function Empty({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/** Groups the empty-state title and description. */
 function EmptyHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -44,6 +46,7 @@ const emptyMediaVariants = cva(
   },
 );
 
+/** Renders optional media in an empty state. */
 function EmptyMedia({
   className,
   variant = "default",
@@ -59,6 +62,7 @@ function EmptyMedia({
   );
 }
 
+/** Renders the empty-state heading. */
 function EmptyTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -70,6 +74,7 @@ function EmptyTitle({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 // Local shadcn deviation: descriptions retain paragraph semantics and paragraph-native props.
+/** Renders the empty-state description. */
 function EmptyDescription({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
@@ -83,6 +88,7 @@ function EmptyDescription({ className, ...props }: React.ComponentProps<"p">) {
   );
 }
 
+/** Renders supporting content in an empty state. */
 function EmptyContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

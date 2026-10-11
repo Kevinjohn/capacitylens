@@ -6,10 +6,16 @@ import { readFirstAccount } from "./appTestSnapshotAccount";
 import type { AccountSnapshot, AllocationSnapshot } from "./appTestSnapshotCore";
 import { readAllocation } from "./appTestSnapshotSchedule";
 import { readValidatedState } from "./appTestSnapshotBatch";
+/**
+ * Reads the account snapshot from a validated state response.
+ */
 export async function readStateAccount(app: FastifyInstance): Promise<AccountSnapshot> {
   return readFirstAccount((await readValidatedState(app)).accounts);
 }
 
+/**
+ * Reads the allocation with the requested ID from a validated state response.
+ */
 export async function readStateAllocation(app: FastifyInstance, id: string): Promise<AllocationSnapshot> {
   return readAllocation((await readValidatedState(app)).allocations, id);
 }
@@ -23,6 +29,9 @@ export async function scaffold(app: FastifyInstance) {
   await post(app, "resources", person("r1", "a1"));
 }
 
+/**
+ * Requires the response to contain a valid ISO `updatedAt` timestamp.
+ */
 export function readUpdatedAt(response: LightMyRequestResponse): string {
   const payload: unknown = response.json();
   if (
@@ -36,6 +45,9 @@ export function readUpdatedAt(response: LightMyRequestResponse): string {
   return payload.updatedAt;
 }
 
+/**
+ * Creates a stale allocation edit after another request has updated the same row.
+ */
 export async function createExternalAllocationEdit(app: FastifyInstance) {
   await scaffold(app);
   const allocationRow = allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "t1" });

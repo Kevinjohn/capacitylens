@@ -45,6 +45,7 @@ function useLoginIds() {
   };
 }
 
+/** Renders the public sign-in screen for the current auth mode. */
 export function LoginScreen({
   authMode,
   needsSetup = false,

@@ -126,6 +126,9 @@ async function listPrincipalSummaries(
   }
 }
 
+/**
+ * Creates read operations for inspecting the local identity and session state.
+ */
 export function createInspection(
   context: InspectionContext,
 ): Pick<SsoCutoverIdentityPort, "inspectProviderLinks" | "inspectSsoCutover" | "getPrincipalSummaries"> {

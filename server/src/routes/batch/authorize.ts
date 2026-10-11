@@ -94,6 +94,7 @@ function authorizeAccountPut(parameters: AuthorizeAccountPutInput): boolean {
   return false;
 }
 
+/** Authorizes every account operation and sends a refusal when any operation is denied. */
 export function authorizeBatchOperations(parameters: AuthorizeBatchOperationsInput): boolean {
   const { ops, db, authMode, req, reply, authorize } = parameters;
   // This function is invoked once before waiting for workspace locks and again after lock

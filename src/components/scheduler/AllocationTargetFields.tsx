@@ -132,6 +132,7 @@ function ActivitySelectionFields({
   );
 }
 
+/** Selects the resource and activity attribution for an allocation. */
 export function AllocationTargetFields({
   create,
   resourceId,

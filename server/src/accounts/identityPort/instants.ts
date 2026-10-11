@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { createInvalidProviderSessionError } from "./vendorErrors";
 
+/**
+ * Derives a stable session identifier when the provider does not supply one.
+ */
 export function buildStableFallbackSessionId(applicationId: string, principalId: string, createdAt: string): string {
   return createHash("sha256")
     .update(`${applicationId}-session-id\0`)
@@ -10,6 +13,9 @@ export function buildStableFallbackSessionId(applicationId: string, principalId:
     .digest("base64url");
 }
 
+/**
+ * Converts a provider timestamp to a validated ISO instant.
+ */
 export function buildIsoInstant(value: string | number): string {
   const milliseconds = parseTimestampMilliseconds(value);
   if (milliseconds === null) throw new RangeError("Invalid time value");
@@ -24,6 +30,9 @@ export function parseTimestampMilliseconds(value: string | number): number | nul
   return Number.isFinite(milliseconds) ? milliseconds : null;
 }
 
+/**
+ * Accepts provider timestamps in seconds, milliseconds, or ISO form and returns the UTC instant used by identity operations.
+ */
 export function parseProviderInstant(value: string | number, field: "createdAt" | "expiresAt"): string {
   const milliseconds = parseTimestampMilliseconds(value);
   if (milliseconds === null) {

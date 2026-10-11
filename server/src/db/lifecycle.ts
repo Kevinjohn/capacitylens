@@ -38,7 +38,8 @@ function insertAllRows(db: Db, data: AppData): void {
 export function insertAll(db: Db, data: AppData): void {
   tx(db, () => {
     insertAllRows(db, data);
-    markInitialized(db); // once for the whole batch, not per row
+    // Mark the snapshot initialized only after the full batch has been inserted.
+    markInitialized(db);
   });
 }
 
@@ -96,6 +97,7 @@ export function replaceAccountSlice(db: Db, accountId: string, next: CompleteAcc
     for (const table of SCOPED_ORDER) {
       for (const row of d[table] ?? []) if (row.accountId === accountId) insertRowRaw(db, table, row);
     }
-    markInitialized(db); // once for the whole slice, not per row
+    // Mark the snapshot initialized only after the full slice has been inserted.
+    markInitialized(db);
   });
 }

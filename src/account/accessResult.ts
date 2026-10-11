@@ -34,8 +34,10 @@ export function resolveRejectionMessage<T>(result: TeamAccessResult<T>, fallback
   return result.kind === "rejected" && result.message ? result.message : fallback;
 }
 
+/** Checks whether an input is a valid ISO instant. */
 export const isTimestamp = isIsoInstant;
 
+/** Narrows an input to a string or null. */
 export const isNullableString = (value: unknown): value is string | null => value === null || typeof value === "string";
 
 async function parseOkBody<T>(response: Response, decode: (body: unknown) => T | null): Promise<TeamAccessResult<T>> {
@@ -50,6 +52,7 @@ async function parseOkBody<T>(response: Response, decode: (body: unknown) => T |
     : { kind: "ok", status: response.status, value };
 }
 
+/** Decodes a command response and distinguishes rejection from an unknown outcome. */
 export async function readCommandResult<T>(
   response: Response,
   decode: (body: unknown) => T | null,
@@ -72,6 +75,7 @@ export async function readCommandResult<T>(
   return parseOkBody(response, decode);
 }
 
+/** Decodes a response body into the shared account-access result shape. */
 export async function readResult<T>(
   response: Response,
   decode: (body: unknown) => T | null,

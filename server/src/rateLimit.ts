@@ -3,6 +3,9 @@
 // productionGuard.ts can share it without pulling in the whole Fastify app (app.ts), an import
 // cycle the guard must stay clear of, since index.ts consults the guard before building the app.
 
+/**
+ * Bounds max rate limit so resource use remains predictable under load.
+ */
 export const MAX_RATE_LIMIT = 1_000_000;
 
 /** Normalize a programmatic rate limit with the same bounds used by the environment parser. */

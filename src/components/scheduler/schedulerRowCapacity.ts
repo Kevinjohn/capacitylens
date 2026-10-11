@@ -84,6 +84,7 @@ function createTrackedCapacitySource(input: ResourceCapacitySourceInput, context
   };
 }
 
+/** Combines resource availability and dated exceptions for capacity calculations. */
 export function createCapacitySource({
   days,
   visibleWindow: { start: visibleStart, end: visibleEnd },

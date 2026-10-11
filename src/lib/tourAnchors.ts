@@ -5,6 +5,7 @@
 // Every sidebar destination's path, in nav order. The tour only spotlights some of them, but the
 // whole set lives here so `navLinks.ts` never re-types a path as a literal: a route rename is one
 // edit, and the spotlighted ones (used in TOUR_ANCHORS below) cannot drift out of the selectors.
+/** Route path for the main schedule page. */
 export const ROUTE_SCHEDULE = "/";
 export const ROUTE_CAPACITY_OVERVIEW = "/overview";
 export const ROUTE_RESOURCES = "/resources";
@@ -21,6 +22,7 @@ export const ROUTE_ACCOUNT = "/account";
 /** Route path for the shared Help page and its role-aware tour launcher. */
 export const ROUTE_HELP = "/help";
 
+/** Stable selectors used to position product-orientation tour steps. */
 export const TOUR_ANCHORS = [
   '[data-testid="scheduler-grid"]',
   '[data-testid="scheduler-toolbar"]',

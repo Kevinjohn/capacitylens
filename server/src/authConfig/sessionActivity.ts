@@ -176,6 +176,9 @@ function touchSessionActivity<Session extends SessionActivitySession>(
   return adoptSessionActivity(session, currentMs);
 }
 
+/**
+ * Checks that the session remains active and records its latest authenticated activity.
+ */
 export async function enforceSessionActivity<Session extends SessionActivitySession>(
   session: Session,
   db: Db,

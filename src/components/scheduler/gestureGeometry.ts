@@ -21,6 +21,7 @@ interface BuildGesturePreviewDatesInput {
 
 type GesturePreviewResult = { kind: "blocked" } | { kind: "unchanged" } | { kind: "ready"; dates: DateRange };
 
+/** Clamps a bar gesture to valid dates before previewing it. */
 export function buildGesturePreviewDates({
   allocation,
   mode,
@@ -54,6 +55,7 @@ export function buildGesturePreviewDates({
   };
 }
 
+/** Projects a bar gesture into visible column positions. */
 export function buildGesturePreviewGeometry(
   bar: BarLayout,
   geometry: ColumnGeometry,

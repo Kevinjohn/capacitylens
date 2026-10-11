@@ -190,7 +190,8 @@ interface PreauthInviteAllowsInput {
  * @returns `true` if this principal may accept this invite, `false` otherwise.
  */
 export function preauthInviteAllows({ preauthEmail, user, passwordMode = false }: PreauthInviteAllowsInput): boolean {
-  if (preauthEmail === null) return true; // link invite: any signed-in caller
+  // Link invites are not bound to an email address.
+  if (preauthEmail === null) return true;
   // Password deployments have no outbound verification service: possession of the
   // email-addressed invite is their verification ceremony. SSO still requires the IdP's verified
   // email claim. Both sides are normalized before the exact comparison.

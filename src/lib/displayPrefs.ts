@@ -116,6 +116,7 @@ function createBooleanPreference({
   ];
 }
 
+/** Visibility preferences for utilisation summaries. */
 export interface UtilizationPreferences {
   /** Show the account-wide utilisation summary. */
   showTotal: boolean;
@@ -125,6 +126,7 @@ export interface UtilizationPreferences {
   showPersonal: boolean;
 }
 
+/** Default visibility for utilisation summaries. */
 export const DEFAULT_UTILIZATION_PREFS: UtilizationPreferences = {
   showTotal: true,
   showDiscipline: true,
@@ -145,6 +147,7 @@ export function writeStoredUtilizationPrefs(preferences: UtilizationPreferences)
   writeBooleanRecordPreference(STORAGE_KEY, preferences);
 }
 
+/** Visibility preferences for allocation bar labels. */
 export interface BarLabelPreferences {
   /** Prefix the allocation bar's label with the client name. */
   showClient: boolean;
@@ -152,6 +155,7 @@ export interface BarLabelPreferences {
   showProject: boolean;
 }
 
+/** Default allocation bar label visibility. */
 export const DEFAULT_BAR_LABEL_PREFS: BarLabelPreferences = {
   showClient: true,
   showProject: true,
@@ -226,6 +230,7 @@ export function readDefaultSidebarOpen(): boolean {
 // "Minimise weekends": shrink the Saturday/Sunday columns on the schedule to a sliver.
 // Device-global like the prefs above (own key, not account data), but defaults on, the owner's
 // stated default. A plain on/off string (like the sidebar) rather than JSON: it's a single bool.
+/** Reads and writes the browser preference for minimising weekend columns. */
 export const [readStoredMinimiseWeekends, writeStoredMinimiseWeekends] = createBooleanPreference({
   key: "minimiseWeekends",
   fallback: true,
@@ -236,7 +241,9 @@ export const [readStoredMinimiseWeekends, writeStoredMinimiseWeekends] = createB
 // users, with no Settings control. The storage key remains only as a test override: browser tests
 // store "off" to hold a mid-week position across the idle re-floor (see e2e/browserTestSupport.ts).
 // Governs free scroll only; the navigation snap (zoom / Prev-Next / date-picker) is always on.
+/** Storage key for the browser-test week-snap override. */
 export const WEEK_SNAP_OVERRIDE_KEY = "snapToWeekStart";
+/** Reads the optional browser-test override for snapping to week starts. */
 export const [readStoredWeekSnapOverride] = createBooleanPreference({ key: WEEK_SNAP_OVERRIDE_KEY, fallback: true });
 
 // "Fake sign-in": a cosmetic demo gate shown before the account picker so a viewer sees a
@@ -245,6 +252,7 @@ export const [readStoredWeekSnapOverride] = createBooleanPreference({ key: WEEK_
 // This is not real auth. The real, server-authoritative seam is `src/auth/`. The flag is
 // flipped on by the demo sign-in screen and cleared by "Sign out". See
 // `src/components/FakeSignIn.tsx` and DECISIONS.md.
+/** Reads and writes the development-only fake sign-in preference. */
 export const [readStoredFakeSignedIn, writeStoredFakeSignedIn] = createBooleanPreference({
   key: "fakeSignedIn",
   fallback: false,

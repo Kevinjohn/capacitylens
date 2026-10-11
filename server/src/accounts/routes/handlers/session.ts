@@ -17,6 +17,9 @@ function createRequestHeaders(headers: FastifyRequest["headers"]): Headers {
   return requestHeaders;
 }
 
+/**
+ * Ends the current authenticated session.
+ */
 export async function signOut(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -35,6 +38,9 @@ export async function signOut(
   }
 }
 
+/**
+ * Lists the authenticated principal’s active sessions.
+ */
 export async function listSessions(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -49,6 +55,9 @@ export async function listSessions(
   }
 }
 
+/**
+ * Revokes the selected session after confirming it belongs to the authenticated principal.
+ */
 export async function revokeSession(
   req: FastifyRequest<SessionRoute>,
   reply: FastifyReply,

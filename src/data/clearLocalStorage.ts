@@ -5,6 +5,7 @@ import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
 // defined once (see shared/src/brand.ts). Clearing by this prefix wipes CapacityLens's own state
 // without touching unrelated origin keys (a shared origin could carry keys from other tools), which
 // a blind `localStorage.clear()` would destroy.
+/** Prefix used to identify application-owned browser storage keys. */
 export const CAPACITYLENS_KEY_PREFIX = STORAGE_KEY_PREFIX;
 
 interface OwnedLocalStorageEntry {

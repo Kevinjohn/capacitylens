@@ -5,6 +5,7 @@ import { resolveRequestClientIp } from "./appErrors";
 import type { AppOptions } from "../app";
 import { REPLY_ERRORS } from "./replyErrors";
 
+/** Installs the security headers and request limits used by the API. */
 export function installSecurityPlugins(app: FastifyInstance, options: AppOptions, rateLimitMax: number) {
   // Baseline security headers (@fastify/helmet): on by default. These are pure
   // hardening with no precondition, for an API server that returns JSON only (the SPA is

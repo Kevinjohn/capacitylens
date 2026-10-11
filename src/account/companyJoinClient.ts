@@ -10,6 +10,7 @@ function post(path: string, body?: unknown, signal?: AbortSignal): Promise<Respo
   });
 }
 
+/** Provides request methods for company-join metadata and status. */
 export const companyJoinClient = {
   metadata: (accountId: string) =>
     apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(accountId)}/join/metadata`, { credentials: "include" }),

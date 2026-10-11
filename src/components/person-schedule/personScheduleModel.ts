@@ -22,6 +22,7 @@ import type {
   PersonScheduleWindow,
 } from "./personScheduleTypes";
 
+/** Scoped scheduling data and visible window needed for a person projection. */
 export interface BuildPersonScheduleInput {
   accountId: ID;
   resource: Resource;
@@ -172,6 +173,7 @@ function listTimeOffEntries(input: BuildPersonScheduleInput): {
   return { entries, invalidRecords };
 }
 
+/** Projects one resource's allocations and time off into dated schedule entries. */
 export function buildPersonSchedule(input: BuildPersonScheduleInput): PersonScheduleBuildResult {
   const context = createProjectionContext(input);
   const allocationInvalidRecords = collectSeriesMetadata(

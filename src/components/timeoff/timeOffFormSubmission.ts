@@ -15,6 +15,7 @@ import type { TimeOffRepeatChoice } from "./useTimeOffRepeat";
 
 type Fail = (field: string | null, message: string) => void;
 
+/** Fields and mutation callbacks needed to validate and save time off. */
 export interface SaveTimeOffOptions {
   timeOff: TimeOff | undefined;
   resources: readonly Resource[];
@@ -125,6 +126,7 @@ function resolveRepeatFailure(startDate: ISODate, error: unknown, fail: Fail): n
   throw error;
 }
 
+/** Validates a time-off form and persists its single entry or repeated batch. */
 export function saveTimeOff(options: SaveTimeOffOptions): void {
   const draft = parseTimeOffDraft(options);
   if (!draft) return;

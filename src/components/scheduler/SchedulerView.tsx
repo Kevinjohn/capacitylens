@@ -1,6 +1,7 @@
 import { SchedulerToolbar } from "./SchedulerToolbar";
 import { SchedulerGrid } from "./SchedulerGrid";
 
+/** Combines schedule controls with the week grid. */
 export function SchedulerView() {
   return (
     <div className="relative flex h-full flex-col">

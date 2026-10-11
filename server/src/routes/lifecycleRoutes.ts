@@ -24,6 +24,7 @@ import {
   REPLY_ERRORS,
 } from "./replyErrors";
 
+/** Inputs used to redact lifecycle route responses for the current actor. */
 export interface LifecycleRedactionInput {
   req: FastifyRequest;
   entity: string;

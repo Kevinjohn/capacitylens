@@ -58,6 +58,7 @@ function ClosureItems({ closures, onEdit, onDelete }: ClosureItemsProps) {
   );
 }
 
+/** Lists company closures available to the active account. */
 export function CompanyClosureSection() {
   const data = useActiveScopedData();
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));

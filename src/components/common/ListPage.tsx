@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { m } from "@/i18n";
 import { AddButton } from "./dialogs";
 
+/** Provides the shared title, actions, and content layout for list views. */
 export function ListPage({
   title,
   addLabel,

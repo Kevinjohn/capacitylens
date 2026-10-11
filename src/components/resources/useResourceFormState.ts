@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Resource, ResourceEngagement, Weekday } from "@capacitylens/shared/types/entities";
 
+/** Tracks editable resource fields and their validation state. */
 export function useResourceFormState(resource?: Resource) {
   const text = buildInitialTextState(resource);
   const capacity = buildInitialCapacityState(resource);
@@ -54,4 +55,5 @@ function buildInitialCapacityState(resource?: Resource) {
   };
 }
 
+/** State and handlers returned for a resource form. */
 export type ResourceFormState = ReturnType<typeof useResourceFormState>;

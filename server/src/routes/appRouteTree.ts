@@ -283,6 +283,7 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
   registerStateRoutes(app, { ...dependencies.state, section: "org" });
 }
 
+/** Registers API route plugins under the root Fastify instance. */
 export function registerApiRoutes(input: RegisterApiRoutesInput): void {
   const { app } = input;
   // Every route below registers through a child plugin, not directly on the root:

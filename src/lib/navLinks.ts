@@ -47,6 +47,7 @@ export type NavigationLinkDefinition = { to: string; label: () => string; icon: 
 // missing-element step to a centred popover; getting-started.spec.ts pins every exported tour
 // anchor to a real element in the rendered schedule), but the rest use the constants too so no
 // reader has to work out which literals are load-bearing.
+/** Navigation links shown in the application sidebar. */
 export const LINKS: NavigationLinkDefinition[] = [
   { to: ROUTE_CAPACITY_OVERVIEW, label: () => m.nav_capacity_overview(), icon: ChartNoAxesColumnIncreasingIcon },
   { to: ROUTE_SCHEDULE, label: () => m.nav_schedule(), icon: CalendarIcon },

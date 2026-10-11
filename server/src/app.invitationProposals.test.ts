@@ -318,7 +318,8 @@ describe("invitation person proposal route admission", () => {
     ["editor", "editor-proposal@capacitylens.dev", "a1", "editor"],
     ["cross-account owner", "cross-account-proposal@capacitylens.dev", "a2", "owner"],
   ] as const)(
-    "denies proposal creation for %s", // eslint-disable-next-line max-params
+    "denies proposal creation for %s",
+    // eslint-disable-next-line max-params -- The callback needs every admission input for the matrix.
     async (_label, email, accountId, role) => {
       const { app, db } = await appWithAuth(proposalApp);
       seedOne(db);

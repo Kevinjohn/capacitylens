@@ -251,6 +251,7 @@ function applyDelete(parameters: OperationParameters, op: BatchDeleteOp): void {
   projection.delete(table, id);
 }
 
+/** Applies one validated operation to the batch transaction and projection. */
 export function applyBatchOperation(parameters: ApplyBatchOperationParameters): void {
   const { opIndex, op, ...operationParameters } = parameters;
   const context = { ...operationParameters, opIndex };

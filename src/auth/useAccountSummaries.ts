@@ -262,12 +262,12 @@ export function useAccountSummaries({
   const localAccounts = useStore((state) => state.data.accounts);
 
   useEffect(() => {
-    if (!serverMode) return; // demo build handled by the derive effect below
+    // Demo account summaries are derived from the local store below.
+    if (!serverMode) return;
     if (activeAccountId !== null && !refreshActiveAccount) return;
     let cancelled = false;
     void (async () => {
-      // A null list (non-OK / transport error) leaves the existing list untouched, a blip shouldn't
-      // blank the picker (the server 403 backstops); a real read/write surfaces its own banner.
+      // Failed or malformed reads preserve the current picker list until a successful refresh.
       await refreshAccountSummaries({ acceptEffects: () => !cancelled });
     })();
     return () => {
@@ -276,7 +276,8 @@ export function useAccountSummaries({
   }, [serverMode, activeAccountId, membershipRevision, refreshActiveAccount]);
 
   useEffect(() => {
-    if (serverMode) return; // server mode is driven by the fetch above, not the local derive
+    // Server account summaries are loaded by the request effect above.
+    if (serverMode) return;
     // Demo build: the picker's list is the store's accounts (tagged owner = full access, mirroring the
     // server's off wire shape so the pure `can` keeps local fully editable). Kept in lockstep on every
     // add/delete so the picker reflects changes without a fetch.

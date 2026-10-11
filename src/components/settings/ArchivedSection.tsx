@@ -260,6 +260,7 @@ interface ArchivedSectionProps {
   collapsible?: boolean;
   defaultOpen?: boolean;
 }
+/** Shows archived records where the current role may inspect or restore them. */
 export function ArchivedSection({ collapsible = false, defaultOpen = true }: ArchivedSectionProps = {}) {
   const server = isServerConfigured();
   const activeAccountId = useStore((state) => state.activeAccountId);

@@ -193,12 +193,14 @@ function createPlaceholderWriteValidationTests(): void {
     await scaffold(app);
     await post(app, "projects", project("p2", "a1", "c1"));
     await post(app, "activities", activity({ id: "t2", accountId: "a1", projectId: "p2" }));
-    await post(app, "resources", placeholder("ph", "a1", "p1")); // bound to p1
+    // Bound to p1.
+    await post(app, "resources", placeholder("ph", "a1", "p1"));
     const res = await post(
       app,
       "allocations",
       allocation({ id: "al", accountId: "a1", resourceId: "ph", activityId: "t2" }),
-    ); // t2 is in p2
+      // The activity belongs to the second project.
+    );
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toMatch(/placeholder/i);
   });
@@ -313,7 +315,8 @@ function createExternalResourceConversionRejectionTests(): void {
   // attempts before dependent validation can be bypassed.
   it("rejects PATCH setting kind:external on a person resource", async () => {
     const { app } = freshApp();
-    await scaffold(app); // r1 is a person
+    // R1 is a person.
+    await scaffold(app);
     await post(
       app,
       "allocations",

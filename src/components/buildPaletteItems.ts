@@ -11,6 +11,7 @@ import type { useActiveScopedData } from "@/store/useScopedData";
 import { buildEmptyFilters } from "@/store/useStore";
 import type { Filters } from "@/store/useStore";
 
+/** A searchable command with its label, scope, and action. */
 export interface PaletteItem {
   id: string;
   label: string;
@@ -174,6 +175,7 @@ function buildActivityItems({ data, navigate, onClose }: BuildPaletteItemsInput)
   });
 }
 
+/** Combines available navigation and commands into filtered palette results. */
 export function buildPaletteItems(input: BuildPaletteItemsInput): PaletteItem[] {
   const query = input.query.trim();
   const actions = filterPaletteItems({

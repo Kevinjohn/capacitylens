@@ -53,9 +53,8 @@ interface TimeOffOptions {
   overrides?: Partial<TimeOff>;
 }
 
-// These specs target the pure domain mutations directly (no store, no React). The
-// store and a future server both call this exact module, so locking the rules in
-// here is what makes "server validation == client validation" free.
+// These specs exercise the shared mutations without the store or React. The server uses
+// the same module, so these assertions pin the validation rules for both callers.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = (id: ID, accountId: ID) => ({

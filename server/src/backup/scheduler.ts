@@ -213,6 +213,9 @@ class BackupScheduler implements Backups {
   }
 }
 
+/**
+ * Applies backups only after the relevant backup operations checks have passed.
+ */
 export function startBackups({
   db,
   config,

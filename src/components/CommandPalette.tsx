@@ -145,6 +145,7 @@ function PaletteResults({
   );
 }
 
+/** Renders the command palette and manages its active result and search state. */
 export function CommandPalette({ onClose }: { onClose: () => void }) {
   // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
   // Per-account view pref (default off): when off, placeholders are not offered as jump targets.
@@ -211,9 +212,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       >
         <DialogTitle className="sr-only">{m.palette_dialog_label()}</DialogTitle>
         <Command shouldFilter={false} loop={false} value={activeValue} onValueChange={setActiveValue}>
-          {/* Search input row */}
           <div className="flex items-center gap-3 border-b px-4 py-3">
-            {/* Magnifying glass icon */}
             <svg className="size-4 shrink-0 text-faint" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
               <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

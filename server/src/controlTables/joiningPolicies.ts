@@ -3,6 +3,9 @@ import { isJoiningPolicy } from "@capacitylens/shared/account/types";
 import type { JoiningPolicySettings } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 
+/**
+ * Reads the persisted joining policy and approved-domain list for an account.
+ */
 export function readJoiningPolicy(db: Db, accountId: string): JoiningPolicySettings {
   const row = db
     .prepare("SELECT policy, approvedDomains FROM account_joining_policies WHERE accountId = ?")
@@ -25,6 +28,10 @@ export function writeJoiningPolicy(db: Db, accountId: string, settings: JoiningP
   return { policy: settings.policy, approvedDomains: domains };
 }
 
+/**
+ * Removes joining policy with its owning state so stale account control data records cannot
+ * remain.
+ */
 export function removeJoiningPolicy(db: Db, accountId: string): void {
   db.prepare("DELETE FROM account_joining_policies WHERE accountId = ?").run(accountId);
 }

@@ -3,13 +3,22 @@ import { createHash, X509Certificate } from "node:crypto";
 import type { ServerOptions as HttpsServerOptions } from "node:https";
 import { createSecureContext } from "node:tls";
 
+/**
+ * Contains the validated certificate, private key, expiry, and fingerprint used by the internal HTTPS listener.
+ */
 export type InternalTlsOptions = Pick<HttpsServerOptions, "key" | "cert" | "minVersion"> & {
   expiresAt: string;
   fingerprintSha256: string;
 };
 
+/**
+ * Marks certificates as expiring within thirty days so operators can renew before expiry.
+ */
 export const INTERNAL_TLS_RENEW_BEFORE_SECONDS = 30 * 24 * 60 * 60;
 
+/**
+ * Summarizes the internal certificate expiry status and remaining lifetime.
+ */
 export interface InternalTlsHealth {
   status: "ok" | "expiring" | "expired";
   expiresAt: string;
@@ -17,6 +26,9 @@ export interface InternalTlsHealth {
   fingerprintSha256?: string;
 }
 
+/**
+ * Signals that the configured internal TLS certificate or key cannot be used safely.
+ */
 export class InternalTlsConfigError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);

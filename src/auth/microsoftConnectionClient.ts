@@ -1,7 +1,9 @@
 import { API_BASE } from "@/data/apiConfig";
 import { apiFetch } from "@/data/requestTimeout";
 
+/** Microsoft email-verification flow that initiated the connection. */
 export type MicrosoftConnectionPurpose = "bootstrap" | "invite" | "link";
+/** Current status and user-facing delivery details for a Microsoft verification flow. */
 export type MicrosoftConnectionStatus = {
   state: "pending" | "approved" | "expired";
   emailHint?: string;
@@ -28,6 +30,7 @@ async function request(path: string, body?: unknown, signal?: AbortSignal): Prom
   return response.json() as Promise<unknown>;
 }
 
+/** HTTP failure returned by a Microsoft verification operation. */
 export class MicrosoftConnectionError extends Error {
   readonly status: number;
 
@@ -50,6 +53,7 @@ function parseProviderUrl(value: unknown): string {
   return url.href;
 }
 
+/** Starts a Microsoft verification flow and validates its continuation URL. */
 export async function startMicrosoftConnection(input: StartInput, signal?: AbortSignal) {
   const response = await request("start", input, signal);
   if (!response || typeof response !== "object" || !("url" in response)) {
@@ -58,6 +62,7 @@ export async function startMicrosoftConnection(input: StartInput, signal?: Abort
   return { data: { url: parseProviderUrl(response.url) } };
 }
 
+/** Reads the status of the active Microsoft verification flow. */
 export async function readMicrosoftConnectionStatus(signal?: AbortSignal): Promise<MicrosoftConnectionStatus> {
   const response = await request("status", undefined, signal);
   if (!response || typeof response !== "object" || !("state" in response)) {
@@ -86,6 +91,7 @@ function readDeliveryStatus(response: object): Pick<MicrosoftConnectionStatus, "
   return typeof deliveryUnavailable === "boolean" ? { deliveryUnavailable } : {};
 }
 
+/** Confirms a Microsoft verification token and returns the next safe URL. */
 export function confirmMicrosoftConnection(token?: string, signal?: AbortSignal) {
   return request("confirm", { token }, signal).then((result) => {
     if (!result || typeof result !== "object" || !("url" in result)) {
@@ -95,10 +101,12 @@ export function confirmMicrosoftConnection(token?: string, signal?: AbortSignal)
   });
 }
 
+/** Resends the email for the active Microsoft verification flow. */
 export async function resendMicrosoftConnection(signal?: AbortSignal) {
   await requestAction("resend", signal);
 }
 
+/** Cancels the active Microsoft verification flow. */
 export async function cancelMicrosoftConnection(signal?: AbortSignal) {
   await requestAction("cancel", signal);
 }

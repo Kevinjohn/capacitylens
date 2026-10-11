@@ -9,6 +9,9 @@ function migrationHistoryExists(db: Db): boolean {
   );
 }
 
+/**
+ * Checks that the migration history table has the expected columns and primary key.
+ */
 export function assertMigrationHistoryTable(db: Db): void {
   const expected = new Map<string, { type: string; required: boolean }>([
     ["version", { type: "INTEGER", required: true }],

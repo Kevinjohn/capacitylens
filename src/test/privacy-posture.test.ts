@@ -25,7 +25,6 @@ import { cwd } from "node:process";
 // Curated deny-known-bad list of analytics/telemetry + email packages. Keep it maintainable:
 // add the egress-vendor SDKs people actually reach for, not every transitive utility.
 const DENYLIST: string[] = [
-  // --- analytics / telemetry / product phone-home / crash+APM reporting ---
   "segment",
   "@segment/analytics-node",
   "analytics-node",
@@ -55,7 +54,6 @@ const DENYLIST: string[] = [
   "rollbar",
   "logrocket",
 
-  // --- vendor email SDKs (operator-configured server SMTP is the sole exception) ---
   "@sendgrid/mail",
   "@sendgrid/client",
   "sendgrid",

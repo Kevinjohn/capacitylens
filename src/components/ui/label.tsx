@@ -3,6 +3,7 @@ import { Label as LabelPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/cn";
 
+/** Renders an accessible form label. */
 function Label({
   className,
   ...props

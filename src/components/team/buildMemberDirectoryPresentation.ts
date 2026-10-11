@@ -22,6 +22,7 @@ function compareMembers(left: Member, right: Member): number {
   );
 }
 
+/** Orders invitations consistently for the member directory. */
 export function sortInvitationsForPresentation(invitations: readonly TeamInvitation[]): TeamInvitation[] {
   return [...invitations].sort(
     (left, right) =>
@@ -32,6 +33,7 @@ export function sortInvitationsForPresentation(invitations: readonly TeamInvitat
   );
 }
 
+/** Derives role and invitation display state from the current member list. */
 export function buildMemberDirectoryPresentation(members: Member[] | null) {
   const myRole = members?.find((member) => member.isSelf)?.role;
   const mayManageInvites = myRole !== undefined && can(myRole, "manageInvites");

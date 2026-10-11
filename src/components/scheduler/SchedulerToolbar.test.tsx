@@ -524,8 +524,10 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
     render(<SchedulerToolbar />);
     showFilters();
 
-    await user.type(screen.getByLabelText("Search people"), "jo"); // schedules a 180ms timer
-    await user.click(screen.getByRole("button", { name: "Clear Filters" })); // must cancel it
+    // Typing schedules the search debounce.
+    await user.type(screen.getByLabelText("Search people"), "jo");
+    // Clearing filters must cancel the pending debounce.
+    await user.click(screen.getByRole("button", { name: "Clear Filters" }));
 
     // Wait past the debounce window: the orphaned timer must not re-apply "jo".
     await new Promise((r) => setTimeout(r, 250));
@@ -534,7 +536,8 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
   });
 
   it("an EXTERNAL filters.search reset (e.g. account switch) cancels a pending search debounce", async () => {
-    useStore.getState().setFilters({ search: "alice" }); // a committed search
+    // Start with a committed search to distinguish it from pending text.
+    useStore.getState().setFilters({ search: "alice" });
     render(<SchedulerToolbar />);
     showFilters();
 
@@ -563,9 +566,12 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
     useStore.getState().setFilters({ ...buildEmptyFilters(), projectId: "p1" });
 
     await new Promise((r) => setTimeout(r, 250));
-    expect(useStore.getState().ui.filters.search).toBe(""); // not resurrected
-    expect(useStore.getState().ui.filters.projectId).toBe("p1"); // replacement intact
-    expect(box.value).toBe(""); // stale text gone from the box too
+    // The stale search must not return after the debounce window.
+    expect(useStore.getState().ui.filters.search).toBe("");
+    // The external replacement filter must remain active.
+    expect(useStore.getState().ui.filters.projectId).toBe("p1");
+    // The input must reflect the external reset.
+    expect(box.value).toBe("");
   });
 
   it("commits pending search text when another toolbar filter changes", async () => {
@@ -615,7 +621,8 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
   it("selecting a specific activity sets activityId and clears the client/project lens", async () => {
     const user = userEvent.setup();
     const { repeatable } = seedLensActivities();
-    useStore.getState().setFilters({ projectId: "p1" }); // an active project lens
+    // Start with a project lens so the activity choice can clear it.
+    useStore.getState().setFilters({ projectId: "p1" });
     render(<SchedulerToolbar />);
     showFilters();
 
@@ -623,7 +630,8 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
 
     expect(useStore.getState().ui.filters.activityId).toBe(repeatable.id);
     expect(useStore.getState().ui.filters.activityKind).toBeNull();
-    expect(useStore.getState().ui.filters.projectId).toBeNull(); // standalone lens cleared it
+    // A standalone activity lens must clear the project filter.
+    expect(useStore.getState().ui.filters.projectId).toBeNull();
   });
 
   it('selecting "Internal — All" sets activityKind and clears the client/project lens', async () => {

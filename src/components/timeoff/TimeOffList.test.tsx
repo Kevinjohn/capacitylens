@@ -121,7 +121,8 @@ it("lists the time-off entry after a valid save", async () => {
   expect(row).not.toHaveTextContent("Alice");
   expect(row).toHaveTextContent("Wed 1st Jul");
   expect(row).toHaveTextContent("5 days");
-  expect(row).not.toHaveTextContent("2026-07-01"); // the raw ISO string is no longer shown
+  // The raw ISO string is no longer shown.
+  expect(row).not.toHaveTextContent("2026-07-01");
 
   expect(useStore.getState().data.timeOff).toHaveLength(1);
   expect(requireValue(useStore.getState().data.timeOff[0], "time off").resourceId).toBe(resource.id);
@@ -131,8 +132,10 @@ it("keeps the row spare — start date and day count only, never the end date, t
   const resource = requireCreated(useStore.getState().addResource(resourceDraft));
   useStore.getState().addTimeOff({
     resourceId: resource.id,
-    startDate: "2026-08-01", // Saturday
-    endDate: "2026-08-05", // five inclusive days
+    // The start date is a Saturday.
+    startDate: "2026-08-01",
+    // The range covers five inclusive days.
+    endDate: "2026-08-05",
     type: "holiday",
     note: "Visiting family",
   });
@@ -142,7 +145,8 @@ it("keeps the row spare — start date and day count only, never the end date, t
   expect(row).toHaveTextContent("Sat 1st Aug");
   expect(row).toHaveTextContent("5 days");
   // Intentionally omitted from this view (still stored; the type still shows on the timeline block).
-  expect(row).not.toHaveTextContent("5th Aug"); // the end date (Wed 5th Aug) isn't surfaced
+  // The end date (Wed 5th Aug) is not shown.
+  expect(row).not.toHaveTextContent("5th Aug");
   expect(row).not.toHaveTextContent("Holiday");
   expect(row).not.toHaveTextContent("holiday");
   expect(row).not.toHaveTextContent("Visiting family");
@@ -468,8 +472,10 @@ it.each(["editor", "viewer"] as const)("hides and omits Note for role %s", (role
 describe("TimeOffForm resource picker (placeholder gating)", () => {
   it("EXCLUDES placeholders from the picker when the pref is OFF", async () => {
     setPlaceholdersEnabled({ on: false });
-    useStore.getState().addResource(resourceDraft); // a person, should appear
-    useStore.getState().addResource(placeholderDraft); // a placeholder, should be omitted
+    // A person should appear.
+    useStore.getState().addResource(resourceDraft);
+    // A placeholder should be omitted.
+    useStore.getState().addResource(placeholderDraft);
     render(<TimeOffForm onClose={() => {}} />);
 
     const select = screen.getByLabelText("Resource");

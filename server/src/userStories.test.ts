@@ -21,6 +21,7 @@ function decodeFragment(fragment: string): string {
   try {
     return decodeURIComponent(fragment);
   } catch {
+    // Keep malformed percent encoding visible in the route fragment.
     return fragment;
   }
 }

@@ -3,20 +3,34 @@ import { cleanText, hasDisallowedChars, MAX_NAME_LENGTH } from "./strings";
 
 // Built from numeric code points so the source file stays pure ASCII (no invisible
 // or ambiguous literals that would make the test lie about what it checks).
-const PARTY = String.fromCodePoint(0x1f389); // party popper emoji
-const POO = String.fromCodePoint(0x1f4a9); // pile of poo emoji
-const CHECK = String.fromCodePoint(0x2705); // white check mark emoji
-const NUL = String.fromCodePoint(0x0000); // control char
-const ZWJ = String.fromCodePoint(0x200d); // zero-width joiner (format)
-const RLO = String.fromCodePoint(0x202e); // right-to-left override (format)
-const VS16 = String.fromCodePoint(0xfe0f); // emoji variation selector-16 (Mn)
-const KEYCAP = String.fromCodePoint(0x20e3); // combining enclosing keycap (Me)
-const ACUTE = String.fromCodePoint(0x0301); // combining acute accent (Mn, legitimate)
-const UNASSIGNED = String.fromCodePoint(0x0378); // unassigned in the supported runtime baseline
-const PRIVATE_USE = String.fromCodePoint(0xe000); // Co
-const LONE_SURROGATE = String.fromCharCode(0xd800); // Cs
-const VS_SUPPLEMENT = String.fromCodePoint(0xe0100); // variation-selector supplement
-const DOUBLE_EXCLAMATION = String.fromCodePoint(0x203c); // Extended_Pictographic, category Po rather than So
+// Party popper emoji.
+const PARTY = String.fromCodePoint(0x1f389);
+// Pile of poo emoji.
+const POO = String.fromCodePoint(0x1f4a9);
+// White check mark emoji.
+const CHECK = String.fromCodePoint(0x2705);
+// Control char.
+const NUL = String.fromCodePoint(0x0000);
+// Zero-width joiner (format).
+const ZWJ = String.fromCodePoint(0x200d);
+// Right-to-left override (format).
+const RLO = String.fromCodePoint(0x202e);
+// Emoji variation selector-16 (Mn).
+const VS16 = String.fromCodePoint(0xfe0f);
+// Combining enclosing keycap (Me).
+const KEYCAP = String.fromCodePoint(0x20e3);
+// Combining acute accent (Mn, legitimate).
+const ACUTE = String.fromCodePoint(0x0301);
+// Unassigned in the supported runtime baseline.
+const UNASSIGNED = String.fromCodePoint(0x0378);
+// Co.
+const PRIVATE_USE = String.fromCodePoint(0xe000);
+// Cs.
+const LONE_SURROGATE = String.fromCharCode(0xd800);
+// Variation-selector supplement.
+const VS_SUPPLEMENT = String.fromCodePoint(0xe0100);
+// Extended_Pictographic, category Po rather than So.
+const DOUBLE_EXCLAMATION = String.fromCodePoint(0x203c);
 
 describe("hasDisallowedChars", () => {
   it("accepts ordinary names incl. accents, CJK and punctuation", () => {
@@ -32,9 +46,11 @@ describe("hasDisallowedChars", () => {
   });
 
   it("rejects flag emoji (regional indicators) and symbol marks", () => {
-    const FLAG_GB = String.fromCodePoint(0x1f1ec, 0x1f1e7); // 🇬🇧
+    // 🇬🇧.
+    const FLAG_GB = String.fromCodePoint(0x1f1ec, 0x1f1e7);
     expect(hasDisallowedChars(`from ${FLAG_GB}`)).toBe(true);
-    expect(hasDisallowedChars(`Ferris${String.fromCodePoint(0x2122)}`)).toBe(true); // trademark sign
+    // Trademark sign.
+    expect(hasDisallowedChars(`Ferris${String.fromCodePoint(0x2122)}`)).toBe(true);
   });
 
   it("rejects control and zero-width / format characters", () => {
@@ -59,13 +75,17 @@ describe("hasDisallowedChars", () => {
   });
 
   it("rejects keycap emoji and the emoji variation selector (U+FE0F / U+20E3)", () => {
-    expect(hasDisallowedChars(`1${VS16}${KEYCAP}`)).toBe(true); // "1️⃣" keycap emoji
-    expect(hasDisallowedChars(VS16)).toBe(true); // lone variation selector
-    expect(hasDisallowedChars(KEYCAP)).toBe(true); // lone enclosing-keycap mark
+    // "1️⃣" keycap emoji.
+    expect(hasDisallowedChars(`1${VS16}${KEYCAP}`)).toBe(true);
+    // Lone variation selector.
+    expect(hasDisallowedChars(VS16)).toBe(true);
+    // Lone enclosing-keycap mark.
+    expect(hasDisallowedChars(KEYCAP)).toBe(true);
   });
 
   it("still accepts a legitimate decomposed accent (does NOT ban Nonspacing_Mark wholesale)", () => {
-    expect(hasDisallowedChars(`e${ACUTE}`)).toBe(false); // "é" written as e + U+0301
+    // "é" written as e + U+0301.
+    expect(hasDisallowedChars(`e${ACUTE}`)).toBe(false);
   });
 
   it("rejects a newline in single-line mode but allows it in multiline", () => {
@@ -103,8 +123,10 @@ describe("cleanText", () => {
   });
 
   it("strips keycap-emoji parts but keeps the base char, and preserves decomposed accents", () => {
-    expect(cleanText(`1${VS16}${KEYCAP}`)).toBe("1"); // emoji presentation stripped, digit kept
-    expect(cleanText(`e${ACUTE}`)).toBe("é"); // legitimate accent retained in canonical NFC form
+    // Emoji presentation stripped, digit kept.
+    expect(cleanText(`1${VS16}${KEYCAP}`)).toBe("1");
+    // Legitimate accent retained in canonical NFC form.
+    expect(cleanText(`e${ACUTE}`)).toBe("é");
   });
 
   it("normalizes equivalent text and never truncates through a grapheme", () => {

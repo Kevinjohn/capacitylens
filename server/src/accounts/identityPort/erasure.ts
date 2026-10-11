@@ -77,6 +77,9 @@ function createPrincipalRowEraser(db: Db, tables: ErasureTables): (principalId: 
   };
 }
 
+/**
+ * Creates cleanup operations for installation-local Better Auth identity records.
+ */
 export function createErasure(tables: ErasureTables) {
   /** Delete only these installation-local Better Auth identities inside the caller's transaction. */
   function eraseLocalPrincipalsInTx(

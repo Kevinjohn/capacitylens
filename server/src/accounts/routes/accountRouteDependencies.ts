@@ -21,26 +21,44 @@ export interface AccountRoute {
   Params: { accountId: string };
 }
 
+/**
+ * Types the account and member IDs read by membership route handlers.
+ */
 export interface MemberRoute {
   Params: { accountId: string; userId: string };
 }
 
+/**
+ * Types the invitation token read by preview and signup route handlers.
+ */
 export interface InvitationTokenRoute {
   Params: { token: string };
 }
 
+/**
+ * Types the account and invitation IDs read by invitation route handlers.
+ */
 export interface InvitationRoute {
   Params: { accountId: string; id: string };
 }
 
+/**
+ * Types the account and request IDs read by ownership-transfer handlers.
+ */
 export interface OwnershipTransferRequestRoute {
   Params: { accountId: string; requestId: string };
 }
 
+/**
+ * Types the session ID read by session-revocation handlers.
+ */
 export interface SessionRoute {
   Params: { sessionId: string };
 }
 
+/**
+ * Caps how often an administrator may update a member’s sign-in tracking settings.
+ */
 export const MEMBER_SIGN_IN_TRACKING_RATE_LIMIT = {
   max: 5,
   timeWindow: "1 minute",
@@ -51,6 +69,9 @@ type SetMemberSignInTrackingRequestInput = Omit<SetMemberSignInTrackingInput, "d
   workspaceId: string;
 };
 
+/**
+ * Lists the account operations and helpers injected into route handlers.
+ */
 export interface AccountRouteDependencies {
   memberResources: AccountMemberResourcePort;
   authMode: AccountMode;
