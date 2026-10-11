@@ -7,16 +7,15 @@ next: false
 
 # Activities
 
-Set up the kinds of work people are booked to do, such as Wireframes, Build or Admin, and choose where
-each can be used. Only an Editor, Admin or Owner can add or change them.
+Set up the kinds of work people are booked to do, such as Wireframes, Build or Admin, and choose
+where each can be used. Only an Editor, Admin or Owner can add or change them.
 
 ![Activities grouped into Internal, All projects and Project-specific sections](../screenshots/flows/using_activities_1.png)
 
 Open **Activities**. It groups activities by where they can be used: **Internal activities**,
 **All-projects activities** and **Project-specific activities**, the last listed under their client
-and project. Internal and
-All-projects activities are alphabetical; project-specific ones are ordered by client, project and
-activity.
+and project. Internal and All-projects activities are alphabetical; project-specific ones are
+ordered by client, project and activity.
 
 Your own assignments are in your [work list on Schedule](/using/read-the-schedule#your-work-list).
 

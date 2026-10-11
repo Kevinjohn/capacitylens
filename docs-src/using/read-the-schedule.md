@@ -157,8 +157,8 @@ the **Tentative** pill and the **Work** / **Time off** draw mode.
 The project menu lists **All projects** first, then projects by client, sorted by code name where
 one is set. Selecting a client limits the project menu to that client. If the selected project
 belongs to another client, it resets to **All projects**. Clearing the client filter resets the
-project filter to **All projects**. An active filter turns **Clear Filters**
-red, so a filtered view is never mistaken for the whole schedule.
+project filter to **All projects**. An active filter turns **Clear Filters** red, so a filtered view
+is never mistaken for the whole schedule.
 
 ![The Schedule filtered to a project, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.png)
 

@@ -34,21 +34,21 @@ runs Node 24 and has a hostname pointing at it, the install takes about ten minu
 
 4. ![Owner sign-in setup form with name, email, Create a password and Owner setup token fields and Create my sign-in](../screenshots/steps/owner_setup_sign_in_form.png)
 
-   **Hand over.** Check `https://your-address/api/health` returns `{"ok":true`. Send the Owner the
-   address and [Set up your company](/owner/), and send the setup token separately and privately.
-   This is the screen they will see. After the Owner has signed in, remove
-   `CAPACITYLENS_SETUP_TOKEN` and restart. [Verify and hand over](/self-hosting/verify-and-hand-over)
+   **Hand over.** Check `https://your-address/api/health` shows `"ok":true`. If you are also the
+   Owner, continue with [Set up your company](/owner/). Otherwise send the Owner the address and
+   that guide, and send the setup token separately and privately. This is the screen they will
+   see. After the Owner has signed in, remove `CAPACITYLENS_SETUP_TOKEN` and restart.
+   [Verify and hand over](/self-hosting/verify-and-hand-over)
 
 </div>
 
 ## What you're taking on
 
-Self-hosting means you, or someone you name, own the service after handover. That means
-keeping backups tested, watching health and disk space, installing new releases, and making
-configuration changes through a reviewed restart, agreed with an Owner or Admin when they affect
-sign-in or members. Support is
-community help on a best-effort basis, with no guaranteed response time.
-[Get help](/open-source#get-help) explains where to ask.
+Self-hosting means you, or someone you name, own the service after handover. That means keeping
+backups tested, watching health and disk space, installing new releases, and making configuration
+changes through a reviewed restart, agreed with an Owner or Admin when they affect sign-in or
+members. Support is community help on a best-effort basis, with no guaranteed response time. [Get
+help](/open-source#get-help) explains where to ask.
 
 ## Follow the full steps for your host
 

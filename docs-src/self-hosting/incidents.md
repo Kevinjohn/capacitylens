@@ -273,7 +273,7 @@ one), logging a security event.
      assign-workspace-owner <company-id> <member-email> --confirm-server-stopped
    ```
 
-   It refuses to run unless the server is stopped, and takes an exclusive database lock. It checks
+   It refuses to run without `--confirm-server-stopped`, and takes an exclusive database lock. It checks
    the company has no active Owner and the email matches exactly one active member, then records
    the change in the audit outbox and ends any pending ownership transfer.
 

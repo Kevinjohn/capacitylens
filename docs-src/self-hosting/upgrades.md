@@ -91,7 +91,8 @@ new columns or edit the migration ledger by hand.
 
 1. Stop the API and preserve the upgraded database: run
    [step 1 of the Compose restore procedure](/self-hosting/backups-and-restore#preserve-compose-files).
-2. List the pre-migration snapshots:
+2. List the pre-migration snapshots. If scheduled backups are off, the snapshot is in `/data`:
+   use `/data/` in place of `/backups/` here and in step 3.
 
    ```bash
    docker compose run --rm --no-deps --entrypoint sh api -eu -c 'ls -l /backups/capacitylens-pre-migration-*.db'

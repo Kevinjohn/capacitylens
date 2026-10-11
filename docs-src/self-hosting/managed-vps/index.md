@@ -274,7 +274,7 @@ Without a schema change there is no such snapshot; skip steps 2 to 4.
 2. In the command runner, preserve the upgraded database:
 
    ```bash
-   mkdir -m 700 /home/forge/capacitylens-data/rolled-back && cp -p /home/forge/capacitylens-data/capacitylens.db* /home/forge/capacitylens-data/rolled-back/
+   rollback_dir="/home/forge/capacitylens-data/rolled-back-$(date -u +%Y%m%d-%H%M%S)" && mkdir -m 700 "$rollback_dir" && cp -p /home/forge/capacitylens-data/capacitylens* "$rollback_dir"/
    ```
 
 3. List the pre-migration snapshots:

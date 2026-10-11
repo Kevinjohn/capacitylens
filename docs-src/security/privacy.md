@@ -71,9 +71,10 @@ that image host.
 password-reset links through the operator's SMTP service. Messages contain the recipient's address
 and a bearer link. Reset links are single-use and expire after 24 hours. Unknown addresses and
 accounts using only company sign-in get no reset email, and Admin-issued reset copy-links send no
-email. If Microsoft sign-in is configured and Microsoft does not return a verified matching email, the
-same service sends the mailbox proof to the intended CapacityLens address, with a link that expires after 15 minutes. The operator is
-responsible for the SMTP provider's processing and retention.
+email. If Microsoft sign-in is configured and Microsoft does not return a verified matching email,
+the same service sends the mailbox proof to the intended CapacityLens address, with a link that
+expires after 15 minutes. The operator is responsible for the SMTP provider's processing and
+retention.
 
 **Breached-password check.** When a password is created, changed or reset, the server checks it
 against the Have I Been Pwned list by default. It sends only the first five characters of a

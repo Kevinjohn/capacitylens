@@ -25,7 +25,7 @@ who else is busy. You don't need to install or set up anything.
 2. ![Bruce Wayne's schedule drawer listing his bookings with dates and hours per day, and a holiday](../screenshots/steps/using_schedule_drawer.png)
 
    **Find your week.** You land on **Schedule**. Find your name and select the avatar beside it.
-   Your bookings and time off open in one list. Not on the list? Ask whoever invited you to add you.
+   Your bookings and time off open in one list. Not on the list? Ask whoever invited you to add you or link you to your row.
 
 3. ![Schedule rows grouped by discipline, with each person's utilisation percentage, booking bars and a red over-capacity day](../screenshots/steps/using_schedule_rows.png)
 
@@ -38,8 +38,8 @@ who else is busy. You don't need to install or set up anything.
 4. ![Schedule toolbar with Prev, Today, Next, 4 weeks and Hide filters above the filter row and week columns](../screenshots/steps/using_schedule_toolbar_filters.png)
 
    **Look further ahead.** Use the weeks menu to show up to eight weeks, and **Today** and the
-   arrows beside it to move. **Show filters** narrows the view to one client,
-   project or activity.
+   arrows beside it to move. **Show filters** (**Hide filters** once open) narrows the view to one client, project or
+   activity.
 
 </div>
 

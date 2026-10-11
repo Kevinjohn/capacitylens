@@ -122,9 +122,8 @@ Schedule so you can see the handoff, but carry no hours and never count towards 
 utilisation. Their bookings use their literal start and end dates.
 
 External parties are off by default; turn on **Show external resources** in the same Settings
-section. Then, under
-**External**, select **Add external party**, enter the **Company** and an optional **Descriptor**
-such as "Print", and save.
+section. Then, under **External**, select **Add external party**, enter the **Company** and an
+optional **Descriptor** such as "Print", and save.
 
 ![The Resources page with separate Studio and Supplementary sections and the External section listing Kord Industries as a partner studio](../screenshots/flows/resources_external.jpg)
 

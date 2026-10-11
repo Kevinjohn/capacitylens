@@ -58,7 +58,8 @@ commands run from a maintenance checkout of the running release, as
 [Run recovery commands](/self-hosting/incidents#run-recovery-commands-on-docker-or-a-managed-host)
 describes. They read the profile, mode and provider settings from their own environment, so load
 the instance's environment file into the shell first; in a POSIX shell,
-`set -a; . /path/to/capacitylens.env; set +a` does this.
+`set -a; . /path/to/capacitylens.env; set +a` does this. On a Linux host the file is readable only
+by root, so run this and the commands below as root, for example in `sudo -s`.
 
 With Google, Microsoft or both configured, run the read-only all-company check against the current
 database:
@@ -90,11 +91,10 @@ exact target checks, and do not use it to work around a finding you do not under
 :::
 
 The command requires `CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed`,
-`CAPACITYLENS_MODE=password-and-sso`, a configured company provider and a current supported
-schema. It refuses
-unless the server is stopped and the exact `--confirm-server-stopped` flag is supplied, locks and
-checks the database, refuses ambiguous identities and unsafe targets, and records successful
-repairs in the audit outbox.
+`CAPACITYLENS_MODE=password-and-sso`, a configured company provider and a current supported schema.
+Stop the server first: the command refuses without the exact `--confirm-server-stopped` flag. It
+locks and checks the database, refuses ambiguous identities and unsafe targets, and records
+successful repairs in the audit outbox.
 
 When preflight reports ready, set these values and restart:
 

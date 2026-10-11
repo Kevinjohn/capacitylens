@@ -42,8 +42,8 @@ See [Filter and search](/using/read-the-schedule#filtering-and-searching).
 
 To hide a name from most of the team, such as an unannounced prospect, turn on **Use code name**
 when you create or edit the client or project. Everyone below Owner sees the code name; only the
-Owner, or an Admin viewing the company as the Owner, sees both. A code name also sets the item's alphabetical position. See
-[Roles and permissions](/getting-started/roles-and-permissions).
+Owner, or an Admin viewing the company as the Owner, sees both. A code name also sets the item's
+alphabetical position. See [Roles and permissions](/getting-started/roles-and-permissions).
 
 ![The Add client form with the privacy explanation below the Code name input](../screenshots/flows/client_private_name.jpg)
 

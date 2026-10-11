@@ -5,10 +5,10 @@ description: Install CapacityLens from a release archive in five steps, on a man
 
 # Install CapacityLens
 
-Five steps, three values to fill in. Each step notes where a managed host and a Linux host
-differ; the host guides under [Choose your host](#choose-your-host) have every command in full. On a host that already runs Node 24 and has a hostname pointing at it,
-it takes about ten minutes; an internet-facing instance takes longer, mostly because of DNS and
-certificates.
+Five steps, three values to fill in. Each step notes where a managed host and a Linux host differ;
+the host guides under [Choose your host](#choose-your-host) have every command in full. On a host
+that already runs Node 24 and has a hostname pointing at it, it takes about ten minutes; an
+internet-facing instance takes longer, mostly because of DNS and certificates.
 
 ## You need
 
@@ -41,7 +41,12 @@ https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capa
 
 - **Managed host:** put the data-folder, download, unpack and link commands in the site's deploy
   script. Its first line creates the data folder from step 2, so no terminal is needed.
-- **Linux host:** unpack it into `/opt/capacitylens` and link `current` to the release folder:
+- **Linux host:** download it, unpack it into `/opt/capacitylens` and link `current` to the release
+  folder:
+
+  ```bash
+  curl -LO https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capacitylens-0.73.0-alpha.1.tar.gz
+  ```
 
   ```bash
   sudo mkdir -p /opt/capacitylens && sudo tar -xzf capacitylens-0.73.0-alpha.1.tar.gz -C /opt/capacitylens && sudo ln -sfn /opt/capacitylens/capacitylens-0.73.0-alpha.1 /opt/capacitylens/current
