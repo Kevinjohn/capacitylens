@@ -204,7 +204,8 @@ function createMalformedResponseClassificationTests() {
   });
 
   it('an id-only row is malformed too: [{"id":"a"}] -> null, not []', async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {}); // silence the expected breadcrumb
+    // Suppress the expected malformed-response warning.
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => json(200, [{ id: "a" }])),
@@ -428,7 +429,8 @@ function createYieldingHookTest() {
 
 function createMalformedHookTests() {
   it("store.accountSummaries is preserved when /api/accounts 200s with a non-array body", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {}); // silence the expected breadcrumb
+    // Suppress the expected malformed-response warning.
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     const existing = [{ id: "a1", name: "Studio A", role: "owner" as const }];
     useStore.getState().setAccountSummaries({ list: existing });
     let resolveFetch!: () => void;
@@ -449,7 +451,7 @@ function createMalformedHookTests() {
       // the null early-return) has run before we assert.
       await new Promise((r) => setTimeout(r, 0));
     });
-    expect(useStore.getState().accountSummaries).toEqual(existing); // untouched: not blanked to []
+    expect(useStore.getState().accountSummaries).toEqual(existing);
   });
 }
 
@@ -457,7 +459,8 @@ function createMembershipHookTest() {
   it("store.accountSummaries is preserved when /api/accounts 200s with an all-malformed array ([null])", async () => {
     // Same stance as the non-array case above, via the all-rows-dropped -> null path: an array of
     // junk must not read as "no accounts" and blank the picker.
-    vi.spyOn(console, "warn").mockImplementation(() => {}); // silence the expected breadcrumb
+    // Suppress the expected malformed-response warning.
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     const existing = [{ id: "a1", name: "Studio A", role: "owner" as const }];
     useStore.getState().setAccountSummaries({ list: existing });
     let resolveFetch!: () => void;
@@ -465,7 +468,7 @@ function createMembershipHookTest() {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
-        queueMicrotask(resolveFetch); // same ordering trick as the non-array case above
+        queueMicrotask(resolveFetch);
         return json(200, [null]);
       }),
     );
@@ -474,7 +477,7 @@ function createMembershipHookTest() {
       await done;
       await new Promise((r) => setTimeout(r, 0));
     });
-    expect(useStore.getState().accountSummaries).toEqual(existing); // untouched: not blanked to []
+    expect(useStore.getState().accountSummaries).toEqual(existing);
   });
 
   it("refetches account roles when membership projections are invalidated", async () => {

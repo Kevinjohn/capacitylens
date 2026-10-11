@@ -56,6 +56,7 @@ async function saveInitialSeed(
   }
 }
 
+/** Loads persisted data and attaches the store to its persistence adapter. */
 export async function bootstrap(
   store: StoreApi<StoreState>,
   adapter: PersistenceAdapter,

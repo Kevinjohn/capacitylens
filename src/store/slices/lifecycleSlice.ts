@@ -19,6 +19,7 @@ type LifecycleSliceInternals = Pick<
   "createGuardedAction" | "resolveOwnedRow" | "assertNotBuiltinClient" | "mutate" | "mutateIrreversible"
 >;
 
+/** Create archive, restore, delete, and purge actions for lifecycle entities. */
 export function createLifecycleSlice(
   internals: LifecycleSliceInternals,
 ): StateCreator<StoreState, [], [], LifecycleSlice> {

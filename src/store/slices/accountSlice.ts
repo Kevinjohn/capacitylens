@@ -191,6 +191,7 @@ function createSetAccountSummariesAction({ set, get }: AccountActionContext): St
   };
 }
 
+/** Create account actions for the store using shared store internals. */
 export function createAccountSlice(internals: AccountSliceInternals): StateCreator<StoreState, [], [], AccountSlice> {
   return (set, get) => {
     const context = { internals, set, get };

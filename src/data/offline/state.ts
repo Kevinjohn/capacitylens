@@ -7,6 +7,7 @@ import {
   OFFLINE_WRITE_BOUNDARY_STORAGE_KEY,
 } from "./constants";
 
+/** Current origin and user scope for offline cache reads and writes. */
 export let scope: { origin: string; userId: string } | null = null;
 let state: OfflineState = {
   readOnly: false,
@@ -24,10 +25,13 @@ let offlineReadOwner: OfflineReadOwner | null = null;
 let offlineEpisode = 0;
 // Cleanup advances this before touching IndexedDB. The durable companion token closes the same
 // race across tabs, whose JavaScript modules necessarily have independent counters.
+/** Generation counter that invalidates cache writes started before cleanup. */
 export let cacheGeneration = 0;
 const listeners = new Set<() => void>();
 const preferenceListeners = new Set<() => void>();
+/** Tracks recent slice signatures per IndexedDB factory to avoid redundant writes. */
 export const recentSliceWrites = new WeakMap<IDBFactory, Map<string, { signature: string; writtenAt: number }>>();
+/** Tracks outstanding cache writes by record key. */
 export const pendingWrites = new Map<string, Promise<"stored" | "discarded">>();
 
 function buildSliceSignature(data: AppData): string {
@@ -38,6 +42,7 @@ function buildSliceSignature(data: AppData): string {
   ).join("|");
 }
 
+/** Notifies subscribers that the offline-read preference changed. */
 export function publishPreference(): void {
   for (const listener of preferenceListeners) listener();
 }
@@ -69,6 +74,7 @@ export function isOfflineReadEnabled(): boolean {
   }
 }
 
+/** Subscribes to offline-read preference changes. */
 export function subscribeOfflinePreference(listener: () => void): () => void {
   preferenceListeners.add(listener);
   return () => preferenceListeners.delete(listener);
@@ -79,6 +85,7 @@ export function subscribeOfflinePreference(listener: () => void): () => void {
 export type SliceRewriteResult =
   { kind: "skipped"; reason: "unchanged" } | { kind: "write-required"; complete: () => void };
 
+/** Determines whether a changed account slice should be written to the cache. */
 export function resolveSliceRewrite(key: string, data: AppData, now: number): SliceRewriteResult {
   const signature = buildSliceSignature(data);
   const factory = typeof indexedDB === "undefined" ? null : indexedDB;
@@ -103,6 +110,7 @@ type SetOfflineReadStateOptions = {
   readOnly: boolean;
   lastUpdated?: number | null | undefined;
 };
+/** Publishes the current offline-read ownership and snapshot status. */
 export function setOfflineReadState({ owner, readOnly, lastUpdated = null }: SetOfflineReadStateOptions): void {
   if (
     !maySetOfflineReadState({ owner: owner, readOnly: readOnly }) ||
@@ -172,19 +180,23 @@ export function readOfflineStateEpisode(): number {
   return offlineEpisode;
 }
 
+/** Returns the current offline-read state snapshot. */
 export function readOfflineStateSnapshot(): OfflineState {
   return state;
 }
 
+/** Subscribes to offline-read state changes. */
 export function subscribeOfflineState(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
 
+/** Sets the origin and user scope used by offline cache operations. */
 export function setOfflineScope(value: typeof scope): void {
   scope = value;
 }
 
+/** Invalidates cache writes started before the current cleanup boundary. */
 export function advanceCacheGeneration(): void {
   cacheGeneration += 1;
 }

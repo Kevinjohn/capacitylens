@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+/** Selected activity and change handler for the activity filter. */
 export interface ToolbarActivityFilterProps {
   activityId: string | null;
   activityKind: "internal" | "repeatable" | null;
@@ -24,6 +25,7 @@ function buildActivityFilterPatch(value: string): Parameters<ToolbarActivityFilt
   return { activityId: value === "all" ? null : value, activityKind: null };
 }
 
+/** Selects an activity lens for the schedule. */
 export function ToolbarActivityFilter({
   activityId,
   activityKind,

@@ -37,6 +37,7 @@ function parseApiBase(value: string | undefined): string {
   return parsed.origin;
 }
 
+/** API path prefix, empty when requests use the current origin. */
 export const API_BASE = isDemoMode()
   ? ""
   : parseApiBase(readOptionalEnvironmentString(import.meta.env.VITE_CAPACITYLENS_API, "VITE_CAPACITYLENS_API"));

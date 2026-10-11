@@ -73,6 +73,7 @@ const DATE_STYLE_DESCRIPTORS: Record<DateStyle, DateStyleDescriptor> = {
  */
 let activeDateStyle: DateStyle = DEFAULT_DATE_STYLE;
 
+/** Sets the validated date style used by synchronous formatters. */
 export function setActiveDateStyle(style: DateStyle): void {
   // Validated, not trusted. The style is a lookup key in every formatter and the column behind it
   // (`accounts.dateStyle`) is plain nullable TEXT with no CHECK constraint, so a database written by
@@ -82,6 +83,7 @@ export function setActiveDateStyle(style: DateStyle): void {
   activeDateStyle = DATE_STYLES.includes(style) ? style : DEFAULT_DATE_STYLE;
 }
 
+/** Reads the active date style used by synchronous formatters. */
 export function readActiveDateStyle(): DateStyle {
   return activeDateStyle;
 }

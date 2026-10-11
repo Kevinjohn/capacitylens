@@ -6,6 +6,7 @@ import {
   resolveProductOrientationSubject,
 } from "@/lib/productOrientation";
 
+/** Tracks which onboarding prompts remain relevant to the current user and account. */
 export function useProductOrientation(input: { userId: string | null; demo: boolean; accountId: string | null }) {
   const subjectId = resolveProductOrientationSubject(input);
   const accountId = input.accountId ?? NO_ACTIVE_COMPANY_SEGMENT;

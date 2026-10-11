@@ -43,6 +43,7 @@ type CatalogSliceInternals = Pick<
   | "assertNotBuiltinClient"
 >;
 
+/** Create catalog actions for clients, projects, and activities. */
 export function createCatalogSlice(internals: CatalogSliceInternals): StateCreator<StoreState, [], [], CatalogSlice> {
   return (_set, get) => ({
     ...createDisciplineActions(internals, get),

@@ -37,6 +37,7 @@ function ClosureLabel({ name, width }: { name: string; width: number }) {
   );
 }
 
+/** Marks a company closure across its scheduled dates. */
 export function ClosureBand({
   closure,
   visibleStart,

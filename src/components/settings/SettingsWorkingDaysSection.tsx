@@ -57,6 +57,7 @@ function WorkingDayCheckbox({
   );
 }
 
+/** Edits company working days only when the current role may change them. */
 export function SettingsWorkingDaysSection({
   canEdit,
   workingDayOrder,

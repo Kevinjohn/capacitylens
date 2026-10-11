@@ -66,6 +66,7 @@ function TimeOffEntry({ entry }: { entry: PersonScheduleTimeOffEntry }) {
   );
 }
 
+/** Shows one dated allocation or time-off entry in a person schedule. */
 export function PersonScheduleEntry({ entry }: PersonScheduleEntryProps) {
   return (
     <li

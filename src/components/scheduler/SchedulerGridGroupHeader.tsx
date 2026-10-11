@@ -27,6 +27,7 @@ function resolveGroupSummary({ group, collapsed, showDisciplineUtilization }: Re
   return percent === null ? "" : m.scheduler_group_avg_utilisation({ percent });
 }
 
+/** Labels one grouped section of schedule rows. */
 export function SchedulerGridGroupHeader({
   group,
   rowIndex,

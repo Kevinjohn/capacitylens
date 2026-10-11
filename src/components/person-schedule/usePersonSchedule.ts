@@ -21,6 +21,7 @@ import type { PersonScheduleResult } from "./personScheduleTypes";
 import { reportInvalidScheduleDateRangeOnce } from "@/components/scheduler/schedulerModelIndexing";
 import { useCalendarToday } from "@/components/scheduler/useCalendarToday";
 
+/** Account and resource identities requested for a person schedule. */
 export interface UsePersonScheduleInput {
   accountId: ID | null;
   resourceId: ID | null;
@@ -34,6 +35,7 @@ function isResourceFeatureVisible(resource: Resource, data: AppData, accountId: 
   return true;
 }
 
+/** Chooses the display identity for a person or placeholder resource. */
 export function resolvePersonScheduleIdentity(resource: Resource, data: AppData): string {
   if (resource.kind !== "placeholder") return resolveResourceDisplayName(resource);
   const discipline = resource.disciplineId
@@ -75,6 +77,7 @@ function buildAvailableSchedule(input: AvailableScheduleInput) {
   });
 }
 
+/** Projects the requested resource schedule from active scoped data. */
 export function usePersonSchedule({ accountId, resourceId }: UsePersonScheduleInput): PersonScheduleResult {
   const data = useActiveScopedData();
   const activeAccountId = useStore((state) => state.activeAccountId);

@@ -201,7 +201,8 @@ describe("ClientList withholds the Archive affordance for the built-in Internal 
     // The normal client shows and is archivable; the Internal client shows no row and no Archive control.
     expect(screen.getByText("Globex")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive Globex" })).toBeInTheDocument();
-    expect(screen.queryByText(internal.name)).not.toBeInTheDocument(); // 'Internal' name is filtered out
+    // The internal client name is filtered out of the displayed list.
+    expect(screen.queryByText(internal.name)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: `Archive ${internal.name}` })).not.toBeInTheDocument();
   });
 });

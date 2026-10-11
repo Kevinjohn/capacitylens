@@ -241,6 +241,7 @@ async function runRefresh(
   }
 }
 
+/** Creates the controller that serialises refresh and reconciliation work. */
 export function createRefreshController({
   store,
   adapter,
@@ -330,4 +331,5 @@ export function createRefreshController({
 
   return { refreshActive, startAuthoritativeReload, beginSuspension };
 }
+/** Public controller interface returned by createRefreshController. */
 export type RefreshController = ReturnType<typeof createRefreshController>;

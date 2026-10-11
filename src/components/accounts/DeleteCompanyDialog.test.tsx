@@ -77,11 +77,11 @@ it("lets Escape abort even after typing in the confirm field (no unsaved-changes
   render(<DeleteCompanyDialog account={account} onConfirm={() => {}} onCancel={onCancel} />);
 
   const input = screen.getByLabelText(/Type/i);
-  fireEvent.change(input, { target: { value: "Ferris" } }); // partial: would trip the dirty guard
+  fireEvent.change(input, { target: { value: "Ferris" } });
   fireEvent.keyDown(document, { key: "Escape" });
 
   expect(onCancel).toHaveBeenCalledOnce();
-  expect(useStore.getState().notice).toBeNull(); // not refused with a nonsensical "use Save" hint
+  expect(useStore.getState().notice).toBeNull();
 });
 
 it("autofocuses the type-to-confirm field, not a leading button", () => {
@@ -237,7 +237,7 @@ it("disables Delete and Export while an export attempt is in flight, re-arms aft
   await waitFor(() => expect(deleteBtn.disabled).toBe(true));
   expect(exportBtn.disabled).toBe(true);
 
-  resolveFetch({ ok: false, status: 503, json: async () => ({}) }); // the attempt fails, export stays optional
+  resolveFetch({ ok: false, status: 503, json: async () => ({}) });
   await screen.findByRole("alert");
   expect(deleteBtn.disabled).toBe(false);
   expect(exportBtn.disabled).toBe(false);

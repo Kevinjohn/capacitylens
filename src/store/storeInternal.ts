@@ -197,6 +197,7 @@ function createImportAction(
   );
 }
 
+/** Create the shared internal actions used by store slices. */
 export function createStoreInternals(set: StoreApi<StoreState>["setState"], get: StoreApi<StoreState>["getState"]) {
   const { mutate, mutateIrreversible } = createMutationActions(set);
 
@@ -247,4 +248,5 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
   };
 }
 
+/** Internal capabilities exposed to store slices. */
 export type StoreInternals = ReturnType<typeof createStoreInternals>;

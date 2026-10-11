@@ -211,6 +211,7 @@ export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void 
  * toggle (updateAccount), replacing the retired device-global setter. Defaults to the active
  * default test account. */
 type SetPlaceholdersEnabledOptions = { on: boolean; accountId?: ID };
+/** Set the test account placeholder setting. */
 export function setPlaceholdersEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetPlaceholdersEnabledOptions): void {
   useStore.getState().updateAccount(accountId, { placeholdersEnabled: on });
 }
@@ -218,6 +219,7 @@ export function setPlaceholdersEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: S
 /** Toggle the per-account "show external resources" view pref in unit tests (see
  * setPlaceholdersEnabled). */
 type SetExternalEnabledOptions = { on: boolean; accountId?: ID };
+/** Set the test account external resource setting. */
 export function setExternalEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetExternalEnabledOptions): void {
   useStore.getState().updateAccount(accountId, { externalEnabled: on });
 }

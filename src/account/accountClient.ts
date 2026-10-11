@@ -60,6 +60,7 @@ export {
 export { hasUnknownAccountCommandOutcome, readUnknownAccountCommandOutcome } from "./commandOutcome";
 
 type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
+/** Provides typed request methods for account and membership endpoints. */
 export const accountClient = {
   me(signal?: AbortSignal): Promise<Response> {
     return apiFetch(`${API_BASE}/api/auth/me`, { credentials: "include", ...(signal ? { signal } : {}) });

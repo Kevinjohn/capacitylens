@@ -39,6 +39,7 @@ interface ResolveUtilizationInput {
   closures: Closure[];
 }
 
+/** Available and allocated capacity values for one date. */
 export interface DayCapacity {
   date: ISODate;
   allocated: number;

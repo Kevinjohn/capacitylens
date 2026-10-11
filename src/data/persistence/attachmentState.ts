@@ -258,4 +258,5 @@ export function createAttachmentState(
     isBlockedByFailedAccountLoad: owner.isBlockedByFailedAccountLoad.bind(owner),
   };
 }
+/** State tracked while the persistence adapter is attached to the store. */
 export type AttachmentState = ReturnType<typeof createAttachmentState>;

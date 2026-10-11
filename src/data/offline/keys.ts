@@ -1,6 +1,7 @@
 import { scope } from "./state";
 import { readOriginKey } from "./idb";
 
+/** Builds the origin-scoped key for the cached auth snapshot. */
 export function buildAuthKey(): string {
   return `auth:${readOriginKey()}`;
 }

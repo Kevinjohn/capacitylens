@@ -46,6 +46,7 @@ type ResourceSliceInternals = Pick<
   | "resolveOwnedRow"
 >;
 
+/** Create resource actions for the store. */
 export function createResourceSlice(
   internals: ResourceSliceInternals,
 ): StateCreator<StoreState, [], [], ResourceSlice> {

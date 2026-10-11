@@ -5,13 +5,8 @@
    `[data-theme="dark"]` on <html>. Point the variant at the existing theme attribute. */
 @custom-variant dark (&:is([data-theme="dark"] *));
 
-/* ── Design tokens ──────────────────────────────────────────────────────────
-   Semantic Tailwind colours map to CSS custom properties so the whole UI flips
-   to dark by swapping one attribute — no per-component dark: classes. The light
-   palette lives on :root; the dark palette overrides it under [data-theme="dark"].
-   JS (src/lib/theme.ts) sets <html data-theme> from the user's preference,
-   resolving "system" against prefers-color-scheme — so the CSS only ever sees a
-   concrete light/dark, never the media query directly. */
+/* Semantic tokens map Tailwind utilities to theme variables. src/lib/theme.ts sets
+   the root element to the resolved light or dark theme. */
 @theme {
   /* Page background. NB: named `canvas`, not `base`, on purpose — `--color-base`
      would shadow Tailwind's `text-base` font-size utility (turning it into a
@@ -30,7 +25,7 @@
      3:1 threshold without darkening the shared input/divider token used elsewhere. */
   --color-switch-track: var(--c-switch-track);
   --color-switch-thumb: var(--c-switch-thumb);
-  /* Recessed non-working-day band (weekends + unavailable days) — a calm COOL tint,
+  /* Recessed non-working-day band (weekends + unavailable days) has a calm cool tint,
      deliberately distinct from the page canvas, the over-cell red, and the time-off amber,
      so a non-working day never reads as an alert. Shared by the lane tint AND the date-header
      weekend cell, so Sat/Sun reads as one continuous band header-to-lane. */
@@ -233,11 +228,9 @@
   --c-line-faint: #20242f; /* between surface and line, so day hairlines stay quieter than week lines */
   --c-switch-track: var(--c-line);
   --c-switch-thumb: var(--c-ink);
-  --c-weekend: color-mix(
-    in oklab,
-    var(--c-ink) 7%,
-    var(--c-surface)
-  ); /* ink is near-white in dark, so this lightens the surface into the surface↔elevated range — a clearly non-working band that carries NO card affordances (shadow/border/radius), so it never reads as an elevated/popover surface despite the similar luminance */
+  /* Lightening the dark surface distinguishes non-working days without giving the band
+     the shadow or border affordances of an elevated card. */
+  --c-weekend: color-mix(in oklab, var(--c-ink) 7%, var(--c-surface));
   --c-ink: #e7eaf0;
   --c-muted: #a3acbd;
   --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
@@ -472,39 +465,15 @@ input[type="radio"] {
   );
 }
 
-/* "Time off" draw mode. When the toolbar's Time-off toggle is on, recede the work
-   allocations and make every already-booked time-off block glow — so a manager sees at
-   a glance whose absences exist before drawing a new one. (The toggle alone changed only
-   its own pressed state, which read as a dead button.) This VISUAL re-skin is driven by
-   `data-draw-mode` on the grid container, so it's a single attribute flip — a pure CSS reflow,
-   zero React re-render of the memoised lanes/bars. The parallel `inert` BEHAVIOUR (bars
-   non-interactive, off the tab order + a11y tree) is one DOM write on each lane's thin bars layer
-   (ResourceLane → BarsLayer): that layer is the SOLE subscriber to the mode, so it alone re-renders
-   on toggle — the lanes and their AllocationBars bail because every prop they receive stays a
-   stable ref across the toggle (see BarsLayer's TSDoc). Selected time off uses one vivid yellow
-   in both themes, distinct from brand (blue) and over (red), while retaining its grey hatch. */
-/* Allocation-bar focus indicator — a DUAL-TONE ring (WCAG 1.4.11, Non-text Contrast ≥3:1).
-   A single-edge indicator can't pass: the bar can sit on an over-capacity day whose cell is a PALE
-   rose in light (--c-danger-cell ≈ rgb(251,158,161), where white reads ~2:1) but a DEEP red in dark
-   (≈ rgb(147,73,86), where a dark edge reads ~2.5:1) — opposite requirements. So the indicator pairs
-   a near-BLACK edge (#1c2230) and a near-WHITE edge (#ffffff), BOTH straddling the bar's outer border
-   (positive-spread box-shadow, no offset → both adjacent to the background, NOT inside the opaque
-   fill). Against ANY adjacency at least one edge clears 3:1: the dark edge wins on the pale light
-   over-cell / pale swatches / light canvas+weekend, the light edge wins on the dark over-cell / dark
-   swatches / dark canvas+weekend. The fixed pair covers both extremes, so it needs no theme variant.
-   Pinned + asserted in src/lib/designTokens.test.ts ("AllocationBar focus ring …"). The blue (--color-brand)
-   outline is an IDENTITY layer only — conformance comes from the dark+light pair, not from it.
-   box-shadow is NOT clipped by the bar's own overflow-hidden. On focus this box-shadow overrides the
-   resting `ring-1 ring-black/5` + `shadow-sm` (box-shadow is one property, not additive) — intentional:
-   the bold focus ring replaces the faint resting ring while focused. */
-/* Left-hand nav vertical density (the schedule's roomy rhythm). AppSidebar
-   publishes the three px values as custom properties on the sidebar root; these rules apply them via
-   the shadcn Sidebar primitives' own `data-slot` hooks, so the main nav, the "Data" group (owned by
-   ImportExport) and the footer all follow one knob without prop-drilling through each component.
-   The fallbacks are the primitives' stock Tailwind values (gap-1 / p-2 / gap-2), so the nav still
-   renders correctly if a sidebar is ever mounted outside AppSidebar. GAPS AND PADDING ONLY — item
-   height is deliberately untouched, so `group-data-[collapsible=icon]:size-8!` keeps the collapsed
-   icon rail square. Geometry lives in components/scheduler/layout.ts (`SCHEDULER_DENSITY`). */
+/* Drawing time off dims work and highlights existing absences while a new range is
+   placed. The grid attribute drives the visual change; inert is applied to the bars
+   layer so other memoized rows do not rerender. */
+/* Paired dark and light shadow edges maintain 3:1 non-text contrast on light and
+   dark cells. The blue outline identifies focus; the pair supplies contrast and
+   replaces the resting ring while focused. */
+/* AppSidebar supplies navigation spacing through these custom properties. Fallbacks
+   support standalone mounts; item height stays fixed so the collapsed icon rail
+   remains square. Scheduler geometry is defined in components/scheduler/layout.ts. */
 [data-slot="sidebar-menu"] {
   row-gap: var(--nav-menu-gap-y, 0.25rem);
 }
@@ -519,7 +488,8 @@ input[type="radio"] {
 }
 
 .scheduler-bar:focus-visible {
-  outline: 2px solid var(--color-brand); /* identity layer (blue) — NOT relied on for contrast */
+  /* Blue identifies focus; contrast comes from the paired shadow. */
+  outline: 2px solid var(--color-brand);
   outline-offset: 2px;
   box-shadow:
     0 0 0 1px var(--c-focus-ink),
@@ -591,15 +561,9 @@ body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
   display: none;
 }
 
-/* Error-toast distinction (Sonner). richColors is deliberately OFF — its light-mode error
-   palette fails WCAG AA (see AppShell's <Toaster>) — so every toast paints on the neutral,
-   already-AA-validated --color-elevated/ink/line surface. To keep an error reading as an error
-   at a glance (the migration had briefly flattened error → info), the bridge tags error toasts
-   with `toast-error` (Sonner's `classNames.error`), and this rule layers a danger affordance
-   over that neutral surface: a saturated --color-danger left accent + a 1px danger ring, plus a
-   matching tint on Sonner's built-in error icon. The text stays --color-ink on --color-elevated,
-   so AA holds in BOTH themes (--color-danger flips per [data-theme]); the colour is an ADDED
-   signal, never the sole carrier of meaning, and never the text/background contrast pair. */
+/* richColors stays disabled because its light error palette fails WCAG AA. The
+   accent and icon tint add a danger cue while text remains on the validated neutral
+   surface in both themes. */
 [data-sonner-toast].toast-error {
   /* Saturated danger edge on the leading side + a hairline danger ring around the whole toast.
      box-shadow (not border) so it doesn't shift Sonner's layout/close-button geometry. */

@@ -128,6 +128,7 @@ async function reportUnknownAcceptance(setState: InviteStateSetter, error: unkno
   setState({ kind: "error", message, retryAccept: true });
 }
 
+/** Builds invitation acceptance actions using the current token and auth state. */
 export function createInviteAcceptanceActions({
   token,
   previewed,

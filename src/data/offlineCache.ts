@@ -56,18 +56,22 @@ export async function readCachedAuthSnapshot(
   return record;
 }
 
+/** Stores the validated account summaries in the encrypted offline cache. */
 export async function cacheAccountSummaries(summaries: OfflineAccountSummary[]): Promise<OfflineCacheWriteResult> {
   return accountSummariesCache.write(summaries);
 }
 
+/** Reads the cached account summaries for the current identity. */
 export async function readCachedAccountSummaries(): Promise<CachedRecord<OfflineAccountSummary[]> | null> {
   return accountSummariesCache.read();
 }
 
+/** Stores an account data slice in the encrypted offline cache. */
 export async function cacheAccountSlice(accountId: string, data: AppData): Promise<OfflineCacheWriteResult> {
   return accountSliceCache.write(data, accountId);
 }
 
+/** Reads the cached data slice for an account. */
 export async function readCachedAccountSlice(accountId: string): Promise<CachedRecord<AppData> | null> {
   return accountSliceCache.read(accountId);
 }

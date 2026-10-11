@@ -4,6 +4,7 @@ import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from "@/components/
 
 // CapacityLens colour and avatar compositions.
 
+/** Shows a preset colour without changing its semantic value. */
 export function ColorSwatch({ color }: { color: string }) {
   return (
     <span
@@ -15,10 +16,12 @@ export function ColorSwatch({ color }: { color: string }) {
 
 // Placeholder avatars use a question mark instead of initials. The display name lives in
 // src/lib/metadata.ts because this module is a React component boundary.
+/** Fallback symbol shown when an avatar has no initial. */
 export const PLACEHOLDER_AVATAR_SYMBOL = "?";
 
 // All props are primitives, so the default shallow prop compare is exact, memoised to skip
 // re-rendering every row's avatar when an unrelated sibling in a list (e.g. SchedulerGrid) updates.
+/** Shows a person or entity avatar with the supplied name and colour. */
 export const Avatar = memo(function Avatar({
   name,
   color,

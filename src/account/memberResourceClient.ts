@@ -13,6 +13,7 @@ export function memberResourceLinkUrl(workspaceId: string, principalId: string):
   return `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/resource-link`;
 }
 
+/** Identifies the workspace member and resource for a resource-link request. */
 export interface MemberResourceLinkRequestInput {
   workspaceId: string;
   principalId: string;

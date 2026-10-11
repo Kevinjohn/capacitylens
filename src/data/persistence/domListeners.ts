@@ -56,6 +56,7 @@ function toggleDomListeners(action: "addEventListener" | "removeEventListener", 
   document[action]("visibilitychange", handlers.visibilitychange);
 }
 
+/** Connects lifecycle browser events to persistence flush and refresh handlers. */
 export function attachDomListeners({ store, owner, writes, refresh, serverMode }: AttachDomListenersInput) {
   const { retryStrandedWrite, flushOnUnload, flushWhileAlive } = writes;
   // The debounce window can outlive the tab. `pagehide` is the reliable close/navigate signal

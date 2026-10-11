@@ -150,13 +150,12 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
 
     useStore.getState().setActiveRole("viewer");
     useStore.getState().updateResource(seeded.id, { name: "Renamed" });
-    expect(useStore.getState().data.resources[0]?.name).toBe("Seeded"); // unchanged
+    expect(useStore.getState().data.resources[0]?.name).toBe("Seeded");
 
-    // Removal is now the lifecycle path (archive → soft-delete → purge); a viewer's archive must no-op
-    // too. The row stays present and active (the lifecycle suite covers the full archive/delete/purge set).
+    // Lifecycle mutations must apply the same Viewer guard as direct entity updates.
     useStore.getState().archiveEntity("resources", seeded.id);
-    expect(useStore.getState().data.resources).toHaveLength(1); // still there
-    expect(requireValue(useStore.getState().data.resources[0], "viewer resource")).not.toHaveProperty("archivedAt"); // not archived, viewer no-op
+    expect(useStore.getState().data.resources).toHaveLength(1);
+    expect(requireValue(useStore.getState().data.resources[0], "viewer resource")).not.toHaveProperty("archivedAt");
 
     expect(useStore.getState().data.resources).toHaveLength(1);
   });
@@ -186,6 +185,6 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
     useStore.getState().setActiveRole("viewer");
     const summary = useStore.getState().importData({ ...emptyAppData(), resources: [] });
     expect(summary).toEqual({ imported: 0, skipped: 0 });
-    expect(useStore.getState().data.resources).toHaveLength(1); // existing slice untouched
+    expect(useStore.getState().data.resources).toHaveLength(1);
   });
 });

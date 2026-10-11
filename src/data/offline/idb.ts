@@ -1,6 +1,7 @@
 import { API_BASE } from "@/data/apiConfig";
 import { DB_NAME, STORE_NAME, KEY_STORE_NAME, MAX_AGE_MS } from "./constants";
 
+/** Returns the current origin identifier used to scope offline database keys. */
 export function readOriginKey(): string {
   const frontendOrigin = typeof window === "undefined" ? "server" : window.location.origin;
   if (API_BASE.length === 0) return `${frontendOrigin}|api:${frontendOrigin}`;
@@ -33,6 +34,7 @@ export function awaitRequest<T>(request: IDBRequest<T>, failureMessage: string):
   });
 }
 
+/** Opens the versioned IndexedDB database used by offline access. */
 export function openOfflineDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === "undefined") {

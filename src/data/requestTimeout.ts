@@ -18,7 +18,9 @@ export function setMasqueradeEndedHandler(handler: (() => void) | null): void {
 // batch is the dangerous one: aborting a still-in-flight batch makes `drain` not advance
 // `lastSynced`, so persist.ts retries the identical diff forever (the banner never clears) even
 // though nothing is actually broken. So bulk calls get a much longer bound.
+/** Default deadline for interactive API requests. */
 export const API_REQUEST_TIMEOUT_MS = 15_000;
+/** Longer deadline for whole-slice API reads and writes. */
 export const API_BULK_TIMEOUT_MS = 120_000;
 
 /** Browser fetch failures that mean the service was unreachable rather than semantically invalid. */
@@ -59,6 +61,7 @@ export async function readMasqueradeErrorCode(response: Response): Promise<Masqu
     : null;
 }
 
+/** Fetches an API response with a caller signal and the selected deadline. */
 export async function apiFetch(
   input: RequestInfo | URL,
   requestOptions: RequestInit = {},

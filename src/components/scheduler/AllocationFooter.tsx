@@ -7,6 +7,7 @@ import type { AllocationModalState } from "./useAllocationModalState";
 
 type AllocationFooterProps = AllocationModalState["footer"];
 
+/** Shows allocation form actions and validation status. */
 export function AllocationFooter({
   editing,
   canEdit,

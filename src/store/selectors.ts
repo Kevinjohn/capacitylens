@@ -17,6 +17,7 @@ import { DEFAULT_TIME_ZONE } from "@/lib/timezones";
 /** The calendar-facing name for the app default, single-sourced in lib/timezones.ts alongside the
  * option-label rule that renders it as "GMT". */
 const DEFAULT_CALENDAR_TIME_ZONE = DEFAULT_TIME_ZONE;
+/** Monday is the default first day for calendar weeks. */
 export const DEFAULT_WEEK_STARTS_ON = 1 as const;
 
 /** One per-account setting read: the active account's field, or `fallback` when the account is
@@ -28,8 +29,8 @@ const createAccountFieldSelector =
   (data: AppData, activeAccountId: ID | null): NonNullable<Account[K]> =>
     data.accounts.find((account) => account.id === activeAccountId)?.[key] ?? fallback;
 
-/** The active company's date format. Absent on the account reads as 'day-month', the format the app
- * shipped with. Company data, not a device preference: everyone in the account reads one
+/** The active company's date format. Absent on the account reads as 'day-month'. Company data, not
+ * a device preference: everyone in the account reads one
  * convention. `useStore` mirrors this into `dateDisplay.ts` on every change so the pure formatters
  * can read it synchronously.
  *
@@ -39,17 +40,18 @@ const createAccountFieldSelector =
  * for, and the formatters take the style as a lookup key. Reading an unknown value as the default
  * keeps every date on screen; the import sanitiser is what rejects it at the boundary. */
 const rawDateStyle = createAccountFieldSelector("dateStyle", DEFAULT_DATE_STYLE);
+/** Resolve the date display style for the active account. */
 export function resolveDateStyle(data: AppData, activeAccountId: ID | null): DateStyle {
   const stored = rawDateStyle(data, activeAccountId);
   return DATE_STYLES.includes(stored) ? stored : DEFAULT_DATE_STYLE;
 }
 
-/** The active company's scheduling input mode. Absent on the account reads as the
- * original 'hourly' behaviour. Single source so the modal and the bar can't drift. */
+/** The active company's scheduling input mode. Absent on the account reads as 'hourly'.
+ * Shared by the modal and bar. */
 export const resolveSchedulingMode = createAccountFieldSelector("schedulingMode", "hourly");
 
-/** Whether the active company uses disciplines. Absent on the account reads as true
- * (the original behaviour). Single source so every discipline surface (nav, resource
+/** Whether the active company uses disciplines. Absent on the account reads as true.
+ * Shared by every discipline surface (nav, resource
  * form, schedule grouping + filter, lists, command palette) gates on the same value. */
 export const hasDisciplinesEnabled = createAccountFieldSelector("disciplinesEnabled", true);
 
@@ -96,6 +98,7 @@ export const resolveCapacityOverviewAccess = createAccountFieldSelector("capacit
 /** Primitive calendar selectors avoid fresh-object Zustand snapshots while keeping defaults single-sourced. */
 export const resolveTimeZone = createAccountFieldSelector("timezone", DEFAULT_CALENDAR_TIME_ZONE);
 
+/** Resolve the week start day for the active account. */
 export const resolveWeekStart = createAccountFieldSelector("weekStartsOn", DEFAULT_WEEK_STARTS_ON);
 
 /** Account-wide dates on which a schedule creation gesture may start. */
@@ -126,17 +129,23 @@ export function scopeData(data: AppData, accountId: ID): AppData {
 // relevant slice) so Zustand selectors never return fresh objects directly,
 // avoiding the useSyncExternalStore re-render trap.
 
+/** List allocations assigned to one resource. */
 export const listResourceAllocations = (data: AppData, resourceId: ID) =>
   data.allocations.filter((allocation) => allocation.resourceId === resourceId);
 
 // Find-by-id helpers. Each returns `T | undefined`, `find` misses for a stale or cross-account
 // id, so callers must narrow (optional-chain / guard) before dereferencing, never assume the id
 // resolves. (The fix for a possibly-undefined result belongs at the consumer, not as a throw here.)
+/** Find an activity by its stable ID. */
 export const activityById = (data: AppData, id: ID) => data.activities.find((activity) => activity.id === id);
+/** Find a project by its stable ID. */
 export const projectById = (data: AppData, id: ID) => data.projects.find((project) => project.id === id);
+/** Find a client by its stable ID. */
 export const clientById = (data: AppData, id: ID) => data.clients.find((client) => client.id === id);
+/** Find a resource by its stable ID. */
 export const resourceById = (data: AppData, id: ID) => data.resources.find((resource) => resource.id === id);
 
+/** A discipline row and the resources displayed within its scheduler group. */
 export interface DisciplineGroup {
   discipline: Discipline | null; // null = the "no discipline" bucket
   resources: Resource[];
@@ -188,6 +197,7 @@ export function buildDisciplineGroups(data: AppData): DisciplineGroup[] {
   return groups;
 }
 
+/** Calculate the date range currently shown by the scheduler. */
 export function buildVisibleRange(schedulerUi: SchedulerUI): { start: string; end: string } {
   return { start: schedulerUi.originDate, end: addDaysISO(schedulerUi.originDate, schedulerUi.rangeDays - 1) };
 }

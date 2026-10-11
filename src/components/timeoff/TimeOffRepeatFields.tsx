@@ -70,6 +70,7 @@ function TimeOffRepeatPreview({ projection }: { projection: RepeatProjection }) 
   );
 }
 
+/** Shows repeat cadence, cutoff, and generated date preview for a new entry. */
 export function TimeOffRepeatFields(props: TimeOffRepeatFieldsProps) {
   return (
     <>

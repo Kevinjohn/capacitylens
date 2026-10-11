@@ -12,6 +12,7 @@ import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/comp
 import { byName } from "@/lib/displayOrder";
 import { useConfirmDelete } from "@/hooks/useConfirmDelete";
 
+/** Lists scoped disciplines and their available management actions. */
 export function DisciplineList() {
   const disciplines = useActiveScopedData().disciplines;
   const deleteEntity = useStore((state) => state.deleteDiscipline);

@@ -4,6 +4,7 @@ import { Checkbox as CheckboxPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/cn";
 
+/** Renders a controlled or uncontrolled checkbox. */
 function Checkbox({
   className,
   ...props

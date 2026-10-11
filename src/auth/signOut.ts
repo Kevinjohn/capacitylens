@@ -1,6 +1,7 @@
 import { accountClient, clearStoredAccountCommands } from "@/account/accountClient";
 import { clearOfflineDataForCurrentUser, setOfflineReadEnabled } from "@/data/offlineCache";
 
+/** Maximum time sign-out waits for local data cleanup before continuing. */
 export const SIGN_OUT_CLEANUP_TIMEOUT_MS = 3_000;
 
 interface SignOutDependencies {

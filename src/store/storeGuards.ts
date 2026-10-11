@@ -17,6 +17,7 @@ interface ApplySnappedColorInput<T extends { color?: unknown }> {
   allowNeutral?: boolean | undefined;
 }
 
+/** Create guards that enforce account scoping and entity invariants. */
 export function createGuards(get: StoreApi<StoreState>["getState"]) {
   // Every scoped add* stamps the active account. A non-null selection alone is insufficient. The
   // account must either exist in the published data or in the server-authorised summaries while a
@@ -69,11 +70,8 @@ interface BuildGuardsInput {
 }
 
 function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput) {
-  // Tenancy + integrity rules now live in src/domain/mutations.ts (pure, shared
-  // with a future server). getOwned is wrapped here to inject the active account
-  // so the call sites stay terse; assertAllocation keeps its legacy name locally.
-  // assertScopedRefs / assertDateRange / assertResourceExists are used directly
-  // from the import above.
+  // Inject the active account for owned-row lookups; the remaining shared guards
+  // are used directly at their call sites.
   const resolveOwnedRow = <K extends ScopedEntityKey>(data: AppData, key: K, id: ID): AppData[K][number] | null =>
     findOwnedIn(data, requireAccount(), key, id);
   const assertAllocation = assertAllocationRefs;
@@ -94,8 +92,8 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
   // Value-level integrity backstop: a resource with zero working days has no capacity
   // any day. The form guards this, but the store is the last line so no path can persist
   // it. (The import path instead repairs an empty set to Mon–Fri, see sanitizeImport.)
-  // The three guards share one shape rule, a distinct set of in-week weekday numbers, from the
-  // shared isWeekdaySet, and now enforce the same policy for resources and companies: at least
+  // The guards share one shape rule, a distinct set of in-week weekday numbers, from the
+  // shared isWeekdaySet, and enforce the same policy for resources and companies: at least
   // one working day, because company days govern capacity and an empty company week would zero
   // every person. A half day must additionally be a working day.
   const assertWorkingDays = (days: Weekday[]): void => {
@@ -122,10 +120,7 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
   const snapColor = ({ color, allowNeutral = false }: SnapColorInput): string =>
     allowNeutral && color === NEUTRAL_COLOR ? color : snapToPresetColor(color);
 
-  // Collapses the `patch.color === undefined ? patch : { ...patch, color: snapColor(...) }`
-  // idiom that used to be copy-pasted across every update* action (P#: colour-repair
-  // consolidation). Returns the same object reference when there's no colour to repair, so a
-  // colourless edit doesn't pay for a needless clone.
+  // Preserve the original patch when it has no colour to repair.
   const applySnappedColor = <T extends { color?: unknown }>({
     patch,
     allowNeutral = false,

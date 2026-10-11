@@ -2,6 +2,7 @@ import { isSupportedSocialProviderId } from "./authContext";
 import type { AccountMode, AuthProviderBrand, AuthProviderInfo, AuthUser } from "./authContext";
 import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
 
+/** Possible outcomes while resolving the current auth mode and user access. */
 export type AuthStatusResult =
   | { kind: "checking" }
   | { kind: "error"; message: string }
@@ -38,6 +39,7 @@ export type AuthStatusResult =
 // used for every branch below that can't read a trustworthy canCreateAccount/multiAccount off the
 // wire (an off-spec body, a non-401 non-ok response, or a network failure), the server 403 remains
 // the real enforcer, so "unknown" must never hide a legitimate "New company" affordance.
+/** Builds the auth result used when server access metadata is unavailable. */
 export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null): AuthStatusResult {
   return {
     kind: "pass",
@@ -54,6 +56,7 @@ export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null
 
 // Narrowing guards for the untrusted /api/auth/me response body (see fetchAuthStatus). The server
 // is external input. We validate its shape rather than trusting an `as` cast.
+/** Checks whether an untrusted value is a supported account auth mode. */
 export function isAuthMode(value: unknown): value is AccountMode {
   return value === "off" || value === "password-only" || value === "sso-only" || value === "password-and-sso";
 }
@@ -79,6 +82,7 @@ function parseProviderBrand(provider: AuthProviderCandidate): AuthProviderBrand 
   return SOCIAL_PROVIDER_BRANDS[provider.id] ?? "generic";
 }
 
+/** Validates and normalises provider metadata from the auth status response. */
 export function parseAuthProviders(value: unknown): AuthProviderInfo[] {
   if (!Array.isArray(value)) return [];
   const providers: AuthProviderInfo[] = [];
@@ -108,6 +112,7 @@ export function parseAuthProviders(value: unknown): AuthProviderInfo[] {
  * malformed response. See `AuthContextValue.canCreateAccount` (authContext.ts) for why "unknown"
  * means "allowed": the server 403 is the authoritative enforcer, this only gates a UI affordance. */
 type ResolveBooleanFieldOptions = { value: unknown; fallback: boolean };
+/** Uses a boolean auth-status field or its compatibility fallback. */
 export function resolveBooleanField({ value, fallback }: ResolveBooleanFieldOptions): boolean {
   return typeof value === "boolean" ? value : fallback;
 }

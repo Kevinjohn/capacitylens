@@ -1,5 +1,6 @@
 import { cn } from "@/lib/cn";
 
+/** Renders a loading placeholder. */
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

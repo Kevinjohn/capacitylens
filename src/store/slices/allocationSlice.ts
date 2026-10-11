@@ -11,6 +11,7 @@ type AllocationSlice = Pick<
   "addAllocation" | "addAllocations" | "updateAllocation" | "deleteAllocation" | "deleteAllocationSeriesFrom"
 >;
 
+/** Store capabilities used by allocation actions. */
 export type AllocationSliceInternals = Pick<
   StoreInternals,
   | "createGuardedAction"
@@ -37,6 +38,7 @@ function assertAvailabilityAfterPlacementChange(data: AppData, effective: Alloca
   if (resource) assertAllocationWithinResourceAvailability({ allocation: effective, resource, accountWorkingDays });
 }
 
+/** Create allocation actions for the store. */
 export function createAllocationSlice(
   internals: AllocationSliceInternals,
 ): StateCreator<StoreState, [], [], AllocationSlice> {

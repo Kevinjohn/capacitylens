@@ -26,7 +26,8 @@ import { createRequestSignal } from "@/data/requestTimeout";
 // status.kind === 'login' branch there); the redeem endpoint sits under /api/auth/*, which the
 // server's requireUser preHandler already exempts.
 
-type State = { kind: "form" } | { kind: "working" } | { kind: "done" } | { kind: "unknown" } | { kind: "local" }; // the demo build (no server), password reset is a server-mode feature
+// Password reset is available only in server mode; the demo build has no reset endpoint.
+type State = { kind: "form" } | { kind: "working" } | { kind: "done" } | { kind: "unknown" } | { kind: "local" };
 
 interface ResetPasswordViewProps {
   state: State;

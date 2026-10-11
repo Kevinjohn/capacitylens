@@ -37,6 +37,8 @@ function isSwitchSuccessful(outcome: RefreshOutcome, accountId: string | null): 
   return outcome.kind === "reloaded" || (accountId === null && outcome.kind !== "failed");
 }
 
+/** Store and persistence operations required to switch masquerade accounts safely. */
+/** Store and persistence operations required to switch masquerade accounts safely. */
 export interface MasqueradeControllerDependencies {
   flush: () => Promise<FlushPendingWritesResult>;
   suspend: () => ResumeWrites;
@@ -303,6 +305,7 @@ export class MasqueradeController {
   }
 }
 
+/** Coordinates account switching into and out of masquerade mode. */
 export const masqueradeController = new MasqueradeController({
   flush: flushPendingWrites,
   suspend: suspendServerWrites,

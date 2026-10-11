@@ -4,24 +4,28 @@ import { Select as SelectPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/cn";
 
+/** Provides the root state for a select control. */
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
   return <SelectPrimitive.Root data-slot="select" {...props} />;
 }
 
+/** Groups related select options. */
 function SelectGroup({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Group>) {
   return <SelectPrimitive.Group data-slot="select-group" {...props} />;
 }
 
+/** Renders the selected value or placeholder. */
 function SelectValue({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value>) {
   return <SelectPrimitive.Value data-slot="select-value" {...props} />;
 }
 
+/** Opens the select option list. */
 function SelectTrigger({
   className,
   size = "default",
@@ -50,6 +54,7 @@ function SelectTrigger({
   );
 }
 
+/** Renders the select option list. */
 function SelectContent({
   className,
   children,
@@ -90,6 +95,7 @@ function SelectContent({
 
 // CapacityLens uses Radix's labelled group structure for mixed-domain product selects so the
 // grouping remains available to assistive technology instead of relying on visual separators.
+/** Renders a label for a select option group. */
 function SelectLabel({
   className,
   ...props
@@ -107,6 +113,7 @@ function SelectLabel({
 // used by e2e/browserTestSupport.ts (visible labels are localized). SelectField overrides it through `props`
 // with the unencoded domain value while Radix receives its collision-safe internal value. The
 // indicator slot keeps component anatomy inspectable. Preserve both on a shadcn Select refresh.
+/** Renders a selectable option. */
 function SelectItem({
   className,
   children,
@@ -137,6 +144,7 @@ function SelectItem({
   );
 }
 
+/** Separates select option groups. */
 function SelectSeparator({
   className,
   ...props
@@ -150,6 +158,7 @@ function SelectSeparator({
   );
 }
 
+/** Scrolls the select option list upward. */
 function SelectScrollUpButton({
   className,
   ...props
@@ -168,6 +177,7 @@ function SelectScrollUpButton({
   );
 }
 
+/** Scrolls the select option list downward. */
 function SelectScrollDownButton({
   className,
   ...props

@@ -123,6 +123,7 @@ function resolveSignupFailureMessage({ error, unknownFailure }: ResolveSignupFai
   return m.invite_err_generic();
 }
 
+/** Builds sign-up actions that resume the pending invitation. */
 export function createInviteSignupActions({
   token,
   previewed,

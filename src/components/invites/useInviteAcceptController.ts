@@ -239,6 +239,7 @@ function useInviteFlow(
 }
 
 // One owner for the invite flow, shared credentials, live refs and idempotency tokens.
+/** Coordinates invitation preview, sign-in, and acceptance for a token. */
 export function useInviteAcceptController(token: string | undefined) {
   const { authMode, user, providers: configuredProviders, refreshAuth, signOut } = useAuth();
   const providers = configuredProviders ?? [];

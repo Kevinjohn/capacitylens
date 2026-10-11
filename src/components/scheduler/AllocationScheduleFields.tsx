@@ -278,6 +278,7 @@ function DetailFields(props: DetailProps) {
   );
 }
 
+/** Edits allocation dates, quantity, and repeat options. */
 export function AllocationScheduleFields(props: ScheduleProps) {
   return (
     <>

@@ -111,6 +111,7 @@ function WorkingDayRows({ groupId, workingDays, halfDays, onChoose, options }: W
   });
 }
 
+/** Edits full, half, and non-working weekdays as one schedule field. */
 export function WorkingDayPicker({
   label,
   workingDays,

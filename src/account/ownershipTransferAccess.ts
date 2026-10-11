@@ -36,6 +36,7 @@ export interface OwnershipTransferView {
   terminalReason: OwnershipTransferTerminalReason | null;
 }
 
+/** Combines the current ownership transfer with its latest terminal outcome. */
 export interface OwnershipTransferProjectionView {
   live: OwnershipTransferView | null;
   latestOutcome: OwnershipTransferView | null;
@@ -142,6 +143,7 @@ async function readCeremonyResult(response: Response): Promise<TeamAccessResult<
   return readCommandResult(response, parseOwnershipTransferOutcome);
 }
 
+/** Reads and mutates ownership transfers through typed account-access results. */
 export const ownershipTransferAccess = {
   async readOwnershipTransfer(workspaceId: string): Promise<TeamAccessResult<OwnershipTransferProjectionView>> {
     return readResult(await accountClient.readOwnershipTransfer(workspaceId), parseOwnershipTransferProjection);

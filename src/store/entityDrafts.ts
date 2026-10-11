@@ -20,16 +20,20 @@ type DraftFields<T extends Entity> = Omit<T, "id" | "accountId" | "createdAt" | 
 type ResourceDraft = Omit<DraftFields<Resource>, "engagement"> & {
   engagement?: ResourceEngagement;
 };
+/** Draft entity fields accepted by public create and update actions. */
 export type Draft<T extends Entity> = T extends Resource ? ResourceDraft : DraftFields<T>;
 // Updates use an explicit `undefined` value to remove optional entity fields. Under
 // exactOptionalPropertyTypes that is distinct from omitting the patch key, so model the existing
 // runtime contract directly instead of making callers disguise a removal as absence.
+/** Partial draft fields, with `undefined` available to remove optional values. */
 export type Patch<T extends Entity> = {
   [K in keyof Draft<T>]?: object extends Pick<Draft<T>, K> ? Draft<T>[K] | undefined : Draft<T>[K];
 };
 
 /** One row of a scoped table, and the patch shape accepted for it (server-owned fields excluded). */
+/** A row type selected from an account-scoped entity table. */
 export type ScopedRow<K extends ScopedEntityKey> = AppData[K][number];
+/** Mutable fields for one account-scoped table row. */
 export type ScopedPatch<K extends ScopedEntityKey> = {
   [P in keyof Omit<ScopedRow<K>, keyof Entity>]?: object extends Pick<Omit<ScopedRow<K>, keyof Entity>, P>
     ? Omit<ScopedRow<K>, keyof Entity>[P] | undefined
@@ -41,4 +45,5 @@ export type ScopedPatch<K extends ScopedEntityKey> = {
 // Mirrors the server's lifecycle-route entity union so the local store actions below and the server's
 // dedicated routes operate over the identical set. Phases/allocations/timeOff/disciplines/
 // accounts have no tombstone and are deliberately excluded.
+/** Entity tables that participate in the archive, delete, and purge lifecycle. */
 export type LifecycleEntity = "resources" | "clients" | "projects" | "activities";

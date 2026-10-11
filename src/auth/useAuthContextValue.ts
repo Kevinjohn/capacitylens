@@ -12,6 +12,7 @@ function authModeForStatus(status: AuthStatusResult) {
   return "off";
 }
 
+/** Builds the auth context value from server status and session actions. */
 export function useAuthContextValue(
   status: AuthStatusResult,
   refreshAuth: AuthContextValue["refreshAuth"],

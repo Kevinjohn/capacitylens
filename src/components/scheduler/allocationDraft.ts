@@ -21,6 +21,7 @@ export interface AllocationDraftProblem {
   message: string;
 }
 
+/** Values required to validate an allocation draft. */
 export interface AllocationDraftValidationInput {
   resourceId: string;
   activityId: string;
@@ -154,6 +155,7 @@ function validateRepeat(input: AllocationDraftValidationInput, fail: Fail): bool
     generateRepeatingStartDates(startDate, repeat.until, resolveRepeatPattern(repeat.selection));
     return true;
   } catch (error) {
+    // Repeat date errors belong to the repeat field; other failures reach the form-wide error.
     if (error instanceof RepeatingDateError) {
       const message =
         error.code === "no-repeat"
@@ -201,6 +203,7 @@ export function validateAllocationDraft(input: AllocationDraftValidationInput, f
   return validateEffectiveHours(input, fail);
 }
 
+/** Values required to validate an allocation end date. */
 export interface EndDateInput {
   /** The allocation being edited, or `undefined` when creating. */
   editing: Allocation | undefined;

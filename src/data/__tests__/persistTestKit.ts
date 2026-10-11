@@ -8,6 +8,7 @@ import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
+/** Builds the built-in client fixture for an account. */
 export const internalClient = (accountId: string) => ({
   id: `internal:${accountId}`,
   accountId,
@@ -18,11 +19,13 @@ export const internalClient = (accountId: string) => ({
   updatedAt: "t",
 });
 
+/** Returns a required test callback or fails with its context. */
 export function requireCallback(value: (() => void) | null, context: string): () => void {
   if (value === null) throw new Error(`Expected ${context}`);
   return value;
 }
 
+/** Creates a controllable promise signal for async persistence tests. */
 export function deferredSignal() {
   let resolve!: () => void;
   const promise = new Promise<void>((resolvePromise) => {
@@ -31,6 +34,7 @@ export function deferredSignal() {
   return { promise, resolve };
 }
 
+/** Creates local persistence data for two isolated accounts. */
 export function makeLocalTwoAccounts() {
   return {
     ...emptyAppData(),
@@ -53,6 +57,7 @@ export function recordingAdapter(slice: AppData) {
   return { adapter, loadAll, saveAll };
 }
 
+/** Builds the second account slice used in account-switch tests. */
 export const a2Slice = (): AppData => ({
   ...emptyAppData(),
   accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
@@ -69,6 +74,7 @@ export const a2Slice = (): AppData => ({
   ],
 });
 
+/** Builds paired account slices for persistence switching tests. */
 export const accountSwitchSlices = () => ({
   aSlice: {
     ...emptyAppData(),
