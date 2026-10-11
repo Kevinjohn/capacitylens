@@ -40,8 +40,7 @@ interface AllocationBarViewProps {
   onPointerDown: PointerEventHandler<HTMLDivElement> | undefined;
 }
 
-/** Keep the display rounding local so this view has no import cycle with its orchestrator. */
-/** Constant per axis, so the clamp strings are built once rather than per bar per render. */
+// Build the clamp strings once per axis instead of once per bar per render.
 const BAR_LABEL_INSETS = buildVisibleSpanInsets("x", "var(--bar-left)", "var(--bar-width)");
 
 const allocationPopoverId = (bar: BarLayout) => `allocation-popover-${bar.allocation.id}`;

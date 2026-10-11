@@ -994,7 +994,7 @@ function registerServerModeTest31() {
     fireEvent.click(screen.getByRole("button", { name: /refresh/ }));
     act(() => useStore.getState().setPersistError(true));
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    // The older request resolves after sign-in and must not restore the authenticated state.
+    // The stale request must not restore authentication after the newer check rejects the session.
     await act(async () => {
       slow.resolve(
         me(200, {
@@ -1043,10 +1043,8 @@ describe("AuthProvider — server mode", () => {
   registerServerModeTest31();
 });
 
-// Single-company-per-instance policy: GET /api/auth/me gains canCreateAccount/multiAccount
-// (server-computed: multiAccount || zero accounts exist). The client only ever hides the "New
-// company" affordance with these, the server 403 is the real enforcer, so every path where the
-// fact can't be trusted must fail open (default true), never closed.
+// The server supplies account-creation flags for the UI; the server remains the authorization
+// boundary, so unavailable or invalid flags must not hide the affordance.
 function registerAccountPolicyTest01() {
   it("parses canCreateAccount:false / multiAccount:false from a mocked /api/auth/me", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");

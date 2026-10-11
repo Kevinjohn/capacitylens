@@ -39,13 +39,8 @@ export function createGuards(get: StoreApi<StoreState>["getState"]) {
     return id;
   };
 
-  // Defense-in-depth viewer guard. It is inert unless the active role is exactly 'viewer':
-  // every other value (null for off, local or not-fetched; 'owner'; 'admin'; 'editor') permits, so the
-  // default deploy is byte-identical to today (fully editable). When the role is 'viewer', a scoped
-  // mutation no-ops (the caller returns early) and surfaces a notice, so an ungated affordance or an
-  // optimistic local write the server would 403 can't desync local state. This is UX/defense-in-depth,
-  // not the security boundary. The server 403 is the true backstop; we never throw here (a
-  // throw would read as corruption and could crash a drag handler), we just refuse + inform.
+  // Refuse writes during masquerade or for viewers so local state cannot diverge from the server.
+  // Return a notice instead of throwing because callers use this guard for interactive mutations.
   const blockedByViewer = (): boolean => {
     const state = get();
     if (state.masquerade.kind !== "inactive") {
@@ -79,7 +74,7 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
   // The built-in "Internal" client is a fixed bucket, every account must keep exactly one, so it
   // may be neither renamed nor moved through the lifecycle. One guard for all four rejecting
   // actions, each supplying the verb its message ends with. A non-client entity, a stale id and an
-  // ordinary client all pass. Throws a display-safe message: surface, don't swallow (the callers
+  // owned ordinary client all pass. Throws a display-safe message: surface, don't swallow (the callers
   // catch and show it; the UI also hides the affordance). See shared/src/data/internalClient.ts.
   const assertNotBuiltinClient = (entity: ScopedEntityKey, id: ID, verb: "renamed" | "archived" | "deleted"): void => {
     if (entity !== "clients") return;
@@ -106,21 +101,14 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
       throw new Error("Half days must be unique whole-number weekdays contained in the working week.");
     }
   };
-  // Write-time colour guard: snaps a bad/legacy colour to its nearest palette preset via the
-  // shared snapToPresetColor mapper, the same mapper the server's sanitizeWrite('accounts') and
-  // the one-time snap-legacy-account-colors migration use, so client and server can never
-  // disagree about what a given colour snaps to (see DECISIONS.md). `allowNeutral` preserves the
+  // Use the shared mapper so client and server persist the same preset colour. `allowNeutral` preserves the
   // one deliberate exception: NEUTRAL_COLOR is not itself a preset (see shared/lib/color.ts), but
   // an external resource's grey must round-trip unchanged rather than snap to its nearest preset.
   //
-  // Deliberately called only on a path that is actually about to persist (immediately before
-  // mutate()/updateById below), never before a reject check (blockedByViewer / a stale-id no-op /
-  // an assert* throw). A rejected write must not silently substitute a colour the caller never
-  // asked for onto an entity that was never saved; see the CRUD contract note on StoreState.
+  // Apply colour repair only after rejection checks so a failed write cannot alter an unsaved entity.
   const snapColor = ({ color, allowNeutral = false }: SnapColorInput): string =>
     allowNeutral && color === NEUTRAL_COLOR ? color : snapToPresetColor(color);
 
-  // Preserve the original patch when it has no colour to repair.
   const applySnappedColor = <T extends { color?: unknown }>({
     patch,
     allowNeutral = false,

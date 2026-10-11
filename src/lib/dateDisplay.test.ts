@@ -38,7 +38,6 @@ const invalidDate = "not-a-date" as ISODate;
 
 describe("formatShortDate", () => {
   it("renders abbreviated weekday + ordinal day + abbreviated month, with no year", () => {
-    // 2026-07-01 is a Wednesday; 2026-06-10 a Wednesday.
     expect(formatShortDate("2026-07-01")).toBe("Wed 1st Jul");
     expect(formatShortDate("2026-06-10")).toBe("Wed 10th Jun");
   });
@@ -46,7 +45,7 @@ describe("formatShortDate", () => {
   it("uses the correct English ordinal suffixes", () => {
     expect(formatShortDate("2026-07-02")).toBe("Thu 2nd Jul");
     expect(formatShortDate("2026-07-03")).toBe("Fri 3rd Jul");
-    expect(formatShortDate("2026-07-11")).toBe("Sat 11th Jul"); // not "11st"
+    expect(formatShortDate("2026-07-11")).toBe("Sat 11th Jul");
     expect(formatShortDate("2026-07-21")).toBe("Tue 21st Jul");
     expect(formatShortDate("2026-07-22")).toBe("Wed 22nd Jul");
   });
@@ -71,7 +70,6 @@ describe("formatShortDateRange", () => {
   });
 
   it("collapses a same-month range under day-month order", () => {
-    // 2026-06-05 is a Friday; 2026-06-08 a Monday.
     expect(formatShortDateRange("2026-06-05", "2026-06-08")).toBe("Fri 5th – Mon 8th Jun");
   });
 
@@ -90,8 +88,7 @@ describe("formatShortDateRange", () => {
   });
 
   it("spells out both years for a cross-year range under day-month order", () => {
-    // 2026-06-05 is a Friday; 2027-06-08 a Tuesday. Same month either side of a year boundary is
-    // the case that reads as one day without the year.
+    // Including years distinguishes this cross-year span from a short same-month span.
     expect(formatShortDateRange("2026-06-05", "2027-06-08")).toBe("Fri 5th Jun 2026 – Tue 8th Jun 2027");
   });
 
@@ -245,9 +242,7 @@ describe("schedule dates", () => {
   });
 });
 
-// Every cell of the plan's style table, exercised through the range and single-date
-// helpers it governs. `writeStoredDateStyle` sets the style for each style-table describe block;
-// `localStorage.clear()` in `afterEach` above resets it back to the default between blocks.
+// Exercise each supported style through the single-date and range formatters.
 const STYLE_TABLE: Record<
   DateStyle,
   {
@@ -348,9 +343,7 @@ describe("formatInstant / formatInstantDate", () => {
   // The vitest environment fixes TZ=UTC, so 13:45Z is 13:45 local here.
   const instant = "2026-07-14T13:45:00.000Z";
 
-  it("renders exactly what the call sites they replace rendered", () => {
-    // Behaviour preservation is the contract this round: the browser-default locale, not
-    // activeDateLocale()'s enGB. This assertion fails the moment a locale argument is introduced.
+  it("uses the browser's default locale", () => {
     expect(formatInstant(instant)).toBe(new Date(instant).toLocaleString());
     expect(formatInstantDate(instant)).toBe(new Date(instant).toLocaleDateString());
   });
@@ -374,8 +367,7 @@ describe("formatInstant / formatInstantDate", () => {
   });
 
   it("resolves the local calendar day rather than slicing the UTC string", () => {
-    // Late-evening UTC: the day component must come from the Date, not from characters 0-9 of the
-    // ISO string (which is what these replaced, and what misreads by a day outside UTC).
+    // Derive the local day from the Date so time zones east or west of UTC are handled correctly.
     const lateEvening = "2026-07-14T23:30:00.000Z";
     const local = new Date(lateEvening);
     expect(formatInstantDate(lateEvening)).toBe(local.toLocaleDateString());
@@ -393,9 +385,7 @@ describe("formatInstant / formatInstantDate", () => {
 
 describe("an unrecognised active style", () => {
   it("reads as the default instead of throwing out of every formatter", () => {
-    // Belt and braces behind `resolveDateStyle`: the mirror is a plain setter, so anything that
-    // writes it (a future caller, a test, a hydration path) must not be able to take the whole
-    // product's dates down with a value that has no descriptor.
+    // Unknown mirrored styles should fall back without breaking date rendering.
     setActiveDateStyle("year-month-day" as DateStyle);
 
     expect(formatDayMonth("2026-09-09")).toBe("9 Sep");

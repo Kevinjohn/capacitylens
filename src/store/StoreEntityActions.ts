@@ -85,30 +85,26 @@ export interface StoreEntityActions {
   /** Delete a company closure from the active account. */
   deleteClosure: (id: ID) => void;
 
-  // --- Data-lifecycle: the Active → Archived → Soft-deleted → Purged machine for the
-  // tombstone-carrying tables (resources / clients / projects / activities). These are the demo-build / off path,
-  // they mutate the local `data` blob through the same mutate()/undo machinery as the CRUD above. In
-  // server mode the UI instead calls the dedicated routes (POST /api/:entity/:id/{archive,unarchive,
-  // delete,purge}) directly, so the admin view only invokes these in the demo build. They compose
-  // the pure shared lifecycle helpers (shared/src/domain/lifecycle.ts), the transition logic and the
-  // soft-delete obfuscation string are never re-derived here. Archive/unarchive are undoable;
-  // soft-delete/purge clear both history stacks so erased data cannot be recovered from memory.
-  // All four are viewer-no-op and stale-id-no-op, and invalid transitions throw a display-safe Error
-  // (the UI gates with the can* predicates first; the throw is the defense-in-depth backstop).
-  /** Archive an entity (active → archived). Demo-build path; surface-not-swallow, `archive` throws
-   * if the row isn't active. @param entity which tombstone table. @param id the row to archive. */
+  // These actions mutate the local snapshot in demo mode; server mode uses lifecycle routes.
+  // Viewer and stale-ID calls no-op; callers must surface errors these actions throw.
+  // Soft-delete and purge clear both history stacks so erased data cannot be restored by undo.
+  /** Archive an active entity.
+   *
+   * @throws When the entity is not active; no state changes.
+   */
   archiveEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Un-archive an entity (archived → active). Demo-build path; `unarchive` throws if the row isn't
-   * archived. @param entity which tombstone table. @param id the row to restore. */
+  /** Restore an archived entity.
+   *
+   * @throws When the entity is not archived; no state changes.
+   */
   unarchiveEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Soft-delete an entity (archived → deleted tombstone). Demo-build path; `softDelete` throws unless
-   * the row is archived first (the lifecycle requires prior archival). For a `resources` row the
-   * tombstone's `name` is also scrubbed via the shared `obfuscateResource`, the local copy retains
-   * no original PII while it awaits purge. @param entity which tombstone table. @param id the row. */
+  /** Soft-delete an archived entity; resource names are scrubbed while the tombstone awaits purge.
+   *
+   * @throws When the entity is not archived; no state changes.
+   */
   softDeleteEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Hard-purge a soft-deleted tombstone (physically remove + cascade its children). Demo-build path.
-   * Enforces the {@link PURGE_MIN_AGE_DAYS} grace window via `canPurge`: if the tombstone is too young
-   * it does not mutate and surfaces an error notice instead of throwing (a refused affordance, not a
-   * bug). @param entity which tombstone table. @param id the tombstone to purge. */
+  /** Purge a soft-deleted entity and its dependents after the {@link PURGE_MIN_AGE_DAYS} grace period.
+   * An early request surfaces a notice without mutation.
+   */
   purgeEntity: (entity: LifecycleEntity, id: ID) => void;
 }

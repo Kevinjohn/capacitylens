@@ -5,8 +5,7 @@ import type { DragResizePreviewInput } from "./useDragResize";
 import type { DragMode } from "@/lib/gestureMath";
 
 interface HarnessProps {
-  // A uniform-grid stand-in for the lane's geometry inverse: clientX → day index at 48px/day,
-  // origin at clientX 0. So a 48px move snaps to a 1-day delta, exactly as before.
+  // Model one calendar day per 48 pixels, with the pointer origin at clientX 0.
   indexAtClientX?: (clientX: number) => number;
   onPreview?: (input: DragResizePreviewInput) => void;
   onCommit: (mode: DragMode, deltaDays: number, pointer: { clientX: number; clientY: number }) => void;
@@ -42,7 +41,7 @@ function Harness({
 }
 
 beforeEach(() => {
-  // Clean up any stray document listeners between tests
+  // jsdom lacks pointer capture; this mock tracks captured IDs for cancellation tests.
   const capturedPointers = new WeakMap<HTMLElement, Set<number>>();
   HTMLElement.prototype.setPointerCapture = vi.fn(function (this: HTMLElement, pointerId: number) {
     const pointers = capturedPointers.get(this) ?? new Set<number>();

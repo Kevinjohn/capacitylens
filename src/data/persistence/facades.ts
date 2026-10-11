@@ -26,16 +26,15 @@ export function suspendServerWrites(): (options?: { dropParkedEdits?: boolean })
 }
 
 /**
- * Result kinds from {@link refreshActiveAccountSlice} (and the orchestrator's internal refreshActive):
- *  - 'reloaded': the server's slice was fetched and installed; the UI shows committed state.
- *  - 'skipped': deliberately not performed (a stale account id because the user switched tenants,
- *                   or a save is in a failed state under abortIfSaveFailed, or a newer
- *                   switch/refresh superseded this one). The store was not touched.
- *  - 'failed': the slice load threw; surfaced via onError (persist banner). Store untouched.
- *  - 'unattached': no orchestrator (demo build / unit tests); the caller may fall back to a
- *                   bare loadAll+replaceAll, safe only because there is no debounce state.
+ * Outcomes from requesting a persistence refresh.
+ *
+ * - `reloaded`: The server slice was installed.
+ * - `skipped`: A stale account, failed save, or newer refresh prevented the operation; the store
+ *   was untouched.
+ * - `failed`: The load failed and was surfaced through `onError`; the store was untouched.
+ * - `unattached`: No orchestrator exists; a bare load-and-replace is safe because no debounce
+ *   state can race it.
  */
-/** Outcome of requesting a persistence refresh. */
 export type RefreshOutcome = { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" };
 /** Outcome of flushing queued persistence writes. */
 export type FlushPendingWritesResult = { kind: "clean" } | { kind: "blocked" } | { kind: "failed"; error: unknown };

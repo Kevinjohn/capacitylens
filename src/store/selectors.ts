@@ -50,9 +50,7 @@ export function resolveDateStyle(data: AppData, activeAccountId: ID | null): Dat
  * Shared by the modal and bar. */
 export const resolveSchedulingMode = createAccountFieldSelector("schedulingMode", "hourly");
 
-/** Whether the active company uses disciplines. Absent on the account reads as true.
- * Shared by every discipline surface (nav, resource
- * form, schedule grouping + filter, lists, command palette) gates on the same value. */
+/** Whether the active company uses disciplines; every discipline surface shares this value. */
 export const hasDisciplinesEnabled = createAccountFieldSelector("disciplinesEnabled", true);
 
 /** True for a resource the engagement bands hold as Supplementary: active and capacity-tracked. */
@@ -133,9 +131,8 @@ export function scopeData(data: AppData, accountId: ID): AppData {
 export const listResourceAllocations = (data: AppData, resourceId: ID) =>
   data.allocations.filter((allocation) => allocation.resourceId === resourceId);
 
-// Find-by-id helpers. Each returns `T | undefined`, `find` misses for a stale or cross-account
-// id, so callers must narrow (optional-chain / guard) before dereferencing, never assume the id
-// resolves. (The fix for a possibly-undefined result belongs at the consumer, not as a throw here.)
+// These helpers search only the supplied account-scoped data and can miss stale IDs. Callers must
+// narrow the result before dereferencing it.
 /** Find an activity by its stable ID. */
 export const activityById = (data: AppData, id: ID) => data.activities.find((activity) => activity.id === id);
 /** Find a project by its stable ID. */

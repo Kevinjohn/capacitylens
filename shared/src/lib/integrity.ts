@@ -304,13 +304,18 @@ function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt
   };
 }
 
-/** Delete a project: drops its phases + activities + those activities' allocations, unbinds a surviving activity's phase and any placeholder bound to it. Pure, returns a new AppData. */
+/** Delete a project subtree and its allocations.
+ * Surviving activity phase links and matching project links are cleared.
+ * Returns a new `AppData`.
+ */
 export function deleteProjectCascade(data: AppData, projectId: ID, updatedAt: string): AppData {
   return dropProjectSubtree(data, new Set([projectId]), updatedAt);
 }
 
-/** Delete a client and everything beneath it (projects → phases → activities → allocations), unbinding
- * surviving phases/placeholders as needed. Pure, returns a new AppData. */
+/** Delete a client and its project subtree.
+ * Surviving activity phase links and matching project links are cleared.
+ * Returns a new `AppData`.
+ */
 export function deleteClientCascade(data: AppData, clientId: ID, updatedAt: string): AppData {
   const removedProjectIds = new Set(
     data.projects.filter((project) => project.clientId === clientId).map((project) => project.id),

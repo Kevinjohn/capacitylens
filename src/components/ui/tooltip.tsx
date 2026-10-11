@@ -10,7 +10,7 @@ import { cn } from "@/lib/cn";
 // nav-rail hover label in AppShell, which is AA-safe in both themes. A tooltip is supplementary:
 // the trigger keeps its own aria-label so the tooltip is never the sole accessible name.
 
-/** Provides shared behavior for descendant tooltips. */
+/** Provides the shared delay configuration for descendant tooltip roots. */
 function TooltipProvider({
   delayDuration = 0,
   ...props
@@ -24,7 +24,7 @@ function TooltipProvider({
   );
 }
 
-/** Provides the root state for a tooltip. */
+/** Creates a self-contained tooltip with its own provider. */
 function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
@@ -35,28 +35,27 @@ function Tooltip({
   );
 }
 
-/** Render a root for collections that share one provider above many tooltips.
- * Must be rendered inside a `TooltipProvider`. */
-/** Provides the root state for a tooltip. */
+/** Creates a root for tooltips that share an ancestor provider.
+ * Must be rendered inside a `TooltipProvider`.
+ */
 function TooltipRoot({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
 }
 
-/** Associates an element with its tooltip. */
+/** Associates an element with its tooltip content. */
 function TooltipTrigger({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
   return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
-/** Renders the tooltip content. */
+/** Renders tooltip content in a portal using the elevated surface tokens. */
 function TooltipContent({
   className,
   sideOffset = 4,
-  // Default-true so every existing tooltip keeps its arrow; a rich-card caller (the scheduler
-  // allocation popover) opts out to match the old arrow-less card.
+  // Simple tooltips use an arrow; the scheduler allocation popover uses a card without one.
   showArrow = true,
   children,
   ...props

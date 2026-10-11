@@ -1,27 +1,11 @@
-// `pnpm run dev` starts the full-stack development environment. Server-backed persistence is now the
-// app's DEFAULT (empty env = same-origin API; in-memory demo only under VITE_CAPACITYLENS_DEMO=1),
-// so a bare `vite` would boot the app in server-mode against a backend-less dev server (broken).
-// This boots both halves and keeps them in lockstep:
-//   A) the SQLite API (capacitylens-server, tsx watch on :8787, seeds on first boot), and
-//   B) the Vite web server (`dev:web`), whose dev proxy forwards /api → the API port.
-// The web app talks to a same-origin /api, exactly like prod behind nginx; the Vite proxy
-// (vite.config.ts) is the dev stand-in. For the backend-free in-memory demo build use `pnpm run
-// dev:demo` instead.
-//
-// NODE 24+: the API uses Node's built-in `node:sqlite`, so full-stack dev needs Node 24 (.nvmrc).
-// `pnpm run dev:demo` has no such requirement.
-//
-//   node scripts/dev-fullstack.mjs   # = pnpm run dev
+// Start the API and web server together because server-backed app mode needs the Vite proxy's API.
 
 import { parsePort } from "./parsePort.mjs";
 import { spawnPnpm } from "./pnpmSpawn.mjs";
 import { ports } from "./ports.mjs";
 import { portInUse, requireNode24, terminateProcessTrees } from "./devProcesses.mjs";
 
-// Fail fast, in the launcher's own process, with the fix in the message. Without this, an old
-// Node surfaces as a raw "No such built-in module: node:sqlite" from inside the API child's tsx
-// (thrown at module-link time, before any server code runs) and the launcher then tears the
-// whole stack down. This is accurate, but it never tells the user the actual requirement.
+// Report the Node requirement before the API child fails to load `node:sqlite`.
 requireNode24(
   (version) =>
     `dev: full-stack dev needs Node 24+ — found ${version}. The API uses Node's ` +
@@ -29,21 +13,12 @@ requireNode24(
     `https://nodejs.org. No Node 24? \`pnpm run dev:demo\` runs the backend-free demo build.`,
 );
 
-// Keep the launcher, the API child (server reads PORT), and the Vite proxy on the same port.
-// vite.config.ts's proxy target must resolve the same `CAPACITYLENS_DEV_API_PORT ?? lane db API`
-// default so the launcher and the Vite proxy stay in lockstep (scripts/ports.mjs is the one source).
-// NB this is the DEV-proxy API port, distinct from serve-dist.mjs's bare API_PORT (its dist-serving port).
+// Use the configured API port, defaulting to this lane's port, for the server and Vite proxy.
 const lanePorts = ports();
 const API_PORT = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, lanePorts.dbApi, "CAPACITYLENS_DEV_API_PORT");
-// Vite is strictPort:true on the lane's web port (vite.config.ts), so a collision is a hard EADDRINUSE AFTER
-// the API child has already booted. Pre-flight it too (below), symmetric with the API check.
 const WEB_PORT = lanePorts.web;
 
-/**
- * Resolve true iff something is already listening on 127.0.0.1:port. A short-lived connect probe,
- * no new dependency. We surface a collision as a hard error rather than letting the API child fail
- * with a confusing EADDRINUSE deep in tsx, or (worse) silently reuse a stale/foreign server.
- */
+// Check both ports before starting either child so a collision cannot leave a half-started stack.
 if (await portInUse(API_PORT)) {
   console.error(
     `dev: port ${API_PORT} is already in use — the API can't start. Stop whatever holds it ` +
@@ -53,9 +28,6 @@ if (await portInUse(API_PORT)) {
   process.exit(1);
 }
 
-// Symmetric with the API check above: Vite is strictPort:true on WEB_PORT, so a collision is a hard
-// EADDRINUSE, but it would surface only after the API child booted, leaving a half-up stack. Catch it
-// here, before starting either child, so neither runs against an unusable web port.
 if (await portInUse(WEB_PORT)) {
   console.error(
     `dev: port ${WEB_PORT} is already in use — the Vite web server can't start (strictPort). Stop ` +
@@ -68,14 +40,7 @@ if (await portInUse(WEB_PORT)) {
 const children = [];
 let shuttingDown = false;
 
-/**
- * SIGTERM a child's whole process group, not just the immediate `pnpm`. Each child
- * is a pnpm → node(vite/tsx) tree; signalling only pnpm leaves vite/tsx orphaned holding
- * the lane's web/API ports. `detached:true` (below) makes each child a group leader, so a negative-pid kill
- * reaches the whole tree. ESRCH (group already gone) is fine; Windows has no POSIX groups, so fall
- * back to `taskkill /T` which walks the tree there.
- */
-/** Tear down every still-running child, then exit. Idempotent (first caller wins). */
+// Stop both detached child process groups so neither server outlives the other.
 async function shutdown(code) {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -92,7 +57,7 @@ function start(label, args, env) {
     // foreground group, so handing it the TTY stdin risks SIGTTIN and trips Vite's stdin-EOF→SIGTERM
     // shortcut handler. Neither tsx-watch nor Vite needs interactive stdin under this launcher.
     stdio: ["ignore", "inherit", "inherit"],
-    // Own process group so shutdown() can SIGTERM the whole pnpm→node tree (see killTree).
+    // Give each child its own process group so shutdown can stop both process trees.
     detached: true,
     env: { ...process.env, ...env },
   });

@@ -308,24 +308,20 @@ function registerSchedulerUiPart3(): void {
   });
 
   it("the date format is account data: undoable, exported, and mirrored to the formatters", () => {
-    // The inverse of the device-preference contract this test used to assert. It is on the account
-    // now, so it takes the account's behaviour in full, including the parts a device pref refused.
+    // The formatter reads the updated preference before a React render.
     const accountId = s().activeAccountId;
     if (!accountId) throw new Error("Expected an active account.");
     s().updateAccount(accountId, { dateStyle: "month-day" });
     expect(resolveDateStyle(s().data, accountId)).toBe("month-day");
 
-    // The store pushes it into the formatters synchronously, so a pure formatter agrees with the
-    // account without reading React.
     expect(readActiveDateStyle()).toBe("month-day");
     expect(formatDayMonth("2026-09-09")).toBe("Sep 9");
 
-    // An account write, so undo reverts it, unlike the theme, which never touches the stack.
+    // Account preference mutations join history; device theme changes do not.
     s().undo();
     expect(resolveDateStyle(s().data, accountId)).toBe("day-month");
     expect(readActiveDateStyle()).toBe("day-month");
 
-    // And it travels with the company's data.
     s().updateAccount(accountId, { dateStyle: "month-day" });
     expect(serializeData(s().data)).toContain("dateStyle");
 

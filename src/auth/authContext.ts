@@ -1,11 +1,6 @@
 import { createContext, useContext } from "react";
 
-// Auth context, separate from AuthProvider so component files
-// export only components (react-refresh) and consumers (SettingsView) don't import the
-// provider machinery. The server's reported authMode is the single source of truth,
-// there is no client-side auth flag; the default below is what the demo build and an
-// auth-off server both resolve to, so consumers rendered without a provider (unit
-// tests, storybook-style isolation) behave exactly like today's app.
+// Share the server-owned auth mode with screens without importing provider code.
 
 export type { AccountMode } from "@capacitylens/shared/account/types";
 import type { AccountMode } from "@capacitylens/shared/account/types";

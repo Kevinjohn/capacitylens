@@ -9,12 +9,12 @@ import { m } from "@/i18n";
 
 /** Default preset colors grouped by entity type. */
 export const DEFAULT_COLORS = {
-  client: "#2d75da", // blue
-  project: "#da2d92", // pink
-  discipline: "#2d75da", // blue
-  resource: "#2d75da", // blue
-  placeholder: "#2d75da", // blue
-  account: "#2d75da", // blue
+  client: "#2d75da",
+  project: "#da2d92",
+  discipline: "#2d75da",
+  resource: "#2d75da",
+  placeholder: "#2d75da",
+  account: "#2d75da",
 } as const;
 
 // Swatches shown in the ColorField popup, a 13-column × 4-row grid (52 colours).

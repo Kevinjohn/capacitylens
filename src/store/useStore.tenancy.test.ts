@@ -100,8 +100,7 @@ describe("active-account replacement invariant", () => {
   });
 
   it("rejects scoped writes when a non-null active id has no loaded account row", () => {
-    // Exercise the mutation backstop independently from replaceAll's picker fallback. Direct state
-    // injection models any future caller that publishes transient identity state out of order.
+    // The mutation guard rejects an active account ID with no loaded account, independently of the picker fallback.
     s().setAccountSummaries({ list: [] });
     useStore.setState({ activeAccountId: "missing-account" });
 

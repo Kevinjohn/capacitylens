@@ -105,15 +105,8 @@ function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
   return { role: "viewer", status: input.fetched?.status ?? "pending" };
 }
 
-// Client permission boundary. It resolves the caller's role for the active
-// account and provides it to the pure-`can`-driven affordance hooks (useRole / useCanEdit) so a
-// Viewer sees a read-only UI. It mounts inside AppShell, around the app body subtree, after the
-// tenant/intro gates, so `activeAccountId` is already set when this runs.
-//
-// Regression guard (load-bearing): in off mode or the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
-// pure pass-through, `role: null`, zero fetches, ever (mirrors AuthProvider's demo-mode
-// discipline). That is the shipped/default path and must stay byte-identical to today's app, which
-// `role: null` → fully editable (see permissionContext.ts) guarantees.
+// Resolves the active account's role for the client permission hooks. Off mode and demo mode do not
+// fetch membership; authenticated server lookups project unresolved results to Viewer.
 //
 // Fail-closed: in the auth-on + server path, pending/failed/missing role resolution is projected as
 // viewer for affordance safety and separately labelled pending/unavailable for explanatory UI.
@@ -155,9 +148,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       setActiveRole("viewer", "unavailable");
       return;
     }
-    // Off / demo / no active account: there is no membership role to enforce. Make no request, the
-    // shipped default path stays byte-identical to today. The provided role is null either way (the
-    // value computation below short-circuits to null when not enabled), so no local reset is needed.
+    // Off / demo / no active account has no membership role to load.
     if (!enabled || !activeAccountId) {
       // Keep the store guard aligned when no permission check applies.
       setActiveRole(null, "not-applicable");
@@ -199,9 +190,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     fetched: currentFetched,
   });
 
-  // Memoise the context value on `role` so a re-render that doesn't change the role keeps the same
-  // value reference, otherwise every consumer (the affordance hubs across the app) re-renders on any
-  // parent re-render (e.g. AppShell re-rendering on a dirty-form keystroke), needless churn.
+  // Preserve the value reference until the resolved role or lookup status changes.
   const value = useMemo(() => ({ role, status }), [role, status]);
 
   return <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>;

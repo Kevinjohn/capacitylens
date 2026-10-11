@@ -38,7 +38,6 @@ function isSwitchSuccessful(outcome: RefreshOutcome, accountId: string | null): 
 }
 
 /** Store and persistence operations required to switch masquerade accounts safely. */
-/** Store and persistence operations required to switch masquerade accounts safely. */
 export interface MasqueradeControllerDependencies {
   flush: () => Promise<FlushPendingWritesResult>;
   suspend: () => ResumeWrites;

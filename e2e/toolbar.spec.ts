@@ -12,8 +12,7 @@ import {
 function registerZoomsTimelineTracksActiveLevelTest() {
   test("zooms the timeline and tracks the active level", async ({ page }) => {
     await openApp(page);
-    // The weeks dropdown replaced the 1w..8w segments. The closed trigger shows the current span,
-    // so the active level is readable without opening the dropdown.
+    // The closed trigger exposes the selected span without opening the dropdown.
     const weeks = page.getByRole("combobox", { name: "Weeks visible" });
     await setZoom(page, 6);
     await expect(weeks).toHaveText("6 weeks");

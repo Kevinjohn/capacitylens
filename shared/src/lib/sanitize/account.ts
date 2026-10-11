@@ -33,16 +33,7 @@ type MissingAccountBooleanField = Exclude<AccountBooleanField, (typeof ACCOUNT_B
 const accountBooleanFieldsAreComplete: MissingAccountBooleanField extends never ? true : never = true;
 void accountBooleanFieldsAreComplete;
 
-/**
- * Optional account fields constrained to a fixed value set. Anything outside it is dropped:
- * schedulingMode: absence reads as 'hourly', the original behaviour.
- * language: English-only for now; absence reads as 'en'.
- * capacityOverviewAccess: absence reads as owner/admin-only access.
- * dateStyle: absence reads as 'day-month', the historical format.
- */
-/** Every Account property whose type is a finite string union, plus `language`, which is
- * intentionally typed as `string` until additional locales are supported. The mapped type makes
- * a new enum-valued Account field fail the build until its allowed values are added below. */
+// Require allowed-value lists for finite-string fields; include `language` explicitly because its type is `string`.
 type AccountEnumField =
   | "language"
   | {
@@ -70,8 +61,7 @@ export function sanitizeAccount(record: Record<string, unknown>, storedWeekStart
   sanitizeTimezone(record);
   const repairWeekStartsOn = sanitizeWeekStartsOn(record, storedWeekStartsOn);
   record.workingDays = normalizeAccountWorkingDays(record.workingDays, repairWeekStartsOn === 0 ? 0 : 1);
-  // Drop rather than coerce: see ACCOUNT_BOOLEAN_FIELDS / ACCOUNT_ENUM_FIELDS above for the
-  // per-field default each absence reads back as.
+  // Remove invalid values; readers apply defaults when optional fields are absent.
   sanitizeOptionalPreferences(record);
   return record;
 }
@@ -100,7 +90,7 @@ function sanitizeTimezone(record: Record<string, unknown>): void {
   try {
     new Intl.DateTimeFormat(undefined, { timeZone: record.timezone });
   } catch {
-    // Imported invalid time zones are removed so the account can use its default.
+    // Invalid time zones are removed so the account can use its default.
     delete record.timezone;
   }
 }
