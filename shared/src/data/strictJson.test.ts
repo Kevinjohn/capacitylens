@@ -17,7 +17,8 @@ describe("assertUnambiguousJson", () => {
     expect(() => assertUnambiguousJson('{"left":{"a":1},"right":{"a":2}}')).not.toThrow();
     expect(() => assertUnambiguousJson(JSON.stringify({ message: 'escaped "brace" { [ ' }))).not.toThrow();
     expect(() => assertUnambiguousJson('{"scientific":1.25e2,"fractional":0.125}')).not.toThrow();
-    expect(() => assertUnambiguousJson('{"a":')).not.toThrow(); // JSON.parse owns syntax errors.
+    // JSON.parse owns syntax errors.
+    expect(() => assertUnambiguousJson('{"a":')).not.toThrow();
     expect(() => JSON.parse('{"a":')).toThrow();
     expect(() => assertUnambiguousJson('{"n":9007199254740992}')).toThrow(/number/);
     expect(() => assertUnambiguousJson('{"n":1e400}')).toThrow(/number/);

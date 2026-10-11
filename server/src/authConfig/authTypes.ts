@@ -10,6 +10,7 @@ export type { AccountMode } from "@capacitylens/shared/account/types";
 /** @deprecated Prefer the provider-neutral AccountMode outside the identity adapter. */
 export type AuthMode = AccountMode;
 
+/** Identifies the provider brand shown by the sign-in interface. */
 export type AuthProviderBrand = "generic" | "google" | "microsoft";
 
 /** Public, non-secret provider metadata exposed by `/api/auth/me` so the login screen never
@@ -23,6 +24,7 @@ export interface AuthProviderInfo {
   experimental: boolean;
 }
 
+/** Supplies the verified identity fields used to create a credential account. */
 export interface CreateCredentialUserInput {
   email: string;
   name: string;
@@ -127,6 +129,7 @@ export const DEMO_USER: SessionUser = {
   image: null,
 };
 
+/** Default identity and branding applied to a CapacityLens installation. */
 export const DEFAULT_ACCOUNT_APPLICATION: BoundApplication = {
   applicationId: "capacitylens",
   displayName: APP_NAME,

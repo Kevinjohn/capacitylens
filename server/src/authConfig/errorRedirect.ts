@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
 
+/**
+ * Builds the authentication error URL using the configured public origin and callback state.
+ */
 export function createErrorRedirect({
   browserAuthErrorUrl,
   trustedLinkOrigins,

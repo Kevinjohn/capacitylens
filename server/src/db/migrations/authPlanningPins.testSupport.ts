@@ -3,6 +3,9 @@ import { ACCOUNT_MEMBER_RESOURCES_V43_PIN } from "./accountMemberResourcesV43";
 import { INVITATION_PERSON_PROPOSALS_V44_PIN } from "./invitationPersonProposalsV44";
 import { GETTING_STARTED_DISMISSALS_V45_PIN } from "./gettingStartedDismissalsV45";
 
+/**
+ * Pins the migration checksum used by Microsoft proof schema tests.
+ */
 export const MICROSOFT_PROOF_V46_PIN = {
   version: 46,
   name: "add-microsoft-identity-proof",

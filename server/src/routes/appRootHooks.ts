@@ -148,6 +148,7 @@ function installCspReportParser(app: FastifyInstance): void {
         assertUnambiguousJson(source);
         done(null, JSON.parse(source));
       } catch {
+        // Invalid CSP report bytes or JSON are rejected as client input.
         const error = new Error(REPLY_ERRORS.malformedCspReport) as Error & { code: string; statusCode: number };
         error.code = "CAPACITYLENS_MALFORMED_CSP_REPORT";
         error.statusCode = 400;

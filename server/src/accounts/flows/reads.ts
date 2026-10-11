@@ -3,6 +3,9 @@ import type { LocalAccountFlows } from "../createLocalAccountFlows";
 import { resolveDirectorySortName } from "./actorContext";
 import type { LocalAccountFlowContext } from "./context";
 
+/**
+ * Creates the account administration reads that also inspect local identity state.
+ */
 export function createAccountReadFlows(
   context: Pick<LocalAccountFlowContext, "identity" | "administration">,
 ): Pick<LocalAccountFlows, "resolveRequestAccess" | "listMemberDirectory"> {

@@ -117,7 +117,8 @@ describe("can(role, action) — the pure access matrix", () => {
   // member at compile time; this asserts none was dropped, keep this count in step with `Action`.)
   it("iterates exactly the Action union (11 actions, no more, no fewer)", () => {
     expect(ACTIONS.length).toBe(11);
-    expect(new Set(ACTIONS).size).toBe(ACTIONS.length); // no duplicates
+    // No duplicates.
+    expect(new Set(ACTIONS).size).toBe(ACTIONS.length);
   });
 
   it("iterates exactly the Role union (4 roles)", () => {
@@ -230,7 +231,8 @@ describe("canManageMemberRole(actor, target, next) — role-change matrix", () =
   // Oracle rules: actor must hold manageMembers (admin+); neither promoting to nor demoting from
   // Owner is an ordinary role edit. Both go through ownership transfer.
   const oracle = (actor: Role, target: Role, next: Role): boolean => {
-    if (!(actor === "owner" || actor === "admin")) return false; // manageMembers = admin tier
+    // ManageMembers = admin tier.
+    if (!(actor === "owner" || actor === "admin")) return false;
     if (next === "owner" || target === "owner") return false;
     return true;
   };

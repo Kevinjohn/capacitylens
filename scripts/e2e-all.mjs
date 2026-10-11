@@ -1,16 +1,16 @@
-// Full cross-browser E2E run, used by `pnpm run e2e:all`. Runs in THREE sequential Playwright
+// Full cross-browser E2E run, used by `pnpm run e2e:all`. Runs in three sequential Playwright
 // invocations: Chromium plus the DB/auth projects, WebKit/Safari, then Firefox/Gecko. Giving each
 // browser an isolated Vite lifecycle prevents intermittent module-load failures caused by the
 // WebKit project sharing a busy invocation with three independently managed app/API stacks. Every
-// later invocation runs UNCONDITIONALLY even if an earlier one goes red. We deliberately do NOT
+// later invocation runs unconditionally even if an earlier one goes red. We deliberately do not
 // sequence the engines via Playwright project
-// `dependency`: Playwright SKIPS a dependent project when its dependency fails, which would drop
+// `dependency`: Playwright skips a dependent project when its dependency fails, which would drop
 // Firefox results from a full run whenever WebKit had a single failure. The owner wants every
-// engine's results from a full run, always — a red WebKit pass must not hide a Firefox regression.
+// engine's results from a full run, always; a red WebKit pass must not hide a Firefox regression.
 //
-// Exit code is non-zero if ANY invocation failed (so `pnpm run e2e:all` still fails the gate), but
+// Exit code is non-zero if any invocation failed (so `pnpm run e2e:all` still fails the gate), but
 // all three always run to completion first. The Chromium run boots Vite + the SQLite/auth servers;
-// each alternative engine uses its *_ONLY flag and boots one Vite server only — see
+// each alternative engine uses its *_ONLY flag and boots one Vite server only. See
 // playwright.config.ts.
 //
 //   node scripts/e2e-all.mjs   # = pnpm run e2e:all

@@ -3,6 +3,9 @@ import { removePrincipalSessionAssurance, removeSessionAssurance } from "../stat
 import type { IdentityTableProbes } from "./contracts";
 import type { RevokePrincipalSessionsInTxInput } from "./contracts";
 
+/**
+ * Creates session-revocation helpers that first check whether the session table exists.
+ */
 export function createSessionRevocation(tables: Pick<IdentityTableProbes, "sessionTableExists">) {
   const { sessionTableExists } = tables;
   /** Delete a principal's provider sessions and app-owned assurance inside the caller's SQLite

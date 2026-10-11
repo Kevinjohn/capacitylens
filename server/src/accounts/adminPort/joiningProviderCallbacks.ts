@@ -156,6 +156,7 @@ export function createJoiningProviderCallbacks(input: {
         .get(intent.accountId, intent.email);
       return !restricted;
     } catch {
+      // Admission stays closed when the restriction lookup fails.
       return false;
     }
   }

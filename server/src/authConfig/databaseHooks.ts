@@ -169,6 +169,9 @@ function buildSessionDeleteAfter(options: HookOptions): SessionDeleteAfter {
   };
 }
 
+/**
+ * Builds Better Auth hooks that normalize persisted identity fields and reject unapproved external identities.
+ */
 export function buildDatabaseHooks({
   db,
   mode,

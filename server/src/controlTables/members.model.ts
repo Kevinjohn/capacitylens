@@ -32,6 +32,9 @@ export interface AccountMember {
   createdAt: string;
 }
 
+/**
+ * Uses the shared account-role validator for membership rows and request inputs.
+ */
 export const isKnownRole = isAccountRole;
 
 /**

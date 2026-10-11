@@ -447,7 +447,8 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("non-member: account-asserted operations are 403 while row-addressed PATCH conceals as 404", async () => {
     const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
-    const { cookie } = await signUp(app, "stranger@capacitylens.dev"); // No membership upserted
+    // The stranger has no membership, so the authorization check must reject the request.
+    const { cookie } = await signUp(app, "stranger@capacitylens.dev");
 
     expect((await getState(app, "a1", cookie)).statusCode).toBe(403);
     expect((await postClient({ app, accountId: "a1", id: "nc1", cookie })).statusCode).toBe(403);
@@ -467,7 +468,8 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     expect((await getState(app, "a2", cookie)).statusCode).toBe(403);
     expect((await postClient({ app, accountId: "a2", id: "x1", cookie })).statusCode).toBe(403);
     expect((await putClient({ app, accountId: "a2", id: "x2", cookie })).statusCode).toBe(403);
-    expect((await patchClient(app, "c2", cookie)).statusCode).toBe(404); // c2 belongs to a2
+    // The request targets a client in a2, so a member of a1 must not read it.
+    expect((await patchClient(app, "c2", cookie)).statusCode).toBe(404);
     expect((await deleteProject({ app, accountId: "a2", id: "p2", cookie })).statusCode).toBe(403);
     expect((await batchInto({ app, accountId: "a2", id: "x3", cookie })).statusCode).toBe(403);
     expect((await importInto({ app, accountId: "a2", id: "x4", cookie })).statusCode).toBe(403);
@@ -486,8 +488,10 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       url: "/api/batch",
       payload: {
         ops: [
-          { method: "PUT", table: "clients", id: "mixA", row: client("mixA", "a1") }, // allowed alone
-          { method: "PUT", table: "clients", id: "mixB", row: client("mixB", "a2") }, // denied → rejects whole
+          // The first update succeeds on its own, which isolates the cross-account update as the failure.
+          { method: "PUT", table: "clients", id: "mixA", row: client("mixA", "a1") },
+          // The second update crosses accounts, so the server must reject the entire batch.
+          { method: "PUT", table: "clients", id: "mixB", row: client("mixB", "a2") },
         ],
       },
       headers: { cookie },
@@ -708,7 +712,8 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
 describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("generic account create is CLOSED auth-on: POST /api/accounts → 403 directing to /api/orgs", async () => {
     const { app, db } = await appWithAuth({ optimisticConcurrency: false });
-    const { cookie } = await signUp(app, "onboarding@capacitylens.dev"); // no membership → no account yet
+    // The new user has no membership, so account creation must be refused.
+    const { cookie } = await signUp(app, "onboarding@capacitylens.dev");
     const res = await call(app, {
       method: "POST",
       url: "/api/accounts",
@@ -962,8 +967,10 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
     const res = await getState(app, "a1", cookie);
     expect(res.statusCode).toBe(200);
-    expect(readTimeOffRows(res).length).toBe(1); // the row is returned…
-    expect("note" in readFirstTimeOff(res)).toBe(false); // …minus its note key
+    // The time-off row remains visible while its note is redacted.
+    expect(readTimeOffRows(res).length).toBe(1);
+    // The response omits the note key for this caller.
+    expect("note" in readFirstTimeOff(res)).toBe(false);
     expect(readTimeOffNote(res)).toBeUndefined();
     // The clincher: the sentinel was never serialized onto the wire (server-side redaction).
     expect(res.body).not.toContain(SENTINEL_TIMEOFF_NOTE);
@@ -971,9 +978,11 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
   it("OFF mode (trusted-local): scoped read INCLUDES the note", async () => {
     const db = openDb(":memory:");
-    const app = createApp(db, { optimisticConcurrency: false }); // no authMode ⇒ off
+    // Omitting authMode selects the trusted-local mode.
+    const app = createApp(db, { optimisticConcurrency: false });
     seedTwo(db);
-    const res = await getState(app, "a1"); // no cookie needed in off
+    // Trusted-local mode permits this read without a cookie.
+    const res = await getState(app, "a1");
     expect(res.statusCode).toBe(200);
     expect(readTimeOffNote(res)).toBe(SENTINEL_TIMEOFF_NOTE);
     expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE);
@@ -1084,11 +1093,13 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     const res = await call(app, {
       method: "PUT",
       url: "/api/timeOff/to1",
-      payload: stampedTimeOff({ endDate: "2026-02-05" }), // what the editor actually has: note-less
+      // The editor submits the note-less row it previously received.
+      payload: stampedTimeOff({ endDate: "2026-02-05" }),
       headers: { cookie },
     });
     expect(res.statusCode).toBe(200);
-    expect(noteInDb(db)).toBe(SENTINEL); // pinned to the stored value, not NULLed
+    // The server preserves the unreadable stored note when this writer omits it.
+    expect(noteInDb(db)).toBe(SENTINEL);
     // …and the write itself took effect (the pin is surgical, not a rejected write).
     expect((db.prepare(`SELECT endDate FROM timeOff WHERE id = 'to1'`).get() as { endDate: string }).endDate).toBe(
       "2026-02-05",
@@ -1118,12 +1129,15 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     // The conflict path is a read of the stored row: without redaction, an editor could learn a
     // note they can't read simply by sending a stale write. Both write paths must redact it.
     const { app, cookie } = await memberApp("editor", { optimisticConcurrency: true });
-    const stale = stampedTimeOff({ updatedAt: "1999-01-01T00:00:00.000Z" }); // stored TS is strictly newer
+    // The stored timestamp is newer, so this stale update must conflict.
+    const stale = stampedTimeOff({ updatedAt: "1999-01-01T00:00:00.000Z" });
 
     const put = await call(app, { method: "PUT", url: "/api/timeOff/to1", payload: stale, headers: { cookie } });
     expect(put.statusCode).toBe(409);
-    expect(readCurrentObject(put)).toMatchObject({ id: "to1" }); // payload present…
-    expect(put.body).not.toContain(SENTINEL); // …but the note never rides it
+    // The conflict response still includes the current time-off row.
+    expect(readCurrentObject(put)).toMatchObject({ id: "to1" });
+    // Redaction keeps the unreadable note out of the response.
+    expect(put.body).not.toContain(SENTINEL);
 
     const batch = await call(app, {
       method: "POST",
@@ -1145,7 +1159,8 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       headers: { cookie },
     });
     expect(patched.statusCode).toBe(200);
-    expect(noteInDb(db)).toBe(SENTINEL); // the crafted note change did not land
+    // A note-blind caller cannot overwrite a note it cannot read.
+    expect(noteInDb(db)).toBe(SENTINEL);
     // PATCH's merge pulls the stored row (note included) into its echo, redactNoteEcho must strip
     // it for a note-blind patcher, closing the pre-existing merge-echo leak.
     expect(patched.body).not.toContain(SENTINEL);
@@ -1162,7 +1177,8 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       payload: { ...timeOff({ id: "to2", accountId: "a1", resourceId: "r1" }), note: "smuggled onto a create" },
       headers: { cookie },
     });
-    expect(res.statusCode).toBe(201); // the create itself is fine. Nothing existing to preserve
+    // A note-blind caller may create a row because there is no existing note to preserve.
+    expect(res.statusCode).toBe(201);
     expect((db.prepare(`SELECT note FROM timeOff WHERE id = 'to2'`).get() as { note: unknown }).note).toBeNull();
   });
 
@@ -1182,7 +1198,8 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       const cleared = await call(app, {
         method: "PUT",
         url: "/api/timeOff/to1",
-        payload: stampedTimeOff(), // note key absent, a note-visible writer clears it
+        // A note-visible caller can clear the note by omitting its key.
+        payload: stampedTimeOff(),
         headers: { cookie },
       });
       expect(cleared.statusCode).toBe(200);
@@ -1195,7 +1212,8 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
   const { stampedTimeOff, noteInDb } = timeOffWriteFixture();
   it("OFF mode (trusted-local): PUT without the note key still clears it — pre-change behaviour intact", async () => {
     const db = openDb(":memory:");
-    const app = createApp(db, { optimisticConcurrency: false }); // Off ⇒ the writer always "sees" the note
+    // Trusted-local mode lets the writer see the note and clear it by omission.
+    const app = createApp(db, { optimisticConcurrency: false });
     seedTwo(db);
     const res = await call(app, { method: "PUT", url: "/api/timeOff/to1", payload: stampedTimeOff() });
     expect(res.statusCode).toBe(200);
@@ -1213,7 +1231,8 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
   it("non-member: direct DELETE is 403 and generic batch DELETE is 400; a1 survives", async () => {
     const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
-    const { cookie } = await signUp(app, "stranger-del@capacitylens.dev"); // No membership
+    // No membership.
+    const { cookie } = await signUp(app, "stranger-del@capacitylens.dev");
     // A separate admin of a1 so we can read a1 back afterwards (the stranger can't read it).
     const admin = await signUp(app, "a1admin-witness@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: admin.userId, role: "admin", status: "active", createdAt: TS });
@@ -1294,7 +1313,8 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
     const data = {
       ...emptyAppData(),
       resources: [person("r1", accountId)],
-      timeOff: [timeOff({ id: "to1", accountId, resourceId: "r1" })], // no note key
+      // No note key.
+      timeOff: [timeOff({ id: "to1", accountId, resourceId: "r1" })],
     };
     return call(app, { method: "POST", url: "/api/import", payload: { accountId, data }, headers: { cookie } });
   };
@@ -1389,7 +1409,8 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   it("non-member (signed in): PUT / PATCH / batch-PUT updating a1 → 403", async () => {
     const { app, db } = await appWithAuth({ optimisticConcurrency: false });
     seedTwo(db);
-    const { cookie } = await signUp(app, "acct-stranger@capacitylens.dev"); // No membership
+    // No membership.
+    const { cookie } = await signUp(app, "acct-stranger@capacitylens.dev");
     expect((await putAccount(app, "a1", cookie)).statusCode).toBe(403);
     expect((await patchAccount(app, "a1", cookie)).statusCode).toBe(403);
     expect((await batchPutAccount(app, "a1", cookie)).statusCode).toBe(403);
@@ -1431,14 +1452,17 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   // auth-on: it fires ahead of the single-company cap, at zero accounts (the bootstrap case now
   // belongs to /api/orgs too), and regardless of multiAccount. Three cases pin the full behaviour:
   it("(a) zero-account instance, auth-on: a non-member PUT / batch-PUT of the FIRST account → 403 → /api/orgs (bootstrap moved there)", async () => {
-    const put = await appWithAuth({ optimisticConcurrency: false }); // fresh db, zero accounts
-    const { cookie: putCookie } = await signUp(put.app, "acct-onboard-put@capacitylens.dev"); // no membership
+    // Fresh db, zero accounts.
+    const put = await appWithAuth({ optimisticConcurrency: false });
+    // No membership.
+    const { cookie: putCookie } = await signUp(put.app, "acct-onboard-put@capacitylens.dev");
     const putRes = await putAccount(put.app, "brandNew1", putCookie);
     expect(putRes.statusCode).toBe(403);
     expect(readErrorMessage(putRes)).toContain("/api/orgs");
     expect((put.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
 
-    const batch = await appWithAuth({ optimisticConcurrency: false }); // separate fresh instance, also zero accounts
+    // Separate fresh instance, also zero accounts.
+    const batch = await appWithAuth({ optimisticConcurrency: false });
     const { cookie: batchCookie } = await signUp(batch.app, "acct-onboard-batch@capacitylens.dev");
     const batchRes = await batchPutAccount(batch.app, "brandNew2", batchCookie);
     expect(batchRes.statusCode).toBe(403);
@@ -1447,9 +1471,12 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   });
 
   it("(b) instance with ≥1 account, default opts: a non-member PUT / batch-PUT of a NEW account → 403 → /api/orgs (the auth-on closure outranks the cap message)", async () => {
-    const { app, db } = await appWithAuth({ optimisticConcurrency: false }); // multiAccount defaults to false
-    seedTwo(db); // a1 + a2 already exist
-    const { cookie } = await signUp(app, "acct-onboard-cap@capacitylens.dev"); // no membership
+    // MultiAccount defaults to false.
+    const { app, db } = await appWithAuth({ optimisticConcurrency: false });
+    // A1 + a2 already exist.
+    seedTwo(db);
+    // No membership.
+    const { cookie } = await signUp(app, "acct-onboard-cap@capacitylens.dev");
 
     const put = await putAccount(app, "brandNew3", cookie);
     expect(put.statusCode).toBe(403);
@@ -1467,7 +1494,8 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   it("(c) multiAccount: true does NOT reopen the generic vectors auth-on — creation still goes through /api/orgs", async () => {
     const { app, db } = await appWithAuth({ multiAccount: true, optimisticConcurrency: false });
     seedTwo(db);
-    const { cookie } = await signUp(app, "acct-onboard-multi@capacitylens.dev"); // no membership
+    // No membership.
+    const { cookie } = await signUp(app, "acct-onboard-multi@capacitylens.dev");
     expect((await putAccount(app, "brandNew5", cookie)).statusCode).toBe(403);
     expect((await batchPutAccount(app, "brandNew6", cookie)).statusCode).toBe(403);
     expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id LIKE 'brandNew%'`).get() as { n: number }).n).toBe(
@@ -1477,7 +1505,8 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 
   it("OFF mode: account update (PUT/PATCH/batch) is allow-all (no cookie, no membership)", async () => {
     const db = openDb(":memory:");
-    const app = createApp(db, { optimisticConcurrency: false }); // Off
+    // Off.
+    const app = createApp(db, { optimisticConcurrency: false });
     seedTwo(db);
     expect((await putAccount(app, "a1")).statusCode).toBe(200);
     expect((await patchAccount(app, "a1")).statusCode).toBe(200);

@@ -8,18 +8,30 @@ const activeTransactionModes = new WeakMap<Db, "deferred" | "immediate">();
 const poisonedHandles = new WeakSet<Db>();
 const taintedTransactions = new WeakMap<Db, unknown>();
 
+/**
+ * Rejects transaction callbacks whose return type can be promise-like.
+ */
 export type SynchronousCallback<Fn extends () => unknown> = Fn &
   ([Extract<ReturnType<Fn>, PromiseLike<unknown>>] extends [never] ? unknown : never);
 
+/**
+ * Carries the transaction scope and error when rollback fails.
+ */
 export interface RollbackFailure {
   scope: "transaction" | "savepoint";
   error: unknown;
 }
 
+/**
+ * Receives a rollback failure for structured reporting.
+ */
 export type RollbackFailureReporter = (failure: RollbackFailure) => void;
 
 type TransactionMode = "deferred" | "immediate";
 
+/**
+ * Selects the transaction mode and the reporter used if rollback fails.
+ */
 export interface TransactionOptions {
   mode?: TransactionMode;
   reportRollbackFailure?: RollbackFailureReporter;

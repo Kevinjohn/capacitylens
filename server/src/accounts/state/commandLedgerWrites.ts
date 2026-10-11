@@ -57,6 +57,9 @@ export function readAccountCommandAndFlagStalePending({
   return record ? transitionStalePending(db, record, now) : null;
 }
 
+/**
+ * Distinguishes a newly reserved command from an existing replay or conflict.
+ */
 export type ReserveAccountCommandResult =
   | { kind: "reserved"; record: AccountCommandRecord }
   | { kind: "existing"; record: AccountCommandRecord }
@@ -120,6 +123,9 @@ function insertAccountCommand(db: Db, input: ReserveAccountCommandInput, now: st
   return getRequiredAccountCommand(db, input);
 }
 
+/**
+ * Writes the command result and status in the transaction that owns the operation.
+ */
 export function reserveAccountCommand(
   db: Db,
   input: {
@@ -216,6 +222,9 @@ export function correlatePendingAccountCommand(
   }
 }
 
+/**
+ * Changes the command only while its stored status is pending.
+ */
 export function finishAccountCommandIfPending(db: Db, input: Parameters<typeof finishAccountCommand>[1]): boolean {
   const row = getAccountCommand({
     db,
@@ -228,6 +237,9 @@ export function finishAccountCommandIfPending(db: Db, input: Parameters<typeof f
   return true;
 }
 
+/**
+ * Deletes command history for the workspace in the caller-owned transaction.
+ */
 export function eraseWorkspaceCommandHistoryInTx(db: Db, workspaceId: WorkspaceId, exceptCommandId?: CommandId): void {
   // Closed successful/compensated rows are disposable history. Pending and repair-required rows
   // are live coordination state: deleting either can strand an external side effect and erase its
@@ -312,6 +324,9 @@ export function closeAccountCommandReconciliation({
   return result.changes === 1;
 }
 
+/**
+ * Closes the reconciliation record and updates its command status atomically.
+ */
 export function finishAccountCommand(
   db: Db,
   input: {

@@ -52,13 +52,16 @@ describe("createShutdownHandler", () => {
       exit: (code) => void order.push(`exit ${code}`),
     });
     const first = handler();
-    await handler(0, "signal:SIGTERM"); // second signal arrives mid-drain
-    expect(order).toEqual(["exit 1"]); // forced out; db.close must not have run yet
+    // Second signal arrives mid-drain.
+    await handler(0, "signal:SIGTERM");
+    // Forced out; db.close must not have run yet.
+    expect(order).toEqual(["exit 1"]);
     expect(error).toHaveBeenCalledWith(
       "capacitylens-server: shutdown re-entered during drain (reason=signal:SIGTERM); forcing exit",
     );
     releaseDrain();
-    await first; // (a real exit(1) would have terminated; the fake lets the drain finish)
+    // (a real exit(1) would have terminated; the fake lets the drain finish).
+    await first;
     expect(order).toEqual(["exit 1", "app.close", "db.close", "exit 0"]);
     error.mockRestore();
   });

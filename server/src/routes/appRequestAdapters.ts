@@ -17,6 +17,7 @@ export function toWebHeaders(raw: FastifyRequest["headers"]): Headers {
   return headers;
 }
 
+/** Maps a validated application session to the user shape exposed on requests. */
 export function buildSessionUser(session: ApplicationSession): SessionUser {
   return {
     id: session.principal.id,
@@ -28,6 +29,7 @@ export function buildSessionUser(session: ApplicationSession): SessionUser {
   };
 }
 
+/** Returns a command identity only when both replay headers pass validation. */
 export function parseReplayAccountCommand(req: FastifyRequest): CommandIdentity | null {
   const idempotencyKey = req.headers["idempotency-key"];
   const commandId = req.headers["x-account-command-id"];
@@ -36,6 +38,7 @@ export function parseReplayAccountCommand(req: FastifyRequest): CommandIdentity 
     : null;
 }
 
+/** Parses paired command headers or creates identifiers for a compatibility request. */
 export function createAccountCommand(req: FastifyRequest): CommandIdentity {
   const rawIdempotency = req.headers["idempotency-key"];
   const rawCommand = req.headers["x-account-command-id"];

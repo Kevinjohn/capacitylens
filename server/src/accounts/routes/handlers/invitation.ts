@@ -36,6 +36,9 @@ type InvitationRouteContext = Pick<
   | "validationFailed"
 >;
 
+/**
+ * Creates an invitation after the handler has established the caller’s account authority.
+ */
 export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: InvitationRouteContext) {
   const {
     authMode,
@@ -103,6 +106,9 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   }
 }
 
+/**
+ * Returns the invitation details that are safe to show before redemption.
+ */
 export async function previewInvitation(
   req: FastifyRequest<InvitationTokenRoute>,
   reply: FastifyReply,
@@ -135,6 +141,9 @@ function permitsInvitationProvider(req: FastifyRequest, context: InvitationRoute
   );
 }
 
+/**
+ * Redeems the invitation for the authenticated principal.
+ */
 export async function acceptInvitation(
   req: FastifyRequest<InvitationTokenRoute>,
   reply: FastifyReply,
@@ -199,6 +208,9 @@ export async function acceptInvitation(
   }
 }
 
+/**
+ * Creates the invited principal and redeems the invitation during signup.
+ */
 export async function signupInvitation(
   req: FastifyRequest<InvitationTokenRoute>,
   reply: FastifyReply,
@@ -238,6 +250,9 @@ export async function signupInvitation(
   }
 }
 
+/**
+ * Lists the invitations visible to the authorized account administrator.
+ */
 export async function listInvitations(
   req: FastifyRequest<AccountRoute>,
   reply: FastifyReply,
@@ -272,6 +287,9 @@ export async function listInvitations(
   }
 }
 
+/**
+ * Revokes an invitation that is still managed by the authorized account.
+ */
 export async function revokeInvitation(
   req: FastifyRequest<InvitationRoute>,
   reply: FastifyReply,

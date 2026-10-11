@@ -2,6 +2,9 @@ import type { MicrosoftProofIntent } from "./microsoftProofPrimitives";
 import { hashProofValue, MicrosoftProofError } from "./microsoftProofPrimitives";
 import type { Db } from "../db";
 
+/**
+ * Reports whether a stored callback intent has an invalid state or cookie binding.
+ */
 export function invalidStoredCallback(
   stored: Pick<MicrosoftProofIntent, "id" | "state" | "expiresAt">,
   current: MicrosoftProofIntent | null,
@@ -9,6 +12,9 @@ export function invalidStoredCallback(
   return !current || stored.id !== current.id || stored.state === "cancelled" || stored.expiresAt <= Date.now();
 }
 
+/**
+ * Reports whether the callback state hash differs from the current proof intent.
+ */
 export function invalidCurrentCallback(current: MicrosoftProofIntent, stateHash: string): boolean {
   return (
     current.state !== "completed" &&
@@ -18,6 +24,9 @@ export function invalidCurrentCallback(current: MicrosoftProofIntent, stateHash:
   );
 }
 
+/**
+ * Creates callback-state readers that bind the proof intent to the request cookie.
+ */
 export function createMicrosoftCallbackState(db: Db, fromHeaders: (headers: Headers) => MicrosoftProofIntent | null) {
   function store(intentId: string, authorizationUrl: string): void {
     const state = new URL(authorizationUrl).searchParams.get("state");

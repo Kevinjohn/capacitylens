@@ -35,6 +35,7 @@ declare module "fastify" {
 
 export { DEFAULT_CORS } from "./routes/appConfig";
 
+/** Configures the server application and its optional integration seams. */
 export interface AppOptions {
   /** Stable identity and display branding for this product installation's account boundary. */
   application?: BoundApplication;
@@ -152,6 +153,7 @@ export interface AppOptions {
   webDir?: string;
 }
 
+/** Creates the Fastify application with server routes and injected dependencies. */
 export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
   const config = resolveAppConfig(options);
   const runtime = createAppRuntime(db, config, options);

@@ -8,6 +8,9 @@ import { parsePort } from "./parsePort.mjs";
 import { ports } from "./ports.mjs";
 
 const DEFAULT_DIST = join(process.cwd(), "dist");
+/**
+ * Timeout in milliseconds for upstream API requests in the rehearsal server.
+ */
 export const REHEARSAL_UPSTREAM_TIMEOUT_MS = 130_000;
 
 const MIME = {
@@ -25,6 +28,9 @@ const FILE_LIKE_PATH = /\.(?:css|js|mjs|json|map|svg|png|jpe?g|gif|webp|ico|woff
 
 const missing = (error) => error && typeof error === "object" && error.code === "ENOENT";
 
+/**
+ * Creates a handler that serves the built app and proxies API requests.
+ */
 export function createRehearsalRequestHandler({
   dist = DEFAULT_DIST,
   apiPort = ports().dbApi,

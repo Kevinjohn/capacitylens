@@ -215,7 +215,8 @@ describe("rollback-failure quarantine", () => {
   it("does NOT quarantine when the rollback succeeded or ended the transaction", () => {
     const original = new Error("operation failed");
     const db = {
-      isTransaction: false, // ROLLBACK failure but transaction already ended underneath us
+      // ROLLBACK failure but transaction already ended underneath us.
+      isTransaction: false,
       exec: vi.fn((sql: string) => {
         if (sql === "ROLLBACK") throw new Error("rollback failed but txn is gone");
       }),
@@ -226,7 +227,8 @@ describe("rollback-failure quarantine", () => {
         throw original;
       }),
     ).toThrow(original);
-    expect(tx(db, () => "ok")).toBe("ok"); // still usable
+    // Still usable.
+    expect(tx(db, () => "ok")).toBe("ok");
   });
 });
 

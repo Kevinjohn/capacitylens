@@ -59,6 +59,10 @@ function createCompensationMethods() {
   return { createCompensationHandle, assertCompensationHandle };
 }
 
+/**
+ * Binds Better Auth identity operations to one installation so cutover handles cannot cross
+ * instances.
+ */
 export function createBetterAuthIdentityPort(input: IdentityPortInput): SsoCutoverIdentityPort {
   // Handles are valid only for this port instance; inject both operations with this same key.
   const compensation = createCompensationMethods();

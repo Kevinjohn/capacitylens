@@ -7,6 +7,9 @@ import type { MicrosoftProof } from "./microsoftProof";
 type Env = Record<string, string | undefined>;
 type AuthConfigErrorConstructor = typeof AuthConfigError;
 
+/**
+ * Returns the provider IDs configured as company sign-in options.
+ */
 export function companyProviderIds(providers: readonly AuthProviderInfo[]): ReadonlySet<string> {
   return new Set(providers.filter((provider) => !provider.experimental).map((provider) => provider.id));
 }
@@ -28,6 +31,9 @@ function configuredProviderInfo(environment: Env): AuthProviderInfo[] {
   return providers;
 }
 
+/**
+ * Builds Better Auth provider settings from the configured company identity providers.
+ */
 export function buildProviders({
   env,
   enabled = true,

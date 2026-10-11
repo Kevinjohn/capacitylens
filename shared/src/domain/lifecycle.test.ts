@@ -43,7 +43,8 @@ describe("lifecycle vocabulary", () => {
     expect(isLifecycleEntityKey("allocations")).toBe(false);
   });
 });
-const NOW = "2026-06-01T00:00:00.000Z"; // an arbitrary "now" used for archive/softDelete timestamps
+// An arbitrary "now" used for archive/softDelete timestamps.
+const NOW = "2026-06-01T00:00:00.000Z";
 
 const DAY_MS = 86_400_000;
 
@@ -203,7 +204,8 @@ describe("softDelete — archived → deleted (preserves archivedAt, immutable, 
     const input = makeArchived();
     const result = softDelete(input, NOW);
     expect(result.deletedAt).toBe(NOW);
-    expect(result.archivedAt).toBe(T_ARCH); // tombstone retains when it was archived
+    // Tombstone retains when it was archived.
+    expect(result.archivedAt).toBe(T_ARCH);
     expect(lifecycleStatus(result)).toBe("deleted");
     expect(result.id).toBe("r1");
   });
@@ -370,9 +372,11 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     const input = makeResource();
     const snapshot = structuredClone(input);
     const result = obfuscateResource(input);
-    expect(input).toEqual(snapshot); // input deep-unchanged (name still 'Ada Lovelace')
+    // Input deep-unchanged (name still 'Ada Lovelace').
+    expect(input).toEqual(snapshot);
     expect(input.name).toBe("Ada Lovelace");
-    expect(result).not.toBe(input); // different object
+    // Different object.
+    expect(result).not.toBe(input);
   });
 
   it("is DETERMINISTIC: same id ⇒ identical token across two calls", () => {
@@ -403,7 +407,8 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     const result = obfuscateResource(nameless);
     expect(result.name).toBeDefined();
     expect(result.name?.startsWith("Removed person #")).toBe(true);
-    expect(result.name).not.toBe("Removed person #"); // a real tag, not bare
+    // A real tag, not bare.
+    expect(result.name).not.toBe("Removed person #");
   });
 
   it("handles an EXTERNAL resource: the COMPANY name is gone, replaced by the token", () => {
@@ -772,11 +777,13 @@ const registerActiveOnlyTest7 = (): void => {
     const input = makeActiveOnlyData();
     const snapshot = structuredClone(input);
     const out = activeOnly(input);
-    expect(input).toEqual(snapshot); // input deep-unchanged. Every archived/deleted row still present
+    // Input deep-unchanged. Every archived/deleted row still present.
+    expect(input).toEqual(snapshot);
     expect(input.resources).toHaveLength(3);
     expect(input.clients).toHaveLength(3);
     expect(input.projects).toHaveLength(4);
-    expect(out).not.toBe(input); // a fresh AppData reference
+    // A fresh AppData reference.
+    expect(out).not.toBe(input);
   });
 };
 

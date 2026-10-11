@@ -7,6 +7,9 @@ interface BindFederatedProviderInput {
   providerId: string;
 }
 
+/**
+ * Creates an installation-scoped issuer/provider binding and rejects either side being rebound.
+ */
 export function bindFederatedProvider({ db, applicationId, issuer, providerId }: BindFederatedProviderInput): void {
   const byIssuer = db
     .prepare(
@@ -41,6 +44,9 @@ export function bindFederatedProvider({ db, applicationId, issuer, providerId }:
   ).run(applicationId, issuer, providerId, new Date().toISOString());
 }
 
+/**
+ * Returns the provider ID already bound to this installation and issuer, if present.
+ */
 export function getProviderIdForIssuer(db: Db, applicationId: string, issuer: string): string | null {
   const row = db
     .prepare(

@@ -10,6 +10,7 @@ function isIgnored(path: string): boolean {
     });
     return true;
   } catch {
+    // If Git cannot classify the path, keep the repository-policy check applicable.
     return false;
   }
 }

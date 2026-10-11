@@ -11,6 +11,9 @@ const providerLinkFailureStatuses = new Map([
   ["MICROSOFT_PROOF_REQUIRED", 400],
 ]);
 
+/**
+ * Converts a provider-link response body into the typed error consumed by the route.
+ */
 export function providerLinkBodyError(body: {
   callbackURL?: unknown;
   errorCallbackURL?: unknown;
@@ -23,6 +26,9 @@ export function providerLinkBodyError(body: {
   return null;
 }
 
+/**
+ * Sends the failure through the request boundary so callers receive the standard response shape.
+ */
 export function sendProviderLinkFailure(req: FastifyRequest, reply: FastifyReply, error: unknown) {
   if (error instanceof MicrosoftProofError)
     return reply.code(error.status).send({ error: error.code, code: error.code });

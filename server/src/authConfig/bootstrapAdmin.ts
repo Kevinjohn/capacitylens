@@ -149,6 +149,7 @@ function isMigrationTableList(value: unknown): value is Array<{ table: string }>
 
 /** Stable identity for the optional bootstrap owner. Its password is supplied by the operator. */
 const BOOTSTRAP_ADMIN_NAME = "admin";
+/** Stable email address for the optional operator-created bootstrap owner. */
 export const BOOTSTRAP_ADMIN_EMAIL = "admin@admin.admin";
 
 type BootstrapLog = (line: string) => void;
@@ -268,7 +269,7 @@ async function createBootstrapAdminResult(
   return { kind: "created" };
 }
 
-// Bind facade-owned policy without importing the facade at runtime.
+/** Binds bootstrap behavior to facade-owned policy without a runtime import cycle. */
 export function createBootstrapAdminFactory(dependencies: BootstrapAdminDependencies) {
   /**
    * Create the bootstrap owner account when, and only

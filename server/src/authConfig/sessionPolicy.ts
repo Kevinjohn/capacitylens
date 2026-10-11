@@ -27,7 +27,8 @@ export function buildSessionPolicy({
   "database" | "secret" | "baseURL" | "basePath" | "verification" | "account" | "advanced" | "session" | "telemetry"
 > {
   return {
-    database: db, // node:sqlite DatabaseSync, same file as the app data (see header)
+    // Keep Better Auth tables in the app database so account and session writes share one SQLite file.
+    database: db,
     secret,
     baseURL,
     basePath: "/api/auth",

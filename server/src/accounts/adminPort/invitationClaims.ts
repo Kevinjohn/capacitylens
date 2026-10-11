@@ -24,6 +24,9 @@ import type { SsoCutoverAccountAdminPort } from "./contracts";
 import { assertRedeemableInvitationRole, createAccountFailure } from "./failures";
 import { readMembership } from "./mappers";
 
+/**
+ * Returns a SHA-256 digest scoped to invitation command tokens.
+ */
 export function createHashForToken(token: string): string {
   return createHash("sha256").update("account-command-invite\0").update(token).digest("hex");
 }
@@ -216,6 +219,9 @@ async function claimInvitationForPrincipal(context: InvitationClaimContext, inpu
   });
 }
 
+/**
+ * Creates invitation claim operations using the supplied membership and policy lookups.
+ */
 export function createInvitationClaims(
   context: InvitationClaimContext,
 ): Pick<SsoCutoverAccountAdminPort, "acceptInvitation" | "claimInvitationForPrincipal"> {

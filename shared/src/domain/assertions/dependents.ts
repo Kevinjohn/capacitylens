@@ -105,6 +105,10 @@ function assertResourceKindAllowsDependentsWithOptions({
   }
 }
 
+/**
+ * Prevents a resource kind change from invalidating allocations or time-off records that
+ * reference it.
+ */
 const assertResourceKindAllowsDependents = function assertResourceKindAllowsDependents(
   ...[data, accountId, resourceId, mergedKind, lookup]: [
     data: AppData,
@@ -156,6 +160,9 @@ function assertResourceProjectAllowsDependentsWithOptions({
   });
 }
 
+/**
+ * Keeps a resource within its project while allocations and time-off records depend on it.
+ */
 const assertResourceProjectAllowsDependents = function assertResourceProjectAllowsDependents(
   ...[data, accountId, resourceId, merged, existing, lookup]: [
     data: AppData,
@@ -256,6 +263,9 @@ function assertActivityProjectAllowsDependentsWithOptions({
   });
 }
 
+/**
+ * Keeps an activity within its project while allocations and tasks depend on that relationship.
+ */
 const assertActivityProjectAllowsDependents = function assertActivityProjectAllowsDependents(
   ...[data, accountId, activityId, merged, existing, lookup]: [
     data: AppData,
@@ -314,6 +324,9 @@ function assertResourceExistsWithOptions({
   }
 }
 
+/**
+ * Prevents a dependent record from referencing a resource outside the active account.
+ */
 const assertResourceExists = function assertResourceExists(
   ...[data, accountId, resourceId, existing, lookup]: [
     data: AppData,

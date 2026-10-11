@@ -480,7 +480,8 @@ function registerBootstrapLifecycleTests(): void {
     const lines: string[] = [];
     expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe("skipped");
     expect(lines).toEqual(["capacitylens-server: --create-owner-admin-admin skipped: users already exist"]);
-    expect(countUsers(db)).toBe(1); // no second account, no throw
+    // No second account, no throw.
+    expect(countUsers(db)).toBe(1);
   });
 
   it("fails startup recoverably while another first-owner flow holds the claim, then succeeds after release", async () => {

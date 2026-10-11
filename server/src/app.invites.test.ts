@@ -423,7 +423,8 @@ function registerInviteAuthorizationTests(): void {
   it("a non-member (cross-tenant stranger) is DENIED -> 403", async () => {
     const { app, db } = await appWithAuth({ fixtures });
     seedOne(db);
-    const { cookie } = await signUp(app, "stranger@capacitylens.dev"); // no membership of a1
+    // No membership of a1.
+    const { cookie } = await signUp(app, "stranger@capacitylens.dev");
 
     const res = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie });
     expect(res.statusCode).toBe(403);
@@ -585,7 +586,8 @@ function registerInviteConsumptionTests(): void {
 
     // User B (no prior membership) accepts.
     const b = await signUp(app, "joiner@capacitylens.dev");
-    expect(getMemberRole(db, "a1", b.userId)).toBeNull(); // not yet a member
+    // Not yet a member.
+    expect(getMemberRole(db, "a1", b.userId)).toBeNull();
     const res = await acceptReq(app, token, { cookie: b.cookie });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ accountId: "a1", role: "editor" });
@@ -663,7 +665,8 @@ function registerInviteExpiryTests(): void {
     const res = await acceptReq(app, "expired-token-xyz", { cookie: b.cookie });
     expect(res.statusCode).toBe(410);
     expect(getMemberRole(db, "a1", b.userId)).toBeNull();
-    expect(readInvite(db, "expired-token-xyz").usedAt).toBeNull(); // not consumed
+    // Not consumed.
+    expect(readInvite(db, "expired-token-xyz").usedAt).toBeNull();
   });
 }
 
@@ -882,14 +885,16 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
 describe("invites — OFF mode (trusted-local)", () => {
   it("create + accept work and bind the DEMO_USER membership", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db); // authMode defaults to 'off'
+    // AuthMode defaults to 'off'.
+    const app = buildApp(db);
     seedOne(db);
 
     const created = await createInviteReq(app, {
       accountId: "a1",
       role: "editor",
     });
-    expect(created.statusCode).toBe(201); // Off = allow-all, minted as DEMO_USER's act
+    // Off = allow-all, minted as DEMO_USER's act.
+    expect(created.statusCode).toBe(201);
     const token = readResponseString(created, "token");
 
     const res = await acceptReq(app, token);
@@ -923,7 +928,8 @@ function registerVerifiedPreauthMatchTest(): void {
   it("preauth + verified + EXACT (normalized) match → true (case/whitespace folded by store-time normalize)", () => {
     // preauthEmail is stored already normalized; the user email is normalized inside the helper, so a
     // differently-cased / padded live email still matches the normalized stored value.
-    const stored = normalizeEmail("Carol@Example.com"); // = 'carol@example.com'
+    // = 'carol@example.com'.
+    const stored = normalizeEmail("Carol@Example.com");
     expect(
       preauthInviteAllows({
         preauthEmail: stored,
@@ -1003,8 +1009,10 @@ function registerNormalizedPreauthCreationTest(): void {
     expect(res.statusCode).toBe(201);
     const body = readResponseObject(res);
     const token = readString(body.token, "response body.token");
-    expect(body.preauthEmail).toBe("friend@example.com"); // echoed normalized
-    expect(readInvite(db, token).preauthEmail).toBe("friend@example.com"); // stored normalized
+    // Echoed normalized.
+    expect(body.preauthEmail).toBe("friend@example.com");
+    // Stored normalized.
+    expect(readInvite(db, token).preauthEmail).toBe("friend@example.com");
   });
 }
 
@@ -1218,8 +1226,10 @@ function registerPreauthRefusalTests(): void {
     verifyUserEmail(db, "wrong@capacitylens.dev");
     const res = await acceptReq(app, token, { cookie: b.cookie });
     expect(res.statusCode).toBe(403);
-    expect(getMemberRole(db, "a1", b.userId)).toBeNull(); // no bind
-    expect(readInvite(db, token).usedAt).toBeNull(); // Not consumed, still live for the right caller
+    // No bind.
+    expect(getMemberRole(db, "a1", b.userId)).toBeNull();
+    // Not consumed, still live for the right caller.
+    expect(readInvite(db, token).usedAt).toBeNull();
   });
 }
 
@@ -1286,7 +1296,8 @@ function registerVerifiedPreauthAcceptanceTest(): void {
 function registerOffModePreauthAcceptanceTest(): void {
   it("OFF mode skips the preauth check — a preauth invite binds DEMO_USER (trusted-local)", async () => {
     const db = openDb(":memory:");
-    const app = buildApp(db); // authMode defaults to 'off'
+    // AuthMode defaults to 'off'.
+    const app = buildApp(db);
     seedOne(db);
 
     // Even a preauth invite for an unrelated email binds DEMO_USER in off (the gate is skipped).
@@ -1346,7 +1357,8 @@ describe("invites are excluded from the AppData path", () => {
     expect([404, 405]).toContain(get.statusCode);
     const post = await app.inject({
       method: "POST",
-      url: "/api/account_members", // a control table proper -> generic CRUD refuses it
+      // A control table proper -> generic CRUD refuses it.
+      url: "/api/account_members",
       payload: {
         accountId: "a",
         userId: "u",

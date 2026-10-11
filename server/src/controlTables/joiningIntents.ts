@@ -1,7 +1,13 @@
 import type { Db } from "../db";
 import { AccountContractError, assertRetryAfterSeconds } from "@capacitylens/shared/account/errors";
 
+/**
+ * Names the persisted states in a company-joining verification ceremony.
+ */
 export type JoinIntentState = "started" | "mail-sent" | "approved" | "completed" | "cancelled";
+/**
+ * Stores the proof, rate-limit, provider, and lifecycle data for one company-joining ceremony.
+ */
 export interface JoinIntent {
   id: string;
   nonceHash: string;
@@ -36,6 +42,9 @@ function limited(): never {
   });
 }
 
+/**
+ * Returns the joining intent identified by its nonce digest, if present.
+ */
 export function readJoinIntent(db: Db, nonceHash: string): JoinIntent | null {
   return (
     (db.prepare("SELECT * FROM company_join_intents WHERE nonceHash = ?").get(nonceHash) as JoinIntent | undefined) ??
@@ -43,6 +52,9 @@ export function readJoinIntent(db: Db, nonceHash: string): JoinIntent | null {
   );
 }
 
+/**
+ * Deletes expired rate-limit history so old joining intents no longer count toward quotas.
+ */
 export function pruneJoinIntents(db: Db, now: number): void {
   db.prepare("DELETE FROM company_join_intents WHERE COALESCE(lastSentAt, createdAt) < ?").run(now - RATE_WINDOW_MS);
 }
@@ -66,6 +78,9 @@ function assertSendQuota(db: Db, intent: JoinIntent, now: number): void {
   if (global.count >= 300) limited();
 }
 
+/**
+ * Persists a newly created company-joining intent.
+ */
 export function insertJoinIntent(db: Db, intent: JoinIntent): void {
   db.prepare(
     `INSERT INTO company_join_intents
@@ -119,6 +134,9 @@ export function reserveJoinDelivery(input: { db: Db; intent: JoinIntent; tokenHa
   return generation;
 }
 
+/**
+ * Clears a failed delivery only when its generation and token still match the reserved attempt.
+ */
 export function clearFailedJoinDelivery(input: { db: Db; id: string; generation: number; tokenHash: string }): void {
   const { db, id, generation, tokenHash } = input;
   db.prepare(
@@ -127,6 +145,9 @@ export function clearFailedJoinDelivery(input: { db: Db; id: string; generation:
   ).run(id, generation, tokenHash);
 }
 
+/**
+ * Approves an unexpired mail-sent intent only when its token digest matches.
+ */
 export function approveJoinToken(input: {
   db: Db;
   nonceHash: string;
@@ -145,6 +166,9 @@ export function approveJoinToken(input: {
   return changed.changes === 1 ? { ...row, state: "approved", tokenHash: null, updatedAt: now } : null;
 }
 
+/**
+ * Marks an approved intent complete for the admitted principal.
+ */
 export function completeJoinIntent(input: { db: Db; intent: JoinIntent; principalId: string; now: number }): void {
   const { db, intent, principalId, now } = input;
   const changed = db
@@ -157,6 +181,9 @@ export function completeJoinIntent(input: { db: Db; intent: JoinIntent; principa
   if (changed.changes !== 1) throw new Error("Company joining intent changed before admission.");
 }
 
+/**
+ * Cancels an in-progress intent and clears its verification token.
+ */
 export function cancelJoinIntent(db: Db, nonceHash: string, now: number): void {
   db.prepare(
     `UPDATE company_join_intents SET state = 'cancelled', tokenHash = NULL, updatedAt = ?
@@ -164,6 +191,9 @@ export function cancelJoinIntent(db: Db, nonceHash: string, now: number): void {
   ).run(now, nonceHash);
 }
 
+/**
+ * Deletes all company-joining intents belonging to the account.
+ */
 export function removeJoinIntentsForAccount(db: Db, accountId: string): void {
   db.prepare("DELETE FROM company_join_intents WHERE accountId = ?").run(accountId);
 }

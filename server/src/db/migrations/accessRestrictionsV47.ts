@@ -1,5 +1,8 @@
 import { defineMigration } from "../migrationLedger";
 
+/**
+ * Creates the account-scoped access restriction table and its email lookup index.
+ */
 export const ACCESS_RESTRICTIONS_V47_SQL = `
 CREATE TABLE account_access_restrictions (
   accountId TEXT NOT NULL,
@@ -12,6 +15,9 @@ CREATE TABLE account_access_restrictions (
 CREATE INDEX idx_access_restrictions_email ON account_access_restrictions(accountId, verifiedEmail);
 `;
 
+/**
+ * Adds the version 47 migration that creates account access restrictions.
+ */
 export const ACCESS_RESTRICTIONS_V47_MIGRATION = defineMigration(
   47,
   "separate-company-access-restrictions",

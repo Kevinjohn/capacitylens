@@ -145,6 +145,9 @@ function createCutoverAdministration(
   };
 }
 
+/**
+ * Creates provider cutover operations for the configured account store and trust mode.
+ */
 export function createCutover(
   context: Pick<AdminPortContext, "db" | "trustedLocal">,
 ): Pick<

@@ -55,7 +55,8 @@ const invitesReq = (app: FastifyInstance, accountId: string, headers: Record<str
 describe("member endpoints — OFF mode (trusted-local)", () => {
   it("GET members / invites return empty; mutate routes report the unavailable capability", async () => {
     const db = openDb(":memory:");
-    const app = createApp(db); // authMode defaults to 'off'
+    // AuthMode defaults to 'off'.
+    const app = createApp(db);
     seedTwo(db);
     const unavailable = {
       error: "Member management is unavailable in trusted-local mode.",
@@ -92,7 +93,8 @@ describe("member endpoints — OFF mode (trusted-local)", () => {
     });
     expect(transfer.statusCode).toBe(400);
     expect(transfer.json()).toEqual(unavailable);
-    expect(getMemberRole(db, "a1", "somebody-else")).toBeNull(); // no phantom member minted
+    // No phantom member minted.
+    expect(getMemberRole(db, "a1", "somebody-else")).toBeNull();
     expect(getMemberRole(db, "a1", "demo")).toBe("owner");
   });
 });

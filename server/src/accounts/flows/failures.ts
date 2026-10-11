@@ -8,6 +8,9 @@ function authorityDenialMessage(reason: string, action: "issue-password-reset" |
   return "You lack session-revocation authority for this identity.";
 }
 
+/**
+ * Creates the typed error used to deny an identity administration command.
+ */
 export function createAuthorityDenial(
   reason: string,
   action: "issue-password-reset" | "revoke-sessions",
@@ -21,6 +24,9 @@ export function createAuthorityDenial(
   });
 }
 
+/**
+ * Creates the error returned when account authority changes during a command.
+ */
 export function createAuthorityChangedError(commandId: string): AccountContractError {
   return new AccountContractError({
     code: "AUTHORITY_CHANGED",
@@ -30,6 +36,9 @@ export function createAuthorityChangedError(commandId: string): AccountContractE
   });
 }
 
+/**
+ * Recognizes the typed error used for an identity administration denial.
+ */
 export function isAuthorityDenial(error: unknown): boolean {
   return (
     error instanceof AccountContractError &&
@@ -37,6 +46,9 @@ export function isAuthorityDenial(error: unknown): boolean {
   );
 }
 
+/**
+ * Creates the retryable error returned when command replay capacity is exhausted.
+ */
 export function createReplayCapacityError(commandId: string, retryAfterMs: number): AccountContractError {
   return new AccountContractError({
     code: "RATE_LIMITED",

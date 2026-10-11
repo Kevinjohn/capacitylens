@@ -17,6 +17,7 @@ export function parseResourceAvatarUrl(value: unknown): string | undefined | nul
     // eslint-disable-next-line no-restricted-globals
     url = new URL(trimmed);
   } catch {
+    // Invalid URL input cannot identify an avatar resource.
     return null;
   }
   if (url.protocol !== "https:" || url.username || url.password) return null;

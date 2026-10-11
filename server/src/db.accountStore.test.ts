@@ -585,7 +585,8 @@ function seedLifecycleMix(): Db {
   d.disciplines = [discipline("d1", "a1")];
   d.clients = [
     client("c-active", "a1"),
-    { ...client("c-deleted", "a1"), archivedAt: ARCH, deletedAt: DEL }, // soft-deleted
+    // Soft-deleted.
+    { ...client("c-deleted", "a1"), archivedAt: ARCH, deletedAt: DEL },
   ];
   d.projects = [
     project("p-active", "a1", "c-active"),
@@ -593,11 +594,13 @@ function seedLifecycleMix(): Db {
       ...project("p-deleted", "a1", "c-active"),
       archivedAt: ARCH,
       deletedAt: DEL,
-    }, // soft-deleted
+      // Soft-deleted.
+    },
   ];
   d.resources = [
     person("r-active", "a1", "d1"),
-    { ...person("r-archived", "a1", "d1"), archivedAt: ARCH }, // archived (not deleted)
+    // Archived (not deleted).
+    { ...person("r-archived", "a1", "d1"), archivedAt: ARCH },
   ];
   // Non-lifecycle children, must survive both flags untouched.
   d.phases = [phase("ph1", "a1", "p-active")];

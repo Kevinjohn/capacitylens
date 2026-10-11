@@ -51,6 +51,7 @@ export function listSnapshots(dir: string, database: FileIdentity | null): strin
     try {
       return statSync(join(dir, file)).mtimeMs;
     } catch {
+      // A missing file still has an ordering timestamp in its snapshot name.
       return parseSnapshotTimestamp(file);
     }
   };

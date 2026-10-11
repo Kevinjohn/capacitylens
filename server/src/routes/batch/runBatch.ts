@@ -206,6 +206,7 @@ function runLockedBatch(parameters: RunBatchParameters): BatchRunResult {
   return applied ? { kind: "applied", auditRecords } : { kind: "superseded" };
 }
 
+/** Runs a validated batch while holding the required workspace erasure locks. */
 export async function runBatch(parameters: RunBatchParameters): Promise<BatchRunResult> {
   const { accountFlows, hasAccountOperations } = parameters;
   return accountFlows.withWorkspaceErasureLocks([], () => runLockedBatch(parameters), {

@@ -18,16 +18,9 @@ export {
   type ResourceAvailabilityInput,
 } from "./resourceAvailability";
 
-// Pure, environment-agnostic domain mutations + integrity assertions extracted
-// from the Zustand store so the same logic can run on a future server (and be
-// unit-tested once, against both). Nothing here touches React / Zustand / DOM /
-// browser persistence. The store stays the orchestrator: it resolves the active account
-// and owns the clock (id/createdAt/updatedAt); these functions validate refs and
-// compute the next AppData. All cascade/transform helpers return a new AppData.
-//
-// Account resolution itself (the "no active account" guard) deliberately stays in
-// the store, it reads live UI state. Every function here takes `accountId`
-// explicitly so it has no ambient dependency.
+// Domain mutations and integrity checks are pure and independent of the UI store.
+// The store resolves the active account and owns IDs and timestamps. Each mutation receives
+// accountId explicitly and returns a new AppData.
 
 /**
  * Cascade-drop an account and every scoped entity belonging to it. Returns a new

@@ -127,7 +127,8 @@ function snapToFrozenPresetV13(value: string | null): string {
   let nearestDistance = Infinity;
   for (const preset of V13_FROZEN_PRESET_COLORS) {
     const presetRgb = hexToRgbV13(preset);
-    if (!presetRgb) continue; // unreachable: every frozen entry is a valid 6-digit hex (pinned by a test)
+    // Every frozen palette entry is a valid six-digit hex value, as pinned by a test.
+    if (!presetRgb) continue;
     const [pr, pg, pb] = presetRgb;
     // Squared Euclidean distance in RGB space. No sqrt needed since we only compare magnitudes.
     const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
@@ -143,7 +144,8 @@ function snapToFrozenPresetV13(value: string | null): string {
 
 function hexToRgbV13(hex: string): [number, number, number] | null {
   const c = hex.replace("#", "");
-  if (c.length !== 6) return null; // reject short and overlong hex (the latter mis-slices)
+  // Require six digits so short and overlong legacy values cannot be mis-sliced.
+  if (c.length !== 6) return null;
   // Historical and frozen: parseInt accepts a valid prefix in each chunk. Do not tighten this shipped
   // parser in place; future frozen parsers must validate the complete /^#[0-9a-f]{6}$/i shape first.
   const r = parseInt(c.slice(0, 2), 16);

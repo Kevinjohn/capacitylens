@@ -100,6 +100,7 @@ function sanitizeTimezone(record: Record<string, unknown>): void {
   try {
     new Intl.DateTimeFormat(undefined, { timeZone: record.timezone });
   } catch {
+    // Imported invalid time zones are removed so the account can use its default.
     delete record.timezone;
   }
 }

@@ -1,10 +1,6 @@
 import type { FastifyRequest } from "fastify";
 
-// Resolve the Access-Control-Allow-Origin value for a request. '*' echoes the
-// wildcard; an allow-list reflects the request's Origin only when it's on the list
-// (and otherwise sends no ACAO header, so the browser blocks the cross-origin call).
-// Requests with no Origin (curl, server-to-server, Playwright's APIRequestContext)
-// are unaffected, CORS only governs browser cross-origin reads.
+/** Returns the allowed origin to echo, or null when the request origin is not allowed. */
 export function resolveCorsOrigin(reqOrigin: string | undefined, allow: ReadonlySet<string>): string | null {
   return reqOrigin && allow.has(reqOrigin) ? reqOrigin : null;
 }
@@ -15,6 +11,7 @@ interface IsSameRequestOriginInput {
   trustForwarded: boolean;
 }
 
+/** Returns whether the origin matches the request host under the configured proxy policy. */
 export function isSameRequestOrigin({ req, reqOrigin, trustForwarded }: IsSameRequestOriginInput): boolean {
   const host = req.headers.host;
   if (!host) return false;

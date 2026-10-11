@@ -102,8 +102,10 @@ describe("P2.6a complete per-tenant export — full slice INCLUDING inactive (th
     const res = await app.inject({ method: "GET", url: "/api/state?accountId=a1" });
     expect(res.statusCode).toBe(200);
     const got = ids(res.json());
-    expect(got).toContain("rActive"); // the active row survives both reads…
-    expect(got).not.toContain("rArchived"); // …but the archived + tombstoned rows are dropped here.
+    // The active row survives both reads….
+    expect(got).toContain("rActive");
+    // But the archived + tombstoned rows are dropped here.
+    expect(got).not.toContain("rArchived");
     expect(got).not.toContain("rDeleted");
   });
 });

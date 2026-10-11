@@ -24,7 +24,8 @@ export function assertUnambiguousJson(source: string): void {
           break;
         }
       }
-      if (!closed) return; // JSON.parse reports malformed syntax.
+      // Let JSON.parse report malformed syntax with its precise location.
+      if (!closed) return;
       const top = frames[frames.length - 1];
       if (top?.keys) {
         let next = i;

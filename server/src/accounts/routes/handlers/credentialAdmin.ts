@@ -16,6 +16,9 @@ type ResetPasswordContext = Pick<
   "auditUnlessReplayed" | "authMode" | "authorize" | "command" | "fail" | "flows" | "requireMembership"
 >;
 
+/**
+ * Validates and executes an administrator’s password reset for another member.
+ */
 export async function resetPassword(
   req: FastifyRequest<MemberRoute>,
   reply: FastifyReply,
@@ -81,6 +84,9 @@ type RevokeMemberSessionsContext = Pick<
   | "requireMembership"
 >;
 
+/**
+ * Applies member sessions only after the relevant account API checks have passed.
+ */
 export async function revokeMemberSessions(
   req: FastifyRequest<MemberRoute>,
   reply: FastifyReply,

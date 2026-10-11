@@ -11,12 +11,14 @@ import type { BatchStateProjection } from "../BatchStateProjection";
 import { TABLES } from "../tables";
 import type { TableName } from "../tables";
 
+/** Existing and incoming rows used to evaluate the stale-write precondition. */
 export interface StaleWriteInput {
   existing: Record<string, unknown> | undefined;
   row: Record<string, unknown>;
   requirePrecondition?: boolean | undefined;
 }
 
+/** Authorization input without options that are specific to selected call sites. */
 export type AuthorizeBasicInput = Omit<AuthorizeRouteInput, "options">;
 
 /**
@@ -26,6 +28,7 @@ export type AuthorizeBasicInput = Omit<AuthorizeRouteInput, "options">;
  */
 export type ParseResult<T, E> = { kind: "parsed"; value: T } | { kind: "invalid"; failure: E };
 
+/** Request and account context required to authorize a route action. */
 export interface AuthorizeRouteInput {
   req: FastifyRequest;
   reply: FastifyReply;
@@ -52,6 +55,7 @@ export interface AuthorizeRouteInput {
  */
 export const NO_REPROMPT: AuthorizeRouteInput["options"] = { requireFreshSession: false };
 
+/** Returns whether an entity name identifies a known server table. */
 export const isKnownTable = (entity: string): entity is TableName =>
   Object.prototype.hasOwnProperty.call(TABLES, entity);
 
@@ -69,24 +73,13 @@ export const isKnownTable = (entity: string): entity is TableName =>
 export const isGenericEntity = (entity: string): entity is keyof typeof TABLES =>
   isKnownTable(entity) && entity !== "accounts";
 
-// Scoped membership is shared with the import/write sanitizer. Scoped deletes must assert
-// ownership via accountId, so this must not be inferred independently from the SQLite codec.
+/** Returns whether a table is account-scoped. */
 export const isScopedTable = isScopedEntityKey;
 
-// The only three entities that carry the lifecycle tombstones (archivedAt/deletedAt) and so can
-// run the archive/unarchive/soft-delete/purge routes. A guard, not a free string compare, so a
-// lifecycle handler can `entity is LifecycleEntity`-narrow before indexing AppData[entity], and any
-// other table (phases/activities/allocations/timeOff/disciplines/accounts) is a 404 on these routes.
-// Single-sourced in shared (LIFECYCLE_ENTITY_KEYS) so this route allow-list and validate.ts's
-// sanitizeWrite tombstone-pin can't drift; aliased to the local names the handlers below already use.
+/** Returns whether a table supports lifecycle tombstones. */
 export const isLifecycleEntity = isLifecycleEntityKey;
 
-// Tenant-ownership predicate shared by every mutating route. A row is "owned" by
-// `accountId` when there's no existing row yet (a fresh upsert), or its stored accountId
-// matches. PUT/PATCH use it to keep accountId immutable (409 on a change that would re-home
-// a row across the tenant boundary); DELETE uses it to scope a delete to its owner (404 on
-// a cross-account target, the server analog of the client's getOwned guard). One
-// predicate, so a future write path can't silently skip the check.
+/** Returns whether the row is new or already belongs to the requested account. */
 export const ownsRow = (existing: { accountId?: unknown } | undefined, accountId: unknown): boolean =>
   !existing || existing.accountId === accountId;
 
@@ -119,6 +112,7 @@ export const ALL_FIELDS_VISIBLE: SanitizeWriteOptions = Object.freeze({
   canChangeCapacityOverviewAccess: true,
 });
 
+/** Authorization function used by route handlers. */
 export type AuthorizeRoute = (input: AuthorizeRouteInput) => AuthorizationResult;
 
 interface WriteActivityRowInput {
@@ -128,6 +122,7 @@ interface WriteActivityRowInput {
   existing: Record<string, unknown> | undefined;
 }
 
+/** Writes an activity and reconciles any allocation attribution changes. */
 export function writeActivityRow({
   db,
   projection,
@@ -150,8 +145,7 @@ export function writeActivityRow({
   return clearAllocationAttributionForActivities(db, new Set([id]));
 }
 
-// Activity writes add rewritten allocation revisions beside the ordinary activity echo so
-// direct-route callers can reconcile the same server-owned cascade as batch callers.
+/** Adds server-owned allocation revisions to activity write echoes for client reconciliation. */
 export function shapeActivityWriteEcho(
   entity: string,
   echo: Record<string, unknown>,

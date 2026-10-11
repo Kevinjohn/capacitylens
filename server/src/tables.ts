@@ -10,6 +10,9 @@ export { INTERNAL_CLIENT_UNIQUE_INDEX_SQL, SCHEMA_V8_SQL } from "./tables/ddl";
 // read; `optional` columns are stored NULL when absent and omitted (not null) when
 // read back, so a round-tripped row deep-equals the client's object.
 
+/**
+ * Rejects duplicate column definitions so generated SQL remains unambiguous.
+ */
 export function assertUniqueTableColumns(tableKey: string, columns: readonly ColumnSpec[]): void {
   const seen = new Set<string>();
   for (const column of columns) {
@@ -29,10 +32,19 @@ export type TableName = keyof typeof TABLE_DEFINITIONS;
 
 // Runtime adapters accept untrusted string table names, so expose the checked closed definition
 // through a string index while retaining the exact-key completeness check above.
+/**
+ * Defines the live table specifications used by schema checks and row persistence.
+ */
 export const TABLES: Record<string, TableSpec> = TABLE_DEFINITIONS;
 
 // Parent-before-child order for creates/updates. Deletes use the reverse so a child
 // is always removed before its parent (and the DB's ON DELETE handles any overlap
 // with the store's own cascade, which arrives as idempotent deletes).
+/**
+ * Orders table creation so foreign-key dependencies exist before their dependents.
+ */
 export const CREATE_ORDER = APP_DATA_WRITE_ORDER;
+/**
+ * Orders tenant-scoped table reads and writes consistently.
+ */
 export const SCOPED_ORDER = SCOPED_WRITE_ORDER;

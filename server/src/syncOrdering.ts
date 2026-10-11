@@ -26,11 +26,17 @@ CREATE INDEX IF NOT EXISTS idx_capacitylens_sync_row_provenance_account
   ON capacitylens_sync_row_provenance(accountId);
 `;
 
+/**
+ * Carries the ordering metadata used to reject stale synchronized writes.
+ */
 export interface SyncOrder {
   sessionId: string;
   sequence: number;
 }
 
+/**
+ * Returns the source and revision used to establish a synchronized write’s ordering.
+ */
 export interface SyncProvenanceResult {
   table: string;
   id: string;
@@ -77,6 +83,9 @@ const readColumnShape = (db: Db, table: string) =>
     }>
   ).map(({ name, type, notnull, pk }) => ({ name, type, notnull, pk }));
 
+/**
+ * Rejects a sync write when its ordering metadata no longer matches the account snapshot.
+ */
 export function assertSyncOrderingCurrent(db: Db): void {
   const sessions = readColumnShape(db, "capacitylens_sync_sessions");
   const expectedSessions = [
@@ -112,6 +121,9 @@ export function assertSyncOrderingCurrent(db: Db): void {
   }
 }
 
+/**
+ * Identifies a batch whose ordering has been overtaken so stale writes are not applied.
+ */
 export function isSupersededSyncBatch(db: Db, order: SyncOrder): boolean {
   const cache = createSyncOrderingStatementCache(db);
   const statement = (cache.isSupersededSyncBatch ??= db.prepare(

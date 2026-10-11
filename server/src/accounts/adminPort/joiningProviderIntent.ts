@@ -58,6 +58,9 @@ function assertProviderStartQuota(db: Db, intent: JoinIntent, now: number): void
   }
 }
 
+/**
+ * Carries the selected account, approved admission purpose, provider, request context, and OAuth callbacks needed to start company joining.
+ */
 export interface ProviderStartInput {
   accountId: string;
   purpose: "policy" | "invitation";
@@ -70,6 +73,9 @@ export interface ProviderStartInput {
   publicUrl: URL;
 }
 
+/**
+ * Creates OAuth joining operations and resolves intents from the browser-bound cookies they issue.
+ */
 // eslint-disable-next-line max-lines-per-function -- The factory binds start, callback reads and cookie names to one secret.
 export function createJoiningProviderIntent(input: {
   db: Db;

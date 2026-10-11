@@ -19,6 +19,9 @@ import { assertAccountControlPlaneCurrent, listSoleOwnerAccountIds } from "./acc
 import { assertAuditOutboxCurrent, enqueueAudit } from "./auditOutbox";
 import { resolveAccountEnvironment } from "./accountConfig";
 
+/**
+ * Reports whether the owner reset completed and includes the principal when one was recovered.
+ */
 export interface OwnerRecoveryResult {
   email: string;
   userId: string;
@@ -29,6 +32,9 @@ export interface OwnerRecoveryResult {
   auditId: string;
 }
 
+/**
+ * Supplies the database, account, and credential update needed for owner recovery.
+ */
 export interface OwnerRecoveryInput {
   databasePath: string;
   email: string;

@@ -149,12 +149,14 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, record: Record<stri
       break;
     case "projects":
       record.color = snapToPresetColor(record.color);
-      cleanRequiredField(record, "name", "Untitled"); // name is NOT NULL
+      // Imported projects require a non-null name.
+      cleanRequiredField(record, "name", "Untitled");
       repairPrivateNameFieldsInPlace(record);
       repairLifecycleFieldsInPlace(record);
       break;
     case "phases":
-      cleanRequiredField(record, "name", "Untitled"); // name is NOT NULL
+      // Imported phases require a non-null name.
+      cleanRequiredField(record, "name", "Untitled");
       break;
     case "activities":
       sanitizeActivity(record);

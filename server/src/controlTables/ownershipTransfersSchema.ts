@@ -86,9 +86,15 @@ export const OWNERSHIP_TRANSFER_TARGET_INDEX = "idx_account_ownership_transfers_
  * hand-written copies of "live" agree with the partial index. They are the same text. */
 export const LIVE_STATES_PREDICATE = `state IN ('awaiting_target', 'awaiting_owner')`;
 
+/**
+ * Selects every ownership-transfer field needed to construct the persisted request row.
+ */
 export const SELECTED_COLUMNS = `id, accountId, initiatorUserId, targetUserId, state, revision,
        createdAt, expiresAt, targetAcceptedAt, terminalAt, terminalReason`;
 
+/**
+ * Represents one stored ownership-transfer request and its lifecycle timestamps.
+ */
 export interface OwnershipTransferRow {
   id: string;
   accountId: string;
@@ -193,6 +199,9 @@ export function runOwnershipTransfersV41(db: Db): void {
   assertOwnershipTransfersCurrent(db);
 }
 
+/**
+ * Rejects a transfer table that does not match the current schema definition.
+ */
 export function assertOwnershipTransfersCurrent(db: Db): void {
   assertTableColumns({
     db,

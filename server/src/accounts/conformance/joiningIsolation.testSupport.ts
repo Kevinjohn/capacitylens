@@ -1,6 +1,9 @@
 import * as joiningIntents from "../../controlTables/joiningIntents";
 import * as joiningPolicies from "../../controlTables/joiningPolicies";
 
+/**
+ * Provides the joining control-table modules used by isolation tests.
+ */
 export const joiningModules = { joiningIntents, joiningPolicies };
 
 /** Account-scoped operations have dedicated cross-company probes in joiningIsolation.conformance.test.ts. */

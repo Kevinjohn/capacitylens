@@ -9,6 +9,9 @@ export const ZERO_COVERAGE_ALLOWLIST = new Set([
   "src/components/ui/skeleton.tsx",
 ]);
 
+/**
+ * Returns executable modules with no covered lines.
+ */
 export function uncoveredExecutableFiles(lcov, allowlist = ZERO_COVERAGE_ALLOWLIST) {
   const failures = [];
   let source = null;
@@ -40,6 +43,9 @@ export function uncoveredExecutableFiles(lcov, allowlist = ZERO_COVERAGE_ALLOWLI
   return failures.sort();
 }
 
+/**
+ * Checks the coverage report and throws when an unapproved module has no covered lines.
+ */
 export function checkFileCoverage(path = "coverage/lcov.info") {
   const lcov = readFileSync(resolve(path), "utf8");
   const failures = uncoveredExecutableFiles(lcov);

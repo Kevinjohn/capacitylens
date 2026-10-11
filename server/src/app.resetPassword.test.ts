@@ -335,7 +335,8 @@ function registerFailureTooShort(): void {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
     const token = await freshToken(app, db);
-    const res = await redeem(app, token, "short"); // below Better Auth's 8-char minimum
+    // Below Better Auth's 8-char minimum.
+    const res = await redeem(app, token, "short");
     expect(res.statusCode).toBe(400);
     expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_SHORT");
   });
@@ -382,7 +383,8 @@ function registerFailureTooLong(): void {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
     const token = await freshToken(app, db);
-    const res = await redeem(app, token, "x".repeat(129)); // 128 is the Better Auth default cap
+    // 128 is the Better Auth default cap.
+    const res = await redeem(app, token, "x".repeat(129));
     expect(res.statusCode).toBe(400);
     expect((res.json() as { code: string }).code).toBe("PASSWORD_TOO_LONG");
   });

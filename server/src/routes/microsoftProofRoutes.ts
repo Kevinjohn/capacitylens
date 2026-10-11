@@ -72,6 +72,7 @@ function parseConfirmToken(body: unknown): ParseResult<string | undefined, Micro
 }
 
 type RegisterMicrosoftProofRoutesOptions = { app: FastifyInstance; auth: Auth; trustProxyHeaders?: boolean };
+/** Registers the Microsoft sign-in proof routes. */
 export function registerMicrosoftProofRoutes({
   app,
   auth,

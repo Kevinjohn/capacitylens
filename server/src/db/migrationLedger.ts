@@ -1,6 +1,9 @@
 import type { Db } from "../db";
 import { DATABASE_MIGRATION_TABLE } from "./constants";
 import { createHash } from "node:crypto";
+/**
+ * Represents one ordered schema change and its immutable checksum.
+ */
 export interface DatabaseMigration {
   version: number;
   name: string;
@@ -9,6 +12,9 @@ export interface DatabaseMigration {
   up(db: Db): void | (() => void);
 }
 
+/**
+ * Describes the migrations needed to move a database between two schema versions.
+ */
 export interface DatabaseMigrationPlan {
   fromVersion: number;
   toVersion: number;
@@ -16,12 +22,18 @@ export interface DatabaseMigrationPlan {
   migrations: ReadonlyArray<Pick<DatabaseMigration, "version" | "name" | "checksum">>;
 }
 
+/**
+ * Provides an optional hook immediately before a migration transaction commits.
+ */
 export interface DatabaseMigrationHooks {
   /** Test/rehearsal seam: runs after the migration, history row and version stamps, immediately
    * before COMMIT. Throwing (or terminating the process) must leave the previous version intact. */
   beforeCommit?(migration: Readonly<Pick<DatabaseMigration, "version" | "name" | "checksum">>): void;
 }
 
+/**
+ * Creates the table that records each applied migration and its checksum.
+ */
 export const MIGRATION_HISTORY_SQL = `
 CREATE TABLE IF NOT EXISTS ${DATABASE_MIGRATION_TABLE} (
   version INTEGER NOT NULL PRIMARY KEY,
@@ -38,6 +50,9 @@ type DefineMigrationArguments = [
   up: (db: Db) => void | (() => void),
 ];
 
+/**
+ * Builds a migration record whose checksum covers its immutable definition and SQL.
+ */
 export function defineMigration(...args: DefineMigrationArguments): DatabaseMigration {
   const [version, name, definition, up] = args;
   // The definition is the immutable, reviewable migration manifest. Include every SQL block and

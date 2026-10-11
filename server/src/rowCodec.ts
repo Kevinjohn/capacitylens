@@ -7,6 +7,9 @@ import type { TableSpec } from "./tables";
 // stored NULL and omitted again on read so a round-trip deep-equals the client's object.
 // Pure: no DB handle, so they're independently testable.
 
+/**
+ * Represents a SQLite row as values keyed by column name.
+ */
 export type Row = Record<string, unknown>;
 
 /** Object → SQL row cell: JSON-encode json columns, undefined → null. */

@@ -10,6 +10,7 @@ import {
 export const RESET_LINK_TTL_SECONDS = 60 * 60 * 24;
 /** A session can never outlive this wall-clock duration, regardless of activity. */
 export const SESSION_ABSOLUTE_TTL_SECONDS = ACCOUNT_SESSION_ABSOLUTE_TTL_SECONDS;
+/** Maximum age of a sign-in accepted for fresh-session administrative actions. */
 export const SESSION_FRESH_AGE_SECONDS = ACCOUNT_SESSION_FRESH_AGE_SECONDS;
 /** Re-authentication is required after this much server-observed inactivity. */
 export const SESSION_INACTIVITY_TTL_SECONDS = 30 * 60;

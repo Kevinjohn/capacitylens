@@ -1,5 +1,6 @@
 import type { Db } from "./db";
 
+/** Names the foreign-key edge whose parent and child must share a tenant. */
 export interface AccountRelationship {
   childTable: string;
   parentColumn: string;

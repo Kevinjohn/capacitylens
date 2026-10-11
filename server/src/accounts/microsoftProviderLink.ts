@@ -19,6 +19,9 @@ function returnUrl(value: string, marker: string, ceremonyId: string): string {
   return url.toString();
 }
 
+/**
+ * Applies microsoft provider link only after the relevant server operations checks have passed.
+ */
 export async function startMicrosoftProviderLink(input: {
   auth: Auth;
   identity: SsoCutoverIdentityPort;

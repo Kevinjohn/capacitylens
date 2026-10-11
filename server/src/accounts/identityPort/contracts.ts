@@ -4,12 +4,18 @@ import type { ProvisionalPrincipal } from "@capacitylens/shared/account/types";
 import type { Auth, AccountMode } from "../../auth";
 import type { Db } from "../../db";
 
+/**
+ * Provides hooks to invalidate masquerade sessions when the backing session expires or is revoked.
+ */
 export interface MasqueradeSessionLifecycle {
   prepare(sessionHandles: readonly string[], reason: "session_expired" | "session_revoked"): void;
   prepareUsers(userIds: readonly string[], reason: "session_revoked"): readonly string[];
   commit(sessionHandles: readonly string[]): void;
 }
 
+/**
+ * Exposes the identity operations implemented against the local SQLite database.
+ */
 export interface LocalIdentityPort extends IdentityPort {
   /** Embedded shared-SQLite capability: commit the credential identity and its coordinator-owned
    * principal correlation as one transaction. The callback must perform synchronous writes only. */
@@ -55,6 +61,9 @@ export interface SsoCutoverIdentityPort extends LocalIdentityPort {
   removeFederatedLinkForStoppedRepair(input: FederatedLinkRemoval): Promise<boolean>;
 }
 
+/**
+ * Describes a removed federated link and any password-reset principals still requiring cleanup.
+ */
 export interface FederatedLinkRemoval {
   principalId: string;
   providerId: string;
@@ -85,6 +94,9 @@ export interface SsoCutoverIdentityFacts {
   }[];
   outstandingResetPrincipalIds: readonly string[];
 }
+/**
+ * Checks whether optional identity tables exist before queries or cleanup use them.
+ */
 export interface IdentityTableProbes {
   accountTableExists(db: Db): boolean;
   sessionTableExists(db: Db): boolean;
@@ -95,6 +107,9 @@ export interface IdentityTableProbes {
   federatedLinkCeremoniesTableExists(db: Db): boolean;
   accountSessionAssuranceTableExists(db: Db): boolean;
 }
+/**
+ * Supplies the application identity and optional session lifecycle hooks for the identity port.
+ */
 export type IdentityPortInput = {
   applicationId: string;
   auth: Auth;
@@ -103,6 +118,9 @@ export type IdentityPortInput = {
   publicBaseUrl?: string;
   masqueradeSessions?: MasqueradeSessionLifecycle;
 };
+/**
+ * Carries the database, principal, time, and reason needed to revoke sessions atomically.
+ */
 export interface RevokePrincipalSessionsInTxInput {
   db: Db;
   applicationId: string;
@@ -110,6 +128,9 @@ export interface RevokePrincipalSessionsInTxInput {
   lifecycle?: MasqueradeSessionLifecycle | undefined;
 }
 
+/**
+ * Collects the database probes and settings used by identity port operations.
+ */
 export interface IdentityPortContext extends IdentityTableProbes {
   input: IdentityPortInput;
   createCompensationHandle(principalId: string, commandId: string): string;

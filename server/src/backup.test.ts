@@ -756,7 +756,8 @@ function registerIntervalSnapshotTest(): void {
     await backups.stop();
     const after = snapshots(dir).length;
     await new Promise((r) => setTimeout(r, 120));
-    expect(snapshots(dir)).toHaveLength(after); // no timer left running
+    // No timer left running.
+    expect(snapshots(dir)).toHaveLength(after);
   });
 }
 
@@ -930,7 +931,8 @@ function registerFailedSnapshotCleanupTest(): void {
     // The rejection surfaced to the caller and no partial `.tmp` was orphaned, under a
     // persistent fault (e.g. ENOSPC) each retry would otherwise leave one behind.
     expect(readdirSync(dir).filter((f) => f.endsWith(".tmp"))).toHaveLength(0);
-    expect(snapshots(dir)).toHaveLength(2); // start-up shot + first manual, both intact
+    // Start-up shot + first manual, both intact.
+    expect(snapshots(dir)).toHaveLength(2);
   });
 }
 

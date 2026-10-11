@@ -174,6 +174,9 @@ function createRunMutation(dependencies: MutationDependencies): AdminPortContext
   };
 }
 
+/**
+ * Composes account administration operations backed by SQLite and the supplied trust policy.
+ */
 export function createSqliteAccountAdminPort(input: CreateSqliteAccountAdminPortInput): SsoCutoverAccountAdminPort {
   const { applicationId, db, lock, trustedLocal = false } = input;
   const audit = createAccountAuditWriter(applicationId, input.audit);

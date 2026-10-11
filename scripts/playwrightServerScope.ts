@@ -1,5 +1,8 @@
 const explicitSpecPath = /(?:^|[/\\])e2e[/\\].+\.spec\.(?:ts|tsx|mts|cts)$/i;
 const serverBackedSpec = /\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$/i;
+/**
+ * Matches core Playwright specs that do not require the server.
+ */
 export const coreSpecPattern = /^(?!.*\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$).*\.spec\.(?:ts|tsx|mts|cts)$/i;
 
 /** Keep report paths non-empty and reject lossy aliases instead of merging nominally distinct runs. */

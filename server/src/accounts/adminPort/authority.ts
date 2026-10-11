@@ -14,12 +14,18 @@ import { ACCOUNT_POLICY_VERSION } from "./contracts";
 import { createAccountFailure } from "./failures";
 import { buildAuthorityRevision } from "./mappers";
 
+/**
+ * Rejects a missing workspace so account administration cannot act on an unknown tenant.
+ */
 export function assertWorkspaceExists(db: Db, workspaceId: string): { id: string; name: string } {
   const row = getRow(db, "accounts", workspaceId);
   if (!row) throw createAccountFailure("NOT_FOUND", "The workspace does not exist.");
   return { id: String(row.id), name: String(row.name) };
 }
 
+/**
+ * Requires active workspace membership before an administrative action proceeds.
+ */
 export function assertActorRole(db: Db, actor: ActorContext, workspaceId: string): Role {
   const role = getActiveMemberRole(db, workspaceId, actor.principalId);
   if (!role) throw createAccountFailure("NOT_MEMBER", "The actor is not a member of this workspace.");
@@ -34,6 +40,9 @@ interface AssertAccountAuthorityInput {
   trustedLocal?: boolean | undefined;
 }
 
+/**
+ * Checks the actor role and workspace state before an account command is accepted.
+ */
 export function assertAccountAuthority({
   db,
   actor,
@@ -55,6 +64,9 @@ interface AssertAdministrativeAssuranceInput {
   requireFresh?: boolean;
 }
 
+/**
+ * Requires fresh session assurance for actions that depend on recent reauthentication.
+ */
 export function assertAdministrativeAssurance({
   actor,
   trustedLocal,
@@ -97,10 +109,16 @@ export function assertInvitationAuthority({
   assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
 }
 
+/**
+ * Reads the workspace set from SQLite so authority checks use persisted account state.
+ */
 export function readExistingWorkspaceIds(db: Db): ReadonlySet<string> {
   return new Set((db.prepare(`SELECT id FROM accounts`).all() as Array<{ id: string }>).map(({ id }) => id));
 }
 
+/**
+ * Reads active membership roles so authority decisions reflect current workspace access.
+ */
 export function readActorRolesByWorkspaceId(
   db: Db,
   principalId: string,
@@ -158,6 +176,9 @@ interface BuildAuthorityDecisionsByActionInput {
   actorRevision: number;
 }
 
+/**
+ * Builds per-action decisions from the actor and target roles before administration proceeds.
+ */
 export function buildAuthorityDecisionsByAction({
   db,
   actorPrincipalId,
@@ -201,6 +222,10 @@ interface EvaluateAuthoritiesForTargetsInput {
   actions: readonly IdentityAdminAction[];
 }
 
+/**
+ * Evaluates each target against the same actor authority snapshot for a consistent batch
+ * decision.
+ */
 export function evaluateAuthoritiesForTargets({
   db,
   actorPrincipalId,
@@ -240,6 +265,9 @@ interface EvaluateAuthoritiesInput {
   actions: readonly IdentityAdminAction[];
 }
 
+/**
+ * Evaluates administrative authority against current role and session assurance state.
+ */
 export function evaluateAuthorities({
   db,
   actor,
@@ -263,6 +291,9 @@ interface EvaluateAuthorityInput {
   action: IdentityAdminAction;
 }
 
+/**
+ * Evaluates one administrative action so callers cannot bypass the shared authority policy.
+ */
 export function evaluateAuthority({
   db,
   actor,
@@ -315,6 +346,9 @@ function assertIdentityRepairAuthority({
   }
 }
 
+/**
+ * Binds account authority checks to the local database and trust mode used by the request.
+ */
 export function createAuthority(
   context: Pick<AdminPortContext, "db" | "trustedLocal">,
 ): Pick<

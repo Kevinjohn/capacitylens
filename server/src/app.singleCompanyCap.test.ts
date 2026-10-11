@@ -260,8 +260,10 @@ function registerBatchMixedTest(): void {
       url: "/api/batch",
       payload: {
         ops: [
-          { method: "PUT", table: "accounts", id: "a1", row: account("a1", "Renamed") }, // an UPDATE, would pass alone
-          { method: "PUT", table: "accounts", id: "brandNew6", row: account("brandNew6") }, // a CREATE, capped
+          // An UPDATE, would pass alone.
+          { method: "PUT", table: "accounts", id: "a1", row: account("a1", "Renamed") },
+          // A CREATE, capped.
+          { method: "PUT", table: "accounts", id: "brandNew6", row: account("brandNew6") },
         ],
       },
     });
