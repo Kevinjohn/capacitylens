@@ -28,7 +28,6 @@ interface ExpectedAccountFailure {
   code: AccountErrorCode;
   retryable: boolean;
 }
-
 function expectAccountFailure(run: () => unknown, expected: ExpectedAccountFailure): void {
   try {
     run();

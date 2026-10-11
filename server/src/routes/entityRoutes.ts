@@ -84,7 +84,6 @@ function sendReplacementRefusal(
 }
 
 type PatchTarget = { kind: "allowed"; existing: Record<string, unknown> } | { kind: "refused"; reply: FastifyReply };
-
 function readAllowedPatchTarget({ req, reply, entity, dependencies }: EntityWriteContext, id: string): PatchTarget {
   const existing = getRow(dependencies.db, entity, id);
   if (!existing) return { kind: "refused", reply: reply.code(404).send({ error: FROZEN_REPLY_MESSAGES.notFound }) };
@@ -148,7 +147,6 @@ interface PatchAuditRows {
   merged: Record<string, unknown>;
   stamped: Record<string, unknown>;
 }
-
 function createPatchAuditRecord(
   { req, entity }: EntityWriteContext,
   id: string,
@@ -284,7 +282,6 @@ function replaceEntity(
     return sendFail(reply, error);
   }
 }
-
 function registerUpdateRoutes(app: FastifyInstance, dependencies: EntityRouteDependencies): void {
   app.put<EntityItemRoute>("/api/:entity/:id", (req, reply) => replaceEntity(req, reply, dependencies));
   app.patch<EntityItemRoute>("/api/:entity/:id", (req, reply) => patchEntity(req, reply, dependencies));
