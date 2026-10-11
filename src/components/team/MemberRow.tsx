@@ -271,7 +271,7 @@ function MemberSettingsMenuItems({
   );
 }
 
-/** Renders the member row interface. */
+/** Shows one member's role, sign-in state, and permitted management actions. */
 // eslint-disable-next-line max-lines-per-function -- the row keeps the table cells and shared dialog wiring together.
 export function MemberRow({
   member: member,

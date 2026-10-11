@@ -192,7 +192,7 @@ function registerMinimisedWeekendTests() {
       renderMinimised(48);
       expect(screen.getByText("Fri")).toBeInTheDocument();
       expect(screen.getByText("Mon")).toBeInTheDocument();
-      // Sat + Sun both collapse to "S"
+      // Saturday and Sunday both have the narrow label “S”.
       expect(screen.getAllByText("S")).toHaveLength(2);
       expect(screen.queryByText("Sat")).not.toBeInTheDocument();
       expect(screen.queryByText("Sun")).not.toBeInTheDocument();
@@ -200,9 +200,9 @@ function registerMinimisedWeekendTests() {
 
     it("still shows the date number in each narrowed weekend column", () => {
       renderMinimised(48);
-      // Sat 06-06
+      // Saturday is June 6.
       expect(screen.getByText("6")).toBeInTheDocument();
-      // Sun 06-07
+      // Sunday is June 7.
       expect(screen.getByText("7")).toBeInTheDocument();
     });
 
@@ -226,7 +226,6 @@ function registerDateStyleReactivityTests() {
     // fails if that dependency (or the `useDateStyle` subscription that feeds it) is removed.
     it("re-reads its labels when the format changes", () => {
       resetStoreWithAccount();
-      // coarse zoom: week-start blocks, whose label is a day/month reading
       renderHeader(17);
       expect(screen.getByText("1 Jun")).toBeInTheDocument();
 

@@ -11,7 +11,7 @@ export interface FilterOption {
   primaryLabel?: string;
 }
 
-/** Describes the build filter options used by this module. */
+/** Builds scoped filter choices from active projects, activities, and resources. */
 export function buildFilterOptions(
   data: AppData,
   selectedClientId: string | null = null,

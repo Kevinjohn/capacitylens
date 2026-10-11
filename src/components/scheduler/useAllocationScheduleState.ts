@@ -155,7 +155,7 @@ function useScheduleFields(seed: AllocationModalSeed, calendarTimeZone: string) 
   };
 }
 
-/** Describes the use allocation schedule state used by this module. */
+/** Tracks dates, quantity, and repeat choices for an allocation draft. */
 export function useAllocationScheduleState({
   selectedResource,
   mode,

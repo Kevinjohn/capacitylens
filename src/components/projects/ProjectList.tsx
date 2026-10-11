@@ -61,7 +61,7 @@ function ProjectItems({ projects, clientsById, onEdit, onArchive }: ProjectItems
   );
 }
 
-/** Renders the project list interface. */
+/** Lists scoped projects with their available management actions. */
 export function ProjectList() {
   const data = useActiveScopedData();
   const clients = data.clients;

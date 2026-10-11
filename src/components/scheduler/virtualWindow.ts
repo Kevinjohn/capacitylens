@@ -19,9 +19,9 @@ interface ResolveVirtualWindowInput {
 
 /** First and last row indices to render; `last` is `-1` when empty. */
 export interface VirtualWindow {
-  // first item index to render
+  // Rendering starts at this item index.
   first: number;
-  // last item index to render (inclusive); -1 when empty
+  // This inclusive index is -1 for an empty window.
   last: number;
 }
 

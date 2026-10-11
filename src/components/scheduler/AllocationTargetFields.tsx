@@ -132,7 +132,7 @@ function ActivitySelectionFields({
   );
 }
 
-/** Renders the allocation target fields interface. */
+/** Selects the resource and activity attribution for an allocation. */
 export function AllocationTargetFields({
   create,
   resourceId,

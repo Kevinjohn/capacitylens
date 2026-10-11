@@ -58,7 +58,7 @@ beforeEach(() => {
   useStore.getState().replaceAll(dataset());
   useStore.getState().setActiveAccount(ACC);
   useStore.getState().setOriginDate("2026-06-01");
-  // widest columns
+  // Wide columns make the grid geometry deterministic for these assertions.
   useStore.getState().setZoom(1);
   useStore.getState().setDrawMode("work");
   useStore.getState().setUtilizationPref({ key: "showTotal", value: true });
@@ -150,7 +150,7 @@ describe("SchedulerGrid", () => {
     expect(screen.getByRole("grid", { name: "Resource schedule" })).toBeInTheDocument();
     expect(screen.getAllByRole("row").length).toBeGreaterThan(0);
     expect(screen.getByRole("rowheader", { name: /Bruce/ })).toBeInTheDocument();
-    // sr-only row summary
+    // Row totals must remain available to screen readers.
     expect(screen.getByText(/1 allocation\./)).toBeInTheDocument();
   });
 
@@ -354,7 +354,7 @@ describe("SchedulerGrid visible-window utilisation", () => {
           accountId: ACC,
           startDate: "2026-06-01",
           endDate: "2026-06-05",
-          // wk1 100%
+          // The first week starts at full utilization.
         }),
         makeAllocation({
           id: "w2",
@@ -362,7 +362,7 @@ describe("SchedulerGrid visible-window utilisation", () => {
           startDate: "2026-06-08",
           endDate: "2026-06-12",
           hoursPerDay: 4,
-          // wk2 50%
+          // The second week drops to half utilization.
         }),
         makeAllocation({
           id: "w34",
@@ -370,7 +370,7 @@ describe("SchedulerGrid visible-window utilisation", () => {
           startDate: "2026-06-15",
           endDate: "2026-06-26",
           hoursPerDay: 2,
-          // wk3–4 25%
+          // Weeks three and four use quarter utilization.
         }),
         // wk5–8 idle
       ],
@@ -559,7 +559,7 @@ function installSchedulerSnapHooks() {
     vi.useRealTimers();
     delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth;
     delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight;
-    // restore the default for other suites
+    // Restore the default so later tests start with week snap enabled.
     useStore.setState({ weekSnapEnabled: true });
     useStore.getState().setMinimiseWeekends(true);
     useStore.setState({ draggingAllocationId: null });
@@ -576,19 +576,19 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     const { nudge, snapped } = fittedSchedulerGridOffsets();
 
     scrollSchedulerGridTo(nudge);
-    // debounce: nothing has moved yet
+    // Snap waits for the idle period before changing scroll position.
     expect(grid.scrollLeft).toBe(nudge);
     act(() => {
       vi.advanceTimersByTime(50);
-      // still inside the idle window
+      // This advance remains inside the idle window.
     });
     expect(grid.scrollLeft).toBe(nudge);
 
     act(() => {
       vi.advanceTimersByTime(100);
-      // past WEEK_SNAP_IDLE_MS (120) total
+      // The total advance passes WEEK_SNAP_IDLE_MS.
     });
-    // floored back to week 2's Monday
+    // Snapping returns to the second week's Monday.
     expect(grid.scrollLeft).toBe(snapped);
     view.unmount();
   });
@@ -603,27 +603,27 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     const grid = screen.getByTestId("scheduler-grid");
     const { nudge, snapped, week } = fittedSchedulerGridOffsets();
 
-    // arms timer A (would fire at t=120)
+    // The first scroll arms the idle timer.
     scrollSchedulerGridTo(nudge);
     act(() => {
       vi.advanceTimersByTime(40);
-      // t=40, under the idle. No snap yet
+      // At 40 ms, the idle timer must still be pending.
     });
     expect(grid.scrollLeft).toBe(nudge);
-    // a second scroll (Wed of week 3) clears A and re-arms timer B (fires t=160)
+    // A second scroll cancels the first timer and starts a new idle window.
     scrollSchedulerGridTo(nudge + week);
     act(() => {
       vi.advanceTimersByTime(40);
-      // t=80, still under both idles (A cleared, B fires at 160)
+      // At 80 ms, the replacement timer must still be pending.
     });
-    // no premature snap
+    // A replacement timer must not snap early.
     expect(grid.scrollLeft).toBe(nudge + week);
 
     act(() => {
       vi.advanceTimersByTime(120);
-      // t=200, past timer B → exactly one snap
+      // At 200 ms, the replacement timer has elapsed.
     });
-    // floored to week 3's Monday
+    // Snapping returns to the third week's Monday.
     expect(grid.scrollLeft).toBe(snapped + week);
     view.unmount();
   });
@@ -638,7 +638,7 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     act(() => {
       vi.advanceTimersByTime(500);
     });
-    // stays put
+    // Disabled snapping must leave the scroll offset unchanged.
     expect(grid.scrollLeft).toBe(nudge);
     view.unmount();
   });
@@ -675,14 +675,14 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     const grid = screen.getByTestId("scheduler-grid");
     const { nudge } = fittedSchedulerGridOffsets();
 
-    // arms the snap timer
+    // A scroll arms the snap timer before dragging begins.
     scrollSchedulerGridTo(nudge);
     // A drag begins before the idle elapses; the timeout re-checks live draggingAllocationId and bails.
     act(() => useStore.setState({ draggingAllocationId: "x" }));
     act(() => {
       vi.advanceTimersByTime(500);
     });
-    // not snapped, the drag-freeze held
+    // Dragging must suppress the pending snap.
     expect(grid.scrollLeft).toBe(nudge);
     view.unmount();
   });
@@ -693,7 +693,7 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     const grid = screen.getByTestId("scheduler-grid");
     const { week } = fittedSchedulerGridOffsets();
 
-    // already a Monday offset → helper returns null → no write
+    // A Monday offset needs no snap or scroll write.
     scrollSchedulerGridTo(week);
     act(() => {
       vi.advanceTimersByTime(500);
@@ -708,9 +708,9 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     const grid = screen.getByTestId("scheduler-grid");
     const { nudge } = fittedSchedulerGridOffsets();
 
-    // arm the snap
+    // Arm the snap before unmounting.
     scrollSchedulerGridTo(nudge);
-    // cleanup effect clears snapTimer
+    // Unmounting must clear the pending snap timer.
     view.unmount();
     // Advancing past the idle must not throw or write (the timer was cleared). The detached node's
     // scrollLeft stays at the nudged value.

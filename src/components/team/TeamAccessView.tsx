@@ -158,7 +158,7 @@ function PolicyManagement({
   return <JoiningPolicyPanel key={accountId} accountId={accountId} role={role} />;
 }
 
-/** Renders the team access view interface. */
+/** Coordinates member management, invitations, joining policy, and ownership. */
 export function TeamAccessView() {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const role = useRole();

@@ -33,7 +33,7 @@ function isDismissed(): boolean {
   }
 }
 
-/** Renders the rotate hint interface. */
+/** Suggests landscape orientation for a portrait phone viewport. */
 export function RotateHint() {
   const [portrait, setPortrait] = useState(isPortraitPhone);
   const [dismissed, setDismissed] = useState(isDismissed);

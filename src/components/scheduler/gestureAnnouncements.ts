@@ -74,7 +74,7 @@ export function readCapacityAnnouncement(resourceId: ID): string {
   return formatCapacityAnnouncement(name, overDays);
 }
 
-/** Describes the read capacity gesture advisory contract. */
+/** Reads the capacity warning associated with a proposed bar gesture. */
 export function readCapacityGestureAdvisory({
   bar,
   effectiveResourceId,

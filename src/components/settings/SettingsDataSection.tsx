@@ -107,7 +107,7 @@ function ExampleDataSection() {
   );
 }
 
-/** Renders the settings data section interface. */
+/** Exposes export, import, and local data controls allowed by the current mode. */
 export function SettingsDataSection({
   serverMode,
   authMode,

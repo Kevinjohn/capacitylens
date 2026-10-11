@@ -184,7 +184,6 @@ describe("ProjectForm", () => {
 
     expect(onClose).toHaveBeenCalled();
     expect(useStore.getState().data.projects[0]?.name).toBe("Alpha Renamed");
-    // unchanged, round-tripped
     expect(useStore.getState().data.projects[0]?.clientId).toBe(client.id);
   });
 

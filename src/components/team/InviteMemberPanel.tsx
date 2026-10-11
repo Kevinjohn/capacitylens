@@ -63,7 +63,7 @@ export function CopyableLinkBlock({
   );
 }
 
-/** Renders the invite member panel interface. */
+/** Creates an account invitation with permitted role and resource options. */
 export function InviteMemberPanel(props: {
   authMode: string;
   busy: boolean;

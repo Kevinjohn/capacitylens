@@ -208,9 +208,8 @@ function registerBuildSchedulerModelTest1() {
       allBars(model).find((b) => b.allocation.id === "a1"),
       "a1 bar",
     );
-    // origin === start
     expect(a1.x).toBe(0);
-    // 2 inclusive days * 48
+    // Two inclusive days at 48 pixels each determine the rendered width.
     expect(a1.width).toBe(96);
   });
 }
@@ -260,7 +259,6 @@ function registerBuildSchedulerModelTest3() {
         disciplineId: "d-design",
         color: "#9",
       }),
-      // r1 (person, Design), r2 (person, Dev)
       ...d.resources,
     ];
     const model = buildSchedulerModel({
@@ -456,7 +454,7 @@ function registerBuildSchedulerModelTest9() {
         rows.find((r) => r.resource.id === "r2"),
         "r2 scheduler row",
       ).overSoon,
-      // 8h == 8h available, not over
+      // An eight-hour allocation equals the eight-hour availability and is not over capacity.
     ).toBe(false);
   });
 }
@@ -625,9 +623,7 @@ function registerBuildSchedulerModelTest18() {
       showUnmatched: false,
     };
     const rows = build({ filters }).flatMap((g) => g.rows);
-    // r1 filtered out, not a ghost
     expect(rows.map((r) => r.resource.id)).toEqual(["r2"]);
-    // no non-dimmed zero-bar row
     expect(rows.every((r) => r.dimmed || r.bars.length > 0)).toBe(true);
   });
 }
@@ -693,9 +689,7 @@ function registerBuildSchedulerModelTest20() {
         .find((r) => r.resource.id === "r1"),
       "r1 scheduler row",
     );
-    // its only p2 work is hidden → dimmed, not full-opacity
     expect(r1.dimmed).toBe(true);
-    // shows its real non-tentative load
     expect(r1.bars.map((b) => b.allocation.id)).toEqual(["a1"]);
   });
 }
@@ -796,7 +790,6 @@ function registerBuildSchedulerModelTest25() {
     expect(model).toHaveLength(1);
     expect(model[0]).toMatchObject({ key: "resources", title: "Resources" });
     expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
-    // no discipline colour → avatar falls back to resource colour
     expect(model[0]).not.toHaveProperty("color");
     expect(barIds(model)).toEqual(["a1", "a2", "a3"]);
   });
@@ -971,21 +964,21 @@ describe("buildSchedulerModel", registerBuildSchedulerModelTests);
 // proves the inclusive end (no off-by-one). A single Mon–Fri resource, 8h/day → 40h/week capacity.
 function registerMovedSchedulerTests11381(utilOver: (visEnd: string) => number) {
   it("1 week → 100% (week-1 density only)", () => {
-    // 40 / 40
+    // Forty allocated hours over forty available hours gives full utilization.
     expect(utilOver("2026-06-07")).toBeCloseTo(1.0);
   });
 }
 
 function registerMovedSchedulerTests11382(utilOver: (visEnd: string) => number) {
   it("2 weeks → 75% (weeks 1–2)", () => {
-    // (40 + 20) / 80
+    // Sixty allocated hours over eighty available hours gives 75% utilization.
     expect(utilOver("2026-06-14")).toBeCloseTo(0.75);
   });
 }
 
 function registerMovedSchedulerTests11383(utilOver: (visEnd: string) => number) {
   it("4 weeks → 50% (weeks 1–4)", () => {
-    // (40 + 20 + 10 + 10) / 160
+    // Eighty allocated hours over 160 available hours gives 50% utilization.
     expect(utilOver("2026-06-28")).toBeCloseTo(0.5);
   });
 }
@@ -994,14 +987,14 @@ function registerMovedSchedulerTests11384(utilOver: (visEnd: string) => number) 
   it("6 weeks → 33% (weeks 1–6, weeks 5–6 idle)", () => {
     // 6-week inclusive end = visStart 06-01 + (6×7 − 1 = 41 days) = 07-12. Booked hours are weeks 1–4
     // only (40 + 20 + 10 + 10 = 80); weeks 5–6 are unbooked. Capacity = 6 weeks × 40h = 240. 80/240.
-    // 80 / 240
+    // Eighty allocated hours over 240 available hours gives one-third utilization.
     expect(utilOver("2026-07-12")).toBeCloseTo(1 / 3);
   });
 }
 
 function registerMovedSchedulerTests11385(utilOver: (visEnd: string) => number) {
   it("8 weeks → 25% (weeks 1–8, second half idle)", () => {
-    // 80 / 320
+    // Eighty allocated hours over 320 available hours gives 25% utilization.
     expect(utilOver("2026-07-26")).toBeCloseTo(0.25);
   });
 }
@@ -1148,7 +1141,7 @@ function registerMovedSchedulerTests12741(buildExt: (options?: BuildExtOptions) 
     expect(last).toBeDefined();
     if (!last) throw new Error("Expected the external resource group.");
     expect(last.title).toBe("External / 3rd party");
-    // NEUTRAL_COLOR
+    // The unassigned item uses the neutral color.
     expect(last.color).toBe("#9ca3af");
     expect(last.rows.map((r) => r.resource.id)).toEqual(["ext1"]);
   });
@@ -1164,7 +1157,6 @@ function registerMovedSchedulerTests12742(buildExt: (options?: BuildExtOptions) 
     expect(ext.dayStates.every((d) => !d.over)).toBe(true);
     expect(ext.dayStates.every((d) => !d.partialCapacity)).toBe(true);
     expect(ext.dayStates.map((d) => d.unavailable)).toEqual([false, false, false, false, false, true, true]);
-    // the stray time-off row is ignored for externals
     expect(ext.timeOff).toEqual([]);
   });
 }
@@ -1181,7 +1173,7 @@ function registerMovedSchedulerTests12743(buildExt: (options?: BuildExtOptions) 
 function registerMovedSchedulerTests12744(buildExt: (options?: BuildExtOptions) => GroupModel[]) {
   it("disciplines off → external STILL forms its own trailing band after the people", () => {
     const model = buildExt({ disciplinesEnabled: false });
-    // Resources (Studio-only, so flat) + external
+    // The studio-only resource rows remain flat and appear alongside the external resource.
     expect(model).toHaveLength(2);
     expect(model[0]?.title).toBe("Resources");
     expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
@@ -1620,7 +1612,7 @@ function registerMovedSchedulerTests17941(withNonActive: () => AppData, buildAct
     // With activeOnly: the archived + soft-deleted lanes are gone; the active ones remain.
     const model = buildActive(d);
     const resourceIds = model.flatMap((g) => g.rows).map((r) => r.resource.id);
-    // Only the active people
+    // Only people active in this account appear in the model.
     expect(resourceIds).toEqual(["r1", "r2"]);
     expect(resourceIds).not.toContain("r-arch");
     expect(resourceIds).not.toContain("r-del");

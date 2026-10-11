@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { PersonScheduleEntry } from "./PersonScheduleEntry";
 import type { PersonScheduleSheetProps } from "./personScheduleTypes";
 
-/** Renders the person schedule sheet interface. */
+/** Displays a resource schedule with focus restoration when the sheet closes. */
 export function PersonScheduleSheet({ open, schedule, onOpenChange, onRestoreFocus }: PersonScheduleSheetProps) {
   const available = schedule.kind === "available";
 

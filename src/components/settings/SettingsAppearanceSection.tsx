@@ -5,7 +5,7 @@ import { SettingsSection } from "./SettingsSection";
 
 import type { StoreState } from "@/store/useStore";
 import { BAR_LABEL_MESSAGES, THEME_MESSAGES, UTILIZATION_MESSAGES } from "./settingsLabels";
-/** Renders the settings appearance section interface. */
+/** Edits device and account appearance preferences with their proper ownership. */
 export function SettingsAppearanceSection({
   barLabelPrefs: barLabelPreferences,
   setBarLabelPref: setBarLabelPreference,

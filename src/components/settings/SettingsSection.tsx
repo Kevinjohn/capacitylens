@@ -36,7 +36,7 @@ function SettingsSectionTitle({
   );
 }
 
-/** Renders the settings section interface. */
+/** Provides the shared heading and content layout for settings. */
 export function SettingsSection({
   title,
   help,

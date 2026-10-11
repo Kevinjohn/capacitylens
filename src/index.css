@@ -5,7 +5,8 @@
    `[data-theme="dark"]` on <html>. Point the variant at the existing theme attribute. */
 @custom-variant dark (&:is([data-theme="dark"] *));
 
-/* Semantic tokens map Tailwind utilities to theme variables. src/lib/theme.ts sets the root element to the resolved light or dark theme. */
+/* Semantic tokens map Tailwind utilities to theme variables. src/lib/theme.ts sets
+   the root element to the resolved light or dark theme. */
 @theme {
   /* Page background. NB: named `canvas`, not `base`, on purpose — `--color-base`
      would shadow Tailwind's `text-base` font-size utility (turning it into a
@@ -24,7 +25,7 @@
      3:1 threshold without darkening the shared input/divider token used elsewhere. */
   --color-switch-track: var(--c-switch-track);
   --color-switch-thumb: var(--c-switch-thumb);
-  /* Recessed non-working-day band (weekends + unavailable days) — a calm cool tint,
+  /* Recessed non-working-day band (weekends + unavailable days) has a calm cool tint,
      deliberately distinct from the page canvas, the over-cell red, and the time-off amber,
      so a non-working day never reads as an alert. Shared by the lane tint AND the date-header
      weekend cell, so Sat/Sun reads as one continuous band header-to-lane. */
@@ -223,11 +224,9 @@
   --c-line-faint: #20242f; /* between surface and line, so day hairlines stay quieter than week lines */
   --c-switch-track: var(--c-line);
   --c-switch-thumb: var(--c-ink);
-  --c-weekend: color-mix(
-    in oklab,
-    var(--c-ink) 7%,
-    var(--c-surface)
-  ); /* ink is near-white in dark, so this lightens the surface into the surface↔elevated range — a clearly non-working band that carries no card affordances (shadow/border/radius), so it never reads as an elevated/popover surface despite the similar luminance */
+  /* Lightening the dark surface distinguishes non-working days without giving the band
+     the shadow or border affordances of an elevated card. */
+  --c-weekend: color-mix(in oklab, var(--c-ink) 7%, var(--c-surface));
   --c-ink: #e7eaf0;
   --c-muted: #a3acbd;
   --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
@@ -462,9 +461,15 @@ input[type="radio"] {
   );
 }
 
-/* Drawing time off dims work and highlights existing absences while a new range is placed. The grid attribute drives the visual change; inert is applied to the bars layer so other memoized rows do not rerender. */
-/* Paired dark and light shadow edges maintain 3:1 non-text contrast on light and dark cells. The blue outline identifies focus; the pair supplies contrast and replaces the resting ring while focused. */
-/* AppSidebar supplies navigation spacing through these custom properties. Fallbacks support standalone mounts; item height stays fixed so the collapsed icon rail remains square. Scheduler geometry is defined in components/scheduler/layout.ts. */
+/* Drawing time off dims work and highlights existing absences while a new range is
+   placed. The grid attribute drives the visual change; inert is applied to the bars
+   layer so other memoized rows do not rerender. */
+/* Paired dark and light shadow edges maintain 3:1 non-text contrast on light and
+   dark cells. The blue outline identifies focus; the pair supplies contrast and
+   replaces the resting ring while focused. */
+/* AppSidebar supplies navigation spacing through these custom properties. Fallbacks
+   support standalone mounts; item height stays fixed so the collapsed icon rail
+   remains square. Scheduler geometry is defined in components/scheduler/layout.ts. */
 [data-slot="sidebar-menu"] {
   row-gap: var(--nav-menu-gap-y, 0.25rem);
 }
@@ -479,7 +484,8 @@ input[type="radio"] {
 }
 
 .scheduler-bar:focus-visible {
-  outline: 2px solid var(--color-brand); /* Blue identifies focus; contrast comes from the paired shadow. */
+  /* Blue identifies focus; contrast comes from the paired shadow. */
+  outline: 2px solid var(--color-brand);
   outline-offset: 2px;
   box-shadow:
     0 0 0 1px var(--c-focus-ink),
@@ -551,7 +557,9 @@ body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
   display: none;
 }
 
-/* richColors stays disabled because its light error palette fails WCAG AA. The error accent and icon tint add a danger cue while text remains on the validated neutral surface in both themes. */
+/* richColors stays disabled because its light error palette fails WCAG AA. The
+   accent and icon tint add a danger cue while text remains on the validated neutral
+   surface in both themes. */
 [data-sonner-toast].toast-error {
   /* Saturated danger edge on the leading side + a hairline danger ring around the whole toast.
      box-shadow (not border) so it doesn't shift Sonner's layout/close-button geometry. */

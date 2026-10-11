@@ -278,7 +278,7 @@ function DetailFields(props: DetailProps) {
   );
 }
 
-/** Renders the allocation schedule fields interface. */
+/** Edits allocation dates, quantity, and repeat options. */
 export function AllocationScheduleFields(props: ScheduleProps) {
   return (
     <>

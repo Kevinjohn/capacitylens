@@ -17,11 +17,11 @@ export function reportInvalidScheduleDateRangeOnce(row: { id: string }): void {
 
 // Reused for a bucket miss so a day with no allocations / no time off doesn't allocate a throwaway
 // array per resource-day (this runs days × resources times on every model rebuild).
-/** Renders the no allocations interface. */
+/** Stable empty allocation list shared by rows with no allocations. */
 export const NO_ALLOCATIONS: Allocation[] = [];
-/** Renders the no time off interface. */
+/** Stable empty time-off list shared by rows with no absences. */
 export const NO_TIME_OFF: TimeOff[] = [];
-/** Renders the no closures interface. */
+/** Stable empty closure list shared by rows with no closures. */
 export const NO_CLOSURES: Closure[] = [];
 
 /** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`

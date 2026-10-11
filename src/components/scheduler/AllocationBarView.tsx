@@ -209,7 +209,7 @@ function BarPopover({
   );
 }
 
-/** Renders the allocation bar view interface. */
+/** Shows a dated allocation bar with its capacity and focus cues. */
 export function AllocationBarView(props: AllocationBarViewProps) {
   return (
     // Fully controlled: pointerdown/click must not dismiss a viewer's popover. Escape is handled by

@@ -234,7 +234,7 @@ function ArchivedContent({
   ));
 }
 
-/** Renders the archived entity section interface. */
+/** Shows archived records only when the current role can view inactive data. */
 export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
   const { data, mayViewInactive } = useInactiveAccountData();
   const actions = useLifecycleActions();

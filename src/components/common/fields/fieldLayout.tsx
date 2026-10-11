@@ -1,7 +1,7 @@
 import { FieldLabel } from "@/components/ui/field";
 import { m } from "@/i18n";
 
-/** Renders the required field label interface. */
+/** Marks a required field label while preserving its accessible name. */
 export function RequiredFieldLabel({
   label,
   required,

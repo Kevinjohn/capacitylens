@@ -1,13 +1,13 @@
 import { addDaysISO, startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
-/** Renders the capacity overview horizon interface. */
+/** Supported fixed horizons for the capacity overview. */
 export type CapacityOverviewHorizon = "4-weeks" | "8-weeks" | "12-weeks";
 
 /** The first four keys are stable for callers that persisted or keyed by them. */
 export type CapacityOverviewPeriodKey = "this-week" | "next-week" | `week-${number}`;
 
-/** Renders the capacity overview period interface. */
+/** A dated overview period with its stable index and label. */
 export interface CapacityOverviewPeriod {
   index: number;
   key: CapacityOverviewPeriodKey;
@@ -17,7 +17,7 @@ export interface CapacityOverviewPeriod {
   partial: boolean;
 }
 
-/** Builds capacity overview periods input from the supplied inputs. */
+/** Today, horizon, and calendar preferences needed to generate overview periods. */
 export interface BuildCapacityOverviewPeriodsInput {
   today: ISODate;
   weekStartsOn?: 0 | 1;

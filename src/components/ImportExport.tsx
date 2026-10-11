@@ -263,7 +263,7 @@ function DataToolControls({
   );
 }
 
-/** Renders the import export interface. */
+/** Offers scoped data export and guarded import for the active account. */
 export function ImportExport() {
   // Export only the active account's planning data. The `accounts` list itself is deliberately
   // omitted: import re-stamps records into whichever account is active and preserves that

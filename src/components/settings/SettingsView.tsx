@@ -55,7 +55,7 @@ function SettingsBottomSections({ controller }: { controller: Controller }) {
   );
 }
 
-/** Renders the settings view interface. */
+/** Coordinates account, scheduling, data, and security settings for the current role. */
 export function SettingsView() {
   const controller = useSettingsViewController();
   useSettingsOnboardingTarget({ ready: controller.activeAccount !== null });

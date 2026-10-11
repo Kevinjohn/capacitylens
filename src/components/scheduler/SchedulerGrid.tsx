@@ -336,7 +336,7 @@ function SchedulerGridSurface({
   );
 }
 
-/** Renders the scheduler grid interface. */
+/** Coordinates the visible week grid, resource lanes, and drawing interactions. */
 export function SchedulerGrid() {
   const navigate = useNavigate();
   const preferences = useSchedulerGridPreferences();

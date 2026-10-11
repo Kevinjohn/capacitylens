@@ -15,7 +15,7 @@ import type { CapacityOverviewModel } from "./capacityOverviewModel";
 import { useResourceAvatars } from "@/account/useResourceAvatars";
 import { useStore } from "@/store/useStore";
 
-/** Describes the capacity overview table props used by this module. */
+/** The prepared capacity model and schedule actions consumed by the table. */
 export interface CapacityOverviewTableProps {
   model: CapacityOverviewModel;
   horizon: CapacityOverviewHorizon;
@@ -37,7 +37,7 @@ interface CapacityOverviewTableWithScheduleProps extends CapacityOverviewTablePr
   fallbackRef?: RefObject<HTMLDivElement | null>;
 }
 
-/** Renders the capacity overview table interface. */
+/** Presents period capacity alongside person schedule entry points. */
 export function CapacityOverviewTable(props: CapacityOverviewTableWithScheduleProps) {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const resourceAvatars = useResourceAvatars(activeAccountId);

@@ -51,7 +51,7 @@ function startProviderSignIn(provider: AuthProviderInfo, token: string | undefin
   return authClient.signIn.social({ ...options, provider: provider.id });
 }
 
-/** Creates invite sign in actions from the supplied inputs. */
+/** Builds sign-in actions that resume the pending invitation. */
 export function createInviteSignInActions({ token, email, password, refreshAuth, setState, setBusy }: Dependencies) {
   const signInAndReload = async (): Promise<void> => {
     if (password.length > MAX_PASSWORD_INPUT_CODE_UNITS) throw new Error(m.login_password_input_too_long());

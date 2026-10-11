@@ -60,11 +60,11 @@ export interface RowModel {
   /** Days painted with the neutral half-day (partial capacity) treatment. Same reason as above. */
   partialCapacityDayCount: number;
   timeOff: TimeOffBlock[];
-  // working-day ratio over the visible window [visStart, visEnd]
+  // This ratio uses working days in the current visible window.
   utilization: number;
-  // over-allocated on >=1 working day inside the fixed forward window [overStart, overEnd]
+  // This flag uses the fixed forward window and requires allocation above availability.
   overSoon: boolean;
-  // no work on the active project/client filter, shown for staffing context
+  // Filtered-out work remains visible as staffing context.
   dimmed: boolean;
 }
 

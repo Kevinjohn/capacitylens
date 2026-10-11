@@ -116,7 +116,7 @@ function useCanEditTimeOffNote(): boolean {
   return role === null || canSeeTimeOffNote(role);
 }
 
-/** Renders the time off form interface. */
+/** Creates or edits time off for an authorised resource. */
 export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
   const add = useStore((state) => state.addTimeOff);
   const addMany = useStore((state) => state.addTimeOffs);

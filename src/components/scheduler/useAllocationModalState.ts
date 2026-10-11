@@ -144,7 +144,7 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>
   return { target, schedule, repeatProjection, advisory, endDateHint };
 }
 
-/** Describes the use allocation modal state used by this module. */
+/** Coordinates allocation dialog fields, validation, and submission. */
 export function useAllocationModalState(props: AllocationModalProps) {
   const context = useAllocationModalContext(props);
   return buildModalState(context, useTargetSchedule(context));
@@ -364,5 +364,5 @@ function resolveCreateName({ isCreate, resource }: ResolveCreateNameOptions) {
   return resource ? resolveResourceDisplayName(resource) : m.form_allocation_advisory_resource_name();
 }
 
-/** Describes the allocation modal state used by this module. */
+/** State and handlers returned to the allocation dialog view. */
 export type AllocationModalState = ReturnType<typeof useAllocationModalState>;

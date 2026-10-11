@@ -24,7 +24,6 @@ interface ReconcileReassignedHoursTestInput {
 // never exercises: the divide-by-zero guard, the MAX_HOURS_PER_DAY clamp, the
 // deltaDays === 0 / move-keeps-hours paths, and weekend-aware snapping.
 
-// not weekend-aware → spans are plain calendar days
 const IGNORE = { ignoreWeekends: true };
 const range = (startDate: string, endDate: string): DateRange => ({ startDate, endDate });
 const reconcileReassignedHours = ({ current, target, zeroLoadMode, startDate }: ReconcileReassignedHoursTestInput) =>
@@ -133,7 +132,7 @@ describe("volumePreservingHoursClamped edge cases", () => {
   // loss, since the bar still renders but contributes nothing to utilisation. There is no volume to
   // preserve when the old span had none, so the only non-destructive result is the stored hours,
   // untouched.
-  // Mon–Fri; spanDays counts working days only
+  // The Monday-through-Friday span counts working days only.
   const WEEKDAYS_ONLY = { workingDays: [1, 2, 3, 4, 5] as Weekday[] };
 
   it("preserves hoursPerDay verbatim when the OLD span has zero working days (weekend-only allocation)", () => {
@@ -153,9 +152,8 @@ describe("volumePreservingHoursClamped edge cases", () => {
     // must stay the stored value, not collapse to 0 just because oldSpan/newSpan would otherwise
     // divide out to nothing.
     const { hours, clamped } = resolveVolumePreservingHours({
-      // Sat only, 0 working days
+      // A Saturday-only span contains no working days.
       previousDate: range("2026-06-06", "2026-06-06"),
-      // extends across the following working week
       next: range("2026-06-06", "2026-06-12"),
       options: WEEKDAYS_ONLY,
       hoursPerDay: 8,
@@ -166,7 +164,6 @@ describe("volumePreservingHoursClamped edge cases", () => {
 });
 
 describe("computeGesture", () => {
-  // span 4 days
   const current = range("2026-06-01", "2026-06-04");
 
   it("returns equivalent dates and unchanged hours for a zero-delta calendar move", () => {
@@ -223,7 +220,6 @@ describe("computeGesture", () => {
       isDays: true,
     });
     expect(hours).toBe(6);
-    // shifted +2 calendar days
     expect(dates).toEqual(range("2026-06-03", "2026-06-06"));
   });
 
@@ -239,7 +235,6 @@ describe("computeGesture", () => {
     });
     expect(dates).toEqual(range("2026-06-01", "2026-06-02"));
     expect(hours).toBe(12);
-    // in range, no truncation
     expect(clamped).toBe(false);
   });
 });
@@ -317,7 +312,6 @@ describe("computeGesture rescaling guards", () => {
 });
 
 describe("snappedBarGeometry", () => {
-  // span 4 days
   const current = range("2026-06-01", "2026-06-04");
   // Uniform geometry over June (origin 2026-06-01, dayWidth 20), minimise off, the preview
   // pixels reduce to the absolute index*dayWidth positions the view-model would place.
@@ -359,9 +353,8 @@ describe("snappedBarGeometry", () => {
       options: { workingDays: [1, 2, 3, 4, 5] },
       geometry: geom,
     });
-    // +1 calendar day, 2-day span held
+    // Moving one calendar day preserves the two-day span.
     expect(naive).toEqual({ left: 4 * 20, width: 2 * 20 });
-    // opts threaded → weekend-aware (wider) span
     expect(weekendAware).not.toEqual(naive);
   });
 

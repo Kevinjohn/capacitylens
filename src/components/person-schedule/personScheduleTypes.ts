@@ -1,12 +1,12 @@
 import type { AllocationStatus, ID, ISODate, TimeOffType } from "@capacitylens/shared/types/entities";
 
-/** Renders the person schedule window interface. */
+/** Inclusive date bounds for a person schedule projection. */
 export interface PersonScheduleWindow {
   startDate: ISODate;
   endDate: ISODate;
 }
 
-/** Renders the person schedule entry key interface. */
+/** Stable key namespace distinguishes allocations from time-off entries. */
 export type PersonScheduleEntryKey = `allocation:${ID}` | `timeOff:${ID}`;
 
 interface PersonScheduleEntryBase {
@@ -16,7 +16,7 @@ interface PersonScheduleEntryBase {
   endDate: ISODate;
 }
 
-/** Renders the person schedule allocation entry interface. */
+/** Allocation details presented as one dated person schedule entry. */
 export interface PersonScheduleAllocationEntry extends PersonScheduleEntryBase {
   kind: "allocation";
   activity: string;
@@ -30,17 +30,17 @@ export interface PersonScheduleAllocationEntry extends PersonScheduleEntryBase {
   note?: string;
 }
 
-/** Renders the person schedule time off entry interface. */
+/** Time-off details presented as one dated person schedule entry. */
 export interface PersonScheduleTimeOffEntry extends PersonScheduleEntryBase {
   kind: "timeOff";
   type: TimeOffType;
   note?: string;
 }
 
-/** Renders the person schedule entry interface. */
+/** A dated allocation or time-off entry in a person schedule. */
 export type PersonScheduleEntry = PersonScheduleAllocationEntry | PersonScheduleTimeOffEntry;
 
-/** Describes the person schedule model used by this module. */
+/** Account, resource, window, and entries in an available person schedule. */
 export interface PersonScheduleModel {
   accountId: ID;
   resourceId: ID;
@@ -49,22 +49,22 @@ export interface PersonScheduleModel {
   entries: PersonScheduleEntry[];
 }
 
-/** Renders the person schedule invalid record interface. */
+/** A rejected entry and its kind for projection diagnostics. */
 export interface PersonScheduleInvalidRecord {
   kind: PersonScheduleEntry["kind"];
   sourceId: ID;
 }
 
-/** Describes the person schedule build result used by this module. */
+/** Projected model plus any invalid records encountered while building it. */
 export interface PersonScheduleBuildResult {
   model: PersonScheduleModel;
   invalidRecords: PersonScheduleInvalidRecord[];
 }
 
-/** Describes the person schedule result used by this module. */
+/** Distinguishes an available projection from an unavailable schedule. */
 export type PersonScheduleResult = { kind: "available"; model: PersonScheduleModel } | { kind: "unavailable" };
 
-/** Describes the person schedule sheet props used by this module. */
+/** Open state, projected schedule, and closure callbacks for the sheet. */
 export interface PersonScheduleSheetProps {
   open: boolean;
   schedule: PersonScheduleResult;

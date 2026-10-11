@@ -59,7 +59,7 @@ function TrailingSpacer({ renderedIndices, layout, heights }: Pick<Props, "rende
   return gap > 0 ? <div aria-hidden style={{ height: gap }} /> : null;
 }
 
-/** Renders the scheduler grid rows interface. */
+/** Renders only realized rows while preserving virtualized lane spacing. */
 export function SchedulerGridRows(props: Props) {
   const { items, renderedIndices, timelineStart, timelineEnd, visibleClosures, trackedGridHeight, geom } = props;
   return (

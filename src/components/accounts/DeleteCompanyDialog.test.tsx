@@ -77,12 +77,10 @@ it("lets Escape abort even after typing in the confirm field (no unsaved-changes
   render(<DeleteCompanyDialog account={account} onConfirm={() => {}} onCancel={onCancel} />);
 
   const input = screen.getByLabelText(/Type/i);
-  // partial: would trip the dirty guard
   fireEvent.change(input, { target: { value: "Ferris" } });
   fireEvent.keyDown(document, { key: "Escape" });
 
   expect(onCancel).toHaveBeenCalledOnce();
-  // not refused with a nonsensical "use Save" hint
   expect(useStore.getState().notice).toBeNull();
 });
 
@@ -239,7 +237,6 @@ it("disables Delete and Export while an export attempt is in flight, re-arms aft
   await waitFor(() => expect(deleteBtn.disabled).toBe(true));
   expect(exportBtn.disabled).toBe(true);
 
-  // the attempt fails, export stays optional
   resolveFetch({ ok: false, status: 503, json: async () => ({}) });
   await screen.findByRole("alert");
   expect(deleteBtn.disabled).toBe(false);

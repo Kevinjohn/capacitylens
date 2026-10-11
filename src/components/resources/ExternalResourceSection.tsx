@@ -9,7 +9,7 @@ import { externalExplainer } from "@/lib/externalCopy";
 import { NEUTRAL_COLOR } from "@/lib/palette";
 import { FavouriteButton } from "./FavouriteButton";
 
-/** Describes the external resource section props used by this module. */
+/** External resources and handlers available in the resource list. */
 export interface ExternalResourceSectionProps {
   externals: Resource[];
   onAdd: () => void;
@@ -17,7 +17,7 @@ export interface ExternalResourceSectionProps {
   onRequestArchive: (resource: Resource) => void;
 }
 
-/** Renders the external resource section interface. */
+/** Lists external resources separately from people on the team. */
 export function ExternalResourceSection({ externals, onAdd, onEdit, onRequestArchive }: ExternalResourceSectionProps) {
   return (
     <section aria-labelledby="external-heading">

@@ -36,7 +36,7 @@ function hasOpenNestedOverlay(): boolean {
   );
 }
 
-/** Renders the add button interface. */
+/** Shared add action with its accessible label. */
 export function AddButton({
   label,
   onClick,
@@ -58,7 +58,7 @@ export function AddButton({
   );
 }
 
-/** Renders the edit button interface. */
+/** Shared edit action with its accessible label. */
 export function EditButton({
   label = m.form_edit(),
   onClick,
@@ -84,7 +84,7 @@ export function EditButton({
   );
 }
 
-/** Renders the delete button interface. */
+/** Shared delete action with its accessible label. */
 export function DeleteButton({
   label = m.form_delete(),
   onClick,
@@ -110,7 +110,7 @@ export function DeleteButton({
   );
 }
 
-/** Renders the modal interface. */
+/** Provides the shared dialog title, body, and dismissal behavior. */
 export function Modal({
   title,
   description,
@@ -301,7 +301,7 @@ function ModalForm({
   );
 }
 
-/** Renders the confirm dialog interface. */
+/** Requires an explicit choice before a consequential action proceeds. */
 export function ConfirmDialog({
   title,
   message,
@@ -353,7 +353,7 @@ export function ConfirmDialog({
   );
 }
 
-/** Describes the empty state used by this module. */
+/** Displays guidance when a list has no visible records. */
 export function EmptyState({
   children,
   icon,

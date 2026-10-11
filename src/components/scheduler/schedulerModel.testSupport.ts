@@ -39,9 +39,9 @@ interface SchedulerModelTestInput {
   externalEnabled?: boolean | undefined;
 }
 
-/** Renders the default account working days interface. */
+/** Monday through Friday fixture schedule for model tests. */
 export const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
-/** Describes the capacity for window of contract. */
+/** Calculates fixture capacity inside a chosen test window. */
 export const capacityForWindowOf = ({
   resource,
   allocations,
@@ -60,7 +60,7 @@ export const capacityForWindowOf = ({
     effectiveWeek: effectiveWorkingWeek(resource, accountWorkingDays),
     closures,
   });
-/** Describes the utilization of contract. */
+/** Calculates fixture utilization for one resource and window. */
 export const utilizationOf = ({
   resource,
   allocations,
@@ -80,16 +80,16 @@ export const utilizationOf = ({
     closures,
   });
 
-/** Describes the start contract. */
+/** Start of the fixed model-test week. */
 export const start = "2026-06-01";
-/** Describes the end contract. */
+/** End of the fixed model-test week. */
 export const end = "2026-06-07";
-/** Describes the days contract. */
+/** Dates in the fixed model-test week. */
 export const days = eachDayISO(start, end);
-/** Describes the geom contract. */
+/** Uniform column geometry for the fixed model-test week. */
 export const geom = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 });
 
-/** Describes the dataset contract. */
+/** Builds scoped scheduler fixtures with optional discipline overrides. */
 export function dataset(
   disciplines: AppData["disciplines"] = [
     { id: "d-design", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 0 },
@@ -143,7 +143,7 @@ export function dataset(
   };
 }
 
-/** Builds  from the supplied inputs. */
+/** Builds a scheduler model from the test fixture and chosen filters. */
 export const build = ({
   filters = buildEmptyFilters(),
   disciplinesEnabled = true,
@@ -159,10 +159,10 @@ export const build = ({
     filters,
     preferences: { disciplinesEnabled, placeholdersEnabled, externalEnabled },
   });
-/** Describes the all bars contract. */
+/** Flattens every group and row into the modeled bar list. */
 export const allBars = (model: GroupModel[]) => model.flatMap((group) => group.rows).flatMap((row) => row.bars);
 
-/** Describes the with external contract. */
+/** Adds an external resource to the standard scheduler fixture. */
 export function withExternal(): AppData {
   const data = dataset();
   data.resources.push(

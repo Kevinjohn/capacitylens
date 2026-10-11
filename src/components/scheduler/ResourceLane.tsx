@@ -8,7 +8,7 @@ import { LAYOUT } from "./layout";
 import type { BarLayout, DayState, TimeOffBlock } from "./schedulerModel";
 import { useResourceLaneInteraction } from "./useResourceLaneInteraction";
 
-/** Describes the resource lane props used by this module. */
+/** Resource, geometry, and interaction state consumed by one schedule lane. */
 export interface ResourceLaneProps {
   resourceId: ID;
   ariaLabel: string;
@@ -181,7 +181,7 @@ function ResourceLaneLayers(props: LayersProps) {
   );
 }
 
-/** Renders the resource lane interface. */
+/** Displays one resource's dated bars and handles lane interactions. */
 export const ResourceLane = memo(function ResourceLane({
   geom: geometry,
   placeholder = false,

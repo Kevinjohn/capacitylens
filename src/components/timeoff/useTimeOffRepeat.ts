@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { defaultTimeOffRepeatUntilDate, maximumTimeOffRepeatUntilDate } from "@capacitylens/shared/lib/repeatingDates";
+import {
+  defaultTimeOffRepeatUntilDate,
+  maximumTimeOffRepeatUntilDate,
+  RepeatingDateError,
+} from "@capacitylens/shared/lib/repeatingDates";
 import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
 import { buildRepeatedTimeOffDrafts } from "@/lib/repeatingTimeOff";
 import type { TimeOffRepeatSelection } from "@/lib/repeatingTimeOff";
@@ -66,8 +70,8 @@ export function useTimeOffRepeat(input: TimeOffRepeatDraftInput) {
     try {
       return buildRepeatedTimeOffDrafts(baseDraft, repeatUntil, repeat);
     } catch (error) {
-      if (error instanceof RangeError) {
-        // Invalid date ranges keep the preview unavailable until the input is corrected.
+      if (error instanceof RepeatingDateError) {
+        // Invalid repeat settings have no preview, so the form stays editable while the user corrects them.
         return null;
       }
       throw error;

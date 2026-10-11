@@ -259,7 +259,6 @@ describe("ProjectList", () => {
   });
 
   it("demo mode also retains a project whose client resolves nowhere", () => {
-    // file-wide demo stub applies
     seedOrphanProject();
 
     render(<ProjectList />);

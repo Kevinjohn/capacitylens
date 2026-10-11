@@ -15,7 +15,7 @@ import type { CapacityOverviewHorizon } from "./capacityOverviewDates";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
 import { buildCapacityOverviewModel } from "./capacityOverviewModel";
 
-/** Renders the capacity overview view interface. */
+/** Coordinates horizon and tentative-allocation controls with the capacity model. */
 export function CapacityOverviewView() {
   const [includeTentative, setIncludeTentative] = useState(true);
   const [hasAvailability, setHasAvailability] = useState(false);

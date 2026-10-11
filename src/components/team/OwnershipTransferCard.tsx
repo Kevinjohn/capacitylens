@@ -313,7 +313,7 @@ function hasSomethingToSay({ controller, nominatable }: HasSomethingToSayOptions
   return Boolean(controller.projection?.live ?? controller.projection?.latestOutcome);
 }
 
-/** Renders the ownership transfer card interface. */
+/** Shows current ownership and guarded transfer controls. */
 export function OwnershipTransferCard() {
   const [open, setOpen] = useState(false);
   const activeAccountId = useStore((state) => state.activeAccountId);

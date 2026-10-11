@@ -2,7 +2,7 @@ import type { LaneLayout } from "@/lib/lanePacking";
 
 // Fixed pixel geometry for the scheduler. dayWidth is dynamic (zoom) and lives in
 // the store; everything here is constant.
-/** Renders the layout interface. */
+/** Shared pixel dimensions used by schedule rows and bars. */
 export const LAYOUT = {
   barHeight: 26,
   laneGap: 4,
@@ -61,7 +61,7 @@ export const laneLayout: LaneLayout = {
 // TOOLBAR_* and NAV_* are the base rhythm in px for the schedule toolbar and the left-hand nav,
 // matching the Tailwind utilities they replace (py-2/gap-y-2, and the sidebar's gap-1/gap-2/p-2).
 // They live here so one knob moves every vertical gap in the app shell and nothing drifts.
-/** Renders the density scale interface. */
+/** Scale factor applied to scheduler density presets. */
 export const DENSITY_SCALE = 2;
 
 /** The stacked-allocation gap scales harder than everything else, see rule 3 above. */
@@ -75,7 +75,7 @@ const NAV_SECTION_GAP_Y = 8;
 
 const resolveRoomySize = (value: number, scale: number = DENSITY_SCALE): number => Math.round(value * scale);
 
-/** Renders the scheduler density interface. */
+/** Spacing dimensions shared by scheduler rows and navigation. */
 export interface SchedulerDensity {
   laneGap: number;
   rowPadding: number;

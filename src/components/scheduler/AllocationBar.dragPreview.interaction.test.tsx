@@ -73,7 +73,7 @@ function registerTargetCalendarTest() {
 
     const bar = screen.getByTestId("allocation-bar");
     fireEvent.pointerDown(bar, { clientX: 24, clientY: 25, button: 0 });
-    // +1 day, drop on dst
+    // Dropping on the destination shifts the allocation forward one day.
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 72, clientY: 125, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 72, clientY: 125, bubbles: true }));
 
@@ -135,7 +135,7 @@ function registerTargetCalendarTest() {
 
 function registerSourceCalendarTest() {
   // June 2026: 06-04 is a Thursday, 06-05 a Friday, 06-08 a Monday, 06-09 a Tuesday.
-  // Tue/Wed/Thu: works neither Friday nor Monday
+  // This person works Tuesday through Thursday, so Friday and Monday are unavailable.
   const midWeek = [2, 3, 4] as const;
   const monToFri = [1, 2, 3, 4, 5] as const;
 
@@ -524,7 +524,7 @@ function registerWeekendPreviewTests() {
     // The preview width reflects the extended 7-day span (06-02..06-08), not the raw 5-day
     // bar: matching what the commit produces, so the bar doesn't jump on release.
     const previewedWidth = parseFloat((bar as HTMLElement).style.width);
-    // ~7 days (minus inset), not 5
+    // The drag spans roughly seven days after the inset, rather than five.
     expect(previewedWidth).toBeGreaterThan(6 * dayWidth - 12);
   });
 
@@ -534,9 +534,7 @@ function registerWeekendPreviewTests() {
     const bar = screen.getByTestId("allocation-bar");
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
-    // start dragging
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 120, bubbles: true }));
-    // browser steals the gesture (e.g. to scroll)
     document.dispatchEvent(new Event("pointercancel"));
 
     expect(getStoredAllocation(a.id).startDate).toBe("2026-06-01");

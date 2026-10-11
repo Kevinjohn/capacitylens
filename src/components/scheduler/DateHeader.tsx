@@ -25,7 +25,7 @@ interface Span {
 function buildMonthSpans(days: string[]): Span[] {
   const spans: Span[] = [];
   days.forEach((day, i) => {
-    // YYYY-MM
+    // The month key uses year and month so adjacent years remain distinct.
     const key = day.slice(0, 7);
     const last = spans[spans.length - 1];
     if (last && last.key === key) last.days += 1;
@@ -171,7 +171,7 @@ export const DateHeader = memo(function DateHeader({
   weekStartsOn: 0 | 1;
   today: string;
 }) {
-  // per-day columns vs per-week blocks
+  // The header switches between daily columns and weekly blocks at this zoom.
   const showDays = geometry.perDayColumns;
   const showWeekday = geometry.showWeekdayLabels;
   // The 1/2-week views have enough room to place labels at the visible month segment's start.

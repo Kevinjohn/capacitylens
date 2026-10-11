@@ -162,7 +162,6 @@ function registerMovedSchedulerTests201012() {
       allBars(model).find((b) => b.allocation.id === "a-ghost"),
       "ghost allocation bar",
     );
-    // fallback label, not a crash on the missing activity lookup
     expect(bar.label).toBe("Activity");
     expect(bar.project).toBeUndefined();
     expect(bar.client).toBeUndefined();

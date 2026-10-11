@@ -8,7 +8,7 @@ import { resolveErrorMessage } from "@/lib/errorMessage";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 
-/** Renders the favourite button interface. */
+/** Toggles a resource favourite when the current role permits editing. */
 export function FavouriteButton({ resource }: { resource: Resource }) {
   const canEdit = useCanEdit();
   const updateResource = useStore((state) => state.updateResource);

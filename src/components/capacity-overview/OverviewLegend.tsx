@@ -26,7 +26,7 @@ function LegendItem({ children, swatch }: { children: string; swatch: React.Reac
   );
 }
 
-/** Renders the overview legend interface. */
+/** Explains the capacity states and tentative pattern used by the overview. */
 export function OverviewLegend() {
   return (
     <div

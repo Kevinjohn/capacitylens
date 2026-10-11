@@ -5,7 +5,7 @@ import { resolveHorizonWeekCount } from "./capacityOverviewDates";
 import type { CapacityOverviewHorizon } from "./capacityOverviewDates";
 import { TentativeSwatch } from "./OverviewLegend";
 
-/** Describes the overview toolbar props used by this module. */
+/** Horizon and tentative-allocation state controlled by the toolbar. */
 export interface OverviewToolbarProps {
   horizon: CapacityOverviewHorizon;
   includeTentative: boolean;
@@ -19,7 +19,7 @@ export interface OverviewToolbarProps {
   onCapacityDisplayModeChange: (mode: CapacityDisplayMode) => void;
 }
 
-/** Renders the overview toolbar interface. */
+/** Lets users choose the visible horizon and tentative-allocation inclusion. */
 export function OverviewToolbar(props: OverviewToolbarProps) {
   return (
     <div

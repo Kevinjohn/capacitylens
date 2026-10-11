@@ -114,7 +114,7 @@ function buildProjection(input: ProjectionInput, context: NonNullable<ReturnType
   }
 }
 
-/** Builds repeat projection from the supplied inputs. */
+/** Projects a repeated allocation for preview without persisting drafts. */
 export function buildRepeatProjection(input: ProjectionInput) {
   const { selectedActivity, selectedEffectiveProjectId } = input;
   const context = resolveProjectionContext(input);

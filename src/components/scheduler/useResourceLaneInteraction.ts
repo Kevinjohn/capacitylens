@@ -92,7 +92,7 @@ function beginGesture(input: GestureInput) {
   teardownRef.current = detach;
 }
 
-/** Returns the resource lane interaction state and actions for this feature. */
+/** Coordinates lane drawing gestures and drag state for one resource. */
 export function useResourceLaneInteraction(input: LaneInput) {
   const laneRef = useRef<HTMLDivElement>(null);
   const [draw, setDraw] = useState<DrawSpan | null>(null);

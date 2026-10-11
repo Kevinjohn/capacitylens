@@ -8,7 +8,7 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/c
 // to reset here, the data lives on the server, so the only recourse is to retry.
 // Autosave is deliberately not attached in this state, so an edit on top of the empty
 // render can't be pushed as a destructive diff once the server returns.
-/** Renders the connection error interface. */
+/** Shows a connection failure with a retry action. */
 export function ConnectionError({
   onRetry = () => window.location.reload(),
 }: {

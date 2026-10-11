@@ -57,7 +57,6 @@ vi.mock("@/data/persist", () => ({
 
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
-  // sets activeAccountId = DEFAULT_ACCOUNT_ID
   resetStoreWithAccount();
   setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });

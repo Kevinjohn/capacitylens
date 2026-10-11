@@ -315,7 +315,7 @@ function registerServerListMembershipTests() {
     useStore.getState().setAccountSummaries({
       list: [
         { id: "a1", name: "Active Co", role: "owner" },
-        // Not in data.accounts
+        // The invited account is not part of the loaded account data.
         { id: "a2", name: "Other Co", role: "editor" },
       ],
     });
@@ -334,7 +334,6 @@ function registerServerListMembershipTests() {
       </AuthContext.Provider>,
     );
     expect(screen.getByText("Active Co")).toBeInTheDocument();
-    // proves the source is summaries, not data
     expect(screen.getByText("Other Co")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Active Co" })).toHaveAccessibleDescription("Owner");
     expect(screen.getByRole("button", { name: "Other Co" })).toHaveAccessibleDescription("Editor");
@@ -457,7 +456,6 @@ function registerServerCreateUnusableBodyTest() {
     serverFlag.on = true;
     const user = userEvent.setup();
     const fetchMock = vi.fn(async (url: string) => {
-      // no id/name
       if (url === "/api/orgs") return { ok: true, status: 201, json: async () => ({ ok: true }) };
       return { ok: true, status: 200, json: async () => [{ id: "org-9", name: "Stark Industries", role: "owner" }] };
     });
@@ -606,7 +604,6 @@ function registerServerDeleteUnloadedTest() {
     serverFlag.on = true;
     const user = userEvent.setup();
     const fetchMock = stubFetch({ ok: true, status: 204 });
-    // slice not loaded
     useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
     render(<AccountPicker />);
 

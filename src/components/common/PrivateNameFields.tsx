@@ -3,7 +3,7 @@ import { SwitchField, TextField } from "./ui";
 import type { ProductFieldLayout } from "./ui";
 import type { PrivateNameFieldsState } from "./usePrivateNameFields";
 
-/** Renders the private name fields interface. */
+/** Edits private name fields only when the current role may view them. */
 export function PrivateNameFields({
   fields,
   errorField,

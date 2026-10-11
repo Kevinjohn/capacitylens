@@ -562,7 +562,6 @@ it("edits a placeholder bound to an archived project without forcing a reassignm
   const saved = useStore.getState().data.resources[0];
   if (!saved) throw new Error("Expected saved resource");
   expect(saved.role).toBe("Senior Designer");
-  // unchanged, round-tripped
   expect(saved.projectId).toBe(project.id);
 });
 

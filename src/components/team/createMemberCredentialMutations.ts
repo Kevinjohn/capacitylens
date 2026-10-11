@@ -113,7 +113,7 @@ function createRevokeSessions({
     });
 }
 
-/** Creates member credential mutations from the supplied inputs. */
+/** Builds guarded password and session actions for member administration. */
 export function createMemberCredentialMutations({
   withMemberAction,
   isActiveAccount,

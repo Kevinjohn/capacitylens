@@ -13,7 +13,7 @@ interface ChangeSignInTrackingInput {
   next: boolean;
 }
 
-/** Describes the member mutation dependencies used by this module. */
+/** Authorized request and refresh callbacks needed for member changes. */
 export interface MemberMutationDependencies extends Pick<
   MemberActionDependencies,
   "withMemberAction" | "isActiveAccount" | "fail" | "setNotice"
@@ -189,7 +189,7 @@ function createEnableAccessMutation(dependencies: MemberMutationDependencies) {
     });
 }
 
-/** Creates member mutations from the supplied inputs. */
+/** Builds role, invitation, and lifecycle actions for team members. */
 export function createMemberMutations(dependencies: MemberMutationDependencies) {
   return {
     changeSignInTracking: createSignInTrackingMutation(dependencies),

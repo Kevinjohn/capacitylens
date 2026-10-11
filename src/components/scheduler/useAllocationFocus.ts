@@ -2,10 +2,10 @@ import { useEffect, useRef } from "react";
 import type { ID } from "@capacitylens/shared/types/entities";
 import { useStore } from "@/store/useStore";
 
-/** Renders the schedule allocation focus interface. */
+/** Focus action that locates an allocation within the active account. */
 export type ScheduleAllocationFocus = (allocationId: ID, accountId: ID | null) => void;
 
-/** Returns the allocation focus state and actions for this feature. */
+/** Schedules focus for an allocation after its row becomes visible. */
 export function useAllocationFocus(): ScheduleAllocationFocus {
   const focusRafRef = useRef(0);
   useEffect(

@@ -1,7 +1,7 @@
 import type { FieldError } from "@/hooks/useFieldError";
 import type { useStore } from "@/store/useStore";
 
-/** Describes the member action dependencies used by this module. */
+/** Account and request capabilities required by member administration actions. */
 export interface MemberActionDependencies {
   requestAccountId: () => string;
   isActiveAccount: (accountId: string) => boolean;

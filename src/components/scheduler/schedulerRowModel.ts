@@ -134,7 +134,7 @@ function buildDayStates(input: {
   return { dayStates, conflictDayCount, partialCapacityDayCount };
 }
 
-/** Creates row builder from the supplied inputs. */
+/** Builds resource rows against one shared scheduler model context. */
 export function createRowBuilder({
   model: { data, geom: geometry, days },
   accountWorkingDays,

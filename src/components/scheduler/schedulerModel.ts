@@ -299,7 +299,7 @@ function createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode }: 
   };
 }
 
-/** Describes the build scheduler model used by this module. */
+/** Projects scoped scheduling data into grouped resource rows and visible bars. */
 export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[] {
   const { data, filters, preferences } = options;
   const { disciplinesEnabled, accountWorkingDays = [1, 2, 3, 4, 5], blocksMode = false } = preferences;

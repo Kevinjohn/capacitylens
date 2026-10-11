@@ -15,7 +15,7 @@ interface ConfirmMemberActionInput {
   confirmationName: RegExp | string;
 }
 
-/** Renders the raw member interface. */
+/** Unnormalized member response used by access tests. */
 export interface RawMember {
   userId: string;
   role: "owner" | "admin" | "editor" | "viewer";
@@ -94,7 +94,7 @@ export function mockApi(members: RawMember[] | { status: number } = [], override
   });
 }
 
-/** Creates sign in tracking api from the supplied inputs. */
+/** Provides a stateful sign-in tracking response for team access tests. */
 export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
   let trackingEnabled = false;
   const members: RawMember[] = [

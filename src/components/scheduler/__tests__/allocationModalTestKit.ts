@@ -16,29 +16,29 @@ import {
 } from "@/test/fixtures";
 import { chooseOption } from "./schedulerTestKit";
 
-/** Describes the required contract. */
+/** Fails the test when a required value is absent. */
 export function required<T>(value: T | undefined | null, message: string): T {
   expect(value).toBeDefined();
   if (value === undefined || value === null) throw new Error(message);
   return value;
 }
 
-/** Describes the first contract. */
+/** Returns the first test result or fails when the list is empty. */
 export function first<T>(values: T[]): T {
   return required(values[0], "Expected a non-empty test result.");
 }
 
-/** Describes the closest form contract. */
+/** Finds the enclosing form or fails the test. */
 export function closestForm(control: HTMLElement): HTMLFormElement {
   return required(control.closest("form"), "Expected the allocation control to belong to a form.");
 }
 
-/** Renders the acc interface. */
+/** Account fixture ID used by allocation modal tests. */
 export const ACC = DEFAULT_ACCOUNT_ID;
 const originalAddAllocation = useStore.getState().addAllocation;
 const originalAddAllocations = useStore.getState().addAllocations;
 
-/** Describes the base contract. */
+/** Builds the base account data for allocation modal tests. */
 export function base(): AppData {
   return makeAppData({
     clients: [makeClient({ accountId: ACC, color: "#111" })],
@@ -53,14 +53,14 @@ export function base(): AppData {
   });
 }
 
-/** Describes the restore store allocation actions contract. */
+/** Restores original allocation actions after a test replaces them. */
 export function restoreStoreAllocationActions(): void {
   // Zustand state writes replace the state object while retaining action references. Restore these
   // explicitly so a spy installed in one test cannot survive on a later state object.
   useStore.setState({ addAllocation: originalAddAllocation, addAllocations: originalAddAllocations });
 }
 
-/** Describes the reset allocation modal store contract. */
+/** Resets allocation modal fixtures and patched actions between tests. */
 export function resetAllocationModalStore(): void {
   restoreStoreAllocationActions();
   useStore.getState().replaceAll(base());
@@ -72,18 +72,18 @@ export function resetAllocationModalStore(): void {
   setPlaceholdersEnabled({ on: true });
 }
 
-/** Describes the person contract. */
+/** Builds a person fixture with the supplied display name. */
 export const person = (name: string) => makeResourceDraft({ name, role: "Dev", color: "#111" });
 
-/** Describes the enable days contract. */
+/** Enables day scheduling for the test account. */
 export const enableDays = (workingDays?: Weekday[]) =>
   useStore.getState().updateAccount(ACC, { schedulingMode: "days", ...(workingDays && { workingDays }) });
 
-/** Describes the add person contract. */
+/** Adds a person fixture to the test account. */
 export const addPerson = () =>
   requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Tyler", color: "#111111" })));
 
-/** Describes the complete assignment contract. */
+/** Completes the visible allocation assignment fields in a modal test. */
 export const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
   await chooseOption(user, "Project", "Ferris / Lightning");
   await chooseOption(user, "Activity", "Wireframes");

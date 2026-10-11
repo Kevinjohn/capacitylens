@@ -94,7 +94,7 @@ function buildSingleAdvisory(input: AdvisoryInput, otherAllocations: AdvisoryInp
   );
 }
 
-/** Builds allocation advisory from the supplied inputs. */
+/** Computes capacity and repeat warnings for the current allocation draft. */
 export function buildAllocationAdvisory(input: AdvisoryInput) {
   const { create, data, editId, isBlocks, repeat, resourceId } = input;
   // External parties have no capacity; never show an over-capacity / time-off advisory.

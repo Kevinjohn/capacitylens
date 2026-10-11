@@ -13,7 +13,7 @@ export function buildAverageUtilizationLabel(rows: RowModel[]): string | null {
     : null;
 }
 
-/** Describes the modal state used by this module. */
+/** Creation, editing, and closed states for the scheduler modal. */
 export type ModalState =
   | { kind: "edit"; allocationId: ID }
   | { kind: "create"; resourceId: ID; startDate: ISODate; endDate: ISODate }

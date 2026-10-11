@@ -150,7 +150,7 @@ function DeleteCompanyMessages({
 //     scopeData(data, id) is already complete; no fetch.
 // Either way, an export that would contain zero scoped records is refused with a loud inline
 // warning instead of silently saving an empty file the user would mistake for a real backup.
-/** Renders the delete company dialog interface. */
+/** Confirms company deletion with the required ownership and backup checks. */
 export function DeleteCompanyDialog({
   account,
   busy = false,

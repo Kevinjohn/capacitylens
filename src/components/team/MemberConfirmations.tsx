@@ -10,7 +10,7 @@ import { resolveRoleSummary } from "@/lib/accessCopy";
 import { ConfirmDialog, Modal, SelectField } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
 
-/** Renders the member role edit interface. */
+/** A pending role change for one team member. */
 export type MemberRoleEdit = { member: TeamMember; nextRole: Role };
 
 type MemberConfirmationsProps = {
@@ -81,7 +81,7 @@ function MemberRoleEditDialog({
   );
 }
 
-/** Renders the member confirmations interface. */
+/** Requires explicit confirmation before member access changes proceed. */
 export function MemberConfirmations({
   memberConfirmation,
   setMemberConfirmation,

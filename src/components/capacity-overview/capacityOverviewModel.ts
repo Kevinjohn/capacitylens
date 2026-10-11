@@ -30,7 +30,7 @@ export type {
 } from "./capacityOverviewTypes";
 
 const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
-/** Renders the hours per display day interface. */
+/** Hours represented by one capacity day in overview totals. */
 export const HOURS_PER_DISPLAY_DAY = 8;
 const QUARTER_DAY_HOURS = HOURS_PER_DISPLAY_DAY / 4;
 const ROUNDING_EPSILON_HOURS = 1e-9;
@@ -295,7 +295,7 @@ function applyAvailabilityFilter({ groups, hasAvailability }: ApplyAvailabilityF
 
 // The model keeps eligibility, grouping, filtering and blocks-mode orchestration together so
 // every displayed period follows the same scoped calculation path.
-/** Describes the build capacity overview model used by this module. */
+/** Projects scoped scheduling data into period and resource capacity results. */
 export function buildCapacityOverviewModel({
   data,
   today,

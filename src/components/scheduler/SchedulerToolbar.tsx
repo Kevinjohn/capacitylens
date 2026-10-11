@@ -25,7 +25,7 @@ function useToolbarHistory() {
   return { undo, redo, canUndo, canRedo, runHistoryAction };
 }
 
-/** Renders the scheduler toolbar interface. */
+/** Exposes date navigation, search, filters, and drawing controls. */
 export function SchedulerToolbar() {
   const canEdit = useCanEdit();
   const zoom = useStore((state) => state.ui.zoom);

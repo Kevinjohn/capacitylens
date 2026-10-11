@@ -5,7 +5,7 @@ import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Modal } from "./dialogs";
 
-/** Renders the section help interface. */
+/** Keeps explanatory section content collapsed until requested. */
 export function SectionHelp({ title, children }: { title: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const helpLabel = m.settings_help_aria({ section: title });

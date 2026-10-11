@@ -586,7 +586,6 @@ function registerModalFooterTests() {
     );
     const first = screen.getByRole("button", { name: "First" });
     const second = screen.getByRole("button", { name: "Second" });
-    // focuses first control on open
     expect(document.activeElement).toBe(first);
 
     second.focus();
@@ -596,11 +595,9 @@ function registerModalFooterTests() {
         {body}
       </Modal>,
     );
-    // focus not yanked back to first
     expect(document.activeElement).toBe(second);
 
     unmount();
-    // focus returns to the opener
     expect(document.activeElement).toBe(trigger);
     trigger.remove();
   });
@@ -1229,9 +1226,7 @@ function registerColorFieldModalTests(BLUE: string, RED: string) {
     expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument();
     const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
     await user.click(backdrop);
-    // popup closed
     expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
-    // modal stayed open
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -1247,13 +1242,10 @@ function registerColorFieldModalTests(BLUE: string, RED: string) {
       </Modal>,
     );
     fireEvent.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
-    // popup open
     expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument();
     // A press on another in-dialog control must reach it while Popover handles dismissal.
     await user.click(screen.getByTestId("sibling"));
-    // not swallowed
     expect(onSiblingDown).toHaveBeenCalledTimes(1);
-    // popup closed
     expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 }

@@ -294,7 +294,6 @@ describe("ActivityList", () => {
   };
 
   it("server mode retains an activity whose project resolves nowhere", () => {
-    // server mode is any value other than '1'
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
     seedOrphanActivity();
 

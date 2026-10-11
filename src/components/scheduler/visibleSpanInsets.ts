@@ -23,10 +23,10 @@ const AXIS_VARIABLES = {
   y: { scroll: "--sched-scroll-top", viewport: "--sched-visible-height" },
 } as const;
 
-/** Renders the scroll axis interface. */
+/** Axis used when reading viewport inset variables. */
 export type ScrollAxis = keyof typeof AXIS_VARIABLES;
 
-/** Renders the visible span insets interface. */
+/** Leading and trailing viewport offsets for the realized date span. */
 export interface VisibleSpanInsets {
   /** Offset from the span's leading edge to the viewport's, `left` on x, `top` on y. */
   readonly leading: string;

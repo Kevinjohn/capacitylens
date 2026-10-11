@@ -248,7 +248,7 @@ function registerPopoverAndEditorTests() {
 
 function registerKeyboardMovementTests() {
   it("moves with arrow keys and resizes with Shift+arrow (keyboard equivalent of drag)", () => {
-    // 2026-06-01 → 2026-06-03
+    // The keyboard move shifts the allocation from June 1 to June 3.
     const a = seedAllocation();
     const { rerender } = render(
       <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
@@ -262,7 +262,6 @@ function registerKeyboardMovementTests() {
     rerender(<AllocationBar bar={barFor(moved)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
     moved = getStoredAllocation(a.id);
-    // end extended, start fixed
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-02", "2026-06-05"]);
   });
 

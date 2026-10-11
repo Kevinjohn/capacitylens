@@ -5,7 +5,7 @@ import { Modal } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 
-/** Renders the member actions dialog interface. */
+/** Presents the management actions available for one member. */
 export function MemberActionsDialog({
   memberLabel,
   hasExistingActions,

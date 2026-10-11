@@ -14,26 +14,24 @@ const ON = { minimiseWeekends: true, weekendWidth: 20 };
 // Shared uniform-grid geometry + Monday-of-week-1 offset, reused by every describe block below that
 // doesn't need its own (minimised-weekend / describe.each) geometry variant.
 const geom = buildColumnGeometry(DAYS, DAY_W, OFF);
-// 0
+// The first week begins at offset zero.
 const mon1 = geom.xForDateInGeom("2026-06-01");
 
 describe("resolveWeekStartSnapTarget — floor to the current week start (uniform grid)", () => {
-  // 336
+  // The second week begins at offset 336 pixels.
   const mon2 = geom.xForDateInGeom("2026-06-08");
 
   it("a left edge mid-week (Wed) floors BACK to the same Monday", () => {
-    // 96
+    // The scroll position is 96 pixels into the first week.
     const wedX = geom.xForDateInGeom("2026-06-03");
     expect(resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: wedX, weekStartsOn: 1 })).toBe(mon1);
   });
 
   it("a left edge past the half-week (Fri) ALSO floors back to the SAME Monday, never forward", () => {
-    // 192, > half of the 336px week
+    // The 192-pixel offset exceeds half of the 336-pixel week.
     const friX = geom.xForDateInGeom("2026-06-05");
     const target = resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: friX, weekStartsOn: 1 });
-    // the current Monday, not the nearest
     expect(target).toBe(mon1);
-    // and strictly behind next Monday, proves "floor, not nearest"
     expect(target).toBeLessThan(mon2);
   });
 
@@ -58,9 +56,8 @@ describe("resolveWeekStartSnapTarget — Sunday week start (weekStartsOn=0)", ()
   });
 
   it("floors to the SUNDAY, not the Monday", () => {
-    // Tue of the 2nd week, idx 8
+    // Tuesday of the second week is column index eight.
     const tueX = geom.xForDateInGeom("2026-06-09");
-    // the Sunday that starts that week, idx 6
     const sunday = geom.xForDateInGeom("2026-06-07");
     expect(resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 })).toBe(sunday);
     // Cross-check it's genuinely the Sunday, not the Monday after it.
@@ -134,9 +131,7 @@ describe.each([
   ["minimise ON", ON],
 ] as const)("resolveWeekStartSnapTarget — sub-pixel left edge near a Monday boundary (%s)", (_label, opts) => {
   const geom = buildColumnGeometry(DAYS, DAY_W, opts);
-  // week-2 Monday, an integer offset
   const mondayOffset = geom.xForDateInGeom("2026-06-08");
-  // week-1 Monday, the wrong, week-back target
   const prevMonday = geom.xForDateInGeom("2026-06-01");
 
   it("a position a sub-pixel BELOW the Monday boundary stays on that Monday (no week-back jump)", () => {
@@ -160,7 +155,7 @@ describe.each([
 
   it("a genuinely mid-week (integer Wed) left edge still FLOORS to that week’s Monday", () => {
     // Rounding must not break the normal floor: a clearly-previous-day position still snaps back.
-    // Wed of week 2, integer offset
+    // Wednesday of the second week has an integer column offset.
     const wedX = geom.xForDateInGeom("2026-06-10");
     expect(resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: wedX, weekStartsOn: 1 })).toBe(
       mondayOffset,
@@ -173,7 +168,7 @@ describe("resolveWeekStartSnapTarget — minimised-weekend geometry", () => {
 
   it("floors to the correct INTEGER week-start offset across narrowed weekends", () => {
     // Land the left edge on Wed of week 2 (past two narrowed weekends), then floor to its Monday.
-    // Wed, week 2
+    // The target is Wednesday of the second week.
     const wedX = geom.xForDateInGeom("2026-06-10");
     const mondayOfWeek2 = geom.xForDateInGeom("2026-06-08");
     const target = resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: wedX, weekStartsOn: 1 });

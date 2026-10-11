@@ -88,7 +88,7 @@ function TextFieldControl({
   );
 }
 
-/** Renders the text field interface. */
+/** Renders a labelled text input with shared validation and layout behavior. */
 export function TextField(props: TextFieldProps) {
   const { label, description, invalid, required, disabled, layout = "stacked" } = props;
   const id = useId();
@@ -126,7 +126,7 @@ export function TextField(props: TextFieldProps) {
   );
 }
 
-/** Renders the number field interface. */
+/** Renders a labelled numeric input with shared validation and layout behavior. */
 export function NumberField({
   label,
   value,
@@ -195,7 +195,7 @@ export function NumberField({
   );
 }
 
-/** Renders the date field interface. */
+/** Renders a labelled date input with shared validation and layout behavior. */
 export function DateField({
   label,
   value,

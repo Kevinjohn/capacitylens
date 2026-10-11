@@ -200,7 +200,7 @@ function resetCreateAccountForm(
   resetExampleData();
 }
 
-/** Renders the example data choice interface. */
+/** Whether example data is requested during account creation. */
 export interface ExampleDataChoice {
   checked: boolean;
   onChange: (checked: boolean) => void;
@@ -216,7 +216,7 @@ function useExampleDataChoice() {
   return { checked, choice, reset: () => setTouched(null) };
 }
 
-/** Returns the create account form state and actions for this feature. */
+/** Tracks account creation fields, validation, and submission. */
 export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<typeof useAuth>["refreshAuth"] }) {
   const addAccount = useStore((state) => state.addAccount);
   const setAccountSummaries = useStore((state) => state.setAccountSummaries);

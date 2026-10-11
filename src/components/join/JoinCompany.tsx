@@ -162,7 +162,7 @@ function JoinCompanyForAccount({ accountId, invitationToken }: { accountId: stri
   );
 }
 
-/** Renders the join company interface. */
+/** Shows the account joining flow for the route account. */
 export function JoinCompany() {
   const { accountId } = useParams<{ accountId: string }>();
   const [searchParams] = useSearchParams();
