@@ -12,7 +12,7 @@ if (!registryPin || registryPin !== mcpPin) {
 
 const sourceOwnedPrimitives = {
   "src/components/ui/alert-dialog.tsx": "273382747aad1d469a774b70f2c7dde4ff612549ac5917be545c8525f8e0aac8",
-  "src/components/ui/alert.tsx": "248d52724d2f881e62aafb0b99212eb43f0469d03bced431dc282485b87344ba",
+  "src/components/ui/alert.tsx": "330a5f4c1f07b0d2630d8e752b2b02ad2236c8e62c15695a21da94f5576bfce0",
   "src/components/ui/avatar.tsx": "0139f24b1b0cd085d3f9a8e58363317e54fb1e059c778d9b9073b3d7999a952d",
   "src/components/ui/badge.tsx": "0d7ff98483b43634c32a873ff7d7be60929a922362e9ef852072bc22f6823ae6",
   "src/components/ui/button.tsx": "1baae11e67b9d548f3c538dfdc6ae25c5edc84d42188d98fd708fc35d175cc05",
@@ -21,11 +21,11 @@ const sourceOwnedPrimitives = {
   "src/components/ui/item.tsx": "ea2af620f8d88eeecad2fe0976a1d720869f002f11a96d0ccbcdb495a2682064",
   "src/components/ui/popover.tsx": "d1a4b8d715144227a0719d54b00d377f4750542f70551074cf939cce7a52c40f",
   "src/components/ui/select.tsx": "161de554ec8f384a3952c93fda760344c41840111144fd3e7c39b3c883995a70",
-  "src/components/ui/sheet.tsx": "6a4cbc17fea3fd3c6dca40c65ba7e9c75be6fef95eb4609326a36e7fb690a846",
-  "src/components/ui/sidebar.tsx": "e3a7ed34ac19b5a022c1b5969d771c2bdc7e8e14332fddea26e696d2e2da2fda",
+  "src/components/ui/sheet.tsx": "24c91251cd1db5c375e2b901c0dbfa1f1f7b2f05a5b8e84294d394d41136fa38",
+  "src/components/ui/sidebar.tsx": "4b73293293b8fafc2ced19ede1b949ad8e5d216fb228d985115896a6b45d62e8",
   "src/components/ui/toggle.tsx": "ca13c0cc45a5951155d7d321d782ef91bd5f68c0a623af1bdbd9288212238aa0",
   "src/components/ui/toggle-group.tsx": "c13b73081fc00c367bc22de16799071d9e7616448d8cc05240484384ff9c0210",
-  "src/components/ui/tooltip.tsx": "fe764c92061ac7f974fb4a66e7451af7b20024660ed51ebf147aded491ed8192",
+  "src/components/ui/tooltip.tsx": "7bc26e506e5379fc21ae6711a83cb46ea90e6b0a204d1b59cbc02ec7aded1aeb",
 };
 
 const changed = [];
