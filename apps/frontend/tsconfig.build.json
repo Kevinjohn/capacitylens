@@ -14,5 +14,6 @@
     "src/**/*.testSupport.ts",
     "src/**/*.testSupport.tsx",
     "../../packages/shared/src/**/*.test.ts"
-  ]
+  ],
+  "references": [{ "path": "../backend/tsconfig.client.json" }]
 }

@@ -8,6 +8,9 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { authApiClient } from '@adonisjs/auth/plugins/api_client'
 import { sessionApiClient } from '@adonisjs/session/plugins/api_client'
 import type { Registry } from '../.adonisjs/client/registry/schema.d.ts'
+import { createServer } from 'node:http'
+import { configureNodeServer } from '#start/resource_limits'
+import logger from '@adonisjs/core/services/logger'
 
 /**
  * This file is imported by the "bin/test.ts" entrypoint file
@@ -51,6 +54,12 @@ export const runnerHooks: Required<Pick<Config, 'setup' | 'teardown'>> = {
  */
 export const configureSuite: Config['configureSuite'] = (suite) => {
   if (['browser', 'functional', 'e2e'].includes(suite.name)) {
-    return suite.setup(() => testUtils.httpServer().start())
+    return suite.setup(() =>
+      testUtils
+        .httpServer()
+        .start((handler) =>
+          configureNodeServer(createServer(handler), (entry) => logger.warn(entry))
+        )
+    )
   }
 }

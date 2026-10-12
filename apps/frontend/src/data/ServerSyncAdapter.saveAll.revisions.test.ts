@@ -316,6 +316,7 @@ function registerConcurrentRewriteTests(): void {
     });
 
     const saving = adapter.saveAll(flushed, options);
+    await vi.waitFor(() => expect(releaseReceipt).toBeTypeOf("function"));
     visible = {
       ...flushed,
       allocations: [{ ...required(flushed.allocations[0]), projectId: "p2", updatedAt: "2026-01-03T00:00:00.000Z" }],
@@ -366,6 +367,7 @@ function registerQueuedSaveTests(): void {
 
     const p1 = a.saveAll(withData({ clients: [client("c1")] }));
     const p2 = a.saveAll(withData({ clients: [client("c1"), client("c2")] }));
+    await vi.waitFor(() => expect(resolveFirst).toBeTypeOf("function"));
     required(resolveFirst)();
     await Promise.all([p1, p2]);
     const batches = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.map((c) =>
@@ -426,6 +428,7 @@ function registerQueuedRebaseTests(): void {
 
     const p1 = adapter.saveAll(first);
     const p2 = adapter.saveAll(second);
+    await vi.waitFor(() => expect(resolveFirst).toBeTypeOf("function"));
     required(resolveFirst)(queuedFirstReceipt());
     await Promise.all([p1, p2]);
 

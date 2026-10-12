@@ -15,6 +15,7 @@ import Project from '#models/project'
 import Resource from '#models/resource'
 import TimeOff from '#models/time_off'
 import type { BaseModel } from '@adonisjs/lucid/orm'
+import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 
 const tables = {
   accounts: 'accounts',
@@ -28,6 +29,7 @@ const tables = {
   timeOff: 'time_off',
   closures: 'closures',
 } as const
+export type ProductTable = (typeof tables)[keyof typeof tables]
 
 const snake = (key: string) => key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
 
@@ -53,12 +55,30 @@ const jsonColumns = {
   closures: new Set<string>(),
 } satisfies Record<(typeof tables)[keyof typeof tables], Set<string>>
 
-function encodeRow(table: (typeof tables)[keyof typeof tables], row: Record<string, unknown>) {
+const modelColumns = {
+  accounts: Account.$columns,
+  clients: Client.$columns,
+  disciplines: Discipline.$columns,
+  projects: Project.$columns,
+  phases: Phase.$columns,
+  resources: Resource.$columns,
+  activities: Activity.$columns,
+  allocations: Allocation.$columns,
+  time_off: TimeOff.$columns,
+  closures: Closure.$columns,
+} satisfies Record<ProductTable, readonly string[]>
+
+export function encodeRow(table: ProductTable, row: Record<string, unknown>) {
   return Object.fromEntries(
-    Object.entries(row).map(([key, value]) => [
-      snake(key),
-      jsonColumns[table].has(key) && value !== undefined ? JSON.stringify(value) : (value ?? null),
-    ])
+    modelColumns[table].map((key) => {
+      const value = row[key]
+      return [
+        snake(key),
+        jsonColumns[table].has(key) && value !== undefined
+          ? JSON.stringify(value)
+          : (value ?? null),
+      ]
+    })
   )
 }
 
@@ -69,7 +89,8 @@ function serializeRows(rows: InstanceType<typeof BaseModel>[]): Record<string, u
 }
 
 /** Reads the trusted-local whole database, or one fail-closed tenant slice. */
-export async function readState(
+export async function readStateWithClient(
+  client: QueryClientContract,
   accountId?: string,
   includeInactive = accountId === undefined
 ): Promise<AppData> {
@@ -87,34 +108,36 @@ export async function readState(
     timeOff,
     closures,
   ] = await Promise.all([
-    accountId === undefined ? Account.all() : Account.query().where('id', accountId),
     accountId === undefined
-      ? Client.query().withScopes((scopes) => scopes.forTrustedLocal())
-      : Client.query().withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Account.query({ client })
+      : Account.query({ client }).where('id', accountId),
     accountId === undefined
-      ? Discipline.query().withScopes((scopes) => scopes.forTrustedLocal())
-      : Discipline.query().withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Client.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      : Client.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Project.query().withScopes((scopes) => scopes.forTrustedLocal())
-      : Project.query().withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Discipline.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      : Discipline.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Phase.query().withScopes((scopes) => scopes.forTrustedLocal())
-      : Phase.query().withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Project.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      : Project.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Resource.query().withScopes((scopes) => scopes.forTrustedLocal())
-      : Resource.query().withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Phase.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      : Phase.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Activity.query().withScopes((scopes) => scopes.forTrustedLocal())
-      : Activity.query().withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Resource.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      : Resource.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Allocation.query().withScopes((scopes) => scopes.forTrustedLocal())
-      : Allocation.query().withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Activity.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      : Activity.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? TimeOff.query().withScopes((scopes) => scopes.forTrustedLocal())
-      : TimeOff.query().withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Allocation.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      : Allocation.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Closure.query().withScopes((scopes) => scopes.forTrustedLocal())
-      : Closure.query().withScopes((scopes) => scopes.forCompany(accountId)),
+      ? TimeOff.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      : TimeOff.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+    accountId === undefined
+      ? Closure.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      : Closure.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
   ])
   const data = {
     accounts: serializeRows(accounts),
@@ -129,6 +152,11 @@ export async function readState(
     closures: serializeRows(closures),
   } as unknown as AppData
   return includeInactive ? data : activeOnly(data)
+}
+
+/** Reads through an explicit ordinary connection; batch callers pass their transaction instead. */
+export function readState(accountId?: string, includeInactive = accountId === undefined) {
+  return readStateWithClient(db.connection(), accountId, includeInactive)
 }
 
 export async function resetState(seedRequested: boolean) {

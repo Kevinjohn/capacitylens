@@ -13,6 +13,8 @@ export const appUrl = env.get('APP_URL')
  * The configuration settings used by the HTTP server
  */
 export const http = defineConfig({
+  requestTimeout: 30_000,
+  timeout: 30_000,
   /**
    * Generate a unique request id for each incoming request.
    * Useful to correlate logs and debug a request flow.

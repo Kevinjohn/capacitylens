@@ -1,8 +1,19 @@
 import env from '#start/env'
 import app from '@adonisjs/core/services/app'
+import type { LoggerConfig, LoggerManagerConfig } from '@adonisjs/logger/types'
 import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger'
 
-const loggerConfig = defineConfig({
+type AppLoggerConfig = LoggerConfig & {
+  enabled: true
+  name: string | undefined
+  level: string
+  destination?: LoggerConfig['destination']
+  transport: { targets: [ReturnType<typeof targets.file>] }
+}
+
+type CapacityLensLoggerConfig = LoggerManagerConfig<{ app: AppLoggerConfig }>
+
+const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConfig }>({
   /**
    * Default logger name used by ctx.logger and app logger calls.
    */

@@ -7,6 +7,30 @@ import type { InferInput, SimpleError } from '@vinejs/vine/types'
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
+  'api.batch': {
+    methods: ["POST"]
+    pattern: '/api/batch'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/batch').batchValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/batch').batchValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/batch_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/batch_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'api.lifecycle': {
+    methods: ["POST"]
+    pattern: '/api/:entity/:id/:action'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/lifecycle').lifecycleValidator)>>
+      paramsTuple: [ParamValue, ParamValue, ParamValue]
+      params: { entity: ParamValue; id: ParamValue; action: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/lifecycle').lifecycleValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/lifecycle_controller').default['mutate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/lifecycle_controller').default['mutate']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'api.health': {
     methods: ["GET","HEAD"]
     pattern: '/api/health'

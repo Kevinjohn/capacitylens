@@ -25,12 +25,23 @@ export default class HttpExceptionHandler extends ExceptionHandler {
             : 'Invalid request.'
         return ctx.response.badRequest({ error: message })
       }
-      if (typeof code === 'string' && code.startsWith('SQLITE_CONSTRAINT'))
+      if (code === 'E_ROUTE_NOT_FOUND') return ctx.response.notFound({ error: 'Not found.' })
+      if (code === 'E_REQUEST_ENTITY_TOO_LARGE')
+        return ctx.response.status(413).send({ error: 'Request body is too large.' })
+      if (code === 'E_ENCODING_UNSUPPORTED')
+        return ctx.response.status(415).send({ error: 'Unsupported media type.' })
+      if (
+        code === 'SQLITE_CONSTRAINT_NOTNULL' ||
+        code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
+        code === 'SQLITE_CONSTRAINT_UNIQUE' ||
+        code === 'SQLITE_CONSTRAINT_FOREIGNKEY' ||
+        code === 'SQLITE_CONSTRAINT_CHECK'
+      )
         return ctx.response.badRequest({
           error: 'That change references missing data or conflicts with an existing record.',
         })
     }
-    return super.handle(error, ctx)
+    return ctx.response.internalServerError({ error: 'Internal server error.' })
   }
 
   /**

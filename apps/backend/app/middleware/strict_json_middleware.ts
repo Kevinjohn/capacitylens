@@ -4,6 +4,12 @@ import { TextDecoder } from 'node:util'
 import { assertUnambiguousJson } from '@capacitylens/shared/data/strictJson'
 export default class StrictJsonMiddleware {
   async handle({ request, response }: HttpContext, next: NextFn) {
+    const contentEncoding = request.header('content-encoding')?.toLowerCase() ?? 'identity'
+    if (!['identity', 'gzip', 'deflate', 'br'].includes(contentEncoding))
+      return response.status(415).send({ error: 'Unsupported media type.' })
+    const cspReport = request.is(['application/csp-report', 'application/reports+json'])
+    if (cspReport && request.url() !== '/api/security/csp-report')
+      return response.status(415).send({ error: 'Unsupported media type.' })
     if (
       !['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method()) ||
       !request.is(['application/json', 'application/csp-report', 'application/reports+json'])
@@ -28,7 +34,7 @@ export default class StrictJsonMiddleware {
       request.updateBody(JSON.parse(source) as Record<string, unknown>)
     } catch {
       return response.status(400).send({
-        error: request.is(['application/csp-report', 'application/reports+json'])
+        error: cspReport
           ? 'Malformed CSP report.'
           : "Body is not valid JSON but content-type is set to 'application/json'.",
       })

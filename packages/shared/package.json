@@ -217,6 +217,11 @@
       "development": "./src/types/entities.ts",
       "types": "./src/types/entities.ts",
       "default": "./dist/types/entities.js"
+    },
+    "./domain/placement": {
+      "development": "./src/domain/placement.ts",
+      "types": "./src/domain/placement.ts",
+      "default": "./dist/domain/placement.js"
     }
   },
   "dependencies": {

@@ -26,6 +26,7 @@ const dbConfig = defineConfig({
       pool: {
         min: 1,
         max: 1,
+        acquireTimeoutMillis: 5000,
         validate(connection) {
           return connection.open && !connection.inTransaction
         },

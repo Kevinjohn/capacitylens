@@ -34,7 +34,7 @@ test.group('M1 read path', (group) => {
               ...(expected.body as object),
               server: {
                 ...(expected.body as { server: object }).server,
-                database: { status: 'ok', schemaVersion: 1 },
+                database: { status: 'ok', schemaVersion: 2 },
               },
             }
           : expected.body

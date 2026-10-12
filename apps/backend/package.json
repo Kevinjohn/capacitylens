@@ -18,7 +18,8 @@
     "test": "node ace test",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typecheck:client": "tsc -b tsconfig.client.json"
   },
   "imports": {
     "#auth/*": "./app/auth/*.js",
@@ -43,7 +44,9 @@
   },
   "devDependencies": {
     "@adonisjs/assembler": "^8.5.2",
+    "@adonisjs/bodyparser": "11.0.4",
     "@adonisjs/eslint-config": "^3.1.0",
+    "@adonisjs/logger": "7.1.1",
     "@adonisjs/prettier-config": "^1.5.0",
     "@adonisjs/tsconfig": "^2.0.0",
     "@japa/assert": "^4.2.0",
@@ -60,14 +63,15 @@
     "youch": "^4.1.1"
   },
   "dependencies": {
-    "@capacitylens/shared": "workspace:*",
     "@adonisjs/auth": "10.1.0",
+    "@adonisjs/bouncer": "4.0.1",
     "@adonisjs/core": "7.5.2",
     "@adonisjs/cors": "3.0.0",
     "@adonisjs/lucid": "22.4.2",
     "@adonisjs/session": "8.1.0",
     "@adonisjs/shield": "9.0.0",
     "@adonisjs/static": "2.0.1",
+    "@capacitylens/shared": "workspace:*",
     "@japa/api-client": "3.2.1",
     "@tuyau/core": "1.2.2",
     "@vinejs/vine": "4.4.0",

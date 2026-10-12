@@ -288,9 +288,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // recreate it with a generic PUT: the server deliberately pins archivedAt. Reverse those
       // remembered transitions parent-first, fold their authoritative revisions into the baseline,
       // then re-diff so the ordinary batch carries only genuine edits and descendants.
-      // Keep the ordinary save path synchronous through its first network dispatch. That timing
-      // lets an overlapping pagehide observe the in-flight request and immediately put its own
-      // compensating keepalive on the wire. Only a real remembered restore needs this await.
+      // Prepare the target before yielding to the native client so an overlapping pagehide can
+      // include this possible server basis in its compensating keepalive. Only a remembered
+      // restore needs to wait for an earlier server receipt.
       const initialTarget = prepareDrainTarget(this.state, target);
       let prepared: DrainTarget | null = initialTarget;
       if (initialTarget.restoreOps.length > 0) {

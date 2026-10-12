@@ -193,8 +193,10 @@ function registerInFlightKeepaliveTests(): void {
     const a = new ServerSyncAdapter("http://x", fetchImpl);
 
     const ordinary = a.saveAll(withData({ clients: [client("c1")] }));
+    await vi.waitFor(() => expect(releaseFirst).toBeTypeOf("function"));
     expect(releaseFirst).toBeTypeOf("function");
     const teardown = a.saveAll(withData({ clients: [client("c1"), client("c2")] }), { unload: true });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
     // The pagehide call must put the latest state on the wire immediately; it cannot wait for the
     // ordinary response because the document may be terminated first.
@@ -237,7 +239,9 @@ function registerCompensatingKeepaliveTests(): void {
     };
 
     const ordinary = adapter.saveAll(withData({ disciplines: [created] }));
+    await vi.waitFor(() => expect(releaseFirst).toBeTypeOf("function"));
     const teardown = adapter.saveAll(emptyAppData(), { unload: true });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
 
     expect(calls).toHaveLength(2);

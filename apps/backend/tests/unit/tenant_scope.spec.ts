@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import testUtils from '@adonisjs/core/services/test_utils'
 import Client from '#models/client'
 import { scopedWrite } from '#services/tenant/scoped_write'
+import { withTransaction } from '#services/with_transaction'
 
 test.group('tenant scope', (group) => {
   group.setup(() => testUtils.db().migrate())
@@ -46,8 +47,10 @@ test.group('tenant scope', (group) => {
   })
 
   test('scopes bulk writes to one company', async ({ assert }) => {
-    assert.throws(() => scopedWrite('clients', ''))
-    await scopedWrite('clients', 'a-studio').update({ color: '#333' })
+    await withTransaction(async (trx) => {
+      assert.throws(() => scopedWrite(trx, 'clients', ''))
+      await scopedWrite(trx, 'clients', 'a-studio').update({ color: '#333' })
+    })
     const wayne = await db.from('clients').where('id', 'c-wayne').first()
     const stark = await db.from('clients').where('id', 'c-stark').first()
     assert.equal(wayne.color, '#333')

@@ -406,7 +406,7 @@ function registerLifecycleUnloadFailureTests(): void {
     const teardown = a.saveAll(scopedData("a1", {}), { unload: true }).finally(() => {
       settled = true;
     });
-    await Promise.resolve();
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
 
     expect(calls).toEqual([
       expect.objectContaining({

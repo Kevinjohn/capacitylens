@@ -1,5 +1,6 @@
 import type { StateCreator, StoreApi } from "zustand";
-import { assertAllocationWithinResourceAvailability, assertDateRange } from "@capacitylens/shared/domain/mutations";
+import { assertDateRange } from "@capacitylens/shared/domain/mutations";
+import { assertAllocationPlacement } from "@capacitylens/shared/domain/placement";
 import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { Allocation, AppData, ID } from "@capacitylens/shared/types/entities";
@@ -24,18 +25,12 @@ export type AllocationSliceInternals = Pick<
 >;
 
 function assertAvailabilityAfterPlacementChange(data: AppData, effective: Allocation, existing: Allocation): void {
-  const placementChanged =
-    effective.resourceId !== existing.resourceId ||
-    effective.startDate !== existing.startDate ||
-    effective.endDate !== existing.endDate ||
-    (effective.ignoreWeekends === true) !== (existing.ignoreWeekends === true);
-  if (!placementChanged) return;
   const resource = data.resources.find(
     (candidate) => candidate.accountId === existing.accountId && candidate.id === effective.resourceId,
   );
   const account = data.accounts.find((candidate) => candidate.id === existing.accountId);
   const accountWorkingDays = normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? 1);
-  if (resource) assertAllocationWithinResourceAvailability({ allocation: effective, resource, accountWorkingDays });
+  if (resource) assertAllocationPlacement({ allocation: effective, existing, resource, accountWorkingDays });
 }
 
 /** Create allocation actions for the store. */

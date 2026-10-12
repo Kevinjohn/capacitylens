@@ -21,6 +21,9 @@ import type { BatchCommitReceipt, CommittedRevision } from "./revisions";
 import type { SyncState } from "./SyncState";
 import { addResourceAvailabilityClearMarkers } from "./resourceAvailabilityWire";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
+import { createTuyau, TuyauNetworkError } from "@tuyau/core/client";
+import { registry } from "@capacitylens/backend/registry";
+import { normalizeNativeBatchRequest } from "./nativeBatchFetch";
 
 // Apply the complete ordered diff as one request and therefore one SQLite transaction. An
 // over-limit diff is never split into separately committed prefixes.
@@ -134,34 +137,50 @@ interface SendBatchInput {
 /** Dispatch stage: build and send the request, mapping a transport-level failure to the typed
  * uncertain-commit error (the request may have been applied before the connection died). */
 export async function sendBatch({ state, body, sequence, options }: SendBatchInput): Promise<Response> {
-  let res: Response;
+  const timeoutMs = options?.keepalive ? null : API_BULK_TIMEOUT_MS;
+  let capturedResponse: Response | undefined;
+  const client = createTuyau({
+    baseUrl: state.baseUrl,
+    registry,
+    credentials: "include",
+    retry: 0,
+    timeout: false,
+    fetch: async (input, init) => {
+      // Tuyau/Ky serializes the typed body, while the existing byte budget and wire contract
+      // depend on the one exact string prepared before dispatch.
+      const request = normalizeNativeBatchRequest(input, init, body);
+      const response = await state.request(request.url, request.init, timeoutMs);
+      capturedResponse = response.clone();
+      return response;
+    },
+  });
+  const payload = JSON.parse(body) as Parameters<typeof client.request<"api.batch">>[1]["body"];
   try {
-    res = await state.request(
-      `${state.baseUrl}/api/batch`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CapacityLens-Sync-Session": state.syncSessionId,
-          "X-CapacityLens-Sync-Sequence": String(sequence),
-        },
-        body,
-        ...(options?.keepalive === undefined ? {} : { keepalive: options.keepalive }),
-        credentials: "include",
+    await client.request("api.batch", {
+      body: payload,
+      headers: {
+        "Content-Type": "application/json",
+        "X-CapacityLens-Sync-Session": state.syncSessionId,
+        "X-CapacityLens-Sync-Sequence": String(sequence),
       },
-      // Bulk writes need a longer deadline on a healthy but slow server. Teardown disables
-      // the client deadline; any surviving page still receives its receipt or failure.
-      options?.keepalive ? null : API_BULK_TIMEOUT_MS,
-    );
+      ...(options?.keepalive === undefined ? {} : { keepalive: options.keepalive }),
+    });
   } catch (error) {
-    if (isTransportFailure(error)) {
+    // Tuyau consumes JSON responses and wraps non-2xx statuses. Return the captured original
+    // response to the established status and receipt classifiers without changing semantics.
+    if (capturedResponse) return capturedResponse;
+    const cause = error instanceof TuyauNetworkError ? error.cause : error;
+    if (isTransportFailure(cause)) {
       throw new BatchCommitUncertainError("Batch sync ended before its commit receipt was received.", {
-        cause: error,
+        cause,
       });
     }
-    throw error;
+    throw cause;
   }
-  return res;
+  if (!capturedResponse) {
+    throw new BatchCommitUncertainError("Batch sync completed without a captured commit response.");
+  }
+  return capturedResponse;
 }
 
 /** Classification stage: turn a non-OK batch status into the typed error persist.ts branches on.

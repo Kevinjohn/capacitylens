@@ -49,7 +49,14 @@ interface Ledger {
           verification: string
         }
         legacy_response_status_contract: { status: string; source: string }
-        implementation: { status: string; package: string | null }
+        implementation: {
+          status: string
+          package: string | null
+          source?: string
+          milestone?: string
+          method?: string
+          path?: string
+        }
       }>
     }
   }
@@ -64,9 +71,70 @@ interface Ledger {
     }>
     additional_contracts: Array<{ target: string; cases: string[]; reason: string }>
   }
+  m2a_port_evidence: {
+    source_maps: string[]
+    entries: Array<{
+      source_path: string
+      guarantee: string
+      targets: Array<{ path: string; cases: string[] }>
+      uncovered_guarantees: string[]
+      later_splits: Array<{ milestone: string; package: string; reason: string }>
+    }>
+    additional_contracts: Array<{
+      source_path: string
+      scope: string
+      targets: Array<{ path: string; cases: string[] }>
+      uncovered_guarantees: string[]
+      later_splits: Array<{ milestone: string; package: string; reason: string }>
+    }>
+    native_batch_client: {
+      source: string
+      test: string
+      case: string
+      route: string
+      contract: string
+    }
+    e2e_write_rebindings: Array<{
+      legacy_source: string
+      path: string
+      expected_batch_calls: number
+      target: string
+      implementation_source: string
+      status: string
+    }>
+    legacy_caller_identity_sha256: string
+  }
 }
 
 const LEGACY_MANIFEST_SHA256 = '09543bf29eeabba7548d77a23853fbec4d3cdc9113a776cd7eb37eaf4fecb73c'
+const M2A_NAMED_SOURCES = [
+  'server/src/BatchStateProjection.test.ts',
+  'server/src/app.authz.test.ts',
+  'server/src/app.batch-attribution.test.ts',
+  'server/src/app.batch-validation.test.ts',
+  'server/src/app.concurrency-ordered.test.ts',
+  'server/src/app.crud-round-trip.test.ts',
+  'server/src/app.frozen-fields-errors.test.ts',
+  'server/src/app.input-contract.test.ts',
+  'server/src/app.lifecycle.test.ts',
+  'server/src/app.projections-guards.test.ts',
+  'server/src/app.request-guards.test.ts',
+  'server/src/app.resourceLimits.test.ts',
+  'server/src/app.sanitization.test.ts',
+  'server/src/app.singleCompanyCap.test.ts',
+  'server/src/app.syncOrdering.integration.test.ts',
+  'server/src/app.write-validation.test.ts',
+  'server/src/audit.test.ts',
+  'server/src/auditOutbox.test.ts',
+  'server/src/batchAttribution.model.test.ts',
+  'server/src/fieldPolicy.test.ts',
+  'server/src/resolveEntitlements.test.ts',
+  'server/src/revision.test.ts',
+  'server/src/validate.allocationProject.test.ts',
+  'server/src/validate.resourceAvailability.test.ts',
+  'server/src/validate.timeOff.test.ts',
+  'server/src/writePipeline.test.ts',
+]
 const ledger = JSON.parse(
   await readFile(new URL('../m1-test-census.json', import.meta.url), 'utf8')
 ) as Ledger
@@ -92,6 +160,27 @@ function validateDispositions(paths: string[], dispositions: Disposition[]) {
         !split.reason
       )
         throw new Error(`Incomplete split disposition for ${row.source_path}`)
+    }
+  }
+}
+
+function validateM2aEvidence(entries: Ledger['m2a_port_evidence']['entries']) {
+  const sources = entries.map(({ source_path }) => source_path)
+  const duplicates = sources.filter((path, index) => sources.indexOf(path) !== index)
+  const missing = M2A_NAMED_SOURCES.filter((path) => !sources.includes(path))
+  const extra = sources.filter((path) => !M2A_NAMED_SOURCES.includes(path))
+  if (duplicates.length || missing.length || extra.length)
+    throw new Error(JSON.stringify({ duplicates, missing, extra }))
+  for (const entry of entries) {
+    if (!entry.guarantee || !entry.targets.length)
+      throw new Error(`Missing concrete M2a mapping for ${entry.source_path}`)
+    if (entry.uncovered_guarantees.length)
+      throw new Error(
+        `Uncovered M2a guarantees for ${entry.source_path}: ${entry.uncovered_guarantees.join('; ')}`
+      )
+    for (const target of entry.targets) {
+      if (!target.path || !target.cases.length)
+        throw new Error(`Missing concrete target case for ${entry.source_path}`)
     }
   }
 }
@@ -333,4 +422,136 @@ test('M1 migration coverage points to concrete cases and separates later route s
     assert.isNotEmpty(evidence.reason)
     for (const caseTitle of evidence.cases) assert.include(source, caseTitle, evidence.target)
   }
+})
+
+test('M2a maps every named source guarantee to real target cases without unresolved gaps', async ({
+  assert,
+}) => {
+  const root = resolve(process.cwd(), '..', '..')
+  const evidence = ledger.m2a_port_evidence
+  validateM2aEvidence(evidence.entries)
+  assert.isNotEmpty(evidence.source_maps)
+  for (const entry of evidence.entries) {
+    assert.include(ledger.test_census.paths, entry.source_path)
+    const disposition = ledger.test_dispositions.find(
+      ({ source_path }) => source_path === entry.source_path
+    )
+    assert.isDefined(disposition, `missing pinned disposition for ${entry.source_path}`)
+    assert.isTrue(
+      disposition!.milestone === 'M2a' ||
+        disposition!.subdispositions?.some((split) => split.milestone === 'M2a'),
+      `${entry.source_path} is not assigned to M2a in the pinned census`
+    )
+    for (const target of entry.targets) {
+      const source = await readFile(resolve(root, target.path), 'utf8')
+      for (const caseTitle of target.cases)
+        assert.include(source, caseTitle, `${entry.source_path} -> ${target.path}`)
+    }
+    for (const split of entry.later_splits) {
+      assert.isNotEmpty(split.milestone)
+      assert.isNotEmpty(split.package)
+      assert.isNotEmpty(split.reason)
+    }
+  }
+
+  const expectedAdditionalSources = [
+    'packages/shared/src/data/strictJson.test.ts',
+    'server/src/db.accountStore.test.ts',
+    'server/src/db.writeAtomicity.test.ts',
+  ]
+  assert.deepEqual(
+    evidence.additional_contracts.map(({ source_path }) => source_path).sort(),
+    expectedAdditionalSources.sort()
+  )
+  for (const contract of evidence.additional_contracts) {
+    assert.deepEqual(
+      contract.uncovered_guarantees,
+      [],
+      `uncovered M2a write-scope guarantees for ${contract.source_path}`
+    )
+    assert.isNotEmpty(contract.targets, `missing target coverage for ${contract.source_path}`)
+    for (const target of contract.targets) {
+      const source = await readFile(resolve(root, target.path), 'utf8')
+      for (const caseTitle of target.cases)
+        assert.include(source, caseTitle, `${contract.source_path} -> ${target.path}`)
+    }
+    for (const split of contract.later_splits) {
+      assert.isNotEmpty(split.milestone)
+      assert.isNotEmpty(split.package)
+      assert.isNotEmpty(split.reason)
+    }
+  }
+
+  const identity = `${ledger.route_inventory.caller_inventory.calls
+    .map(({ method, path, source }) => `${method} ${path} ${source}`)
+    .join('\n')}\n`
+  assert.equal(
+    createHash('sha256').update(identity).digest('hex'),
+    evidence.legacy_caller_identity_sha256,
+    'M2a rebindings retain the original 109 caller identities'
+  )
+
+  const batchClient = evidence.native_batch_client
+  const clientSource = await readFile(resolve(root, batchClient.source), 'utf8')
+  const clientTest = await readFile(resolve(root, batchClient.test), 'utf8')
+  assert.include(clientSource, 'client.request("api.batch"')
+  assert.include(clientTest, batchClient.case)
+  assert.equal(batchClient.route, 'POST /api/batch')
+  assert.include(batchClient.contract, 'PUT/DELETE/ARCHIVE')
+
+  assert.deepEqual(
+    evidence.e2e_write_rebindings.map(({ path }) => path).sort(),
+    [
+      'e2e/company-closures.auth.spec.ts',
+      'e2e/person-schedule.auth.spec.ts',
+      'e2e/private-name-permissions.auth.spec.ts',
+      'e2e/viewer.auth.spec.ts',
+    ].sort()
+  )
+  assert.equal(
+    evidence.e2e_write_rebindings.reduce((count, item) => count + item.expected_batch_calls, 0),
+    7
+  )
+  for (const rebinding of evidence.e2e_write_rebindings) {
+    assert.equal(rebinding.target, 'POST /api/batch')
+    assert.equal(rebinding.status, 'implemented-in-M2a')
+    const source = await readFile(resolve(root, rebinding.path), 'utf8')
+    const calls = source.match(/request\.post\(\s*`[^`]*\/api\/batch`/g) ?? []
+    assert.equal(calls.length, rebinding.expected_batch_calls, rebinding.path)
+    const expandReferences = (value: string) =>
+      value.split(';').flatMap((reference) => {
+        const [file, lines] = reference.trim().split(':')
+        return (lines ?? '').split(',').map((line) => `${file}:${line}`)
+      })
+    const legacyRefs = expandReferences(rebinding.legacy_source)
+    const inventoryEntries = ledger.route_inventory.caller_inventory.calls.filter((call) =>
+      legacyRefs.some((legacyRef) => expandReferences(call.source).includes(legacyRef))
+    )
+    assert.isNotEmpty(
+      inventoryEntries,
+      `legacy caller identity missing: ${rebinding.legacy_source}`
+    )
+    for (const inventoryEntry of inventoryEntries) {
+      assert.equal(inventoryEntry.implementation.status, 'implemented-in-M2a')
+      assert.equal(inventoryEntry.implementation.method, 'POST')
+      assert.equal(inventoryEntry.implementation.path, '/api/batch')
+      assert.include(inventoryEntry.implementation.source ?? '', rebinding.implementation_source)
+    }
+  }
+})
+
+test('the M2a census rejects a missing named-file mapping or a target without a concrete case', ({
+  assert,
+}) => {
+  assert.throws(() => validateM2aEvidence(ledger.m2a_port_evidence.entries.slice(1)), /missing/)
+  const uncovered = ledger.m2a_port_evidence.entries.map((entry, index) =>
+    index === 0 ? { ...entry, uncovered_guarantees: ['fixture gap'] } : entry
+  )
+  assert.throws(() => validateM2aEvidence(uncovered), /Uncovered M2a guarantees/)
+  const noCases = ledger.m2a_port_evidence.entries.map((entry) =>
+    entry.targets.length > 0
+      ? { ...entry, targets: [{ path: entry.targets[0]!.path, cases: [] }] }
+      : entry
+  )
+  assert.throws(() => validateM2aEvidence(noCases), /Missing concrete target case/)
 })
