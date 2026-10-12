@@ -273,7 +273,7 @@ describe("global focus outline contrast (WCAG 1.4.11 non-text >=3:1)", () => {
 describe("global border default", () => {
   it("keeps the universal fallback in the base layer so border-colour utilities win", () => {
     expect(indexCss).toMatch(
-      /@layer base\s*\{\s*\/\* Default border colour for the bare `border` utility\. \*\/\s*\*,\s*\*::before,\s*\*::after\s*\{\s*border-color:\s*var\(--color-line\);\s*\}\s*\}/,
+      /@layer base\s*\{\s*(?:\/\*[\s\S]*?\*\/\s*)?\*,\s*\*::before,\s*\*::after\s*\{\s*border-color:\s*var\(--color-line\);\s*\}\s*\}/,
     );
   });
 });
