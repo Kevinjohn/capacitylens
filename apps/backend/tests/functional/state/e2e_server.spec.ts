@@ -1,6 +1,6 @@
-import { once } from 'node:events'
 import { spawn } from 'node:child_process'
 import { test } from '@japa/runner'
+import { portInUse, terminateProcessTree } from '../../../../../scripts/devProcesses.mjs'
 import { ports } from '../../../../../scripts/ports.mjs'
 
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds))
@@ -20,14 +20,36 @@ async function waitForReadiness(child: ReturnType<typeof spawn>, url: string, fl
   throw new Error(`The ${flavour} E2E server did not become ready.`)
 }
 
-async function stop(child: ReturnType<typeof spawn>) {
-  if (child.exitCode !== null || child.signalCode !== null) return
+async function waitForPortRelease(port: number) {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    if (!(await portInUse(port))) return true
+    await wait(100)
+  }
+  return false
+}
 
-  const exited = once(child, 'exit')
-  child.kill('SIGTERM')
-  const forceKill = setTimeout(() => child.kill('SIGKILL'), 5000)
-  await exited
-  clearTimeout(forceKill)
+function signalOwnedProcessGroup(child: ReturnType<typeof spawn>, signal: NodeJS.Signals) {
+  if (process.platform === 'win32' || child.pid === undefined) return
+  try {
+    process.kill(-child.pid, signal)
+  } catch (error) {
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESRCH') {
+      return
+    }
+    throw error
+  }
+}
+
+async function stop(child: ReturnType<typeof spawn>, port: number) {
+  if (child.pid === undefined) return
+  if (child.exitCode === null && child.signalCode === null) {
+    await terminateProcessTree(child, { graceMs: 5000, forceMs: 1000 })
+  } else {
+    signalOwnedProcessGroup(child, 'SIGTERM')
+  }
+  if (await waitForPortRelease(port)) return
+  signalOwnedProcessGroup(child, 'SIGKILL')
+  await waitForPortRelease(port)
 }
 
 test('both E2E flavours boot to database readiness and enable reset', async ({ assert }) => {
@@ -36,6 +58,7 @@ test('both E2E flavours boot to database readiness and enable reset', async ({ a
     const port = flavour === 'db' ? lane.dbApi : lane.authApi
     const child = spawn(process.execPath, ['scripts/e2e-server.mjs', flavour], {
       cwd: new URL('../../../', import.meta.url),
+      detached: process.platform !== 'win32',
       stdio: 'ignore',
     })
 
@@ -45,7 +68,11 @@ test('both E2E flavours boot to database readiness and enable reset', async ({ a
       assert.equal(reset.status, 200, `${flavour} reset route`)
       assert.deepEqual(await reset.json(), { ok: true }, `${flavour} reset response`)
     } finally {
-      await stop(child)
+      await stop(child, port)
+      assert.isTrue(
+        await waitForPortRelease(port),
+        `${flavour} E2E server should release port ${port}`
+      )
     }
   }
 })
