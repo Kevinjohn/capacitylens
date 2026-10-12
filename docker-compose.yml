@@ -1,15 +1,3 @@
-# CapacityLens, one reproducible deployment: the API server + the SPA, built
-# from the single multi-stage Dockerfile (targets `internal-tls`, `api`, `web` and `web-client`).
-#
-#   internal-tls  : one-shot per-install CA/API certificate creation and renewal
-#   web  (nginx)  : serves the built SPA, verifies and reverse-proxies /api -> api over TLS
-#   web-client     : opt-in static-only demo/remote-API image; no local API or TLS volume
-#   api  (Node 24): the HTTPS Fastify daemon, SQLite DB + backups on named volumes
-#
-# Runtime config comes from a .env file you create from .env.example (compose
-# auto-loads .env from this directory). `docker compose up --build` serves the
-# app at http://localhost:8080 in server mode against a persisted DB.
-#
 name: capacitylens
 
 services:
@@ -63,10 +51,7 @@ services:
     environment:
       PORT: "8787"
       CAPACITYLENS_DB: /data/capacitylens.db
-      # Backups are on by default in Docker, with hourly snapshots in the named volume.
-      # Set CAPACITYLENS_BACKUP_DIR= (explicitly empty) in .env to disable backups.
-      # Compose supplies /backups only when the variable is unset; an empty value reaches
-      # the server and disables snapshots. The mount remains available and is unused then.
+      # Leave CAPACITYLENS_BACKUP_DIR unset to use /backups; set it to an empty value to disable snapshots.
       CAPACITYLENS_BACKUP_DIR: ${CAPACITYLENS_BACKUP_DIR-/backups}
       # Nginx handles same-origin requests, so CORS stays fail-closed. The explicit empty value
       # also stops production from defaulting to the public URL origin.
@@ -136,13 +121,9 @@ services:
       context: .
       target: web
       args:
-        # Empty selects server mode against the same origin. Nginx proxies /api to the API service,
-        # so the app works on any host without a per-host rebuild.
-        # Set another origin only for a remote API. Empty does not enable browser persistence;
-        # build with VITE_CAPACITYLENS_DEMO=1 to select the in-memory demo.
+        # Set a remote API origin when the app cannot use nginx's same-origin /api proxy.
         VITE_CAPACITYLENS_API: ${VITE_CAPACITYLENS_API:-}
-        # Set VITE_CAPACITYLENS_DEMO=1 in .env to build the in-memory demo image
-        # (no backend; wins over the API var). Empty selects the server build above.
+        # Set VITE_CAPACITYLENS_DEMO=1 to build the in-memory demo; it takes precedence over the API origin.
         VITE_CAPACITYLENS_DEMO: ${VITE_CAPACITYLENS_DEMO:-}
         VITE_CAPACITYLENS_BUILD_SHA: ${VITE_CAPACITYLENS_BUILD_SHA:-}
         VITE_CAPACITYLENS_FEEDBACK_MAILTO: ${VITE_CAPACITYLENS_FEEDBACK_MAILTO:-}
