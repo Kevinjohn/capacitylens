@@ -1,6 +1,4 @@
 # Use BuildKit's bundled frontend to avoid a separate Docker Hub syntax-image pull.
-# One reproducible build, two non-root runtime targets (SQLite API and nginx SPA) plus a
-# one-shot, least-privilege initializer for the per-install internal TLS certificate set.
 
 # Publisher mirrors retain the pinned images without Docker Hub's anonymous pull quota.
 FROM public.ecr.aws/docker/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS deps
@@ -49,11 +47,7 @@ WORKDIR /app/server
 ENV NODE_ENV=production
 ENV CAPACITYLENS_HOST=0.0.0.0
 COPY --from=server-deploy /prod/server ./
-# Apply Debian security patches not yet present in the pinned base, then remove package metadata
-# from the runtime layer.
-# Package managers are build tools, not runtime requirements. The upstream Node image currently
-# bundles an otherwise-unreachable vulnerable undici under npm; remove all unused npm/Corepack/Yarn
-# tooling instead of shipping or suppressing it. Application dependencies live in ./node_modules.
+# Apply Debian security updates and remove package managers that the runtime does not need.
 RUN apt-get update \
     && apt-get upgrade --yes \
     && rm -rf /var/lib/apt/lists/* \
@@ -77,7 +71,7 @@ FROM ghcr.io/nginx/nginx-unprivileged:1.31.6-alpine@sha256:26b0bf6fbf07297983cb3
 USER root
 # The base installs curl for its generic entrypoint, which this image deliberately does not use.
 # Remove curl/libcurl rather than retaining an unnecessary network client and its CVE surface.
-# Apply Alpine security patches (openssl, expat) not yet in the pinned base before the read-only root is sealed.
+# Apply Alpine security updates before Compose runs this image with a read-only filesystem.
 RUN apk upgrade --no-cache && apk del --no-cache curl libcurl
 USER 101
 COPY nginx-security-headers.conf /etc/nginx/capacitylens-security-headers.conf
