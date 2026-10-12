@@ -99,12 +99,17 @@ let pages = 0;
 for (const file of files.filter((f) => f.endsWith(".html"))) {
   const pageDir = dirname(file);
   let html = readFileSync(file, "utf8");
+  // VitePress scripts go except for small inline enhancements tagged with data-cl-keep. They need
+  // no bundle or network request under file://, and one rewrites the hosted 404 home link for
+  // file:// access. Repeat until stable so a removal cannot splice a new tag from its neighbours.
+  for (let previous; previous !== html;) {
+    previous = html;
+    html = html.replace(/<script\b([^>]*)>[\s\S]*?<\/script\s*>/gi, (tag, attrs) =>
+      attrs.includes("data-cl-keep") ? tag : "",
+    );
+  }
 
   html = html
-    // VitePress scripts go except for small inline enhancements tagged with
-    // data-cl-keep. They need no bundle or network request under file://, and
-    // one rewrites the hosted 404 home link for file:// access.
-    .replace(/<script\b([^>]*)>[\s\S]*?<\/script>/g, (tag, attrs) => (attrs.includes("data-cl-keep") ? tag : ""))
     .replace(/<link rel="modulepreload"[^>]*>/g, "")
     .replace(/<link rel="preload"[^>]*>/g, "")
     // The stylesheet preload combo needs the plain form once scripts are gone.

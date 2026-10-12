@@ -1,7 +1,7 @@
 import { createServer, request as httpRequest } from "node:http";
 import { createReadStream, existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { extname, join, normalize, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parsePort } from "./parsePort.mjs";
 import { ports } from "./ports.mjs";
@@ -88,8 +88,9 @@ export function createRehearsalRequestHandler({
       return;
     }
 
-    const path = normalize((req.url ?? "/").split("?")[0]).replace(/^([.][.][/\\])+/, "");
-    const requested = path === "/" ? join(dist, "index.html") : join(dist, path);
+    const path = normalize((req.url ?? "/").split("?")[0]);
+    const root = resolve(dist);
+    const requested = path === "/" ? join(root, "index.html") : resolve(root, `.${sep}${path}`);
     const respondMissing = (fallbackAllowed) => {
       if (fallbackAllowed) void serve(join(dist, "index.html"), false);
       else {
@@ -127,6 +128,11 @@ export function createRehearsalRequestHandler({
         else respondFault(error);
       });
     };
+    // Request targets are not guaranteed to start with "/", so contain the resolved path before any filesystem call.
+    if (!requested.startsWith(root + sep)) {
+      respondMissing(false);
+      return;
+    }
     void serve(requested, !path.startsWith("/assets/") && !FILE_LIKE_PATH.test(path));
   };
 }
