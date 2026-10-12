@@ -1,0 +1,112 @@
+import env from '#start/env'
+import router from '@adonisjs/core/services/router'
+import { checkDatabase, readState, resetState } from '#services/state_repository'
+import { transformState } from '#transformers/state_transformer'
+import type { Account as AccountRow } from '@capacitylens/shared/types/entities'
+import { fileURLToPath } from 'node:url'
+import { healthChecks } from '#start/health'
+import { reportCspViolation } from '#services/csp_report'
+
+router.get('/api/health', () => ({ ok: true })).as('api.health')
+router.get('/health/live', () => ({ ok: true }))
+router.get('/health/ready', async ({ response }) => {
+  try {
+    const report = await healthChecks.run()
+    if (!report.isHealthy) return response.serviceUnavailable(report)
+    await checkDatabase()
+    return response.ok(report)
+  } catch {
+    return response.serviceUnavailable({ isHealthy: false, status: 'error', checks: [] })
+  }
+})
+router.get('/api/meta', async () => {
+  const state = await readState()
+  return { hasData: state.accounts.length > 0 }
+})
+router.get('/api/diagnostics', async ({ response }) => {
+  try {
+    await checkDatabase()
+    return {
+      server: {
+        connectivity: 'ok',
+        database: { status: 'ok', schemaVersion: 1 },
+        persistence: 'unknown',
+        backup: { status: 'unavailable', lastSuccessAt: null },
+      },
+    }
+  } catch {
+    return response.serviceUnavailable({
+      server: {
+        connectivity: 'ok',
+        database: { status: 'unavailable', schemaVersion: null },
+        persistence: 'unknown',
+        backup: { status: 'unavailable', lastSuccessAt: null },
+      },
+    })
+  }
+})
+router.get('/api/auth/me', ({ auth }) => {
+  const user = auth.use('trustedLocal').getUserOrFail()
+  return {
+    authMode: 'off',
+    user,
+    providers: [],
+    multiAccount: false,
+    canCreateAccount: false,
+  }
+})
+router.get('/api/accounts', async () => {
+  const state = await readState()
+  return state.accounts
+    .map(({ id, name }: AccountRow) => ({ id, name, role: 'owner' }))
+    .sort((left, right) => left.name.localeCompare(right.name))
+})
+router.get('/api/state', async ({ request, response }) => {
+  const accountIds = request.qs().accountId
+  const includeInactive = request.qs().includeInactive
+  if (
+    accountIds !== undefined &&
+    (typeof accountIds !== 'string' || accountIds.trim().length === 0)
+  )
+    return response.badRequest({ error: 'accountId must be a non-empty string.' })
+  if (includeInactive !== undefined && includeInactive !== '1')
+    return response.badRequest({
+      error: 'includeInactive must be the literal value 1 when present.',
+    })
+  const state = await readState(accountIds, accountIds === undefined || includeInactive === '1')
+  return transformState(state, accountIds, 'owner')
+})
+router.post('/api/security/csp-report', ({ request, response, logger }) => {
+  const event = reportCspViolation(request.body())
+  if (event) logger.info(event, 'CSP violation reported')
+  return response.noContent()
+})
+router.post('/api/test/reset', async ({ request, response }) => {
+  if (!env.get('CAPACITYLENS_ALLOW_RESET'))
+    return response.forbidden({ error: 'Reset is disabled.' })
+  const body = request.body() as unknown
+  if (
+    body !== undefined &&
+    (body === null ||
+      typeof body !== 'object' ||
+      Array.isArray(body) ||
+      Object.keys(body).some((key) => key !== 'seed') ||
+      ('seed' in body && typeof body.seed !== 'boolean'))
+  )
+    return response.badRequest({ error: 'Invalid reset request.' })
+  await resetState(body !== undefined && 'seed' in body ? body.seed === true : false)
+  return { ok: true }
+})
+router.get('*', async ({ request, response }) => {
+  const path = request.url().split('?', 1)[0] ?? request.url()
+  if (path.startsWith('/api/')) return response.notFound({ error: 'Not found' })
+  const lastSegment = path.split('/').at(-1) ?? ''
+  if (
+    path.startsWith('/assets/') ||
+    (path !== '/' && path.endsWith('/')) ||
+    lastSegment.includes('.')
+  )
+    return response.notFound('Not found')
+  response.header('Cache-Control', 'no-store')
+  return response.download(fileURLToPath(new URL('../public/index.html', import.meta.url)))
+})

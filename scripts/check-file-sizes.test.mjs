@@ -114,30 +114,35 @@ function fixture(t, entries, exceptions = config, untracked = {}) {
 test("CLI scans all source roots from an unrelated cwd and includes tests while excluding generated files", (t) => {
   const large = "x\n".repeat(401);
   const run = fixture(t, {
-    "src/ok.ts": "x\n",
+    "apps/frontend/src/ok.ts": "x\n",
+    "apps/backend/app/ok.ts": "x\n",
     "server/src/ok.tsx": "x\n",
-    "shared/src/ok.ts": "x\n",
-    "src/a.test.ts": large,
+    "packages/shared/src/ok.ts": "x\n",
+    "apps/frontend/src/a.test.ts": large,
     "server/src/a.spec.tsx": large,
-    "shared/src/a.d.ts": large,
-    "src/paraglide/generated.ts": large,
-    "src/node_modules/pkg/index.ts": large,
-    "src/e2e/example.ts": large,
+    "packages/shared/src/a.d.ts": large,
+    "apps/frontend/src/paraglide/generated.ts": large,
+    "apps/frontend/src/node_modules/pkg/index.ts": large,
+    "apps/frontend/src/e2e/example.ts": large,
+    "apps/backend/.adonisjs/generated.ts": large,
+    "apps/backend/database/schema.ts": large,
     "e2e/example.ts": large,
-    "src/ignored.js": large,
+    "apps/frontend/src/ignored.js": large,
   });
   const result = run();
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /5 source files/);
+  assert.match(result.stdout, /6 source files/);
 });
 
 test("CLI reports oversized test files against the test ceiling", (t) => {
   const result = fixture(
     t,
-    Object.fromEntries(["src/a.test.ts", "server/src/a.spec.tsx"].map((path) => [path, "x\n".repeat(801)])),
+    Object.fromEntries(
+      ["apps/frontend/src/a.test.ts", "server/src/a.spec.tsx"].map((path) => [path, "x\n".repeat(801)]),
+    ),
   )();
   assert.equal(result.status, 1);
-  for (const path of ["src/a.test.ts", "server/src/a.spec.tsx"]) {
+  for (const path of ["apps/frontend/src/a.test.ts", "server/src/a.spec.tsx"]) {
     assert.ok(result.stderr.includes(`${path}: 801 lines exceeds ceiling 800`));
   }
 });
@@ -145,15 +150,25 @@ test("CLI reports oversized test files against the test ceiling", (t) => {
 test("CLI reports every oversized source file and exits 1", (t) => {
   const result = fixture(
     t,
-    Object.fromEntries(["src/a.ts", "server/src/a.tsx", "shared/src/a.ts"].map((path) => [path, "x\n".repeat(401)])),
+    Object.fromEntries(
+      ["apps/frontend/src/a.ts", "apps/backend/app/a.ts", "server/src/a.tsx", "packages/shared/src/a.ts"].map(
+        (path) => [path, "x\n".repeat(401)],
+      ),
+    ),
   )();
   assert.equal(result.status, 1);
-  for (const path of ["src/a.ts", "server/src/a.tsx", "shared/src/a.ts"]) assert.ok(result.stderr.includes(path));
+  for (const path of [
+    "apps/frontend/src/a.ts",
+    "apps/backend/app/a.ts",
+    "server/src/a.tsx",
+    "packages/shared/src/a.ts",
+  ])
+    assert.ok(result.stderr.includes(path));
 });
 
 test("long-function diagnostics follow the verdict without enforcing a cap", (t) => {
   const result = fixture(t, {
-    "src/functions.ts": `export function longFunction() {\n${"  x();\n".repeat(151)}}\nconst arrow = () => {\n${"  x();\n".repeat(151)}};\n`,
+    "apps/frontend/src/functions.ts": `export function longFunction() {\n${"  x();\n".repeat(151)}}\nconst arrow = () => {\n${"  x();\n".repeat(151)}};\n`,
   })();
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /passed.*\n.*diagnostic, not enforced/s);
@@ -162,10 +177,15 @@ test("long-function diagnostics follow the verdict without enforcing a cap", (t)
 });
 
 test("CLI ignores untracked and ignored oversized source files", (t) => {
-  const result = fixture(t, { "src/ok.ts": "x\n", ".gitignore": "src/ignored.ts\n" }, config, {
-    "src/untracked.ts": "x\n".repeat(401),
-    "src/ignored.ts": "x\n".repeat(401),
-  })();
+  const result = fixture(
+    t,
+    { "apps/frontend/src/ok.ts": "x\n", ".gitignore": "apps/frontend/src/ignored.ts\n" },
+    config,
+    {
+      "apps/frontend/src/untracked.ts": "x\n".repeat(401),
+      "apps/frontend/src/ignored.ts": "x\n".repeat(401),
+    },
+  )();
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /1 source files/);
 });

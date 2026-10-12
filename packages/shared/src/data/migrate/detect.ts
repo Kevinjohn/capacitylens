@@ -1,0 +1,95 @@
+import { APP_DATA_KEYS, emptyAppData, EXPORT_SCHEMA_VERSION } from "../../types/entities.js";
+import type { AppData } from "../../types/entities.js";
+
+/** The known portable data tables. APP_DATA_KEYS is the shared structural source of truth. */
+export const KNOWN_KEYS: readonly string[] = APP_DATA_KEYS;
+
+// Legacy table keys that a pre-rename export/blob may carry. `activities` was once `tasks`
+// (the Task→Activity rename, schema v5). The import shape-guards recognise these so a
+// legacy file, even one that only carries the renamed table, is accepted (then migrated),
+// not mistaken for non-CapacityLens JSON and rejected. The migrate path renames them (migrateV4toV5).
+const LEGACY_KEYS: string[] = ["tasks"];
+/** Every table key an incoming blob may legitimately carry, current plus legacy. Exported so the
+ * transfer parser counts/validates exactly the same set the shape guards below recognise. */
+export const RECOGNISED_KEYS: string[] = [...KNOWN_KEYS, ...LEGACY_KEYS];
+
+/** Refuse data written by a newer app instead of normalizing away fields this build cannot know. */
+export class UnsupportedSchemaVersionError extends Error {
+  readonly version: number;
+  constructor(version: number) {
+    super(`Schema version ${version} is newer than this app supports (${EXPORT_SCHEMA_VERSION}).`);
+    this.name = "UnsupportedSchemaVersionError";
+    this.version = version;
+  }
+}
+
+/** A present version marker is an integrity boundary, not a hint that can fall back to legacy. */
+export class InvalidSchemaVersionError extends Error {
+  constructor() {
+    super("Schema version must be a non-negative safe integer.");
+    this.name = "InvalidSchemaVersionError";
+  }
+}
+
+/** The record's `schemaVersion`, or 0 when absent. Throws on a present value that is not a non-negative safe integer. */
+export function parseSchemaVersion(record: Record<string, unknown>): number {
+  if (!Object.hasOwn(record, "schemaVersion")) return 0;
+  const value = record.schemaVersion;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new InvalidSchemaVersionError();
+  }
+  return value;
+}
+
+/** Unwrap the object the import shape-guards inspect: either the bare AppData map, or
+ * the `data` field of a { schemaVersion, data } export. Returns null if not a non-null, non-array object. */
+export function importCandidate(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (!("data" in record)) return record;
+  return record.data && typeof record.data === "object" && !Array.isArray(record.data)
+    ? (record.data as Record<string, unknown>)
+    : null;
+}
+
+/** Reject unrelated JSON before migration can normalize it into an empty dataset and replace existing data. */
+export function looksLikeCapacityLens(value: unknown): boolean {
+  const candidate = importCandidate(value);
+  // Accept legacy keys too (e.g. pre-rename `tasks`) so a valid older export, even one
+  // whose only array is a renamed table, passes the guard and reaches migrate().
+  return !!candidate && RECOGNISED_KEYS.some((key) => Array.isArray(candidate[key]));
+}
+
+/** A known table present but not an array (e.g. `resources: {…}` from a truncated or
+ * hand-edited export) is structural damage. migrate()'s resolveArray() would silently coerce
+ * it to [], and the "imported N" count, computed post-migrate, would report the lost
+ * table as success. So reject it, matching every other load path,
+ * which routes the same blob to recovery. Principle: repair within a record, reject a
+ * structurally broken file. (An absent table is fine, migrate fills it empty.) */
+export function hasNonArrayKnownTable(value: unknown): boolean {
+  const candidate = importCandidate(value);
+  // Legacy keys count too: a pre-rename `tasks: {…}` (object, not array) is the same
+  // structural damage as a current key, reject it rather than coerce it to [] and lose it.
+  return !!candidate && RECOGNISED_KEYS.some((key) => key in candidate && !Array.isArray(candidate[key]));
+}
+
+function resolveArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+/** Fill every missing table with an empty array; returns empty data for a non-object. Pure. */
+export function normalize(data: Partial<AppData> | undefined): AppData {
+  if (!data || typeof data !== "object") return emptyAppData();
+  return {
+    accounts: resolveArray(data.accounts),
+    disciplines: resolveArray(data.disciplines),
+    resources: resolveArray(data.resources),
+    clients: resolveArray(data.clients),
+    projects: resolveArray(data.projects),
+    phases: resolveArray(data.phases),
+    activities: resolveArray(data.activities),
+    allocations: resolveArray(data.allocations),
+    timeOff: resolveArray(data.timeOff),
+    closures: resolveArray(data.closures),
+  };
+}
