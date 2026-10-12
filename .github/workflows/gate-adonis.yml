@@ -1,0 +1,44 @@
+name: AdonisJS fork gate
+
+on:
+  push:
+    branches: [platform/adonisjs]
+  pull_request:
+    branches: [platform/adonisjs]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: AdonisJS fork gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11.4.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.21.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        env:
+          HOST: 127.0.0.1
+          PORT: "0"
+          LOG_LEVEL: error
+          APP_KEY: capacitylens-test-key-0123456789abcdef
+          APP_URL: http://127.0.0.1
+          SESSION_DRIVER: memory
+      - run: pnpm typecheck
+      - run: pnpm --dir apps/backend lint
+      - run: pnpm --dir apps/frontend lint
+      - run: pnpm run lanes --stop-orphans
+      - run: pnpm --dir apps/backend exec node ace.js test
+      - run: pnpm run lanes --stop-orphans
+      - run: pnpm --dir apps/frontend test
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run lanes --stop-orphans
+      - run: pnpm exec playwright test --project=chromium

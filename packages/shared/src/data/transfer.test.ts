@@ -1,0 +1,117 @@
+import { describe, it, expect } from "vitest";
+import { parseData, serializeData, MAX_IMPORT_RECORDS } from "./transfer.js";
+import { seed } from "./seed.js";
+import { EXPORT_SCHEMA_VERSION } from "../types/entities.js";
+
+describe("data transfer", () => {
+  it("round-trips through serialize -> parse (deep equal)", () => {
+    const data = seed();
+    const serialized = serializeData(data);
+    const parsed = JSON.parse(serialized) as { schemaVersion: number };
+    expect(parsed.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
+    expect(parseData(serialized)).toEqual(data);
+  });
+
+  it("round-trips a v23 person avatar URL through export and import", () => {
+    // Pin the complete export history: v23 is the first schema that carries person avatar URLs.
+    const data = seed();
+    const person = data.resources.find(({ kind }) => kind === "person");
+    if (!person) throw new Error("Expected a person in the export fixture");
+    person.avatarUrl = "https://images.example/bruce.png";
+
+    const serialized = serializeData(data);
+    expect(JSON.parse(serialized)).toMatchObject({ schemaVersion: 23 });
+    expect(parseData(serialized).resources.find(({ id }) => id === person.id)?.avatarUrl).toBe(person.avatarUrl);
+  });
+
+  it("rejects JSON that is not CapacityLens-shaped (so import never silently wipes data)", () => {
+    expect(() => parseData("[1,2,3]")).toThrow(/not CapacityLens data/i);
+    expect(() => parseData('{"data":5}')).toThrow(/not CapacityLens data/i);
+    expect(() => parseData("5")).toThrow(/not CapacityLens data/i);
+    expect(() => parseData('{"foo":"bar"}')).toThrow(/not CapacityLens data/i);
+    expect(() => parseData('"hello"')).toThrow(/not CapacityLens data/i);
+    expect(() => parseData('{"resources":"oops"}')).toThrow(/data table is not a list/i);
+  });
+});
+
+describe("data transfer wrapper validation", () => {
+  it.each([
+    ["null", null],
+    ["string", "not a wrapper"],
+    ["array", []],
+  ])("rejects outer records when a present data wrapper is %s", (_label, data) => {
+    expect(() =>
+      parseData(
+        JSON.stringify({
+          clients: [{ id: "outer-client" }],
+          data,
+        }),
+      ),
+    ).toThrow(/not CapacityLens data/i);
+  });
+
+  it("reports a known non-list table as damaged CapacityLens data", () => {
+    expect(() => parseData(JSON.stringify({ schemaVersion: EXPORT_SCHEMA_VERSION, data: { clients: {} } }))).toThrow(
+      /damaged: a data table is not a list/i,
+    );
+  });
+});
+
+describe("data transfer limits and repair", () => {
+  it("rejects ambiguous imported JSON before repair", () => {
+    expect(() => parseData('{"schemaVersion":3,"data":{"clients":[]},"data":{"clients":[]}}')).toThrow();
+    expect(() => parseData(`{"schemaVersion":3,"data":${"[".repeat(65)}0${"]".repeat(65)}}`)).toThrow();
+    expect(() => parseData('{"schemaVersion":3,"data":{"clients":[{"id":9007199254740992}]}}')).toThrow();
+  });
+  it.each([
+    ["string", String(10)],
+    ["null", null],
+    ["fractional", 1.5],
+    ["negative", -1],
+    ["unsafe integer", Number.MAX_SAFE_INTEGER + 1],
+  ])("rejects a present %s schema version before future data can be normalized away", (_label, schemaVersion) => {
+    const json = JSON.stringify({
+      schemaVersion,
+      data: {
+        clients: [{ id: "c1", name: "Recognised row" }],
+        futureRecords: [{ id: "would-be-lost" }],
+      },
+    });
+    expect(() => parseData(json)).toThrow(
+      _label === "unsafe integer" ? /valid JSON/i : /schema version must be a non-negative safe integer/i,
+    );
+  });
+
+  it("refuses a file with an absurd record count (JSON-bomb guard)", () => {
+    const resources = Array.from({ length: MAX_IMPORT_RECORDS + 1 }, (_, i) => ({ id: `r${i}` }));
+    expect(() => parseData(JSON.stringify({ schemaVersion: 3, data: { resources } }))).toThrow(/too many records/i);
+  });
+
+  it("refuses a CapacityLens-shaped file that contains zero records (would silently wipe the account)", () => {
+    expect(() => parseData('{"accounts":[],"clients":[],"projects":[]}')).toThrow(/no CapacityLens records/i);
+    expect(() => parseData(JSON.stringify({ schemaVersion: 3, data: { clients: [] } }))).toThrow(
+      /no CapacityLens records/i,
+    );
+  });
+
+  it.each([
+    ["null", null],
+    ["string", "not a record"],
+    ["number", 42],
+    ["array", []],
+  ])("rejects a %s table element with a stable damaged-file error", (_label, row) => {
+    expect(() => parseData(JSON.stringify({ clients: [row] }))).toThrow(
+      "This file is damaged: the clients table contains an invalid record. Nothing was imported.",
+    );
+  });
+
+  it("import tolerates a bare AppData and fills any missing arrays", () => {
+    const json = JSON.stringify({
+      clients: [{ id: "c1", createdAt: "t", updatedAt: "t", name: "A", color: "#1" }],
+    });
+    const out = parseData(json);
+    expect(out.clients).toHaveLength(1);
+    expect(out.resources).toEqual([]);
+    expect(out.allocations).toEqual([]);
+  });
+});

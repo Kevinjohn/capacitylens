@@ -9,7 +9,7 @@ import { pathToFileURL } from "node:url";
 // Each guarded file must import its ports from scripts/ports.mjs and must not spell one out.
 /** Authored launch/configuration files that must derive their endpoints from the port registry. */
 export const GUARDED_FILES = Object.freeze([
-  "vite.config.ts",
+  "apps/frontend/vite.config.ts",
   "playwright.config.ts",
   "scripts/dev-fullstack.mjs",
   "scripts/serve-dist.mjs",
@@ -17,7 +17,7 @@ export const GUARDED_FILES = Object.freeze([
   "docs-src/.vitepress/config.mts",
   "e2e/authTestSupport.ts",
   "e2e/serverTestState.ts",
-  "server/scripts/e2e-server.mjs",
+  "apps/backend/scripts/e2e-server.mjs",
 ]);
 
 // The lane bases and fixed access-lab ports that scripts/ports.mjs also owns.
@@ -41,7 +41,7 @@ export function evaluatePortUsage(files) {
   const errors = [];
   for (const { path, content } of files) {
     const code = stripComments(content);
-    if (!/from\s+"[^"]*ports\.mjs"/.test(code)) {
+    if (!/from\s+["'][^"']*ports\.mjs["']/.test(code)) {
       errors.push(`${path}: must import its ports from scripts/ports.mjs.`);
     }
     for (const port of GUARDED_PORTS) {
