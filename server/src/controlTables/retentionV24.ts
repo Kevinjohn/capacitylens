@@ -142,16 +142,16 @@ export function ensureControlTables(db: Db): void {
     CREATE INDEX IF NOT EXISTS idx_account_members_accountId ON account_members(accountId);
     CREATE TABLE IF NOT EXISTS invites (
       tokenHash TEXT NOT NULL PRIMARY KEY,
-      -- Use this non-secret handle for list and revoke operations so reads never expose the bearer.
-      id TEXT NOT NULL UNIQUE,
+      id TEXT NOT NULL UNIQUE,      -- NON-SECRET handle (P1.11); list/revoke key on this, never the token
       accountId TEXT NOT NULL,
       role TEXT NOT NULL,
-      preauthEmail TEXT,
+      preauthEmail TEXT,            -- NULLABLE; P1.10 (email-preauth) uses it; P1.9 always writes NULL
       expiresAt TEXT NOT NULL,
-      usedAt TEXT,
+      usedAt TEXT,                  -- NULL = unused; set once on accept (single-use)
       createdAt TEXT NOT NULL
     );
   `);
+  // SQLite stores this DDL text, comments included; changing it splits fresh databases from upgraded ones.
   // The v26 migration owns this additive shape. Repeating its guarded repair here keeps fresh and
   // pre-ledger development databases on the same every-boot control-plane boundary as invites.
   migrateMemberSignInTrackingV26(db);
